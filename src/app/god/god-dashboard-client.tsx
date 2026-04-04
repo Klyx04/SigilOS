@@ -27,7 +27,7 @@ export function GodDashboardClient({
         <div className="flex flex-col flex-1 h-full overflow-hidden bg-black">
             {/* MAIN CONTENT */}
             <main className="flex-1 overflow-y-auto bg-black block">
-                <div className="w-full max-w-[2500px] mx-auto px-6 lg:px-12 pt-10 pb-40 relative">
+                <div className="w-full max-w-[2500px] mx-auto px-4 lg:px-12 pt-10 pb-40 relative">
                     {children}
                 </div>
                 

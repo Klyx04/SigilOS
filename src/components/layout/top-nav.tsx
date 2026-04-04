@@ -136,7 +136,7 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                 </div>
 
                 {/* Event Ticker (Primary visibility) */}
-                <div className="flex-1 max-w-xl flex justify-center">
+                <div className="hidden md:flex flex-1 max-w-xl justify-center">
                     <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
                 </div>
             </div>
@@ -144,8 +144,8 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
             {/* RIGHT: Super Island (Integrated Command Center) */}
             <div className="flex items-center gap-2">
                 <div className="flex items-center h-9 border border-white/5 rounded-xl bg-white/[0.03] backdrop-blur-xl shrink-0 overflow-hidden">
-                    {/* 1. Smart Bar */}
-                    <div className="border-r border-white/5">
+                    {/* 1. Smart Bar (Hidden on Mobile) */}
+                    <div className="hidden sm:block border-r border-white/5">
                         <SmartBar
                             memberCount={sidebarProps.guildData?.memberCount}
                             onlineCount={sidebarProps.guildData?.activeCount}

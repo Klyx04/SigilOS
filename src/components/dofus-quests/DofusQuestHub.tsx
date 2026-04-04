@@ -68,7 +68,7 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
     return (
         <div className="flex flex-col gap-6">
             {/* ── Header summary cards ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <SummaryCard
                     icon={<Crown className="w-4 h-4 text-amber-400" />}
                     label="Dofus obtenus"
@@ -82,7 +82,7 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
                     color="#6366f1"
                 />
                 <SummaryCard
-                    className="hidden sm:flex"
+                    className="hidden lg:flex"
                     icon={<Gem className="w-4 h-4 text-emerald-400" />}
                     label="Complétion globale"
                     value={`${overallPercent}%`}
@@ -91,8 +91,7 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
             </div>
 
             {/* ── Tabs ── */}
-            <div className="flex items-center gap-1 p-1 rounded-xl w-fit"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl w-full sm:w-fit overflow-x-auto no-scrollbar">
                 {tabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -100,11 +99,11 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-black transition-all duration-300 uppercase tracking-widest whitespace-nowrap"
                             style={{
                                 background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
                                 color: isActive ? "white" : "rgba(255,255,255,0.4)",
-                                boxShadow: isActive ? "0 1px 8px rgba(0,0,0,0.3)" : "none",
+                                boxShadow: isActive ? "0 1px 12px rgba(0,0,0,0.5)" : "none",
                             }}
                         >
                             <Icon className="w-3.5 h-3.5" />
@@ -116,54 +115,57 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
 
             {/* ── Mes Dofus tab ── */}
             {activeTab === "mes-dofus" && (
-                <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-6">
                     {/* Filters row */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        {/* Search */}
-                        <div className="relative flex-1 max-w-xs">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
-                            <input
-                                type="text"
-                                placeholder="Rechercher un Dofus..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="w-full pl-8 pr-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors"
-                                aria-label="Rechercher un Dofus"
-                            />
-                        </div>
+                    <div className="flex flex-col gap-5">
+                        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+                            {/* Search */}
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                                <input
+                                    type="text"
+                                    placeholder="Rechercher un Dofus..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 text-sm bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/[0.07] transition-all"
+                                    aria-label="Rechercher un Dofus"
+                                />
+                            </div>
 
-                        {/* Category Filter */}
-                        <div className="flex gap-1.5 flex-wrap">
-                            {categories.map((cat) => (
-                                <button
-                                    key={cat}
-                                    onClick={() => {
-                                        setCategory(cat);
-                                        if (cat !== "Primordiaux") setSubCategory("Tous");
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-                                    style={{
-                                        background: category === cat ? "rgba(99,102,241,0.25)" : "rgba(255,255,255,0.05)",
-                                        color: category === cat ? "#818cf8" : "rgba(255,255,255,0.4)",
-                                        border: `1px solid ${category === cat ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.08)"}`,
-                                    }}
-                                >
-                                    {cat}
-                                </button>
-                            ))}
+                            {/* Category Filter */}
+                            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                                {categories.map((cat) => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => {
+                                            setCategory(cat);
+                                            if (cat !== "Primordiaux") setSubCategory("Tous");
+                                        }}
+                                        className="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300"
+                                        style={{
+                                            background: category === cat ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.04)",
+                                            color: category === cat ? "#a5b4fc" : "rgba(255,255,255,0.4)",
+                                            border: `1px solid ${category === cat ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.06)"}`,
+                                        }}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Status Filter */}
-                        <div className="flex gap-1.5 flex-wrap ml-auto">
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar border-t border-white/5 pt-4">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mr-2 shrink-0">Statut:</span>
                             {statusFilters.map((opt) => (
                                 <button
                                     key={opt}
                                     onClick={() => setStatusFilter(opt)}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+                                    className="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300"
                                     style={{
-                                        background: statusFilter === opt ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.05)",
-                                        color: statusFilter === opt ? "#fbbf24" : "rgba(255,255,255,0.4)",
-                                        border: `1px solid ${statusFilter === opt ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)"}`,
+                                        background: statusFilter === opt ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.04)",
+                                        color: statusFilter === opt ? "#fcd34d" : "rgba(255,255,255,0.4)",
+                                        border: `1px solid ${statusFilter === opt ? "rgba(245,158,11,0.4)" : "rgba(255,255,255,0.06)"}`,
                                     }}
                                 >
                                     {opt}

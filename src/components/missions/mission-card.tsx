@@ -414,42 +414,44 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                 </div>
 
                 {/* ----------------- ACTION BAR (Bottom) ----------------- */}
-                <div className="relative z-20 flex px-5 py-3 bg-[#0d0f11] border-t border-white/5 items-center justify-between">
-                    <Button
-                        size="sm"
-                        className={cn(
-                            "h-9 px-6 text-xs font-black uppercase tracking-widest rounded transition-all flex items-center gap-2 shadow-lg",
-                            isInterested
-                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30"
-                                : "bg-white text-black hover:bg-emerald-400 hover:text-black hover:scale-105 active:scale-95 border-none"
-                        )}
-                        onClick={handleToggleInterest}
-                        disabled={isPending || isRestricted}
-                    >
-                        {isInterested ? (
-                            <>
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Inscrit</span>
-                            </>
-                        ) : isRestricted ? (
-                            <span>Verrouillé</span>
-                        ) : (
-                            <span>S'inscrire</span>
-                        )}
-                    </Button>
+                <div className="relative z-20 flex flex-wrap gap-3 px-4 sm:px-5 py-3 bg-[#0d0f11] border-t border-white/5 items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            className={cn(
+                                "h-9 px-4 sm:px-6 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded transition-all flex items-center gap-2 shadow-lg shrink-0",
+                                isInterested
+                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30"
+                                    : "bg-white text-black hover:bg-emerald-400 hover:text-black hover:scale-105 active:scale-95 border-none"
+                            )}
+                            onClick={handleToggleInterest}
+                            disabled={isPending || isRestricted}
+                        >
+                            {isInterested ? (
+                                <>
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Inscrit</span>
+                                </>
+                            ) : isRestricted ? (
+                                <span>Verrouillé</span>
+                            ) : (
+                                <span>S'inscrire</span>
+                            )}
+                        </Button>
 
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-zinc-900/50 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all ml-2 border-white/10"
-                        onClick={handleShowValidators}
-                        title="Voir les membres ayant validé"
-                    >
-                        <ShieldCheck className="w-3.5 h-3.5 mr-1.5 opacity-80" />
-                        Validés
-                    </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="hidden sm:flex h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-zinc-900/50 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all border-white/10 shrink-0"
+                            onClick={handleShowValidators}
+                            title="Voir les membres ayant validé"
+                        >
+                            <ShieldCheck className="w-3.5 h-3.5 mr-1.5 opacity-80" />
+                            Validés
+                        </Button>
+                    </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 ml-auto">
                         {/* Participant List */}
                         {interestCount > 0 && (
                             <div

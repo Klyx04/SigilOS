@@ -331,7 +331,9 @@ export async function testStatusPing(channelId?: string) {
 
     try {
         const { sendGlobalStatusPing } = await import("./status-actions");
-        return await sendGlobalStatusPing(true, undefined, undefined, channelId);
+        // Force the mode to 'notification' so it bypasses the "Living Status" edit check
+        // This ensures the test ALWAYS pushes a notification that the admin can see at the bottom
+        return await sendGlobalStatusPing(true, 'notification', undefined, channelId);
     } catch (e: any) {
         console.error('[testStatusPing]', e);
         return { success: false, error: e.message || "Erreur interne" };

@@ -18,6 +18,7 @@ import { notifyGod } from "@/server/actions/god-notif-actions";
  *   }'
  */
 export async function POST(req: Request) {
+    console.log(`[API_GOD_NOTIFY] ☁️ Received incoming notification request...`);
     try {
         const authHeader = req.headers.get("authorization");
         const cronSecret = process.env.CRON_SECRET;
@@ -65,6 +66,6 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error("[API_GOD_NOTIFY] Error:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
     }
 }

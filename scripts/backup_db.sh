@@ -22,6 +22,7 @@ load_env() {
         set -a
         source "$env_file"
         set +a
+        export ENV_FILE_LOADED="$env_file"
     fi
 }
 
@@ -48,6 +49,12 @@ fi
 export GOD_NOTIFY_URL="$GOD_NOTIFY_URL/api/god/notify"
 
 DB_CONTAINER="sigilos-db-prod"
+if [[ "$ENV_FILE_LOADED" == *".env.beta"* ]]; then
+    DB_CONTAINER="sigilos-db-beta"
+fi
+
+# Override from env if set
+DB_CONTAINER="${BACKUP_DB_CONTAINER:-$DB_CONTAINER}"
 DB_USER="${POSTGRES_USER:-user}"
 
 DATE=$(date +%Y-%m-%d_%H-%M-%S)
@@ -68,7 +75,10 @@ send_god_notif() {
         return
     fi
 
-    local response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$GOD_NOTIFY_URL" \
+    # Ensure GOD_NOTIFY_URL is reachable (use fallback if domain is not yet resolved or internal only)
+    local target_url="$GOD_NOTIFY_URL"
+    
+    local response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$target_url" \
         -H "Authorization: Bearer $CRON_SECRET" \
         -H "Content-Type: application/json" \
         -d "{
@@ -82,14 +92,14 @@ send_god_notif() {
     if [ "$response" -eq 200 ]; then
         echo "✅ Notification sent!"
     else
-        echo "❌ Notification failed (HTTP $response). Check your .env CRON_SECRET and GOD_NOTIFY_URL ($GOD_NOTIFY_URL)."
+        echo "❌ Notification failed (HTTP $response). Check your CRON_SECRET and URL: $target_url"
     fi
 }
 
 # GPG Passphrase for backup encryption (Must be in .env)
-# If not set, we cannot secure the backup.
 if [ -z "$BACKUP_ENCRYPTION_KEY" ]; then
-    echo "❌ CRITICAL: BACKUP_ENCRYPTION_KEY is missing in .env"
+    echo "❌ CRITICAL: BACKUP_ENCRYPTION_KEY is missing"
+    send_god_notif "[Backup] ÉCHOUÉ" "La clé de chiffrement (BACKUP_ENCRYPTION_KEY) est absente de l'env." "BACKUP" "false" "{ \"error\": \"missing_encryption_key\" }"
     exit 1
 fi
 
@@ -97,36 +107,34 @@ mkdir -p $BACKUP_DIR
 
 # 2. Dump & Compress
 # ------------------
-echo "[$(date)] 📦 Starting Backup..."
+echo "[$(date)] 📦 Starting Backup (Container: $DB_CONTAINER)..."
 docker exec $DB_CONTAINER pg_dumpall -c -U $DB_USER | gzip > "$BACKUP_DIR/$FILENAME_RAW"
 
 if [ $? -ne 0 ]; then
     echo "❌ Dump failed!"
-    send_god_notif "[Backup] ÉCHOUÉ" "Le dump PostgreSQL a échoué." "BACKUP" "false" "{ \"step\": \"dump\", \"filename\": \"$FILENAME_RAW\" }"
+    send_god_notif "[Backup] ÉCHOUÉ" "Le dump PostgreSQL ($DB_CONTAINER) a échoué." "BACKUP" "false" "{ \"step\": \"dump\", \"container\": \"$DB_CONTAINER\" }"
     exit 1
 fi
 
 # 3. Encrypt (AES-256)
 # --------------------
 echo "[$(date)] 🔒 Encrypting..."
-# --batch --yes avoids interactive prompts
 echo "$BACKUP_ENCRYPTION_KEY" | gpg --batch --yes --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "$BACKUP_DIR/$FILENAME_ENC" "$BACKUP_DIR/$FILENAME_RAW"
 
 if [ $? -eq 0 ]; then
     echo "✅ Encryption successful."
-    rm "$BACKUP_DIR/$FILENAME_RAW" # Remove raw file
+    rm "$BACKUP_DIR/$FILENAME_RAW" 
 else
     echo "❌ Encryption failed!"
+    send_god_notif "[Backup] ÉCHOUÉ" "Le chiffrement GPG du backup a échoué." "BACKUP" "false" "{ \"step\": \"encryption\", \"filename\": \"$FILENAME_RAW\" }"
     exit 1
 fi
 
 # 4. Upload to R2 (via AWS CLI)
 # -----------------------------
-# Remap R2 env vars to AWS CLI expected vars
 export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
 export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
 export AWS_DEFAULT_REGION="auto"
-# R2 Endpoint URL (e.g. https://<account_id>.r2.cloudflarestorage.com)
 export AWS_ENDPOINT_URL="$R2_ENDPOINT_URL" 
 
 if [ -n "$R2_BUCKET_NAME" ] && [ -n "$AWS_ENDPOINT_URL" ]; then
@@ -135,13 +143,14 @@ if [ -n "$R2_BUCKET_NAME" ] && [ -n "$AWS_ENDPOINT_URL" ]; then
 
     if [ $? -eq 0 ]; then
         echo "✅ Upload successful!"
-        send_god_notif "[Backup] Réussi" "Sauvegarde chiffrée transférée vers Cloudflare R2." "BACKUP" "true" "{ \"filename\": \"$FILENAME_ENC\", \"status\": \"uploaded\" }"
+        send_god_notif "[Backup] Réussi" "Sauvegarde chiffrée ($DB_CONTAINER) transférée vers R2." "BACKUP" "true" "{ \"filename\": \"$FILENAME_ENC\", \"container\": \"$DB_CONTAINER\" }"
     else
-        echo "❌ Upload failed. Local copy kept."
+        echo "❌ Upload failed!"
         send_god_notif "[Backup] Alerte Upload" "Le dump est fait mais le transfert vers R2 a échoué." "BACKUP" "false" "{ \"filename\": \"$FILENAME_ENC\", \"status\": \"local_only\" }"
     fi
 else
     echo "⚠️ R2 credentials missing. Skipping upload."
+    send_god_notif "[Backup] Partiel (Local)" "Le backup est prêt localement mais les clés R2 sont absentes." "BACKUP" "false" "{ \"error\": \"missing_r2_config\" }"
 fi
 
 # 5. Cleanup Local & Remote (Rotation)

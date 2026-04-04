@@ -2,220 +2,366 @@
   "dofus": "des-glaces",
   "displayName": "Dofus des Glaces",
   "color": "#ADD8E6",
-  "successName": null,
+  "successName": "Oeuf à la neige",
   "recommendedLevel": null,
-  "successDescription": null,
-  "dofusItemId": 7832,
-  "compiledAt": "2026-04-03T08:43:30.361Z",
-  "compilerVersion": "3.0",
+  "description": null,
+  "dofusItemId": 7043,
+  "iconId": 23005,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23005.png",
+  "compiledAt": "2026-04-04T00:43:53.500Z",
   "chains": [
     {
-      "sectionName": "Liste des quêtes",
+      "sectionName": "Bourgade (Frigost 1)",
       "sectionType": "MAIN_CHAIN",
-      "zone": "unknown",
+      "zone": "Bourgade",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
-          "name": "Mauvaise graine",
-          "dofusdbId": 560,
-          "level": 160,
-          "zone": "unknown",
-          "npcName": "Cassiopée Hisane",
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 11144,
-              "name": "Graine Hade",
-              "amount": 40,
-              "img": "https://api.dofusdb.fr/img/items/24834.png"
-            },
-            {
-              "id": 11145,
-              "name": "Graine Haye",
-              "amount": 5,
-              "img": "https://api.dofusdb.fr/img/items/24835.png"
-            }
-          ],
-          "dungeonsRequired": [],
-          "objectives": [
-            "Ramener à Cassiopée Hisane : x40 Graine Hade",
-            "Ramener à Cassiopée Hisane : x5 Graine Haye"
-          ],
-          "stepOrder": 0,
-          "isSynergyCandidate": false,
-          "requirements": []
-        }
-      ]
-    },
-    {
-      "sectionName": "Choix avant de commencer",
-      "sectionType": "MAIN_CHAIN",
-      "zone": "unknown",
-      "description": null,
-      "isSynergyCandidate": false,
-      "chainOrder": 1,
-      "requires": [],
-      "dungeons": [],
-      "entries": [
-        {
-          "name": "Le champ des heros",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Bienvenue à Frigost",
+          "dofusdbId": 649,
+          "level": 120,
+          "zone": "Bourgade",
           "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
-          "objectives": [],
+          "objectives": [
+            "Découvrir Frigost, ses habitants et leurs problèmes",
+            "Aller voir {npc,1237}"
+          ],
           "stepOrder": 0,
+          "isSynergyCandidate": false,
           "requirements": []
         },
         {
-          "name": "Cent vingt trois fleurs, point comme les autres",
-          "dofusdbId": 566,
-          "level": 110,
-          "zone": "unknown",
-          "npcName": "Bisale Vinlenta",
+          "name": "Pêche en eaux gelées",
+          "dofusdbId": 577,
+          "level": 130,
+          "zone": "Bourgade",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
-            "x": -72,
-            "y": -31,
+            "x": -67,
+            "y": -54,
             "worldId": 1
           },
-          "isDungeon": false,
+          "isDungeon": true,
           "itemsRequired": [
             {
-              "id": 11102,
-              "name": "Perce-Neige",
-              "amount": 4,
-              "img": "https://api.dofusdb.fr/img/items/35635.png"
+              "id": 11107,
+              "name": "Bois de Tremble",
+              "amount": 35,
+              "img": "https://api.dofusdb.fr/img/items/38677.png"
             },
             {
-              "id": 11156,
-              "name": "Yucca Lélé",
-              "amount": 40,
-              "img": "https://api.dofusdb.fr/img/items/24841.png"
+              "id": 11117,
+              "name": "Laine de Boufmouth",
+              "amount": 30,
+              "img": "https://api.dofusdb.fr/img/items/57211.png"
             },
             {
-              "id": 11157,
-              "name": "Tulipe Ossucion",
+              "id": 11136,
+              "name": "Laine de Boufmouth légendaire",
+              "amount": 15,
+              "img": "https://api.dofusdb.fr/img/items/57212.png"
+            },
+            {
+              "id": 11221,
+              "name": "Laine du Royalmouth",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/57213.png"
+            },
+            {
+              "id": 11242,
+              "name": "Défense du Sanglacier",
               "amount": 5,
-              "img": "https://api.dofusdb.fr/img/items/24842.png"
+              "img": "https://api.dofusdb.fr/img/items/47665.png"
+            },
+            {
+              "id": 11240,
+              "name": "Dent de Smilomouth",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/47664.png"
             }
           ],
-          "dungeonsRequired": [],
           "objectives": [
-            "Ramener à Bisale Vinlenta : x40 Yucca Lélé",
-            "Ramener à Bisale Vinlenta : x5 Tulipe Ossucion",
-            "Ramener à Bisale Vinlenta : x2 Perce-Neige"
+            "Ramener à {npc,1282} : x35 {item,11107}",
+            "Ramener à {npc,1282} : x30 {item,11117}",
+            "Ramener à {npc,1282} : x15 {item,11136}",
+            "Ramener à {npc,1282} : x1 {item,11221}",
+            "Ramener à {npc,1282} : x5 {item,11242}",
+            "Ramener à {npc,1282} : x5 {item,11240}",
+            "Ramener à {npc,1282} : x50 {item,11260}",
+            "Ramener à {npc,1290} : x1 {item,11261}",
+            "Aller voir {npc,1282}",
+            "Récupérer l'Alliance de Damar sur le Mansot Royal et l'apporter à Valy Domidat"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": false,
-          "requirements": []
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 649
+            }
+          ]
+        },
+        {
+          "name": "Les monologues du vaccin",
+          "dofusdbId": 615,
+          "level": 100,
+          "zone": "Bourgade",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": null,
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Ramener à {npc,1251} : x6 {item,11201}",
+            "Aller voir {npc,1243}",
+            "Aller voir {npc,1260}",
+            "Rendez-vous à la taverne du Paradis frigostien à la tranche horaire prévue",
+            "Ramener à {npc,1243} : x1 {item,11203}",
+            "Ramener à {npc,1251} : x1 {item,11202}",
+            "Ramener à {npc,1251} : x1 {item,11204}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 577
+            }
+          ]
         }
       ]
     },
     {
-      "sectionName": "Légende",
+      "sectionName": "Village Enseveli (Frigost 2)",
       "sectionType": "MAIN_CHAIN",
-      "zone": "unknown",
+      "zone": "Village Enseveli",
       "description": null,
       "isSynergyCandidate": false,
-      "chainOrder": 2,
+      "chainOrder": 1,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
-          "name": "Le nom de la mycose",
-          "dofusdbId": 573,
-          "level": 180,
-          "zone": "unknown",
-          "npcName": "Éric Azaraille",
+          "name": "Le mal a dit",
+          "dofusdbId": 674,
+          "level": 120,
+          "zone": "Village Enseveli",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
+          "coords": {
+            "x": -69,
+            "y": -42,
+            "worldId": 1
+          },
+          "isDungeon": true,
           "itemsRequired": [
             {
-              "id": 11168,
-              "name": "Ortyde",
-              "amount": 40,
-              "img": "https://api.dofusdb.fr/img/items/24853.png"
-            },
-            {
-              "id": 11169,
-              "name": "Mysterbe",
-              "amount": 5,
-              "img": "https://api.dofusdb.fr/img/items/24854.png"
+              "id": 11226,
+              "name": "Huile de Mamansot",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/60072.png"
             }
           ],
-          "dungeonsRequired": [],
           "objectives": [
-            "Ramener à Éric Azaraille : x40 Ortyde",
-            "Ramener à Éric Azaraille : x5 Mysterbe"
+            "Ramener à {npc,1251} : x1 {item,11697}",
+            "Aller voir {npc,1283}",
+            "Se servir dans la cave de Grand-père",
+            "Ramener à {npc,1251} : x1 {item,11698}",
+            "Aller voir {npc,1270}",
+            "Ramener à {npc,1251} : x1 {item,11699}",
+            "Aller voir {npc,1237}",
+            "Ramener à {npc,1251} : x1 {item,11700}",
+            "Aller voir {npc,1239}",
+            "Aller voir {npc,1241}",
+            "Apporter 1 Céréale ou 1 Plante expérimentale à Albert Paisse",
+            "Ramener à {npc,1251} : x1 {item,11226}",
+            "Aller voir {npc,1298}",
+            "Obtenir 1 Ecumouth vivant auprès de Gormor l'Equarrisseur pour préparer du Jus d'Ecumouth pressé et l'apporter à Albert Paisse",
+            "Aller voir {npc,1260}",
+            "Récupérer les Racines Hiques et les apporter à Albert Paisse"
           ],
           "stepOrder": 0,
           "isSynergyCandidate": false,
           "requirements": []
+        },
+        {
+          "name": "Un remède à tous les maux",
+          "dofusdbId": 677,
+          "level": 190,
+          "zone": "Village Enseveli",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -76,
+            "y": -71,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 11891,
+              "name": "Écorce d'Abrazif",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/96668.png"
+            },
+            {
+              "id": 11885,
+              "name": "Lamelle de Dramanite",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/119001.png"
+            },
+            {
+              "id": 11888,
+              "name": "Volve de Fistulor",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/119002.png"
+            },
+            {
+              "id": 11890,
+              "name": "Volve de Fongeur",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/119004.png"
+            },
+            {
+              "id": 11893,
+              "name": "Lamelle de Mérulette",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/119003.png"
+            },
+            {
+              "id": 11895,
+              "name": "Patte de Korriandre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/103580.png"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,1251} : x5 {item,11891}",
+            "Ramener à {npc,1251} : x5 {item,11885}",
+            "Ramener à {npc,1251} : x5 {item,11888}",
+            "Ramener à {npc,1251} : x5 {item,11890}",
+            "Ramener à {npc,1251} : x5 {item,11893}",
+            "Ramener à {npc,1251} : x1 {item,11895}",
+            "Ramener à {npc,1260} : x1 {item,11905}",
+            "Ramener à {npc,1372} : x1 {item,11906}",
+            "Ramener à {npc,1251} : x1 {item,11984}",
+            "Ramener à {npc,1251} : x1 {item,11985}",
+            "Ramener à {npc,1251} : x1 {item,11986}",
+            "Ramener à {npc,1251} : x1 {item,11987}",
+            "Ramener à {npc,1251} : x1 {item,11988}",
+            "Ramener à {npc,1251} : x1 {item,11989}",
+            "Ramener à {npc,1251} : x1 {item,11990}",
+            "Ramener à {npc,1244} : x1 {item,11991}",
+            "Aller voir {npc,1251}",
+            "Aller voir {npc,1245}",
+            "Ramener à {npc,1251} : x1 {item,11992}",
+            "Aller voir {npc,1262}",
+            "Aller voir {npc,1240}",
+            "Aller voir {npc,1270}",
+            "Chercher la créature sur le lac gelé.",
+            "Aller voir {npc,1276}",
+            "Aller voir {npc,1279}",
+            "Aller voir {npc,1286}",
+            "Chercher la créature dans le berceau d'Alma",
+            "Chercher la créature dans les larmes d'Ouronigride",
+            "Aller voir {npc,1358}",
+            "Aller voir {npc,1369}",
+            "Aller voir {npc,1392}",
+            "Découvrir la carte : Chercher la créature dans les crocs de verre.",
+            "Vaincre x1 {monster,2983} en un seul combat"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 674
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Château de Harebourg (Frigost 3)",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Château de Harebourg",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 2,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Le givre des révélations",
+          "dofusdbId": 1327,
+          "level": 200,
+          "zone": "Laboratoire de Nileza - Sortie",
+          "npcName": null,
+          "npcSubArea": "Laboratoire de Nileza - Sortie",
+          "coords": {
+            "x": -59,
+            "y": -82,
+            "worldId": 12
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Entrer dans la Tour de la Clepsydre",
+            "Faire le premier relevé de température",
+            "Faire le second relevé de température",
+            "Retourner voir {npc,2028}",
+            "Aller voir {npc,2025}",
+            "Trouver l'ancien site d'exploitation du Taroudium",
+            "Ramener à {npc,2025} : x1 {item,14147}",
+            "Parler aux 3 Nordes",
+            "Vaincre x1 {monster,3416} en un seul combat",
+            "Montrer à {npc,2047} : 1 {item,14018}",
+            "Remplir la fiole avec le liquide de la Clepsydre",
+            "Aller voir {npc,2047}",
+            "Se prosterner devant Djaul",
+            "Interroger Djaul à propos des origines de l'hiver éternel",
+            "Parler à Djaul et donner votre opinion sur la malédiction",
+            "Se prosterner devant Jiva",
+            "Aller voir {npc,2051}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Un comte de faits divers",
+          "dofusdbId": 1310,
+          "level": 200,
+          "zone": "Donjon du Comte - Grande aiguille",
+          "npcName": null,
+          "npcSubArea": "Donjon du Comte - Grande aiguille",
+          "coords": {
+            "x": -59,
+            "y": -88,
+            "worldId": 12
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Vaincre x1 {monster,3416} en un seul combat",
+            "Découvrir la carte : Donjon du Comte - Grande aiguille"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1327
+            }
+          ]
         }
       ]
     }
-  ],
-  "globalSummary": {
-    "totalQuests": 4,
-    "totalItems": 7,
-    "totalDungeons": 0,
-    "items": [
-      {
-        "id": 11144,
-        "name": "Graine Hade",
-        "totalAmount": 40,
-        "img": "https://api.dofusdb.fr/img/items/24834.png"
-      },
-      {
-        "id": 11156,
-        "name": "Yucca Lélé",
-        "totalAmount": 40,
-        "img": "https://api.dofusdb.fr/img/items/24841.png"
-      },
-      {
-        "id": 11168,
-        "name": "Ortyde",
-        "totalAmount": 40,
-        "img": "https://api.dofusdb.fr/img/items/24853.png"
-      },
-      {
-        "id": 11145,
-        "name": "Graine Haye",
-        "totalAmount": 5,
-        "img": "https://api.dofusdb.fr/img/items/24835.png"
-      },
-      {
-        "id": 11157,
-        "name": "Tulipe Ossucion",
-        "totalAmount": 5,
-        "img": "https://api.dofusdb.fr/img/items/24842.png"
-      },
-      {
-        "id": 11169,
-        "name": "Mysterbe",
-        "totalAmount": 5,
-        "img": "https://api.dofusdb.fr/img/items/24854.png"
-      },
-      {
-        "id": 11102,
-        "name": "Perce-Neige",
-        "totalAmount": 4,
-        "img": "https://api.dofusdb.fr/img/items/35635.png"
-      }
-    ],
-    "dungeons": []
-  }
+  ]
 }

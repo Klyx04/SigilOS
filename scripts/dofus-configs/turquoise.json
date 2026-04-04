@@ -9,17 +9,61 @@
   "successXp": 4874772,
   "successKamas": 35980,
   "globalItemsRequired": [
-    { "id": 14646, "name": "Pépite", "amount": 600 },
-    { "id": 16124, "name": "Os de Sramouraï", "amount": 15 },
-    { "id": 16127, "name": "Plume de Gobvious", "amount": 10 },
-    { "id": 16126, "name": "Peau de Zombill", "amount": 10 },
-    { "id": 16428, "name": "Corne de Berserkoffre", "amount": 10 },
-    { "id": 16431, "name": "Canine de Mergranlou", "amount": 10 },
-    { "id": 7860,  "name": "Aile de Dragodinde", "amount": 10 },
-    { "id": 841,   "name": "Poil de Rat d'Égoutant", "amount": 10 },
-    { "id": 10129, "name": "Tronc de Kokoko", "amount": 10 },
-    { "id": 1458,  "name": "Ailes de Scarafeuille Vert", "amount": 2 },
-    { "id": 1457,  "name": "Ailes de Scarafeuille Rouge", "amount": 2 }
+    {
+      "id": 14646,
+      "name": "Pépite",
+      "amount": 600
+    },
+    {
+      "id": 16124,
+      "name": "Os de Sramouraï",
+      "amount": 15
+    },
+    {
+      "id": 16127,
+      "name": "Plume de Gobvious",
+      "amount": 10
+    },
+    {
+      "id": 16126,
+      "name": "Peau de Zombill",
+      "amount": 10
+    },
+    {
+      "id": 16428,
+      "name": "Corne de Berserkoffre",
+      "amount": 10
+    },
+    {
+      "id": 16431,
+      "name": "Canine de Mergranlou",
+      "amount": 10
+    },
+    {
+      "id": 7860,
+      "name": "Aile de Dragodinde",
+      "amount": 10
+    },
+    {
+      "id": 841,
+      "name": "Poil de Rat d'Égoutant",
+      "amount": 10
+    },
+    {
+      "id": 10129,
+      "name": "Tronc de Kokoko",
+      "amount": 10
+    },
+    {
+      "id": 1458,
+      "name": "Ailes de Scarafeuille Vert",
+      "amount": 2
+    },
+    {
+      "id": 1457,
+      "name": "Ailes de Scarafeuille Rouge",
+      "amount": 2
+    }
   ],
   "successes": [
     {
@@ -28,26 +72,56 @@
       "description": "Quêtes et succès à compléter avant de pouvoir commencer la série principale.",
       "isPrerequisite": true,
       "quests": [
-        { "name": "L'anneau de tous les dangers", "id": 1629 },
-        { "name": "Sous le regard des dieux", "id": 1630 },
-        { "name": "Réponse à tout", "id": 1530 },
-        { "name": "Le village dans les nuages", "id": 1632 },
-        { "name": "Espoirs et tragédies", "id": 1634 },
-        { "name": "Dans la gueule du milimulou", "id": 1635 },
-        { "name": "Destination Astrub", "id": 2004 },
-        { "name": "Les principes d'Archie m'aident", "id": 2007 },
+        {
+          "name": "L'anneau de tous les dangers",
+          "id": 1629
+        },
+        {
+          "name": "Sous le regard des dieux",
+          "id": 1630
+        },
+        {
+          "name": "Réponse à tout",
+          "id": 1530
+        },
+        {
+          "name": "Le village dans les nuages",
+          "id": 1632
+        },
+        {
+          "name": "Espoirs et tragédies",
+          "id": 1634
+        },
+        {
+          "name": "Dans la gueule du milimulou",
+          "id": 1635
+        },
+        {
+          "name": "Destination Astrub",
+          "id": 2004
+        },
+        {
+          "name": "Les principes d'Archie m'aident",
+          "id": 2007
+        },
         "On marche sur des œufs",
         "Conseil de classe",
         "Quête de classe",
         "Ça sent le gaz",
         "Balade en forêt",
         "Le réveil de Pandala",
-        { "name": "Le réceptacle des dofus", "id": 2154 },
+        {
+          "name": "Le réceptacle des dofus",
+          "id": 2154
+        },
         "Intrusion chez les wabbits",
         "Un sage parmi les sages",
         "Protection divine",
         "Un pendule pour guider ses pas",
-        { "name": "Voir le dark Vlad et mourir... ou pas", "id": 1502 },
+        {
+          "name": "Voir le dark Vlad et mourir... ou pas",
+          "id": 1502
+        },
         "La magicienne des marécages"
       ]
     },
@@ -58,18 +132,54 @@
       "isPrerequisite": false,
       "isSynergyCandidate": true,
       "dungeons": [
-        { "name": "Antre du Dragon Cochon", "idoleName": "Idole de Viti Roussie" },
-        { "name": "Clairière du Chêne Mou", "idoleName": null },
-        { "name": "Fabrique de foux d'artifice", "idoleName": "Idole de Viti Roussie" },
-        { "name": "Laboratoire du Tynril", "idoleName": "Idole de Viti Végétale" },
-        { "name": "Excavation du Mansot Royal", "idoleName": "Idole de Viti Glacée" },
-        { "name": "Repaire de Sphincter Cell", "idoleName": "Idole de Thomahon Nauséabonde" },
-        { "name": "Épave du Grolandais violent", "idoleName": "Idole de Thomahon Marine" },
-        { "name": "Canopée du Kimbo", "idoleName": "Idole de Thomahon Arboricole" },
-        { "name": "Hypogée de l'Obsidiantre", "idoleName": "Idole de Thomahon d'Obsidienne" },
-        { "name": "Galerie du Phossile", "idoleName": "Idole de Foluk Dorée" },
-        { "name": "Grotte de Kanigroula", "idoleName": "Idole de Foluk Griffée" },
-        { "name": "Antre du Korriandre", "idoleName": "Idole de Foluk Féérique" }
+        {
+          "name": "Antre du Dragon Cochon",
+          "idoleName": "Idole de Viti Roussie"
+        },
+        {
+          "name": "Clairière du Chêne Mou",
+          "idoleName": null
+        },
+        {
+          "name": "Fabrique de foux d'artifice",
+          "idoleName": "Idole de Viti Roussie"
+        },
+        {
+          "name": "Laboratoire du Tynril",
+          "idoleName": "Idole de Viti Végétale"
+        },
+        {
+          "name": "Excavation du Mansot Royal",
+          "idoleName": "Idole de Viti Glacée"
+        },
+        {
+          "name": "Repaire de Sphincter Cell",
+          "idoleName": "Idole de Thomahon Nauséabonde"
+        },
+        {
+          "name": "Épave du Grolandais violent",
+          "idoleName": "Idole de Thomahon Marine"
+        },
+        {
+          "name": "Canopée du Kimbo",
+          "idoleName": "Idole de Thomahon Arboricole"
+        },
+        {
+          "name": "Hypogée de l'Obsidiantre",
+          "idoleName": "Idole de Thomahon d'Obsidienne"
+        },
+        {
+          "name": "Galerie du Phossile",
+          "idoleName": "Idole de Foluk Dorée"
+        },
+        {
+          "name": "Grotte de Kanigroula",
+          "idoleName": "Idole de Foluk Griffée"
+        },
+        {
+          "name": "Antre du Korriandre",
+          "idoleName": "Idole de Foluk Féérique"
+        }
       ],
       "quests": [
         "Plongeon et dragon",
@@ -79,10 +189,15 @@
         "La bénédiction de Viti",
         "Autel du Nord",
         "La bénédiction de Thomahon",
-        { "name": "Il était une foi dans l'Ouest", "id": 1658 },
+        {
+          "name": "Il était une foi dans l'Ouest",
+          "id": 1658
+        },
         "La bénédiction de Foluk",
         "Une âme en colère"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23003.png",
+  "iconId": 23003
 }

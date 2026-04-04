@@ -4,10 +4,11 @@
   "color": "#00A550",
   "successName": "Vert émeraude",
   "recommendedLevel": 180,
-  "successDescription": "Terminer la série des quêtes du Dofus Émeraude.",
-  "dofusItemId": 7825,
-  "compiledAt": "2026-04-03T08:44:19.922Z",
-  "compilerVersion": "3.0",
+  "description": "Terminer la série des quêtes du Dofus Émeraude.",
+  "dofusItemId": 737,
+  "iconId": 23002,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23002.png",
+  "compiledAt": "2026-04-04T00:50:18.920Z",
   "chains": [
     {
       "sectionName": "Prérequis",
@@ -17,19 +18,16 @@
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
           "name": "Pandavignon",
           "dofusdbId": null,
           "level": null,
           "zone": null,
-          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 0,
           "requirements": []
@@ -39,12 +37,10 @@
           "dofusdbId": null,
           "level": null,
           "zone": null,
-          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 1,
           "requirements": []
@@ -59,14 +55,13 @@
       "isSynergyCandidate": true,
       "chainOrder": 1,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
           "name": "Retourner voir le Dark Vlad, toujours sans mourir",
           "dofusdbId": 1463,
           "level": 45,
           "zone": "Clairière de l'orme",
-          "npcName": "Mériana",
+          "npcName": null,
           "npcSubArea": "Clairière de l'orme",
           "coords": {
             "x": -5,
@@ -76,61 +71,54 @@
           "isDungeon": false,
           "itemsRequired": [
             {
-              "id": 14959,
-              "name": "Lettre du Dark Vlad",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/24065.png"
-            },
-            {
-              "id": 53113,
-              "name": "Item #53113",
+              "name": "Plume du Kwak de Vent",
               "amount": 10,
-              "img": "https://api.dofusdb.fr/img/items/53113.png"
+              "img": "https://api.dofusdb.fr/img/items/53113.png",
+              "id": 53113
             },
             {
-              "id": 58472,
-              "name": "Item #58472",
+              "name": "Graine de la Discorde",
               "amount": 8,
-              "img": "https://api.dofusdb.fr/img/items/58472.png"
+              "img": "https://api.dofusdb.fr/img/items/58472.png",
+              "id": 58472
             },
             {
-              "id": 104213,
-              "name": "Item #104213",
+              "name": "Ailes de Scarafeuille Blanc",
               "amount": 6,
-              "img": "https://api.dofusdb.fr/img/items/104213.png"
+              "img": "https://api.dofusdb.fr/img/items/104213.png",
+              "id": 104213
             },
             {
-              "id": 15382,
-              "name": "Carte de Gein",
+              "name": "Résine",
               "amount": 4,
-              "img": "https://api.dofusdb.fr/img/items/77041.png"
+              "img": "https://api.dofusdb.fr/img/items/15382.png",
+              "id": 15382
             },
             {
-              "id": 51145,
-              "name": "Item #51145",
+              "name": "Pierre d'Émeraude",
               "amount": 2,
-              "img": "https://api.dofusdb.fr/img/items/51145.png"
+              "img": "https://api.dofusdb.fr/img/items/51145.png",
+              "id": 51145
             },
             {
-              "id": 11252,
-              "name": "Patte de Rat Bougri",
+              "name": "Dragodinde Rousse",
               "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/103036.png"
+              "img": "https://api.dofusdb.fr/img/items/11252.png",
+              "id": 11252
             },
             {
-              "id": 11253,
-              "name": "Étoffe de Rat Bougri",
+              "name": "Dragodinde Amande",
               "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/55731.png"
+              "img": "https://api.dofusdb.fr/img/items/11253.png",
+              "id": 11253
             },
             {
-              "id": 11254,
-              "name": "Pince de Crabe Hijacob",
+              "name": "Dragodinde Dorée",
               "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/47668.png"
+              "img": "https://api.dofusdb.fr/img/items/11254.png",
+              "id": 11254
             }
           ],
-          "dungeonsRequired": [],
           "objectives": [
             "Cueillir une fleur des marais",
             "Couper du trèfle putride",
@@ -140,14 +128,14 @@
             "Cueillir des clochettes odorantes",
             "Ramener les ingrédients à Mériana",
             "Goûter la mixture dans le chaudron",
-            "Aller voir Mériana",
+            "Aller voir {npc,2205}",
             "Découvrir la carte : Clairière du Dark Vlad",
-            "Aller voir Hell Mina",
+            "Aller voir {npc,2217}",
             "Vaincre x1 {monster,3599} en un seul combat",
             "Lire la lettre du Dark Vlad",
-            "Montrer à Mériana : 1 Lettre du Dark Vlad",
+            "Montrer à {npc,2205} : 1 {item,14959}",
             "Utiliser la boussole de Mériana puis se rendre à l'endroit indiqué",
-            "Aller voir Bowisse",
+            "Aller voir {npc,57}",
             "Vaincre : Donjon Tanière du Meulou"
           ],
           "stepOrder": 0,
@@ -159,7 +147,7 @@
           "dofusdbId": 1464,
           "level": 50,
           "zone": "Monde de Douze",
-          "npcName": "Bowisse",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": 5,
@@ -167,21 +155,13 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 14960,
-              "name": "Champignon Ligneux",
-              "amount": 10,
-              "img": "https://api.dofusdb.fr/img/items/126009.png"
-            }
-          ],
-          "dungeonsRequired": [],
+          "itemsRequired": [],
           "objectives": [
-            "Ramener à Bowisse : x10 Champignon Ligneux",
+            "Ramener à {npc,57} : x10 {item,14960}",
             "Vaincre x1 {monster,3582} en un seul combat",
             "Fabriquer des Semelles de Vent et les remettre à Bowisse",
             "Utiliser la boussole de Mériana puis se rendre à l'endroit indiqué",
-            "Aller voir Toungousa"
+            "Aller voir {npc,2218}"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": true,
@@ -197,7 +177,7 @@
           "dofusdbId": 1465,
           "level": 50,
           "zone": "Monde de Douze",
-          "npcName": "Toungousa",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": 27,
@@ -206,60 +186,18 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
-          "dungeonsRequired": [
-            {
-              "id": 116,
-              "name": "Épreuve de Draegnerys",
-              "level": null,
-              "bossName": "Draegnerys",
-              "img": "https://api.dofusdb.fr/img/monsters/1915.png",
-              "idoleName": null
-            },
-            {
-              "id": 34,
-              "name": "Maison Fantôme",
-              "level": null,
-              "bossName": "Boostache Prépubère",
-              "img": "https://api.dofusdb.fr/img/monsters/353.png",
-              "idoleName": null
-            },
-            {
-              "id": 27,
-              "name": "Village Kanniboul",
-              "level": null,
-              "bossName": "Kanniboul Tam",
-              "img": "https://api.dofusdb.fr/img/monsters/1322.png",
-              "idoleName": null
-            },
-            {
-              "id": 35,
-              "name": "Laboratoire de Brumen Tinctorias",
-              "level": null,
-              "bossName": "Nelween",
-              "img": "https://api.dofusdb.fr/img/monsters/856.png",
-              "idoleName": null
-            },
-            {
-              "id": 17,
-              "name": "Terrier du Wa Wabbit",
-              "level": null,
-              "bossName": "Tiwobot",
-              "img": "https://api.dofusdb.fr/img/monsters/1018.png",
-              "idoleName": null
-            }
-          ],
           "objectives": [
-            "Rapporter 1 âme de {monster,5823} à Toungousa.",
-            "Rapporter 1 âme de {monster,2975} à Toungousa.",
-            "Rapporter 1 âme de {monster,2960} à Toungousa.",
-            "Rapporter 1 âme de {monster,3100} à Toungousa.",
-            "Rapporter 1 âme de {monster,3460} à Toungousa.",
+            "Rapporter 1 âme de {monster,5823} à {npc,2218}.",
+            "Rapporter 1 âme de {monster,2975} à {npc,2218}.",
+            "Rapporter 1 âme de {monster,2960} à {npc,2218}.",
+            "Rapporter 1 âme de {monster,3100} à {npc,2218}.",
+            "Rapporter 1 âme de {monster,3460} à {npc,2218}.",
             "Assister Toungousa pendant le rituel",
             "Vaincre x1 {monster,3583} en un seul combat",
-            "Aller voir Esprit de Tonam Etamwa",
+            "Aller voir {npc,2219}",
             "Utiliser la boussole de Mériana puis se rendre à l'endroit indiqué",
             "Examiner les tombes",
-            "Aller voir Sellia Renuf"
+            "Aller voir {npc,2220}"
           ],
           "stepOrder": 2,
           "isSynergyCandidate": true,
@@ -275,7 +213,7 @@
           "dofusdbId": 1466,
           "level": 90,
           "zone": "Boutique de Kerubim",
-          "npcName": "Kerubim Crépin",
+          "npcName": null,
           "npcSubArea": "Boutique de Kerubim",
           "coords": {
             "x": 3,
@@ -284,23 +222,21 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir Kerubim Crépin",
+            "Aller voir {npc,1901}",
             "Trouver Maître Nabur",
             "En savoir plus sur le village dévasté",
             "Apprendre ce qui est arrivé à Nabura",
-            "Retourner voir Maître Nabur",
+            "Retourner voir {npc,2224}",
             "Vaincre x1 {monster,3584} en un seul combat",
-            "Aller voir Maître Nabur",
+            "Aller voir {npc,2224}",
             "Emmenez Nabur au château d'Amakna",
-            "Aller voir Georges de Segrob",
+            "Aller voir {npc,1512}",
             "Consulter les archives du château",
             "Découvrir la carte : Caveau des Nabur",
-            "Aller voir Una",
-            "Aller voir Maître Nabur",
+            "Aller voir {npc,2225}",
             "Utiliser la boussole de Mériana puis se rendre à l'endroit indiqué",
-            "Aller voir Capitaine Starky"
+            "Aller voir {npc,6453}"
           ],
           "stepOrder": 3,
           "isSynergyCandidate": true,
@@ -316,7 +252,7 @@
           "dofusdbId": 1467,
           "level": 100,
           "zone": "Monde de Douze",
-          "npcName": "Capitaine Starky",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": -32,
@@ -328,48 +264,41 @@
             {
               "id": 33063,
               "name": "Dragodinde Rousse",
-              "amount": 2,
+              "amount": 1,
               "img": "https://api.dofusdb.fr/img/items/97010.png"
             },
             {
               "id": 33001,
               "name": "Dragodinde Amande",
-              "amount": 2,
+              "amount": 1,
               "img": "https://api.dofusdb.fr/img/items/97020.png"
             },
             {
               "id": 33011,
               "name": "Dragodinde Dorée",
-              "amount": 2,
-              "img": "https://api.dofusdb.fr/img/items/97018.png"
-            },
-            {
-              "id": 14990,
-              "name": "Document Compromettant",
               "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/24026.png"
+              "img": "https://api.dofusdb.fr/img/items/97018.png"
             }
           ],
-          "dungeonsRequired": [],
           "objectives": [
             "Localiser les responsables de la profanation",
             "Battre Profana Tryss et Nikono Klaste",
-            "Montrer à Capitaine Starky : 1 Document Compromettant",
-            "Aller voir Hogias",
-            "Aller voir Édémaga",
+            "Montrer à {npc,6453} : 1 {item,14990}",
+            "Aller voir {npc,2228}",
+            "Aller voir {npc,2229}",
             "Apprendre à Édémaga comment apprivoiser une monture",
             "Apprendre à Édémaga comment accoupler deux montures",
             "Apprendre à Édémaga comment aider une monture à mettre bas",
-            "Ramener à Édémaga : x1 Dragodinde Rousse",
-            "Ramener à Édémaga : x1 Dragodinde Amande",
-            "Ramener à Édémaga : x1 Dragodinde Dorée",
-            "Retourner voir Hogias",
+            "Ramener à {npc,2229} : x1 {item,33063}",
+            "Ramener à {npc,2229} : x1 {item,33001}",
+            "Ramener à {npc,2229} : x1 {item,33011}",
+            "Retourner voir {npc,2228}",
             "Examiner l'arche de l'ancien quartier des éleveurs",
             "Utiliser la boussole de Mériana puis se rendre à l'endroit indiqué",
-            "Aller voir Nistracolamus",
+            "Aller voir {npc,4321}",
             "Trouver le Dark Vlad",
             "Utiliser la boussole de Mériana",
-            "Retourner voir Mériana"
+            "Retourner voir {npc,2205}"
           ],
           "stepOrder": 4,
           "isSynergyCandidate": true,
@@ -385,7 +314,7 @@
           "dofusdbId": 1469,
           "level": 100,
           "zone": "Monde de Douze",
-          "npcName": "Mériana",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": -6,
@@ -393,32 +322,12 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 14993,
-              "name": "Écaille de Courage",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/126006.png"
-            },
-            {
-              "id": 14994,
-              "name": "Écaille de Férocité",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/126007.png"
-            },
-            {
-              "id": 14995,
-              "name": "Écaille d'Endurance",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/126005.png"
-            }
-          ],
-          "dungeonsRequired": [],
+          "itemsRequired": [],
           "objectives": [
-            "Montrer à Mériana : 1 Écaille de Courage",
-            "Montrer à Mériana : 1 Écaille de Férocité",
-            "Montrer à Mériana : 1 Écaille d'Endurance",
-            "Aller voir Mériana"
+            "Montrer à {npc,2205} : 1 {item,14993}",
+            "Montrer à {npc,2205} : 1 {item,14994}",
+            "Montrer à {npc,2205} : 1 {item,14995}",
+            "Aller voir {npc,2205}"
           ],
           "stepOrder": 5,
           "isSynergyCandidate": true,
@@ -434,7 +343,7 @@
           "dofusdbId": 1470,
           "level": 100,
           "zone": "Monde de Douze",
-          "npcName": "Mériana",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": -6,
@@ -442,41 +351,12 @@
             "worldId": 1
           },
           "isDungeon": true,
-          "itemsRequired": [
-            {
-              "id": 15000,
-              "name": "Pendentif en Obsidienne",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/126015.png"
-            },
-            {
-              "id": 15002,
-              "name": "Fleur des Tourmentés",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/35018.png"
-            },
-            {
-              "id": 15001,
-              "name": "Bague Enchantée du Meulou",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/9182.png"
-            }
-          ],
-          "dungeonsRequired": [
-            {
-              "id": 15,
-              "name": "Tanière du Meulou",
-              "level": null,
-              "bossName": "Mergranlou",
-              "img": "https://api.dofusdb.fr/img/monsters/1594.png",
-              "idoleName": null
-            }
-          ],
+          "itemsRequired": [],
           "objectives": [
-            "Ramener à Mériana : x1 Pendentif en Obsidienne",
-            "Ramener à Mériana : x1 Fleur des Tourmentés",
-            "Ramener à Mériana : x1 Bague Enchantée du Meulou",
-            "Aller voir Mériana"
+            "Ramener à {npc,2205} : x1 {item,15000}",
+            "Ramener à {npc,2205} : x1 {item,15002}",
+            "Ramener à {npc,2205} : x1 {item,15001}",
+            "Aller voir {npc,2205}"
           ],
           "stepOrder": 6,
           "isSynergyCandidate": true,
@@ -492,7 +372,7 @@
           "dofusdbId": 1471,
           "level": 120,
           "zone": "Salle de l'Orbalantyr",
-          "npcName": "Milicien Kerubim Nybi",
+          "npcName": null,
           "npcSubArea": "Salle de l'Orbalantyr",
           "coords": {
             "x": 0,
@@ -500,35 +380,27 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 15005,
-              "name": "Clef de la Salle de l'Orbalantyr",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/24790.png"
-            }
-          ],
-          "dungeonsRequired": [],
+          "itemsRequired": [],
           "objectives": [
             "Se renseigner à propos des rumeurs qui courent sur Incarnam",
             "Interroger le chef de la milice d'Incarnam",
-            "Aller voir Milicien Kerubim Nybi",
+            "Aller voir {npc,862}",
             "Vaincre x1 {monster,3600} en un seul combat",
             "Découvrir la carte : Stèles des Trois crânes",
             "Vaincre les Trois Crânes",
-            "Aller voir Malo Crâne",
-            "Retourner voir Capitaine des Kerubims",
+            "Aller voir {npc,2231}",
+            "Retourner voir {npc,2880}",
             "Découvrir la carte : Salle de l'Orbalantyr",
             "Activer l'Orbalantyr",
             "Parler à Mériana en utilisant l'Orbalantyr",
-            "Ramener à Capitaine des Kerubims : x1 Clef de la Salle de l'Orbalantyr",
+            "Ramener à {npc,2880} : x1 {item,15005}",
             "Parler à la mystérieuse inconnue",
             "Découvrir la carte : Aire de l'Envol",
             "Suivre Strig jusqu'à la Queue du Dragon",
             "Découvrir la carte : Pointe de la Queue du Dragon",
             "Vaincre x1 {monster,3578} en un seul combat",
-            "Aller voir Goultard",
-            "Aller voir Mériana",
+            "Aller voir {npc,5336}",
+            "Aller voir {npc,2205}",
             "Prendre le Dofus Émeraude"
           ],
           "stepOrder": 7,
@@ -542,188 +414,5 @@
         }
       ]
     }
-  ],
-  "globalSummary": {
-    "totalQuests": 10,
-    "totalItems": 21,
-    "totalDungeons": 6,
-    "items": [
-      {
-        "id": 53113,
-        "name": "Item #53113",
-        "totalAmount": 10,
-        "img": "https://api.dofusdb.fr/img/items/53113.png"
-      },
-      {
-        "id": 14960,
-        "name": "Champignon Ligneux",
-        "totalAmount": 10,
-        "img": "https://api.dofusdb.fr/img/items/126009.png"
-      },
-      {
-        "id": 58472,
-        "name": "Item #58472",
-        "totalAmount": 8,
-        "img": "https://api.dofusdb.fr/img/items/58472.png"
-      },
-      {
-        "id": 104213,
-        "name": "Item #104213",
-        "totalAmount": 6,
-        "img": "https://api.dofusdb.fr/img/items/104213.png"
-      },
-      {
-        "id": 15382,
-        "name": "Carte de Gein",
-        "totalAmount": 4,
-        "img": "https://api.dofusdb.fr/img/items/77041.png"
-      },
-      {
-        "id": 51145,
-        "name": "Item #51145",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/51145.png"
-      },
-      {
-        "id": 33063,
-        "name": "Dragodinde Rousse",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/97010.png"
-      },
-      {
-        "id": 33001,
-        "name": "Dragodinde Amande",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/97020.png"
-      },
-      {
-        "id": 33011,
-        "name": "Dragodinde Dorée",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/97018.png"
-      },
-      {
-        "id": 14959,
-        "name": "Lettre du Dark Vlad",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/24065.png"
-      },
-      {
-        "id": 11252,
-        "name": "Patte de Rat Bougri",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/103036.png"
-      },
-      {
-        "id": 11253,
-        "name": "Étoffe de Rat Bougri",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/55731.png"
-      },
-      {
-        "id": 11254,
-        "name": "Pince de Crabe Hijacob",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/47668.png"
-      },
-      {
-        "id": 14990,
-        "name": "Document Compromettant",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/24026.png"
-      },
-      {
-        "id": 14993,
-        "name": "Écaille de Courage",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/126006.png"
-      },
-      {
-        "id": 14994,
-        "name": "Écaille de Férocité",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/126007.png"
-      },
-      {
-        "id": 14995,
-        "name": "Écaille d'Endurance",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/126005.png"
-      },
-      {
-        "id": 15000,
-        "name": "Pendentif en Obsidienne",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/126015.png"
-      },
-      {
-        "id": 15002,
-        "name": "Fleur des Tourmentés",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/35018.png"
-      },
-      {
-        "id": 15001,
-        "name": "Bague Enchantée du Meulou",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/9182.png"
-      },
-      {
-        "id": 15005,
-        "name": "Clef de la Salle de l'Orbalantyr",
-        "totalAmount": 1,
-        "img": "https://api.dofusdb.fr/img/items/24790.png"
-      }
-    ],
-    "dungeons": [
-      {
-        "id": 116,
-        "name": "Épreuve de Draegnerys",
-        "level": null,
-        "bossName": "Draegnerys",
-        "img": "https://api.dofusdb.fr/img/monsters/1915.png",
-        "idoleName": null
-      },
-      {
-        "id": 34,
-        "name": "Maison Fantôme",
-        "level": null,
-        "bossName": "Boostache Prépubère",
-        "img": "https://api.dofusdb.fr/img/monsters/353.png",
-        "idoleName": null
-      },
-      {
-        "id": 27,
-        "name": "Village Kanniboul",
-        "level": null,
-        "bossName": "Kanniboul Tam",
-        "img": "https://api.dofusdb.fr/img/monsters/1322.png",
-        "idoleName": null
-      },
-      {
-        "id": 35,
-        "name": "Laboratoire de Brumen Tinctorias",
-        "level": null,
-        "bossName": "Nelween",
-        "img": "https://api.dofusdb.fr/img/monsters/856.png",
-        "idoleName": null
-      },
-      {
-        "id": 17,
-        "name": "Terrier du Wa Wabbit",
-        "level": null,
-        "bossName": "Tiwobot",
-        "img": "https://api.dofusdb.fr/img/monsters/1018.png",
-        "idoleName": null
-      },
-      {
-        "id": 15,
-        "name": "Tanière du Meulou",
-        "level": null,
-        "bossName": "Mergranlou",
-        "img": "https://api.dofusdb.fr/img/monsters/1594.png",
-        "idoleName": null
-      }
-    ]
-  }
+  ]
 }

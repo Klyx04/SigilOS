@@ -18,9 +18,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MemberOnQuest } from "@/server/actions/dofus-quest-actions";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { NpcName, ParsedObjective, copyWithToast, detectRealDungeons, extractObjectiveText } from "./dofus-resolvers";
+import { NpcName, ParsedObjective, copyWithToast, detectRealDungeons, extractObjectiveText, ItemInline } from "./dofus-resolvers";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Package, Target, Navigation, Users } from "lucide-react";
+import { Package, Target, Navigation, Users, Sword } from "lucide-react";
 
 
 
@@ -204,6 +204,12 @@ export function DofusSuccessGrid({
                                     const lock = isLocked(entry);
                                     const expanded = selectedQuestId === entry.id;
 
+                                    // V3 structured dungeons & Fallback text-parsed dungeons
+                                    const structuredDungeons: any[] = entry.dungeonsRequired ?? [];
+                                    const dungeonInfos = detectRealDungeons(Array.isArray(entry.objectives) ? entry.objectives : []);
+                                    const hasDungeons = structuredDungeons.length > 0 || dungeonInfos.length > 0;
+                                    const itemsReq = Array.isArray(entry.itemsRequired) ? entry.itemsRequired : [];
+
                                     return (
                                         <div key={entry.id} className="space-y-4">
                                             <div
@@ -225,8 +231,10 @@ export function DofusSuccessGrid({
                                                         <div className={`text-[17px] font-black italic uppercase tracking-tighter truncate ${done ? "line-through text-zinc-600" : "text-white"}`}>
                                                             {entry.name}
                                                         </div>
-                                                        <div className="flex items-center gap-3 mt-1.5">
+                                                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                                             {entry.level && <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest bg-white/5 px-2.5 py-1 rounded-xl">Lvl {entry.level}</span>}
+                                                            {hasDungeons && <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-xl flex items-center gap-1"><Sword className="w-3 h-3" /> Donjon</span>}
+                                                            {itemsReq.length > 0 && <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl flex items-center gap-1"><Package className="w-3 h-3" /> x{itemsReq.length}</span>}
                                                             {lock && !done && <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">Quête verrouillée</span>}
                                                         </div>
                                                     </div>
@@ -295,6 +303,74 @@ export function DofusSuccessGrid({
                                                                                     </div>
                                                                                 );
                                                                             })}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* V3 Structured Dungeons & Detected Dungeons */}
+                                                                {hasDungeons && (
+                                                                    <div className="space-y-3">
+                                                                        {structuredDungeons.map((d, dx) => (
+                                                                            <div key={`sd-${dx}`} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-[1.5rem] flex items-center gap-4">
+                                                                                <div className="w-14 h-14 rounded-xl bg-black/60 border border-rose-500/20 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                                                                                    {d.img ? (
+                                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                                        <img src={d.img} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                                                    ) : d.id ? (
+                                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                                        <img src={`https://api.dofusdb.fr/img/monsters/${d.id}.png`} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                                                    ) : <span className="text-rose-400">🏰</span>}
+                                                                                </div>
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <div className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon requis</div>
+                                                                                    <div className="text-[15px] font-black text-white italic truncate">{d.name}</div>
+                                                                                    <div className="flex items-center gap-2 mt-1 block">
+                                                                                        {d.level && d.level > 0 && <span className="text-[9px] text-zinc-500 font-bold uppercase">Lvl {d.level}</span>}
+                                                                                        {d.bossName && <span className="text-[9px] text-zinc-600 italic">— {d.bossName}</span>}
+                                                                                        {d.idoleName && <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded">{d.idoleName}</span>}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                        {structuredDungeons.length === 0 && dungeonInfos.map((di, dx) => (
+                                                                            <div key={`di-${dx}`} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-[1.5rem] flex items-center gap-4">
+                                                                                {di.mapImg && (
+                                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                                    <img src={di.mapImg} alt={di.dungeonName} className="w-14 h-14 object-cover rounded-xl border border-rose-500/30" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                                                )}
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <div className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon</div>
+                                                                                    <div className="text-[15px] font-black text-white italic">{di.dungeonName}</div>
+                                                                                </div>
+                                                                                {di.x !== undefined && (
+                                                                                    <Link href={`/dashboard/${guildId}/worldmap?x=${di.x}&y=${di.y}&zoom=4&world=${di.worldId ?? 0}`} className="h-10 w-10 rounded-xl bg-rose-500 text-black flex items-center justify-center hover:scale-110 transition-transform flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                                                        <MapPin className="w-5 h-5" />
+                                                                                    </Link>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Required Items Resource Block */}
+                                                                {itemsReq.length > 0 && (
+                                                                    <div className="p-5 bg-amber-500/5 border border-amber-500/20 rounded-3xl">
+                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                            <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
+                                                                                <Package className="w-4 h-4" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <div className="text-[10px] font-black text-amber-400/70 uppercase tracking-widest">A prévoir pour cette quête</div>
+                                                                                <div className="text-sm font-bold text-amber-400 italic">Ressources requises</div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap gap-2">
+                                                                            {itemsReq.map((req: any, index: number) => (
+                                                                                <div key={index} className="flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-[1rem] border border-amber-500/20">
+                                                                                    <span className="text-[12px] font-black text-amber-500">x{req.amount || 1}</span>
+                                                                                    <ItemInline itemId={req.id || String(req.id)} />
+                                                                                </div>
+                                                                            ))}
                                                                         </div>
                                                                     </div>
                                                                 )}

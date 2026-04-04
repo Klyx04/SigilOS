@@ -2,7 +2,7 @@
   "slug": "dom-de-pin",
   "displayName": "Dom de Pin",
   "color": "#006400",
-  "dofusItemId": 7844,
+  "dofusItemId": 27803,
   "successes": [
     {
       "name": "Prérequis des prérequis (... ouais, je sais)",
@@ -53,5 +53,7 @@
         "L'île maudite"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23035.png",
+  "iconId": 23035
 }

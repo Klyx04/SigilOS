@@ -2,7 +2,7 @@
   "slug": "vulbis",
   "displayName": "Dofus Vulbis",
   "color": "#9B59B6",
-  "dofusItemId": 7849,
+  "dofusItemId": 6980,
   "successName": "N/A",
   "recommendedLevel": 200,
   "successDescription": "Terminer la série des quêtes du Dofus Vulbis.",
@@ -33,5 +33,7 @@
         "Le temps des secrets"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23004.png",
+  "iconId": 23004
 }

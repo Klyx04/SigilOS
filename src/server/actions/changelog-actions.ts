@@ -325,13 +325,13 @@ export async function updatePlatformConfig(data: {
     }
 }
 
-export async function testStatusPing() {
+export async function testStatusPing(channelId?: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
     try {
         const { sendGlobalStatusPing } = await import("./status-actions");
-        return await sendGlobalStatusPing(true);
+        return await sendGlobalStatusPing(true, undefined, undefined, channelId);
     } catch (e: any) {
         console.error('[testStatusPing]', e);
         return { success: false, error: e.message || "Erreur interne" };

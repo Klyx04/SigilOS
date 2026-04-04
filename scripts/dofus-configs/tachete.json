@@ -2,7 +2,7 @@
   "slug": "tachete",
   "displayName": "Dofus Tacheté",
   "color": "#8B4513",
-  "dofusItemId": 7829,
+  "dofusItemId": 7112,
   "successName": "Un rêve en clair-obscur",
   "recommendedLevel": 200,
   "successDescription": "Terminer la série des quêtes du Dofus Tacheté. Nécessite de posséder un Domakuro ET un Dorigami.",
@@ -46,5 +46,6 @@
         "En ce jardin qui nous unit"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23008.png"
 }

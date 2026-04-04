@@ -1,0 +1,95 @@
+{
+  "dofus": "cauchemar",
+  "displayName": "Dofus Cauchemar",
+  "color": "#4B0082",
+  "successName": null,
+  "recommendedLevel": null,
+  "description": null,
+  "dofusItemId": 26066,
+  "iconId": 23034,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23034.png",
+  "compiledAt": "2026-04-04T00:48:43.640Z",
+  "chains": [
+    {
+      "sectionName": "Prérequis - Eliocalypse : Resilience",
+      "sectionType": "PREREQUISITE",
+      "zone": "unknown",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Main dans la main",
+          "dofusdbId": 2200,
+          "level": 200,
+          "zone": "Salle des prières",
+          "npcName": null,
+          "npcSubArea": "Salle des prières",
+          "coords": {
+            "x": 22,
+            "y": -31,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23179,
+              "name": "Pandazahi",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 7055,
+              "name": "Pandneken",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/79179.png"
+            },
+            {
+              "id": 1977,
+              "name": "Épices",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15378.png"
+            },
+            {
+              "id": 23482,
+              "name": "Alcool à 99%",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/174001.png"
+            }
+          ],
+          "objectives": [
+            "Aller voir {npc,5570}",
+            "Découvrir la carte : Intérieur de la Taverne interdite",
+            "Aller voir le Grandapan pour dialoguer avec la déesse Pandawa par son intermédiaire",
+            "Aller voir {npc,5955}",
+            "Convaincre les prêtres de Pandawa d'administrer de la limonade de Grobe au Grandapan",
+            "Aller voir {npc,5796}",
+            "Obtenir la recette de la bière forte auprès d'un prêtre de Pandawa",
+            "Découvrir la carte : Brasserie",
+            "Vaincre x1 {monster,6515} en un seul combat",
+            "Essayer de fabriquer de la bière forte dans la brasserie",
+            "Chercher des indices pour localiser Sumowa",
+            "Suivre la tortue sur les traces de Sumowa",
+            "Continuer à suivre la tortue sur les traces de Sumowa",
+            "Aller voir {npc,5957}",
+            "Débusquer la tierce personne et la forcer à se dévoiler",
+            "Découvrir ce que cache l'individu suspect",
+            "Vaincre x1 {monster,6516} en un seul combat",
+            "Réparer la machine de la brasserie",
+            "Fabriquer 1 {item,23733} et fermer l'interface",
+            "Ramener à {npc,5796} : x1 {item,23733}",
+            "S'entretenir avec la déesse Pandawa par l'intermédiaire du Grandapan",
+            "Trouver les deux souffles du Wukin et du Wukang pour amener Pandawa à se manifester",
+            "Aller voir {npc,5962}",
+            "Écouter l'argumentaire de Keltra Ekazumi",
+            "Convaincre Pandawa de vous confier sa Main"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    }
+  ]
+}

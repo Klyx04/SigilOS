@@ -2,7 +2,7 @@
   "slug": "ocre",
   "displayName": "Dofus Ocre",
   "color": "#CC7722",
-  "dofusItemId": 7828,
+  "dofusItemId": 7754,
   "successName": "L'éternelle moisson",
   "recommendedLevel": 180,
   "successDescription": "Terminer la quête L'éternelle moisson.",
@@ -14,8 +14,13 @@
       "isPrerequisite": false,
       "isSynergyCandidate": true,
       "quests": [
-        { "name": "L'éternelle moisson", "id": 439 }
+        {
+          "name": "L'éternelle moisson",
+          "id": 439
+        }
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23012.png",
+  "iconId": 23012
 }

@@ -2,7 +2,7 @@
   "slug": "nebuleux",
   "displayName": "Dofus Nébuleux",
   "color": "#483D8B",
-  "dofusItemId": 7830,
+  "dofusItemId": 8698,
   "successes": [
     {
       "name": "Prérequis",
@@ -23,5 +23,6 @@
         "Crise d'identite"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23016.png"
 }

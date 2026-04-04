@@ -2,7 +2,7 @@
   "slug": "emeraude",
   "displayName": "Dofus Émeraude",
   "color": "#00A550",
-  "dofusItemId": 7825,
+  "dofusItemId": 737,
   "successName": "Vert émeraude",
   "recommendedLevel": 180,
   "successDescription": "Terminer la série des quêtes du Dofus Émeraude.",
@@ -79,5 +79,7 @@
         "Donjon Tanière du Meulou"
       ]
     }
-  ]
+  ],
+  "imageUrl": "https://api.dofusdb.fr/img/items/23002.png",
+  "iconId": 23002
 }

@@ -120,7 +120,7 @@ export type WarRoomData = {
 /**
  * Récupère la liste de tous les Dofus avec la progression du joueur courant
  */
-export async function getDofusListWithProgress(guildId: string): Promise<{
+export async function getDofusListWithProgress(guildId: string, characterName: string = "PRINCIPAL"): Promise<{
     success: boolean;
     error?: string;
     data?: DofusItemWithProgress[];
@@ -131,7 +131,7 @@ export async function getDofusListWithProgress(guildId: string): Promise<{
 
     try {
         // Fetch all Dofus items ordered by display order
-        const items = await (db as any).dofusItem.findMany({
+        const items = await db.dofusItem.findMany({
             orderBy: { displayOrder: "asc" },
             include: {
                 questChains: {
@@ -144,7 +144,7 @@ export async function getDofusListWithProgress(guildId: string): Promise<{
                 },
                 playerProgress: ctx.profileId
                     ? {
-                          where: { profileId: ctx.profileId },
+                          where: { profileId: ctx.profileId, characterName },
                           take: 1,
                       }
                     : false,
@@ -154,10 +154,11 @@ export async function getDofusListWithProgress(guildId: string): Promise<{
         // Fetch quest progress for current user
         const questProgressMap: Map<string, DofusQuestStatus> = new Map();
         if (ctx.profileId) {
-            const questProgress = await (db as any).playerDofusQuestProgress.findMany({
+            const questProgress = await db.playerDofusQuestProgress.findMany({
                 where: {
                     profileId: ctx.profileId,
                     guildId,
+                    characterName,
                 },
                 select: { questId: true, status: true },
             });
@@ -220,7 +221,8 @@ export async function getDofusListWithProgress(guildId: string): Promise<{
  */
 export async function getDofusDetailWithChains(
     guildId: string,
-    dofusSlug: string
+    dofusSlug: string,
+    characterName: string = "PRINCIPAL"
 ): Promise<{
     success: boolean;
     error?: string;
@@ -247,7 +249,7 @@ export async function getDofusDetailWithChains(
                 },
                 playerProgress: ctx.profileId
                     ? {
-                          where: { profileId: ctx.profileId },
+                          where: { profileId: ctx.profileId, characterName },
                           take: 1,
                       }
                     : false,
@@ -267,6 +269,7 @@ export async function getDofusDetailWithChains(
                     where: {
                         profileId: ctx.profileId,
                         questId: { in: allEntryIds },
+                        characterName,
                     },
                     select: { questId: true, status: true, completedAt: true },
                 });
@@ -687,7 +690,8 @@ export async function getGuildSynergyForDofus(
 export async function toggleQuestStatus(
     guildId: string,
     questEntryId: string,
-    newStatus: DofusQuestStatus
+    newStatus: DofusQuestStatus,
+    characterName: string = "PRINCIPAL"
 ): Promise<{ success: boolean; error?: string }> {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
@@ -704,9 +708,10 @@ export async function toggleQuestStatus(
     try {
         await (db as any).playerDofusQuestProgress.upsert({
             where: {
-                profileId_questId: {
+                profileId_questId_characterName: {
                     profileId: ctx.profileId,
                     questId: questEntryId,
+                    characterName,
                 },
             },
             update: {
@@ -717,6 +722,7 @@ export async function toggleQuestStatus(
                 profileId: ctx.profileId,
                 guildId: guildConfig.id,
                 questId: questEntryId,
+                characterName,
                 status: newStatus,
                 completedAt: newStatus === "COMPLETED" ? new Date() : null,
             },
@@ -738,7 +744,7 @@ export async function toggleQuestStatus(
                 });
                 const entryIds = allEntries.map((e: any) => e.id);
                 const doneEntries = await (db as any).playerDofusQuestProgress.findMany({
-                    where: { profileId: ctx.profileId, questId: { in: entryIds }, status: "COMPLETED" },
+                    where: { profileId: ctx.profileId, questId: { in: entryIds }, status: "COMPLETED", characterName },
                     select: { questId: true },
                 });
                 const doneIds = new Set(doneEntries.map((e: any) => e.questId));
@@ -748,9 +754,9 @@ export async function toggleQuestStatus(
                     .reduce((s: number, e: any) => s + (e.weight ?? 1), 0);
                 const completionPercent = totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0;
                 await (db as any).playerDofusProgress.upsert({
-                    where: { profileId_dofusId: { profileId: ctx.profileId, dofusId } },
+                    where: { profileId_dofusId_characterName: { profileId: ctx.profileId, dofusId, characterName } },
                     update: { completionPercent },
-                    create: { profileId: ctx.profileId, guildId: guildConfig.id, dofusId, completionPercent },
+                    create: { profileId: ctx.profileId, guildId: guildConfig.id, dofusId, completionPercent, characterName },
                 });
             }
         } catch (e) {
@@ -772,7 +778,8 @@ export async function toggleQuestStatus(
 export async function toggleDofusObtained(
     guildId: string,
     dofusId: string,
-    obtained: boolean
+    obtained: boolean,
+    characterName: string = "PRINCIPAL"
 ): Promise<{ success: boolean; error?: string }> {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
@@ -788,9 +795,10 @@ export async function toggleDofusObtained(
     try {
         await (db as any).playerDofusProgress.upsert({
             where: {
-                profileId_dofusId: {
+                profileId_dofusId_characterName: {
                     profileId: ctx.profileId,
                     dofusId,
+                    characterName,
                 },
             },
             update: {
@@ -801,6 +809,7 @@ export async function toggleDofusObtained(
                 profileId: ctx.profileId,
                 guildId: guildConfig.id,
                 dofusId,
+                characterName,
                 isObtained: obtained,
                 obtainedAt: obtained ? new Date() : null,
             },

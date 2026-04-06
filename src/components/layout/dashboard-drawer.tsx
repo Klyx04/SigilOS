@@ -27,9 +27,10 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface DashboardDrawerProps {
     children: React.ReactNode;
+    clientId?: string;
 }
 
-export function DashboardDrawer({ children }: DashboardDrawerProps) {
+export function DashboardDrawer({ children, clientId = "1458259008355045519" }: DashboardDrawerProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [guilds, setGuilds] = useState<{ active: any[], pending: any[] }>({ active: [], pending: [] });
@@ -51,6 +52,18 @@ export function DashboardDrawer({ children }: DashboardDrawerProps) {
             loadGuilds();
         }
     }, [open]);
+
+    // Auto-refresh when bot is successfully invited from the drawer link
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data === "sigilos-bot-invited" && event.origin === window.location.origin) {
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener("message", handleMessage);
+        return () => window.removeEventListener("message", handleMessage);
+    }, []);
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
@@ -166,7 +179,7 @@ export function DashboardDrawer({ children }: DashboardDrawerProps) {
                                                     <p className="text-[9px] font-bold text-amber-500/60 uppercase tracking-widest mt-0.5">Admin Discord Détecté</p>
                                                 </div>
                                                 <Link 
-                                                    href={`https://discord.com/api/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}`}
+                                                    href={`https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(window.location.origin + '/onboarding/success')}&response_type=code`}
                                                     target="_blank"
                                                     className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 hover:bg-amber-500 hover:text-white transition-all shadow-inner"
                                                 >

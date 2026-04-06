@@ -1,7 +1,6 @@
-"use strict";
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,7 +30,12 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
                 toast.error("Configuration Discord manquante (Client ID)");
                 return;
             }
-            const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot`;
+
+            // Using window.location.origin ensures we redirect back to the correct environment (localhost/beta/prod)
+            const redirectUri = encodeURIComponent(`${window.location.origin}/onboarding/success`);
+            const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot&redirect_uri=${redirectUri}&response_type=code`;
+            
+            // Open in a new tab to keep the context, but we list for completion
             window.open(inviteUrl, "_blank");
             return;
         }
@@ -53,6 +57,18 @@ export function GuildSetupCard({ guild, clientId }: { guild: GuildProps, clientI
             setLoading(false);
         }
     };
+
+    // Auto-refresh when bot is authorized in the other tab
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data === "sigilos-bot-invited" && event.origin === window.location.origin) {
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener("message", handleMessage);
+        return () => window.removeEventListener("message", handleMessage);
+    }, []);
 
     return (
         <Card className="bg-black/20 border-white/5 border-dashed hover:border-white/20 transition-all cursor-default">

@@ -152,12 +152,33 @@ export const KNOWN_DUNGEON_BOSSES: Record<string, { name: string; mapImg: string
     "2960": { name: "Donjon des Larves",        mapImg: "https://api.dofusdb.fr/img/monsters/2960.png",x: -3,  y: -24,  worldId: 0 },
     "5823": { name: "Bibliothèque du Maître Corbac", mapImg: "https://api.dofusdb.fr/img/monsters/5823.png", x: -9, y: 2, worldId: 0 },
     "3460": { name: "Repaire du Draigoch",      mapImg: "https://api.dofusdb.fr/img/monsters/3460.png",x: -12, y: 15,   worldId: 0 },
+    "8052": { name: "Poste de contrôle du Supervizœuf",          mapImg: "https://api.dofusdb.fr/img/monsters/2507.png", x: 24,  y: 23,   worldId: 34 },
+    "8047": { name: "Breuil du Vénérable",       mapImg: "https://api.dofusdb.fr/img/monsters/2488.png", x: 6,   y: 9,    worldId: 34 },
+    "8033": { name: "Autel de la Déchireuse",    mapImg: "https://api.dofusdb.fr/img/monsters/2514.png", x: 12,  y: 2,    worldId: 34 },
+    "8069": { name: "Temple de Gargandyas",       mapImg: "https://api.dofusdb.fr/img/monsters/2517.png", x: 2,   y: 16,   worldId: 34 },
+    
+    // Frigost Bosses
+    "2854": { name: "Royalmouth",               mapImg: "https://api.dofusdb.fr/img/monsters/775.png",  x: -84, y: -49, worldId: 1 },
+    "2848": { name: "Mansot Royal",             mapImg: "https://api.dofusdb.fr/img/monsters/769.png",  x: -64, y: -55, worldId: 1 },
+    "2877": { name: "Ben le Ripate",           mapImg: "https://api.dofusdb.fr/img/monsters/794.png",  x: -60, y: -84, worldId: 1 },
+    "2924": { name: "Obsidiantre",              mapImg: "https://api.dofusdb.fr/img/monsters/825.png",  x: -71, y: -83, worldId: 1 },
+    "2967": { name: "Tengu Givrefoux",          mapImg: "https://api.dofusdb.fr/img/monsters/840.png",  x: -80, y: -75, worldId: 1 },
+    "2977": { name: "Korriandre",               mapImg: "https://api.dofusdb.fr/img/monsters/850.png",  x: -73, y: -69, worldId: 1 },
+    "3065": { name: "Kolosso",                  mapImg: "https://api.dofusdb.fr/img/monsters/860.png",  x: -61, y: -69, worldId: 1 },
+    "2864": { name: "Glourséleste",             mapImg: "https://api.dofusdb.fr/img/monsters/785.png",  x: -63, y: -75, worldId: 1 },
+    "3121": { name: "Nileza",                   mapImg: "https://api.dofusdb.fr/img/monsters/875.png",  x: -61, y: -75, worldId: 1 },
+    "3126": { name: "Sylargh",                  mapImg: "https://api.dofusdb.fr/img/monsters/880.png",  x: -54, y: -82, worldId: 1 },
+    "3154": { name: "Klime",                    mapImg: "https://api.dofusdb.fr/img/monsters/890.png",  x: -65, y: -86, worldId: 1 },
+    "3156": { name: "Missiz Frizz",             mapImg: "https://api.dofusdb.fr/img/monsters/895.png",  x: -72, y: -84, worldId: 1 },
+    "3159": { name: "Comte Harebourg",          mapImg: "https://api.dofusdb.fr/img/monsters/905.png",  x: -68, y: -76, worldId: 1 },
+    "2942": { name: "Grolloum",                 mapImg: "https://api.dofusdb.fr/img/monsters/834.png",  x: -62, y: -76, worldId: 1 },
 };
 
 // Known items that exclusively drop from dungeon bosses and imply a dungeon completion
 // Maps Item ID to Boss Monster ID
 export const KNOWN_DUNGEON_ITEMS: Record<string, string> = {
     "15001": "57", // Bague Enchantée du Meulou -> Meulou
+    "32075": "8033", // Pelage de la Déchireuse -> Autel de la Déchireuse
 };
 
 // ─── Clipboard with toast ─────────────────────────────────────────────────────
@@ -302,6 +323,20 @@ export function detectRealDungeons(objectives: any[]): {
                 }
             }
         }
+
+        // 1.7 Special Case: Gargandyas (Titan)
+        if (lower.includes("vaincre") && lower.includes("gargandyas")) {
+            const known = KNOWN_DUNGEON_BOSSES["8069"];
+            foundDungeons.push({
+                isDungeon: true,
+                dungeonName: known.name,
+                bossId: "8069",
+                mapImg: known.mapImg,
+                x: known.x,
+                y: known.y,
+                worldId: known.worldId,
+            });
+        }
         
         // 2. Check for explicit dungeon keywords or injected 'Vaincre : ' patterns
         if (
@@ -310,20 +345,36 @@ export function detectRealDungeons(objectives: any[]): {
                 lower.includes("entrer") || 
                 lower.includes("accéder") ||
                 lower.includes("vaincre") || 
-                lower.includes("terminer")
-            )) || text.startsWith("Vaincre : ")
+                lower.includes("terminer") ||
+                lower.includes("braver")
+            )) || text.startsWith("Vaincre : ") || lower.includes("braver les dangers du") || lower.includes("braver les dangers de")
         ) {
-            // Extract donjon name if it follows the pattern "Vaincre : Donjon de XXX" or just "Vaincre : XXX"
+            // Extract donjon name
             let dName = "Donjon inconnu";
-            const nameMatch = text.match(/Donjon (?:de |des |du )?([^,.{}]+)/i);
+            const nameMatch = text.match(/Donjon (?:de |des |du |de la )?([^,.{}]+)/i) || 
+                             text.match(/braver les dangers (?:du |de |des |de la )?([^,.{}]+)/i);
+            
             if (nameMatch) {
                 dName = nameMatch[1].trim();
             } else if (text.startsWith("Vaincre : ")) {
                 dName = text.replace("Vaincre : ", "").trim();
             }
             
+            // Special correction for known Frigost names in text
+            if (lower.includes("royalmouth")) dName = "Royalmouth";
+            if (lower.includes("mansot royal")) dName = "Mansot Royal";
+            if (lower.includes("ben le ripate")) dName = "Ben le Ripate";
+            if (lower.includes("obsidiantre")) dName = "Obsidiantre";
+            if (lower.includes("tengu")) dName = "Tengu Givrefoux";
+            if (lower.includes("korriandre")) dName = "Korriandre";
+            if (lower.includes("kolosso")) dName = "Kolosso";
+            if (lower.includes("glourséleste")) dName = "Glourséleste";
+            
             // Try to find by name in known bosses if ID was missing
-            const knownByName = Object.values(KNOWN_DUNGEON_BOSSES).find(kb => kb.name.toLowerCase() === dName.toLowerCase());
+            const knownByName = Object.values(KNOWN_DUNGEON_BOSSES).find(kb => 
+                kb.name.toLowerCase().includes(dName.toLowerCase()) || 
+                dName.toLowerCase().includes(kb.name.toLowerCase())
+            );
             if (knownByName) {
                 foundDungeons.push({
                     isDungeon: true,

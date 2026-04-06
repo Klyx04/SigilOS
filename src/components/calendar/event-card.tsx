@@ -105,8 +105,10 @@ export function EventCard({
         ? metamobParticipants
         : (event.participants?.filter((a: any) => a.status === "REGISTERED") || []);
 
-    // Override attendee count for Kralamoure events
-    const displayAttendeeCount = isKralamoure ? attendeesGoing.length : (event.participants?.length || 0);
+    // Override attendee count for Kralamoure events using metadata count if available
+    const displayAttendeeCount = isKralamoure 
+        ? (eventMetadata?.metamobParticipantsCount || attendeesGoing.length) 
+        : (event.participants?.length || 0);
 
     // View: List (Horizontal Row)
     if (variant === "list") {

@@ -297,12 +297,13 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                     {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <BonusMenuButton guildId={guildId} />
+                <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+                    <div className="flex-1 sm:flex-none"><BonusMenuButton guildId={guildId} /></div>
                     <Button
                         type="button"
                         variant="destructive"
                         size="sm"
+                        className="flex-1 sm:flex-none h-9"
                         onClick={handleResetWeek}
                         disabled={isResetting || isLoading}
                     >
@@ -313,11 +314,11 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                         )}
                         Reset Semaine
                     </Button>
-                    <div className="w-px h-8 bg-zinc-800 mx-1 hidden sm:block"></div>
+                    <div className="w-full sm:w-px h-px sm:h-8 bg-zinc-800 mx-1 block"></div>
 
                     <Button
                         variant="outline"
-                        className="border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-all font-black uppercase tracking-widest text-[10px] h-9"
+                        className="border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-all font-black uppercase tracking-widest text-[10px] h-9 flex-1 sm:flex-none"
                         disabled={isLoading}
                         onClick={() => setIsDiscordDialogOpen(true)}
                     >
@@ -325,8 +326,8 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                         Annonce Discord
                     </Button>
 
-                    <div className="relative group">
-                        <Button onClick={() => setConfirmPublishOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-9 text-[10px] uppercase tracking-widest" size="sm">
+                    <div className="relative group flex-1 sm:flex-none">
+                        <Button onClick={() => setConfirmPublishOpen(true)} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-9 text-[10px] uppercase tracking-widest" size="sm">
                             <Save className="w-3.5 h-3.5 mr-2" />
                             Tout Publier
                         </Button>
@@ -339,8 +340,8 @@ export function MissionEditor({ guildId }: { guildId: string }) {
             </div>
 
             {/* Pool Toggle — Dofus 3.5 Classiques / Spéciales */}
-            <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 p-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-full shadow-lg">
+            <div className="flex items-center gap-3 flex-wrap w-full">
+                <div className="flex items-center gap-1 p-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl sm:rounded-full shadow-lg flex-wrap sm:flex-nowrap w-full sm:w-auto">
                     {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
                         const isActive = missionPool === pool;
                         const count = pool === 'CLASSIQUES' ? missions.slice(0, 12).filter(m => m.title).length : missions.slice(12, 18).filter(m => m.title).length;
@@ -350,7 +351,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                                 key={pool}
                                 onClick={() => setMissionPool(pool)}
                                 className={cn(
-                                    "relative flex items-center gap-2 px-5 py-2 text-xs font-black rounded-full transition-all duration-300 uppercase tracking-widest",
+                                    "flex-1 sm:flex-none relative flex items-center justify-center gap-1.5 sm:gap-2 px-2 py-2 sm:px-5 text-[10px] sm:text-xs font-black rounded-full transition-all duration-300 uppercase tracking-widest min-w-0",
                                     isActive
                                         ? pool === 'CLASSIQUES'
                                             ? "bg-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]"

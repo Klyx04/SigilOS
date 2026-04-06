@@ -406,6 +406,35 @@ export async function deleteGhostUser(userId: string) {
 }
 
 /**
+ * Get Unauthorized Bot Connections
+ * Identifies guilds where the bot is present but which are NOT in the whitelist.
+ */
+export async function getUnauthorizedBotConnections() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return [];
+
+    try {
+        const { fetchBotGuilds } = await import("@/server/discord");
+        const [botGuilds, allowedGuilds] = await Promise.all([
+            fetchBotGuilds(),
+            db.allowedGuild.findMany({ select: { discordGuildId: true } })
+        ]);
+
+        const allowedIds = new Set(allowedGuilds.map(g => g.discordGuildId));
+        const unauthorized = botGuilds.filter(g => !allowedIds.has(g.id));
+
+        return unauthorized.map(g => ({
+            id: g.id,
+            name: g.name,
+            icon: g.icon
+        }));
+    } catch (err) {
+        console.error("[SuperAdmin] Failed to fetch unauthorized guilds:", err);
+        return [];
+    }
+}
+
+/**
  * Get Platform Activity (Pulse) Stats for Charts
  * Combines new registrations and total audit log activity
  */

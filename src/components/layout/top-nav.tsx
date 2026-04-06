@@ -16,7 +16,8 @@ import {
     CircleHelp,
     Rocket,
     Shield,
-    Search as SearchIcon
+    Search as SearchIcon,
+    MessageSquare
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -146,7 +147,8 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                 </div>
 
                 {/* Event Ticker (Primary visibility) */}
-                <div className="hidden md:flex flex-1 max-w-xl justify-center">
+                <div className="hidden md:flex flex-1 max-w-xl justify-center items-center gap-4">
+                    <LiveStreamBadge guildId={sidebarProps.guildId} />
                     <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
                 </div>
             </div>
@@ -218,6 +220,16 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                         </div>
                     )}
                 </div>
+
+                {/* Guild Chat Trigger */}
+                <button 
+                    onClick={() => window.dispatchEvent(new CustomEvent("sigilos:open-chat"))}
+                    className="h-9 w-9 flex items-center justify-center text-zinc-500 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-xl transition-all group relative mr-1"
+                    title="Chat de Guilde"
+                >
+                    <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full animate-pulse border-2 border-[#060606]" />
+                </button>
 
                 {/* 4. User Profile (Standalone Dropdown) */}
                 <div className="flex items-center ml-2">

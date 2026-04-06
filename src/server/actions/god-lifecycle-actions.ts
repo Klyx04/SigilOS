@@ -50,7 +50,6 @@ export async function softDeleteGuild(
             }
         });
 
-        // Also soft delete all profiles
         await db.userProfile.updateMany({
             where: { guildId },
             data: {
@@ -59,6 +58,16 @@ export async function softDeleteGuild(
                 archiveReason: 'GUILD_DELETED',
                 scheduledDeletion
             }
+        });
+
+        // NOTIFY GOD (Platform Alert)
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: reason === 'BOT_REMOVED' ? "🤖 BOT EXPULSÉ" : "🏰 GUILDE DÉSAVOUÉE",
+            message: `La guilde "${guildId}" (ID: ${guildId}) a été marquée pour suppression (Raison: ${reason}).`,
+            type: 'SYSTEM',
+            success: false,
+            ping: reason === 'BOT_REMOVED' // Pinger si le bot est viré (urgent)
         });
 
         // revalidatePath handles UI update

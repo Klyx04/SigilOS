@@ -59,13 +59,15 @@ export default async function SuperAdminPage(props: {
     console.log(`[GodDashboard] Rendering tab: ${tab}`);
 
     // Fetch data for LifecyclePanel
-    const [softDeletedGuilds, softDeletedProfiles, archivedProfiles, platformBans, activeGuilds, ghostUsers] = await Promise.all([
+    const { getGhostUsers, getUnauthorizedBotConnections } = await import("@/server/actions/super-admin-actions");
+    const [softDeletedGuilds, softDeletedProfiles, archivedProfiles, platformBans, activeGuilds, ghostUsers, unauthorizedConnections] = await Promise.all([
         getSoftDeletedGuilds(),
         getSoftDeletedProfiles(),
         getArchivedProfiles(),
         getPlatformBans(),
         getActiveGuilds(),
-        (await import("@/server/actions/super-admin-actions")).getGhostUsers()
+        getGhostUsers(),
+        getUnauthorizedBotConnections()
     ]);
     
     const resolvedData = {
@@ -74,7 +76,8 @@ export default async function SuperAdminPage(props: {
         archivedProfiles,
         platformBans,
         activeGuilds,
-        ghostUsers
+        ghostUsers,
+        unauthorizedConnections
     };
 
     return (
@@ -155,6 +158,7 @@ export default async function SuperAdminPage(props: {
                                 bans={resolvedData.platformBans as any}
                                 activeGuilds={resolvedData.activeGuilds as any}
                                 ghostUsers={resolvedData.ghostUsers as any}
+                                unauthorizedConnections={resolvedData.unauthorizedConnections as any}
                             />
                         </div>
                     )}

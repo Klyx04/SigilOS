@@ -81,7 +81,7 @@ interface RelanceClientProps {
 
 export function RelanceClient({ guildId, channels, roles, initialHistory }: RelanceClientProps) {
     const [activeTab, setActiveTab] = useState("new");
-    const [criteria, setCriteria] = useState<"MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE">("MISSING_MISSIONS");
+    const [criteria, setCriteria] = useState<"MISSING_MISSIONS" | "INACTIVE" | "LADDER_INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE">("MISSING_MISSIONS");
     const [inactiveDays, setInactiveDays] = useState(7);
     const [loading, setLoading] = useState(false);
     const [candidates, setCandidates] = useState<any[]>([]);
@@ -99,12 +99,13 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
     const templates = {
         MISSING_MISSIONS: "Bonjour ! Il semble que tu n'aies pas encore validé de missions cette semaine. N'oublie pas de participer pour aider la guilde ! 🚀",
         INACTIVE: "Hello ! On ne t'a pas vu sur le dashboard depuis un petit moment. Passe faire un tour pour voir les nouveautés et les missions en cours ! 😉",
+        LADDER_INACTIVE: "Hello ! On a remarqué que tu n'as pas gagné d'expérience en jeu (Ladder bloqué) depuis un moment. Fais-nous signe si tu fais une pause Dofus ! ⚔️",
         DOFUS_INACTIVE: "Hello ! Petite relance pour le point absence/activité en jeu : peux-tu mettre à jour ton statut sur le dashboard SigilOS ? Ça nous aide énormément pour l'organisation des raids et sorties ! Merci d'avance ⚔️",
         DISCORD_INACTIVE: "Hey ! On a remarqué que tu étais très discret sur Discord ces derniers temps (vocal et écrit). Hésite pas à passer nous faire un coucou, on aime bien savoir que tout va bien ! 👋",
         GLOBAL_INACTIVE: "Attention ! Tu sembles totalement inactif sur tous nos supports (Dofus, Discord et Dashboard). Merci de nous tenir au courant de ton état de jeu pour éviter un archivage automatique. 🚩"
     };
 
-    const handleCriteriaChange = (v: "MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE") => {
+    const handleCriteriaChange = (v: "MISSING_MISSIONS" | "INACTIVE" | "LADDER_INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE") => {
         setCriteria(v);
         setMessage(templates[v]);
         setCandidates([]);
@@ -230,6 +231,12 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                                         icon: <HistoryIcon className="w-4 h-4 text-orange-400" /> 
                                     },
                                     { 
+                                        id: "LADDER_INACTIVE", 
+                                        label: "Inactivité IG (Ladder)", 
+                                        desc: `Pas vu en jeu depuis ${inactiveDays} jours.`,
+                                        icon: <Target className="w-4 h-4 text-yellow-400" /> 
+                                    },
+                                    { 
                                         id: "DISCORD_INACTIVE", 
                                         label: "Silence Discord", 
                                         desc: "Aucune trace écrite ou vocale cette semaine.",
@@ -279,7 +286,7 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                                 ))}
                             </div>
 
-                            {criteria === "INACTIVE" && (
+                            {(criteria === "INACTIVE" || criteria === "LADDER_INACTIVE") && (
                                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Jours d'inactivité</Label>
                                     <Input 
@@ -609,6 +616,8 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                                                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">
                                                         {criteria === "MISSING_MISSIONS" 
                                                             ? "0 mission validée" 
+                                                            : criteria === "LADDER_INACTIVE"
+                                                                ? "Aucune XP récente"
                                                             : criteria === "DOFUS_INACTIVE"
                                                                 ? "Cible Manuelle"
                                                                 : `Site: ${formatDistanceToNow(new Date(user.lastSeen), { locale: fr, addSuffix: true })}`
@@ -713,6 +722,7 @@ function RelanceHistory({ history }: { history: any[] }) {
                                     <Target className="w-3 h-3" /> {
                                         item.criteria === "MISSING_MISSIONS" ? "Missions" : 
                                         item.criteria === "DOFUS_INACTIVE" ? "Absences" : 
+                                        item.criteria === "LADDER_INACTIVE" ? "Inactivité IG" : 
                                         item.criteria === "DISCORD_INACTIVE" ? "Discord" :
                                         item.criteria === "GLOBAL_INACTIVE" ? "Globale" : "Dashboard"
                                     }

@@ -60,6 +60,13 @@ export function OnboardingBanner({
     const progress = (completedSteps / steps.length) * 100;
     const isFinished = completedSteps === steps.length;
 
+    // Automatic dismissal if everything is done — don't show the banner anymore
+    useEffect(() => {
+        if (mounted && isFinished) {
+            handleDismiss();
+        }
+    }, [isFinished, mounted]);
+
     const iconMap = {
         shield: Shield,
         "scroll-text": ScrollText,

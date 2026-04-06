@@ -15,9 +15,10 @@ interface DofusQuestHubProps {
     guildStats: { stats: GuildDofusStats[]; topMembers: MemberDofusSummary[]; totalMembers: number } | null;
     warRoomData: WarRoomData | null;
     guildId: string;
+    selectedCharacter?: string;
 }
 
-export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: DofusQuestHubProps) {
+export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId, selectedCharacter = "PRINCIPAL" }: DofusQuestHubProps) {
     const [activeTab, setActiveTab] = useState<Tab>("mes-dofus");
     const [search, setSearch] = useState("");
     const [category, setCategory] = useState<FilterCategory>("Tous");
@@ -211,7 +212,12 @@ export function DofusQuestHub({ dofusList, guildStats, warRoomData, guildId }: D
                     ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                             {filtered.map((dofus) => (
-                                <DofusGemCard key={dofus.id} dofus={dofus} guildId={guildId} />
+                                <DofusGemCard 
+                                    key={dofus.id} 
+                                    dofus={dofus} 
+                                    guildId={guildId} 
+                                    selectedCharacter={selectedCharacter}
+                                />
                             ))}
                         </div>
                     )}

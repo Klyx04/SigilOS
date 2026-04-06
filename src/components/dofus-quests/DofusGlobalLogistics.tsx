@@ -68,7 +68,7 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                     const key = d.name || `Dungeon-${d.id}`;
                     if (!dungeons.has(key)) {
                         dungeons.set(key, {
-                            id: d.id ? String(d.id) : undefined,
+                            id: d.bossId ? String(d.bossId) : d.id ? String(d.id) : undefined,
                             name: d.name,
                             level: d.level,
                             bossName: d.bossName,
@@ -85,8 +85,18 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                         if (!dungeons.has(dungeonInfo.dungeonName)) {
                             dungeons.set(dungeonInfo.dungeonName, { 
                                 name: dungeonInfo.dungeonName,
-                                id: dungeonInfo.bossId ? String(dungeonInfo.bossId) : undefined
+                                id: dungeonInfo.bossId ? String(dungeonInfo.bossId) : undefined,
+                                img: dungeonInfo.mapImg
                             });
+                        } else if (dungeonInfo.mapImg) {
+                            // Merge the image if it wasn't provided by the compiler generated block!
+                            const existing = dungeons.get(dungeonInfo.dungeonName)!;
+                            if (!existing.img && dungeonInfo.mapImg) {
+                                existing.img = dungeonInfo.mapImg;
+                            }
+                            if (!existing.id && dungeonInfo.bossId) {
+                                existing.id = String(dungeonInfo.bossId);
+                            }
                         }
                     }
                 }

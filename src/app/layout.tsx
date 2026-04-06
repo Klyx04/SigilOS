@@ -97,6 +97,8 @@ export const viewport: Viewport = {
 };
 
 import { auth } from "@/auth";
+import { SupportOrb } from "@/components/shared/support-orb";
+import { db } from "@/lib/prisma";
 
 export default async function RootLayout({
   children,
@@ -104,6 +106,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const platformConfig = await db.platformConfig.findFirst({ select: { donationsEnabled: true } }).catch(() => null);
+  const donationsEnabled = platformConfig?.donationsEnabled ?? true; // default true si pas de config
 
   return (
     <html lang="fr" suppressHydrationWarning>
@@ -117,6 +121,7 @@ export default async function RootLayout({
           <AuthProvider session={session}>
             <TooltipProvider>
               {children}
+              {donationsEnabled && <SupportOrb />}
               <Toaster
                 position="bottom-right"
                 richColors

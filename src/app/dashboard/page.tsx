@@ -48,7 +48,12 @@ export default async function GuildSelectorPage() {
             </div>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.05),transparent_50% )] pointer-events-none" />
 
-            <PublicHeader user={session.user} dashboardHref="/dashboard" isMember={active.length > 0} />
+            <PublicHeader 
+                user={session.user} 
+                dashboardHref="/dashboard" 
+                isMember={active.length > 0} 
+                clientId={clientId}
+            />
 
             <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-24 overflow-y-auto custom-scrollbar">
 

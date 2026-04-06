@@ -48,20 +48,26 @@ export async function sendGlobalStatusPing(
         const dbLatency = Math.round(performance.now() - startDb);
         const isDbOk = dbLatency < 500;
 
-        let redisStatus = "🔴 Hors-ligne";
-        let redisLatency = 0;
         let isRedisOk = false;
+        let redisLatency = 0;
         try {
             const startRedis = performance.now();
             const pong = await redis.ping();
             redisLatency = Math.round(performance.now() - startRedis);
-            if (pong === "PONG") {
-                redisStatus = "🟢 Connecté";
-                isRedisOk = true;
-            }
+            isRedisOk = pong === "PONG";
         } catch (e) {
             console.error("[Status Ping] Redis error:", e);
         }
+
+        // 2. Dynamic Info
+        const isBeta = process.env.NEXT_PUBLIC_APP_URL?.includes("beta") || process.env.NODE_ENV !== "production";
+        const envName = isBeta ? "Beta / Test" : "Production";
+        
+        // Calculate Uptime
+        const uptimeSeconds = process.uptime();
+        const uptimeDays = Math.floor(uptimeSeconds / (24 * 3600));
+        const uptimeHours = Math.floor((uptimeSeconds % (24 * 3600)) / 3600);
+        const uptimeFormatted = uptimeDays > 0 ? `${uptimeDays}j ${uptimeHours}h` : `${uptimeHours}h ${Math.floor((uptimeSeconds % 3600) / 60)}m`;
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
         const statusUrl = `${appUrl}/status`;
@@ -69,50 +75,47 @@ export async function sendGlobalStatusPing(
         // Final Health Calc
         const systemStatus = isDbOk && isRedisOk ? "OPERATIONAL" : (!isDbOk && !isRedisOk ? "CRITICAL" : "DEGRADED");
         const statusColor = systemStatus === "OPERATIONAL" ? 0x10b981 : (systemStatus === "DEGRADED" ? 0xf59e0b : 0xef4444);
-        const statusEmoji = systemStatus === "OPERATIONAL" ? "🟩" : (systemStatus === "DEGRADED" ? "🟧" : "🟥");
 
-        // 2. Build the Embed
+        // 3. Build the Embed (Standard Pro)
         const fields = effectiveLite ? [
             {
-                name: "Systèmes",
-                value: `État: **${systemStatus === "OPERATIONAL" ? "Opérationnel" : "Perturbé"}**`,
+                name: "Système",
+                value: systemStatus === "OPERATIONAL" ? "✅ Opérationnel" : "⚠️ Perturbé",
                 inline: true
             },
             {
-                name: "Uptime",
-                value: `**99.9%**`,
+                name: "Environnement",
+                value: `\`${envName}\``,
                 inline: true
             }
         ] : [
             {
-                name: "🗄️ Base de données",
-                value: `Statut: **${isDbOk ? "En ligne" : "Erreur"}**\nLatence: \`${dbLatency}ms\`\nSurcharge: \`Bas\``,
-                inline: true
-            },
-            {
-                name: "⚡ Cache & Real-time",
-                value: `Statut: **${isRedisOk ? "Optimal" : "Erreur"}**\nLatence: \`${redisLatency}ms\`\nWS: 🟩 **Actifs**`,
-                inline: true
-            },
-            {
-                name: "🌐 API & Dashboard",
-                value: `Version: \`${process.env.npm_package_version || "0.1.0"}\`\nUptime: \`99.9%\`\nEnvironnement: \`Production\``,
+                name: "📡 État des Services",
+                value: systemStatus === "OPERATIONAL" ? "✅ Tous les systèmes sont opérationnels." : "⚠️ Certains services rencontrent des difficultés.",
                 inline: false
+            },
+            {
+                name: "🌍 Environnement",
+                value: `\`${envName}\``,
+                inline: true
+            },
+            {
+                name: "📦 Version",
+                value: `\`v${process.env.npm_package_version || "0.1.0"}\``,
+                inline: true
             }
         ];
 
         const embed = {
             embedTitle: `🛰️ SigilOS — État des Systèmes`,
             embedUrl: statusUrl,
-            embedDescription: effectiveLite 
-                ? (systemStatus === "OPERATIONAL" ? "Tous les systèmes fonctionnent normalement." : "Des perturbations ont été détectées.")
-                : (systemStatus === "OPERATIONAL" 
-                    ? "Tous les systèmes sont au vert. L'infrastructure est surveillée en temps réel pour garantir une performance optimale."
-                    : "Certains services rencontrent des perturbations. Nos équipes (enfin, le robot) sont sur le coup."),
+            embedDescription: !effectiveLite && systemStatus !== "OPERATIONAL" 
+                ? "Nos équipes (enfin, le robot de maintenance) analysent actuellement l'incident."
+                : undefined,
             embedColor: statusColor,
             embedThumbnail: effectiveLite ? undefined : "https://sigilos.fr/assets/ui/logo-v2.png",
             fields,
-            embedFooter: `SigilOS Service Monitoring • <t:${Math.floor(Date.now() / 1000)}:R>`,
+            embedFooter: `SigilOS Status • Mise à jour auto`,
         };
 
         // 3. Dispatch Logic

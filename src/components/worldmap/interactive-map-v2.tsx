@@ -1055,7 +1055,7 @@ export default function InteractiveMapV2({
                 {activeTab === 'games' && gamePhase === 'playing' && (
                     <div className="flex flex-col lg:flex-row w-full h-full relative overflow-hidden bg-slate-950">
                         {/* 🖼️ ZONE CIBLE À GAUCHE (FRAGMENTS DE CARTE) */}
-                        <div className="flex-1 relative bg-black/40 overflow-hidden flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 min-h-0">
+                        <div className="h-[35vh] lg:h-auto lg:flex-1 relative bg-black/40 overflow-hidden flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 shrink-0 min-h-0">
                             {targetMapId ? (
                                 <motion.div
                                     className="w-full h-full relative geoguesser-image-container"
@@ -1093,7 +1093,7 @@ export default function InteractiveMapV2({
 
                             {/* Integrated Multi-Leaderboard (Top of panel - Fixed Height) */}
                             {!isSoloMode && (
-                                <div className="h-[180px] md:h-[280px] shrink-0 bg-black/40 p-3 md:p-6 flex flex-col border-b border-white/5">
+                                <div className="hidden lg:flex flex-col h-[180px] md:h-[280px] shrink-0 bg-black/40 p-3 md:p-6 border-b border-white/5">
                                     <div className="flex items-center justify-between mb-4">
                                         <h4 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] flex items-center gap-2 italic">
                                             <Users size={14} /> Joueurs du Salon
@@ -1175,7 +1175,7 @@ export default function InteractiveMapV2({
                             </div>
 
                             {/* Integrated Map - Fixed flexible container */}
-                            <div className="flex-1 relative bg-slate-950 overflow-hidden min-h-[400px]">
+                            <div className="flex-1 relative bg-slate-950 overflow-hidden min-h-[300px] lg:min-h-[400px]">
                                 <LeafletMapCore
                                     activeWorld={activeWorld}
                                     selectedWorldId={selectedWorldId}
@@ -1969,17 +1969,12 @@ export default function InteractiveMapV2({
 
                                             <div className="space-y-3 mt-auto">
                                                 {getGameStatus('phone').isEnabled ? (
-                                                    <>
-                                                        <a
-                                                            href={`/dashboard/${guildId}/mini-jeux/gartic`}
-                                                            className="w-full py-4 rounded-xl bg-amber-600 text-white font-black uppercase text-[10px] italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
-                                                        >
-                                                            <Plus size={14} /> Créer un Salon
-                                                        </a>
-                                                        <button className="w-full py-4 rounded-xl bg-white/5 text-white/20 font-black uppercase text-[10px] italic border border-white/5 cursor-not-allowed flex items-center justify-center gap-2">
-                                                            Solo bientôt
-                                                        </button>
-                                                    </>
+                                                    <a
+                                                        href={`/dashboard/${guildId}/mini-jeux/gartic`}
+                                                        className="w-full py-4 rounded-xl bg-amber-600 text-white font-black uppercase text-[10px] italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Plus size={14} /> Créer un Salon
+                                                    </a>
                                                 ) : (
                                                     <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
                                                         Indisponible
@@ -1989,61 +1984,55 @@ export default function InteractiveMapV2({
                                         </div>
                                     </motion.div>
 
-                                {/* Sigil King Card */}
-                                <motion.div
-                                    whileHover={getGameStatus('king').isEnabled ? { y: -5 } : {}}
-                                    className={cn(
-                                        "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[2.5rem] p-8 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
-                                        getGameStatus('king').isEnabled 
-                                            ? "hover:border-amber-600/40 hover:bg-[#0a0f18]/80 border-white/5" 
-                                            : "border-red-500/20 grayscale opacity-70"
-                                    )}
-                                >
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-600/5 rounded-full blur-[60px] group-hover:bg-amber-600/10 transition-all duration-700" />
-                                    
-                                    <div className="relative z-10 flex flex-col h-full">
-                                        <div className="flex items-start justify-between mb-6">
-                                            <div className="w-16 h-16 rounded-2xl bg-amber-600/10 flex items-center justify-center border border-amber-600/20 group-hover:scale-110 transition-all duration-300 text-2xl">
-                                                👑
+                                    {/* Sigil King Card */}
+                                    <motion.div
+                                        whileHover={getGameStatus('king').isEnabled ? { y: -5 } : {}}
+                                        className={cn(
+                                            "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[2.5rem] p-8 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
+                                            getGameStatus('king').isEnabled 
+                                                ? "hover:border-amber-600/40 hover:bg-[#0a0f18]/80 border-white/5" 
+                                                : "border-red-500/20 grayscale opacity-70"
+                                        )}
+                                    >
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-600/5 rounded-full blur-[60px] group-hover:bg-amber-600/10 transition-all duration-700" />
+                                        
+                                        <div className="relative z-10 flex flex-col h-full">
+                                            <div className="flex items-start justify-between mb-6">
+                                                <div className="w-16 h-16 rounded-2xl bg-amber-600/10 flex items-center justify-center border border-amber-600/20 group-hover:scale-110 transition-all duration-300 text-2xl">
+                                                    👑
+                                                </div>
+                                                <div className="px-3 py-1 rounded-full bg-amber-600/10 border border-amber-600/20 text-amber-500 text-[8px] font-black uppercase tracking-widest italic">
+                                                    {getGameStatus('king').isEnabled ? 'CARTES' : 'MAINTENANCE'}
+                                                </div>
                                             </div>
-                                            <div className="px-3 py-1 rounded-full bg-amber-600/10 border border-amber-600/20 text-amber-500 text-[8px] font-black uppercase tracking-widest italic">
-                                                {getGameStatus('king').isEnabled ? 'CARTES' : 'MAINTENANCE'}
+
+                                            <h3 className="text-white font-black text-2xl uppercase italic mb-1 tracking-tight group-hover:text-amber-500 transition-colors">Sigil King</h3>
+                                            <div className="mb-4">
+                                                <span className="text-amber-600/60 text-[9px] font-black uppercase tracking-[0.2em] italic">"Le Roi des Titans attend son adversaire"</span>
                                             </div>
-                                        </div>
+                                            <p className="text-white/40 text-[10px] font-medium leading-relaxed mb-8 h-12 overflow-hidden">
+                                                {getGameStatus('king').isEnabled 
+                                                    ? "Misez sur vos plis, jouez vos Incarnations et capturez Ogrest ! Un jeu de cartes stratégique inspiré de Skull King, dans l'univers du Monde des Douze."
+                                                    : getGameStatus('king').message}
+                                            </p>
 
-                                        <h3 className="text-white font-black text-2xl uppercase italic mb-1 tracking-tight group-hover:text-amber-500 transition-colors">Sigil King</h3>
-                                        <div className="mb-4">
-                                            <span className="text-amber-600/60 text-[9px] font-black uppercase tracking-[0.2em] italic">"Le Roi des Titans attend son adversaire"</span>
-                                        </div>
-                                        <p className="text-white/40 text-[10px] font-medium leading-relaxed mb-8 h-12 overflow-hidden">
-                                            {getGameStatus('king').isEnabled 
-                                                ? "Misez sur vos plis, jouez vos Incarnations et capturez Ogrest ! Un jeu de cartes stratégique inspiré de Skull King, dans l'univers du Monde des Douze."
-                                                : getGameStatus('king').message}
-                                        </p>
-
-                                        <div className="space-y-3 mt-auto">
-                                            {getGameStatus('king').isEnabled ? (
-                                                <>
+                                            <div className="space-y-3 mt-auto">
+                                                {getGameStatus('king').isEnabled ? (
                                                     <a
                                                         href={`/dashboard/${guildId}/mini-jeux/sigil-king`}
                                                         className="w-full py-4 rounded-xl bg-amber-600 text-white font-black uppercase text-[10px] italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
                                                     >
                                                         <Plus size={14} /> Créer un Salon
                                                     </a>
-                                                    <button className="w-full py-4 rounded-xl bg-white/5 text-white/20 font-black uppercase text-[10px] italic border border-white/5 cursor-not-allowed flex items-center justify-center gap-2">
-                                                        Solo bientôt
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
-                                                    Indisponible
-                                                </div>
-                                            )}
+                                                ) : (
+                                                    <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
+                                                        Indisponible
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                </motion.div>
+                                    </motion.div>
 
-                                    {/* Active Lobbies - Inline for better flow */}
                                     <div className="md:col-span-2 lg:col-span-2 xl:col-span-4 mt-4 lg:mt-6">
                                         <div className="flex items-center gap-4 mb-4 lg:mb-6">
                                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -2065,8 +2054,8 @@ export default function InteractiveMapV2({
                                                                 <span className="text-amber-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">King • {room.playerCount}/6</span>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/sigil-king?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-600 text-white font-black uppercase text-[10px] shadow-md shadow-amber-600/20 opacity-90 hover:opacity-100 transition-all text-center">Join</a>
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/sigil-king?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Watch</a>
+                                                                <a href={`/dashboard/${guildId}/mini-jeux/sigil-king?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-600 text-white font-black uppercase text-[10px] shadow-md shadow-amber-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                                <a href={`/dashboard/${guildId}/mini-jeux/sigil-king?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -2077,8 +2066,14 @@ export default function InteractiveMapV2({
                                                                 <span className="text-emerald-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Guesser • {room.playerCount}/8</span>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <button onClick={() => handleJoinRoom(room)} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500 text-white font-black uppercase text-[10px] shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all">Join</button>
-                                                                <button onClick={() => handleJoinRoom(room, true)} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all">Watch</button>
+                                                                {room.state !== 'LOBBY' ? (
+                                                                    <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                        Lancé
+                                                                    </div>
+                                                                ) : (
+                                                                    <button onClick={() => handleJoinRoom(room)} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500 text-white font-black uppercase text-[10px] shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all">Rejoindre</button>
+                                                                )}
+                                                                <button onClick={() => handleJoinRoom(room, true)} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all">Regarder</button>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -2089,8 +2084,14 @@ export default function InteractiveMapV2({
                                                                 <span className="text-blue-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Draw • {room.playerCount}/8</span>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/skribbl?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500 text-white font-black uppercase text-[10px] shadow-md shadow-blue-500/20 opacity-90 hover:opacity-100 transition-all text-center">Join</a>
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/skribbl?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Watch</a>
+                                                                {room.state !== 'LOBBY' ? (
+                                                                    <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                        Lancé
+                                                                    </div>
+                                                                ) : (
+                                                                    <a href={`/dashboard/${guildId}/mini-jeux/skribbl?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500 text-white font-black uppercase text-[10px] shadow-md shadow-blue-500/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                                )}
+                                                                <a href={`/dashboard/${guildId}/mini-jeux/skribbl?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -2101,8 +2102,14 @@ export default function InteractiveMapV2({
                                                                 <span className="text-amber-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Phone • {room.playerCount}/8</span>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500 text-white font-black uppercase text-[10px] shadow-md shadow-amber-500/20 opacity-90 hover:opacity-100 transition-all text-center">Join</a>
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Watch</a>
+                                                                {room.state !== 'LOBBY' ? (
+                                                                    <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                        Lancé
+                                                                    </div>
+                                                                ) : (
+                                                                    <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500 text-white font-black uppercase text-[10px] shadow-md shadow-amber-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                                )}
+                                                                <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -2225,7 +2232,7 @@ export default function InteractiveMapV2({
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="max-w-5xl w-full h-[85vh] md:h-auto md:max-h-[85vh] md:aspect-video bg-[#0d111a] border border-white/10 rounded-[2rem] md:rounded-[3rem] flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)] overflow-hidden"
+                            className="max-w-6xl w-full h-[90vh] md:h-auto md:max-h-[90vh] md:aspect-video bg-[#0d111a] border border-white/10 rounded-[2rem] md:rounded-[3rem] flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)] overflow-hidden relative"
                         >
                             {/* Lobby Sidebar */}
                             <div className="w-full md:w-80 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-white/5 p-6 md:p-10 bg-black/40 flex flex-col justify-between relative shrink-0">
@@ -2333,11 +2340,11 @@ export default function InteractiveMapV2({
                                     <span>{activeSession.hostId === currentUserId ? 'Dissoudre le Salon' : 'Quitter le Salon'}</span>
                                 </button>
                             </div>
-
-                            {/* Player List */}
-                            <div className="flex-1 p-6 md:p-10 flex flex-col relative bg-[#0a0d14] h-1/2 md:h-full overflow-y-auto custom-scrollbar">
-                                <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4 sticky top-0 bg-[#0a0d14] z-20 pb-4 border-b border-white/5">
-                                    <div className="flex flex-col">
+ 
+                             {/* Player List */}
+                            <div className="flex-1 p-6 lg:p-10 flex flex-col relative bg-[#0a0d14] h-full overflow-hidden">
+                                <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4 border-b border-white/5 pb-6 shrink-0">
+                                    <div className="flex flex-col w-full sm:w-auto">
                                         <h3 className="text-white/40 font-black uppercase text-[10px] tracking-[0.3em]">Participants connectés</h3>
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -2351,7 +2358,7 @@ export default function InteractiveMapV2({
                                             onClick={handleStartRoomGame}
                                             disabled={!isSoloMode && (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0) < 2}
                                             className={cn(
-                                                "w-full md:w-auto px-8 md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl text-white font-black uppercase text-[10px] md:text-sm italic shadow-[0_15px_30px_-5px_rgba(16,185,129,0.5)] transition-all active:scale-95 flex items-center justify-center gap-3 border shrink-0",
+                                                "w-full sm:w-auto px-10 py-4 rounded-2xl text-white font-black uppercase text-xs sm:text-sm italic shadow-[0_15px_30px_-5px_rgba(16,185,129,0.5)] transition-all active:scale-95 flex items-center justify-center gap-3 border shrink-0",
                                                 (!isSoloMode && (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0) < 2)
                                                     ? "bg-zinc-800 border-zinc-700 opacity-50 cursor-not-allowed grayscale"
                                                     : "bg-emerald-500 border-emerald-400 hover:-translate-y-1 hover:shadow-[0_25px_45px_-5px_rgba(16,185,129,0.6)]"
@@ -2424,7 +2431,7 @@ export default function InteractiveMapV2({
                                         </motion.div>
                                     ))}
 
-                                    {!isSoloMode && Array.from({ length: Math.max(0, 8 - (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0)) }).map((_, i) => (
+                                    {(!isSoloMode && Array.from({ length: Math.max(0, 8 - (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0)) }).map((_, i) => (
                                         <div key={`empty-${i}`} className="p-6 rounded-[2.5rem] bg-white/[0.01] border border-dashed border-white/5 flex items-center gap-5 opacity-40">
                                             <div className="w-14 h-14 rounded-2xl border border-dashed border-white/10 flex items-center justify-center">
                                                 <div className="w-2 h-2 rounded-full bg-white/5" />
@@ -2433,8 +2440,27 @@ export default function InteractiveMapV2({
                                                 <span className="text-white/20 font-black uppercase text-[10px] tracking-widest italic">Libre</span>
                                             </div>
                                         </div>
-                                    ))}
+                                    )))}
                                 </div>
+ 
+                                 {/* Mobile Start Button (Sticky at the bottom for accessibility) */}
+                                {((activeSession.hostId === currentUserId) || isSoloMode) && (
+                                    <div className="md:hidden pt-6 shrink-0 mt-auto border-t border-white/5">
+                                        <button
+                                            onClick={handleStartRoomGame}
+                                            disabled={!isSoloMode && (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0) < 2}
+                                            className={cn(
+                                                "w-full py-5 rounded-[2rem] text-white font-black uppercase text-sm italic shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-4 border",
+                                                (!isSoloMode && (activeSession.participants?.filter((p: any) => !p.isSpectator).length || 0) < 2)
+                                                    ? "bg-zinc-800 border-zinc-700 opacity-50 grayscale cursor-not-allowed"
+                                                    : "bg-emerald-500 border-emerald-400"
+                                            )}
+                                        >
+                                            <Play size={20} fill="currentColor" />
+                                            <span>Lancer l'Épreuve</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     </div>

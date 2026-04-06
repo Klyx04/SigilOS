@@ -43,7 +43,7 @@ export class SkribblManager {
         }
     }
 
-    private broadcastRoomList(guildIdCandidate?: string) {
+    private async broadcastRoomList(guildIdCandidate?: string) {
         let guildId = guildIdCandidate || "global";
         if (guildId === "undefined" || guildId === "null") guildId = "global";
 
@@ -54,6 +54,11 @@ export class SkribblManager {
             }
         });
         this.io.to(`guild:${guildId}`).emit("skribbl:room:list", rooms);
+        
+        // Internal Redis broadcast for Dashboard EventTicker
+        if (guildId !== "global") {
+            await redis.set(`guild:${guildId}:skribbl:rooms`, JSON.stringify(rooms), "EX", 3600);
+        }
     }
 
     private handleRoomList(socket: Socket) {

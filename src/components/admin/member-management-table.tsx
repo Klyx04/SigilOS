@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } from "@/server/actions/user-actions";
-import { deleteProfileByAdmin } from "@/server/actions/lifecycle-actions";
+import { deleteProfileByAdmin, reactivateProfileByAdmin } from "@/server/actions/lifecycle-actions";
 import { transferGuildOwnership } from "@/server/actions/god-lifecycle-actions";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,10 +89,11 @@ interface MemberManagementTableProps {
     guildId: string;
     welcomeBadgeName: string;
     isSuperAdmin?: boolean;
+    isAdmin?: boolean; // Guild admin (canManageMembers) — can delete & reactivate
     ownerId?: string | null;
 }
 
-export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, ownerId = null }: MemberManagementTableProps) {
+export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, isAdmin = false, ownerId = null }: MemberManagementTableProps) {
     const [search, setSearch] = useState("");
     const [members, setMembers] = useState(initialMembers);
     const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED">("ACTIVE");
@@ -148,6 +149,33 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
             toast.success(`Statut mis à jour : ${status}`);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        } finally {
+            setIsUpdating(null);
+        }
+    };
+
+    // Dedicated reactivation handler — calls the new server action with full audit log + session invalidation
+    const handleReactivate = async (profileId: string, previousStatus: "ARCHIVED" | "BANNED") => {
+        const label = previousStatus === "BANNED" ? "Débannir et réintégrer" : "Réactiver";
+        const warning = previousStatus === "BANNED"
+            ? `⚠️ Réintégrer ce membre banni ? Il pourra à nouveau accéder au dashboard.`
+            : `Réactiver le profil de ce membre archivé ?`;
+
+        if (!confirm(warning)) return;
+
+        setIsUpdating(profileId);
+        try {
+            const res = await reactivateProfileByAdmin(guildId, profileId);
+            if (res.success) {
+                setMembers(prev => prev.map(m =>
+                    m.id === profileId ? { ...m, status: "ACTIVE", updatedAt: new Date().toISOString() } : m
+                ));
+                toast.success(`✅ ${label} avec succès`);
+            } else {
+                toast.error(res.error || "Erreur lors de la réactivation");
+            }
+        } catch (error) {
+            toast.error("Erreur de communication");
         } finally {
             setIsUpdating(null);
         }
@@ -448,13 +476,14 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             <DropdownMenuLabel className="text-xs text-zinc-500">Actions Membre</DropdownMenuLabel>
                                             <DropdownMenuSeparator className="bg-white/5" />
 
-                                            {member.status !== "ACTIVE" && (
+                                            {/* REACTIVATION — visible aux admins de guilde ET au superadmin */}
+                                            {member.status !== "ACTIVE" && (isAdmin || isSuperAdmin) && (
                                                 <DropdownMenuItem
-                                                    onClick={() => handleStatusUpdate(member.id, "ACTIVE")}
+                                                    onClick={() => handleReactivate(member.id, member.status as "ARCHIVED" | "BANNED")}
                                                     className="gap-2 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer"
                                                 >
                                                     <RotateCcw className="h-3.5 w-3.5" />
-                                                    {member.status === "BANNED" ? "Débannir" : "Réactiver"}
+                                                    {member.status === "BANNED" ? "🛑 Débannir & Réintégrer" : "✅ Réactiver"}
                                                 </DropdownMenuItem>
                                             )}
 
@@ -502,7 +531,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 <Edit className="h-3.5 w-3.5 text-indigo-400" />
                                                 Modifier l'ID Dofus
                                             </DropdownMenuItem>
-                                            
+
                                             <DropdownMenuItem
                                                 onClick={() => handleUpdatePseudo(member.id)}
                                                 className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer"
@@ -511,24 +540,29 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 Modifier le Pseudo Dofus
                                             </DropdownMenuItem>
 
-
-                                            {isSuperAdmin && (
+                                            {/* DELETE — visible aux admins de guilde ET au superadmin (seulement profils non-actifs pour les non-superadmins) */}
+                                            {(isAdmin || isSuperAdmin) && (
                                                 <>
                                                     <DropdownMenuSeparator className="bg-white/5" />
-                                                    <DropdownMenuItem
-                                                        onClick={() => handleTransferOwnership(member.userId, member.pseudoDofus || member.user.name || "Membre")}
-                                                        className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer font-bold"
-                                                    >
-                                                        <UserCheck className="h-3.5 w-3.5" />
-                                                        Promouvoir Propriétaire
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() => handleDelete(member.id)}
-                                                        className="gap-2 focus:bg-red-600 focus:text-white text-red-400 cursor-pointer"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                        Supprimer définitivement
-                                                    </DropdownMenuItem>
+                                                    {isSuperAdmin && (
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleTransferOwnership(member.userId, member.pseudoDofus || member.user.name || "Membre")}
+                                                            className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer font-bold"
+                                                        >
+                                                            <UserCheck className="h-3.5 w-3.5" />
+                                                            Promouvoir Propriétaire
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {/* Non-superadmin admins can only delete ARCHIVED/BANNED profiles */}
+                                                    {(isSuperAdmin || member.status !== "ACTIVE") && (
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleDelete(member.id)}
+                                                            className="gap-2 focus:bg-red-600 focus:text-white text-red-400 cursor-pointer"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                            Supprimer définitivement
+                                                        </DropdownMenuItem>
+                                                    )}
                                                 </>
                                             )}
                                         </DropdownMenuContent>

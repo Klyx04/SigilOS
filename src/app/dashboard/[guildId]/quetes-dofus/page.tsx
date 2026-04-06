@@ -7,16 +7,24 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Gem } from "lucide-react";
 import { getDofusListWithProgress, getGuildDofusStats, getDofusWarRoomData } from "@/server/actions/dofus-quest-actions";
 import { DofusQuestHub } from "@/components/dofus-quests/DofusQuestHub";
+import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 
 type Props = {
     params: Promise<{ guildId: string }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export default async function QuetesDofusPage({ params }: Props) {
+export default async function QuetesDofusPage({ params, searchParams }: Props) {
+    console.log("[DEBUG] Entering QuetesDofusPage");
     const session = await auth();
-    if (!session?.user) redirect("/");
+    if (!session?.user) {
+        console.log("[DEBUG] No session found, redirecting to /");
+        redirect("/");
+    }
 
     const { guildId } = await params;
+    const character = (await searchParams)?.character as string || "PRINCIPAL";
+    console.log(`[DEBUG] Guild: ${guildId}, Character: ${character}`);
 
     const user = await getUserContext(guildId);
     if (!user.canViewQuests) return <AccessDenied />;
@@ -26,7 +34,7 @@ export default async function QuetesDofusPage({ params }: Props) {
 
     // Fetch data in parallel
     const [dofusResult, guildStatsResult, warRoomResult] = await Promise.all([
-        getDofusListWithProgress(guildId),
+        getDofusListWithProgress(guildId, character),
         getGuildDofusStats(guildId),
         getDofusWarRoomData(guildId),
     ]);
@@ -37,12 +45,25 @@ export default async function QuetesDofusPage({ params }: Props) {
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Quêtes Dofus"
-                description="Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde"
-                icon={Gem}
-                backHref={`/dashboard/${guildId}`}
-            />
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                <UnifiedModuleHeader
+                    title="Quêtes Dofus"
+                    description="Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde"
+                    icon={Gem}
+                    backHref={`/dashboard/${guildId}`}
+                />
+                
+                <div className="flex-shrink-0 lg:mb-1">
+                    <CharacterQuestSelector 
+                        mainCharacter={{ 
+                            pseudo: user.pseudoDofus || session.user.name || "Principal", 
+                            classe: user.classe 
+                        }}
+                        mules={user.altPseudos as any || []}
+                    />
+                </div>
+            </div>
+
 
             {dofusList.length === 0 ? (
                 <EmptyState guildId={guildId} isAdmin={user.isAdmin} />
@@ -52,6 +73,7 @@ export default async function QuetesDofusPage({ params }: Props) {
                     guildStats={guildStats}
                     warRoomData={warRoomData}
                     guildId={guildId}
+                    selectedCharacter={character}
                 />
             )}
         </div>

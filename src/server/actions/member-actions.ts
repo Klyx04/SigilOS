@@ -2,9 +2,12 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { listGuildMembers, fetchGuildRoles } from "@/server/discord";
+import { listGuildMembers, fetchGuildRoles, sendChannelMessage } from "@/server/discord";
 import { getUserContext } from "./user-actions";
 import { ActionResponse } from "./user-actions";
+import { z } from "zod";
+import { createAuditLog } from "./audit-actions";
+import { redis } from "@/lib/redis";
 
 export type MemberReconciliationData = {
     discordId: string;
@@ -130,5 +133,189 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
     } catch (error) {
         console.error("[Member Actions] Reconciliation Error:", error);
         return { success: false, error: "Échec de la récupération des données" };
+    }
+}
+
+const RosterReportSchema = z.object({
+    guildId: z.string(),
+    roleId: z.string(),
+    channelId: z.string(),
+    showMissingNames: z.boolean().default(true),
+});
+
+/**
+ * Envoie un rapport d'audit d'inscription sur Discord.
+ * Compare les membres Discord ayant un rôle spécifique avec les profils Dashboard actifs.
+ */
+export async function sendRosterAuditReport(rawData: z.infer<typeof RosterReportSchema>): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const validation = RosterReportSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, roleId, channelId, showMissingNames } = validation.data;
+
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
+
+    // --- RATE LIMITING (15 min per role) ---
+    const rateLimitKey = `audit_report_ratelimit:${guildId}:${roleId}`;
+    const lastSentStr = await redis.get(rateLimitKey);
+    const lastSent = lastSentStr ? parseInt(lastSentStr, 10) : null;
+    const nowTs = Date.now();
+    const COOLDOWN = 15 * 60 * 1000; // 15 minutes
+
+    if (lastSent && (nowTs - lastSent < COOLDOWN)) {
+        const remainingMin = Math.ceil((COOLDOWN - (nowTs - lastSent)) / 60000);
+        return { success: false, error: `Rapport déjà envoyé récemment. Réessayez dans ${remainingMin} min.` };
+    }
+
+    try {
+        // 1. Récupérer les données de réconciliation
+        const recon = await getMemberReconciliation(guildId);
+        if (!recon.success || !recon.data) return { success: false, error: recon.error };
+
+        const { members, stats } = recon.data;
+        const roleStats = stats.find(s => s.roleId === roleId);
+
+        if (!roleStats) return { success: false, error: "Statistiques introuvables pour ce rôle" };
+
+        // 2. Identifier les manquants
+        const missing = members
+            .filter(m => m.roles.includes(roleId) && !m.hasDashboardProfile)
+            .map(m => m.displayName || m.username);
+
+        const totalInRole = roleStats.totalDiscord;
+        const registered = roleStats.totalDashboard;
+        const percent = totalInRole > 0 ? Math.round((registered / totalInRole) * 100) : 0;
+
+        // Barre de progression visuelle (Format Premium)
+        const filled = "🟩".repeat(Math.round(percent / 10));
+        const empty = "⬜".repeat(10 - Math.round(percent / 10));
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const dashboardUrl = `${appUrl}/dashboard/${guildId}`;
+
+        // 3. Construction des champs visuels (colonnes)
+        const fields: any[] = [];
+        
+        if (missing.length > 0) {
+            if (missing.length <= 45) {
+                // Construction en 3 colonnes pour une meilleure lisibilité
+                const columnSize = Math.ceil(missing.length / 3);
+                const col1 = missing.slice(0, columnSize).join("\n") || "-";
+                const col2 = missing.slice(columnSize, columnSize * 2).join("\n") || "-";
+                const col3 = missing.slice(columnSize * 2).join("\n") || "-";
+
+                fields.push(
+                    { name: "👥 Absence (1/3)", value: `\`\`\`\n${col1}\n\`\`\``, inline: true },
+                    { name: "👥 Absence (2/3)", value: `\`\`\`\n${col2}\n\`\`\``, inline: true },
+                    { name: "👥 Absence (3/3)", value: `\`\`\`\n${col3}\n\`\`\``, inline: true }
+                );
+            } else {
+                // Trop de monde : On liste les 21 premiers et on met un résumé
+                const preview = missing.slice(0, 21);
+                const col1 = preview.slice(0, 7).join("\n");
+                const col2 = preview.slice(7, 14).join("\n");
+                const col3 = preview.slice(14, 21).join("\n");
+
+                fields.push(
+                    { name: "⚠️ Top Absences", value: `\`\`\`\n${col1}\n\`\`\``, inline: true },
+                    { name: "---", value: `\`\`\`\n${col2}\n\`\`\``, inline: true },
+                    { name: "---", value: `\`\`\`\n${col3}\n\`\`\``, inline: true }
+                );
+                
+                fields.push({ 
+                    name: "📌 Note", 
+                    value: `*Et **${missing.length - 21} autres membres** ne sont pas encore inscrits sur le Dashboard.*`,
+                    inline: false 
+                });
+            }
+        }
+
+        const description = [
+            `📈 **Progression des inscriptions : ${percent}%**`,
+            `${filled}${empty}`,
+            "",
+            `✅ **Validés** : ${registered} membres`,
+            `⚠️ **En attente** : ${roleStats.unregistered} membres`,
+            `👥 **Total Discord** : ${totalInRole} membres`,
+            "",
+            "*Consultez la liste complète et gérez les relances sur le Dashboard SigilOS via le bouton ci-dessous.*"
+        ].join("\n");
+
+        await sendChannelMessage(channelId, "", {
+            embedTitle: `Rapport d'Audit — ${roleStats.roleName}`,
+            embedDescription: description,
+            embedColor: roleStats.roleColor || 0x5865F2,
+            embedFooter: `SigilOS Audit • Rapport déclenché par ${ctx.name}`,
+            fields,
+            components: [
+                {
+                    type: 1,
+                    components: [
+                        {
+                            type: 2,
+                            style: 5,
+                            label: "Accéder au Dashboard",
+                            url: dashboardUrl,
+                            emoji: { name: "🔗" }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        // Appliquer le rate limit
+        await redis.set(rateLimitKey, nowTs.toString(), "EX", 900); // Expirer après 15 min
+
+        // 4. Audit Log
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: ctx.name || "Admin",
+            action: "ADMIN_ROSTER_AUDIT_SENT",
+            targetType: "GUILD",
+            targetId: guildId,
+            metadata: { 
+                roleId, 
+                roleName: roleStats.roleName, 
+                channelId,
+                total: totalInRole,
+                registered
+            }
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("[sendRosterAuditReport] Error:", error);
+        return { success: false, error: "Erreur lors de l'envoi du rapport" };
+    }
+}
+/**
+ * Manual trigger from Dashboard
+ * Automatically finds the system notification channel
+ */
+export async function sendManualRosterReport(guildId: string, roleId: string): Promise<ActionResponse> {
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { systemNotifyChannelId: true }
+        });
+
+        if (!guild?.systemNotifyChannelId) {
+            return { success: false, error: "Aucun salon de notifications système configuré dans Paramètres > Salons." };
+        }
+
+        return await sendRosterAuditReport({ 
+            guildId, 
+            roleId, 
+            channelId: guild.systemNotifyChannelId,
+            showMissingNames: true 
+        });
+    } catch (error) {
+        console.error("[sendManualRosterReport] Error:", error);
+        return { success: false, error: "Échec du déclenchement manuel" };
     }
 }

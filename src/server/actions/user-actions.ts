@@ -43,18 +43,18 @@ export async function revalidateUserContext(guildId?: string) {
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     const userId = session.user.id;
-    
+
     // 1. Clear In-memory caches
     const profileCacheKey = `profile:${userId}:${guildId || ""}`;
     profileCache.delete(profileCacheKey);
-    
+
     // 2. Clear Discord cache (pattern based)
     const { invalidateDiscordCache } = await import("@/server/discord");
     invalidateDiscordCache(`member:${guildId || ""}:${userId}`);
 
     // 3. Clear Next.js tag-based cache (if any)
     revalidatePath(`/dashboard/${guildId || ""}`);
-    
+
     return { success: true };
 }
 
@@ -124,8 +124,11 @@ export type UserContext = {
     isCapacityFull?: boolean;
     scheduledDeletion?: string | null;
     createdAt?: string;
-    newsBroadcastEnabled: boolean;
     metamobPseudo?: string | null;
+    classe?: string | null;
+    dofusLevel?: number | null;
+    altPseudos?: any[] | null;
+    newsBroadcastEnabled?: boolean;
 };
 
 export type ActionResponse<T = any> = {
@@ -375,7 +378,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         if (roleName === "Membre") {
             const hasAdminRole = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
             const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
-            
+
             if (hasAdminRole || isOwner) {
                 roleName = "Administrateur";
                 roleColor = 0x5865F2;
@@ -580,84 +583,140 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
     }
 
-    // 3. Permissions
-    const mapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
-    const userMapping = (guildConfig?.usersMapping as Record<string, PermissionId[]>) || {};
-    const myPerms = new Set<PermissionId>();
-
-    // Roles-based permissions
-    memberRoles.forEach(rId => {
-        const perms = mapping[rId];
-        if (perms) perms.forEach(p => myPerms.add(p));
-    });
-
-    // Individual user permissions (using Discord User ID as key)
-    const personalPerms = userMapping[discordUserId];
-    if (personalPerms) personalPerms.forEach(p => myPerms.add(p));
-
-    const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions) & 0x8n) === 0x8n);
+    // 1. Roles & Admin check
+    const rolesMapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
+    const individualMapping = (guildConfig?.usersMapping as Record<string, PermissionId[]>) || {};
+    
+    const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions || 0) & 0x8n) === 0x8n);
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
     const hasDiscordAdmin = hasDiscordAdminRole || isOwner;
     
-    // Master admin: Explicit ADMIN_FULL or Discord Administrator/Owner
-    const isAdmin = myPerms.has(PERMISSIONS.ADMIN_FULL) || hasDiscordAdmin;
+    // MASTER ADMIN: platform-level god or discord admin
+    const isAdmin = Object.values(rolesMapping).some((perms: any) => perms.includes(PERMISSIONS.ADMIN_FULL)) || hasDiscordAdmin || isGod;
+    const isAdminFinal = isAdmin;
 
-    // Core & Information — Bienvenue is visible to all members by default,
-    // but can be restricted via RBAC (BIENVENUE_VIEW permission).
-    // If no explicit permission is configured for this role, default to true (open).
-    const hasExplicitBienvenueGrant = myPerms.has(PERMISSIONS.BIENVENUE_VIEW);
-    const rbacIsConfigured = Object.keys(mapping).length > 0 || Object.keys(userMapping).length > 0;
-    const canViewWelcome = hasExplicitBienvenueGrant || isAdmin || !rbacIsConfigured;
+    // 2. Authorization Check (The Gatekeeper)
+    // A role is authorized if it has DASHBOARD_ACCESS explicitly,
+    // OR (legacy fallback) if it has ANY permission mapped (migration safety net).
+    const hasAuthorizedRole = memberRoles.some(rId => {
+        const perms = rolesMapping[rId];
+        if (!perms || perms.length === 0) return false;
+        // Prefer explicit DASHBOARD_ACCESS, but accept any mapped role (legacy)
+        return perms.includes(PERMISSIONS.DASHBOARD_ACCESS) || perms.length > 0;
+    });
+    const isAuthorizedMember = hasAuthorizedRole || isAdminFinal;
 
+    if (!member || !isAuthorizedMember) {
+        return {
+            ...baseContext,
+            isAuthenticated: true,
+            id: session.user.id,
+            name: displayName,
+            isMember: isGod,
+            guildName: guildConfig?.name || "Serveur Inconnu",
+            canViewDashboard: false,
+            error: !isGod ? "Vous n'avez pas de rôle autorisé." : undefined
+        } as any;
+    }
+
+    // 3. User Profile Creation / Maintenance
+    if (guildConfig && member && isAuthorizedMember) {
+        const now = new Date();
+        const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
+
+        if (!profile) {
+            try {
+                profile = await db.userProfile.create({
+                    data: {
+                        userId: session.user.id,
+                        guildId: guildConfig.id,
+                        discordNickname: displayName,
+                        discordRoleName: roleName,
+                        discordRoleColor: roleColor,
+                        discordJoinedAt: joinedAt,
+                        discordCacheUpdatedAt: now,
+                        lastActivityAt: now,
+                    }
+                });
+
+                // Audit & Onboarding (Fire and forget)
+                (async () => {
+                   try {
+                       const { createAuditLog } = await import("./audit-actions");
+                       await createAuditLog({
+                           guildId: actualDiscordGuildId,
+                           actorUserId: "SYSTEM",
+                           actorName: "Platform System",
+                           action: "PLATFORM_ARRIVAL",
+                           targetType: "PROFILE",
+                           targetId: profile!.id,
+                           metadata: { description: displayName },
+                           newValue: { displayName, roleName, discordJoinedAt: joinedAt }
+                       });
+                       if (guildConfig.welcomeEnabled) {
+                           const { sendWelcomeNotifications } = await import("@/server/actions/onboarding-actions");
+                           await sendWelcomeNotifications(guildConfig, profile!.id, displayName);
+                       }
+                   } catch (e) {
+                       console.error("[UserContext] Arrival processing error:", e);
+                   }
+                })();
+            } catch (e: any) {
+                if (e.code === 'P2002') {
+                    profile = await db.userProfile.findUnique({
+                        where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } }
+                    });
+                }
+            }
+        } else {
+            try { await PresenceManager.updatePresence(guildConfig.id, session.user.id); } catch { }
+        }
+    }
+
+    // 4. Permissions Calculation
+    const permissionSet = new Set<PermissionId>();
+    memberRoles.forEach(rId => {
+        const perms = rolesMapping[rId];
+        if (perms) perms.forEach(p => permissionSet.add(p));
+    });
+
+    const personalPerms = individualMapping[discordUserId];
+    if (personalPerms) personalPerms.forEach(p => permissionSet.add(p));
+
+    const canViewWelcome = permissionSet.has(PERMISSIONS.BIENVENUE_VIEW) || isAdminFinal || (Object.keys(rolesMapping).length === 0);
     const canViewPresentation = true;
-    const canEditPresentation = myPerms.has(PERMISSIONS.PRESENTATION_EDIT) || isAdmin;
-    const canViewStats = myPerms.has(PERMISSIONS.STATS_VIEW) || isAdmin;
-    const canViewDocs = myPerms.has(PERMISSIONS.DOCS_VIEW) || isAdmin;
-    const canViewAdminDocs = myPerms.has(PERMISSIONS.DOCS_VIEW_ADMIN) || isAdmin;
+    const canEditPresentation = permissionSet.has(PERMISSIONS.PRESENTATION_EDIT) || isAdminFinal;
+    const canViewStats = permissionSet.has(PERMISSIONS.STATS_VIEW) || isAdminFinal;
+    const canViewDocs = permissionSet.has(PERMISSIONS.DOCS_VIEW) || isAdminFinal;
+    const canViewAdminDocs = permissionSet.has(PERMISSIONS.DOCS_VIEW_ADMIN) || isAdminFinal;
+    const canViewRoster = permissionSet.has(PERMISSIONS.MEMBER_VIEW_ALL) || isAdminFinal;
+    const canManageMembers = permissionSet.has(PERMISSIONS.MEMBER_MANAGE) || isAdminFinal;
+    const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_VIEW) || isAdminFinal;
+    const canManageMissions = permissionSet.has(PERMISSIONS.MISSIONS_MANAGE) || isAdminFinal;
+    const canValidateMissions = permissionSet.has(PERMISSIONS.MISSIONS_VALIDATE) || isAdminFinal;
+    const canManageBonus = permissionSet.has(PERMISSIONS.MISSIONS_MANAGE) || isAdminFinal;
+    const canViewSonges = permissionSet.has(PERMISSIONS.SONGES_VIEW) || isAdminFinal;
+    const canCreateSonges = permissionSet.has(PERMISSIONS.SONGES_CREATE) || isAdminFinal;
+    const canJoinSonges = permissionSet.has(PERMISSIONS.SONGES_JOIN) || isAdminFinal;
+    const canViewOcre = permissionSet.has(PERMISSIONS.OCRE_VIEW) || isAdminFinal;
+    const canViewLadder = permissionSet.has(PERMISSIONS.LADDER_VIEW) || isAdminFinal;
+    const canViewQuests = permissionSet.has(PERMISSIONS.QUESTS_VIEW) || isAdminFinal;
+    const canViewWorldmap = permissionSet.has(PERMISSIONS.WORLDMAP_VIEW) || isAdminFinal;
+    const canViewDJQuests = permissionSet.has(PERMISSIONS.DJ_QUESTS_VIEW) || isAdminFinal;
+    const canViewServices = permissionSet.has(PERMISSIONS.SERVICES_VIEW) || isAdminFinal;
+    const canViewMiniGames = permissionSet.has(PERMISSIONS.MINIGAMES_VIEW) || isAdminFinal;
+    const canViewCalendar = permissionSet.has(PERMISSIONS.CALENDAR_VIEW) || isAdminFinal;
+    const canManageCalendar = permissionSet.has(PERMISSIONS.CALENDAR_MANAGE) || isAdminFinal;
+    const canViewChat = permissionSet.has(PERMISSIONS.CHAT_VIEW) || isAdminFinal;
+    const canModerateChat = permissionSet.has(PERMISSIONS.CHAT_MODERATE) || isAdminFinal;
+    const canViewPolls = permissionSet.has(PERMISSIONS.POLLS_VIEW) || isAdminFinal;
+    const canManageRelance = permissionSet.has(PERMISSIONS.RELANCE_MANAGE) || permissionSet.has(PERMISSIONS.MEMBER_MANAGE) || isAdminFinal;
+    const canManageRBAC = hasDiscordAdmin || isGod || isAdminFinal;
+    const canViewSettings = permissionSet.has(PERMISSIONS.ADMIN_SETTINGS) || isAdminFinal;
+    const canViewAuditLogs = permissionSet.has(PERMISSIONS.ADMIN_AUDIT) || isAdminFinal;
 
-    // Members & Profiles
-    const canViewRoster = myPerms.has(PERMISSIONS.MEMBER_VIEW_ALL) || isAdmin;
-    const canManageMembers = myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
-
-    // Missions
-    const canViewMissions = myPerms.has(PERMISSIONS.MISSIONS_VIEW) || isAdmin;
-    const canManageMissions = myPerms.has(PERMISSIONS.MISSIONS_MANAGE) || isAdmin;
-    const canValidateMissions = myPerms.has(PERMISSIONS.MISSIONS_VALIDATE) || isAdmin;
-    const canManageBonus = myPerms.has(PERMISSIONS.MISSIONS_MANAGE) || isAdmin;
-
-    // Game Features
-    const canViewSonges = myPerms.has(PERMISSIONS.SONGES_VIEW) || isAdmin;
-    const canCreateSonges = myPerms.has(PERMISSIONS.SONGES_CREATE) || isAdmin;
-    const canJoinSonges = myPerms.has(PERMISSIONS.SONGES_JOIN) || isAdmin;
-    const canViewOcre = myPerms.has(PERMISSIONS.OCRE_VIEW) || isAdmin;
-    const canViewLadder = myPerms.has(PERMISSIONS.LADDER_VIEW) || isAdmin;
-    const canViewQuests = myPerms.has(PERMISSIONS.QUESTS_VIEW) || isAdmin;
-    const canViewDJQuests = myPerms.has(PERMISSIONS.DJ_QUESTS_VIEW) || isAdmin;
-    const canViewServices = myPerms.has(PERMISSIONS.SERVICES_VIEW) || isAdmin;
-    const canViewWorldmap = myPerms.has(PERMISSIONS.WORLDMAP_VIEW) || isAdmin;
-    const canViewMiniGames = myPerms.has(PERMISSIONS.MINIGAMES_VIEW) || isAdmin;
-
-    // Community
-    const canViewCalendar = myPerms.has(PERMISSIONS.CALENDAR_VIEW) || isAdmin;
-    const canManageCalendar = myPerms.has(PERMISSIONS.CALENDAR_MANAGE) || isAdmin;
-    const canViewChat = myPerms.has(PERMISSIONS.CHAT_VIEW) || isAdmin;
-    const canModerateChat = myPerms.has(PERMISSIONS.CHAT_MODERATE) || isAdmin;
-    const canViewPolls = myPerms.has(PERMISSIONS.POLLS_VIEW) || isAdmin;
-
-    // Supervision Admin Pages
-    const canManageRelance = myPerms.has(PERMISSIONS.RELANCE_MANAGE) || myPerms.has(PERMISSIONS.MEMBER_MANAGE) || isAdmin;
-    const canManageRBAC = hasDiscordAdmin || isGod; // Strictly Discord Admins
-    const canViewSettings = myPerms.has(PERMISSIONS.ADMIN_SETTINGS) || isAdmin;
-    const canViewAuditLogs = myPerms.has(PERMISSIONS.ADMIN_AUDIT) || isAdmin;
-
-    const isAdminFinal = isAdmin || isGod;
-
-    // Apply module toggles as a final mask on canView* permissions.
-    // If a module is disabled by admin, the corresponding canView* is false
-    // regardless of Discord role permissions.
-    // Super-admins (isGod) and guild admins bypass module restrictions.
     const mod = (guildConfig as any)?.modules;
-    const bypassModules = isGod || isAdmin;
+    const bypassModules = isGod || isAdminFinal;
 
     const applyModule = (moduleEnabled: any, perm: boolean): boolean =>
         !!(bypassModules ? perm : (moduleEnabled !== false) && perm);
@@ -683,7 +742,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewResources: !!applyModule(!!mod?.resources, true),
         canViewProfile: !!applyModule(!!mod?.profile, true),
         canManageMembers: !!canManageMembers,
-        // Modules
         canViewMissions: !!applyModule(!!mod?.missions, !!canViewMissions),
         canManageMissions: !!applyModule(!!mod?.missions, !!canManageMissions),
         canValidateMissions: !!applyModule(!!mod?.missions, !!canValidateMissions),
@@ -706,18 +764,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canManageCalendar: !!applyModule(!!mod?.calendar, !!canManageCalendar),
         canViewChat: !!applyModule(!!mod?.chat, !!canViewChat),
         canModerateChat: !!applyModule(!!mod?.chat, !!canModerateChat),
-        // Admin
         canEditPresentation: !!applyModule(!!mod?.presentation, !!canEditPresentation),
         canManageRelance: !!canManageRelance,
         canManageRBAC: !!canManageRBAC,
         canViewSettings: !!canViewSettings,
         canViewAuditLogs: !!canViewAuditLogs,
-        // Global Access
         isAdmin: !!isAdminFinal,
         isDiscordAdmin: !!(hasDiscordAdmin || isGod),
         isSuperAdmin: !!isGod,
-        isMember: true,
-        // Data & Identity
+        isMember: !!isAuthorizedMember,
         hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
         pseudoDofus: profile?.pseudoDofus,
         ankamaId: profile?.ankamaId,
@@ -732,7 +787,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         createdAt: profile?.createdAt?.toISOString() || null,
         newsBroadcastEnabled: guildConfig?.newsBroadcastEnabled || false,
         metamobPseudo: profile?.metamobPseudo,
+        classe: profile?.classe,
+        dofusLevel: profile?.dofusLevel,
+        altPseudos: (profile?.altPseudos as any[]) || [],
     };
+
+
 }
 
 /**
@@ -976,7 +1036,7 @@ export async function internalCheckPermission(
         if (!guildConfig) return false;
 
         const actualGuildId = guildConfig.discordGuildId || guildId;
-        
+
         // 2. Fetch member with caching
         const member = await fetchGuildMember(actualGuildId, discordUserId);
         if (!member) return false;
@@ -1020,7 +1080,7 @@ export async function checkGuildPermission(
 
     // OPTIM: Check session first to avoid DB query
     let providerAccountId = (session.user as any)?.discordId;
-    
+
     if (!providerAccountId) {
         const account = await db.account.findFirst({
             where: { userId: session.user.id, provider: "discord" },
@@ -1182,10 +1242,10 @@ export async function updateMemberProfileStatus(
     // 5. Audit & Activity
     const targetProfile = await db.userProfile.findUnique({
         where: { id: profileId },
-        select: { 
-            discordNickname: true, 
-            pseudoDofus: true, 
-            user: { select: { name: true, image: true } } 
+        select: {
+            discordNickname: true,
+            pseudoDofus: true,
+            user: { select: { name: true, image: true } }
         }
     });
     const targetName = targetProfile?.pseudoDofus || targetProfile?.discordNickname || targetProfile?.user?.name || profileId;

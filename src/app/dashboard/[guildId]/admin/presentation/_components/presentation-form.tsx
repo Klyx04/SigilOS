@@ -451,8 +451,8 @@ export function PresentationForm({ guildId }: Props) {
                     )}
                 </div>
 
-                <Link href={`/guilds/${guildId}`} target="_blank">
-                    <Button variant="outline" className="gap-2 border-dashed border-zinc-700 hover:bg-zinc-800 w-full md:w-auto h-full">
+                <Link href={`/guilds/${guildId}`} target="_blank" className="w-full md:w-auto block">
+                    <Button variant="outline" className="gap-2 border-dashed border-zinc-700 hover:bg-zinc-800 w-full h-full py-4 md:py-2">
                         <ExternalLink className="w-4 h-4" />
                         Voir page publique
                     </Button>
@@ -496,38 +496,38 @@ export function PresentationForm({ guildId }: Props) {
             {/* Tabs Navigation */}
             <Tabs defaultValue="general" className="w-full">
                 <div className="flex items-center justify-center mb-6">
-                    <TabsList className="bg-black/40 backdrop-blur-md border border-white/10 p-1 h-11 rounded-full">
+                    <TabsList className="bg-black/40 backdrop-blur-md border border-white/10 p-1 h-auto min-h-[44px] rounded-2xl md:rounded-full flex-wrap w-full md:w-auto justify-center gap-1">
                         <TabsTrigger
                             value="general"
-                            className="rounded-full px-5 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:border-indigo-500/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <Server className="w-4 h-4 mr-2" />
                             Général
                         </TabsTrigger>
                         <TabsTrigger
                             value="team"
-                            className="rounded-full px-5 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border-amber-500/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <Crown className="w-4 h-4 mr-2" />
                             Direction
                         </TabsTrigger>
                         <TabsTrigger
                             value="content"
-                            className="rounded-full px-5 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-500/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <Gamepad2 className="w-4 h-4 mr-2" />
                             Contenu
                         </TabsTrigger>
                         <TabsTrigger
                             value="images"
-                            className="rounded-full px-5 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 data-[state=active]:border-purple-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 data-[state=active]:border-purple-500/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <ImageIcon className="w-4 h-4 mr-2" />
                             Images
                         </TabsTrigger>
                         <TabsTrigger
                             value="recruitment"
-                            className="rounded-full px-5 data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-300 data-[state=active]:border-pink-500/30 border border-transparent transition-all"
+                            className="flex-1 md:flex-none rounded-full px-3 py-1.5 md:px-5 data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-300 data-[state=active]:border-pink-500/30 border border-transparent transition-all whitespace-nowrap"
                         >
                             <UserPlus className="w-4 h-4 mr-2" />
                             Recrutement

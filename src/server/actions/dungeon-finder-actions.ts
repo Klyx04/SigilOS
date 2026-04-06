@@ -255,28 +255,15 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
 }
 
 /**
- * Désactive l'embed (post fermé) : embed gris + thread forum archivé/verrouillé.
+ * Supprime l'embed Discord (post fermé) : message ou thread forum supprimé.
  */
 async function disableDjDiscordEmbed(guildId: string, discordChannelId: string | null, discordMessageId: string | null) {
     if (!discordChannelId || !discordMessageId) return;
-    const token = process.env.DISCORD_BOT_TOKEN;
-    if (!token) return;
     try {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-        await fetch(`https://discord.com/api/v10/channels/${discordChannelId}/messages/${discordMessageId}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-                embeds: [{ title: "🔒 Recherche de groupe — Terminée", description: "Ce groupe a été fermé par son créateur.", color: 0x475569, footer: { text: "SigilOS — Donjons & Quêtes" }, timestamp: new Date().toISOString() }],
-                components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir le dashboard", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` }] }],
-            }),
-        });
-        await fetch(`https://discord.com/api/v10/channels/${discordChannelId}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ archived: true, locked: true }),
-        });
-    } catch (error) { console.error("[disableDjDiscordEmbed]", error); }
+        await deleteDiscordMessage(discordChannelId, discordMessageId);
+    } catch (error) { 
+        console.error("[disableDjDiscordEmbed] Failed to delete Discord message:", error); 
+    }
 }
 
 /**

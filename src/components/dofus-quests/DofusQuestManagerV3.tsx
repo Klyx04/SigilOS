@@ -24,11 +24,19 @@ interface DofusQuestManagerV3Props {
     chains: any[];
     dofusColor: string;
     heatmapData?: GuildHeatmapData | null;
+    selectedCharacter?: string;
 }
 
 type ViewMode = "successes" | "list" | "tree" | "heatmap";
 
-export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor, heatmapData }: DofusQuestManagerV3Props) {
+export function DofusQuestManagerV3({ 
+    guildId, 
+    dofus, 
+    chains, 
+    dofusColor, 
+    heatmapData,
+    selectedCharacter = "PRINCIPAL"
+}: DofusQuestManagerV3Props) {
     const [viewMode, setViewMode] = useState<ViewMode>("successes");
     const [synergy, setSynergy] = useState<Record<string, MemberOnQuest[]>>({});
     const [loadingSynergy, setLoadingSynergy] = useState(false);
@@ -69,7 +77,7 @@ export function DofusQuestManagerV3({ guildId, dofus, chains, dofusColor, heatma
 
         // 2. Server Action
         startTransition(async () => {
-            const res = await toggleQuestStatus(guildId, questId, newStatus);
+            const res = await toggleQuestStatus(guildId, questId, newStatus, selectedCharacter);
             if (res.success) {
                 toast.success("Progression mise à jour");
                 router.refresh(); // This will eventually trigger useEffect above to clear overrides

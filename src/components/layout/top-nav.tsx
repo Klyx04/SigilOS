@@ -16,7 +16,8 @@ import {
     CircleHelp,
     Rocket,
     Shield,
-    Search as SearchIcon
+    Search as SearchIcon,
+    MessageSquare
 } from "lucide-react";
 import { SmartBar } from "./smart-bar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -28,6 +29,16 @@ import { EventTicker } from "@/components/layout/event-ticker";
 import { UpcomingEvent } from "@/server/actions/event-actions";
 import { LiveStreamBadge } from "@/components/notifications/live-stream-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { signOut } from "next-auth/react";
+import { Users, Settings, LogOut } from "lucide-react";
 import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { useState } from "react";
 
@@ -136,7 +147,8 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                 </div>
 
                 {/* Event Ticker (Primary visibility) */}
-                <div className="hidden md:flex flex-1 max-w-xl justify-center">
+                <div className="hidden md:flex flex-1 max-w-xl justify-center items-center gap-4">
+                    <LiveStreamBadge guildId={sidebarProps.guildId} />
                     <EventTicker events={events} guildId={sidebarProps.guildId} canViewCalendar={sidebarProps.user.canViewCalendar} />
                 </div>
             </div>
@@ -209,28 +221,71 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                     )}
                 </div>
 
-                {/* 4. User Profile (Standalone) */}
+                {/* Guild Chat Trigger */}
+                <button 
+                    onClick={() => window.dispatchEvent(new CustomEvent("sigilos:open-chat"))}
+                    className="h-9 w-9 flex items-center justify-center text-zinc-500 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-xl transition-all group relative mr-1"
+                    title="Chat de Guilde"
+                >
+                    <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full animate-pulse border-2 border-[#060606]" />
+                </button>
+
+                {/* 4. User Profile (Standalone Dropdown) */}
                 <div className="flex items-center ml-2">
                     {sidebarProps.user.canViewProfile ? (
-                        <Link
-                            href={`/dashboard/${sidebarProps.guildId}/profile`}
-                            className="flex items-center gap-3 pl-3 pr-1 py-1 rounded-2xl hover:bg-white/5 transition-all group"
-                        >
-                            <div className="flex flex-col items-end leading-tight hidden lg:flex">
-                                <span className="text-[11px] font-black text-white/90 group-hover:text-white transition-colors">
-                                    {sidebarProps.user.name}
-                                </span>
-                                <span className="text-[9px] uppercase tracking-tighter text-zinc-500 font-bold">
-                                    {sidebarProps.user.roleName || "Membre"}
-                                </span>
-                            </div>
-                            <Avatar className="h-9 w-9 border border-white/10 ring-4 ring-transparent group-hover:ring-emerald-500/10 transition-all rounded-xl shadow-xl flex-shrink-0">
-                                <AvatarImage src={sidebarProps.user.image || ""} />
-                                <AvatarFallback className="text-[10px] bg-zinc-900 text-zinc-500 font-bold">
-                                    {sidebarProps.user.name?.slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                        </Link>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    className="flex items-center gap-3 pl-3 pr-1 py-1 rounded-2xl hover:bg-white/5 transition-all group outline-none"
+                                >
+                                    <div className="flex flex-col items-end leading-tight hidden lg:flex">
+                                        <span className="text-[11px] font-black text-white/90 group-hover:text-white transition-colors">
+                                            {sidebarProps.user.name}
+                                        </span>
+                                        <span className="text-[9px] uppercase tracking-tighter text-zinc-500 font-bold">
+                                            {sidebarProps.user.roleName || "Membre"}
+                                        </span>
+                                    </div>
+                                    <Avatar className="h-9 w-9 border border-white/10 ring-4 ring-transparent group-hover:ring-emerald-500/10 transition-all rounded-xl shadow-xl flex-shrink-0">
+                                        <AvatarImage src={sidebarProps.user.image || ""} />
+                                        <AvatarFallback className="text-[10px] bg-zinc-900 text-zinc-500 font-bold">
+                                            {sidebarProps.user.name?.slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent 
+                                className="w-56 bg-zinc-950/98 border-white/10 text-zinc-200 shadow-2xl rounded-2xl p-1 backdrop-blur-3xl" 
+                                align="end" 
+                                sideOffset={10}
+                            >
+                                <DropdownMenuLabel className="p-3 text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] italic">
+                                    User Control
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-white/5 mx-1" />
+                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer rounded-xl m-1 py-2 px-3 transition-all duration-300">
+                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile`} className="flex items-center gap-2">
+                                        <Users className="w-4 h-4 text-zinc-500" />
+                                        <span className="font-bold text-xs">Mon Profil</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer rounded-xl m-1 py-2 px-3 transition-all duration-300">
+                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile?tab=settings`} className="flex items-center gap-2">
+                                        <Settings className="w-4 h-4 text-zinc-500" />
+                                        <span className="font-bold text-xs">Réglages</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-white/5 mx-1" />
+                                <DropdownMenuItem 
+                                    onClick={() => signOut()} 
+                                    className="text-rose-400 focus:text-rose-400 focus:bg-rose-500/10 cursor-pointer rounded-xl m-1 py-2 px-3 transition-all duration-300"
+                                >
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    <span className="font-black text-xs">Déconnexion</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     ) : (
                         <div className="h-9 w-9 rounded-xl bg-zinc-900/50 border border-white/5 flex items-center justify-center opacity-40">
                              <Avatar className="h-7 w-7 opacity-50 grayscale">

@@ -64,20 +64,34 @@ async function seedDofus() {
 
     try {
         // 1. Upsert DofusItem
-        const dofus = await db.dofusItem.upsert({
+        const imageUrl = compiled.imageUrl ? compiled.imageUrl : (compiled.iconId ? `https://api.dofusdb.fr/img/items/${compiled.iconId}.png` : (compiled.dofusItemId ? `https://api.dofusdb.fr/img/items/${compiled.dofusItemId}.png` : `https://api.dofusdb.fr/img/items/${dofus_slug_to_icon(dofusSlug)}.png`));
+        const name = compiled.displayName ?? dofus_slug_to_name(dofusSlug);
+        const nameShort = dofus_slug_to_short(dofusSlug);
+        const color = compiled.color ?? "#aaaaaa";
+        const description = compiled.successDescription ?? null;
+
+        const dofus = await (db as any).dofusItem.upsert({
             where: { slug: dofusSlug },
-            update: { name: compiled.displayName ?? dofus_slug_to_name(dofusSlug) },
+            update: {
+                name,
+                nameShort,
+                imageUrl,
+                color,
+                description,
+                successName: compiled.successName ?? null,
+                levelRecommended: compiled.recommendedLevel ?? 20,
+            },
             create: {
                 slug: dofusSlug,
-                name: compiled.displayName ?? dofus_slug_to_name(dofusSlug),
-                nameShort: dofus_slug_to_short(dofusSlug),
+                name,
+                nameShort,
                 rarity: "MAJEUR",
                 isPrimordial: false,
-                levelRecommended: 20,
-                color: compiled.color ?? "#aaaaaa",
-                imageUrl: compiled.imageUrl ? compiled.imageUrl : (compiled.iconId ? `https://api.dofusdb.fr/img/items/${compiled.iconId}.png` : (compiled.dofusItemId ? `https://api.dofusdb.fr/img/items/${compiled.dofusItemId}.png` : `https://api.dofusdb.fr/img/items/${dofus_slug_to_icon(dofusSlug)}.png`)),
+                levelRecommended: compiled.recommendedLevel ?? 20,
+                color,
+                imageUrl,
                 successName: compiled.successName ?? null,
-                description: compiled.successDescription ?? null,
+                description,
             },
         });
         console.log(`✅ DofusItem synced: ${dofus.name} (id: ${dofus.id})\n`);
@@ -146,6 +160,7 @@ async function seedDofus() {
                         coords:       entry.coords ?? null,
                         isDungeon:    entry.isDungeon ?? false,
                         itemsRequired: entry.itemsRequired ?? null,
+                        dungeonsRequired: entry.dungeonsRequired ?? null,
                         objectives:    entry.objectives ?? null,
                         requirements: (entry.requirements ?? []).map((r: any) => ({
                             ...r,

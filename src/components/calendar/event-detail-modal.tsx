@@ -168,6 +168,7 @@ interface EventDetailModalProps {
     onComplete?: () => Promise<void>;
     onSendReminder?: (roleId?: string) => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; error?: string }>;
     onShareDiscord?: (roleId?: string) => Promise<{ success: boolean; error?: string }>;
+    hasMetamobKey?: boolean;
 }
 
 // ============================================
@@ -189,7 +190,8 @@ export function EventDetailModal({
     onPublish,
     onComplete,
     onSendReminder,
-    onShareDiscord
+    onShareDiscord,
+    hasMetamobKey = false
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
@@ -431,6 +433,7 @@ export function EventDetailModal({
 
                                     <ScrollArea className="h-48">
                                         <div className="space-y-2">
+                                            {/* Standard DB Participants */}
                                             {event.participants
                                                 .filter(p => p.status === "REGISTERED")
                                                 .sort((a, b) => a.position - b.position)
@@ -443,6 +446,29 @@ export function EventDetailModal({
                                                         onUnregister={!isExternal && onUnregister ? () => handleAction(onUnregister) : undefined}
                                                     />
                                                 ))}
+
+                                            {/* Metamob Metadata Participants Fallback */}
+                                            {isKrala && event.participants.length === 0 && (eventMetadata?.metamobParticipants || []).length > 0 && (
+                                                (eventMetadata.metamobParticipants as any[]).map((p, i) => (
+                                                    <div key={`meta-${i}`} className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-800/30">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <span className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-zinc-700 text-zinc-300">
+                                                                {i + 1}
+                                                            </span>
+                                                            <Avatar className="h-8 w-8 border-2 border-zinc-700/50">
+                                                                <AvatarFallback className="bg-zinc-700 text-zinc-300 text-xs">
+                                                                    {p.username?.[0] || "?"}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="min-w-0">
+                                                                <span className="text-sm font-medium text-zinc-200 truncate">
+                                                                    {p.username || "Anonyme"} {p.character_count ? `(${p.character_count})` : ""}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
 
                                             {reserveCount > 0 && (
                                                 <>
@@ -467,13 +493,20 @@ export function EventDetailModal({
                                                 </>
                                             )}
 
-                                            {event.participants.length === 0 && (
-                                                <div className="text-center py-8 text-zinc-500 text-sm">
-                                                    <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                                    {isKrala && cachedCount > 0
-                                                        ? `${cachedCount} participants sur Metamob (détails indisponibles sans clé API)`
-                                                        : "Aucun participant"
-                                                    }
+                                            {event.participants.length === 0 && (!isKrala || (eventMetadata?.metamobParticipants || []).length === 0) && (
+                                                <div className="text-center py-12 rounded-xl border-2 border-dashed border-zinc-800/50 bg-zinc-900/20">
+                                                    <User className="h-10 w-10 mx-auto mb-3 text-zinc-600 opacity-50" />
+                                                    <p className="text-zinc-400 font-medium">
+                                                        {isKrala 
+                                                            ? "Détails des participants indisponibles" 
+                                                            : "Aucun participant inscrit"
+                                                        }
+                                                    </p>
+                                                    {isKrala && (
+                                                        <p className="text-xs text-zinc-500 mt-2 px-6">
+                                                            Les inscrits sur Metamob ne sont pas encore synchronisés ou nécessitent une clé API valide.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -490,20 +523,41 @@ export function EventDetailModal({
                         {/* User Actions */}
                         <div className="flex items-center gap-2 flex-wrap">
                             {(isDirectKralamoure || isImportedKralamoure) ? (
-                                <Button
-                                    asChild
-                                    className="bg-pink-600 hover:bg-pink-500 text-white font-bold shadow-lg shadow-pink-500/20"
-                                >
-                                    <a
-                                        href="https://metamob.fr/kralove"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center w-full h-full px-4 py-2" // Added w-full h-full and padding here
-                                    >
-                                        <ExternalLink className="h-4 w-4 mr-2" />
-                                        S'inscrire sur Metamob
-                                    </a>
-                                </Button>
+                                <div className="flex flex-col gap-3 w-full">
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            asChild
+                                            className="bg-pink-600 hover:bg-pink-500 text-white font-bold shadow-lg shadow-pink-500/20"
+                                        >
+                                            <a
+                                                href="https://metamob.fr/kralove"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center w-full h-full px-4 py-2"
+                                            >
+                                                <ExternalLink className="h-4 w-4 mr-2" />
+                                                S'inscrire sur Metamob
+                                            </a>
+                                        </Button>
+
+                                        {!hasMetamobKey && (
+                                            <Button
+                                                asChild
+                                                variant="outline"
+                                                className="border-pink-500/30 text-pink-400 hover:bg-pink-500/10 hover:border-pink-500/50"
+                                            >
+                                                <a href={`/dashboard/${guildId}/profile`}>
+                                                    Lier mon compte Metamob
+                                                </a>
+                                            </Button>
+                                        )}
+                                    </div>
+                                    {!hasMetamobKey && (
+                                        <p className="text-[11px] text-zinc-500 italic">
+                                            Liez votre compte pour que SigilOS puisse synchroniser votre état de jeu.
+                                        </p>
+                                    )}
+                                </div>
                             ) : (
                                 <>
                                     {canRegister && (

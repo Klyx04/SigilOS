@@ -134,6 +134,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<any>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
+    const [hasMetamobKey, setHasMetamobKey] = useState(false);
 
     // Discord roles for notifications
     const [discordRoles, setDiscordRoles] = useState<DiscordRole[]>([]);
@@ -192,6 +193,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
         const result = await getCalendarEventDetails(guildId, eventId);
         if (result.success && result.event) {
             setSelectedEvent(result.event);
+            setHasMetamobKey(!!(result as any).hasMetamobKey);
         } else {
             toast.error(result.error || "Impossible de charger l'événement");
         }
@@ -623,6 +625,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                 guildId={guildId}
                 canManage={canManage}
                 discordRoles={discordRoles}
+                hasMetamobKey={hasMetamobKey}
                 onRegister={handleRegister}
                 onUnregister={handleUnregister}
                 onEdit={() => {

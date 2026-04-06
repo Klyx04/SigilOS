@@ -69,30 +69,44 @@ send_god_notif() {
     local metadata=$5
 
     echo "[$(date)] 📣 Sending God Notification: $title..."
+    echo "[Debug] Target URL: $GOD_NOTIFY_URL"
 
     if [ -z "$CRON_SECRET" ]; then
-        echo "⚠️  CRON_SECRET is missing. Notification skipped."
+        echo "⚠️  CRON_SECRET is missing from env. Notification skipped."
+        echo "[Debug] Loaded env file: ${ENV_FILE_LOADED:-none}"
         return
     fi
 
-    # Ensure GOD_NOTIFY_URL is reachable (use fallback if domain is not yet resolved or internal only)
+    echo "[Debug] CRON_SECRET is set (length: ${#CRON_SECRET})"
+
     local target_url="$GOD_NOTIFY_URL"
-    
-    local response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$target_url" \
+    local payload="{
+        \"title\": \"$title\",
+        \"message\": \"$message\",
+        \"type\": \"$type\",
+        \"success\": $success,
+        \"metadata\": $metadata
+    }"
+
+    # Capture both HTTP code AND response body for debugging
+    local http_body
+    local http_code
+    http_body=$(curl -s -w "\n%{http_code}" -X POST "$target_url" \
         -H "Authorization: Bearer $CRON_SECRET" \
         -H "Content-Type: application/json" \
-        -d "{
-            \"title\": \"$title\",
-            \"message\": \"$message\",
-            \"type\": \"$type\",
-            \"success\": $success,
-            \"metadata\": $metadata
-        }")
+        -d "$payload")
 
-    if [ "$response" -eq 200 ]; then
-        echo "✅ Notification sent!"
+    http_code=$(echo "$http_body" | tail -n1)
+    local response_body=$(echo "$http_body" | sed '$d')
+
+    echo "[Debug] HTTP Response Code: $http_code"
+    echo "[Debug] Response Body: $response_body"
+
+    if [ "$http_code" -eq 200 ] 2>/dev/null; then
+        echo "✅ Notification sent successfully!"
     else
-        echo "❌ Notification failed (HTTP $response). Check your CRON_SECRET and URL: $target_url"
+        echo "❌ Notification failed (HTTP $http_code) — Check CRON_SECRET and URL: $target_url"
+        echo "   Body: $response_body"
     fi
 }
 

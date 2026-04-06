@@ -22,7 +22,10 @@ import {
     ArrowUpRight,
     Trophy,
     ArrowUpDown,
-    Bell
+    Bell,
+    Send,
+    Loader2,
+    Check
 } from "lucide-react";
 import { 
     Card, 
@@ -54,14 +57,15 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { 
     getMemberReconciliation, 
+    sendManualRosterReport,
     type MemberReconciliationData, 
     type RoleStats 
 } from "@/server/actions/member-actions";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import { 
     Select,
     SelectContent,
@@ -113,6 +117,46 @@ interface MemberManagementProps {
     initialHistory: any[];
     canManageMembers: boolean;
     canManageRelance: boolean;
+}
+
+// Sub-component for individual role audit trigger
+function ManualAuditButton({ guildId, roleId }: { guildId: string, roleId: string }) {
+    const [isPending, startTransition] = React.useTransition();
+    const [isSuccess, setIsSuccess] = useState(false);
+
+    const handleSend = () => {
+        startTransition(async () => {
+            const res = await sendManualRosterReport(guildId, roleId);
+            if (res.success) {
+                toast.success("Rapport d'audit envoyé sur Discord !");
+                setIsSuccess(true);
+                setTimeout(() => setIsSuccess(false), 3000);
+            } else {
+                toast.error(res.error || "Échec de l'envoi");
+            }
+        });
+    };
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        disabled={isPending}
+                        onClick={handleSend}
+                        className={`h-7 w-7 p-0 rounded-lg transition-all ${isSuccess ? 'text-emerald-500 bg-emerald-500/10' : 'text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10'}`}
+                    >
+                        {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : isSuccess ? <Check className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-black border-white/10 text-[10px] font-black uppercase tracking-widest">
+                    {isPending ? "Envoi..." : isSuccess ? "Envoyé !" : "Envoyer Audit sur Discord"}
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
 }
 
 export default function MemberManagement({ 
@@ -540,7 +584,7 @@ export default function MemberManagement({
                                                             <div className="flex items-center gap-1.5 text-emerald-400 font-black text-[10px] uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded-lg w-fit">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                                                 Inscrit
-                                                            </div>
+                             </div>
                                                         ) : (
                                                             <div className="flex items-center gap-1.5 text-amber-500 font-black text-[10px] uppercase tracking-widest bg-amber-500/10 px-2 py-1 rounded-lg w-fit">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -556,14 +600,7 @@ export default function MemberManagement({
                                                                 </a>
                                                             </Button>
                                                         ) : (
-                                                            <Button 
-                                                                variant="outline" 
-                                                                size="sm" 
-                                                                className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest bg-amber-500/5 border-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all px-4"
-                                                                onClick={() => toast.info(`Relance envoyée à ${member.displayName}`)}
-                                                            >
-                                                                Relancer
-                                                            </Button>
+                                                            <div className="w-9 h-9" /> // Placeholder pour garder l'alignement
                                                         )}
                                                     </TableCell>
                                                 </TableRow>
@@ -575,7 +612,7 @@ export default function MemberManagement({
                         </div>
 
                         {/* Bottom Utility Cards */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Embedded Sync Card */}
                             <Card className="bg-zinc-900/40 backdrop-blur-xl border-indigo-500/20 rounded-[32px] overflow-hidden shadow-2xl relative group">
                                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -592,7 +629,7 @@ export default function MemberManagement({
                                     <DailyReportButton guildId={guildId} />
                                     <div className="flex items-center justify-between pt-4 border-t border-white/5">
                                         <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Planification</span>
-                                        <Badge variant="outline" className="text-[9px] bg-zinc-800 border-none font-black text-indigo-400">QUOTIDIEN 04:00 AM</Badge>
+                                        <Badge variant="outline" className="text-[9px] bg-zinc-800 border-none font-black text-indigo-400">HEBDOMADAIRE LUNDI 04:00 AM</Badge>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -600,10 +637,10 @@ export default function MemberManagement({
                             <Card className="bg-zinc-900/40 backdrop-blur-xl border-white/10 rounded-[32px] overflow-hidden shadow-2xl">
                                 <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-xl bg-violet-600/20 flex items-center justify-center">
-                                            <Trophy className="w-4 h-4 text-violet-400" />
+                                        <div className="w-8 h-8 rounded-xl bg-emerald-600/20 flex items-center justify-center">
+                                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
                                         </div>
-                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Rôles Dashboard</CardTitle>
+                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Audit & Rôles</CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-6">
@@ -626,9 +663,12 @@ export default function MemberManagement({
                                                             />
                                                             <span className="text-xs font-black text-zinc-300 truncate group-hover/role:text-white transition-colors">{s.roleName}</span>
                                                         </div>
-                                                        <span className="text-[10px] font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-lg tabular-nums">
-                                                            {s.totalDashboard}/{s.totalDiscord}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-lg tabular-nums">
+                                                                {s.totalDashboard}/{s.totalDiscord}
+                                                            </span>
+                                                            <ManualAuditButton guildId={guildId} roleId={s.roleId} />
+                                                        </div>
                                                     </div>
                                                     <div className="flex items-center gap-4">
                                                         <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-white/5 p-[1px]">
@@ -649,25 +689,6 @@ export default function MemberManagement({
                                     )}
                                 </CardContent>
                             </Card>
-
-                            <div className="p-8 rounded-[32px] bg-gradient-to-br from-violet-600/10 to-indigo-600/10 border border-violet-500/20 shadow-2xl relative overflow-hidden group">
-                                <div className="absolute -top-4 -right-4 w-20 h-20 bg-violet-500/20 blur-2xl rounded-full" />
-                                <div className="space-y-4 relative z-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-2xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/40">
-                                            <Info className="w-5 h-5 text-white" />
-                                        </div>
-                                        <h4 className="text-sm font-black uppercase tracking-widest text-white italic">Comment ça marche ?</h4>
-                                    </div>
-                                    <p className="text-[11px] leading-relaxed text-zinc-400 font-medium italic">
-                                        Cet outil croise la liste des membres Discord avec les profils SigilOS. 
-                                        <span className="text-violet-400 font-bold block mt-2 underline decoration-violet-400/30">Seuls les membres possédant un rôle autorisé sont inclus.</span>
-                                    </p>
-                                    <Button variant="ghost" className="w-full h-11 bg-white/5 group-hover:bg-violet-600 transition-all rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 group-hover:text-white mt-4 border border-white/5">
-                                        Documentation
-                                    </Button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </TabsContent>
@@ -681,6 +702,7 @@ export default function MemberManagement({
                             guildId={guildId}
                             welcomeBadgeName={welcomeBadgeName}
                             isSuperAdmin={isSuperAdmin}
+                            isAdmin={canManageMembers}
                             ownerId={memberList.ownerId}
                         />
                     </div>

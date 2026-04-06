@@ -1,167 +1,157 @@
-﻿"use client";
+"use client";
 
-import React, { useState, useEffect, useRef, useCallback, memo } from "react";
-import {
-    Send,
-    MessageSquare,
-    X,
-    Maximize2,
-    Minimize2,
-    Volume2,
-    VolumeX,
-    Bell, BellOff, Trash2, Activity, ChevronDown, Shield, Smile, RotateCcw,
-    Zap, Lock, BarChart3, Clock, UserX, GripVertical, HelpCircle, Command, Dices, UserCircle
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { 
+    Send, X, Minimize2, Maximize2, ChevronDown, MessageSquare, 
+    Zap, Volume2, VolumeX, Bell, BellOff, RotateCcw, HelpCircle,
+    UserX, ShieldBan, Lock, GripVertical, Command, Dices, Smile, BarChart3
 } from "lucide-react";
+import { motion, useDragControls } from "framer-motion";
+import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { ChatTransparencyModal } from "./ChatTransparencyModal";
-import {
-    sendChatMessage,
-    getChatHistory,
-    clearGuildChat,
+import { usePresence } from "@/components/providers/PresenceProvider";
+import { PresenceProvider } from "@/components/providers/PresenceProvider";
+import { 
+    getChatHistory, 
+    sendChatMessage, 
+    clearGuildChat, 
+    getChatMentionOptions,
+    getUserChatBanStatus,
     muteChatUser,
     unmuteChatUser,
     getMuteTTL,
-    getChatMentionOptions,
-    voteInChatPoll,
-    getUserChatBanStatus,
     setTypingIndicator,
-    pushSystemChatMessage
+    voteInChatPoll
 } from "@/server/actions/chat-actions";
-import {
-    CHAT_MAX_LENGTH,
-    type ChatMessage
-} from "@/lib/chat-helpers";
-import { usePresence, PresenceProvider } from "@/components/providers/PresenceProvider";
+import { type ChatMessage } from "@/lib/chat-helpers";
 import { ChatAutocomplete } from "./ChatAutocomplete";
 import { ChatPollModal } from "./ChatPollModal";
-import { renderTextWithLinks } from "@/lib/chat-renderer";
-import { cn } from "@/lib/utils";
+import { ChatTransparencyModal } from "./ChatTransparencyModal";
 
 interface ChatWidgetProps {
     guildId: string;
     userId: string;
-    canModerate?: boolean;
-    displayName?: string;
+    displayName: string;
     avatarUrl?: string;
-    userRoleName?: string;
-    userRoleNames?: string[];
-    userRoleIds?: string[];
+    userRoleName: string;
+    userRoleNames: string[];
+    userRoleIds: string[];
     userPseudo?: string;
+    canModerate?: boolean;
+    hideFloatingBubble?: boolean;
 }
 
-// â”€â”€ Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——————————————————————————————————————————————————————————————————————————————
+// Helper: Parsing links and mentions in chat text
+function renderTextWithLinks(text: string, mentions?: string[]) {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+            return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-300 hover:text-indigo-200 underline break-all inline-flex items-center gap-1">
+                {part.length > 30 ? part.substring(0, 30) + "..." : part}
+            </a>;
+        }
+        
+        // Handle @mentions
+        if (part.includes("@")) {
+            const subParts = part.split(/(@[a-zA-Z0-9_\-À-ÿ]+)/g);
+            return subParts.map((sub, j) => {
+                if (sub.startsWith("@")) {
+                    return <span key={`${i}-${j}`} className="text-indigo-300 font-bold bg-indigo-500/20 px-1 rounded-sm">{sub}</span>;
+                }
+                return sub;
+            });
+        }
+        
+        return part;
+    });
+}
 
+// ——————————————————————————————————————————————————————————————————————————————
 function TypingIndicator({ names }: { names: string[] }) {
     if (names.length === 0) return null;
     return (
-        <div className="flex items-center gap-2 px-3 py-1 text-[10px] text-zinc-500 italic select-none animate-in fade-in slide-in-from-bottom-1">
-            <span className="flex gap-0.5 items-end">
-                {[0, 1, 2].map(i => (
-                    <span key={i} className="w-1 h-1 rounded-full bg-zinc-600 animate-bounce"
-                        style={{ animationDelay: `${i * 150}ms` }} />
-                ))}
+        <div className="flex items-center gap-2 px-1 py-1 animate-in fade-in slide-in-from-bottom-1">
+            <div className="flex gap-1">
+                <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" />
+            </div>
+            <span className="text-[10px] font-bold text-zinc-500 italic">
+                {names.length === 1 ? `${names[0]} écrit...` : `${names.length} personnes écrivent...`}
             </span>
-            {names.length === 1 ? `${names[0]} Ã©crit` : `${names.length} personnes Ã©crivent`}...
         </div>
     );
 }
 
-const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentUserPseudo, onVote, canModerate, onMute }: {
-    msg: ChatMessage;
-    isOwn: boolean;
-    currentUserId: string;
-    currentUserRole?: string;
-    currentUserPseudo?: string;
-    onVote: (optId: string, msgId: string) => void;
-    canModerate?: boolean;
-    onMute?: (userId: string, name: string) => void;
+// ——————————————————————————————————————————————————————————————————————————————
+const MessageItem = React.memo(({ msg, isOwn, currentUserId, currentUserRole, currentUserPseudo, canModerate, onMute, onVote }: { 
+    msg: ChatMessage, 
+    isOwn: boolean,
+    currentUserId?: string,
+    currentUserRole?: string,
+    currentUserPseudo?: string,
+    canModerate?: boolean,
+    onMute?: (id: string, name: string) => void,
+    onVote?: (optId: string, msgId: string) => void
 }) => {
-    if (msg.type === "system") {
-        return (
-            <div className="flex justify-center my-2 animate-in fade-in duration-300">
-                <div className="flex items-center gap-1.5 opacity-60">
-                    <Activity className="w-3 h-3 text-white" />
-                    <span className="text-[11px] font-light text-white tracking-wide">{msg.text}</span>
-                </div>
-            </div>
-        );
-    }
-
-    if (msg.type === "presence") {
-        const isJoin = msg.text?.includes("rejoint");
-        return (
-            <div className="flex justify-center my-1 animate-in fade-in duration-300">
-                <span className={cn(
-                    "text-[10px] font-light tracking-wide",
-                    isJoin ? "text-white/30" : "text-zinc-600/70"
-                )}>{msg.text}</span>
-            </div>
-        );
-    }
-
+    // 1. Poll specialized rendering
     if (msg.type === "poll" && msg.pollData) {
-        const totalVotes = Object.keys(msg.pollData.voters || {}).length;
-        const myVote = msg.pollData.voters?.[currentUserId];
+        const totalVotes = msg.pollData.options.reduce((acc, opt) => acc + opt.votes, 0);
+        const voters = msg.pollData.voters || {};
+        const hasVoted = !!voters[currentUserId || ""];
 
         return (
-            <div className={cn("flex gap-3 items-end group mb-4", isOwn ? "flex-row-reverse" : "flex-row")}>
-                {!isOwn && (
-                    <Avatar className="h-6 w-6 border border-white/10 mb-1">
-                        <AvatarImage src={msg.authorImage || ""} />
-                        <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400">{msg.authorName[0]}</AvatarFallback>
-                    </Avatar>
-                )}
-                <div className={cn("flex flex-col gap-1 w-full max-w-[85%]", isOwn ? "items-end" : "items-start")}>
-                    <span className="text-[10px] font-black uppercase text-zinc-500 px-1">{msg.authorName} a lancÃ© un sondage</span>
-                    <div className={cn(
-                        "p-4 rounded-2xl text-[13px] border w-full backdrop-blur-sm",
-                        isOwn ? "bg-indigo-900/40 border-indigo-500/30 rounded-br-sm" : "bg-zinc-800/80 border-white/10 rounded-bl-sm"
-                    )}>
-                        <div className="font-bold text-white mb-3 text-sm">{msg.pollData.question}</div>
-                        <div className="flex flex-col gap-2 relative z-10">
-                            {msg.pollData.options.map((opt) => {
-                                const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                                const isMyVote = myVote === opt.id;
-                                return (
-                                    <button
-                                        key={opt.id}
-                                        onClick={() => {
-                                            if (!msg.id) return;
-                                            onVote(opt.id, msg.id);
-                                        }}
+            <div className="flex flex-col gap-2 mb-6 animate-in zoom-in-95 duration-300">
+                <div className="flex items-center gap-2 px-1">
+                    <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                        <BarChart3 className="w-3 h-3" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">Sondage • {msg.authorName}</span>
+                </div>
+                <div className="bg-zinc-800/40 border border-indigo-500/20 rounded-2xl p-4 shadow-xl backdrop-blur-sm">
+                    <h4 className="text-sm font-bold text-white mb-4 leading-tight">{msg.text}</h4>
+                    <div className="space-y-2.5">
+                        {msg.pollData.options.map((opt, idx: number) => {
+                            const votes = opt.votes;
+                            const percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                            const isMyVote = voters[currentUserId || ""] === opt.id;
+
+                            return (
+                                <button
+                                    key={opt.id || idx}
+                                    disabled={hasVoted}
+                                    onClick={() => onVote?.(opt.id, msg.id!)}
+                                    className={cn(
+                                        "relative w-full flex items-center justify-between p-3 rounded-xl border border-white/5 transition-all group/opt overflow-hidden",
+                                        hasVoted ? "cursor-default" : "hover:border-indigo-500/40 hover:bg-white/5 active:scale-[0.98]",
+                                        isMyVote && "border-indigo-500/40 bg-indigo-500/5 ring-1 ring-indigo-500/20"
+                                    )}
+                                >
+                                    <div 
                                         className={cn(
-                                            "group/opt relative w-full text-left p-3 rounded-xl text-[13px] transition-all flex justify-between items-center border overflow-hidden cursor-pointer hover:shadow-md active:scale-[0.98] z-20",
-                                            isMyVote
-                                                ? "border-indigo-400 bg-indigo-500/10 text-indigo-100 ring-2 ring-indigo-500/20"
-                                                : "border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 text-zinc-300"
+                                            "absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out z-0 pointer-events-none",
+                                            isMyVote ? "bg-indigo-500/20" : "bg-zinc-500/10"
                                         )}
-                                    >
-                                        <div
-                                            className={cn(
-                                                "absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out z-0 pointer-events-none",
-                                                isMyVote ? "bg-indigo-500/20" : "bg-zinc-500/10"
-                                            )}
-                                            style={{ width: `${percent}%` }}
-                                        />
-                                        <span className="relative z-10 font-bold flex items-center gap-2 pointer-events-none">
-                                            {opt.text}
-                                            {isMyVote && <span className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] text-white animate-in zoom-in">âœ“</span>}
-                                        </span>
-                                        <span className={cn(
-                                            "relative z-10 text-[10px] font-black tracking-tighter transition-all pointer-events-none",
-                                            isMyVote ? "text-indigo-400" : "text-zinc-500 group-hover/opt:text-zinc-400"
-                                        )}>
-                                            {percent}%
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-1">
-                            <span>{totalVotes} vote{totalVotes > 1 ? 's' : ''}</span>
-                            <span className="flex items-center gap-1.5"><BarChart3 className="w-2.5 h-2.5" /> Sondage actif</span>
-                        </div>
+                                        style={{ width: `${percent}%` }}
+                                    />
+                                    <span className="relative z-10 font-bold flex items-center gap-2 pointer-events-none">
+                                        {opt.text}
+                                        {isMyVote && <span className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] text-white animate-in zoom-in">✓</span>}
+                                    </span>
+                                    <span className={cn(
+                                        "relative z-10 text-[10px] font-black tracking-tighter transition-all pointer-events-none",
+                                        isMyVote ? "text-indigo-400" : "text-zinc-500 group-hover/opt:text-zinc-400"
+                                    )}>
+                                        {percent}%
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -195,7 +185,6 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
                         <button
                             onClick={() => onMute?.(msg.authorId, msg.authorName)}
                             className="absolute -top-2 -left-2 hidden group-hover/avatar:flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white rounded-xl px-2 py-1 shadow-xl border border-rose-400/30 transition-all active:scale-95 whitespace-nowrap z-20"
-                            title={`Muter ${msg.authorName}`}
                         >
                             <UserX className="w-3 h-3" />
                             <span className="text-[9px] font-black uppercase tracking-wide">Muter</span>
@@ -228,11 +217,13 @@ const MessageItem = memo(({ msg, isOwn, currentUserId, currentUserRole, currentU
 });
 MessageItem.displayName = "MessageItem";
 
-// â”€â”€ Emoji Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——————————————————————————————————————————————————————————————————————————————
 const EMOJI_GROUPS = [
-    { label: "Pop", emojis: ["ðŸ˜‚", "ðŸ”¥", "ðŸ‘", "â¤ï¸", "ðŸ˜®", "ðŸ™Œ", "ðŸ’€", "ðŸŽ‰", "ðŸ™„", "ðŸ¤”"] },
-    { label: "Gestes", emojis: ["ðŸ‘‹", "âœŒï¸", "ðŸ‘Œ", "ðŸ’ª", "ðŸ™", "ðŸ‘€", "ðŸ§ ", "âœ¨", "ðŸ’¯", "âœ…"] },
-    { label: "Jeu", emojis: ["ðŸ‰", "âš”ï¸", "ðŸ›¡ï¸", "ðŸ§™", "ðŸ’°", "ðŸ—ºï¸", "ðŸ§ª", "ðŸ¥š", "ðŸ°", "ðŸ”¨"] },
+    { label: "Visages", emojis: ["😀", "😂", "🤣", "😊", "😍", "🤩", "🤔", "🤨", "🙄", "😏", "🥺", "😎", "😜", "😱", "😴"] },
+    { label: "Gestes", emojis: ["👋", "👌", "✌️", "🤞", "🤟", "🤝", "👍", "👎", "👏", "🙌", "🙏", "💪", "🧠", "👀", "✨"] },
+    { label: "Combat", emojis: ["⚔️", "🛡️", "🏹", "🗡️", "🪓", "💣", "🔥", "❄️", "⚡", "🧪", "💀", "⚰️", "🆘", "🚩", "🏆"] },
+    { label: "Objets", emojis: ["💰", "💎", "🎒", "🏺", "📜", "🗺️", "🔑", "🎲", "🎯", "🕯️", "🛠️", "🩹", "🎁", "🎈", "🎉"] },
+    { label: "Divers", emojis: ["🐷", "🐉", "🍀", "🍄", "⭐", "🌕", "🥪", "🍻", "🍕", "🍔", "📱", "💻", "💡", "❤️", "🔥"] },
 ];
 
 function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onClose: () => void }) {
@@ -245,7 +236,7 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onC
     }, [onClose]);
 
     return (
-        <div ref={ref} className="absolute bottom-[calc(100%+12px)] right-0 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[60] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div ref={ref} className="absolute bottom-[calc(100%+12px)] right-0 w-[calc(100vw-32px)] sm:w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[60] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div className="flex border-b border-white/5 bg-zinc-950/60">
                 {EMOJI_GROUPS.map((g, i) => (
                     <button key={g.label} onClick={() => setActiveGroup(i)} className={cn("flex-1 py-3 text-[10px] font-black uppercase transition-all", activeGroup === i ? "text-indigo-400 bg-white/5" : "text-zinc-500 hover:text-zinc-300")}>{g.label}</button>
@@ -260,7 +251,7 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (e: string) => void; onC
     );
 }
 
-// â”€â”€ Main ChatWidget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——————————————————————————————————————————————————————————————————————————————
 function formatMuteTime(seconds: number): string {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -268,6 +259,13 @@ function formatMuteTime(seconds: number): string {
     if (h > 0) return `${h}h${m > 0 ? ` ${m}min` : ""}`;
     if (m > 0) return `${m}min${s > 0 ? ` ${s}s` : ""}`;
     return `${s}s`;
+}
+
+interface ChatWidgetPropsCommon {
+    isOpen: boolean;
+    setIsOpen: (v: boolean) => void;
+    isMinimized: boolean;
+    setIsMinimized: (v: boolean) => void;
 }
 
 export function ChatWidget(props: ChatWidgetProps) {
@@ -299,13 +297,9 @@ function ChatInner({
     isOpen,
     setIsOpen,
     isMinimized,
-    setIsMinimized
-}: ChatWidgetProps & {
-    isOpen: boolean;
-    setIsOpen: (v: boolean) => void;
-    isMinimized: boolean;
-    setIsMinimized: (v: boolean) => void;
-}) {
+    setIsMinimized,
+    hideFloatingBubble
+}: ChatWidgetProps & ChatWidgetPropsCommon) {
     const { onlineUsers, isConnected, lastMessage } = usePresence();
     const [isMaximized, setIsMaximized] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -317,29 +311,32 @@ function ChatInner({
     const [soundEnabled, setSoundEnabled] = useState(() => typeof window !== "undefined" ? localStorage.getItem("chat-sound") !== "false" : true);
     const [notifEnabled, setNotifEnabled] = useState(() => typeof window !== "undefined" ? localStorage.getItem("chat-notif") !== "false" : true);
 
-    useEffect(() => { localStorage.setItem("chat-sound", soundEnabled.toString()); }, [soundEnabled]);
-    useEffect(() => { localStorage.setItem("chat-notif", notifEnabled.toString()); }, [notifEnabled]);
     const [hasMention, setHasMention] = useState(false);
     const [banStatus, setBanStatus] = useState({ isBanned: false, remainingSeconds: 0 });
-    const [muteSeconds, setMuteSeconds] = useState(0); // remaining mute duration for current user
+    const [muteSeconds, setMuteSeconds] = useState(0);
     const [muteModal, setMuteModal] = useState<{ userId: string; name: string } | null>(null);
-    const [muteDuration, setMuteDuration] = useState(300); // seconds
+    const [muteDuration, setMuteDuration] = useState(300);
     const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; expireAt: number }>>({});
     const [mentionOptions, setMentionOptions] = useState<any[]>([]);
     const [showPollModal, setShowPollModal] = useState(false);
+    const [showTransparency, setShowTransparency] = useState(false);
+
+    const [bubblePos, setBubblePos] = useState(() => {
+        if (typeof window === "undefined") return { x: 0, y: 0 };
+        const saved = localStorage.getItem(`chat-bubble-pos-${guildId}`);
+        return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+    });
+
+    const dragControls = useDragControls();
+    const [isDragging, setIsDragging] = useState(false);
 
     const isMuted = muteSeconds > 0;
-
-    const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    // Timestamp de connexion : on filtre les messages "presence" antÃ©rieurs (historique)
-    // joinedAt: initialized in mount effect (Date.now() is impure for inline useRef init)
+    const panelRef = useRef<HTMLDivElement>(null);
 
-    // -- Drag & Resize Logic --
     const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
     const [size, setSize] = useState({ w: 420, h: 600 });
-    const panelRef = useRef<HTMLDivElement>(null);
     const dragData = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
     const resizeData = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
 
@@ -393,128 +390,17 @@ function ChatInner({
         document.addEventListener("mouseup", onUp);
     };
 
-    // -- Refs for SSE Stability --
-    const notifRef = useRef(notifEnabled);
-    const soundRef = useRef(soundEnabled);
-    const isOpenRef = useRef(isOpen);
-    const isMinRef = useRef(isMinimized);
-    useEffect(() => { notifRef.current = notifEnabled; }, [notifEnabled]);
-    useEffect(() => { soundRef.current = soundEnabled; }, [soundEnabled]);
-    useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
-    useEffect(() => { isMinRef.current = isMinimized; }, [isMinimized]);
-
-    // joinedAt: timestamp de connexion — filtre les messages presence historiques (CHAT-1)
-    const joinedAt = useRef<number>(0);
-    useEffect(() => { joinedAt.current = Date.now(); }, []);
-
-    const [showTransparency, setShowTransparency] = useState(false);
-
-    // Initial Fetch — exclut les messages "presence" de l'historique (CHAT-1)
     useEffect(() => {
         if (!isOpen) return;
         getChatHistory(guildId).then(res => {
-            if (res.success && res.data) {
-                setMessages(res.data.filter(m => m.type !== "presence"));
-            }
+            if (res.success && res.data) setMessages(res.data.filter(m => m.type !== "presence"));
         });
         getChatMentionOptions(guildId).then(res => { if (res.success && res.data) setMentionOptions(res.data); });
         getUserChatBanStatus(userId).then(setBanStatus);
-        // Check if current user is muted
         getMuteTTL(guildId, userId).then(ttl => { if (ttl > 0) setMuteSeconds(ttl); });
     }, [isOpen, guildId, userId]);
 
-    // Ban Countdown
-    useEffect(() => {
-        if (banStatus.remainingSeconds <= 0) return;
-        const t = setInterval(() => setBanStatus(p => ({ ...p, remainingSeconds: Math.max(0, p.remainingSeconds - 1) })), 1000);
-        return () => clearInterval(t);
-    }, [banStatus.remainingSeconds]);
-
-    // Mute Countdown
-    useEffect(() => {
-        if (muteSeconds <= 0) return;
-        const t = setInterval(() => setMuteSeconds(p => Math.max(0, p - 1)), 1000);
-        return () => clearInterval(t);
-    }, [muteSeconds]);
-
-
-    // Global Message Handler (via PresenceProvider)
-    useEffect(() => {
-        if (!lastMessage) return;
-        const msg = lastMessage;
-
-        // 1. Typing Management
-        if (msg.type === "typing") {
-            if (msg.authorId === userId) return;
-            setTypingUsers(prev => ({ ...prev, [msg.authorId]: { name: msg.authorName, expireAt: Date.now() + 4000 } }));
-            clearTimeout(typingTimeouts.current[msg.authorId]);
-            typingTimeouts.current[msg.authorId] = setTimeout(() => {
-                setTypingUsers(prev => { const n = { ...prev }; delete n[msg.authorId]; return n; });
-            }, 4000);
-            return;
-        }
-
-        // 2. State Sync (Messages & Poll Updates)
-        if (msg.id === "presence-init") return; // Ignore initial sync in UI list
-
-        // Real-time mute/unmute events for the targeted user
-        if (msg.type === "system" && msg.systemMeta) {
-            const meta = msg.systemMeta as any;
-            if (meta.type === "user_muted" && meta.targetUserId === userId) {
-                setMuteSeconds(meta.durationSeconds || 300);
-                toast.error(`\uD83D\uDD07 Vous avez \u00e9t\u00e9 muet pour ${formatMuteTime(meta.durationSeconds || 300)}`, { duration: 6000 });
-            }
-            if (meta.type === "user_unmuted" && meta.targetUserId === userId) {
-                setMuteSeconds(0);
-                toast.success("\uD83D\uDD0A Vous pouvez \u00e0 nouveau \u00e9crire dans le chat.");
-            }
-        }
-
-        if (msg.type === "presence") {
-            const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : 0;
-            if (msgTime < joinedAt.current) return; // PrÃ©sence historique â†’ skip
-        }
-
-        setMessages(prev => {
-            if (!msg.id) return prev;
-            const exists = prev.find(m => m.id === msg.id);
-            if (exists) return prev.map(m => (m.id === msg.id) ? msg : m);
-            return [...prev, msg].slice(-200);
-        });
-
-        // 3. Notification & Sound Logic
-        if (msg.authorId !== userId && (msg.type === "user" || msg.type === "poll")) {
-            const isMent = msg.mentions?.some(m =>
-                m === userId ||
-                (userPseudo && m === userPseudo.toLowerCase()) ||
-                (userRoleIds && userRoleIds.some(rid => rid.toLowerCase() === m)) ||
-                m === "everyone" ||
-                m === "here"
-            );
-
-            // Always play sound on mention (if not from self)
-            if (isMent && soundRef.current) {
-                const audio = new Audio("/sounds/notif.mp3");
-                audio.volume = 1.0;
-                audio.play().catch(() => { });
-            }
-
-            // Only show toaster/badge if chat is closed or minimized
-            if (!isOpenRef.current || isMinRef.current) {
-                setUnread(p => p + 1);
-                if (isMent) {
-                    setHasMention(true);
-                    if (notifRef.current) {
-                        toast(`Mention de ${msg.authorName}`, {
-                            description: msg.text,
-                            action: { label: "Voir", onClick: () => { setIsOpen(true); setIsMinimized(false); } }
-                        });
-                    }
-                }
-            }
-        }
-    }, [lastMessage, userId, userPseudo, userRoleIds]);
-
+    // Handle Scroll
     useEffect(() => {
         if (isOpen && !isMinimized) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isOpen, isMinimized, typingUsers]);
@@ -523,66 +409,26 @@ function ChatInner({
         const t = over !== undefined ? over : input;
         if (!t.trim() || sending || banStatus.isBanned) return;
 
-        // Force modal if /vote is partial or just keywords
-        const lowerT = t.trim().toLowerCase();
-        if (lowerT === "/vote" || lowerT === "/poll") {
+        if (t.trim().toLowerCase() === "/vote" || t.trim().toLowerCase() === "/poll") {
             setShowPollModal(true);
             setInput("");
             return;
         }
 
-        // If someone types /vote help or /vote something without enough pipes, open modal too
-        if (lowerT.startsWith("/vote ") || lowerT.startsWith("/poll ")) {
-            const pipes = t.split("|").length - 1;
-            if (pipes < 2) {
-                const questionPart = t.slice(6).trim();
-                setShowPollModal(true);
-                // We could pass questionPart to setQuestion if we had access to it, 
-                // but let's just open the modal to prevent broken messages.
-                setInput("");
-                return;
-            }
-        }
-
         setSending(true);
         setError(null);
-        setShowEmoji(false);
-
         const res = await sendChatMessage(guildId, t.trim());
         if (res.success) setInput("");
         else { setError(res.error || "Erreur"); setTimeout(() => setError(null), 5000); }
         setSending(false);
-        setTimeout(() => inputRef.current?.focus(), 50);
     }, [input, sending, guildId, banStatus.isBanned]);
-
-    const handleMute = async (targetId: string, name: string) => {
-        if (!canModerate) return;
-        setMuteModal({ userId: targetId, name });
-    };
 
     const handleMuteConfirm = async () => {
         if (!muteModal) return;
         const res = await muteChatUser(guildId, muteModal.userId, muteDuration);
-        if (res.success && res.data) {
-            toast.success(`${muteModal.name} muté — ${formatMuteTime(res.data.totalSeconds)} cumulés`);
-        } else toast.error("Impossible de muter");
+        if (res.success) toast.success(`${muteModal.name} muté`);
         setMuteModal(null);
     };
-
-    const handleUnmute = async (targetId: string, name: string) => {
-        const res = await unmuteChatUser(guildId, targetId);
-        if (res.success) toast.success(`${name} est démuté`);
-        else toast.error("Impossible de démuter");
-        setMuteModal(null);
-    };
-
-    const handleClear = async () => {
-        if (!canModerate || !confirm("Nettoyer tout le chat ?")) return;
-        const res = await clearGuildChat(guildId);
-        if (res.success) toast.success("Chat nettoyÃ©");
-    };
-
-    const typingNames = Object.values(typingUsers).map(u => u.name);
 
     return (
         <div className="fixed bottom-10 right-10 z-50 flex flex-col items-end gap-3 pointer-events-none">
@@ -597,77 +443,46 @@ function ChatInner({
                         position: "fixed",
                         left: pos ? `${pos.x}px` : undefined,
                         top: pos ? `${pos.y}px` : undefined,
-                        bottom: pos ? undefined : "40px",
-                        right: pos ? undefined : "40px",
-                        width: `${size.w}px`,
-                        height: `${size.h}px`,
+                        bottom: pos ? undefined : "10px",
+                        right: pos ? undefined : "10px",
+                        width: pos ? `${size.w}px` : "calc(100vw - 32px)",
+                        maxWidth: pos ? "none" : "420px",
+                        height: pos ? `${size.h}px` : "600px",
+                        maxHeight: "calc(100vh - 120px)",
                         zIndex: 60
                     }}
                     className={cn(
-                        "pointer-events-auto flex flex-col bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 transition-all ring-1 ring-white/5"
+                        "pointer-events-auto flex flex-col bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 transition-all ring-1 ring-white/5",
+                        isMaximized && "rounded-3xl"
                     )}>
 
-                    {/* Resize Handle (Top-Left corner) */}
                     {!isMaximized && (
-                        <div
-                            onMouseDown={handleResizeStart}
-                            className="absolute top-0 left-0 w-6 h-6 cursor-nwse-resize z-[70] hover:bg-indigo-500/10 rounded-br-xl flex items-center justify-center transition-colors group/resize"
-                        >
-                            <div className="w-1.5 h-1.5 bg-zinc-700 rounded-full group-hover/resize:bg-indigo-400" />
-                        </div>
+                        <div onMouseDown={handleResizeStart} className="absolute top-0 left-0 w-6 h-6 cursor-nwse-resize z-[70] hover:bg-indigo-500/10 rounded-br-xl" />
                     )}
 
-                    {/* Header - Custom Drag Handle logic */}
                     <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-zinc-950/60 backdrop-blur-md shrink-0">
                         <div className="flex items-center gap-3">
                             {!isMaximized && (
-                                <div
-                                    onMouseDown={handleDragStart}
-                                    className="p-1 -ml-2 hover:bg-white/5 rounded-lg cursor-move text-zinc-600 hover:text-white transition-all"
-                                    title="DÃ©placer"
-                                >
+                                <div onMouseDown={handleDragStart} className="p-1 -ml-2 hover:bg-white/5 rounded-lg cursor-move text-zinc-600 hover:text-white transition-all">
                                     <GripVertical className="w-4 h-4" />
                                 </div>
                             )}
-                            <div className="flex gap-1.5 ml-1">
-                                {onlineUsers.slice(0, 3).map(u => (
-                                    <Avatar key={u.id} className="w-6 h-6 ring-2 ring-zinc-950 shadow-md">
-                                        <AvatarImage src={u.image} />
-                                        <AvatarFallback className="text-[10px] bg-zinc-800 text-zinc-400">{u.name[0]}</AvatarFallback>
-                                    </Avatar>
-                                ))}
-                                {onlineUsers.length > 3 && <div className="w-6 h-6 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center text-[8px] font-black text-zinc-400">+{onlineUsers.length - 3}</div>}
-                            </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase text-zinc-100 flex items-center gap-2 italic"><Zap className="w-2.5 h-2.5 text-yellow-400" />Live Stream</span>
+                                <span className="text-[10px] font-black uppercase text-zinc-100 flex items-center gap-2 italic"><Zap className="w-2.5 h-2.5 text-yellow-400" />Live Chat</span>
                                 <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">{onlineUsers.length} en ligne</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
-                            <button onClick={() => setShowTransparency(true)} title="Transparence & RÃ¨gles" className="p-2 hover:bg-white/5 rounded-xl text-zinc-500 hover:text-indigo-400 transition-all">
-                                <HelpCircle className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setSoundEnabled(!soundEnabled)} title={soundEnabled ? "Couper le son" : "Activer le son"} className={cn("p-2 rounded-xl transition-all", soundEnabled ? "text-indigo-400 hover:bg-indigo-400/10" : "text-zinc-600 hover:text-zinc-400")}>
-                                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                            </button>
-                            <button onClick={() => setNotifEnabled(!notifEnabled)} title={notifEnabled ? "DÃ©sactiver les pop-ups" : "Activer les pop-ups"} className={cn("p-2 rounded-xl transition-all", notifEnabled ? "text-indigo-400 hover:bg-indigo-400/10" : "text-zinc-600 hover:text-zinc-400")}>
-                                {notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-                            </button>
-
-                            <div className="w-[1px] h-4 bg-white/5 mx-1" />
-
-                            <button onClick={() => setIsMinimized(true)} title="RÃ©duire" className="p-2 hover:bg-white/5 rounded-xl text-zinc-500 transition-all"><ChevronDown className="w-4 h-4" /></button>
-                            <button onClick={() => setIsMaximized(!isMaximized)} className="hidden md:block p-2 hover:bg-white/5 rounded-xl text-zinc-500 transition-all">{isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
-                            <button onClick={() => setIsOpen(false)} title="Fermer" className="p-2 hover:bg-rose-500/10 rounded-xl text-zinc-500 hover:text-rose-400 transition-all"><X className="w-4 h-4" /></button>
+                            <button onClick={() => setShowTransparency(true)} className="p-2 hover:bg-white/5 rounded-xl text-zinc-500"><HelpCircle className="w-4 h-4" /></button>
+                            <button onClick={() => setSoundEnabled(!soundEnabled)} className="p-2 rounded-xl text-zinc-500">{soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}</button>
+                            <button onClick={() => setNotifEnabled(!notifEnabled)} className="p-2 rounded-xl text-zinc-500">{notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}</button>
+                            <button onClick={() => setIsMinimized(true)} className="p-2 hover:bg-white/5 rounded-xl text-zinc-500"><ChevronDown className="w-4 h-4" /></button>
+                            <button onClick={() => setIsMaximized(!isMaximized)} className="hidden md:block p-2 hover:bg-white/5 rounded-xl text-zinc-500">{isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
+                            <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-rose-500/10 rounded-xl text-zinc-500 hover:text-rose-400"><X className="w-4 h-4" /></button>
                         </div>
                     </div>
 
-                    {/* Messages */}
                     <div className="flex-1 overflow-y-auto px-5 py-4 scrollbar-thin scrollbar-thumb-white/10">
-                        {!isConnected && <div className="h-full flex flex-col items-center justify-center opacity-50"><RotateCcw className="w-8 h-8 animate-spin" /></div>}
-                        {isConnected && messages.length === 0 && (
-                            <div className="h-full flex flex-col items-center justify-center opacity-20"><MessageSquare className="w-16 h-16 animate-pulse" /><p className="text-xs font-black uppercase tracking-[0.3em] mt-4">Nouveau Chat</p></div>
-                        )}
                         {messages.map((m, i) => (
                             <MessageItem
                                 key={m.id || i}
@@ -678,86 +493,35 @@ function ChatInner({
                                 currentUserPseudo={userPseudo}
                                 onVote={async (o, mId) => {
                                     const res = await voteInChatPoll(guildId, mId, o);
-                                    if (!res.success) toast.error(res.error || "Erreur de vote");
+                                    if (!res.success) toast.error(res.error || "Erreur");
                                 }}
                                 canModerate={canModerate}
-                                onMute={handleMute}
+                                onMute={(id, name) => setMuteModal({ userId: id, name })}
                             />
                         ))}
-                        <TypingIndicator names={typingNames} />
                         <div ref={bottomRef} />
                     </div>
 
-                    {/* Input */}
                     <div className="p-4 bg-zinc-950/60 border-t border-white/5 relative backdrop-blur-2xl">
-                        {error && <div className="absolute -top-12 left-4 right-4 bg-rose-500 text-white text-[10px] font-black px-4 py-2 rounded-xl border border-white/20 animate-in fade-in slide-in-from-bottom-2">{error}</div>}
-                        {(input.startsWith("/") || input.includes("@")) && !isMuted && <ChatAutocomplete input={input} onSelect={(v, a) => { if (a) { setInput(""); handleSend(v); } else setInput(v); inputRef.current?.focus(); }} bottomOffset="calc(100% + 12px)" mentions={mentionOptions} userDisplayName={displayName} />}
-
-                        {banStatus.isBanned && (
-                            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-center animate-in fade-in">
-                                <Lock className="w-6 h-6 text-rose-500 mb-2 animate-pulse" />
-                                <span className="text-[11px] font-black text-rose-400 uppercase tracking-widest">Accès Interdit</span>
-                                <div className="mt-2 text-xs font-mono text-zinc-500">{Math.floor(banStatus.remainingSeconds / 60)}:{(banStatus.remainingSeconds % 60).toString().padStart(2, "0")}</div>
-                            </div>
-                        )}
-
-                        {/* Mute Banner for current user */}
-                        {isMuted && (
-                            <div className="mb-3 flex items-center gap-3 bg-rose-950/60 border border-rose-500/30 rounded-2xl px-4 py-3 animate-in fade-in">
-                                <div className="p-1.5 bg-rose-500/20 rounded-lg">
-                                    <UserX className="w-4 h-4 text-rose-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-rose-400">Vous êtes muet</div>
-                                    <div className="text-[11px] text-rose-300/70 font-mono mt-0.5">
-                                        Réactivation dans <span className="font-black text-rose-200">{formatMuteTime(muteSeconds)}</span>
-                                    </div>
-                                </div>
-                                <div className="text-2xl font-black text-rose-400 font-mono tabular-nums">
-                                    {Math.floor(muteSeconds / 60)}:{(muteSeconds % 60).toString().padStart(2, "0")}
-                                </div>
-                            </div>
-                        )}
-
+                        {error && <div className="absolute -top-12 left-4 right-4 bg-rose-500 text-white text-[10px] font-black px-4 py-2 rounded-xl border border-white/20">{error}</div>}
+                        
                         <div className={cn(
                             "relative flex items-end gap-3 border rounded-2xl px-4 py-3 transition-all",
-                            isMuted
-                                ? "bg-zinc-900/40 border-zinc-700/30 opacity-50 cursor-not-allowed"
-                                : "bg-white/[0.03] border-white/10 focus-within:ring-4 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/30"
+                            isMuted ? "opacity-50 cursor-not-allowed" : "bg-white/[0.03] border-white/10 focus-within:border-indigo-500/30"
                         )}>
                             <textarea
                                 ref={inputRef}
                                 value={isMuted ? "" : input}
-                                onChange={e => { if (isMuted) return; setInput(e.target.value); setTypingIndicator(guildId); }}
-                                onKeyDown={e => { if (isMuted) return; if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                                placeholder={isMuted ? "🔇 Vous êtes muet..." : "Message ou /commandes..."}
+                                onChange={e => { if (!isMuted) setInput(e.target.value); }}
+                                onKeyDown={e => { if (!isMuted && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                placeholder={isMuted ? "🔇 Muet..." : "Message..."}
                                 disabled={isMuted}
-                                className={cn(
-                                    "flex-1 bg-transparent text-sm placeholder-zinc-600 resize-none outline-none max-h-24 min-h-[20px]",
-                                    isMuted ? "text-zinc-600 cursor-not-allowed" : "text-zinc-100"
-                                )}
+                                className="flex-1 bg-transparent text-sm placeholder-zinc-600 resize-none outline-none max-h-24 min-h-[20px]"
                                 rows={1}
                             />
                             <div className="flex items-center gap-1.5 pb-0.5">
-                                <div className="relative group flex items-center">
-                                    <button type="button" disabled={isMuted} className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all flex items-center justify-center disabled:opacity-30">
-                                        <Command className="w-4 h-4" />
-                                    </button>
-                                    <div className="absolute bottom-full right-0 mb-3 w-56 p-3 bg-zinc-900 border border-white/10 rounded-xl flex flex-col shadow-2xl shadow-black/80 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all text-xs text-zinc-300 pointer-events-none z-50">
-                                        <div className="font-bold text-white mb-2 px-1 text-[13px] border-b border-white/10 pb-1.5">Commandes ( / )</div>
-                                        <ul className="space-y-1.5 font-medium">
-                                            <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/objet</span> Chercher un objet</li>
-                                            <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/pano</span> Chercher une pano</li>
-                                            <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/donjon</span> Chercher un donjon</li>
-                                            <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/monstre</span> Chercher un mob</li>
-                                            <li className="flex items-center gap-2 px-1"><span className="text-indigo-400 font-mono w-[60px] text-right bg-indigo-500/10 px-1 py-0.5 rounded">/classe</span> Sorts & Spells</li>
-                                            <li className="flex items-center gap-2 px-1 text-yellow-400/90"><Dices className="w-3 h-3 text-yellow-400" /><span className="text-yellow-400 font-mono w-[60px] text-right bg-yellow-400/10 px-1 py-0.5 rounded">/roll</span> Lancer un dé</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                                <button onClick={() => setShowPollModal(true)} disabled={isMuted} className="p-1.5 rounded-lg text-zinc-500 hover:text-indigo-400 hover:bg-indigo-400/5 transition-all disabled:opacity-30"><BarChart3 className="w-5 h-5" /></button>
-                                <button onClick={() => setShowEmoji(!showEmoji)} disabled={isMuted} className={cn("p-1.5 rounded-lg transition-all disabled:opacity-30", showEmoji ? "text-yellow-400 bg-yellow-400/10" : "text-zinc-500 hover:text-yellow-400")}><Smile className="w-5 h-5" /></button>
-                                <button onClick={() => handleSend()} disabled={!input.trim() || sending || isMuted} className="p-1.5 bg-indigo-600 text-white rounded-lg disabled:opacity-20 shadow-lg active:scale-90"><Send className="w-4 h-4" /></button>
+                                <button onClick={() => setShowEmoji(!showEmoji)} disabled={isMuted} className="p-1.5 rounded-lg text-zinc-500 hover:text-yellow-400"><Smile className="w-5 h-5" /></button>
+                                <button onClick={() => handleSend()} disabled={!input.trim() || sending || isMuted} className="p-1.5 bg-indigo-600 text-white rounded-lg active:scale-90"><Send className="w-4 h-4" /></button>
                             </div>
                         </div>
                         {showEmoji && !isMuted && <EmojiPicker onSelect={e => setInput(p => p + e)} onClose={() => setShowEmoji(false)} />}
@@ -765,106 +529,46 @@ function ChatInner({
                 </div>
             )}
 
-            {!isOpen || isMinimized ? (
-                <div className="flex flex-col items-end gap-3 group/bubble">
-                    {/* Hover Label */}
-                    <div className="opacity-0 group-hover/bubble:opacity-100 translate-y-2 group-hover/bubble:translate-y-0 transition-all duration-300 pointer-events-none">
-                        <div className="bg-zinc-900/90 backdrop-blur-md border border-white/10 px-4 py-2 rounded-2xl shadow-2xl ring-1 ring-white/5">
-                            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-indigo-400 whitespace-nowrap drop-shadow-sm flex items-center gap-2 italic">
-                                <MessageSquare className="w-3 h-3" /> Chat de Guilde
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="relative pointer-events-auto">
-                        {/* Status Glow */}
-                        <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full animate-pulse pointer-events-none" />
-
-                        <button
-                            onClick={() => { setIsOpen(true); setIsMinimized(false); setUnread(0); setHasMention(false); }}
-                            className={cn(
-                                "relative flex items-center justify-center rounded-[22px] bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 text-white shadow-[0_12px_48px_rgba(79,70,229,0.5)] transition-all duration-500 hover:scale-110 active:scale-95 ring-2 ring-white/20 ring-inset group",
-                                unread > 0 ? "h-16 w-16" : "h-14 w-14"
-                            )}
-                        >
-                            <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                            {/* Context Label Badge */}
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-zinc-950 border border-white/20 px-2 py-0.5 rounded-full text-[8px] font-black tracking-widest text-indigo-300 uppercase shadow-lg">
-                                Guilde
+            {!hideFloatingBubble && (!isOpen || isMinimized) ? (
+                <motion.div 
+                    drag
+                    dragControls={dragControls}
+                    dragMomentum={false}
+                    initial={bubblePos}
+                    className="fixed bottom-10 right-10 z-[100] flex flex-col items-end gap-3 pointer-events-auto"
+                >
+                    <button
+                        onClick={() => { setIsOpen(true); setIsMinimized(false); setUnread(0); }}
+                        className={cn(
+                            "relative flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 text-white shadow-xl transition-all hover:scale-110 active:scale-95 group",
+                            unread > 0 && "h-16 w-16"
+                        )}
+                    >
+                        <MessageSquare className="h-6 w-6" />
+                        {unread > 0 && (
+                            <div className="absolute -top-2 -right-2 h-6 min-w-[24px] px-1.5 flex items-center justify-center rounded-full bg-rose-500 text-[10px] font-black border-2 border-zinc-950">
+                                {unread}
                             </div>
-
-                            <MessageSquare className={cn("transition-all duration-500 group-hover:rotate-12", unread > 0 ? "h-7 w-7" : "h-6 w-6")} />
-
-                            {!hasMention && unread === 0 && (
-                                <div className="absolute top-1 right-1 flex h-4 w-4">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-zinc-950"></span>
-                                </div>
-                            )}
-
-                            {unread > 0 && (
-                                <div className={cn(
-                                    "absolute -bottom-2 -right-2 h-8 min-w-[32px] px-2 flex items-center justify-center rounded-2xl border-[3px] border-zinc-950 text-[11px] font-black shadow-xl",
-                                    hasMention ? "bg-rose-500 animate-bounce" : "bg-indigo-400"
-                                )}>
-                                    {unread > 99 ? "99+" : unread}
-                                </div>
-                            )}
-
-                            {/* Online Count (Small) */}
-                            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-zinc-950/80 backdrop-blur-sm border border-white/5 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-tighter text-zinc-400 opacity-0 group-hover/bubble:opacity-100 transition-all flex items-center gap-1">
-                                <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" /> {onlineUsers.length}
-                            </div>
-                        </button>
-                    </div>
-                </div>
+                        )}
+                    </button>
+                </motion.div>
             ) : null}
 
-            <ChatPollModal
-                isOpen={showPollModal}
-                onClose={() => setShowPollModal(false)}
-                onLaunch={(q, opts) => handleSend(`/vote ${q} | ${opts.join(" | ")}`)}
-            />
+            <ChatPollModal isOpen={showPollModal} onClose={() => setShowPollModal(false)} onLaunch={(q, opts) => handleSend(`/vote ${q} | ${opts.join(" | ")}`)} />
             <ChatTransparencyModal open={showTransparency} onClose={() => setShowTransparency(false)} />
 
-            {/* Mute Modal - Duration picker + unmute */}
-            {muteModal && canModerate && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in pointer-events-auto" onClick={() => setMuteModal(null)}>
-                    <div className="bg-zinc-900 border border-white/10 rounded-3xl p-6 w-80 shadow-2xl flex flex-col gap-4" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-rose-500/20 rounded-xl">
-                                <UserX className="w-5 h-5 text-rose-400" />
-                            </div>
-                            <div>
-                                <div className="font-black text-white">{muteModal.name}</div>
-                                <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Modération chat</div>
-                            </div>
+            {muteModal && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto" onClick={() => setMuteModal(null)}>
+                    <div className="bg-zinc-900 border border-white/10 rounded-3xl p-6 w-full max-w-sm flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+                        <div className="font-black text-white">Muter {muteModal.name} ?</div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {[300, 3600, 86400].map(s => (
+                                <button key={s} onClick={() => { setMuteDuration(s); }} className={cn("py-2 rounded-xl text-[10px] font-black border", muteDuration === s ? "bg-rose-500 border-rose-400 text-white" : "bg-zinc-800 border-white/5 text-zinc-500")}>
+                                    {formatMuteTime(s)}
+                                </button>
+                            ))}
                         </div>
-
-                        <div className="flex flex-col gap-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Durée du mute</span>
-                            <div className="grid grid-cols-4 gap-2">
-                                {[60, 300, 600, 1800, 3600, 7200, 86400].map(s => (
-                                    <button key={s} onClick={() => setMuteDuration(s)} className={cn(
-                                        "py-2 rounded-xl text-[11px] font-black uppercase tracking-wide border transition-all",
-                                        muteDuration === s ? "bg-rose-500 text-white border-rose-400" : "bg-zinc-800 text-zinc-400 border-white/5 hover:bg-zinc-700"
-                                    )}>
-                                        {formatMuteTime(s)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <button onClick={() => handleUnmute(muteModal.userId, muteModal.name)} className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm transition-all">
-                                <Volume2 className="w-4 h-4" /> Démuter
-                            </button>
-                            <button onClick={handleMuteConfirm} className="flex-1 flex items-center justify-center gap-2 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-sm transition-all">
-                                <UserX className="w-4 h-4" /> Muter {formatMuteTime(muteDuration)}
-                            </button>
-                        </div>
-                        <button onClick={() => setMuteModal(null)} className="text-center text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">Annuler</button>
+                        <button onClick={handleMuteConfirm} className="w-full py-3 bg-rose-600 text-white rounded-2xl font-black">Confirmer le mute</button>
                     </div>
                 </div>
             )}

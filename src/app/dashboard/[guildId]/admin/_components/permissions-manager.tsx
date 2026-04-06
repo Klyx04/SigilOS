@@ -4,7 +4,7 @@ import { useState, useTransition, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { updateRBACMapping } from "@/server/actions/admin-actions";
-import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, type PermissionId, type PermissionModule } from "@/lib/permissions";
+import { PERMISSIONS, PERMISSION_DETAILS, PERMISSION_MODULES, MODULE_ORDER as PERM_MODULE_ORDER, type PermissionId, type PermissionModule } from "@/lib/permissions";
 import { PermissionCard } from "./permission-card";
 import { cn } from "@/lib/utils";
 import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert, Loader2 } from "lucide-react";
@@ -24,7 +24,7 @@ type Props = {
     currentUsersMapping: Record<string, PermissionId[]>;
 };
 
-const MODULE_ORDER: PermissionModule[] = ["admin", "missions", "profile", "songes", "game", "community", "info"];
+const MODULE_ORDER = PERM_MODULE_ORDER;
 
 export function PermissionsManager({ guildId, roles, members, currentMapping, currentUsersMapping }: Props) {
     // Transform: DB (Role -> Perms)  ==>  UI (Perm -> Roles)
@@ -65,8 +65,20 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
     // Track which module sections are collapsed (only relevant in "all" view)
     const [collapsed, setCollapsed] = useState<Record<PermissionModule, boolean>>({} as Record<PermissionModule, boolean>);
 
+    // Roles that currently have DASHBOARD_ACCESS assigned
+    const rolesWithDashboardAccess = new Set(permState[PERMISSIONS.DASHBOARD_ACCESS] || []);
+
     const handlePermChange = (permId: PermissionId, newRoleIds: string[]) => {
-        setPermState(prev => ({ ...prev, [permId]: newRoleIds }));
+        setPermState(prev => {
+            const next = { ...prev, [permId]: newRoleIds };
+            // Auto-add DASHBOARD_ACCESS when any permission is granted to a role
+            if (permId !== PERMISSIONS.DASHBOARD_ACCESS && newRoleIds.length > 0) {
+                const currentAccess = new Set(prev[PERMISSIONS.DASHBOARD_ACCESS] || []);
+                newRoleIds.forEach(roleId => currentAccess.add(roleId));
+                next[PERMISSIONS.DASHBOARD_ACCESS] = Array.from(currentAccess);
+            }
+            return next;
+        });
     };
 
     const handleUserChange = (permId: PermissionId, newUserIds: string[]) => {
@@ -170,11 +182,46 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
     }, [permState]);
 
     const totalConfigured = useMemo(() => Object.values(permState).filter(r => r.length > 0).length, [permState]);
-    return (
+
+    // Roles that have any permission but are missing DASHBOARD_ACCESS (need migration)
+    const rolesNeedingMigration = useMemo(() => {
+        const allMappedRoles = new Set<string>();
+        Object.entries(permState).forEach(([permId, roleIds]) => {
+            if (permId !== PERMISSIONS.DASHBOARD_ACCESS && roleIds.length > 0) {
+                roleIds.forEach(id => allMappedRoles.add(id));
+            }
+        });
+        const withAccess = new Set(permState[PERMISSIONS.DASHBOARD_ACCESS] || []);
+        return [...allMappedRoles].filter(rId => !withAccess.has(rId));
+    }, [permState]);
+
+    return (
         <div className="space-y-8 relative">
             {/* Background Ambient Glow */}
             <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/[0.02] radial-gradient blur-[160px] rounded-full pointer-events-none" />
+
+            {/* ⚠️ Warning Banner: roles missing DASHBOARD_ACCESS */}
+            {rolesNeedingMigration.length > 0 && (
+                <div className="flex items-start gap-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-6 py-4">
+                    <span className="text-2xl mt-0.5">⚠️</span>
+                    <div>
+                        <p className="text-amber-400 font-black uppercase tracking-widest text-sm">
+                            Accès non explicite détecté
+                        </p>
+                        <p className="text-amber-400/80 text-xs mt-1 leading-relaxed">
+                            {rolesNeedingMigration.length > 0 && (
+                                <>
+                                    {rolesNeedingMigration.map(rId => roles.find(r => r.id === rId)?.name || rId).join(", ")} — 
+                                    {" "}Ces rôles ont des permissions mais n'ont pas <strong>🚪 Accès Dashboard</strong> coché.
+                                    Les nouvelles permissions cochées ci-dessus l'ont automatiquement ajouté.
+                                    <strong> Pensez à sauvegarder.</strong>
+                                </>
+                            )}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Sticky Action Bar — Sigma 2026 Style */}
             <div className="flex flex-col sm:flex-row justify-between items-center bg-zinc-800/90 backdrop-blur-2xl px-6 py-5 rounded-[2rem] border border-white/20 sticky top-4 z-20 gap-4 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)]">
@@ -282,6 +329,8 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                 onUsersChange={(ids) => handleUserChange(permId, ids)}
                                 onSave={handleSave}
                                 moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
+                                locked={permId !== PERMISSIONS.DASHBOARD_ACCESS && rolesWithDashboardAccess.size === 0}
+                                hideUsers={permId === PERMISSIONS.DASHBOARD_ACCESS}
                             />
                         ))
                     )}
@@ -350,6 +399,8 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                             onUsersChange={(ids) => handleUserChange(permId, ids)}
                                             onSave={handleSave}
                                             moduleColor={module.color}
+                                            locked={permId !== PERMISSIONS.DASHBOARD_ACCESS && rolesWithDashboardAccess.size === 0}
+                                            hideUsers={permId === PERMISSIONS.DASHBOARD_ACCESS}
                                         />
                                     ))}
                                 </div>
@@ -375,6 +426,8 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                             onUsersChange={(ids) => handleUserChange(permId, ids)}
                             onSave={handleSave}
                             moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
+                            locked={permId !== PERMISSIONS.DASHBOARD_ACCESS && rolesWithDashboardAccess.size === 0}
+                            hideUsers={permId === PERMISSIONS.DASHBOARD_ACCESS}
                         />
                     ))}
                 </div>

@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-03-27)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-04-06)
 
-**Branche Active** : `feat/god-storage-lazy-cleanup` (Optimisation Stockage & Hygiène VPS)
-**Status** : Overhaul du dashboard de stockage Super-Admin terminé. Purge RGPD des Emails effectuée sur Beta et Prod (0 e-mail en DB). Scope Discord réduit à `identify` et `guilds`.
+**Branche Active** : `feat/dofus-v3-schema-ui` (Stabilisation Onboarding & Tickets)
+**Status** : Refonte complète du système de Tickets (Validation/Rejet pro, auto-archive Discord). Onboarding Bot "zéro-clic" avec redirection et rafraîchissement auto. Hardening Sécurité : Session maxAge réduite à 24h.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -507,6 +507,9 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - **Ladder Sync Worker** : Mise à jour auto XP/Succès Ankama via Cloudflare Worker.
 - **God Resilience** : Dashboard super-admin protégé contre les crashs API tiers.
 - **Auto-Onboarding Bot** : Message de bienvenue automatique avec instructions Beta.
+- **Tickets Overhaul** : Modale pro, Rejets avec motifs, auto-archive/verrouillage threads Discord.
+- **Onboarding Bot (Zéro-clic)** : Redirection OAuth vers page succès + rafraîchissement auto tabs.
+- **God Shield** : Radar suspects et maintenance des fantômes.
 
 ---
 
@@ -518,6 +521,7 @@ npm run worker    # Terminal 2 — BullMQ Worker
 
 ### 🎯 P2 — Features Core
 - [ ] Système d'échange Ocre interne (Trade Request Link).
+- [ ] **Module Donation Premium** : Bouton discret "Soutenir l'Évolution" (Stripe/Ko-fi) avec Glassmorphism et Orb flottant.
 
 ### 🎨 P3 — Polish UI/UX
 - [ ] Dark Mode Harmonization (certains fonds God Dashboard encore trop clairs).
@@ -528,3 +532,12 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - [ ] Calcul Ladder CRON (quand > 5000 membres)
 - [ ] Pagination membres/missions (quand > 500 entrées)
 - [ ] Optimiser requêtes N+1 (si Prisma logs révèlent hotspot)
+
+---
+
+### Phase 10 — Tickets, Onboarding & Security (2026-04-06)
+
+- ✅ **Tickets Overhaul** : Refonte de la modale de gestion (Select rôles fixed, Validation avec notes, Rejet avec motif transmis en MP). Archivage et verrouillage automatique des threads Discord.
+- ✅ **Bot Onboarding (Premium)** : Implémentation du flux "zéro-clic" avec redirection vers page succès et rafraîchissement automatique du Dashboard.
+- ✅ **God Shield & Monitoring** : Radar "Suspects" (détection guilds non-whitelistées) et Janitor Tool (purge ghost users).
+- ✅ **Security Hardening** : Réduction de la durée de session (maxAge) à 24h. Fix du client_id undefined sur VPS.

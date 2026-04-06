@@ -320,8 +320,8 @@ export function ProfileBentoGrid({
                 <div className="grid lg:grid-cols-[280px_1fr] grid-cols-1 gap-8 items-start">
                 
                 {/* Sidebar Navigation (Sticky on Desktop, Scrollable on Mobile) */}
-                <aside className="lg:sticky lg:top-24 z-20">
-                    <TabsList className="bg-transparent flex lg:flex-col flex-row flex-nowrap overflow-x-auto lg:overflow-visible gap-2 p-0 h-auto justify-start border-none">
+                <aside className="lg:sticky lg:top-24 z-20 min-w-0 w-full">
+                    <TabsList className="bg-transparent flex lg:flex-col flex-row flex-nowrap overflow-x-auto lg:overflow-visible gap-2 p-1 h-auto justify-start border-none w-full scrollbar-width-none [&::-webkit-scrollbar]:hidden">
                         {[
                             { id: "overview", label: "Général", icon: UserCircle, color: "emerald" },
                             { id: "intro", label: "Présentation", icon: LayoutDashboard, color: "emerald" },
@@ -336,7 +336,7 @@ export function ProfileBentoGrid({
                                 key={tab.id}
                                 value={tab.id}
                                 className={cn(
-                                    "relative flex items-center justify-start gap-3 w-full px-4 py-3 rounded-2xl transition-all duration-300 group",
+                                    "relative flex items-center justify-start gap-3 min-w-[max-content] lg:w-full px-4 py-3 rounded-2xl transition-all duration-300 group shrink-0",
                                     "bg-zinc-900/40 backdrop-blur-md border border-white/5",
                                     "data-[state=active]:bg-white/5 data-[state=active]:border-white/10",
                                     "hover:bg-white/10"

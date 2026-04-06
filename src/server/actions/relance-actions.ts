@@ -37,7 +37,7 @@ const RelanceSchema = z.object({
  */
 export async function getRelanceCandidates(
     guildId: string, 
-    criteria: "MISSING_MISSIONS" | "INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE",
+    criteria: "MISSING_MISSIONS" | "INACTIVE" | "LADDER_INACTIVE" | "DOFUS_INACTIVE" | "DISCORD_INACTIVE" | "GLOBAL_INACTIVE",
     inactiveDays: number = 7
 ): Promise<ActionResponse<any[]>> {
     const user = await getUserContext(guildId);
@@ -59,13 +59,20 @@ export async function getRelanceCandidates(
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         let candidates: any[] = [];
+        const now = new Date();
+
+        // 1. Filter out members currently on vacation (unless manual targeting)
+        const eligibleProfiles = criteria === "DOFUS_INACTIVE" ? guildConfig.profiles : guildConfig.profiles.filter((p: any) => {
+            if (p.vacationStart && p.vacationEnd) {
+                return !(now >= p.vacationStart && now <= p.vacationEnd);
+            }
+            return true;
+        });
 
         if (criteria === "MISSING_MISSIONS") {
             const { week, year } = getDofusWeek();
             
             // Profiles who haven't validated any mission this week
-            const activeProfiles = guildConfig.profiles;
-            
             const validatedSubmissions = await db.submission.findMany({
                 where: {
                     mission: {
@@ -80,28 +87,37 @@ export async function getRelanceCandidates(
 
             const validatedProfileIds = new Set(validatedSubmissions.map(s => s.profileId));
             
-            candidates = activeProfiles.filter(p => !validatedProfileIds.has(p.id));
+            candidates = eligibleProfiles.filter((p: any) => !validatedProfileIds.has(p.id));
         } else if (criteria === "INACTIVE") {
             const threshold = new Date();
             threshold.setDate(threshold.getDate() - inactiveDays);
 
-            candidates = guildConfig.profiles.filter(p => {
+            candidates = eligibleProfiles.filter((p: any) => {
                 const lastSeen = p.lastSeen || p.lastActivityAt || p.updatedAt;
                 return lastSeen < threshold;
+            });
+        } else if (criteria === "LADDER_INACTIVE") {
+            const threshold = new Date(now);
+            threshold.setDate(threshold.getDate() - inactiveDays);
+
+            candidates = eligibleProfiles.filter((p: any) => {
+                // If they never synchronized their ladder or hasn't updated since threshold
+                if (!p.lastLadderUpdate) return true;
+                return p.lastLadderUpdate < threshold;
             });
         } else if (criteria === "DOFUS_INACTIVE") {
             // Return all active members for manual selection (no filters)
             candidates = guildConfig.profiles;
         } else if (criteria === "DISCORD_INACTIVE") {
             // No message AND No voice this week
-            candidates = guildConfig.profiles.filter(p => 
+            candidates = eligibleProfiles.filter((p: any) => 
                 (p.discordMessageCountWeekly || 0) === 0 && 
                 (p.discordVoiceTimeWeekly || 0) === 0
             );
         } else if (criteria === "GLOBAL_INACTIVE") {
             // No mission + No dashboard + No discord
             const { week, year } = getDofusWeek();
-            const threshold = new Date();
+            const threshold = new Date(now);
             threshold.setDate(threshold.getDate() - inactiveDays);
 
             const validatedSubmissions = await db.submission.findMany({
@@ -110,7 +126,7 @@ export async function getRelanceCandidates(
             });
             const validatedProfileIds = new Set(validatedSubmissions.map(s => s.profileId));
 
-            candidates = guildConfig.profiles.filter(p => {
+            candidates = eligibleProfiles.filter((p: any) => {
                 const isNoMission = !validatedProfileIds.has(p.id);
                 const lastSeen = p.lastSeen || p.lastActivityAt || p.updatedAt;
                 const isDashboardInactive = lastSeen < threshold;

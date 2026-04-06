@@ -1,4 +1,7 @@
 export const PERMISSIONS = {
+    // ⬇️  ACCÈS PLATEFORME — PRIORITAIRE
+    DASHBOARD_ACCESS: "dashboard:access",
+
     // Platform Access & Global Admin
     ADMIN_FULL: "admin:full",
     ADMIN_SETTINGS: "admin:settings",
@@ -43,9 +46,12 @@ export const PERMISSIONS = {
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export type PermissionModule = "admin" | "missions" | "profile" | "songes" | "game" | "community" | "info";
+export type PermissionModule = "access" | "admin" | "missions" | "profile" | "songes" | "game" | "community" | "info";
+
+export const MODULE_ORDER: PermissionModule[] = ["access", "admin", "missions", "profile", "songes", "game", "community", "info"];
 
 export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon: string; color: string }> = {
+    access: { label: "Accès Dashboard", icon: "🚪", color: "#22c55e" },
     admin: { label: "Administration", icon: "🛡️", color: "#f59e0b" },
     missions: { label: "Missions", icon: "📜", color: "#3b82f6" },
     profile: { label: "Profils", icon: "👤", color: "#ec4899" },
@@ -56,6 +62,9 @@ export const PERMISSION_MODULES: Record<PermissionModule, { label: string; icon:
 };
 
 export const PERMISSION_DETAILS: Record<PermissionId, { label: string; description: string; module: PermissionModule }> = {
+    // Accès Dashboard (obligatoire)
+    [PERMISSIONS.DASHBOARD_ACCESS]: { label: "🚪 Accès Dashboard", description: "Permet à ce rôle de se connecter et créer son compte sur le dashboard. OBLIGATOIRE pour tout accès.", module: "access" },
+
     // Admin
     [PERMISSIONS.ADMIN_FULL]: { label: "Administrateur Système", description: "Bypass total de toutes les restrictions.", module: "admin" },
     [PERMISSIONS.ADMIN_SETTINGS]: { label: "Configuration Serveur", description: "Gérer les modules et paramètres de base.", module: "admin" },

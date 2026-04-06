@@ -275,8 +275,8 @@ export class SkribblRoom {
 
     public startGame() {
         if (this.state !== "LOBBY") return;
-        if (this.players.filter(p => p.isConnected).length < 2) {
-            this.emitToAll("skribbl:chat:message", { type: "system", text: "Il faut au moins 2 joueurs pour lancer la partie." });
+        if (this.players.filter(p => p.isConnected && !p.isSpectator).length < 2) {
+            this.emitToAll("skribbl:chat:message", { type: "system", text: "Il faut au moins 2 joueurs (hors spectateurs) pour lancer la partie." });
             return;
         }
 

@@ -11,7 +11,11 @@ import {
     Target,
     Wheat,
     Calendar,
-    Eye
+    Eye,
+    Gamepad2,
+    Paintbrush,
+    Smartphone,
+    MapPin
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,6 +61,38 @@ const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; icon: Rea
         color: "text-pink-400",
         bg: "bg-pink-500/10 border-pink-500/20",
         glow: "shadow-pink-500/20"
+    },
+    GAME_SKRIBBL: {
+        label: "Skribbl",
+        shortLabel: "LIVE",
+        icon: Paintbrush,
+        color: "text-indigo-400",
+        bg: "bg-indigo-500/10 border-indigo-500/20",
+        glow: "shadow-indigo-500/20"
+    },
+    GAME_GARTIC: {
+        label: "Gartic Phone",
+        shortLabel: "LIVE",
+        icon: Smartphone,
+        color: "text-violet-400",
+        bg: "bg-violet-500/20 border-violet-500/30",
+        glow: "shadow-violet-500/20"
+    },
+    GAME_GEOGUESSER: {
+        label: "Guesser",
+        shortLabel: "LIVE",
+        icon: MapPin,
+        color: "text-blue-400",
+        bg: "bg-blue-500/10 border-blue-500/20",
+        glow: "shadow-blue-500/20"
+    },
+    GAME_KING: {
+        label: "Sigil King",
+        shortLabel: "LIVE",
+        icon: Gamepad2,
+        color: "text-emerald-400",
+        bg: "bg-emerald-500/10 border-emerald-500/20",
+        glow: "shadow-emerald-500/20"
     }
 };
 
@@ -135,19 +171,43 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
     const maxParticipants = event.maxParticipants;
     const isFull = maxParticipants && participantCount >= maxParticipants;
 
+    // Link Logic
+    let href = `/dashboard/${guildId}/calendar?event=${event.id}`;
+    const isLive = (event.metadata as any)?.isLive;
+    const gameState = (event.metadata as any)?.state;
+
+    if (event.type === "GAME_SKRIBBL") {
+        const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
+        href = `/dashboard/${guildId}/mini-jeux/skribbl?roomId=${(event.metadata as any).roomId}${spec}`;
+    } else if (event.type === "GAME_GARTIC") {
+        const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
+        href = `/dashboard/${guildId}/mini-jeux/gartic?roomId=${(event.metadata as any).roomId}${spec}`;
+    } else if (event.type === "GAME_GEOGUESSER") {
+        href = `/dashboard/${guildId}/mini-jeux/geoguesser?roomId=${(event.metadata as any).roomId}`;
+    } else if (event.type === "GAME_KING") {
+        const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
+        href = `/dashboard/${guildId}/mini-jeux/sigilking?roomId=${(event.metadata as any).roomId}${spec}`;
+    }
+
     return (
         <div className="flex justify-center w-full">
             <AnimatePresence mode="wait">
                 {canViewCalendar ? (
                     <Link
                         key={event.id}
-                        href={`/dashboard/${guildId}/calendar?event=${event.id}`}
+                        href={href}
                         className={cn(
                             "flex items-center gap-2 px-3 py-1.5 rounded-full border bg-zinc-900/40 backdrop-blur-xl transition-all hover:bg-zinc-800/60 hover:scale-105 active:scale-95 group relative shadow-lg",
                             typeConfig.glow,
                             typeConfig.bg.replace("/10", "/20").replace("border-", "border-white/10 group-hover:border-")
                         )}
                     >
+                        {isLive && (
+                            <span className="absolute -top-1 -left-1 flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                            </span>
+                        )}
                         <motion.div
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}

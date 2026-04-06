@@ -2,33 +2,40 @@
   "slug": "dofoozbz",
   "displayName": "Dofoozbz",
   "color": "#32CD32",
-  "dofusItemId": 7840,
+  "dofusItemId": 31794,
+  "successName": "Question d'équilibre",
+  "recommendedLevel": 200,
+  "successDescription": "Obtenir le Dofoozbz en rétablissant l'équilibre dans la dimension Osavora.",
   "successes": [
     {
       "name": "Prérequis",
-      "zone": "unknown",
+      "zone": "Osavora",
+      "description": "Quêtes d'introduction à la dimension.",
+      "isPrerequisite": true,
       "quests": [
-        "Voyage, voyage",
-        "Frappez, ami, et entrez"
+        { "name": "Voyage, voyage", "id": 1484 },
+        { "name": "Frappez, ami, et entrez", "id": 1641 }
       ]
     },
     {
-      "name": "Les quêtes",
-      "zone": "unknown",
+      "name": "L'équilibre des forces",
+      "zone": "Osavora",
+      "description": "Série principale pour le succès Question d'équilibre.",
+      "isPrerequisite": false,
       "quests": [
-        "Ça barde là-haut",
-        "Le vol des bourdons",
-        "La proie des vérités",
-        "Trois cœurs, un roi",
-        "Destructeur de mondes",
-        "Un problème de taille",
-        "Des petites bêtes qui font bzzzbz",
-        "Têtes de ponte",
-        "Dérive insectaire",
-        "Quand on la cherche, on finit par tomber dessus",
-        "Devoir de réserve",
-        "Un hôte de marque",
-        "L'union sacrée"
+        { "name": "Ça barde là-haut", "id": 2515 },
+        { "name": "Un problème de taille", "id": 2520 },
+        { "name": "Des petites bêtes qui font bzzbz", "id": 2521 },
+        { "name": "Têtes de ponte", "id": 2522 },
+        { "name": "Dérive insectaire", "id": 2523 },
+        { "name": "Le vol des bourdons", "id": 2516 },
+        { "name": "Devoir de réserve", "id": 2531 },
+        { "name": "La proie des vérités", "id": 2517 },
+        { "name": "Un hôte de marque", "id": 2532 },
+        { "name": "L'union sacrée", "id": 2533 },
+        { "name": "Trois cœurs, un roi", "id": 2518 },
+        { "name": "Le roi balafré", "id": 2535 },
+        { "name": "Destructeur de mondes", "id": 2519 }
       ]
     }
   ],

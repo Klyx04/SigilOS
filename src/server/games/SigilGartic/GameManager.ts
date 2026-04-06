@@ -51,7 +51,7 @@ export class GameManager {
         socket.emit("gartic:room:list", rooms);
     }
 
-    private broadcastRoomList(guildId?: string) {
+    private async broadcastRoomList(guildId?: string) {
         if (!guildId) return;
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
@@ -60,6 +60,11 @@ export class GameManager {
             }
         });
         this.io.to(`guild:${guildId}`).emit("gartic:room:list", rooms);
+
+        // Internal Redis broadcast for Dashboard EventTicker
+        if (guildId !== "global") {
+            await redis.set(`guild:${guildId}:gartic:rooms`, JSON.stringify(rooms), "EX", 3600);
+        }
     }
 
     private async createRoom(socket: Socket, config: any) {

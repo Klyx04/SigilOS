@@ -167,6 +167,12 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 
         if (!details) return { success: false, error: "Événement Metamob introuvable" };
 
+        // Check if current user has a Metamob API key
+        const userProfile = await db.userProfile.findFirst({
+            where: { userId: ctx.id!, guild: { discordGuildId: guildId } },
+            select: { metamobApiKey: true }
+        });
+
         // Map to EventDetail structure
         const event = {
             id: eventId,
@@ -197,7 +203,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
             _count: { participants: details.participants_count }
         };
 
-        return { success: true, event };
+        return { success: true, event, hasMetamobKey: !!userProfile?.metamobApiKey };
     }
 
     try {
@@ -287,7 +293,17 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
             }
         }
 
-        return { success: true, event: eventData };
+        const isKrala = meta?.isKralamoure && meta?.metamobId;
+        let hasMetamobKey = false;
+        if (isKrala) {
+            const userProfile = await db.userProfile.findFirst({
+                where: { userId: ctx.id!, guildId: guildConfig.id },
+                select: { metamobApiKey: true }
+            });
+            hasMetamobKey = !!userProfile?.metamobApiKey;
+        }
+
+        return { success: true, event: eventData, hasMetamobKey };
     } catch (error) {
         console.error("[Calendar] getEventDetails Error:", error);
         return { success: false, error: "Erreur serveur" };

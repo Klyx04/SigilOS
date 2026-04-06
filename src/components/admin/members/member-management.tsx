@@ -681,6 +681,7 @@ export default function MemberManagement({
                             guildId={guildId}
                             welcomeBadgeName={welcomeBadgeName}
                             isSuperAdmin={isSuperAdmin}
+                            isAdmin={canManageMembers}
                             ownerId={memberList.ownerId}
                         />
                     </div>

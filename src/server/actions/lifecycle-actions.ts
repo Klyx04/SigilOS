@@ -84,7 +84,12 @@ export async function archiveProfile(guildId: string, profileId?: string) {
  */
 export async function deleteProfileByAdmin(guildId: string, profileId: string) {
     const ctx = await getUserContext(guildId);
-    if (!ctx.isAuthenticated || !ctx.isSuperAdmin) return { success: false, error: "Unauthorized: Super Admin access required" };
+    // Guild admins with canManageMembers can delete archived/banned profiles.
+    // SuperAdmins can delete any profile (including active ones as a last resort).
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canManageMembers && !ctx.isAdmin && !ctx.isSuperAdmin) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
 
     try {
         const target = await db.userProfile.findUnique({
@@ -134,6 +139,80 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
     } catch (e) {
         console.error("Delete error:", e);
         return { success: false, error: "Database error" };
+    }
+}
+
+/**
+ * Reactivate an ARCHIVED or BANNED profile — accessible to guild admins (canManageMembers)
+ * Creates an audit log and clears the archival flags.
+ */
+export async function reactivateProfileByAdmin(
+    guildId: string,
+    profileId: string,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canManageMembers && !ctx.isAdmin && !ctx.isSuperAdmin) {
+        return { success: false, error: "Permission 'Gérer les membres' requise" };
+    }
+
+    try {
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            include: {
+                user: {
+                    include: {
+                        accounts: { where: { provider: "discord" }, select: { providerAccountId: true } }
+                    }
+                }
+            }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+        if (profile.status === "ACTIVE") return { success: false, error: "Ce profil est déjà actif" };
+
+        const previousStatus = profile.status;
+
+        await db.userProfile.update({
+            where: { id: profileId },
+            data: {
+                status: "ACTIVE",
+                archivedAt: null,
+                archiveReason: null,
+                scheduledDeletion: null,
+                // Restore anonymized fields only if they were wiped by a ban
+                ...(previousStatus === "BANNED" ? {
+                    pseudoDofus: null,     // Force member to re-set their pseudo
+                    discordNickname: null, // Will be re-fetched on next login
+                    lastActivityDesc: `Réactiv(é·e) manuellement par ${ctx.name ?? "un admin"} le ${new Date().toLocaleDateString("fr-FR")}.`
+                } : {})
+            }
+        });
+
+        // Invalidate sessions so they must re-auth (picks up new ACTIVE status)
+        await db.session.deleteMany({ where: { userId: profile.userId } });
+
+        await createAuditLog({
+            guildId,
+            action: "PROFILE_REACTIVATED" as any,
+            actorUserId: ctx.id as string,
+            actorName: ctx.name ?? "Inconnu",
+            targetType: "PROFILE" as any,
+            targetId: profileId,
+            metadata: {
+                description: `Réintégration manuelle (ancien statut : ${previousStatus})`,
+                reason: reason || `Décision de ${ctx.name ?? "un admin"}`,
+                previousStatus
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin`);
+        revalidatePath(`/dashboard/${guildId}/admin/members`);
+        return { success: true };
+    } catch (e) {
+        console.error("[Reactivate] Error:", e);
+        return { success: false, error: "Erreur base de données" };
     }
 }
 
@@ -216,8 +295,9 @@ export async function reactivateProfile(userId: string, guildInternalId: string)
  */
 export async function getArchivedProfiles(discordGuildId: string) {
     const ctx = await getUserContext(discordGuildId);
-    if (!ctx.isAdmin) {
-        return { success: false, error: "Unauthorized", profiles: [] };
+    // canManageMembers is enough to view archived/banned profiles
+    if (!ctx.canManageMembers && !ctx.isAdmin) {
+        return { success: false, error: "Permission 'Gérer les membres' requise", profiles: [] };
     }
 
     const guild = await db.guildConfig.findUnique({
@@ -235,7 +315,19 @@ export async function getArchivedProfiles(discordGuildId: string) {
             status: { in: ["ARCHIVED", "BANNED"] }
         },
         orderBy: { archivedAt: "desc" },
-        take: 50
+        take: 100,
+        include: {
+            user: {
+                select: {
+                    name: true,
+                    image: true,
+                    accounts: {
+                        where: { provider: "discord" },
+                        select: { providerAccountId: true }
+                    }
+                }
+            }
+        }
     });
 
     return { success: true, profiles };

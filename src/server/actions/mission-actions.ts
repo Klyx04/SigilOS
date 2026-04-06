@@ -1485,26 +1485,24 @@ export async function publishMissionsToDiscord(
 
         const { sendChannelMessage } = await import("@/server/discord");
 
+        const { formatDofusRange } = await import("@/lib/date-utils");
+
         const messageId = await sendChannelMessage(guild.missionNotifyChannelId, mentionContent, {
-            embedTitle: "🎯 Nouvel objectif hebdomadaire",
+            embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
+            embedDescription: "Les missions de la semaine sont disponibles sur le Dashboard.",
             embedColor: 0x7c3aed, // Violet SigilOS
             embedUrl: dashboardUrl,
-            embedFooter: "SigilOS • Pas encore sur le Dashboard ? Rejoins-nous → sigilos.fr",
+            embedFooter: `SigilOS • Système de Gestion de Guilde`,
             fields: [
                 {
-                    name: "📋 Missions disponibles",
-                    value: "✅ Les missions de la semaine sont disponibles ! Classiques & Événements.",
-                    inline: false
+                    name: "📋 Missions",
+                    value: "Missions Classiques et Événements.",
+                    inline: true
                 },
                 {
-                    name: "🖥️ Dashboard de Guilde",
-                    value: `[Consulter les missions et soumettre tes preuves](${dashboardUrl})`,
-                    inline: false
-                },
-                {
-                    name: "\u200b",
-                    value: "*Prêts pour une nouvelle semaine de défis ? Le destin de la guilde est entre vos mains !*",
-                    inline: false
+                    name: "🔗 Dashboard",
+                    value: `[Lien direct](${dashboardUrl})`,
+                    inline: true
                 }
             ]
         });

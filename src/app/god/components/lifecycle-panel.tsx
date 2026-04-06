@@ -82,7 +82,7 @@ interface GhostUser {
     memberInWhitelists?: string[];
 }
 
-type TabId = 'guilds' | 'profiles' | 'orphans' | 'bans' | 'ghosts';
+type TabId = 'guilds' | 'profiles' | 'orphans' | 'bans' | 'ghosts' | 'unauthorized';
 
 interface LifecyclePanelProps {
     guilds: SoftDeletedGuild[];
@@ -90,7 +90,8 @@ interface LifecyclePanelProps {
     archivedProfiles: ArchivedProfile[];
     bans: PlatformBanItem[];
     activeGuilds: ActiveGuild[];
-    ghostUsers: GhostUser[]; // Joined here
+    ghostUsers: GhostUser[];
+    unauthorizedConnections: Array<{ id: string; name: string; icon: string | null }>;
 }
 
 // ====================
@@ -104,14 +105,16 @@ export function LifecyclePanel({
     bans,
     activeGuilds,
     ghostUsers,
+    unauthorizedConnections = []
 }: LifecyclePanelProps) {
     const [activeTab, setActiveTab] = useState<TabId>('guilds');
 
-    const totalPending = guilds.length + profiles.length;
+    const totalPending = guilds.length + profiles.length + unauthorizedConnections.length;
 
     const tabs: { id: TabId; label: string; icon: React.ReactNode; count: number; color: string }[] = [
         { id: 'guilds', label: 'Guildes', icon: <Building2 className="w-4 h-4" />, count: guilds.length, color: 'text-amber-400' },
         { id: 'profiles', label: 'Profils', icon: <User className="w-4 h-4" />, count: profiles.length, color: 'text-rose-400' },
+        { id: 'unauthorized', label: 'Suspects', icon: <ShieldBan className="w-4 h-4" />, count: unauthorizedConnections.length, color: 'text-orange-500' },
         { id: 'ghosts', label: 'Fantômes', icon: <UserX className="w-4 h-4" />, count: ghostUsers.length, color: 'text-purple-400' },
         { id: 'orphans', label: 'Orphelins', icon: <Archive className="w-4 h-4" />, count: archivedProfiles.length, color: 'text-zinc-400' },
         { id: 'bans', label: 'Bannis', icon: <ShieldBan className="w-4 h-4" />, count: bans.length, color: 'text-red-500' },
@@ -132,14 +135,14 @@ export function LifecyclePanel({
 
                 <div className="flex items-center gap-3">
                     {totalPending > 0 && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
-                                Attention ({totalPending})
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 rounded-lg animate-pulse">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">
+                                Attention ({totalPending} Anomalies)
                             </span>
                         </div>
                     )}
-                    <JanitorButton />
+                    {/* The sidebar is now part of the content flow or available via tabs */}
                 </div>
             </div>
 
@@ -196,6 +199,53 @@ export function LifecyclePanel({
                     </TabContent>
                 )}
 
+                {activeTab === 'unauthorized' && (
+                    <TabContent key="unauthorized">
+                         <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-xl mb-4 flex items-start gap-4">
+                            <ShieldBan className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-orange-500">Connexions non autorisées</h4>
+                                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
+                                    Ces serveurs Discord ont ajouté le bot mais ne sont PAS dans la liste blanche (Whitelist). 
+                                    Le bot est inactif sur ces serveurs mais consomme des ressources de gateway.
+                                </p>
+                            </div>
+                        </div>
+                        {unauthorizedConnections.length === 0 ? (
+                            <EmptyState>✅ Aucune connexion parasite détectée</EmptyState>
+                        ) : (
+                            <div className="space-y-2">
+                                {unauthorizedConnections.map(g => (
+                                    <div key={g.id} className="flex items-center justify-between p-4 bg-orange-500/5 border border-orange-500/10 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            {g.icon ? (
+                                                <img src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`} className="w-10 h-10 rounded-lg" alt="" />
+                                            ) : (
+                                                <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center text-xs font-bold text-zinc-600">?</div>
+                                            )}
+                                            <div>
+                                                <div className="font-bold text-sm text-zinc-200">{g.name}</div>
+                                                <div className="text-[10px] font-mono text-zinc-500">{g.id}</div>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={async () => {
+                                                if(!confirm(`Bannir cette guilde (${g.name}) de la plateforme ?`)) return;
+                                                const { banEntity } = await import('@/server/actions/god-lifecycle-actions');
+                                                await banEntity('GUILD', g.id, "Connexion non autorisée détectée");
+                                                window.location.reload();
+                                            }}
+                                            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-black uppercase tracking-widest"
+                                        >
+                                            Bannir
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </TabContent>
+                )}
+
                 {activeTab === 'ghosts' && (
                     <TabContent key="ghosts">
                          <div className="p-4 bg-purple-500/5 border border-purple-500/10 rounded-xl mb-4 flex items-start gap-4">
@@ -203,9 +253,13 @@ export function LifecyclePanel({
                             <div className="space-y-1">
                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-purple-400">Nettoyage des Fantômes</h4>
                                 <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
-                                    Comptes Discord sans profil de guilde. La purge supprime uniquement l'entrée "User" et les sessions de connexion. 
+                                    Comptes Discord sans profil de guilde (vieux de <strong>&gt;24h</strong> - GDPR). 
+                                    La purge supprime l'entrée "User" et les sessions de connexion. 
                                     Aucune perte de progression métier/xp possible ici.
                                 </p>
+                            </div>
+                            <div className="ml-auto">
+                                <JanitorButton />
                             </div>
                         </div>
                         <GhostPurgeTab users={ghostUsers} />
@@ -214,6 +268,18 @@ export function LifecyclePanel({
 
                 {activeTab === 'orphans' && (
                     <TabContent key="orphans">
+                         <div className="p-4 bg-zinc-500/5 border border-zinc-500/10 rounded-xl mb-4 flex items-start gap-4">
+                            <Archive className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Nettoyage technique</h4>
+                                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
+                                    Profils existants sans compte Discord lié (suite à une désynchronisation ou suppression manuelle brute).
+                                </p>
+                            </div>
+                            <div className="ml-auto">
+                                <JanitorButton />
+                            </div>
+                        </div>
                         <OrphanPanel profiles={archivedProfiles} activeGuilds={activeGuilds} />
                     </TabContent>
                 )}

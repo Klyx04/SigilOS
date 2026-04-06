@@ -14,7 +14,7 @@ export function DailyReportButton({ guildId }: { guildId: string }) {
         startTransition(async () => {
             const res = await sendDailySummaryReport(guildId, true);
             if (res.success) {
-                toast.success("Rapport quotidien envoyé !");
+                toast.success("Rapport hebdomadaire envoyé !");
                 setIsSuccess(true);
                 setTimeout(() => setIsSuccess(false), 3000);
             } else {
@@ -42,7 +42,7 @@ export function DailyReportButton({ guildId }: { guildId: string }) {
             ) : (
                 <Send className="w-4 h-4 mr-2" />
             )}
-            {isPending ? "ENVOI..." : isSuccess ? "ENVOYÉ ✅" : "NOTIF QUOTIDIENNE"}
+            {isPending ? "ENVOI..." : isSuccess ? "ENVOYÉ ✅" : "RAPPORT HEBDOMADAIRE"}
         </Button>
     );
 }

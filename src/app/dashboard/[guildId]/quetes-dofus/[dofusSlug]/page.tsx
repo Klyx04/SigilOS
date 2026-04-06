@@ -16,16 +16,19 @@ import { DofusOcreMetamob } from "@/components/dofus-quests/DofusOcreMetamob";
 import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTracker";
 import { notFound } from "next/navigation";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
+import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 
 type Props = {
     params: Promise<{ guildId: string; dofusSlug: string }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export default async function DofusDetailPage({ params }: Props) {
+export default async function DofusDetailPage({ params, searchParams }: Props) {
     const session = await auth();
     if (!session?.user) redirect("/");
 
     const { guildId, dofusSlug } = await params;
+    const character = (await searchParams)?.character as string || "PRINCIPAL";
 
     const user = await getUserContext(guildId);
     if (!user.canViewQuests) return <AccessDenied />;
@@ -34,7 +37,7 @@ export default async function DofusDetailPage({ params }: Props) {
     if (!enabled) return <AccessDenied />;
 
     const [result, heatmapResult] = await Promise.all([
-        getDofusDetailWithChains(guildId, dofusSlug),
+        getDofusDetailWithChains(guildId, dofusSlug, character),
         getGuildHeatmapForDofus(guildId, dofusSlug),
     ]);
 
@@ -46,14 +49,25 @@ export default async function DofusDetailPage({ params }: Props) {
 
     return (
         <div className="space-y-6 pb-12">
-            {/* Back button */}
-            <Link
-                href={`/dashboard/${guildId}/quetes-dofus`}
-                className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors"
-            >
-                <ArrowLeft className="w-4 h-4" />
-                Retour aux Dofus
-            </Link>
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                <Link
+                    href={`/dashboard/${guildId}/quetes-dofus${character !== "PRINCIPAL" ? `?character=${character}` : ""}`}
+                    className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    Retour aux Dofus
+                </Link>
+
+                <div className="flex-shrink-0">
+                    <CharacterQuestSelector 
+                        mainCharacter={{ 
+                            pseudo: user.pseudoDofus || session.user.name || "Principal", 
+                            classe: user.classe 
+                        }}
+                        mules={user.altPseudos as any || []}
+                    />
+                </div>
+            </div>
 
             {/* Dofus hero header */}
             <div
@@ -89,7 +103,7 @@ export default async function DofusDetailPage({ params }: Props) {
                             <div className="relative w-16 h-16">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                    src={(dofus as any).imageUrl}
+                                    src={dofus.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : (dofus as any).imageUrl.replace(/^\/public/, "")}
                                     alt={dofus.nameShort || dofus.name}
                                     className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
                                     style={{ filter: dofus.isObtained ? `drop-shadow(0 0 16px ${color})` : undefined }}
@@ -236,6 +250,7 @@ export default async function DofusDetailPage({ params }: Props) {
                 chains={chains}
                 dofusColor={color}
                 heatmapData={heatmapData}
+                selectedCharacter={character}
             />
         </div>
     );

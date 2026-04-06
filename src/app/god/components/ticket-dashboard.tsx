@@ -236,10 +236,10 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
     }
 
     // Validate Guild Access
-    async function handleValidateGuild(ticketId: string, discordGuildId: string) {
+    async function handleValidateGuild(ticketId: string, discordGuildId: string, notes?: string) {
         startTransition(async () => {
             const { validateGuildAccess } = await import("@/server/actions/ticket-actions");
-            const res = await validateGuildAccess(ticketId, discordGuildId, undefined, selectedRoleId || undefined);
+            const res = await validateGuildAccess(ticketId, discordGuildId, notes, selectedRoleId || undefined);
             if (res.success) {
                 toast.success("Guilde validée et whiteliste créée !");
                 await refreshTickets();
@@ -251,9 +251,8 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
     }
 
     // Reject Guild Access
-    async function handleRejectGuild(ticketId: string) {
-        const reason = window.prompt("Motif du refus (sera envoyé à l'utilisateur) :");
-        if (reason === null) return; // Cancelled
+    async function handleRejectGuild(ticketId: string, reason: string) {
+        if (!reason.trim()) return;
         
         startTransition(async () => {
             const { rejectGuildAccess } = await import("@/server/actions/ticket-actions");
@@ -570,8 +569,8 @@ function TicketDetailModal({
     onReply: (id: string) => void;
     onCloseTicket: (id: string) => void;
     onDeleteTicket: (id: string) => void;
-    onValidateGuild: (ticketId: string, discordGuildId: string) => void;
-    onRejectGuild: (ticketId: string) => void;
+    onValidateGuild: (ticketId: string, discordGuildId: string, notes?: string) => void;
+    onRejectGuild: (ticketId: string, reason: string) => void;
     onStatusChange: (id: string, status: string) => void;
     replyText: string;
     setReplyText: (v: string) => void;
@@ -580,6 +579,10 @@ function TicketDetailModal({
     selectedRoleId: string;
     setSelectedRoleId: (v: string) => void;
 }) {
+    const [rejectionMode, setRejectionMode] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState("");
+    const [validationNotes, setValidationNotes] = useState("");
+    
     const cat = CATEGORY_CONFIG[ticket.category];
     const status = STATUS_CONFIG[ticket.status];
 
@@ -648,43 +651,95 @@ function TicketDetailModal({
 
                         {/* 🛠️ SPECIFIC TRIGGER: ACCESS VALIDATION */}
                         {ticket.category === "ACCESS_REQUEST" && ticket.status !== "CLOSED" && (
-                            <div className="flex gap-2">
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                                            <SelectTrigger className="w-[180px] h-10 bg-zinc-950 border-white/10 rounded-xl text-[10px] font-black uppercase text-zinc-400">
-                                                <SelectValue placeholder="Rôle à attribuer..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="SKIP">Aucun rôle</SelectItem>
-                                                {guildRoles.map((role) => (
-                                                    <SelectItem key={role.id} value={role.id}>
-                                                        {role.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-
-                                        <button
-                                            onClick={() => onValidateGuild(ticket.id, ticket.targetGuildId || ticket.creatorDiscordId)} 
-                                            disabled={isPending || !ticket.targetGuildId}
-                                            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-black rounded-2xl text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-xl shadow-emerald-500/20"
-                                        >
-                                            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                                            Valider {ticket.targetGuildName ? `(${ticket.targetGuildName})` : ""}
-                                        </button>
+                            <div className="w-full space-y-6 pt-6 mt-6 border-t border-white/5">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
                                     </div>
-                                    <p className="text-[9px] text-zinc-600 font-bold ml-1 uppercase underline decoration-zinc-800">
-                                        L'utilisateur sera mentionné avec les étapes d'activation.
-                                    </p>
+                                    <h4 className="text-xs font-black text-white uppercase tracking-widest">Décision d'Accès Technique</h4>
                                 </div>
-                                <button
-                                    onClick={() => onRejectGuild(ticket.id)}
-                                    disabled={isPending}
-                                    className="inline-flex items-center gap-2 px-5 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-[11px] font-black text-red-500 uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                                >
-                                    Refuser
-                                </button>
+
+                                {!rejectionMode ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-950/50 p-6 rounded-[2rem] border border-white/5 shadow-inner">
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Rôle Discord (Incentive)</label>
+                                                <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+                                                    <SelectTrigger className="w-full h-12 bg-zinc-950 border-white/5 rounded-xl text-[10px] font-black uppercase text-zinc-400 focus:ring-1 focus:ring-emerald-500/30">
+                                                        <SelectValue placeholder="Sélect. Rôle..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-zinc-900 border-white/10 text-white z-[200]">
+                                                        <SelectItem value="SKIP">❌ Aucun rôle</SelectItem>
+                                                        {guildRoles.map((role) => (
+                                                            <SelectItem key={role.id} value={role.id} className="text-xs font-bold font-mono">
+                                                                {role.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Message Additionnel (Optionnel)</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={validationNotes}
+                                                    onChange={(e) => setValidationNotes(e.target.value)}
+                                                    placeholder="Contraintes spécifiques, bienvenue..."
+                                                    className="w-full h-12 px-4 bg-zinc-950 border border-white/5 rounded-xl text-xs text-zinc-300 focus:outline-none focus:border-emerald-500/30 transition-all font-medium"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col justify-end gap-3">
+                                            <button
+                                                onClick={() => onValidateGuild(ticket.id, ticket.targetGuildId!, validationNotes)} 
+                                                disabled={isPending || !ticket.targetGuildId}
+                                                className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-black rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all disabled:opacity-50 shadow-xl shadow-emerald-500/10 flex items-center justify-center gap-2"
+                                            >
+                                                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                                                Valider la Guilde
+                                            </button>
+                                            <button
+                                                onClick={() => setRejectionMode(true)}
+                                                className="w-full py-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded-2xl text-[10px] font-black text-red-500 uppercase tracking-widest transition-all"
+                                            >
+                                                Refuser la demande
+                                            </button>
+                                            <p className="text-[9px] text-zinc-600 italic text-center font-medium">
+                                                L'utilisateur recevra un guide d'installation complet.
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-rose-500/5 p-6 rounded-[2rem] border border-rose-500/10 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Motif du Refus (Sera envoyé par MP)</label>
+                                            <textarea 
+                                                value={rejectionReason}
+                                                onChange={(e) => setRejectionReason(e.target.value)}
+                                                placeholder="Ex: Guilde trop petite, leader absent, serveur ne respectant pas les CGU..."
+                                                rows={3}
+                                                className="w-full p-4 bg-zinc-950 border border-rose-500/20 rounded-xl text-sm text-zinc-300 focus:outline-none focus:border-rose-500/40 transition-all resize-none font-medium"
+                                            />
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => onRejectGuild(ticket.id, rejectionReason)}
+                                                disabled={isPending || !rejectionReason.trim()}
+                                                className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                            >
+                                                {isPending ? "Refus en cours..." : "Confirmer le Refus"}
+                                            </button>
+                                            <button
+                                                onClick={() => setRejectionMode(false)}
+                                                className="px-6 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-black text-zinc-400 uppercase tracking-widest transition-all"
+                                            >
+                                                Annuler
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

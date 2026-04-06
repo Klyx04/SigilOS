@@ -3,76 +3,93 @@
   "displayName": "Dofus des Glaces",
   "color": "#ADD8E6",
   "dofusItemId": 7043,
-  "successName": "Œuf à la neige",
+  "successName": "L'œuf à la neige",
   "recommendedLevel": 200,
-  "successDescription": "Terminer toutes les quêtes majeures de Frigost I, II et III.",
+  "successDescription": "Terminer toutes les quêtes majeures de Frigost I, II et III (72 quêtes au total).",
   "successes": [
     {
-      "name": "Fri carré",
-      "zone": "Frigost",
+      "name": "Introduction à Frigost",
+      "zone": "La Bourgade",
       "quests": [
-        "La terre banquise",
-        "La maire de glace",
-        "Full Contact"
+        { "name": "Bienvenue à Frigost" },
+        { "name": "La terre promise" },
+        { "name": "La terre banquise" },
+        { "name": "Maudite soit la glace" },
+        { "name": "Full Contact" }
       ]
     },
     {
-      "name": "Halte au péage",
-      "zone": "Frigost",
+      "name": "Bourgade : La maire dénie",
+      "zone": "La Bourgade",
       "quests": [
-        "Antiroyaliste",
-        "Les joyeux de la couronne",
-        "Fais dodo, t'auras du gâteau",
-        "Lavomatique",
-        "C'est frais, mais c'est pas grave",
-        "Sans ma barbe, quelle barbe",
-        "Là-haut sur la montagne",
-        "Le pic qui glace"
+        { "name": "L'essentiel est dans le Lac Gelé", "id": 649 },
+        { "name": "Les rescapés de Frigost", "id": 650 },
+        { "name": "Frigost, une île pas comme les autres", "id": 651 },
+        { "name": "Développement durable", "id": 655 },
+        { "name": "Donjons et trouffions", "id": 652 },
+        { "name": "Au fion du trou", "id": 653 },
+        { "name": "Bricoleur de génie", "id": 919 }
       ]
     },
     {
-      "name": "La maire dénie",
-      "zone": "Frigost",
+      "name": "Champs de glace : Agricole",
+      "zone": "Champs de Glace",
       "quests": [
-        "Bienvenue à Frigost",
-        "L'essentiel est dans Lac Gelé",
-        "Les rescapés de Frigost",
-        "Frigost, une île pas comme les autres",
-        "Développement durable",
-        "Donjons et trouffions",
-        "Au fion du trou"
+        { "name": "Semer la terreur", "id": 657 },
+        { "name": "Mise en boîte", "id": 658 },
+        { "name": "Un froid de canard", "id": 659 },
+        { "name": "Les joyeux de la couronne", "id": 660 },
+        { "name": "Petites graines", "id": 661 },
+        { "name": "La chasse aux voleurs", "id": 662 },
+        { "name": "L'eau à la bouche", "id": 663 },
+        { "name": "Un pichon de riz", "id": 664 },
+        { "name": "Collecte sanglante", "id": 665 },
+        { "name": "La vie est une fleur", "id": 666 }
       ]
     },
     {
-      "name": "L'hiver arrive",
-      "zone": "Frigost",
+      "name": "Frigostine & Berceau d'Alma",
+      "zone": "Berceau d'Alma",
       "quests": [
-        "Les rescapés du Village Enseveli",
-        "Les derniers rescapés",
-        "La vie de château",
-        "La machine à démonter le temps",
-        "Il faut mettre un terme aux maîtres",
-        "Un comte de faits divers"
+        { "name": "La marche de l'empereur", "id": 641 },
+        { "name": "Il est frais mon pichon", "id": 646 },
+        { "name": "La hache de mémé", "id": 642 },
+        { "name": "Les griffes d'Ernest", "id": 643 },
+        { "name": "L'œuf de la discorde", "id": 644 }
       ]
     },
     {
-      "name": "L'âme de glace",
-      "zone": "Frigost",
+      "name": "Château du Comte : L'hiver arrive",
+      "zone": "Château du Comte",
       "quests": [
-        "Prologue",
-        "Malédiction !",
-        "Mission Solution",
-        "Chaud et froid",
-        "Le givre des révélations"
+        { "name": "Les rescapés du Village Enseveli", "id": 1330 },
+        { "name": "Les derniers rescapés", "id": 1325 },
+        { "name": "La vie de château", "id": 1334 },
+        { "name": "La machine à démonter le temps", "id": 1333 },
+        { "name": "Il faut mettre un terme aux maîtres", "id": 1309 },
+        { "name": "Un comte de faits divers", "id": 1310 }
       ]
     },
     {
-      "name": "Fraîchement pondu",
-      "zone": "Frigost",
+      "name": "Final : L'âme de glace",
+      "zone": "Château du Comte",
       "quests": [
-        "Le Dofus des Glaces"
+        { "name": "D'un froid glacial", "id": 710 },
+        { "name": "À la recherche de Dan l'Aventurier", "id": 711 },
+        { "name": "Prologue", "id": 1316 },
+        { "name": "Malédiction !", "id": 1317 },
+        { "name": "Mission Solution", "id": 1318 },
+        { "name": "Chaud et froid", "id": 1326 },
+        { "name": "Le givre des révélations", "id": 1327 }
+      ]
+    },
+    {
+      "name": "Reconnaissance : Fraîchement pondu",
+      "zone": "Château du Comte",
+      "quests": [
+        { "name": "Le Dofus des Glaces", "id": 1329 }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23005.png"
+  "imageUrl": "/module-dofus/Dofus_Des_Glaces.png"
 }

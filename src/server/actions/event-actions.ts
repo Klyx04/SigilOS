@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { redis } from "@/lib/redis";
 
 import { getKralamoureEvents, getKralamoureEventDetails, MetamobApiError } from "@/lib/metamob-client";
 import { decrypt } from "@/lib/encryption";
@@ -12,6 +13,7 @@ export type UpcomingEvent = {
     startDate: string; // ISO string — Date objects crash Next.js server→client serialization
     type: string;
     participantsCount: number;
+    metadata?: any;
 };
 
 export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promise<UpcomingEvent[]> {
@@ -52,6 +54,7 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
             title: true,
             startDate: true,
             type: true,
+            metadata: true,
             _count: {
                 select: { participants: { where: { status: "REGISTERED" } } }
             }
@@ -77,13 +80,18 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     const [dbEvents, kralaEvents] = await Promise.all([dbEventsPromise, kralaPromise]);
 
     // 4. Normalize & Merge
-    const normalizedDbEvents: UpcomingEvent[] = dbEvents.map(e => ({
-        id: e.id,
-        title: e.title,
-        startDate: e.startDate.toISOString(),
-        type: e.type,
-        participantsCount: e._count.participants
-    }));
+    const normalizedDbEvents: UpcomingEvent[] = dbEvents.map(e => {
+        const meta = e.metadata as any;
+        return {
+            id: e.id,
+            title: e.title,
+            startDate: e.startDate.toISOString(),
+            type: e.type,
+            participantsCount: ((e.type as any) === "KRALAMOURE" || meta?.isKralamoure) 
+                ? (meta?.metamobParticipantsCount || e._count.participants) 
+                : e._count.participants
+        };
+    });
 
     const normalizedKralaEvents: UpcomingEvent[] = kralaEvents.map((k: any) => ({
         id: `krala-${k.id}`,
@@ -93,10 +101,65 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
         participantsCount: k.participants_count || 0
     }));
 
-    // 5. Combine, Sort, and Limit
-    const allEvents = [...normalizedDbEvents, ...normalizedKralaEvents].sort((a, b) =>
-        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-    );
+    // 6. Fetch Active Game Sessions from Redis
+    const [skribblRooms, garticRooms, geoRooms, skRooms] = await Promise.all([
+        redis.get(`guild:${guildId}:skribbl:rooms`),
+        redis.get(`guild:${guildId}:gartic:rooms`),
+        redis.get(`guild:${guildId}:geoguesser:rooms`),
+        redis.get(`guild:${guildId}:sigilking:rooms`)
+    ]);
+
+    const sessions: UpcomingEvent[] = [];
+
+
+
+    const getGameTitle = (type: string, hostName: string) => {
+        switch (type) {
+            case 'SKRIBBL': return `🎨 Skribbl (${hostName})`;
+            case 'GARTIC': return `📱 Phone (${hostName})`;
+            case 'GEOGUESSER': return `🌍 Guesser (${hostName})`;
+            case 'KING': return `👑 King (${hostName})`;
+            default: return `🎮 ${type} (${hostName})`;
+        }
+    };
+
+    const parseGameRooms = (rawData: string | null, type: string) => {
+        if (!rawData) return;
+        try {
+            const rooms = JSON.parse(rawData);
+            rooms.forEach((r: any) => {
+                const roomId = r.roomId || r.id; // Support both naming variants
+                sessions.push({
+                    id: `game-${type}-${roomId}`,
+                    title: getGameTitle(type, r.hostName || 'Inconnu'),
+                    startDate: new Date().toISOString(), // Active now
+                    type: `GAME_${type}`,
+                    participantsCount: r.playerCount || 0,
+                    metadata: {
+                        roomId: roomId,
+                        isLive: true,
+                        state: r.state || 'LOBBY', // Needed to know if we can join or just spec
+                    }
+                });
+            });
+        } catch (e) {}
+    };
+
+    parseGameRooms(skribblRooms, 'SKRIBBL');
+    parseGameRooms(garticRooms, 'GARTIC');
+    parseGameRooms(geoRooms, 'GEOGUESSER');
+    parseGameRooms(skRooms, 'KING');
+
+    // 7. Combine, Sort, and Limit (Prioritize live games)
+    const allEvents = [...sessions, ...normalizedDbEvents, ...normalizedKralaEvents].sort((a, b) => {
+        // Priority to live games
+        const aLive = (a.metadata as any)?.isLive;
+        const bLive = (b.metadata as any)?.isLive;
+        if (aLive && !bLive) return -1;
+        if (!aLive && bLive) return 1;
+        
+        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
 
     return allEvents.slice(0, limit);
 }

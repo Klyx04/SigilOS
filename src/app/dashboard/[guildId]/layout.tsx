@@ -22,6 +22,7 @@ import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
 import { CommandMenu } from "@/components/layout/command-menu";
+import { SupportOrb } from "@/components/shared/support-orb";
 
 export default async function DashboardLayout({
     children,
@@ -51,7 +52,8 @@ export default async function DashboardLayout({
         import("@/server/actions/god-roadmap-actions").then(mod => mod.getPlatformConfig())
     ]);
 
-    const roadmapEnabled = configRes.success && configRes.data ? configRes.data.roadmapEnabled : false;
+    const roadmapEnabled = configRes.success && configRes.data ? (configRes.data as any).roadmapEnabled : false;
+    const donationsEnabled = configRes.success && configRes.data ? (configRes.data as any).donationsEnabled : true;
 
     // ── GUILD NOT WHITELISTED (getUserContext returns isAuthenticated:false for blocked guilds) ──
     if (!user.isAuthenticated) {
@@ -214,14 +216,18 @@ export default async function DashboardLayout({
                         guildId={guildId}
                         userId={user.id || ""}
                         canModerate={user.canModerateChat}
-                        displayName={user.name}
+                        displayName={user.name || ""}
                         avatarUrl={user.image}
-                        userRoleName={user.roleName}
+                        userRoleName={user.roleName || ""}
                         userRoleNames={user.roleNames}
                         userRoleIds={user.roles}
                         userPseudo={user.pseudo}
+                        hideFloatingBubble={true}
                     />
                 )}
+
+                {/* Support Orb (Donation system STATE OF ART 2026) */}
+                {donationsEnabled && <SupportOrb />}
 
                 {/* Command Palette (Cmd+K) */}
                 <CommandMenu guildId={guildId} />

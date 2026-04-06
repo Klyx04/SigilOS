@@ -43,15 +43,20 @@ export class SigilKingManager {
         socket.emit("sk:room:list", rooms);
     }
 
-    private broadcastRoomList(guildId?: string) {
+    private async broadcastRoomList(guildId?: string) {
         if (!guildId) return;
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
-            if (room.isInLobby() && room.getGuildId() === guildId) {
+            if (room.getGuildId() === guildId && !room.isEmpty()) {
                 rooms.push(room.getPublicInfo(roomId));
             }
         });
         this.io.to(`guild:${guildId}`).emit("sk:room:list", rooms);
+
+        // Internal Redis broadcast for Dashboard EventTicker
+        if (guildId !== "global") {
+            await redis.set(`guild:${guildId}:sigilking:rooms`, JSON.stringify(rooms), "EX", 3600);
+        }
     }
 
     // ─── Create / Join / Leave ──────────────────────────────

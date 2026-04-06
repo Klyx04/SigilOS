@@ -103,6 +103,7 @@ model PlatformConfig {
   ticketAutoRoleId       String?
   ticketSupportGuildId   String?
   roadmapEnabled         Boolean  @default(false)
+  donationsEnabled       Boolean  @default(true)
   statusIsLite           Boolean  @default(false)
   statusMode             String   @default("living")
   statusFrequency        Int      @default(15)
@@ -1702,13 +1703,15 @@ model PlayerDofusProgress {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   completionPercent Int         @default(0)
+  characterName     String      @default("PRINCIPAL")
   dofus             DofusItem   @relation(fields: [dofusId], references: [id], onDelete: Cascade)
   profile           UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@unique([profileId, dofusId])
+  @@unique([profileId, dofusId, characterName])
   @@index([guildId])
   @@index([profileId])
   @@index([dofusId])
+  @@index([characterName])
 }
 
 /// V3: Lien de dépendance entre Dofus (ex: Sylvestre → Dom de Pin → Ocre)
@@ -1736,13 +1739,15 @@ model PlayerDofusQuestProgress {
   completedAt DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  profile     UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  quest       DofusQuestEntry  @relation(fields: [questId], references: [id], onDelete: Cascade)
+  characterName String           @default("PRINCIPAL")
+  profile       UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  quest         DofusQuestEntry  @relation(fields: [questId], references: [id], onDelete: Cascade)
 
-  @@unique([profileId, questId])
+  @@unique([profileId, questId, characterName])
   @@index([guildId])
   @@index([profileId])
   @@index([questId])
+  @@index([characterName])
 }
 
 enum GodNotifyType {

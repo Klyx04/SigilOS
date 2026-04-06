@@ -153,8 +153,9 @@ export class GarticRoom {
     }
 
     public startGame() {
-        if (this.state.players.size < 1) { // 1 pour tester
-            this.io.to(this.state.roomId).emit("gartic:error", { message: "Il faut au moins 1 joueur !" });
+        const activePlayers = Array.from(this.state.players.values()).filter(p => !p.isSpectator);
+        if (activePlayers.length < 2) {
+            this.io.to(this.state.roomId).emit("gartic:error", { message: "Il faut au moins 2 joueurs (hors spectateurs) !" });
             return;
         }
         this.machine.send({ type: "START_GAME" });

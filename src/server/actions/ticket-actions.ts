@@ -160,7 +160,26 @@ export async function createSupportTicket(input: z.infer<typeof CreateTicketSche
                         ],
                     });
 
-                    // [NEW] GLOBAL GOD NOTIFICATION
+                    // [NEW] GLOBAL GOD DASHBOARD NOTIFICATION
+                    try {
+                        const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                        await notifyGod({
+                            title: `Nouveau Ticket #${ticket.ticketNumber}`,
+                            message: `[${categoryLabel}] ${data.subject} par ${data.creatorDiscordName}`,
+                            type: "TICKET",
+                            success: true,
+                            metadata: {
+                                ticketId: ticket.id,
+                                category: data.category,
+                                creatorId: data.creatorDiscordId,
+                                guildId: data.discordGuildId
+                            }
+                        });
+                    } catch (notifErr) {
+                        console.error("[Tickets] Dashboard notification failed:", notifErr);
+                    }
+
+                    // [NEW] GLOBAL GOD NOTIFICATION (Discord Ping)
                     const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
                     if ((platformConfig as any)?.godNotifyChannelId) {
                         const ping = (platformConfig as any).godNotifyRoleId ? `<@&${(platformConfig as any).godNotifyRoleId}>` : "";

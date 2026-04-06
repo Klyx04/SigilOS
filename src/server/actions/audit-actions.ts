@@ -50,7 +50,8 @@ export type AuditAction =
     | "PROFILE_ARCHIVED"          // Profile manually or automatically archived
     | "PROFILE_REACTIVATED"       // Archived profile restored to active
     | "PLATFORM_ARRIVAL"          // User first registered on platform
-    | "PLATFORM_DEPARTURE";       // User left or was deleted from platform
+    | "PLATFORM_DEPARTURE"        // User left or was deleted from platform
+    | "ADMIN_ROSTER_AUDIT_SENT";  // Roster audit report sent to Discord
 
 export type AuditTargetType =
     | "PERMISSION"

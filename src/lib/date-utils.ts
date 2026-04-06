@@ -1,4 +1,4 @@
-import { getISOWeek, getISOWeekYear, subHours } from "date-fns";
+import { getISOWeek, getISOWeekYear, subHours, addDays, setHours, setMinutes, setSeconds, format } from "date-fns";
 
 /**
  * Get the current Dofus ISO week number and year.
@@ -18,4 +18,35 @@ export function getDofusWeek(): { week: number; year: number } {
         week: getISOWeek(shifted),
         year: getISOWeekYear(shifted)
     };
+}
+
+/**
+ * Returns the next Tuesday at 07:00 (Dofus Reset Time)
+ */
+export function getNextDofusReset(): Date {
+    const nowStr = new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" });
+    const parisNow = new Date(nowStr);
+    const dayOfWeek = parisNow.getDay(); // 0:Sun, 1:Mon, 2:Tue...
+    
+    let nextTuesday = setSeconds(setMinutes(setHours(parisNow, 7), 0), 0);
+    const diff = (2 - dayOfWeek + 7) % 7;
+
+    // If it's already Tuesday and we are past 07:00, the next reset is next week.
+    if (diff === 0 && parisNow.getHours() >= 7) {
+        nextTuesday = addDays(nextTuesday, 7);
+    } else {
+        nextTuesday = addDays(nextTuesday, diff);
+    }
+    
+    return nextTuesday;
+}
+
+/**
+ * Formats a date range for the Discord embed title (Du DD/MM au DD/MM 07h)
+ */
+export function formatDofusRange(): string {
+    const now = new Date();
+    const nextReset = getNextDofusReset();
+    
+    return `du ${format(now, "dd/MM")} au ${format(nextReset, "dd/MM")} (07h)`;
 }

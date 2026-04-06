@@ -35,9 +35,10 @@ interface PublicHeaderProps {
     dashboardHref?: string;
     isMember?: boolean;
     isFixed?: boolean;
+    clientId?: string;
 }
 
-export function PublicHeader({ activePage, user, variant = "standard", dashboardHref = "/dashboard", isMember: isMemberProp, isFixed = true }: PublicHeaderProps) {
+export function PublicHeader({ activePage, user, variant = "standard", dashboardHref = "/dashboard", isMember: isMemberProp, isFixed = true, clientId }: PublicHeaderProps) {
     const isHero = variant === "hero";
     const [isMember, setIsMember] = useState(isMemberProp ?? false);
     const [scrolled, setScrolled] = useState(false);
@@ -144,11 +145,12 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="flex items-center gap-3"
                                 >
-                                    <DashboardDrawer>
-                                        <button className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:-translate-y-1 active:scale-95 shadow-2x border border-white/20">
-                                            Accéder au Dashboard
-                                            <div className="w-5 h-5 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black/10 transition-colors">
-                                                <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                                    <DashboardDrawer clientId={clientId}>
+                                        <button className="group relative flex items-center gap-2 sm:gap-3 px-4 sm:px-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl bg-white text-black text-[10px] sm:text-[11px] font-black uppercase tracking-wider sm:tracking-[0.2em] transition-all hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:-translate-y-1 active:scale-95 shadow-2x border border-white/20">
+                                            <span className="hidden sm:inline">Accéder au Dashboard</span>
+                                            <span className="sm:hidden">Dashboard</span>
+                                            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black/10 transition-colors">
+                                                <ChevronRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 transition-transform group-hover:translate-x-0.5" />
                                             </div>
                                         </button>
                                     </DashboardDrawer>

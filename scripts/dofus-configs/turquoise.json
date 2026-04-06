@@ -72,15 +72,7 @@
       "description": "Quêtes et succès à compléter avant de pouvoir commencer la série principale.",
       "isPrerequisite": true,
       "quests": [
-        "L'anneau de tous les dangers",
-        "Sous le regard des dieux",
-        "Réponse à tout",
-        "Le village dans les nuages",
-        "Espoirs et tragédies",
-        "Dans la gueule du milimulou",
-        "Destination Astrub",
-        "Voir le Dark Vlad et mourir... ou pas",
-        "La dernière barbe avant la fin du monde"
+        { "name": "La magicienne des marécages", "id": 1462 }
       ]
     },
     {
@@ -140,19 +132,16 @@
         }
       ],
       "quests": [
-        "Plongeon et dragon",
-        "Extinction des feux",
-        "On dirait le Sud",
-        "La méchante sorcière de l'Est",
-        "La bénédiction de Viti",
-        "Autel du Nord",
-        "La bénédiction de Thomahon",
-        {
-          "name": "Il était une foi dans l'Ouest",
-          "id": 1658
-        },
-        "La bénédiction de Foluk",
-        "Une âme en colère"
+        { "name": "Plongeon et dragon", "id": 1653 },
+        { "name": "Extinction des feux", "id": 1654 },
+        { "name": "On dirait le Sud", "id": 1656 },
+        { "name": "La méchante sorcière de l'Est", "id": 1657 },
+        { "name": "Autel du Nord", "id": 1658 },
+        { "name": "Il était une foi dans l'Ouest", "id": 1659 },
+        { "name": "La bénédiction de Viti", "id": 1660 },
+        { "name": "La bénédiction de Thomahon", "id": 1661 },
+        { "name": "La bénédiction de Foluk", "id": 1662 },
+        { "name": "Une âme en colère", "id": 1663 }
       ]
     }
   ],

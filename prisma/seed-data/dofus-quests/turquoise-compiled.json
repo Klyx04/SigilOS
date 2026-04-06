@@ -8,7 +8,7 @@
   "dofusItemId": 739,
   "iconId": 23003,
   "imageUrl": "https://api.dofusdb.fr/img/items/23003.png",
-  "compiledAt": "2026-04-04T13:47:36.916Z",
+  "compiledAt": "2026-04-04T21:28:09.423Z",
   "chains": [
     {
       "sectionName": "Prérequis",
@@ -20,305 +20,25 @@
       "requires": [],
       "entries": [
         {
-          "name": "L'anneau de tous les dangers",
-          "dofusdbId": 1629,
-          "level": 2,
-          "zone": "Salle des métiers",
-          "npcName": null,
-          "npcSubArea": "Salle des métiers",
-          "coords": {
-            "x": -3,
-            "y": -3,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 289,
-              "name": "Blé",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/34009.png"
-            },
-            {
-              "id": 303,
-              "name": "Bois de Frêne",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/38017.png"
-            },
-            {
-              "id": 312,
-              "name": "Fer",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/39024.png"
-            },
-            {
-              "id": 421,
-              "name": "Ortie",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/36642.png"
-            },
-            {
-              "id": 1782,
-              "name": "Goujon",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/41294.png"
-            }
-          ],
-          "objectives": [
-            "Entrer dans la salle des métiers",
-            "Aller voir {npc,2895}",
-            "Récolter du blé",
-            "Cueillir de l'ortie",
-            "Couper du frêne",
-            "Extraire du fer",
-            "Pêcher un goujon",
-            "Fabriquer 1 {item,19622} et fermer l'interface",
-            "Retourner voir {npc,7581}"
-          ],
-          "stepOrder": 0,
-          "isSynergyCandidate": false,
-          "requirements": []
-        },
-        {
-          "name": "Sous le regard des dieux",
-          "dofusdbId": 1630,
-          "level": 2,
-          "zone": "Salle de combat",
-          "npcName": null,
-          "npcSubArea": "Salle de combat",
-          "coords": {
-            "x": -3,
-            "y": -3,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Entrer dans la salle de combat",
-            "Aller voir {npc,2896}",
-            "Vaincre x2 {monster,4111} en un seul combat",
-            "Vaincre x1 {monster,4104} en un seul combat",
-            "Retourner voir {npc,2896}",
-            "Retourner voir {npc,7581}"
-          ],
-          "stepOrder": 1,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1629
-            }
-          ]
-        },
-        {
-          "name": "Réponse à tout",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 2,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1630
-            }
-          ]
-        },
-        {
-          "name": "Le village dans les nuages",
-          "dofusdbId": 1632,
-          "level": 3,
+          "name": "La magicienne des marécages",
+          "dofusdbId": 1462,
+          "level": 40,
           "zone": "Monde de Douze",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
-            "x": -1,
-            "y": -3,
-            "worldId": 2
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,2905}",
-            "Aller voir {npc,2899}",
-            "Aller voir {npc,2885}",
-            "Aller voir {npc,2880}",
-            "Aller voir {npc,2910}",
-            "Retourner voir {npc,2905}",
-            "Aller voir {npc,1515}"
-          ],
-          "stepOrder": 3,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1630
-            }
-          ]
-        },
-        {
-          "name": "Espoirs et tragédies",
-          "dofusdbId": 1634,
-          "level": 5,
-          "zone": "Incarnam - Rocher du Phénix",
-          "npcName": null,
-          "npcSubArea": "Incarnam - Rocher du Phénix",
-          "coords": {
-            "x": 2,
+            "x": -6,
             "y": -3,
             "worldId": 1
           },
           "isDungeon": false,
           "itemsRequired": [],
           "objectives": [
-            "Lire le livre contant la légende de Rykke Errel",
-            "Retourner voir {npc,1515}",
-            "Parler à un vieux de la vieille",
-            "Parler à une féline pantouflarde",
-            "Parler à un voleur malchanceux"
+            "Aller voir {npc,2205}"
           ],
-          "stepOrder": 4,
+          "stepOrder": 0,
           "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1632
-            }
-          ]
-        },
-        {
-          "name": "Dans la gueule du milimulou",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 5,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1634
-            }
-          ]
-        },
-        {
-          "name": "Destination Astrub",
-          "dofusdbId": 2004,
-          "level": 10,
-          "zone": "Incarnam - Aire de l'envol",
-          "npcName": null,
-          "npcSubArea": "Incarnam - Aire de l'envol",
-          "coords": {
-            "x": 4,
-            "y": -3,
-            "worldId": 2
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,4360}",
-            "Utiliser le portail pour se rendre à Astrub sur le Monde des Douze",
-            "Aller voir {npc,4355}"
-          ],
-          "stepOrder": 6,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1634
-            }
-          ]
-        },
-        {
-          "name": "Voir le Dark Vlad et mourir... ou pas",
-          "dofusdbId": 2195,
-          "level": 40,
-          "zone": "Clairière de l'orme",
-          "npcName": null,
-          "npcSubArea": "Clairière de l'orme",
-          "coords": {
-            "x": -5,
-            "y": 13,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Obtenir auprès de Lanseuft le droit d'entrer dans la forêt Maléfique",
-            "Découvrir la carte : Clairière du Dark Vlad",
-            "Essayer d'avoir une conversation avec le Dark Vlad",
-            "Affronter les monstres maléfiques",
-            "Parler à nouveau au Dark Vlad",
-            "Affronter les chafers invoqués par le Iop sombre",
-            "Tenter une dernière fois de discuter avec le Dark Vlad",
-            "Retourner à Madrestam pour parler au sage lenald"
-          ],
-          "stepOrder": 7,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2004
-            }
-          ]
-        },
-        {
-          "name": "La dernière barbe avant la fin du monde",
-          "dofusdbId": 2014,
-          "level": 200,
-          "zone": "Bateau Ivre",
-          "npcName": null,
-          "npcSubArea": "Bateau Ivre",
-          "coords": {
-            "x": -70,
-            "y": -69,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 19950,
-              "name": "Orange amère",
-              "amount": 10,
-              "img": "https://api.dofusdb.fr/img/items/46468.png"
-            },
-            {
-              "id": 19952,
-              "name": "Sucre glace",
-              "amount": 4,
-              "img": "https://api.dofusdb.fr/img/items/48292.png"
-            },
-            {
-              "id": 19951,
-              "name": "Eau-de-vie vernale",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/79014.png"
-            }
-          ],
-          "objectives": [
-            "Ramener à {npc,4504} : x10 {item,19948}",
-            "Ramener à {npc,4504} : x4 {item,19949}",
-            "Montrer à {npc,4504} : 10 {item,19950}",
-            "Montrer à {npc,4504} : 4 {item,19952}",
-            "Montrer à {npc,4504} : 1 {item,19951}",
-            "Fabriquer 1 {item,19953} et fermer l'interface",
-            "Ramener à {npc,4504} : x1 {item,19953}"
-          ],
-          "stepOrder": 8,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2195
-            }
-          ]
+          "requirements": []
         }
       ]
     },
@@ -533,35 +253,6 @@
           ]
         },
         {
-          "name": "La bénédiction de Viti",
-          "dofusdbId": 1660,
-          "level": 140,
-          "zone": "Fabrique de foux d'artifice - Cinquième salle",
-          "npcName": null,
-          "npcSubArea": "Fabrique de foux d'artifice - Cinquième salle",
-          "coords": {
-            "x": 14,
-            "y": -32,
-            "worldId": 1
-          },
-          "isDungeon": true,
-          "itemsRequired": [],
-          "objectives": [
-            "Vaincre x1 {monster,6249} en un seul combat avec l'altération {alteration,238} active",
-            "Vaincre x1 {monster,1086} en un seul combat avec l'altération {alteration,239} active",
-            "Vaincre x1 {monster,2848} en un seul combat avec l'altération {alteration,240} active",
-            "Retourner voir {npc,2980}"
-          ],
-          "stepOrder": 4,
-          "isSynergyCandidate": true,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1657
-            }
-          ]
-        },
-        {
           "name": "Autel du Nord",
           "dofusdbId": 1658,
           "level": 160,
@@ -595,12 +286,74 @@
             "Déterrer le totem du Nord",
             "Retourner voir {npc,2205}"
           ],
+          "stepOrder": 4,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1657
+            }
+          ]
+        },
+        {
+          "name": "Il était une foi dans l'Ouest",
+          "dofusdbId": 1659,
+          "level": 180,
+          "zone": "Donjons / Monde de Douze",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -57,
+            "y": 12,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "objectives": [
+            "Trouver l'autel de l'Ouest",
+            "Prouver votre dévotion à Foluk",
+            "Trouver Goboune, le cousin du disciple de Foluk",
+            "Ramener à {npc,2891} : x1 {item,17035}",
+            "Obtenir la bénédiction de Foluk",
+            "Trouver le totem de l'Ouest",
+            "Vaincre x1 {monster,4139} en un seul combat",
+            "Retourner voir {npc,2205}"
+          ],
           "stepOrder": 5,
           "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 1660
+              "dofusdbId": 1658
+            }
+          ]
+        },
+        {
+          "name": "La bénédiction de Viti",
+          "dofusdbId": 1660,
+          "level": 140,
+          "zone": "Fabrique de foux d'artifice - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Fabrique de foux d'artifice - Cinquième salle",
+          "coords": {
+            "x": 14,
+            "y": -32,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "objectives": [
+            "Vaincre x1 {monster,6249} en un seul combat avec l'altération {alteration,238} active",
+            "Vaincre x1 {monster,1086} en un seul combat avec l'altération {alteration,239} active",
+            "Vaincre x1 {monster,2848} en un seul combat avec l'altération {alteration,240} active",
+            "Retourner voir {npc,2980}"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1659
             }
           ]
         },
@@ -625,30 +378,12 @@
             "Vaincre x1 {monster,2924} en un seul combat avec l'altération {alteration,244} active",
             "Retourner voir {npc,2981}"
           ],
-          "stepOrder": 6,
+          "stepOrder": 7,
           "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 1658
-            }
-          ]
-        },
-        {
-          "name": "Il était une foi dans l'Ouest",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 7,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1661
+              "dofusdbId": 1660
             }
           ]
         },

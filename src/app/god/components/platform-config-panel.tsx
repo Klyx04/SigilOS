@@ -25,6 +25,7 @@ interface PlatformConfigPanelProps {
         statusMention: string;
         statusFrequency: number;
         nsfwFilterEnabled: boolean;
+        donationsEnabled: boolean;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -44,7 +45,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         statusMode: config?.statusMode || "living",
         statusMention: config?.statusMention || "none",
         statusFrequency: config?.statusFrequency || 15,
-        nsfwFilterEnabled: config?.nsfwFilterEnabled !== undefined ? config?.nsfwFilterEnabled : true
+        nsfwFilterEnabled: config?.nsfwFilterEnabled !== undefined ? config?.nsfwFilterEnabled : true,
+        donationsEnabled: config?.donationsEnabled !== undefined ? config?.donationsEnabled : true
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -266,9 +268,9 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             />
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-between gap-2">
-                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Filtre IA NSFW</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-between gap-2 group/nsfw">
+                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest group-hover/nsfw:text-zinc-300 transition-colors">Filtre IA NSFW</span>
                                 <button 
                                     onClick={() => setFormData(prev => ({ ...prev, nsfwFilterEnabled: !prev.nsfwFilterEnabled }))}
                                     className={cn(
@@ -281,18 +283,32 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                                     {formData.nsfwFilterEnabled ? "Activé" : "Désactivé"}
                                 </button>
                             </div>
-                            <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-between gap-2">
-                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Notifs Web Dashboard</span>
+                            <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-between gap-2 group/web">
+                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest group-hover/web:text-zinc-300 transition-colors">Notifs Web</span>
                                 <button 
                                     onClick={() => setFormData(prev => ({ ...prev, godNotifyWebEnabled: !prev.godNotifyWebEnabled }))}
                                     className={cn(
                                         "px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border",
                                         formData.godNotifyWebEnabled 
-                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                                            ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" 
                                             : "bg-rose-500/10 border-rose-500/20 text-rose-400"
                                     )}
                                 >
                                     {formData.godNotifyWebEnabled ? "Activé" : "Désactivé"}
+                                </button>
+                            </div>
+                            <div className="p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col justify-between gap-2 group/don">
+                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest group-hover/don:text-zinc-300 transition-colors">Don Orb</span>
+                                <button 
+                                    onClick={() => setFormData(prev => ({ ...prev, donationsEnabled: !prev.donationsEnabled }))}
+                                    className={cn(
+                                        "px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border",
+                                        formData.donationsEnabled 
+                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                                            : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                                    )}
+                                >
+                                    {formData.donationsEnabled ? "Visible" : "Caché"}
                                 </button>
                             </div>
                         </div>

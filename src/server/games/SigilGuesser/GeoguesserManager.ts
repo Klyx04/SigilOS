@@ -72,7 +72,7 @@ export class GeoguesserManager {
         socket.emit("geoguesser:room:list", rooms);
     }
 
-    private broadcastRoomList(guildId?: string) {
+    private async broadcastRoomList(guildId?: string) {
         if (!guildId) return;
         const rooms: any[] = [];
         this.rooms.forEach((room, roomId) => {
@@ -81,6 +81,11 @@ export class GeoguesserManager {
             }
         });
         this.io.to(`guild:${guildId}`).emit("geoguesser:room:list", rooms);
+
+        // Internal Redis broadcast for Dashboard EventTicker
+        if (guildId !== "global") {
+            await redis.set(`guild:${guildId}:geoguesser:rooms`, JSON.stringify(rooms), "EX", 3600);
+        }
     }
 
     private async joinRoom(socket: Socket, data: any) {
@@ -159,6 +164,13 @@ export class GeoguesserManager {
         }
 
         if (room.isHost(socket.id)) {
+            const publicInfo = room.getPublicInfo(roomId);
+            if (publicInfo.playerCount < 2) {
+                console.warn(`[Geoguesser] ⚠️ Lancement refusé : Pas assez de joueurs (hors spectateurs) dans la room ${roomId}`);
+                socket.emit("geoguesser:error", { message: "Il faut au moins 2 joueurs (hors spectateurs) !" });
+                return;
+            }
+
             console.log(`[Geoguesser] ✅ Lancement autorisé (Hôte: ${socket.id})`);
             if (data.maxRounds) room.setMaxRounds(data.maxRounds);
             if (data.timePerRound) room.setTimePerRound(data.timePerRound);

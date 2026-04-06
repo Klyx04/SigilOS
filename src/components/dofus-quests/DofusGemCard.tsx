@@ -12,9 +12,10 @@ import type { DofusItemWithProgress } from "@/server/actions/dofus-quest-actions
 interface DofusGemCardProps {
     dofus: DofusItemWithProgress;
     guildId: string;
+    selectedCharacter?: string;
 }
 
-export function DofusGemCard({ dofus, guildId }: DofusGemCardProps) {
+export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }: DofusGemCardProps) {
     const [isObtained, setIsObtained] = useState(dofus.isObtained);
     const [isPending, startTransition] = useTransition();
 
@@ -36,13 +37,13 @@ export function DofusGemCard({ dofus, guildId }: DofusGemCardProps) {
         const newVal = !isObtained;
         setIsObtained(newVal);
         startTransition(async () => {
-            await toggleDofusObtained(guildId, dofus.id, newVal);
+            await toggleDofusObtained(guildId, dofus.id, newVal, selectedCharacter);
         });
     }
 
     return (
         <Link
-            href={`/dashboard/${guildId}/quetes-dofus/${dofus.slug}`}
+            href={`/dashboard/${guildId}/quetes-dofus/${dofus.slug}${selectedCharacter !== "PRINCIPAL" ? `?character=${selectedCharacter}` : ""}`}
             className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
             style={{
                 background: `linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)`,
@@ -110,7 +111,7 @@ export function DofusGemCard({ dofus, guildId }: DofusGemCardProps) {
                             {dofus.imageUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
-                                    src={dofus.imageUrl}
+                                    src={dofus.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : dofus.imageUrl.replace(/^\/public/, "")}
                                     alt={dofus.nameShort}
                                     width={56}
                                     height={56}

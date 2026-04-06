@@ -86,14 +86,14 @@ export function AppSidebar({
         `/dashboard/${guildId}/missions`,
         `/dashboard/${guildId}/songes`,
         `/dashboard/${guildId}/quete-ocre`,
-        `/dashboard/${guildId}/ladder`,
+        `/dashboard/${guildId}/quetes-dofus`,
     ];
     const [progressionOpen, setProgressionOpen] = useState(
         () => progressionRoutes.some(r => pathname.startsWith(r))
     );
 
     const toolsRoutes = [
-        `/dashboard/${guildId}/calendar`,
+        `/dashboard/${guildId}/mini-jeux`,
         `/dashboard/${guildId}/mini-jeux`,
         `/dashboard/${guildId}/donjons-et-quetes`,
         `/dashboard/${guildId}/passages`,
@@ -102,6 +102,9 @@ export function AppSidebar({
         `/dashboard/${guildId}/galerie-stuff`,
         `/dashboard/${guildId}/worldmap`,
     ];
+    const [infoOpen, setInfoOpen] = useState(
+        () => pathname.startsWith(`/dashboard/${guildId}/calendar`)
+    );
     const [toolsOpen, setToolsOpen] = useState(
         () => toolsRoutes.some(r => pathname.startsWith(r))
     );
@@ -124,22 +127,22 @@ export function AppSidebar({
         { name: "Présentation", href: `/dashboard/${guildId}/presentation`, icon: BookOpen, color: "emerald", visible: user.isMember && user.canViewPresentation && modules.presentation },
         { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", visible: user.isMember && user.canViewResources && modules.resources },
         { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "emerald", visible: user.isMember && user.canViewStats && modules.stats },
+        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", visible: user.canViewCalendar && modules.calendar },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "emerald", visible: user.canViewLadder && modules.ladder },
         { name: "Documentation", href: `/docs`, icon: BookOpen, color: "emerald", visible: user.isMember && user.canViewDocs && modules.docs },
     ];
 
     const NAV_PROGRESSION = [
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", visible: user.canViewMissions && modules.missions },
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "amber", visible: user.canViewSonges && modules.songes },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "amber", visible: user.canViewOcre && modules.ocre },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", visible: user.canViewLadder && modules.ladder },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/module-dofus/Dofus_Ocre.png", color: "amber", visible: user.canViewOcre && modules.ocre },
+        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/module-dofus/Dofus_Sylvestre.png", color: "amber", visible: user.isMember && user.canViewQuests && modules.quests },
     ];
 
     const showProgressionGroup = NAV_PROGRESSION.some(i => i.visible !== false);
 
     const NAV_TOOLS = [
-        { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "indigo", visible: user.canViewCalendar && modules.calendar },
         { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Trophy, color: "indigo", visible: user.canViewMiniGames && modules.minigames }, 
-        { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: BookOpen, color: "amber", visible: user.isMember && user.canViewQuests && modules.quests },
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Compass, color: "indigo", visible: user.isMember && user.canViewFinder && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/passages`, icon: Key, color: "indigo", visible: user.isMember && user.canViewServices && modules.services },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Activity, color: "indigo", visible: user.isMember && user.canViewPolls && modules.polls },
@@ -452,7 +455,18 @@ function NavItem({ item, isActive, isSubItem }: { item: any; isActive: boolean; 
                 "transition-all duration-300 shrink-0 flex items-center justify-center p-1.5 rounded-lg border border-transparent",
                 isActive ? cn(scheme.bg, scheme.text, scheme.border) : cn(scheme.muted, "group-hover:text-white group-hover:bg-white/5 group-hover:border-white/5")
             )}>
-                <item.icon className={cn("h-3.5 w-3.5")} />
+                {item.imgSrc ? (
+                    <div className="relative h-3.5 w-3.5">
+                        <Image 
+                            src={item.imgSrc} 
+                            alt={item.name} 
+                            fill 
+                            className={cn("object-contain", !isActive && "opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0 transition-all")} 
+                        />
+                    </div>
+                ) : (
+                    <item.icon className={cn("h-3.5 w-3.5")} />
+                )}
             </div>
 
             <span className={cn(

@@ -8,29 +8,47 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Load env vars
-if [ -f "$ROOT_DIR/.env" ]; then
-    export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
-fi
+# 1. Config & Context
+# -------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
-DB_CONTAINER="sigilos-db"
-DB_USER="${POSTGRES_USER:-user}"
-BACKUP_DIR="/var/backups/sigilos"
+# Local backup directory
+BACKUP_DIR="$ROOT_DIR/backups/db"
+mkdir -p "$BACKUP_DIR"
 
-# Check dependencies
-if ! command -v aws &> /dev/null; then echo "❌ aws-cli required"; exit 1; fi
-if ! command -v gpg &> /dev/null; then echo "❌ gpg required"; exit 1; fi
-
-if [ -z "$1" ]; then
-    echo "Usage: ./restore_db.sh <backup_filename.sql.gz.gpg>"
-    echo "Available local backups:"
-    ls -lh $BACKUP_DIR/*.gpg 2>/dev/null
-    echo ""
-    echo "To download from R2, use --download-latest"
+# [MOD] Target Environment (Required)
+TARGET_ENV="$1"
+if [ "$TARGET_ENV" != "beta" ] && [ "$TARGET_ENV" != "prod" ]; then
+    echo "❌ Usage: ./restore_db.sh {beta|prod} {filename|--download-latest}"
     exit 1
 fi
 
-TARGET_FILE="$1"
+ACTION="$2"
+if [ -z "$ACTION" ]; then
+    echo "❌ Usage: ./restore_db.sh $TARGET_ENV {filename|--download-latest}"
+    exit 1
+fi
+
+# Load env vars
+load_env() {
+    local env_file=$1
+    if [ -f "$env_file" ]; then
+        echo "[Config] Loading $env_file"
+        set -a
+        source "$env_file"
+        set +a
+    fi
+}
+
+if [ "$TARGET_ENV" == "prod" ]; then
+    load_env "$ROOT_DIR/.env.prod"
+else
+    load_env "$ROOT_DIR/.env.beta"
+fi
+
+DB_CONTAINER="sigilos-db-$TARGET_ENV"
+DB_USER="${POSTGRES_USER:-user}"
 
 # Remap R2 env vars
 export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
@@ -39,18 +57,21 @@ export AWS_DEFAULT_REGION="auto"
 export AWS_ENDPOINT_URL="$R2_ENDPOINT_URL"
 
 # Mode: Download Latest
-if [ "$1" == "--download-latest" ]; then
-    echo "☁️ Fetching latest backup from R2..."
-    LATEST=$(aws s3 ls "s3://$R2_BUCKET_NAME/" --endpoint-url "$AWS_ENDPOINT_URL" | sort | tail -n 1 | awk '{print $4}')
+if [ "$ACTION" == "--download-latest" ]; then
+    echo "☁️ Fetching latest $TARGET_ENV backup from R2..."
+    # Filter by sigilos_beta_ or sigilos_prod_
+    LATEST=$(aws s3 ls "s3://$R2_BUCKET_NAME/" --endpoint-url "$AWS_ENDPOINT_URL" | grep "sigilos_${TARGET_ENV}_" | sort | tail -n 1 | awk '{print $4}')
     
     if [ -z "$LATEST" ]; then
-        echo "❌ No backup found in bucket."
+        echo "❌ No backup found for $TARGET_ENV in bucket."
         exit 1
     fi
     
     echo "⬇️ Downloading $LATEST..."
     aws s3 cp "s3://$R2_BUCKET_NAME/$LATEST" "$BACKUP_DIR/$LATEST" --endpoint-url "$AWS_ENDPOINT_URL"
     TARGET_FILE="$BACKUP_DIR/$LATEST"
+else
+    TARGET_FILE="$ACTION"
 fi
 
 if [ ! -f "$TARGET_FILE" ]; then

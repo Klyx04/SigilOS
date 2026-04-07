@@ -26,30 +26,25 @@ docker ps          # Docker opérationnel
 # Charger les variables d'environnement
 source .env.prod
 
-# Lister les backups (du plus récent au plus ancien)
+# Lister les backups BÊTA (les plus récents en premier)
 AWS_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID \
 AWS_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY \
-aws s3 ls s3://$R2_BUCKET_NAME/ \
-  --endpoint-url $R2_ENDPOINT_URL \
-  --recursive \
-  | sort -r
+aws s3 ls s3://$R2_BUCKET_NAME/ --endpoint-url $R2_ENDPOINT_URL | grep "sigilos_beta_" | sort -r
+
+# Lister les backups PROD
+aws s3 ls s3://$R2_BUCKET_NAME/ --endpoint-url $R2_ENDPOINT_URL | grep "sigilos_prod_" | sort -r
 ```
 
-Note le nom du fichier à restaurer, ex: `sigilos_2026-02-27_04-00-01.sql.gz.gpg`
+Note le nom du fichier à restaurer, ex: `sigilos_beta_2026-04-07_18-20-11.sql.gz.gpg`
 
 ---
 
-## Étape 2 — Télécharger le backup
-
 ```bash
-BACKUP_FILE="sigilos_2026-02-27_04-00-01.sql.gz.gpg"   # ← adapter
+# Option manuelle (si tu as le nom du fichier)
+./scripts/restore_db.sh beta sigilos_beta_2026-04-07_12-00-00.sql.gz.gpg
 
-AWS_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID \
-AWS_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY \
-aws s3 cp s3://$R2_BUCKET_NAME/$BACKUP_FILE ~/restore/$BACKUP_FILE \
-  --endpoint-url $R2_ENDPOINT_URL
-
-echo "✅ Téléchargé dans ~/restore/$BACKUP_FILE"
+# Option AUTOMATIQUE (Recommandé - télécharge le dernier backup BETA)
+bash ./scripts/restore_db.sh beta --download-latest
 ```
 
 ---
@@ -73,16 +68,14 @@ echo "✅ Déchiffré → ~/restore/restore.sql.gz"
 
 ---
 
-## Étape 4 — Restaurer la base de données
-
-> ⚠️ **Ceci écrase toutes les données actuelles.**
+Les étapes de déchiffrement et d'injection sont désormais automatisées par le script `restore_db.sh`. Il demande confirmation avant d'écraser les données.
 
 ```bash
-# Option A — Restaurer la DB prod
-zcat ~/restore/restore.sql.gz | docker exec -i sigilos-db-prod psql -U sigiluser -d sigilos
+# Pour la Bêta
+./scripts/restore_db.sh beta --download-latest
 
-# Option B — Restaurer la DB beta
-zcat ~/restore/restore.sql.gz | docker exec -i sigilos-db-beta psql -U sigiluser -d sigilos
+# Pour la Prod
+./scripts/restore_db.sh prod --download-latest
 ```
 
 ---

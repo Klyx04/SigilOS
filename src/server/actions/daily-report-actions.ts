@@ -40,9 +40,13 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
             ? reconciliation.data!.members.filter(m => !m.hasDashboardProfile).length 
             : 0;
 
+        const { getAppBaseUrl } = await import("@/lib/utils");
+        const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/admin/members`;
+
         const embed = {
             embedTitle: `📅 Rapport Quotidien — ${config.name}`,
-            embedDescription: `Voici le résumé de l'activité du serveur pour ces dernières 24 heures.`,
+            embedUrl: dashboardUrl,
+            embedDescription: `Voici le résumé de l'activité du serveur pour ces dernières 24 heures.\n[Gérer les Membres et l'Audit ➡️](${dashboardUrl})`,
             embedColor: 0x9333ea, // Purple
             embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png",
             fields: [
@@ -53,7 +57,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
                 },
                 {
                     name: "🛰️ INFRASTRUCTURE",
-                    value: `Systèmes: **OPÉRATIONNELS**\nUptime: \`99.98%\``,
+                    value: `Systèmes: **OPÉRATIONNELS**\nUptime: \`${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m\``,
                     inline: true
                 },
                 {

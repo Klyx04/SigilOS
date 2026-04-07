@@ -11,7 +11,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "worker": "npx -y tsx src/workers/metamob-worker.ts",
-    "presence": "npx -y tsx src/workers/presence-worker.ts",
+
     "ws": "npx -y tsx src/server/websocket/server.ts",
     "start:ws": "node ./ws-server.js",
     "prepare": "husky",
@@ -23,7 +23,7 @@
     "build:worker": "esbuild src/workers/metamob-worker.ts --bundle --platform=node --outfile=dist/worker.js --external:@prisma/client --external:ioredis --external:bullmq",
     "build:ladder-sync": "esbuild src/workers/ladder-sync-worker.ts --bundle --platform=node --outfile=dist/ladder-sync.js --external:@prisma/client --external:ioredis --external:bullmq",
     "ladder:sync": "npx -y tsx src/workers/ladder-sync-worker.ts",
-    "build:presence": "esbuild src/workers/presence-worker.ts --bundle --platform=node --outfile=dist/presence-worker.js --external:@prisma/client --external:ioredis --external:discord.js",
+
     "build:ws": "esbuild src/server/websocket/server.ts --bundle --platform=node --outfile=dist/ws-server.js --external:@prisma/client",
     "seed:docs": "npx -y tsx prisma/seed-docs.ts",
     "export-seeds": "bash scripts/export-seeds.sh local",

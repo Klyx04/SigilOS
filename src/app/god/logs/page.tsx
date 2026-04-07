@@ -11,6 +11,10 @@ export default async function GodLogsPage() {
 
     const { data } = await getGlobalAuditLogs({ limit: 50 });
 
+    // 🧹 Maintenance: Trigger background cleanup of old platform logs (30d retention)
+    const { cleanupGlobalAuditLogs } = await import("@/server/actions/audit-actions");
+    cleanupGlobalAuditLogs().catch(err => console.error("[PlatformCleanup] Failed:", err));
+
     return (
         <div className="space-y-8 py-8">
             <div className="flex flex-col gap-4">

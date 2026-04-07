@@ -7,6 +7,7 @@ import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { type AuditLogEntry, logAction } from "./audit-actions";
 import { emitGuildActivity } from "./activity-actions";
 import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
@@ -1173,20 +1174,19 @@ export async function updateMemberProfileStatus(
     });
     const targetName = targetProfile?.pseudoDofus || targetProfile?.discordNickname || targetProfile?.user?.name || profileId;
 
-    if (!actor.isSuperAdmin) {
-        const { createAuditLog } = await import("./audit-actions");
-        await createAuditLog({
-            guildId: profile.guild.discordGuildId,
-            actorUserId: session.user.id as string,
-            actorName: session.user.name || "Admin",
-            action: status === "ACTIVE" ? "PROFILE_REACTIVATED" : status === "BANNED" ? "MEMBER_BANNED" : "PROFILE_ARCHIVED",
-            targetType: "PROFILE",
-            targetId: profileId,
-            oldValue: { status: profile.status },
-            newValue: { status },
-            metadata: { description: targetName, reason: reason || "Manual Action" }
-        });
-    }
+    await logAction({
+        guildId: profile.guild.discordGuildId,
+        action: status === "ACTIVE" ? "PROFILE_REACTIVATED" : status === "BANNED" ? "MEMBER_BANNED" : "PROFILE_ARCHIVED",
+        targetType: "PROFILE",
+        targetId: profileId,
+        oldValue: { status: profile.status },
+        newValue: { status },
+        metadata: { 
+            operation: "MEMBER_STATUS_UPDATE",
+            description: targetName, 
+            reason: reason || "Manual Action" 
+        }
+    });
 
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
 
@@ -1225,26 +1225,17 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
         data: { pseudoDofus }
     });
 
-    // Audit log
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
-    const isGod = await isSuperAdmin();
+    const targetName = updated.pseudoDofus || updated.discordNickname || profileId;
 
-    if (!isGod) {
-        const { createAuditLog } = await import("./audit-actions");
-        const targetName = updated.pseudoDofus || updated.discordNickname || profileId;
-
-        await createAuditLog({
-            guildId: profile.guild.discordGuildId,
-            actorUserId: session.user.id as string,
-            actorName: session.user.name || "Admin",
-            action: "MEMBER_PSEUDO_UPDATE",
-            targetType: "PROFILE",
-            targetId: profileId,
-            oldValue: { pseudo: profile.pseudoDofus },
-            newValue: { pseudo: pseudoDofus },
-            metadata: { description: targetName }
-        });
-    }
+    await logAction({
+        guildId: profile.guild.discordGuildId,
+        action: "MEMBER_PSEUDO_UPDATE",
+        targetType: "PROFILE",
+        targetId: profileId,
+        oldValue: { pseudo: profile.pseudoDofus },
+        newValue: { pseudo: pseudoDofus },
+        metadata: { operation: "MEMBER_PSEUDO_UPDATE", description: targetName }
+    });
 
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
     return { success: true, data: updated };
@@ -1279,26 +1270,17 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
         data: { ankamaId }
     });
 
-    // Audit log
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
-    const isGod = await isSuperAdmin();
+    const targetName = updated.pseudoDofus || updated.discordNickname || profileId;
 
-    if (!isGod) {
-        const { createAuditLog } = await import("./audit-actions");
-        const targetName = updated.pseudoDofus || updated.discordNickname || profileId;
-
-        await createAuditLog({
-            guildId: profile.guild.discordGuildId,
-            actorUserId: session.user.id as string,
-            actorName: session.user.name || "Admin",
-            action: "MEMBER_ANKAMA_ID_UPDATE",
-            targetType: "PROFILE",
-            targetId: profileId,
-            oldValue: { ankamaId: profile.ankamaId },
-            newValue: { ankamaId: ankamaId },
-            metadata: { description: targetName }
-        });
-    }
+    await logAction({
+        guildId: profile.guild.discordGuildId,
+        action: "MEMBER_ANKAMA_ID_UPDATE",
+        targetType: "PROFILE",
+        targetId: profileId,
+        oldValue: { ankamaId: profile.ankamaId },
+        newValue: { ankamaId: ankamaId },
+        metadata: { operation: "MEMBER_ANKAMA_ID_UPDATE", description: targetName }
+    });
 
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
     return { success: true, data: updated };

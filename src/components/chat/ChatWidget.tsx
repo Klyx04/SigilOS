@@ -272,6 +272,15 @@ export function ChatWidget(props: ChatWidgetProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
 
+    useEffect(() => {
+        const handleOpenChat = () => {
+            setIsOpen(true);
+            setIsMinimized(false);
+        };
+        window.addEventListener("sigilos:open-chat", handleOpenChat);
+        return () => window.removeEventListener("sigilos:open-chat", handleOpenChat);
+    }, []);
+
     return (
         <PresenceProvider guildId={props.guildId} isActive={isOpen && !isMinimized}>
             <ChatInner

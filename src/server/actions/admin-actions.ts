@@ -8,6 +8,7 @@ import { fetchGuild } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { logAction } from "./audit-actions";
 
 export type ActionResponse = {
     success: boolean;
@@ -60,6 +61,16 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         await invalidateGuildCache(guildId);
 
         revalidatePath(`/dashboard/${guildId}`);
+
+        // 📝 LOG ACTION
+        await logAction({
+            guildId,
+            action: "WEBHOOK_GUILD_CREATE",
+            targetType: "GUILD",
+            targetId: guildId,
+            metadata: { operation: "ONBOARD_GUILD", guildName: guildInfo.name }
+        });
+
         return { success: true };
     } catch (error) {
         console.error("Failed to onboard guild:", error);
@@ -158,10 +169,8 @@ export async function updateRBACMapping(
             }))
         }));
 
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session.user.id!,
-            actorName: session.user.name || "Unknown",
             action: "RBAC_UPDATE",
             targetType: "PERMISSION",
             oldValue: { roles: oldRolesMapping, users: oldUsersMapping },
@@ -169,7 +178,6 @@ export async function updateRBACMapping(
             metadata: {
                 changes: formattedChanges,
                 rolesAffected: changes.length,
-                timestamp: new Date().toISOString()
             }
         });
 
@@ -296,6 +304,15 @@ export async function updateAbsenceChannel(
             data: { absenceChannelId: channelId }
         });
 
+        // 📝 LOG ACTION
+        await logAction({
+            guildId,
+            action: "CHANNEL_CONFIGURED",
+            targetType: "CONFIG",
+            targetId: channelId || "NONE",
+            metadata: { operation: "UPDATE_ABSENCE_CHANNEL" }
+        });
+
         revalidatePath(`/dashboard/${guildId}/admin/absence`);
         return { success: true };
     } catch (error) {
@@ -352,6 +369,15 @@ export async function updateOcreChannel(
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { ocreNotifyChannelId: channelId } as any
+        });
+
+        // 📝 LOG ACTION
+        await logAction({
+            guildId,
+            action: "CHANNEL_CONFIGURED",
+            targetType: "CONFIG",
+            targetId: channelId || "NONE",
+            metadata: { operation: "UPDATE_OCRE_CHANNEL" }
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/quete-ocre`);
@@ -411,6 +437,15 @@ export async function updateSongesChannel(
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { songesNotifyChannelId: channelId }
+        });
+
+        // 📝 LOG ACTION
+        await logAction({
+            guildId,
+            action: "CHANNEL_CONFIGURED",
+            targetType: "CONFIG",
+            targetId: channelId || "NONE",
+            metadata: { operation: "UPDATE_SONGES_CHANNEL" }
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/songes`);
@@ -475,6 +510,15 @@ export async function updateCalendarChannel(
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { calendarNotifyChannelId: channelId }
+        });
+
+        // 📝 LOG ACTION
+        await logAction({
+            guildId,
+            action: "CHANNEL_CONFIGURED",
+            targetType: "CONFIG",
+            targetId: channelId || "NONE",
+            metadata: { operation: "UPDATE_CALENDAR_CHANNEL" }
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
@@ -582,9 +626,20 @@ export async function updateDofusServer(
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+        const oldConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { dofusServerId: true } });
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { dofusServerId: serverId }
+        });
+
+        // 📝 LOG ACTION
+        await logAction({
+            guildId,
+            action: "SETTINGS_UPDATED",
+            targetType: "CONFIG",
+            oldValue: oldConfig?.dofusServerId,
+            newValue: serverId,
+            metadata: { operation: "UPDATE_DOFUS_SERVER" }
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);

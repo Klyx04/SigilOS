@@ -9,7 +9,6 @@ import ZoneManager from "./ZoneManager";
 import DataExportImport from "./DataExportImport";
 import DreamBonusManager from "./DreamBonusManager";
 import GameQuestManager from "./GameQuestManager";
-import DofusQuestGodManager from "./DofusQuestGodManager";
 import { Sparkles, ChevronRight, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -40,9 +39,6 @@ export default function GameDataInterface() {
                     </TabsTrigger>
                     <TabsTrigger value="mini-games" className="data-[state=active]:bg-amber-600 flex-1 min-w-[100px]">
                         🎮 Mini-Jeux
-                    </TabsTrigger>
-                    <TabsTrigger value="dofus-quests" className="data-[state=active]:bg-emerald-600 flex-1 min-w-[100px]">
-                        🥚 Arbres Dofus
                     </TabsTrigger>
                     <TabsTrigger value="import-export" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
                         📦 Import/Export
@@ -91,56 +87,6 @@ export default function GameDataInterface() {
 
                 <TabsContent value="quests" className="space-y-4">
                     <GameQuestManager />
-                </TabsContent>
-
-                <TabsContent value="dofus-quests" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        {/* Curation Engine Stats Card */}
-                        <div className="bg-zinc-950/50 border border-white/5 rounded-3xl p-8 flex flex-col gap-6 group hover:bg-zinc-900/60 transition-all">
-                            <div className="flex items-center justify-between">
-                                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                                    <Sparkles className="w-8 h-8" />
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-2xl font-black text-white italic tracking-tighter uppercase">Curation Engine</div>
-                                    <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Inspection & Enrichissement</div>
-                                </div>
-                            </div>
-                            <p className="text-zinc-500 text-sm leading-relaxed">
-                                Accédez à l'outil d'analyse avancée pour vérifier la couverture des coordonnées, 
-                                les IDs DofusDB et la cohérence des chaînes de quêtes compilées.
-                            </p>
-                            <a 
-                                href="/god/quetes-dofus" 
-                                className="w-full py-4 bg-white text-black rounded-2xl flex items-center justify-center gap-3 font-black uppercase italic tracking-widest hover:bg-zinc-200 transition-all hover:scale-[1.02] shadow-2xl"
-                            >
-                                Ouvrir le Curation Engine
-                                <ChevronRight className="w-5 h-5" />
-                            </a>
-                        </div>
-
-                        {/* Database Builder Card */}
-                        <div className="bg-zinc-950/50 border border-white/5 rounded-3xl p-8 flex flex-col gap-6 group hover:bg-zinc-900/60 transition-all">
-                            <div className="flex items-center justify-between">
-                                <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                                    <Database className="w-8 h-8" />
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-2xl font-black text-white italic tracking-tighter uppercase">Quest Builder</div>
-                                    <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Structure & Hiérarchie</div>
-                                </div>
-                            </div>
-                            <p className="text-zinc-500 text-sm leading-relaxed">
-                                Modifiez manuellement la structure des arbres, ajoutez des étapes 
-                                ou créez de nouveaux Dofus dans la base de données SigilOS.
-                            </p>
-                            <div className="mt-auto">
-                                <Badge className="bg-emerald-500/10 text-emerald-400 border-none mb-4 font-black uppercase italic text-[9px]">Outil Interne Actif</Badge>
-                            </div>
-                        </div>
-                    </div>
-
-                    <DofusQuestGodManager />
                 </TabsContent>
 
                 <TabsContent value="import-export" className="space-y-4">

@@ -461,7 +461,7 @@ function NavItem({ item, isActive, isSubItem }: { item: any; isActive: boolean; 
                             src={item.imgSrc} 
                             alt={item.name} 
                             fill 
-                            className={cn("object-contain", !isActive && "opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0 transition-all")} 
+                            className={cn("object-contain", !isActive && "opacity-75 group-hover:opacity-100 transition-all")} 
                         />
                     </div>
                 ) : (

@@ -16,7 +16,7 @@ import { deleteProofFile } from "@/lib/storage-utils";
 import { rateLimit } from "@/lib/ratelimit";
 import { withCache, invalidateCache } from "@/lib/cache";
 import { hashImage } from "@/lib/llm-ocr";
-import { createAuditLog } from "@/server/actions/audit-actions";
+import { logAction } from "@/server/actions/audit-actions";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDofusWeek } from "@/lib/date-utils";
 
@@ -266,18 +266,17 @@ export async function createWeekMissions(
         // Invalidate Cache
         await invalidateCache(`missions:${data.guildId}:${data.year}:${data.weekNumber}`);
 
-        // Audit log
-        await createAuditLog({
+        // Audit log (Verbose)
+        await logAction({
             guildId: data.guildId,
-            actorUserId: session!.user!.id,
-            actorName: session!.user!.name || "Admin",
-            action: "MISSION_CREATED" as any,
-            targetType: "MISSION" as any,
+            action: "MISSION_CREATED",
+            targetType: "MISSION",
             metadata: {
                 weekNumber: data.weekNumber,
                 year: data.year,
                 slotsCount: data.missions.length,
-                tier: data.updateGuildTier
+                tier: data.updateGuildTier,
+                operation: "PUBLISH_WEEKLY_MISSIONS"
             }
         });
 
@@ -328,13 +327,16 @@ export async function updateWeekTier(
 
         await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
 
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session.user.id,
-            actorName: session.user.name || "Admin",
-            action: "MISSION_UPDATED" as any,
-            targetType: "GUILD" as any,
-            metadata: { weekNumber, year, newTier: tier }
+            action: "CONFIG_UPDATED",
+            targetType: "GUILD",
+            metadata: { 
+                operation: "UPDATE_WEEK_TIER",
+                weekNumber, 
+                year, 
+                newTier: tier 
+            }
         });
 
         return { success: true };
@@ -376,13 +378,16 @@ export async function resetMission(
         await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
 
         // Audit log
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session?.user?.id ?? "unknown",
-            actorName: session?.user?.name || "Admin",
             action: "MISSION_DELETED",
             targetType: "MISSION",
-            metadata: { weekNumber, year, slotIndex }
+            metadata: { 
+                operation: "RESET_SINGLE_MISSION",
+                weekNumber, 
+                year, 
+                slotIndex 
+            }
         });
 
         return { success: true };
@@ -480,13 +485,17 @@ export async function resetWeek(
 
         await invalidateCache(`missions:${guildId}:${year}:${weekNumber}`);
 
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session?.user?.id ?? "unknown",
-            actorName: session?.user?.name || "Admin",
             action: "MISSION_DELETED",
             targetType: "MISSION",
-            metadata: { weekNumber, year, scope: "FULL_WEEK_CLEANUP", proofsDeleted: allProofs.length }
+            metadata: { 
+                operation: "RESET_FULL_WEEK",
+                weekNumber, 
+                year, 
+                scope: "FULL_WEEK_CLEANUP", 
+                proofsDeleted: allProofs.length 
+            }
         });
 
         return { success: true };
@@ -1003,15 +1012,14 @@ export async function validateSubmission(
         // Invalidate Cache
         await invalidateCache(`missions:${discordGuildId}:${submission.mission.year}:${submission.mission.weekNumber}`);
 
-        // Audit log
-        await createAuditLog({
+        // Audit log (Verbose)
+        await logAction({
             guildId: discordGuildId,
-            actorUserId: session.user.id,
-            actorName: session.user.name || "Admin",
-            action: (status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED") as any,
-            targetType: "MISSION" as any,
+            action: status === "VALIDATED" ? "MISSION_VALIDATED" : "MISSION_REJECTED",
+            targetType: "MISSION",
             targetId: submissionId,
             metadata: {
+                operation: status === "VALIDATED" ? "VALIDATE_SUBMISSION" : "REJECT_SUBMISSION",
                 missionTitle: submission.mission.title,
                 submitterId: updatedSubmission.profileId,
                 submitterName: updatedSubmission.profile.pseudoDofus || updatedSubmission.profile.discordNickname || updatedSubmission.profile.user.name,
@@ -1512,13 +1520,16 @@ export async function publishMissionsToDiscord(
         }
 
         // Audit log
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session!.user!.id!,
-            actorName: session!.user!.name || "Admin",
             action: "MISSION_PUBLISH_DISCORD",
             targetType: "MISSION",
-            metadata: { pingType, messageId, channelId: guild.missionNotifyChannelId }
+            metadata: { 
+                pingType, 
+                messageId, 
+                channelId: guild.missionNotifyChannelId,
+                actorId: session?.user?.id || "system"
+            }
         });
 
         return { success: true };
@@ -1597,13 +1608,11 @@ export async function setGuildMissionXpOverride(
             data: { missionWeekXpOverride: finalBaseOverride } as any
         });
 
-        await createAuditLog({
+        await logAction({
             guildId,
-            actorUserId: session.user.id,
-            actorName: session.user.name || "Admin",
-            action: "MISSION_XP_OVERRIDE" as any,
-            targetType: "GUILD_CONFIG" as any,
-            metadata: { targetTotalXp: xpOverride, baseOverrideComputed: finalBaseOverride, cleared: xpOverride === null }
+            action: "MISSION_XP_OVERRIDE",
+            targetType: "CONFIG",
+            metadata: { operation: "SET_MISSION_XP_OVERRIDE", targetTotalXp: xpOverride, baseOverrideComputed: finalBaseOverride, cleared: xpOverride === null }
         });
 
         revalidatePath(`/dashboard/${guildId}/missions`);

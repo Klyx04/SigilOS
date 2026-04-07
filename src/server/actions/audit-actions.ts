@@ -51,7 +51,18 @@ export type AuditAction =
     | "PROFILE_REACTIVATED"       // Archived profile restored to active
     | "PLATFORM_ARRIVAL"          // User first registered on platform
     | "PLATFORM_DEPARTURE"        // User left or was deleted from platform
-    | "ADMIN_ROSTER_AUDIT_SENT";  // Roster audit report sent to Discord
+    | "ADMIN_ROSTER_AUDIT_SENT"   // Roster audit report sent to Discord
+    | "GOD_AUTH_BYPASS"           // Super-admin bypassed a permission check
+    | "GOD_GUILD_WHITELIST"       // Guild added/removed from global whitelist
+    | "GOD_USER_PLATFORM_BAN"      // User banned/unbanned from the entire platform
+    | "GOD_CONFIG_OVERRIDE"       // Manual override of a guild's configuration
+    | "GOD_DATABASE_SYNC"         // Massive data synchronization (DofusDB, etc)
+    | "GOD_NEWS_PUBLISH"          // Platform-wide news published
+    | "GOD_MAINTENANCE_MODE"
+    | "MISSION_VALIDATED"
+    | "MISSION_REJECTED"
+    | "MISSION_PUBLISH_DISCORD"
+    | "MISSION_XP_OVERRIDE";
 
 export type AuditTargetType =
     | "PERMISSION"
@@ -68,7 +79,12 @@ export type AuditTargetType =
     | "GUILD"
     | "CHAT"
     | "POLL"
-    | "MEMBER";
+    | "MEMBER"
+    | "SYSTEM_GOD"
+    | "WHITELIST"
+    | "MAINTENANCE"
+    | "NEWS"
+    | "DATA_SYNC";
 
 export type AuditLogEntry = {
     id: string;
@@ -244,6 +260,59 @@ export async function createAuditLog({
 }
 
 /**
+ * 🚀 PRO VERBOSE LOGGER
+ * Automatically captures IP, User-Agent and handles Discord IDs.
+ */
+export async function logAction({
+    guildId,
+    action,
+    targetType,
+    targetId,
+    oldValue,
+    newValue,
+    metadata = {}
+}: {
+    guildId: string;
+    action: AuditAction;
+    targetType: AuditTargetType;
+    targetId?: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+    metadata?: Record<string, any>;
+}): Promise<void> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return;
+
+        // 🛡️ FORENSICS
+        const { headers } = await import("next/headers");
+        const headersList = await headers();
+        const userAgent = headersList.get("user-agent") || "Inconnu";
+        const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: session.user.name || "Anonymous",
+            action,
+            targetType,
+            targetId,
+            oldValue,
+            newValue,
+            metadata: {
+                ...metadata,
+                userAgent,
+                ip: ip.substring(0, 45),
+                timestamp: new Date().toISOString(),
+                source: "SERVER_ACTION_VERBOSE"
+            }
+        });
+    } catch (error) {
+        console.error("[logAction] Silent Fail:", error);
+    }
+}
+
+/**
  * Log unauthorized admin access attempt
  * This function can be called WITHOUT admin permissions (since it logs failed access attempts)
  * It uses internal auth to get user info
@@ -388,9 +457,9 @@ export async function getAuditLogs(
             return { success: false, error: "Non authentifié" };
         }
 
-        // Security: Verify admin access
+        // Security: Verify access to view logs
         const user = await getUserContext(discordGuildId);
-        if (!user.isAdmin) {
+        if (!user.canViewAuditLogs) {
             return { success: false, error: "Accès non autorisé" };
         }
 
@@ -506,7 +575,7 @@ export async function getAuditActionTypes(
         }
 
         const user = await getUserContext(discordGuildId);
-        if (!user.isAdmin) {
+        if (!user.canViewAuditLogs) {
             return { success: false, error: "Accès non autorisé" };
         }
 
@@ -556,9 +625,9 @@ export async function cleanupOldAuditLogs(
             return { success: false, error: "Non authentifié" };
         }
 
-        // Security: Verify admin access
+        // Security: Verify access
         const user = await getUserContext(discordGuildId);
-        if (!user.isAdmin) {
+        if (!user.canViewAuditLogs && !user.isAdmin) {
             return { success: false, error: "Accès non autorisé" };
         }
 

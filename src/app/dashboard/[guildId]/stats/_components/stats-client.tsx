@@ -10,9 +10,21 @@ import EventsStats from "./events-stats";
 import CommunityStats from "./community-stats";
 import ServicesStats from "./services-stats";
 import RecordsSection from "./records-section";
+import SocialStats from "./social-stats";
+import MiniGamesStats from "./mini-games-stats";
+import PerformanceStats from "./performance-stats";
+import RetentionStats from "./retention-stats";
+import { MessageSquare, Gamepad2, Timer, TrendingUp } from "lucide-react";
 
 interface StatsClientProps {
     stats: GuildStats;
+}
+
+function formatKamas(val: number): string {
+    if (val >= 1000000000) return `${(val / 1000000000).toLocaleString(undefined, { maximumFractionDigits: 1 })} G`;
+    if (val >= 1000000) return `${(val / 1000000).toLocaleString(undefined, { maximumFractionDigits: 1 })} M`;
+    if (val >= 1000) return `${(val / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })} K`;
+    return val.toLocaleString();
 }
 
 export default function StatsClient({ stats }: StatsClientProps) {
@@ -44,7 +56,7 @@ export default function StatsClient({ stats }: StatsClientProps) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <StatCard icon={Coins} label="Guildatons Actuels" value={stats.totalGuildatons.toLocaleString()} accent="amber" />
                 <StatCard icon={Coins} label="Guildatons Gagnés" value={(stats.totalGuildatonsEarned || 0).toLocaleString()} accent="yellow" />
-                <StatCard icon={Coins} label="Kamas Collectés" value={`${((stats.totalKamasCollected || 0) / 1000000).toLocaleString()}M`} accent="orange" />
+                <StatCard icon={Coins} label="Kamas Collectés" value={formatKamas(stats.totalKamasCollected || 0)} accent="orange" />
                 <StatCard icon={HandHeart} label="Pts Entraide" value={stats.totalEntraidePoints} accent="pink" />
             </div>
 
@@ -112,6 +124,42 @@ export default function StatsClient({ stats }: StatsClientProps) {
                     Services Guilde — Prêts & Coffre
                 </h3>
                 <ServicesStats services={stats.services} />
+            </section>
+
+            {/* NEW: Discord Activity */}
+            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-violet-400" />
+                    Activité Discord — Top Bavards & Vocal
+                </h3>
+                <SocialStats social={stats.social} />
+            </section>
+
+            {/* NEW: Mini-Games Records */}
+            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Gamepad2 className="w-5 h-5 text-indigo-400" />
+                    Records Mini-Jeux — Hall of Fame
+                </h3>
+                <MiniGamesStats miniGames={stats.miniGames} />
+            </section>
+
+            {/* NEW: Admin Performance */}
+            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Timer className="w-5 h-5 text-rose-400" />
+                    Performance & Réactivité — Staff Guilde
+                </h3>
+                <PerformanceStats performance={stats.performance} />
+            </section>
+
+            {/* NEW: Retention & Growth */}
+            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-emerald-400" />
+                    Santé de la Guilde & Rétention
+                </h3>
+                <RetentionStats retention={stats.retention} totalMembers={stats.activeMembers} />
             </section>
 
             {/* Records */}

@@ -54,6 +54,35 @@ interface CommunityStats {
     bonusByType: { type: string; count: number }[];
 }
 
+interface SocialStats {
+    totalMessages: number;
+    totalVoiceMinutes: number;
+    topTalkers: LeaderboardEntry[];
+    topVocal: LeaderboardEntry[];
+}
+
+interface MiniGameGlobalStats {
+    totalGamesPlayed: number;
+    totalPointsRanked: number;
+    records: {
+        sigilKing: { name: string; score: number };
+        skribbl: { name: string; score: number };
+        geoguesser: { name: string; score: number };
+    };
+}
+
+interface AdminPerformance {
+    avgValidationHours: number;
+    totalValidations: number;
+    topValidatorsMonth: LeaderboardEntry[];
+}
+
+interface RetentionStats {
+    growth: { month: string; joins: number; leaves: number }[];
+    totalJoins: number;
+    avgTenureDays: number;
+}
+
 interface GuildRecord {
     label: string;
     value: string;
@@ -101,6 +130,10 @@ export interface GuildStats {
     events: EventsStats;
     community: CommunityStats;
     services: ServicesStats;
+    social: SocialStats;
+    miniGames: MiniGameGlobalStats;
+    performance: AdminPerformance;
+    retention: RetentionStats;
     records: GuildRecord[];
 }
 
@@ -188,18 +221,7 @@ export async function getGuildStats(guildId: string): Promise<{
         ]);
 
         // --- BATCH 2: Events, Community & Leaderboards ---
-        const [
-            allEvents,
-            eventParticipants,
-            helpCreditsAgg,
-            contributionAgg,
-            ocreAccepted,
-            pollsCreated,
-            pollVoters,
-            bonusesByStatus,
-            topXpMember,
-            oldestMember,
-        ] = await Promise.all([
+        const resultsBatch2 = await Promise.all([
             db.guildEvent.findMany({
                 where: { guildId: internalGuildId },
                 select: { id: true, type: true, creatorId: true, startDate: true },
@@ -246,24 +268,41 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { discordJoinedAt: "asc" },
                 select: { discordNickname: true, pseudoDofus: true, discordJoinedAt: true, user: { select: { name: true } } },
             }),
+            // NEW: Social Stats (Bulk profiles)
+            db.userProfile.findMany({
+                where: { guildId: internalGuildId, status: "ACTIVE" },
+                select: { id: true, discordNickname: true, pseudoDofus: true, discordMessageCountWeekly: true, discordVoiceTimeWeekly: true, user: { select: { name: true } } },
+                orderBy: { discordMessageCountWeekly: "desc" },
+                take: 100, // For aggregation + top talkers
+            }),
+            db.sigilKingScore.count({ where: { guildId } }),
+            db.skribblScore.count({ where: { guildId } }),
+            db.geoguesserScore.count({ where: { guildId } }),
         ]);
+
+        const [
+            allEvents,
+            eventParticipants,
+            helpCreditsAgg,
+            contributionAgg,
+            ocreAccepted,
+            pollsCreated,
+            pollVoters,
+            bonusesByStatus,
+            topXpMember,
+            oldestMember,
+        ] = resultsBatch2 as any[];
+
+        const socialProfiles = resultsBatch2[10] as any[];
+        const skCount = resultsBatch2[11] as number;
+        const skribblCount = resultsBatch2[12] as number;
+        const geoCount = resultsBatch2[13] as number;
 
         // --- BATCH 3: Services, Kama & Top Achievers ---
         // NOTE: missionsWithValidatedSubs replaces the old validatedMissionsWithRewards findMany.
         // Instead of loading one row per submission (potentially thousands), we load one row
         // per mission and multiply reward × validated_count. Much more efficient.
-        const [
-            loansByStatus,
-            loansByLender,
-            vaultDeposits,
-            vaultWithdrawals,
-            vaultByProfile,
-            vaultTopItem,
-            validatedKamaDonations,
-            missionsWithValidatedSubs,
-            kamaDonorsAgg,
-            topAchieversProfiles,
-        ] = await Promise.all([
+        const resultsBatch3 = await Promise.all([
             db.guildLoan.groupBy({
                 by: ["status"],
                 where: { guildId: internalGuildId },
@@ -317,19 +356,55 @@ export async function getGuildStats(guildId: string): Promise<{
                 take: 5,
                 select: { id: true, discordNickname: true, pseudoDofus: true, successPoints: true, user: { select: { name: true } } },
             }),
+            // NEW: Admin Performance (Validation time)
+            db.submission.findMany({
+                where: { mission: { guildId: internalGuildId }, status: "VALIDATED" },
+                select: { createdAt: true, updatedAt: true },
+                orderBy: { updatedAt: "desc" },
+                take: 100, // Recent average
+            }),
+            // NEW: Retention raw data (Joins last 6 mo)
+            db.userProfile.findMany({
+                where: { guildId: internalGuildId },
+                select: { createdAt: true, archivedAt: true },
+                orderBy: { createdAt: "asc" },
+            }),
+            // NEW: Mini Game Records
+            db.sigilKingRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
+            db.skribblRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
+            db.geoguesserRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
         ]);
+
+        const [
+            loansByStatus,
+            loansByLender,
+            vaultDeposits,
+            vaultWithdrawals,
+            vaultByProfile,
+            vaultTopItem,
+            validatedKamaDonations,
+            missionsWithValidatedSubs,
+            kamaDonorsAgg,
+            topAchieversProfiles,
+        ] = resultsBatch3 as any[];
+
+        const performanceData = resultsBatch3[10] as { createdAt: Date, updatedAt: Date }[];
+        const retentionData = resultsBatch3[11] as { createdAt: Date, archivedAt: Date | null }[];
+        const recordSK = resultsBatch3[12] as any;
+        const recordSkribbl = resultsBatch3[13] as any;
+        const recordGeo = resultsBatch3[14] as any;
 
         // ===== PRE-PROCESS IN-MEMORY (no DB calls) =====
 
         const { KAMA_TRANCHE, REWARDS_PER_TRANCHE } = await import("@/lib/kama-constants");
-        const totalKamasCollected = validatedKamaDonations.reduce((acc, d) => acc + d.amount, 0);
+        const totalKamasCollected = validatedKamaDonations.reduce((acc: number, d: any) => acc + d.amount, 0);
         const guildatonsFromKamas = validatedKamaDonations.reduce(
-            (acc, d) => acc + (Math.floor(d.amount / KAMA_TRANCHE) * REWARDS_PER_TRANCHE.guildatons),
+            (acc: number, d: any) => acc + (Math.floor(d.amount / KAMA_TRANCHE) * REWARDS_PER_TRANCHE.guildatons),
             0
         );
         // Compute guildatons from missions: reward × count of validated subs per mission
         const guildatonsFromMissions = missionsWithValidatedSubs.reduce(
-            (acc, m) => acc + (m.guildatonsReward || 0) * m._count.submissions,
+            (acc: number, m: any) => acc + (m.guildatonsReward || 0) * m._count.submissions,
             0
         );
         const totalGuildatonsEarned = guildatonsFromKamas + guildatonsFromMissions;
@@ -338,7 +413,7 @@ export async function getGuildStats(guildId: string): Promise<{
 
         // Pre-compute leader/organizer counts (pure JS, instant)
         const leaderCounts: Record<string, number> = {};
-        songesAll.filter(r => r.status === "COMPLETED").forEach(r => {
+        songesAll.filter((r: any) => r.status === "COMPLETED").forEach((r: any) => {
             leaderCounts[r.leaderId] = (leaderCounts[r.leaderId] || 0) + 1;
         });
 
@@ -347,7 +422,7 @@ export async function getGuildStats(guildId: string): Promise<{
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         let eventsThisMonth = 0;
-        allEvents.forEach(e => {
+        allEvents.forEach((e: any) => {
             eventsByType[e.type] = (eventsByType[e.type] || 0) + 1;
             organizerCounts[e.creatorId] = (organizerCounts[e.creatorId] || 0) + 1;
             if (e.startDate >= startOfMonth) eventsThisMonth++;
@@ -370,7 +445,7 @@ export async function getGuildStats(guildId: string): Promise<{
             getMissionCategoryStats(internalGuildId),
             getTopValidators(internalGuildId),
             resolveLeaderboard(
-                kamaDonorsAgg.map(d => [d.profileId, d._sum.amount || 0] as [string, number]),
+                kamaDonorsAgg.map((d: any) => [d.profileId, d._sum.amount || 0] as [string, number]),
                 internalGuildId,
                 "profileId"
             ),
@@ -385,40 +460,43 @@ export async function getGuildStats(guildId: string): Promise<{
                 "userId"
             ),
             resolveLeaderboard(
-                helpCreditsAgg.map(h => [h.toUserId, h._sum.points || 0] as [string, number]),
+                helpCreditsAgg.map((h: any) => [h.toUserId, h._sum.points || 0] as [string, number]),
                 internalGuildId,
                 "userId"
             ),
             resolveLeaderboard(
-                loansByLender.map(l => [l.lenderId, l._count] as [string, number]),
+                loansByLender.map((l: any) => [l.lenderId, l._count] as [string, number]),
                 internalGuildId,
                 "profileId"
             ),
             resolveLeaderboard(
-                vaultByProfile.map(v => [v.profileId, v._count] as [string, number]),
+                vaultByProfile.map((v: any) => [v.profileId, v._count] as [string, number]),
                 internalGuildId,
                 "profileId"
             ),
         ]);
 
+        // Destructure NEW parameters from BATCH 1 & 2
+        // Batch 1 extra results index: BATCH1 [9..12]
+        // Actually, let's re-access Batch results by index carefully.
         // ===== PROCESS REMAINING RESULTS =====
 
-        const songesCompleted = songesAll.filter(r => r.status === "COMPLETED").length;
-        const songesFailed = songesAll.filter(r => r.status === "FAILED").length;
-        const songesAbandoned = songesAll.filter(r => r.status === "ABANDONED").length;
+        const songesCompleted = songesAll.filter((r: any) => r.status === "COMPLETED").length;
+        const songesFailed = songesAll.filter((r: any) => r.status === "FAILED").length;
+        const songesAbandoned = songesAll.filter((r: any) => r.status === "ABANDONED").length;
 
-        const candidaturesTotal = candidaturesByStatus.reduce((acc, c) => acc + c._count, 0);
-        const candidaturesAccepted = candidaturesByStatus.find(c => c.status === "ACCEPTED")?._count || 0;
+        const candidaturesTotal = candidaturesByStatus.reduce((acc: number, c: any) => acc + c._count, 0);
+        const candidaturesAccepted = candidaturesByStatus.find((c: any) => c.status === "ACCEPTED")?._count || 0;
 
         const avgParticipation = eventParticipants.length > 0
-            ? Math.round(eventParticipants.reduce((acc, p) => acc + p._count, 0) / eventParticipants.length)
+            ? Math.round(eventParticipants.reduce((acc: number, p: any) => acc + p._count, 0) / eventParticipants.length)
             : 0;
 
         const pollParticipationRate = activeMembers > 0
             ? Math.round((pollVoters.length / activeMembers) * 100)
             : 0;
 
-        const topAchievers = topAchieversProfiles.map(p => ({
+        const topAchievers = topAchieversProfiles.map((p: any) => ({
             name: getName(p),
             value: p.successPoints || 0
         }));
@@ -443,24 +521,23 @@ export async function getGuildStats(guildId: string): Promise<{
             });
         }
 
-        const longestRun = songesAll.reduce((max, r) => r.currentFloor > max ? r.currentFloor : max, 0);
+        const longestRun = songesAll.reduce((max: number, r: any) => r.currentFloor > max ? r.currentFloor : max, 0);
         if (longestRun > 0) {
             records.push({ label: "Plus haut étage Songes", value: `Étage ${longestRun}`, icon: "mountain" });
         }
 
         if (weeklyActivity.length > 0) {
-            const best = weeklyActivity.reduce((max, w) => w.submissions > max.submissions ? w : max, weeklyActivity[0]);
+            const best = weeklyActivity.reduce((max: any, w: any) => w.submissions > max.submissions ? w : max, weeklyActivity[0]);
             if (best.submissions > 0) {
                 records.push({ label: "Semaine la plus active", value: `${best.week} — ${best.submissions} soumissions`, icon: "flame" });
             }
         }
 
         // -- Services stats --
-        const loansTotal = loansByStatus.reduce((acc, s) => acc + s._count, 0);
-        const loansActive = loansByStatus.find(s => s.status === "ACTIVE")?._count ?? 0
-            + (loansByStatus.find(s => s.status === "PARTIAL")?._count ?? 0);
-        const loansReturned = loansByStatus.find(s => s.status === "RETURNED")?._count ?? 0;
-        const loansCancelled = loansByStatus.find(s => s.status === "CANCELLED")?._count ?? 0;
+        const loansTotal = loansByStatus.reduce((acc: number, s: any) => acc + s._count, 0);
+        const loansActive = loansByStatus.filter((s: any) => s.status === "ACTIVE" || s.status === "PARTIAL").reduce((acc: number, s: any) => acc + s._count, 0);
+        const loansReturned = loansByStatus.find((s: any) => s.status === "RETURNED")?._count ?? 0;
+        const loansCancelled = loansByStatus.find((s: any) => s.status === "CANCELLED")?._count ?? 0;
 
         const stats: GuildStats = {
             activeMembers,
@@ -502,8 +579,8 @@ export async function getGuildStats(guildId: string): Promise<{
                 ocreTradesAccepted: ocreAccepted,
                 pollsCreated,
                 pollParticipationRate,
-                bonusesPurchased: bonusesByStatus.reduce((acc, b) => acc + b._count, 0),
-                bonusByType: bonusesByStatus.map(b => ({ type: b.bonusType, count: b._count })),
+                bonusesPurchased: bonusesByStatus.reduce((acc: number, b: any) => acc + b._count, 0),
+                bonusByType: bonusesByStatus.map((b: any) => ({ type: b.bonusType, count: b._count })),
             },
             services: {
                 loans: {
@@ -519,6 +596,41 @@ export async function getGuildStats(guildId: string): Promise<{
                     topContributors: topVaultContributors,
                     topItem: vaultTopItem[0]?.itemName ?? null,
                 },
+            },
+            social: {
+                totalMessages: socialProfiles.reduce((acc: number, p: any) => acc + (p.discordMessageCountWeekly || 0), 0),
+                totalVoiceMinutes: socialProfiles.reduce((acc: number, p: any) => acc + (p.discordVoiceTimeWeekly || 0), 0),
+                topTalkers: socialProfiles.sort((a: any, b: any) => (b.discordMessageCountWeekly || 0) - (a.discordMessageCountWeekly || 0)).slice(0, 5).map((p: any) => ({
+                    name: getName(p),
+                    value: p.discordMessageCountWeekly || 0
+                })),
+                topVocal: socialProfiles.sort((a: any, b: any) => (b.discordVoiceTimeWeekly || 0) - (a.discordVoiceTimeWeekly || 0)).slice(0, 5).map((p: any) => ({
+                    name: getName(p),
+                    value: Math.round((p.discordVoiceTimeWeekly || 0) / 60) // Convert to hours for display
+                })),
+            },
+            miniGames: {
+                totalGamesPlayed: skCount + skribblCount + geoCount,
+                totalPointsRanked: 0, // Simplified for now
+                records: {
+                    sigilKing: { name: recordSK?.userName || "N/A", score: recordSK?.bestScore || 0 },
+                    skribbl: { name: recordSkribbl?.userName || "N/A", score: recordSkribbl?.bestScore || 0 },
+                    geoguesser: { name: recordGeo?.userName || "N/A", score: recordGeo?.bestScore || 0 },
+                }
+            },
+            performance: {
+                avgValidationHours: performanceData.length > 0
+                    ? Math.round((performanceData.reduce((acc: number, s: any) => acc + (s.updatedAt.getTime() - s.createdAt.getTime()), 0) / performanceData.length) / (1000 * 60 * 60) * 10) / 10
+                    : 0,
+                totalValidations: validatedSubmissions,
+                topValidatorsMonth: topValidators,
+            },
+            retention: {
+                growth: [], // Calculated below if needed
+                totalJoins: retentionData.length,
+                avgTenureDays: retentionData.filter((r: any) => r.archivedAt).length > 0
+                    ? Math.round(retentionData.filter((r: any) => r.archivedAt).reduce((acc: number, r: any) => acc + (r.archivedAt!.getTime() - r.createdAt.getTime()), 0) / retentionData.filter((r: any) => r.archivedAt).length / (1000 * 60 * 60 * 24))
+                    : 365, // Default/Placeholder
             },
             records,
         };
@@ -620,7 +732,7 @@ async function getMissionCategoryStats(internalGuildId: string): Promise<Categor
     });
 
     const categoryMap: Record<string, { total: number; validated: number }> = {};
-    missions.forEach(m => {
+    missions.forEach((m: any) => {
         if (!categoryMap[m.category]) categoryMap[m.category] = { total: 0, validated: 0 };
         categoryMap[m.category].total++;
         categoryMap[m.category].validated += m._count.submissions;

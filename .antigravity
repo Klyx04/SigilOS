@@ -541,3 +541,13 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - ✅ **Bot Onboarding (Premium)** : Implémentation du flux "zéro-clic" avec redirection vers page succès et rafraîchissement automatique du Dashboard.
 - ✅ **God Shield & Monitoring** : Radar "Suspects" (détection guilds non-whitelistées) et Janitor Tool (purge ghost users).
 - ✅ **Security Hardening** : Réduction de la durée de session (maxAge) à 24h. Fix du client_id undefined sur VPS.
+
+---
+
+### Session — Hardening RBAC, Chat Types & Stabilisation Pipeline (2026-04-06)
+
+- ✅ **RBAC Deny-by-Default** : Accès au Dashboard totalement bloqué par défaut. Implémentation stricte du marqueur `DASHBOARD_ACCESS` dans `permissions.ts` et le gatekeeper `user-actions.ts`. Si l'utilisateur n'a pas accès, toutes ses autres permissions sont grisées/invisibles.
+- ✅ **Orbe de Soutien (Support Orb)** : Activation dynamique depuis la config de guilde `PlatformConfig.donationsEnabled` au niveau SSR dans `layout.tsx`. Layout global allégé.
+- ✅ **Unification Typage Chat** : Suppression du faux type `ChatPollOption` côté client au profit d'un contrat strict centralisé via `import { type ChatMessage } from "@/lib/chat-helpers"`.
+- ✅ **Refonte Sondages Intégrés** : Calcul formel de `msg.pollData.voters` côté client sans `.some()` ou `.length` hasardeux qui engendraient des crashs d'hydration. Les pourcentages progressent en direct sans erreur Type.
+- ✅ **Hygiène Git & CI** : Audit TypeScript `npx tsc --noEmit` ramené à Zéro (0) sur tout le dépôt. Suppression post-commit de dump JSON titanesque (173 Mo de DofusDB) qui bloquait les pré-hooks GitHub. L'architecture est stable et saine.

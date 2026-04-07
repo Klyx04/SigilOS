@@ -11,10 +11,14 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Local backup directory instead of /var/backups to avoid sudo/permission issues
+# Local backup directory
 BACKUP_DIR="$ROOT_DIR/backups/db"
 
-# 🛡️ SAFER ENV LOADING (Handles quotes and spaces better than export $(...))
+# [MOD] Argument Handling (Defaults to beta since that's where everyone is)
+TARGET_ENV="${1:-beta}"
+echo "[Config] Target Environment: $TARGET_ENV"
+
+# 🛡️ SAFER ENV LOADING 
 load_env() {
     local env_file=$1
     if [ -f "$env_file" ]; then
@@ -26,31 +30,33 @@ load_env() {
     fi
 }
 
-FALLBACK_URL="https://sigilos.fr"
+FALLBACK_URL="https://beta.sigilos.fr"
 
-if [ -f "$ROOT_DIR/.env.prod" ]; then
+# Load the relevant env file based on target
+if [ "$TARGET_ENV" == "prod" ]; then
     load_env "$ROOT_DIR/.env.prod"
     FALLBACK_URL="https://sigilos.fr"
-elif [ -f "$ROOT_DIR/.env.beta" ]; then
+else
     load_env "$ROOT_DIR/.env.beta"
-    FALLBACK_URL="https://beta.sigilos.fr"
-elif [ -f "$ROOT_DIR/.env" ]; then
-    load_env "$ROOT_DIR/.env"
     FALLBACK_URL="https://beta.sigilos.fr"
 fi
 
-# Nova API God Notify (Cloudflare proxy URL or internal if app is up)
-# CRITICAL: If NEXT_PUBLIC_APP_URL is localhost, we MUST use the external domain 
-# from the VPS host because localhost:3000 is not exposed there.
+# If specific file not found, try generic .env
+if [ -z "$ENV_FILE_LOADED" ] && [ -f "$ROOT_DIR/.env" ]; then
+    load_env "$ROOT_DIR/.env"
+fi
+
+# Nova API God Notify URL
 GOD_NOTIFY_URL="${NEXT_PUBLIC_APP_URL:-$FALLBACK_URL}"
 if [[ "$GOD_NOTIFY_URL" == *"localhost"* ]]; then
     GOD_NOTIFY_URL="$FALLBACK_URL"
 fi
 export GOD_NOTIFY_URL="$GOD_NOTIFY_URL/api/god/notify"
 
-DB_CONTAINER="sigilos-db-prod"
-if [[ "$ENV_FILE_LOADED" == *".env.beta"* ]]; then
-    DB_CONTAINER="sigilos-db-beta"
+# Container detection
+DB_CONTAINER="sigilos-db-beta"
+if [ "$TARGET_ENV" == "prod" ]; then
+    DB_CONTAINER="sigilos-db-prod"
 fi
 
 # Override from env if set
@@ -58,7 +64,7 @@ DB_CONTAINER="${BACKUP_DB_CONTAINER:-$DB_CONTAINER}"
 DB_USER="${POSTGRES_USER:-user}"
 
 DATE=$(date +%Y-%m-%d_%H-%M-%S)
-FILENAME_RAW="sigilos_${DATE}.sql.gz"
+FILENAME_RAW="sigilos_${TARGET_ENV}_${DATE}.sql.gz"
 FILENAME_ENC="${FILENAME_RAW}.gpg"
 
 send_god_notif() {

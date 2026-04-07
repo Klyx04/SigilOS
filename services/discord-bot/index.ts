@@ -424,6 +424,132 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
     }
 });
 
+
+// Cache for voice sessions: userId -> startTime
+const voiceSessions = new Map<string, number>();
+
+// Helper to update DB by Discord ID with better performance and logging
+async function updateDiscordActivity(discordId: string, guildId: string | null, data: any, activityType: string) {
+    try {
+        const guildFilter = guildId ? { guild: { discordGuildId: guildId } } : {};
+        
+        // 1. Find the User Profiles for this user (filtered by guild)
+        const profiles = await db.userProfile.findMany({
+            where: {
+                user: {
+                    accounts: {
+                        some: {
+                            provider: "discord",
+                            providerAccountId: discordId
+                        }
+                    }
+                },
+                ...guildFilter
+            },
+            select: { id: true, discordNickname: true }
+        });
+
+        if (profiles.length === 0) return;
+
+        // 2. Perform atomic updates for each profile
+        for (const profile of profiles) {
+            try {
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data
+                });
+                console.log(`[Discord Bot] ✅ ${activityType} tracked for ${profile.discordNickname || discordId}`);
+            } catch (e) {
+                console.error(`[Discord Bot] Failed to update profile ${profile.id}:`, e);
+            }
+        }
+    } catch (e) {
+        console.error(`[Discord Bot] Error searching activity for ${discordId}:`, e);
+    }
+}
+
+// 1. TRACK MESSAGES
+client.on(Events.MessageCreate, async (message) => {
+    if (message.author.bot || !message.guild) return;
+    await updateDiscordActivity(message.author.id, message.guild.id, {
+        lastDiscordMessageAt: new Date(),
+        discordMessageCountWeekly: { increment: 1 }
+    }, 'Message');
+});
+
+// 2. TRACK VOICE SESSIONS
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    if (newState.member?.user.bot) return;
+
+    const userId = newState.id;
+    const guildId = newState.guild.id;
+    const now = Date.now();
+
+    // User joined
+    if (!oldState.channelId && newState.channelId) {
+        voiceSessions.set(userId, now);
+        await updateDiscordActivity(userId, guildId, { lastDiscordVoiceAt: new Date() }, 'Voice Start');
+    }
+    // User left
+    else if (oldState.channelId && !newState.channelId) {
+        const startTime = voiceSessions.get(userId);
+        if (startTime) {
+            const durationMin = Math.floor((now - startTime) / 60000);
+            if (durationMin > 0) {
+                await updateDiscordActivity(userId, guildId, { 
+                    discordVoiceTimeWeekly: { increment: durationMin } 
+                }, `Voice Session (${durationMin}m)`);
+            }
+            voiceSessions.delete(userId);
+        }
+    }
+});
+
+// 3. TRACK REACTIONS
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
+    if (user.bot || !reaction.message.guild) return;
+    await updateDiscordActivity(user.id, reaction.message.guild.id, { 
+        lastDiscordReactionAt: new Date() 
+    }, 'Reaction');
+});
+
+// 4. TRACK TYPING
+client.on(Events.TypingStart, async (typing) => {
+    if (typing.user.bot || !typing.guild) return;
+    await updateDiscordActivity(typing.user.id, typing.guild.id, { 
+        lastDiscordTypingAt: new Date() 
+    }, 'Typing');
+});
+
+// 5. PERIODIC RESET - Every Tuesday 07:00
+let lastResetWeek = -1;
+setInterval(async () => {
+    const now = new Date();
+    const currentWeek = getWeekNumber(now);
+    if (now.getDay() === 2 && now.getHours() >= 7 && lastResetWeek !== currentWeek) {
+        lastResetWeek = currentWeek;
+        console.log("[Discord Bot] Weekly Reset of Discord stats starting...");
+        try {
+            await db.userProfile.updateMany({
+                data: {
+                    discordVoiceTimeWeekly: 0,
+                    discordMessageCountWeekly: 0
+                }
+            });
+            console.log("[Discord Bot] Weekly Reset of Discord stats completed.");
+        } catch (e) {
+            console.error(`[Discord Bot] Failed to reset Discord stats:`, e);
+        }
+    }
+}, 60000);
+
+function getWeekNumber(d: Date) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
 // ========================
 // Graceful Shutdown
 // ========================

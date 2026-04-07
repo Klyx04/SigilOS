@@ -98,6 +98,15 @@ jobs:
         env:
           SEMGREP_RULES: p/security-audit
 
+      - name: 🐋 Dockerfile Config Scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          hide-progress: true
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          format: 'table'
+
       - name: 🧹 Lint Check
         run: npm run lint
 
@@ -157,3 +166,14 @@ jobs:
             p/owasp-top-ten
         env:
           SEMGREP_RULES: "p/security-audit p/secrets p/owasp-top-ten"
+
+      - name: 🛡️ Full Filesystem CVE Scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          hide-progress: true
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0' # Don't fail the weekly scan, just report
+          ignore-unfixed: true

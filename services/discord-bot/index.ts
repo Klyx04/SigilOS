@@ -523,6 +523,14 @@ client.on(Events.TypingStart, async (typing) => {
 
 // 5. PERIODIC RESET - Every Tuesday 07:00
 let lastResetWeek = -1;
+
+// On startup, if we are already past the reset time for the current week,
+// set lastResetWeek to current week to prevent a reset loop on every restart on Tuesdays.
+const startupNow = new Date();
+if (startupNow.getDay() === 2 && startupNow.getHours() >= 7) {
+    lastResetWeek = getWeekNumber(startupNow);
+}
+
 setInterval(async () => {
     const now = new Date();
     const currentWeek = getWeekNumber(now);
@@ -542,6 +550,7 @@ setInterval(async () => {
         }
     }
 }, 60000);
+
 
 function getWeekNumber(d: Date) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));

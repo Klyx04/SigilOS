@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-04-06)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-04-07)
 
-**Branche Active** : `feat/dofus-v3-schema-ui` (Stabilisation Onboarding & Tickets)
-**Status** : Refonte complète du système de Tickets (Validation/Rejet pro, auto-archive Discord). Onboarding Bot "zéro-clic" avec redirection et rafraîchissement auto. Hardening Sécurité : Session maxAge réduite à 24h.
+**Branche Active** : `feat/dofus-v3-schema-ui` (Sync Songes Unity & Cleanup Repo)
+**Status** : Data Songes Unity validée (147 boss officiels, trolls supprimés). Support du champ "Mécaniques" dans l'UI. Nettoyage massif du dépôt (-180Mo de fichiers de cache et traces de synchro). Hardening Sécurité : Session maxAge réduite à 24h.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -551,3 +551,14 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - ✅ **Unification Typage Chat** : Suppression du faux type `ChatPollOption` côté client au profit d'un contrat strict centralisé via `import { type ChatMessage } from "@/lib/chat-helpers"`.
 - ✅ **Refonte Sondages Intégrés** : Calcul formel de `msg.pollData.voters` côté client sans `.some()` ou `.length` hasardeux qui engendraient des crashs d'hydration. Les pourcentages progressent en direct sans erreur Type.
 - ✅ **Hygiène Git & CI** : Audit TypeScript `npx tsc --noEmit` ramené à Zéro (0) sur tout le dépôt. Suppression post-commit de dump JSON titanesque (173 Mo de DofusDB) qui bloquait les pré-hooks GitHub. L'architecture est stable et saine.
+
+---
+
+### Session — Songes Boss Data, Cleanup & Mechanics (2026-04-07)
+
+- ✅ **Songes Boss Data (v3 Unity)** : Mise à jour complète du répertoire de boss (144 → 147 boss officiels) via synchro YAML Volcasaurus.
+- ✅ **Troll Filtering** : Exclusion automatique des boss communautaires (Crocus, Diddy, Epstein) par filtrage d'ID (>= 1,000,000).
+- ✅ **Mechanics UI Field** : Support du nouveau champ `Mechanic` / `MechanicShort` dans `BossGuide.tsx`. Affichage d'un bloc orange tiers pour les boss complexes.
+- ✅ **Major Repo Cleanup (-180MB)** : Purge radicale des artefacts de synchro (`dofusdb_all_achievements.json`, `tmp/`, `scripts/argent-ids.json`, etc.) pour un dépôt propre et rapide.
+- ✅ **Hygiène Doc & Reference** : Mise à jour de `.antigravity` et conservation de `Songes_Pour_Les_Noobs/` root (purged) pour diff futurs.
+- ✅ **Prisma Hygiene** : `scripts/convert-bosses-yaml.mjs` durci (numeric parsing, UTF-8 mapping pour Unity).

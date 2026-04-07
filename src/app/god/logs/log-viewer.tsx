@@ -63,6 +63,7 @@ const ACTION_OPTIONS = [
     { value: "all", label: "Toutes les actions" },
     { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
     { value: "RBAC_UPDATE,RBAC_ROLE_ADD,RBAC_ROLE_REMOVE", label: "Permissions" },
+    { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC", label: "🛡️ Actions God" },
     { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
     { value: "CONFIG_UPDATED", label: "Configuration" },
@@ -145,6 +146,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
         if (action.includes("RBAC")) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
         if (action.includes("SECURITY")) return "bg-red-500/10 text-red-400 border-red-500/20 animate-pulse";
         if (action.includes("CONFIG")) return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+        if (action.startsWith("GOD_")) return "bg-violet-500/10 text-violet-400 border-violet-500/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]";
         if (action === "WEBHOOK_MEMBER_ADD") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
         if (action === "WEBHOOK_MEMBER_REMOVE") return "bg-zinc-500/10 text-zinc-400 border-white/10";
         if (action === "USER_GDPR_DELETE") return "bg-red-500/10 text-red-400 border-red-500/50 hover:bg-red-500/20";
@@ -158,6 +160,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
         if (action.includes("MEMBER_ADD")) return <Plus className="w-3.5 h-3.5" />;
         if (action === "WEBHOOK_MEMBER_REMOVE") return <UserMinus className="w-3.5 h-3.5" />;
         if (action === "USER_GDPR_DELETE") return <Trash2 className="w-3.5 h-3.5" />;
+        if (action.startsWith("GOD_")) return <Terminal className="w-3.5 h-3.5 text-violet-400" />;
         return <Shield className="w-3.5 h-3.5" />;
     };
 

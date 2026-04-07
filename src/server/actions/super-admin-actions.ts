@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { logAction } from "./audit-actions";
 
 /**
  * RECOMPILE TRIGGER: 2026-03-11 02:22
@@ -94,6 +95,18 @@ export async function addAllowedGuild(data: {
         }
     });
 
+    // 📝 LOG ACTION (Professional Verbose)
+    if (session?.user?.id) {
+        await logAction({
+            guildId: data.discordGuildId,
+            action: "GOD_GUILD_WHITELIST",
+            targetType: "WHITELIST",
+            targetId: data.discordGuildId,
+            newValue: { name: data.name, tier: data.tier, expiresAt: data.expiresAt },
+            metadata: { operation: "ADD_TO_WHITELIST", guildName: data.name }
+        });
+    }
+
     revalidatePath("/god");
     return guild;
 }
@@ -108,6 +121,18 @@ export async function removeAllowedGuild(discordGuildId: string) {
     await db.allowedGuild.delete({
         where: { discordGuildId }
     });
+
+    // 📝 LOG ACTION
+    const session = await auth();
+    if (session?.user?.id) {
+        await logAction({
+            guildId: discordGuildId,
+            action: "GOD_GUILD_WHITELIST",
+            targetType: "WHITELIST",
+            targetId: discordGuildId,
+            metadata: { operation: "REMOVE_FROM_WHITELIST" }
+        });
+    }
 
     revalidatePath("/god");
     return { success: true };
@@ -130,6 +155,20 @@ export async function toggleGuildActive(discordGuildId: string) {
         where: { discordGuildId },
         data: { isActive: !guild.isActive }
     });
+
+    // 📝 LOG ACTION
+    const session = await auth();
+    if (session?.user?.id) {
+        await logAction({
+            guildId: discordGuildId,
+            action: "GOD_GUILD_WHITELIST",
+            targetType: "WHITELIST",
+            targetId: discordGuildId,
+            oldValue: { isActive: guild.isActive },
+            newValue: { isActive: updated.isActive },
+            metadata: { operation: "TOGGLE_ACTIVE_STATUS" }
+        });
+    }
 
     revalidatePath("/god");
     return updated;
@@ -296,6 +335,18 @@ export async function cleanupGhostUsers(isTestMode = false) {
         deletedCount++;
     }
 
+    // 📝 LOG ACTION
+    const session = await auth();
+    if (session?.user?.id) {
+        const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
+        await logAction({
+            guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+            action: "GOD_USER_PLATFORM_BAN",
+            targetType: "SYSTEM_GOD",
+            metadata: { operation: "GHOST_CLEANUP", count: deletedCount, testMode: isTestMode }
+        });
+    }
+
     revalidatePath("/god");
     return { success: true, count: deletedCount, mode: isTestMode ? "TEST (2m)" : "PROD (24h)" };
 }
@@ -401,6 +452,20 @@ export async function deleteGhostUser(userId: string) {
     if (hasEvents > 0) throw new Error("Cet utilisateur possède des événements et ne peut pas être purgé.");
 
     await db.user.delete({ where: { id: user.id } });
+
+    // 📝 LOG ACTION
+    const currentSession = await auth();
+    if (currentSession?.user?.id) {
+        const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
+        await logAction({
+            guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+            action: "GOD_USER_PLATFORM_BAN",
+            targetType: "USER",
+            targetId: userId,
+            metadata: { operation: "MANUAL_GHOST_DELETE", userName: user.name, discordId }
+        });
+    }
+
     revalidatePath("/god");
     return { success: true };
 }
@@ -513,6 +578,20 @@ export async function forceDeleteUser(userId: string) {
         });
 
         revalidatePath("/god");
+
+        // 📝 LOG ACTION
+        const session = await auth();
+        if (session?.user?.id) {
+            const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
+            await logAction({
+                guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+                action: "GOD_USER_PLATFORM_BAN",
+                targetType: "USER",
+                targetId: userId,
+                metadata: { operation: "FORCE_DELETE_USER" }
+            });
+        }
+
         return { success: true };
     } catch (error) {
         console.error("Delete Error:", error);
@@ -552,6 +631,18 @@ export async function cleanupOrphanedProfiles() {
     await db.userProfile.deleteMany({
         where: { id: { in: orphanIds } }
     });
+
+    // 📝 LOG ACTION
+    const session = await auth();
+    if (session?.user?.id) {
+        const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
+        await logAction({
+            guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+            action: "GOD_USER_PLATFORM_BAN",
+            targetType: "SYSTEM_GOD",
+            metadata: { operation: "ORPHAN_CLEANUP", count: orphanIds.length }
+        });
+    }
 
     revalidatePath("/god");
     return { success: true, count: orphanIds.length, message: `${orphanIds.length} profils orphelins supprimés.` };
@@ -697,6 +788,18 @@ export async function triggerGlobalMetamobSync() {
             userId: "GOD_TEST"
         });
         
+        // 📝 LOG ACTION
+        const session = await auth();
+        if (session?.user?.id) {
+            const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
+            await logAction({
+                guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+                action: "GOD_DATABASE_SYNC",
+                targetType: "DATA_SYNC",
+                metadata: { operation: "MANUAL_METAMOB_TRIGGER", jobId: job.id }
+            });
+        }
+
         return { success: true, message: `Tâche Metamob (Job ${job.id}) envoyée dans la file.` };
     } catch (err: any) {
         return { success: false, error: err.message };
@@ -711,6 +814,18 @@ export async function triggerGlobalLadderSync() {
         const { ladderQueue } = await import("@/lib/queue/ladder-queue");
         const job = await ladderQueue.add("manual-ladder-sync", { force: true });
         
+        // 📝 LOG ACTION
+        const session = await auth();
+        if (session?.user?.id) {
+            const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
+            await logAction({
+                guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+                action: "GOD_DATABASE_SYNC",
+                targetType: "DATA_SYNC",
+                metadata: { operation: "MANUAL_LADDER_TRIGGER", jobId: job.id }
+            });
+        }
+
         return { success: true, message: `Tâche Ladder (Job ${job.id}) envoyée dans la file.` };
     } catch (err: any) {
         return { success: false, error: err.message };

@@ -26,6 +26,7 @@ import {
     Library,
     MessageCircle,
     Palette,
+    Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
@@ -258,6 +259,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
     const [modules, setModules] = useState<GuildModulesState>(initialModules);
     const [pending, setPending] = useState<ModuleKey | null>(null);
     const [isPending, startTransition] = useTransition();
+    const [searchTerm, setSearchTerm] = useState("");
 
     const allModules = MODULE_GROUPS.flatMap(g => g.modules);
     const enabledCount = allModules.filter(m => modules[m.key]).length;
@@ -306,10 +308,31 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                 </Badge>
             </div>
 
+            {/* Search Bar */}
+            <div className="relative px-2 mt-4 max-w-md">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                    type="text"
+                    placeholder="Rechercher un module (ex: chat, missions...)"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-white/[0.02] border border-white/10 rounded-xl pl-11 pr-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 hover:border-white/20 transition-all font-medium"
+                />
+            </div>
+
             {/* Groups */}
             <div className="space-y-16">
-                {MODULE_GROUPS.map((group) => (
-                    <div key={group.label} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                {MODULE_GROUPS.map((group) => {
+                    const filteredModules = group.modules.filter(mod => 
+                        mod.label.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        mod.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        mod.key.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+
+                    if (filteredModules.length === 0) return null;
+
+                    return (
+                        <div key={group.label} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <div className="flex items-center gap-4 px-2">
                              <div className="h-0.5 w-8 bg-gradient-to-r from-emerald-500 to-transparent" />
                             <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-400 drop-shadow-sm">
@@ -318,7 +341,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-                            {group.modules.map((mod) => {
+                            {filteredModules.map((mod) => {
                                 const isEnabled = modules[mod.key];
                                 const isLoading = pending === mod.key && isPending;
                                 const Icon = mod.icon;
@@ -446,7 +469,7 @@ export function ModulesClient({ guildId, initialModules }: Props) {
                             })}
                         </div>
                     </div>
-                ))}
+                )})}
             </div>
 
             {/* Support Note */}

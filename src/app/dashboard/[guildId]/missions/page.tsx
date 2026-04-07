@@ -76,8 +76,8 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     }
 
     const dynamicXP = missionXP + kamaXP;
-    // [MIS-1] Additive override: the manual value is treated as a "base" or "correction" and adds to the validated XP
-    const currentXP = (xpOverride !== null ? xpOverride : 0) + dynamicXP;
+    // [MIS-1] Override already includes the generated dynamic XP if it is set.
+    const currentXP = xpOverride !== null ? xpOverride : dynamicXP;
 
 
     // [MIS-1 FIX] targetTier from published missions, fallback 3

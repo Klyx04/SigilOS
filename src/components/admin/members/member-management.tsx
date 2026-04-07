@@ -405,6 +405,86 @@ export default function MemberManagement({
                 {/* --- TAB 1: AUDIT --- */}
                 <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="space-y-8">
+                        {/* Bottom Utility Cards */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Embedded Sync Card */}
+                            <Card className="bg-zinc-900/40 backdrop-blur-xl border-indigo-500/20 rounded-[32px] overflow-hidden shadow-2xl relative group">
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <CardHeader className="bg-white/[0.03] py-5 border-b border-indigo-500/10 px-6 relative z-10">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-xl bg-indigo-600/20 flex items-center justify-center">
+                                            <RefreshCw className="w-4 h-4 text-indigo-400" />
+                                        </div>
+                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Outils & Sync</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-4 relative z-10">
+                                    <MemberSyncButton guildId={guildId} />
+                                    <DailyReportButton guildId={guildId} />
+                                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                        <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Planification</span>
+                                        <Badge variant="outline" className="text-[9px] bg-zinc-800 border-none font-black text-indigo-400">HEBDOMADAIRE LUNDI 04:00 AM</Badge>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="bg-zinc-900/40 backdrop-blur-xl border-white/10 rounded-[32px] overflow-hidden shadow-2xl">
+                                <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-xl bg-emerald-600/20 flex items-center justify-center">
+                                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                        </div>
+                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Audit & Rôles</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-6">
+                                    {data?.stats.length === 0 ? (
+                                        <div className="text-center py-6 space-y-2">
+                                            <Settings2 className="w-8 h-8 text-zinc-600 mx-auto" />
+                                            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aucun rôle mappé</p>
+                                            <p className="text-[10px] text-zinc-600 leading-relaxed italic">Configurez les rôles dans Paramètres {">"} Rôles pour activer l&apos;audit.</p>
+                                        </div>
+                                    ) : (
+                                        data?.stats.map(s => {
+                                            const percent = s.totalDiscord > 0 ? (s.totalDashboard / s.totalDiscord) * 100 : 0;
+                                            return (
+                                                <div key={s.roleId} className="space-y-3 group/role cursor-default">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 max-w-[200px]">
+                                                            <div 
+                                                                className="w-1.5 h-1.5 rounded-full shrink-0 shadow-lg"
+                                                                style={{ backgroundColor: s.roleColor ? `#${s.roleColor.toString(16).padStart(6, '0')}` : '#71717a' }}
+                                                            />
+                                                            <span className="text-xs font-black text-zinc-300 truncate group-hover/role:text-white transition-colors">{s.roleName}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-lg tabular-nums">
+                                                                {s.totalDashboard}/{s.totalDiscord}
+                                                            </span>
+                                                            <ManualAuditButton guildId={guildId} roleId={s.roleId} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-white/5 p-[1px]">
+                                                            <div 
+                                                                className={`h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(0,0,0,0.5)] ${
+                                                                    percent === 100 ? 'bg-emerald-500' : 
+                                                                    percent > 70 ? 'bg-violet-500' : 
+                                                                    percent > 30 ? 'bg-indigo-500' : 'bg-amber-600'
+                                                                }`}
+                                                                style={{ width: `${percent}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[11px] font-black text-white w-8 text-right italic">{percent.toFixed(0)}%</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+
                         <div className="space-y-4">
                             {/* Filter Bar */}
                             <div className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-xl">
@@ -611,85 +691,7 @@ export default function MemberManagement({
                             </div>
                         </div>
 
-                        {/* Bottom Utility Cards */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Embedded Sync Card */}
-                            <Card className="bg-zinc-900/40 backdrop-blur-xl border-indigo-500/20 rounded-[32px] overflow-hidden shadow-2xl relative group">
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <CardHeader className="bg-white/[0.03] py-5 border-b border-indigo-500/10 px-6 relative z-10">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-xl bg-indigo-600/20 flex items-center justify-center">
-                                            <RefreshCw className="w-4 h-4 text-indigo-400" />
-                                        </div>
-                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Outils & Sync</CardTitle>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-6 space-y-4 relative z-10">
-                                    <MemberSyncButton guildId={guildId} />
-                                    <DailyReportButton guildId={guildId} />
-                                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                        <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Planification</span>
-                                        <Badge variant="outline" className="text-[9px] bg-zinc-800 border-none font-black text-indigo-400">HEBDOMADAIRE LUNDI 04:00 AM</Badge>
-                                    </div>
-                                </CardContent>
-                            </Card>
 
-                            <Card className="bg-zinc-900/40 backdrop-blur-xl border-white/10 rounded-[32px] overflow-hidden shadow-2xl">
-                                <CardHeader className="bg-white/[0.03] py-5 border-b border-white/5 px-6">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-xl bg-emerald-600/20 flex items-center justify-center">
-                                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                                        </div>
-                                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic">Audit & Rôles</CardTitle>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-6 space-y-6">
-                                    {data?.stats.length === 0 ? (
-                                        <div className="text-center py-6 space-y-2">
-                                            <Settings2 className="w-8 h-8 text-zinc-600 mx-auto" />
-                                            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aucun rôle mappé</p>
-                                            <p className="text-[10px] text-zinc-600 leading-relaxed italic">Configurez les rôles dans Paramètres {">"} Rôles pour activer l&apos;audit.</p>
-                                        </div>
-                                    ) : (
-                                        data?.stats.map(s => {
-                                            const percent = s.totalDiscord > 0 ? (s.totalDashboard / s.totalDiscord) * 100 : 0;
-                                            return (
-                                                <div key={s.roleId} className="space-y-3 group/role cursor-default">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2 max-w-[200px]">
-                                                            <div 
-                                                                className="w-1.5 h-1.5 rounded-full shrink-0 shadow-lg"
-                                                                style={{ backgroundColor: s.roleColor ? `#${s.roleColor.toString(16).padStart(6, '0')}` : '#71717a' }}
-                                                            />
-                                                            <span className="text-xs font-black text-zinc-300 truncate group-hover/role:text-white transition-colors">{s.roleName}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[10px] font-black text-zinc-500 bg-white/5 px-2 py-0.5 rounded-lg tabular-nums">
-                                                                {s.totalDashboard}/{s.totalDiscord}
-                                                            </span>
-                                                            <ManualAuditButton guildId={guildId} roleId={s.roleId} />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-white/5 p-[1px]">
-                                                            <div 
-                                                                className={`h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(0,0,0,0.5)] ${
-                                                                    percent === 100 ? 'bg-emerald-500' : 
-                                                                    percent > 70 ? 'bg-violet-500' : 
-                                                                    percent > 30 ? 'bg-indigo-500' : 'bg-amber-600'
-                                                                }`}
-                                                                style={{ width: `${percent}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-[11px] font-black text-white w-8 text-right italic">{percent.toFixed(0)}%</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
                     </div>
                 </TabsContent>
 

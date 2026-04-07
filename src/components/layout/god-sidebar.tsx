@@ -16,9 +16,10 @@ import {
     HardDrive,
     Ticket,
     Bell,
-    ShieldAlert,
     Database,
-    Ban
+    Ban,
+    Sparkles,
+    ShieldAlert
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -39,6 +40,7 @@ const CONSOLE_PAGES = [
     { name: "Alertes Système", id: "notifications", icon: Bell, color: "text-rose-400" },
     { name: "Tickets Support", id: "tickets", icon: Ticket, color: "text-indigo-400" },
     { name: "Données de Jeu", id: "game-data", icon: Database, color: "text-cyan-400" },
+    { name: "Quêtes Dofus", id: "quetes-dofus", href: "/god/quetes-dofus", icon: Sparkles, color: "text-purple-400" },
     { name: "Sécurité & Logs", id: "security", icon: ShieldAlert, color: "text-zinc-400" },
 ];
 
@@ -88,14 +90,16 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                         
                         <div className="space-y-1.5">
                             {CONSOLE_PAGES.map((page) => {
-                                const active = pathname === "/god" && activeTab === page.id;
+                                const isDirectRoute = !!(page as any).href;
+                                const linkHref = isDirectRoute ? (page as any).href : `/god?tab=${page.id}`;
+                                const active = isDirectRoute ? pathname.startsWith((page as any).href) : (pathname === "/god" && activeTab === page.id);
                                 const hasBadge = page.id === "notifications" && unreadCount > 0;
                                 const sub = searchParams.get("sub") || "NONE";
 
                                 return (
                                     <div key={page.id} className="space-y-1">
                                         <Link
-                                            href={`/god?tab=${page.id}`}
+                                            href={linkHref}
                                             className={cn(
                                                 "flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
                                                 active

@@ -19,7 +19,8 @@ import {
     ButtonBuilder, 
     ButtonStyle,
     PermissionFlagsBits,
-    ChannelType
+    ChannelType,
+    Partials
 } from 'discord.js';
 
 import { PrismaClient } from '@prisma/client';
@@ -46,10 +47,16 @@ const db = new PrismaClient({ adapter });
 
 
 const client = new Client({
-    intents: [
+        intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageTyping,
     ],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
 // ========================

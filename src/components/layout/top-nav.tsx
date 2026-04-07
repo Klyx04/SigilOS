@@ -222,14 +222,17 @@ export function TopNav({ sidebarProps, userId, events = [], roadmapEnabled = fal
                 </div>
 
                 {/* Guild Chat Trigger */}
-                <button 
-                    onClick={() => window.dispatchEvent(new CustomEvent("sigilos:open-chat"))}
-                    className="h-9 w-9 flex items-center justify-center text-zinc-500 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-xl transition-all group relative mr-1"
-                    title="Chat de Guilde"
-                >
-                    <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full animate-pulse border-2 border-[#060606]" />
-                </button>
+                {sidebarProps.modules?.chat && (
+                    <button 
+                        onClick={() => window.dispatchEvent(new CustomEvent("sigilos:open-chat"))}
+                        className="h-9 px-3 flex items-center justify-center gap-2 text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl transition-all group relative mr-2 ring-1 ring-indigo-500/10 hover:ring-indigo-500/30"
+                        title="Chat de Guilde"
+                    >
+                        <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Chat Live</span>
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse border-[2px] border-[#060606]" />
+                    </button>
+                )}
 
                 {/* 4. User Profile (Standalone Dropdown) */}
                 <div className="flex items-center ml-2">

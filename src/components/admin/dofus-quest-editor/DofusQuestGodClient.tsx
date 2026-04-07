@@ -30,7 +30,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { runV3Siphoner } from "@/server/actions/dofus-v3-actions";
-import { DofusNeuralTree } from "./DofusNeuralTree";
 import { RefreshCcw, Share2, Zap } from "lucide-react";
 
 interface DofusStats {
@@ -60,7 +59,6 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
     const [expandedDofus, setExpandedDofus] = useState<string | null>(null);
     const [expandedChain, setExpandedChain] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
-    const [activeTree, setActiveTree] = useState<DofusStats | null>(null);
 
     const handleV3Siphon = (slug: string) => {
         startTransition(async () => {
@@ -115,7 +113,7 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                     <AlertTriangle className="w-16 h-16 mx-auto text-amber-500/30 mb-6" />
                     <p className="text-zinc-400 text-xl font-black italic">Aucune donnée de quête détectée.</p>
                     <p className="text-zinc-600 text-sm mt-3 max-w-md mx-auto">
-                        Le Neural Tree est à sec. Exécutez le compilateur pour un Dofus (ex: argent, ebene) pour l'alimenter.
+                        La base de données est vide. Exécutez le compilateur pour alimenter le gestionnaire.
                     </p>
                     <div className="mt-8">
                         <code className="bg-black/50 border border-white/10 px-4 py-2 rounded-xl text-emerald-400 font-mono text-sm">
@@ -167,15 +165,6 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                     <span className="text-[10px] bg-white/5 text-zinc-400 px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-white/5">{dofus.slug}</span>
                                     {dofus.questCount > 0 && (
                                         <div className="flex items-center gap-2">
-                                            <Button 
-                                                variant="ghost" 
-                                                size="sm" 
-                                                onClick={(e) => { e.stopPropagation(); setActiveTree(dofus); }}
-                                                className="h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
-                                            >
-                                                <Share2 className="w-3.5 h-3.5 mr-1.5" />
-                                                Neural Tree
-                                            </Button>
                                             <Button
                                                 variant="default"
                                                 size="sm"
@@ -183,17 +172,17 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                 onClick={(e) => { 
                                                     e.stopPropagation(); 
                                                     startTransition(async () => {
-                                                        const toastId = toast.loading(`Injection en base de données pour tous les Dofus...`);
+                                                        const toastId = toast.loading(`Synchronisation complète de la base de données...`);
                                                         const { seedDofusData } = await import("@/server/actions/dofus-quest-actions");
                                                         const res = await seedDofusData("GOD");
-                                                        if (res.success) toast.success("Seed V3 terminé avec succès ! Les donjons sont là.", { id: toastId });
-                                                        else toast.error("Erreur Seed", { id: toastId });
+                                                        if (res.success) toast.success("Base de données synchronisée !", { id: toastId });
+                                                        else toast.error("Erreur de synchronisation", { id: toastId });
                                                     });
                                                 }}
                                                 className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(52,211,153,0.3)]"
                                             >
                                                 <Database className={`w-3.5 h-3.5 mr-1.5 ${isPending ? 'animate-bounce' : ''}`} />
-                                                SEED V3 GÉANT
+                                                SYNCHRONISER TOUTE LA BASE
                                             </Button>
                                         </div>
                                     )}
@@ -457,16 +446,6 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                 );
             })}
 
-            {/* Modal Neural Tree Overlay */}
-            <AnimatePresence>
-                {activeTree && (
-                    <DofusNeuralTree 
-                        dofusId={activeTree.id} 
-                        chains={activeTree.chains} 
-                        onClose={() => setActiveTree(null)} 
-                    />
-                )}
-            </AnimatePresence>
         </div>
     );
 }

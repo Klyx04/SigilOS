@@ -59,32 +59,6 @@ export default async function GameDataPage() {
                 ))}
             </div>
 
-            {/* ── Dofus Quest Tree ─────────────────────────── */}
-            <div className="border-t border-white/5 pt-12 space-y-6">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-black text-emerald-400 uppercase tracking-widest">
-                    <Trophy className="w-4 h-4" />
-                    <span>Neural Quest Tree</span>
-                </div>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="space-y-3">
-                        <h2 className="text-3xl font-black text-white tracking-tighter">
-                            Dofus Quest Tree <span className="text-emerald-500/70 text-xl font-bold">· Curation Engine</span>
-                        </h2>
-                        <p className="text-zinc-500 text-sm max-w-xl leading-relaxed">
-                            Gérez les chaînes de succès pour chaque Dofus. Données enrichies (niveaux, items, objectifs) 
-                            pour le suivi de guilde et les missions. Synchronisation directe avec DofusDB.
-                        </p>
-                    </div>
-                    <a
-                        href="/god/quetes-dofus"
-                        className="inline-flex items-center gap-3 px-8 py-4 bg-white text-black rounded-2xl font-black italic uppercase tracking-widest hover:bg-zinc-200 transition-all hover:scale-105"
-                    >
-                        Ouvrir le Curation Engine
-                        <ChevronRight className="w-5 h-5" />
-                    </a>
-                </div>
-            </div>
-
             {/* Main Sync Interface */}
             <GameDataInterface />
 

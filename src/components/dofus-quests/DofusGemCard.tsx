@@ -32,7 +32,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
     function handleToggleObtained(e: React.MouseEvent) {
         e.preventDefault();
         e.stopPropagation();
-        if (isPending || isLocked) return;
+        if (isPending) return;
 
         const newVal = !isObtained;
         setIsObtained(newVal);
@@ -79,7 +79,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
             {/* Obtained toggle button */}
             <button
                 onClick={handleToggleObtained}
-                disabled={isPending || isLocked}
+                disabled={isPending}
                 className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
                 style={{
                     background: isObtained ? color : "rgba(255,255,255,0.08)",

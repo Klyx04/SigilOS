@@ -497,90 +497,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             }
         }
 
-        // Upsert Profile — only for brand new members (no profile yet)
-        const now = new Date();
-        const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
-
-        if (!profile) {
-            // NEW MEMBER — first time on the platform
-            try {
-                // Try create first to confidently trigger 'first-time' actions
-                profile = await db.userProfile.create({
-                    data: {
-                        userId: session.user.id,
-                        guildId: guildConfig.id,
-                        discordNickname: displayName,
-                        discordRoleName: roleName,
-                        discordRoleColor: roleColor,
-                        discordJoinedAt: joinedAt,
-                        discordCacheUpdatedAt: now,
-                        lastActivityAt: now,
-                    }
-                });
-
-                // 📝 AUDIT LOG Arrival
-                try {
-                    const { createAuditLog } = await import("./audit-actions");
-                    await createAuditLog({
-                        guildId: actualDiscordGuildId,
-                        actorUserId: "SYSTEM",
-                        actorName: "Platform System",
-                        action: "PLATFORM_ARRIVAL",
-                        targetType: "PROFILE",
-                        targetId: profile.id,
-                        metadata: { description: displayName },
-                        newValue: { displayName, roleName, discordJoinedAt: joinedAt }
-                    });
-                } catch (e) {
-                    console.error("[UserContext] Failed to log platform arrival", e);
-                }
-
-                // ---- NEW MEMBER WELCOME LOGIC ----
-                Promise.resolve().then(async () => {
-                    if (!guildConfig.welcomeEnabled) return;
-
-                    try {
-                        const { sendWelcomeNotifications } = await import("@/server/actions/onboarding-actions");
-                        await sendWelcomeNotifications(guildConfig, profile!.id, displayName);
-
-                        // Push system message to chat
-                        const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
-                        await pushSystemChatMessage(guildConfig.discordGuildId, `🎊 **${displayName}** vient de rejoindre la guilde. Souhaitez-lui la bienvenue !`, { type: "user_joined", profileId: profile!.id });
-                    } catch (welcomeErr) {
-                        logger.error("[Welcome] Failed to process welcome notifications", { error: welcomeErr });
-                    }
-                });
-            } catch (e: any) {
-                // P2002 means it already exists (race condition or they left and rejoined without profile deletion)
-                if (e.code === 'P2002') {
-                    profile = await db.userProfile.update({
-                        where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
-                        data: {
-                            discordNickname: displayName,
-                            discordRoleName: roleName,
-                            discordRoleColor: roleColor,
-                            discordJoinedAt: joinedAt || undefined,
-                            discordCacheUpdatedAt: now,
-                            lastActivityAt: now,
-                        }
-                    });
-                } else {
-                    // Fallback read
-                    profile = await db.userProfile.findUnique({
-                        where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } }
-                    });
-                }
-            }
-        } else {
-            // EXISTING ACTIVE member — Performance Optim: Redis presence only (fast)
-            // Note: We moved the Prisma Discord cache update to a dedicated sync action
-            // to maintain getUserContext as a read-only context fetcher during render.
-            try {
-                // REDIS HEARTBEAT (Safe in Next.js)
-                await PresenceManager.updatePresence(guildConfig.id, session.user.id);
-            } catch { }
-        }
-
+        // NOTE: Profile creation is DEFERRED until after the DASHBOARD_ACCESS gatekeeper below.
+        // This prevents unauthorized Discord members from getting auto-provisioned profiles.
     }
 
     // 1. Roles & Admin check
@@ -591,18 +509,20 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
     const hasDiscordAdmin = hasDiscordAdminRole || isOwner;
     
-    // MASTER ADMIN: platform-level god or discord admin
-    const isAdmin = Object.values(rolesMapping).some((perms: any) => perms.includes(PERMISSIONS.ADMIN_FULL)) || hasDiscordAdmin || isGod;
+    // MASTER ADMIN: Must be checked against the USER'S OWN roles, not all guild roles
+    const userHasAdminPermission = memberRoles.some(rId => {
+        const perms = rolesMapping[rId];
+        return perms && perms.includes(PERMISSIONS.ADMIN_FULL);
+    });
+    const isAdmin = userHasAdminPermission || hasDiscordAdmin || isGod;
     const isAdminFinal = isAdmin;
 
-    // 2. Authorization Check (The Gatekeeper)
-    // A role is authorized if it has DASHBOARD_ACCESS explicitly,
-    // OR (legacy fallback) if it has ANY permission mapped (migration safety net).
+    // 2. Authorization Check (The Gatekeeper) — STRICT DENY-BY-DEFAULT
+    // A role MUST have DASHBOARD_ACCESS explicitly to pass. No legacy fallback.
     const hasAuthorizedRole = memberRoles.some(rId => {
         const perms = rolesMapping[rId];
         if (!perms || perms.length === 0) return false;
-        // Prefer explicit DASHBOARD_ACCESS, but accept any mapped role (legacy)
-        return perms.includes(PERMISSIONS.DASHBOARD_ACCESS) || perms.length > 0;
+        return perms.includes(PERMISSIONS.DASHBOARD_ACCESS);
     });
     const isAuthorizedMember = hasAuthorizedRole || isAdminFinal;
 
@@ -620,6 +540,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     }
 
     // 3. User Profile Creation / Maintenance
+    // Track whether the profile already existed to prevent welcome spam
+    const profileAlreadyExisted = !!profile;
     if (guildConfig && member && isAuthorizedMember) {
         const now = new Date();
         const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
@@ -639,7 +561,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                     }
                 });
 
-                // Audit & Onboarding (Fire and forget)
+                // Audit & Onboarding — ONLY on genuine first-time creation (not P2002 fallback)
                 (async () => {
                    try {
                        const { createAuditLog } = await import("./audit-actions");
@@ -663,6 +585,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 })();
             } catch (e: any) {
                 if (e.code === 'P2002') {
+                    // Profile already exists (race condition) — read it, do NOT re-send welcome
                     profile = await db.userProfile.findUnique({
                         where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } }
                     });
@@ -711,7 +634,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canModerateChat = permissionSet.has(PERMISSIONS.CHAT_MODERATE) || isAdminFinal;
     const canViewPolls = permissionSet.has(PERMISSIONS.POLLS_VIEW) || isAdminFinal;
     const canManageRelance = permissionSet.has(PERMISSIONS.RELANCE_MANAGE) || permissionSet.has(PERMISSIONS.MEMBER_MANAGE) || isAdminFinal;
-    const canManageRBAC = hasDiscordAdmin || isGod || isAdminFinal;
+    const canManageRBAC = hasDiscordAdmin || isGod; // STRICT: Only Discord admins and God can manage RBAC
     const canViewSettings = permissionSet.has(PERMISSIONS.ADMIN_SETTINGS) || isAdminFinal;
     const canViewAuditLogs = permissionSet.has(PERMISSIONS.ADMIN_AUDIT) || isAdminFinal;
 

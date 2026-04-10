@@ -469,7 +469,7 @@ export async function sendChatMessage(
                                     const mData = await mRes.json();
                                     const boss = (mData.data || []).find((m: any) => m.isBoss);
                                     if (boss && boss.id) {
-                                        imgUrl = `https://api.dofusdb.fr/img/monsters/${boss.id}.png`;
+                                        imgUrl = `https://static.dofusdb.fr/monsters/${boss.id}.png`;
                                     }
                                 }
                             } catch (e) {
@@ -852,7 +852,7 @@ export async function sendRunChatMessage(
                         if (!imgUrl && cmd === "/set" && item.items?.[0]?.img) {
                             imgUrl = item.items[0].img;
                         } else if (!imgUrl && cmd === "/dungeon" && item.monsters?.length > 0) {
-                            imgUrl = `https://api.dofusdb.fr/img/monsters/${item.monsters[item.monsters.length - 1]}.png`;
+                            imgUrl = `https://static.dofusdb.fr/monsters/${item.monsters[item.monsters.length - 1]}.png`;
                         }
 
                         const imgMd = imgUrl ? `![${displayName}](${imgUrl})\n` : "";

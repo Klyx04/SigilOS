@@ -43,7 +43,12 @@ export default function SocialStats({ social }: SocialStatsProps) {
                                 <span className="text-zinc-500 font-mono text-sm">#{i + 1}</span>
                                 <span className="text-white font-medium">{user.name}</span>
                             </div>
-                            <span className="text-blue-400 font-bold">{user.value}h</span>
+                            <span className="text-blue-400 font-bold">
+                                {user.value < 60 
+                                    ? `${user.value} min` 
+                                    : `${Math.floor(user.value / 60)}h ${user.value % 60 > 0 ? `${user.value % 60}m` : ""}`
+                                }
+                            </span>
                         </div>
                     ))}
                     {social.topVocal.length === 0 && <p className="text-zinc-500 text-sm italic">Aucun temps vocal enregistré.</p>}

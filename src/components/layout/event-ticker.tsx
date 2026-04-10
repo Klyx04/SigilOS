@@ -178,15 +178,16 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
 
     if (event.type === "GAME_SKRIBBL") {
         const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
-        href = `/dashboard/${guildId}/mini-jeux/skribbl?roomId=${(event.metadata as any).roomId}${spec}`;
+        href = `/dashboard/${guildId}/mini-jeux/skribbl?room=${(event.metadata as any).roomId}${spec}`;
     } else if (event.type === "GAME_GARTIC") {
         const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
-        href = `/dashboard/${guildId}/mini-jeux/gartic?roomId=${(event.metadata as any).roomId}${spec}`;
+        href = `/dashboard/${guildId}/mini-jeux/gartic?room=${(event.metadata as any).roomId}${spec}`;
     } else if (event.type === "GAME_GEOGUESSER") {
-        href = `/dashboard/${guildId}/mini-jeux/geoguesser?roomId=${(event.metadata as any).roomId}`;
+        const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
+        href = `/dashboard/${guildId}/mini-jeux#mini-jeux?room=${(event.metadata as any).roomId}${spec}`;
     } else if (event.type === "GAME_KING") {
         const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
-        href = `/dashboard/${guildId}/mini-jeux/sigilking?roomId=${(event.metadata as any).roomId}${spec}`;
+        href = `/dashboard/${guildId}/mini-jeux/sigil-king?room=${(event.metadata as any).roomId}${spec}`;
     }
 
     return (

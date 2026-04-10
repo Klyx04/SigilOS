@@ -42,6 +42,7 @@ export const PERMISSIONS = {
     SERVICES_VIEW: "game:services_view",
     MINIGAMES_VIEW: "game:minigames_view",
     WORLDMAP_VIEW: "game:worldmap_view",
+    MEMBER_VACATION_EDIT: "admin:member_vacation_edit",
 } as const;
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -105,6 +106,7 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     [PERMISSIONS.SERVICES_VIEW]: { label: "Services Guilde", description: "Voir les services proposés par les membres.", module: "game" },
     [PERMISSIONS.MINIGAMES_VIEW]: { label: "Mini-jeux", description: "Accès aux jeux de guilde (Gartic, etc).", module: "game" },
     [PERMISSIONS.WORLDMAP_VIEW]: { label: "Carte Interactive", description: "Consulter la worldmap.", module: "game" },
+    [PERMISSIONS.MEMBER_VACATION_EDIT]: { label: "Éditer Vacances", description: "Droit de modifier les dates de vacances des membres.", module: "admin" },
 };
 
 export const PERMISSION_LABELS: Record<PermissionId, string> =

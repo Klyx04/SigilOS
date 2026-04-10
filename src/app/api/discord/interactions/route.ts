@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
             const [prefix, action, entityId] = custom_id.split(":");
 
             const account = await findUserByDiscordId(member.user.id);
-            if (!account) {
+            if (!account && prefix !== "ticket") {
                 return NextResponse.json({
                     type: 4,
                     data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site pour utiliser ce bouton.", flags: 64 },

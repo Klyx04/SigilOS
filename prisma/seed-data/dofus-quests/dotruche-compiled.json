@@ -4,11 +4,10 @@
   "color": "#F5F5DC",
   "successName": "La Dotruche",
   "recommendedLevel": 20,
-  "description": null,
+  "successDescription": null,
   "dofusItemId": 15132,
-  "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/15132.png",
-  "compiledAt": "2026-04-04T13:40:31.184Z",
+  "compiledAt": "2026-04-09T09:35:42.022Z",
+  "compilerVersion": "3.0",
   "chains": [
     {
       "sectionName": "Dotruche",
@@ -18,13 +17,14 @@
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
+      "dungeons": [],
       "entries": [
         {
           "name": "L'histoire en mouvement",
           "dofusdbId": 1988,
           "level": 25,
           "zone": "Bibliothèque d'Astrub",
-          "npcName": null,
+          "npcName": "Oz Dralett",
           "npcSubArea": "Bibliothèque d'Astrub",
           "coords": {
             "x": 7,
@@ -32,12 +32,20 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19681,
+              "name": "Livre calciné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25144.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Aller voir {npc,4341}",
-            "Aller voir {npc,730}",
+            "Aller voir Oz Dralett",
+            "Aller voir Nacf Virgil",
             "Récupérer le manuscrit avant qu'il ne soit détruit",
-            "Montrer à {npc,4310} : 1 {item,19681}"
+            "Montrer à Aisling : 1 Livre calciné"
           ],
           "stepOrder": 0,
           "isSynergyCandidate": false,
@@ -48,7 +56,7 @@
           "dofusdbId": 1989,
           "level": 30,
           "zone": "Bibliothèque d'Astrub",
-          "npcName": null,
+          "npcName": "Mage Ax",
           "npcSubArea": "Bibliothèque d'Astrub",
           "coords": {
             "x": 3,
@@ -56,14 +64,28 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19681,
+              "name": "Livre calciné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25144.png"
+            },
+            {
+              "id": 19686,
+              "name": "Écorce enchantée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25142.png"
+            }
+          ],
+          "dungeonsRequired": [],
           "objectives": [
-            "Montrer à {npc,726} : 1 {item,19681}",
+            "Montrer à Mage Ax : 1 Livre calciné",
             "Récupérer un morceau d'écorce centenaire",
             "Récupérer du lailait de boufette",
             "Rapporter le lailait et l'écorce au Mage Ax",
-            "Ramener à {npc,1574} : x1 {item,19686}",
-            "Aller voir {npc,4310}"
+            "Ramener à Prim : x1 Écorce enchantée",
+            "Aller voir Aisling"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": false,
@@ -76,5 +98,25 @@
         }
       ]
     }
-  ]
+  ],
+  "globalSummary": {
+    "totalQuests": 2,
+    "totalItems": 2,
+    "totalDungeons": 0,
+    "items": [
+      {
+        "id": 19681,
+        "name": "Livre calciné",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/25144.png"
+      },
+      {
+        "id": 19686,
+        "name": "Écorce enchantée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/25142.png"
+      }
+    ],
+    "dungeons": []
+  }
 }

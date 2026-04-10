@@ -9,7 +9,7 @@ import { getClass } from "@/lib/dofus-assets";
 type Props = {
     entry: LadderEntry;
     valueLabel: React.ReactNode;
-    accentColor: "purple" | "cyan" | "amber" | "emerald" | "yellow" | "blue";
+    accentColor: "purple" | "cyan" | "amber" | "emerald" | "yellow" | "blue" | "indigo";
 };
 
 export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
@@ -61,6 +61,14 @@ export function LeaderboardCard({ entry, valueLabel, accentColor }: Props) {
             valueText: "text-yellow-300",
             glow: "bg-yellow-400/10",
             highlight: "bg-yellow-500/10 border-yellow-500/20 ring-1 ring-yellow-500/20"
+        },
+        indigo: {
+            border: "group-hover:border-indigo-500/30 border-white/5",
+            bg: "hover:bg-indigo-500/[0.03]",
+            rankText: "text-indigo-400",
+            valueText: "text-indigo-300",
+            glow: "bg-indigo-400/10",
+            highlight: "bg-indigo-500/10 border-indigo-500/20 ring-1 ring-indigo-500/20"
         }
     };
 

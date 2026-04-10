@@ -1,20 +1,20 @@
 {
   "dofus": "des-glaces",
   "displayName": "Dofus des Glaces",
-  "color": "#ADD8E6",
+  "color": "#87CEEB",
   "successName": "L'œuf à la neige",
   "recommendedLevel": 200,
-  "description": "Terminer toutes les quêtes majeures de Frigost I, II et III (72 quêtes au total).",
+  "description": "Obtenir le Dofus des Glaces après avoir accompli tous les exploits de Frigost.",
   "dofusItemId": 7043,
-  "iconId": null,
-  "imageUrl": "/module-dofus/Dofus_Des_Glaces.png",
-  "compiledAt": "2026-04-05T00:52:38.067Z",
+  "iconId": 7043,
+  "imageUrl": "https://static.dofusdb.fr/items/23035.png",
+  "compiledAt": "2026-04-09T12:25:26.709Z",
   "chains": [
     {
-      "sectionName": "Introduction à Frigost",
-      "sectionType": "MAIN_CHAIN",
+      "sectionName": "Frigost I : Introduction",
+      "sectionType": "PREREQUISITE",
       "zone": "La Bourgade",
-      "description": null,
+      "description": "Quêtes d'introduction à l'île de Frigost.",
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
@@ -26,7 +26,11 @@
           "zone": "La Bourgade",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -77,
+            "y": -42,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
@@ -39,16 +43,29 @@
           "requirements": []
         },
         {
-          "name": "La terre promise",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Le travail c'est la santé",
+          "dofusdbId": 611,
+          "level": 190,
+          "zone": "La Bourgade",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -65,
+            "y": -67,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Carte secrète des crocs de verre.",
+            "Trouver un moyen d'ouvrir les grilles",
+            "Montrer à {npc,1381} : 1 {item,11876}",
+            "Ramener à {npc,1381} : x1 {item,11876}",
+            "Ramener à {npc,1381} : x25 {item,11196}"
+          ],
           "stepOrder": 1,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -79,21 +96,30 @@
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 649
+              "dofusdbId": 611
             }
           ]
         },
         {
-          "name": "Maudite soit la glace",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "La maire de glace",
+          "dofusdbId": 613,
+          "level": 100,
+          "zone": "La Bourgade",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -77,
+            "y": -42,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1237}"
+          ],
           "stepOrder": 3,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -102,30 +128,61 @@
           ]
         },
         {
-          "name": "Full Contact",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Full contact",
+          "dofusdbId": 614,
+          "level": 100,
+          "zone": "La Bourgade",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -85,
+            "y": -36,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1243}",
+            "Aller voir {npc,1242}",
+            "Aller voir {npc,1244}",
+            "Aller voir {npc,1245}",
+            "Aller voir {npc,1246}",
+            "Aller voir {npc,1247}",
+            "Aller voir {npc,1248}",
+            "Aller voir {npc,1249}",
+            "Aller voir {npc,1250}",
+            "Aller voir {npc,1251}",
+            "Aller voir {npc,1252}",
+            "Aller voir {npc,1253}",
+            "Aller voir {npc,1254}",
+            "Aller voir {npc,1255}",
+            "Aller voir {npc,1256}",
+            "Aller voir {npc,1257}",
+            "Aller voir {npc,1258}",
+            "Aller voir {npc,1259}",
+            "Aller voir {npc,1260}",
+            "Aller voir {npc,1261}",
+            "Aller voir {npc,1262}",
+            "Aller voir {npc,1263}",
+            "Aller voir {npc,1237}"
+          ],
           "stepOrder": 4,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 612
+              "dofusdbId": 613
             }
           ]
         }
       ]
     },
     {
-      "sectionName": "Bourgade : La maire dénie",
+      "sectionName": "Frigost I : La maire dénie",
       "sectionType": "MAIN_CHAIN",
-      "zone": "La Bourgade",
-      "description": null,
+      "zone": "Zones Frigost I",
+      "description": "Première série de succès de Frigost I.",
       "isSynergyCandidate": false,
       "chainOrder": 1,
       "requires": [],
@@ -134,10 +191,14 @@
           "name": "Bienvenue à Frigost",
           "dofusdbId": 649,
           "level": 120,
-          "zone": "La Bourgade",
+          "zone": "Zones Frigost I",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -77,
+            "y": -42,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
@@ -153,10 +214,14 @@
           "name": "L'essentiel est dans Lac Gelé",
           "dofusdbId": 650,
           "level": 140,
-          "zone": "La Bourgade",
+          "zone": "Zones Frigost I",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -77,
+            "y": -42,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
@@ -177,10 +242,14 @@
           "name": "Les rescapés de Frigost",
           "dofusdbId": 651,
           "level": 170,
-          "zone": "La Bourgade",
+          "zone": "Zones Frigost I",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -77,
+            "y": -42,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
@@ -201,7 +270,7 @@
           "name": "Frigost, une île pas comme les autres",
           "dofusdbId": 655,
           "level": 190,
-          "zone": "La Bourgade",
+          "zone": "Zones Frigost I",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -239,10 +308,14 @@
           "name": "Développement durable",
           "dofusdbId": 652,
           "level": 190,
-          "zone": "La Bourgade",
+          "zone": "Zones Frigost I",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -77,
+            "y": -42,
+            "worldId": 1
+          },
           "isDungeon": true,
           "itemsRequired": [],
           "dungeonsRequired": [],
@@ -263,12 +336,12 @@
           "name": "Donjons et trouffions",
           "dofusdbId": 653,
           "level": 190,
-          "zone": "La Bourgade",
+          "zone": "Zones Frigost I",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
-            "x": -61,
-            "y": -69,
+            "x": -84,
+            "y": -49,
             "worldId": 1
           },
           "isDungeon": true,
@@ -298,7 +371,7 @@
           "name": "Au fion du trou",
           "dofusdbId": 919,
           "level": 190,
-          "zone": "La Bourgade",
+          "zone": "Zones Frigost I",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -332,14 +405,909 @@
       ]
     },
     {
-      "sectionName": "Champs de glace : Agricole",
+      "sectionName": "Frigost I : Fri carré",
       "sectionType": "MAIN_CHAIN",
-      "zone": "Champs de Glace",
-      "description": null,
+      "zone": "Zones Frigost I",
+      "description": "Deuxième série de succès de Frigost I.",
       "isSynergyCandidate": false,
       "chainOrder": 2,
       "requires": [],
       "entries": [
+        {
+          "name": "Le travail c'est la santé",
+          "dofusdbId": 611,
+          "level": 190,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -65,
+            "y": -67,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Carte secrète des crocs de verre.",
+            "Trouver un moyen d'ouvrir les grilles",
+            "Montrer à {npc,1381} : 1 {item,11876}",
+            "Ramener à {npc,1381} : x1 {item,11876}",
+            "Ramener à {npc,1381} : x25 {item,11196}"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "La terre banquise",
+          "dofusdbId": 612,
+          "level": 100,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -46,
+            "y": -25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1236}"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 611
+            }
+          ]
+        },
+        {
+          "name": "La maire de glace",
+          "dofusdbId": 613,
+          "level": 100,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -77,
+            "y": -42,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1237}"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 612
+            }
+          ]
+        },
+        {
+          "name": "Full contact",
+          "dofusdbId": 614,
+          "level": 100,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -85,
+            "y": -36,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1243}",
+            "Aller voir {npc,1242}",
+            "Aller voir {npc,1244}",
+            "Aller voir {npc,1245}",
+            "Aller voir {npc,1246}",
+            "Aller voir {npc,1247}",
+            "Aller voir {npc,1248}",
+            "Aller voir {npc,1249}",
+            "Aller voir {npc,1250}",
+            "Aller voir {npc,1251}",
+            "Aller voir {npc,1252}",
+            "Aller voir {npc,1253}",
+            "Aller voir {npc,1254}",
+            "Aller voir {npc,1255}",
+            "Aller voir {npc,1256}",
+            "Aller voir {npc,1257}",
+            "Aller voir {npc,1258}",
+            "Aller voir {npc,1259}",
+            "Aller voir {npc,1260}",
+            "Aller voir {npc,1261}",
+            "Aller voir {npc,1262}",
+            "Aller voir {npc,1263}",
+            "Aller voir {npc,1237}"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 613
+            }
+          ]
+        },
+        {
+          "name": "Les monologues du vaccin",
+          "dofusdbId": 615,
+          "level": 100,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -80,
+            "y": -45,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à {npc,1251} : x6 {item,11201}",
+            "Aller voir {npc,1243}",
+            "Aller voir {npc,1260}",
+            "Rendez-vous à la taverne du Paradis frigostien à la tranche horaire prévue",
+            "Ramener à {npc,1243} : x1 {item,11203}",
+            "Ramener à {npc,1251} : x1 {item,11202}",
+            "Ramener à {npc,1251} : x1 {item,11204}"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 614
+            }
+          ]
+        },
+        {
+          "name": "Faire le tas de pins",
+          "dofusdbId": 616,
+          "level": 120,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -76,
+            "y": -33,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à {npc,1242} : x1 {item,11259}",
+            "Aller voir {npc,1298}",
+            "Ramener à {npc,1298} : x1 {item,11258}"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 615
+            }
+          ]
+        },
+        {
+          "name": "Scierie Bambelle",
+          "dofusdbId": 617,
+          "level": 120,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -75,
+            "y": -38,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 147,
+              "name": "Marteau de Boisaille",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/7001.png"
+            },
+            {
+              "id": 397,
+              "name": "Huile de Koode",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/60069.png"
+            },
+            {
+              "id": 1526,
+              "name": "Métaria rouge",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/66241.png"
+            },
+            {
+              "id": 749,
+              "name": "Bakélélite",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/40487.png"
+            },
+            {
+              "id": 7035,
+              "name": "Pyrute",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/40708.png"
+            },
+            {
+              "id": 460,
+              "name": "Bois de Chêne",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/38092.png"
+            },
+            {
+              "id": 11107,
+              "name": "Bois de Tremble",
+              "amount": 35,
+              "img": "https://api.dofusdb.fr/img/items/38677.png"
+            },
+            {
+              "id": 11568,
+              "name": "Pizza au boudin de boufmouth",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/24107.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1291}",
+            "Ramener à {npc,1297} : x1 {item,147}",
+            "Ramener à {npc,1297} : x4 {item,397}",
+            "Ramener à {npc,1297} : x4 {item,1526}",
+            "Ramener à {npc,1297} : x5 {item,749}",
+            "Ramener à {npc,1297} : x5 {item,7035}",
+            "Ramener à {npc,1297} : x20 {item,460}",
+            "Ramener à {npc,1297} : x35 {item,11107}",
+            "Ramener à {npc,1297} : x5 {item,11568}",
+            "Duper Hugo Frais",
+            "Fouiller la Tour des archives à la recherche des plans",
+            "Entourlouper Valy Domidat",
+            "Fouiller l'atelier des bricoleurs à la recherche des plans",
+            "Ramener à {npc,1297} : x1 {item,11570}",
+            "Modifier les réglages de la tuyauterie",
+            "Aller voir {npc,1297}"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 616
+            }
+          ]
+        },
+        {
+          "name": "Semer ses graines",
+          "dofusdbId": 618,
+          "level": 120,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -70,
+            "y": -48,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Découvrir la carte : Forêt des pins perdus.",
+            "Planter une graine",
+            "Aller voir {npc,1299}"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 617
+            }
+          ]
+        },
+        {
+          "name": "Antiroyaliste",
+          "dofusdbId": 619,
+          "level": 120,
+          "zone": "Serre du Royalmouth - Sixième salle",
+          "npcName": null,
+          "npcSubArea": "Serre du Royalmouth - Sixième salle",
+          "coords": {
+            "x": -82,
+            "y": -48,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 54,
+              "name": "Serre du Royalmouth"
+            }
+          ],
+          "objectives": [
+            "Découvrir la carte : Serre du Royalmouth.",
+            "Vaincre x1 {monster,2854} en un seul combat",
+            "Ramener à {npc,1285} : x1 {item,11182}"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 618
+            }
+          ]
+        },
+        {
+          "name": "Les joyeux de la couronne",
+          "dofusdbId": 620,
+          "level": 140,
+          "zone": "Excavation du Mansot Royal - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Excavation du Mansot Royal - Cinquième salle",
+          "coords": {
+            "x": -64,
+            "y": -55,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 55,
+              "name": "Excavation du Mansot Royal"
+            }
+          ],
+          "objectives": [
+            "Découvrir la carte : Caverne du Mansot Royal.",
+            "Vaincre x1 {monster,2848} en un seul combat",
+            "Ramener à {npc,1300} : x1 {item,11183}"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 619
+            }
+          ]
+        },
+        {
+          "name": "Fais dodo, t'auras du gâteau",
+          "dofusdbId": 621,
+          "level": 150,
+          "zone": "Épave du Grolandais violent - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Épave du Grolandais violent - Cinquième salle",
+          "coords": {
+            "x": -60,
+            "y": -84,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 56,
+              "name": "Épave du Grolandais violent"
+            }
+          ],
+          "objectives": [
+            "Découvrir la carte : Epave du Grolandais violent.",
+            "Vaincre x1 {monster,2877} en un seul combat",
+            "Ramener à {npc,1357} : x1 {item,11184}"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 620
+            }
+          ]
+        },
+        {
+          "name": "Lavomatique",
+          "dofusdbId": 622,
+          "level": 160,
+          "zone": "Hypogée de l'Obsidiantre - Sixième salle",
+          "npcName": null,
+          "npcSubArea": "Hypogée de l'Obsidiantre - Sixième salle",
+          "coords": {
+            "x": -72,
+            "y": -83,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 57,
+              "name": "Hypogée de l'Obsidiantre"
+            }
+          ],
+          "objectives": [
+            "Découvrir la carte : Hypogée de l'Obsidiantre.",
+            "Vaincre x1 {monster,2924} en un seul combat",
+            "Ramener à {npc,1358} : x1 {item,11185}"
+          ],
+          "stepOrder": 11,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 621
+            }
+          ]
+        },
+        {
+          "name": "C'est frais, mais c'est pas grave",
+          "dofusdbId": 623,
+          "level": 170,
+          "zone": "Tanière Givrefoux - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Tanière Givrefoux - Cinquième salle",
+          "coords": {
+            "x": -75,
+            "y": -75,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 58,
+              "name": "Tanière Givrefoux"
+            }
+          ],
+          "objectives": [
+            "Découvrir la carte : Tanière Givrefoux",
+            "Vaincre x1 {monster,2967} en un seul combat",
+            "Découvrir la carte : Vers la forêt pétrifiée."
+          ],
+          "stepOrder": 12,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 622
+            }
+          ]
+        },
+        {
+          "name": "Sans ma barbe, quelle barbe",
+          "dofusdbId": 624,
+          "level": 180,
+          "zone": "Antre du Korriandre - Cinquième salle",
+          "npcName": null,
+          "npcSubArea": "Antre du Korriandre - Cinquième salle",
+          "coords": {
+            "x": -73,
+            "y": -69,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 59,
+              "name": "Antre du Korriandre"
+            }
+          ],
+          "objectives": [
+            "Découvrir la carte : Antre du Korriandre.",
+            "Vaincre x1 {monster,2968} en un seul combat",
+            "Découvrir la carte : Sortie de l'Antre du Korriandre."
+          ],
+          "stepOrder": 13,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 623
+            }
+          ]
+        },
+        {
+          "name": "Épis d'Emi",
+          "dofusdbId": 631,
+          "level": 120,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -84,
+            "y": -42,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à {npc,1321} : x1 {item,11367}",
+            "Ramener à {npc,1322} : x1 {item,11367}",
+            "Ramener à {npc,1320} : x1 {item,11367}",
+            "Ramener à {npc,1272} : x1 {item,11367}",
+            "Ramener à {npc,1240} : x1 {item,11367}",
+            "Ramener à {npc,1297} : x1 {item,11367}",
+            "Ramener à {npc,1317} : x1 {item,11367}",
+            "Aller voir {npc,1251}"
+          ],
+          "stepOrder": 14,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 624
+            }
+          ]
+        },
+        {
+          "name": "Convoi humanitaire",
+          "dofusdbId": 632,
+          "level": 170,
+          "zone": "Temple Osamodas",
+          "npcName": null,
+          "npcSubArea": "Temple Osamodas",
+          "coords": {
+            "x": -80,
+            "y": -45,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 17185,
+              "name": "Poêlée Paysanne",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/69804.png"
+            },
+            {
+              "id": 17189,
+              "name": "Grillade Brâkmarienne",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/69785.png"
+            },
+            {
+              "id": 17191,
+              "name": "Marinade Sucrée-Salée",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/69789.png"
+            },
+            {
+              "id": 17193,
+              "name": "Boudin Noir",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/69809.png"
+            },
+            {
+              "id": 17199,
+              "name": "Filet Mignon",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/69733.png"
+            },
+            {
+              "id": 11505,
+              "name": "Potion Torboyo",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/12720.png"
+            },
+            {
+              "id": 11510,
+              "name": "Poisskaille en Fricassée",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/49136.png"
+            },
+            {
+              "id": 11503,
+              "name": "Pain de Frostiz",
+              "amount": 30,
+              "img": "https://api.dofusdb.fr/img/items/33072.png"
+            },
+            {
+              "id": 11339,
+              "name": "Laine de Yokaï Givrefoux",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/57658.png"
+            },
+            {
+              "id": 11338,
+              "name": "Laine de Maho Givrefoux",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/57657.png"
+            },
+            {
+              "id": 2331,
+              "name": "Aubergine",
+              "amount": 50,
+              "img": "https://api.dofusdb.fr/img/items/46472.png"
+            },
+            {
+              "id": 484,
+              "name": "Pelle Teuze",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/8008.png"
+            },
+            {
+              "id": 153,
+              "name": "Pelle de Boisaille",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/8001.png"
+            },
+            {
+              "id": 147,
+              "name": "Marteau de Boisaille",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/7001.png"
+            },
+            {
+              "id": 16499,
+              "name": "Planche de Salut",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/95023.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 10,
+              "name": "Clairière du Chêne Mou"
+            }
+          ],
+          "objectives": [
+            "Ramener à {npc,1251} : x10 {item,17185}",
+            "Ramener à {npc,1251} : x10 {item,17189}",
+            "Ramener à {npc,1251} : x10 {item,17191}",
+            "Ramener à {npc,1251} : x10 {item,17193}",
+            "Ramener à {npc,1251} : x10 {item,17199}",
+            "Ramener à {npc,1251} : x10 {item,11505}",
+            "Ramener à {npc,1251} : x10 {item,11510}",
+            "Ramener à {npc,1251} : x30 {item,11503}",
+            "Ramener à {npc,1251} : x10 {item,11339}",
+            "Ramener à {npc,1251} : x10 {item,11338}",
+            "Ramener à {npc,1251} : x50 {item,2331}",
+            "Aller voir {npc,1245}",
+            "Montrer à {npc,1251} : 1 {item,11680}",
+            "Ramener à {npc,1251} : x10 {item,484}",
+            "Ramener à {npc,1251} : x10 {item,153}",
+            "Ramener à {npc,1251} : x10 {item,147}",
+            "Aller voir {npc,1290}",
+            "Ramener à {npc,1290} : x5 {item,16499}",
+            "Ramener à {npc,1251} : x5 {item,11679}",
+            "Aller voir {npc,1260}",
+            "Aller voir {npc,42}",
+            "Aller voir {npc,4326}",
+            "Aller voir {npc,4345}",
+            "Ramener à {npc,4345} : x1 {item,11682}",
+            "Ramener à {npc,4345} : x1 {item,11683}",
+            "Ramener à {npc,1251} : x10 {item,11681}",
+            "Aller voir {npc,1261}",
+            "Ramener à {npc,1251} : x2 {item,11684}",
+            "Ramener à {npc,1373} : x5 {item,11685}",
+            "Aller voir {npc,1251}"
+          ],
+          "stepOrder": 15,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 631
+            }
+          ]
+        },
+        {
+          "name": "Sang dessus-dessous",
+          "dofusdbId": 633,
+          "level": 180,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -58,
+            "y": -55,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Chercher des corps prisonniers de la glace dans la forêt des pins perdus",
+            "Chercher des corps prisonniers de la glace dans la forêt pétrifiée",
+            "Continuer à chercher des corps prisonniers de la glace dans la forêt pétrifiée",
+            "Chercher d'autres corps prisonniers de la glace dans la forêt pétrifiée",
+            "Ramener à {npc,1251} : x4 {item,11793}"
+          ],
+          "stepOrder": 16,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 632
+            }
+          ]
+        },
+        {
+          "name": "Groméo et Ginette",
+          "dofusdbId": 634,
+          "level": 130,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -85,
+            "y": -36,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 34276,
+              "name": "Kaniglou Apprivoisé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/32154.png"
+            },
+            {
+              "id": 11102,
+              "name": "Perce-Neige",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/35635.png"
+            },
+            {
+              "id": 1324,
+              "name": "Herbe à chacha",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/36046.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1243}",
+            "Parler aux marins du port",
+            "Aller voir {npc,1351}",
+            "Aller voir {npc,1260}",
+            "Ramener à {npc,1260} : x1 {item,34276}",
+            "Aller voir {npc,1251}",
+            "Ramener à {npc,1260} : x1 {item,11406}",
+            "Ramener à {npc,1260} : x1 {item,11407}",
+            "Ramener à {npc,1260} : x2 {item,11102}",
+            "Ramener à {npc,1260} : x1 {item,1324}",
+            "Aller voir {npc,4348}",
+            "Aller voir {npc,1352}",
+            "Découvrir la carte : Rendez-vous avec Groméo et Ginette.",
+            "Aller voir {npc,1350}",
+            "Consulter les archives de la bibliothèque",
+            "Aller voir {npc,1353}",
+            "Aller voir {npc,1354}",
+            "Dérober les clefs à Gemfé Labelle",
+            "Délivrer Heike Holo",
+            "Découvrir la carte : Bateau pour l'île des Wabbits",
+            "Découvrir la carte : Traces de Ginette.",
+            "Découvrir la carte : Environs du lieu de disparition.",
+            "Vaincre x1 {monster,2928} en un seul combat",
+            "Parler à Groméo Montay et Ginette Capoué"
+          ],
+          "stepOrder": 17,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 633
+            }
+          ]
+        },
+        {
+          "name": "Une blague vaseuse ?",
+          "dofusdbId": 635,
+          "level": 160,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -77,
+            "y": -42,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Aller voir {npc,1246}",
+            "Aller voir {npc,1290}",
+            "Aller voir {npc,1249}",
+            "Aller voir {npc,1324}",
+            "Escorter Gaston jusqu'à Larry Tutthe.",
+            "Aller voir {npc,1323}",
+            "Inspecter l'extracteur",
+            "Ramener à {npc,1323} : x1 {item,11388}"
+          ],
+          "stepOrder": 18,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 634
+            }
+          ]
+        },
+        {
+          "name": "Blessure de chasse",
+          "dofusdbId": 636,
+          "level": 120,
+          "zone": "Zones Frigost I",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -80,
+            "y": -45,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Escorter le chasseur blessé jusqu'à Albert Paisse."
+          ],
+          "stepOrder": 19,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 635
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Frigost II : Halte au péage",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Zones Frigost II",
+      "description": "L'essentiel des quêtes de Frigost II.",
+      "isSynergyCandidate": false,
+      "chainOrder": 3,
+      "requires": [],
+      "entries": [
+        {
+          "name": "Fight club",
+          "dofusdbId": 656,
+          "level": 200,
+          "zone": "Zones Frigost II",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -77,
+            "y": -38,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Gagner le combat et parler à Chuck 'Niouke' Pala"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
         {
           "name": "Barnabé dans l'espace",
           "dofusdbId": 657,
@@ -365,15 +1333,20 @@
             "Délivrer Barnabé",
             "Ramener à {npc,1367} : x1 {item,11566}"
           ],
-          "stepOrder": 0,
+          "stepOrder": 1,
           "isSynergyCandidate": false,
-          "requirements": []
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 656
+            }
+          ]
         },
         {
           "name": "Premier postage",
           "dofusdbId": 658,
           "level": 160,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -387,7 +1360,7 @@
           "objectives": [
             "Ramener à {npc,1259} : x1 {item,11542}"
           ],
-          "stepOrder": 1,
+          "stepOrder": 2,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -400,17 +1373,21 @@
           "name": "Deuxième postage",
           "dofusdbId": 659,
           "level": 163,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -77,
+            "y": -38,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
           "objectives": [
             "Ramener à {npc,1254} : x1 {item,11542}"
           ],
-          "stepOrder": 2,
+          "stepOrder": 3,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -423,7 +1400,7 @@
           "name": "Troisième postage",
           "dofusdbId": 660,
           "level": 166,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -437,7 +1414,7 @@
           "objectives": [
             "Ramener à {npc,1241} : x1 {item,11542}"
           ],
-          "stepOrder": 3,
+          "stepOrder": 4,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -450,17 +1427,21 @@
           "name": "Quatrième postage",
           "dofusdbId": 661,
           "level": 169,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -85,
+            "y": -36,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
           "objectives": [
             "Ramener à {npc,1243} : x1 {item,11542}"
           ],
-          "stepOrder": 4,
+          "stepOrder": 5,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -473,17 +1454,21 @@
           "name": "Cinquième postage",
           "dofusdbId": 662,
           "level": 172,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -81,
+            "y": -41,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
           "objectives": [
             "Ramener à {npc,1263} : x1 {item,11542}"
           ],
-          "stepOrder": 5,
+          "stepOrder": 6,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -496,7 +1481,7 @@
           "name": "Sixième postage",
           "dofusdbId": 663,
           "level": 175,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -510,7 +1495,7 @@
           "objectives": [
             "Ramener à {npc,1279} : x1 {item,11542}"
           ],
-          "stepOrder": 6,
+          "stepOrder": 7,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -523,7 +1508,7 @@
           "name": "Septième postage",
           "dofusdbId": 664,
           "level": 178,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -537,7 +1522,7 @@
           "objectives": [
             "Ramener à {npc,1323} : x1 {item,11542}"
           ],
-          "stepOrder": 7,
+          "stepOrder": 8,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -550,17 +1535,21 @@
           "name": "Huitième postage",
           "dofusdbId": 665,
           "level": 181,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -77,
+            "y": -44,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
           "objectives": [
             "Ramener à {npc,1257} : x1 {item,11542}"
           ],
-          "stepOrder": 8,
+          "stepOrder": 9,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -573,17 +1562,21 @@
           "name": "Neuvième postage",
           "dofusdbId": 666,
           "level": 184,
-          "zone": "Champs de Glace",
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -82,
+            "y": -42,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
           "objectives": [
             "Ramener à {npc,1245} : x1 {item,11542}"
           ],
-          "stepOrder": 9,
+          "stepOrder": 10,
           "isSynergyCandidate": false,
           "requirements": [
             {
@@ -591,172 +1584,70 @@
               "dofusdbId": 665
             }
           ]
-        }
-      ]
-    },
-    {
-      "sectionName": "Frigostine & Berceau d'Alma",
-      "sectionType": "MAIN_CHAIN",
-      "zone": "Berceau d'Alma",
-      "description": null,
-      "isSynergyCandidate": false,
-      "chainOrder": 3,
-      "requires": [],
-      "entries": [
+        },
         {
-          "name": "L'abominable YeCh'Ti",
-          "dofusdbId": 641,
-          "level": 170,
-          "zone": "Berceau d'Alma",
+          "name": "Dixième postage",
+          "dofusdbId": 667,
+          "level": 187,
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": -80,
-            "y": -81,
+            "y": -45,
             "worldId": 1
           },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
           "objectives": [
-            "Ramener à {npc,1328} : x5 {item,11385}"
+            "Ramener à {npc,1251} : x1 {item,11542}"
           ],
-          "stepOrder": 0,
-          "isSynergyCandidate": false,
-          "requirements": []
-        },
-        {
-          "name": "Star ski et Dutch",
-          "dofusdbId": 646,
-          "level": 130,
-          "zone": "Berceau d'Alma",
-          "npcName": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 16493,
-              "name": "Planche à Repasser",
-              "amount": 2,
-              "img": "https://api.dofusdb.fr/img/items/95006.png"
-            },
-            {
-              "id": 16499,
-              "name": "Planche de Salut",
-              "amount": 2,
-              "img": "https://api.dofusdb.fr/img/items/95023.png"
-            },
-            {
-              "id": 16497,
-              "name": "Planche à Pain",
-              "amount": 2,
-              "img": "https://api.dofusdb.fr/img/items/95022.png"
-            },
-            {
-              "id": 16495,
-              "name": "Planche à Pâtisserie",
-              "amount": 2,
-              "img": "https://api.dofusdb.fr/img/items/95009.png"
-            }
-          ],
-          "dungeonsRequired": [],
-          "objectives": [
-            "Ramener à {npc,1250} : x2 {item,16493}",
-            "Ramener à {npc,1250} : x2 {item,16499}",
-            "Ramener à {npc,1250} : x2 {item,16497}",
-            "Ramener à {npc,1250} : x2 {item,16495}",
-            "Aller voir {npc,1250}",
-            "Aller voir {npc,1291}",
-            "Ramener à {npc,1250} : x1 {item,11460}",
-            "Ramener à {npc,1250} : x1 {item,11458}",
-            "Ramener à {npc,1250} : x1 {item,11459}",
-            "Trouver un cordonnier",
-            "Vendre les skis rustiques",
-            "Vendre les skis glissants",
-            "Vendre les skis sombres",
-            "Vendre les skis souples"
-          ],
-          "stepOrder": 1,
+          "stepOrder": 11,
           "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 641
+              "dofusdbId": 666
             }
           ]
         },
         {
-          "name": "Bonmonstres de neige",
-          "dofusdbId": 642,
-          "level": 170,
-          "zone": "Berceau d'Alma",
+          "name": "Onzième postage",
+          "dofusdbId": 668,
+          "level": 190,
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
-            "x": -81,
-            "y": -78,
+            "x": -75,
+            "y": -74,
             "worldId": 1
           },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
           "objectives": [
-            "Évaluer les bonmonstres de Sufur et Elcaste",
-            "Évaluer le bonmonstre de Nico",
-            "Évaluer le bonmonstre de Joe Froid",
-            "Évaluer le bonmonstre de Jojo Akim",
-            "Évaluer le bonmonstre de Klétor",
-            "Aller voir {npc,1331}"
+            "Ramener à {npc,1281} : x1 {item,11542}"
           ],
-          "stepOrder": 2,
+          "stepOrder": 12,
           "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 646
+              "dofusdbId": 667
             }
           ]
         },
         {
-          "name": "Manque de re-peau",
-          "dofusdbId": 643,
-          "level": 100,
-          "zone": "Berceau d'Alma",
+          "name": "Douzième postage",
+          "dofusdbId": 669,
+          "level": 193,
+          "zone": "Zones Frigost II",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
-            "x": -67,
-            "y": -43,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "dungeonsRequired": [],
-          "objectives": [
-            "Aller voir {npc,1348}",
-            "Aller voir {npc,1337}",
-            "Se rendre au quartier ouest de la bourgade de Frigost à partir de 19h00",
-            "Aller voir {npc,1237}"
-          ],
-          "stepOrder": 3,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 642
-            }
-          ]
-        },
-        {
-          "name": "Le convoi, le sage aussi",
-          "dofusdbId": 644,
-          "level": 170,
-          "zone": "Berceau d'Alma",
-          "npcName": null,
-          "npcSubArea": null,
-          "coords": {
-            "x": -81,
+            "x": -75,
             "y": -75,
             "worldId": 1
           },
@@ -764,25 +1655,51 @@
           "itemsRequired": [],
           "dungeonsRequired": [],
           "objectives": [
-            "Combattre les givrefoux",
-            "Aller voir {npc,1339}"
+            "Ramener à {npc,1371} : x1 {item,11542}"
           ],
-          "stepOrder": 4,
+          "stepOrder": 13,
           "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 643
+              "dofusdbId": 668
+            }
+          ]
+        },
+        {
+          "name": "Treizième postage",
+          "dofusdbId": 670,
+          "level": 196,
+          "zone": "Zones Frigost II",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -77,
+            "y": -72,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Ramener à {npc,1377} : x1 {item,11542}"
+          ],
+          "stepOrder": 14,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 669
             }
           ]
         }
       ]
     },
     {
-      "sectionName": "Château du Comte : L'hiver arrive",
+      "sectionName": "Frigost III : L'hiver arrive",
       "sectionType": "MAIN_CHAIN",
-      "zone": "Château du Comte",
-      "description": null,
+      "zone": "Zones Frigost III",
+      "description": "Quêtes liées au Château du Comte Harebourg.",
       "isSynergyCandidate": false,
       "chainOrder": 4,
       "requires": [],
@@ -791,7 +1708,7 @@
           "name": "Les rescapés du Village Enseveli",
           "dofusdbId": 1330,
           "level": 190,
-          "zone": "Château du Comte",
+          "zone": "Zones Frigost III",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -815,7 +1732,7 @@
           "name": "Les derniers rescapés",
           "dofusdbId": 1325,
           "level": 200,
-          "zone": "Château du Comte",
+          "zone": "Zones Frigost III",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -852,7 +1769,7 @@
           "name": "La vie de château",
           "dofusdbId": 1334,
           "level": 200,
-          "zone": "Château du Comte",
+          "zone": "Zones Frigost III",
           "npcName": null,
           "npcSubArea": null,
           "coords": null,
@@ -879,12 +1796,12 @@
           "name": "La machine à démonter le temps",
           "dofusdbId": 1333,
           "level": 200,
-          "zone": "Château du Comte",
+          "zone": "Zones Frigost III",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
-            "x": 2,
-            "y": 1,
+            "x": 20,
+            "y": 25,
             "worldId": 1
           },
           "isDungeon": true,
@@ -1009,10 +1926,10 @@
       ]
     },
     {
-      "sectionName": "Final : L'âme de glace",
+      "sectionName": "Frigost III : L'âme de glace",
       "sectionType": "MAIN_CHAIN",
-      "zone": "Château du Comte",
-      "description": null,
+      "zone": "Château de Harebourg",
+      "description": "Finalisation du Château et des quêtes du Comte.",
       "isSynergyCandidate": false,
       "chainOrder": 5,
       "requires": [],
@@ -1021,7 +1938,7 @@
           "name": "La destinée",
           "dofusdbId": 710,
           "level": 50,
-          "zone": "Château du Comte",
+          "zone": "Château de Harebourg",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -1048,7 +1965,7 @@
           "name": "La fatalité",
           "dofusdbId": 711,
           "level": 50,
-          "zone": "Château du Comte",
+          "zone": "Château de Harebourg",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -1080,7 +1997,7 @@
           "name": "La rivalité",
           "dofusdbId": 1316,
           "level": 50,
-          "zone": "Château du Comte",
+          "zone": "Château de Harebourg",
           "npcName": null,
           "npcSubArea": null,
           "coords": {
@@ -1345,10 +2262,10 @@
       ]
     },
     {
-      "sectionName": "Reconnaissance : Fraîchement pondu",
+      "sectionName": "Le Dofus des Glaces (Final)",
       "sectionType": "MAIN_CHAIN",
-      "zone": "Château du Comte",
-      "description": null,
+      "zone": "Donjon Harebourg",
+      "description": "Affronter le Comte et obtenir le Dofus.",
       "isSynergyCandidate": false,
       "chainOrder": 6,
       "requires": [],
@@ -1357,7 +2274,7 @@
           "name": "Le Dofus des Glaces",
           "dofusdbId": 1329,
           "level": 200,
-          "zone": "Château du Comte",
+          "zone": "Donjon Harebourg",
           "npcName": null,
           "npcSubArea": null,
           "coords": null,

@@ -1,33 +1,20 @@
 {
   "slug": "dolmanax",
   "displayName": "Dolmanax",
-  "color": "#1ABC9C",
+  "color": "#FFC300",
   "dofusItemId": 8774,
-  "successName": "Le Dolmanax",
-  "recommendedLevel": 170,
-  "successDescription": "Obtenir le Dolmanax.",
+  "successName": "L'année du dragon",
+  "recommendedLevel": 1,
+  "successDescription": "Collecter les 365 pages du calendrier de l'Almanax.",
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "Monde de Douze",
-      "description": "Conditions requises pour accéder aux quêtes du Dolmanax.",
-      "isPrerequisite": true,
-      "quests": [
-        "L'anneau de tous les dangers",
-        "Destination Astrub",
-        "On marche sur des œufs",
-        "Conseil de classe",
-        "Quête de classe"
-      ]
-    },
-    {
-      "name": "Le Dolmanax",
-      "zone": "Monde de Douze",
-      "description": "Quête ou drop pour obtenir le Dolmanax.",
+      "name": "Calendrier de l'Almanax",
+      "zone": "Le Sanctuaire de l'Almanax",
+      "description": "Quête de longue haleine demandant 365 offrandes quotidiennes.",
       "isPrerequisite": false,
       "isSynergyCandidate": false,
       "quests": [
-        "La quête du Dolmanax"
+        { "name": "L'année du dragon (365 pages)", "dofusdbId": 0 }
       ]
     }
   ]

@@ -1,28 +1,82 @@
 {
   "slug": "ivoire",
   "displayName": "Dofus Ivoire",
-  "color": "#F5F5DC",
+  "nameShort": "Ivoire",
+  "color": "#E6E6FA",
   "dofusItemId": 7115,
-  "successName": "Blanc d'ivoire",
+  "successName": "Blanc ivoire",
   "recommendedLevel": 200,
-  "successDescription": "Terminer la série des quêtes du Dofus Ivoire.",
+  "successDescription": "Terminer la série de quêtes du dragon blanc et obtenir le Dofus Ivoire.",
+  "globalItemsRequired": [
+    { "id": 1983, "name": "Graisse Gélatineuse", "amount": 50 },
+    { "id": 11109, "name": "Frostiz", "amount": 50 },
+    { "id": 11110, "name": "Obsidienne", "amount": 15 },
+    { "id": 11102, "name": "Perce-Neige", "amount": 15 },
+    { "id": 1334, "name": "Blague de Soufre", "amount": 20 },
+    { "id": 17979, "name": "Moustache de Rilur", "amount": 5 },
+    { "id": 13993, "name": "Pic du Nocturlabe", "amount": 1 },
+    { "id": 8367, "name": "Peau de Crocabulia", "amount": 1 },
+    { "id": 11310, "name": "Corde du Fancrôme", "amount": 1 }
+  ],
   "successes": [
     {
-      "name": "Blanc d'ivoire",
-      "zone": "Dimensions Divines / Monde des Douze",
+      "name": "Blanc ivoire",
+      "zone": "Monde des Douze",
       "quests": [
-        "Le dragon blanc",
-        "Examen de passage",
-        "Le pays gris",
-        "Casse en Enutrosor",
-        "Nordalie",
-        "Le bonheur est dans le spray",
-        "Une voix de cristal",
-        "La mort dans l'âme",
-        "L'espoir est dans le guerrier noir",
-        "Il est temps de mourir"
+        { 
+          "name": "Le dragon blanc", "id": 1905, 
+          "notes": "Prérequis : Quête 'La magicienne des marécages'"
+        },
+        { 
+          "name": "Examen de passage", "id": 1906, 
+          "notes": "Prérequis MAJEUR : Être d'Alignement niveau 100 et avoir la Quête d'Ordre de rang 5 validée."
+        },
+        { 
+          "name": "Le pays gris", "id": 1907, 
+          "npcName": "Mériana",
+          "coords": { "x": -6, "y": -3, "worldId": 1 },
+          "notes": "Prérequis : Accès Frigost 3 (avoir vaincu Nileza, Sylargh, Missiz Frizz, Klime)."
+        },
+        { 
+          "name": "Casse en Enutrosor", "id": 1908, 
+          "notes": "Prérequis : Quête 'Espionnage industriel' (Dimensions divines)."
+        },
+        { 
+          "name": "Nordalie", "id": 1909, 
+          "notes": "Prérequis : Quête 'La garde meurt mais ne se rend pas' (Sahachâ/Sidimote)."
+        },
+        { 
+          "name": "Le bonheur est dans le spray", "id": 1911, 
+          "notes": "Prérequis : Quête 'La chasse aux chasseurs' (Nimotopia).",
+          "dungeons": [
+            { "id": 95, "name": "Défi du Chalœil" },
+            { "id": 70, "name": "Laboratoire de Nileza" }
+          ]
+        },
+        { 
+          "name": "Une voix de crystal", "id": 1912, 
+          "notes": "Prérequis : Quête 'Son nom est Personne' (Srambad)."
+        },
+        { "name": "Le mort dans l'âme", "id": 1913 },
+        { 
+          "name": "Le guerrier noir", "id": 1914,
+          "dungeons": [
+             { "id": 106, "name": "Manoir des Katrepat" }
+          ] 
+        },
+        { 
+          "name": "Il est temps de mourir", "id": 1915,
+          "dungeons": [
+             { "id": 84, "name": "Ventre de la Baleine" },
+             { "id": 76, "name": "Palais du roi Nidas" },
+             { "id": 103, "name": "Chambre de Tal Kasha" },
+             { "id": 97, "name": "Vaisseau du Capitaine Meno" },
+             { "id": 67, "name": "Transporteur de Sylargh" }
+          ]
+        }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23011.png"
+  "imageUrl": "https://api.dofusdb.fr/img/items/7115.png",
+  "iconId": 7115
 }

@@ -19,6 +19,8 @@ export type MemberReconciliationData = {
     hasDashboardProfile: boolean;
     profileId?: string;
     ankamaId?: string | null;
+    discordMessageCountWeekly?: number;
+    discordVoiceTimeWeekly?: number;
 };
 
 export type RoleStats = {
@@ -61,6 +63,8 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
                     userId: true, 
                     id: true, 
                     ankamaId: true,
+                    discordMessageCountWeekly: true,
+                    discordVoiceTimeWeekly: true,
                     user: { 
                         select: { 
                             accounts: { 
@@ -82,10 +86,15 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
         );
 
         // Map profiles by Discord ID
-        const profileByDiscordId = new Map<string, { id: string, ankamaId?: string | null }>();
+        const profileByDiscordId = new Map<string, { id: string, ankamaId?: string | null, discordMessageCountWeekly: number, discordVoiceTimeWeekly: number }>();
         dbProfiles.forEach(p => {
             const discordId = p.user.accounts[0]?.providerAccountId;
-            if (discordId) profileByDiscordId.set(discordId, { id: p.id, ankamaId: p.ankamaId });
+            if (discordId) profileByDiscordId.set(discordId, { 
+                id: p.id, 
+                ankamaId: p.ankamaId,
+                discordMessageCountWeekly: p.discordMessageCountWeekly || 0,
+                discordVoiceTimeWeekly: p.discordVoiceTimeWeekly || 0
+            });
         });
 
         const reconciliation: MemberReconciliationData[] = discordMembers
@@ -100,7 +109,9 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
                 isBot: !!m.user.bot,
                 hasDashboardProfile: profileByDiscordId.has(m.user.id),
                 profileId: profileByDiscordId.get(m.user.id)?.id,
-                ankamaId: profileByDiscordId.get(m.user.id)?.ankamaId
+                ankamaId: profileByDiscordId.get(m.user.id)?.ankamaId,
+                discordMessageCountWeekly: profileByDiscordId.get(m.user.id)?.discordMessageCountWeekly || 0,
+                discordVoiceTimeWeekly: profileByDiscordId.get(m.user.id)?.discordVoiceTimeWeekly || 0
             }));
 
         // Calculate Stats

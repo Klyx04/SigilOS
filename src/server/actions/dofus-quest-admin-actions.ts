@@ -65,6 +65,8 @@ const EntrySchema = z.object({
     }).optional().nullable(),
     requirements: z.any().optional(),
     notes: z.string().optional().nullable(),
+    externalRef: z.string().optional().nullable(),
+    dungeonsRequired: z.any().optional().nullable(),
 });
 
 // --- Actions ---
@@ -268,20 +270,86 @@ export async function compileDofusChain(slug: string): Promise<ActionResponse<{ 
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
-        // V3 compiler: extracts items, dungeons, NPCs, coords from DofusDB API
-        const { stdout: compileOut, stderr } = await execAsync(
+        // 1. Compile
+        const { stdout: compileOut } = await execAsync(
             `npx tsx scripts/dofus-compiler-v3.ts --dofus=${slug}`,
             { cwd: process.cwd() }
         );
-        if (stderr && stderr.length > 0) {
-            console.warn(`[compileDofusChain] stderr for ${slug}:`, stderr.slice(0, 500));
-        }
         
+        // 2. Seed
+        const { stdout: seedOut } = await execAsync(
+            `npx tsx scripts/seed-argent-tree.ts --dofus=${slug}`,
+            { cwd: process.cwd() }
+        );
+
         revalidatePath("/god/quetes-dofus");
         revalidatePath(`/dashboard`);
-        return { success: true, data: { log: compileOut || "Compilation V3 terminée ✅" } };
+        return { success: true, data: { log: `${compileOut}\n\n${seedOut}` } };
     } catch (error: any) {
         console.error("[compileDofusChain] Error:", error);
-        return { success: false, error: "Erreur compilation V3: " + (error?.message || "Inconnue") };
+        return { success: false, error: "Erreur sync: " + (error?.message || "Inconnue") };
     }
 }
+
+export async function compileAllDofus(): Promise<ActionResponse<{ log: string }>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const { stdout: compileOut } = await execAsync(
+            `npx tsx scripts/dofus-compiler-v3.ts --all`,
+            { cwd: process.cwd() }
+        );
+        
+        revalidatePath("/god/quetes-dofus");
+        return { success: true, data: { log: compileOut || "Compilation globale terminée ✅" } };
+    } catch (error: any) {
+        console.error("[compileAllDofus] Error:", error);
+        return { success: false, error: "Erreur globale: " + (error?.message || "Inconnue") };
+    }
+}
+
+
+
+export async function getDofusHealthReport(): Promise<ActionResponse<any[]>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const dofusItems = await (db as any).dofusItem.findMany({
+            include: {
+                _count: {
+                    select: { questChains: true }
+                },
+                questChains: {
+                    include: {
+                        _count: {
+                            select: { entries: true }
+                        }
+                    }
+                }
+            }
+        });
+
+        const report = dofusItems.map((d: any) => {
+            const totalQuests = d.questChains.reduce((acc: number, chain: any) => acc + chain._count.entries, 0);
+            const isImageBroken = d.imageUrl?.includes("api.dofusdb.fr") || !d.imageUrl;
+            
+            return {
+                id: d.id,
+                name: d.name,
+                slug: d.slug,
+                chainsCount: d._count.questChains,
+                totalQuests,
+                imageUrl: d.imageUrl,
+                status: totalQuests === 0 ? "EMPTY" : (isImageBroken ? "CRITICAL" : "OK")
+            };
+        });
+
+        return { success: true, data: report };
+    } catch (error) {
+        console.error("[getDofusHealthReport] Error:", error);
+        return { success: false, error: "Erreur lors du rapport de santé" };
+    }
+}
+

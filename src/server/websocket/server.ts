@@ -8,6 +8,7 @@ import { SkribblManager } from "../games/SigilSkribbl/SkribblManager";
 import { GeoguesserManager } from "../games/SigilGuesser/GeoguesserManager";
 import { WorldMapService } from "../games/SigilGuesser/WorldMapService";
 import { SigilKingManager } from "../games/SigilKing/SigilKingManager";
+import { BombManager } from "../games/SigilBomb/BombManager";
 
 const logger = console; // Bypass structured logger for local debugging
 
@@ -58,6 +59,7 @@ const garticManager = new GarticGameManager(io);
 const skribblManager = new SkribblManager(io);
 const geoguesserManager = new GeoguesserManager(io);
 const sigilKingManager = new SigilKingManager(io);
+const bombManager = new BombManager(io);
 
 // [New] Broadcast Ocre Trade & DJ Finder Updates from Redis
 subClient.subscribe("ocre:trade:update", "dj:finder:update", (err) => {
@@ -109,6 +111,10 @@ io.on("connection", (socket: Socket) => {
     logger.info(`[WS] Initialisation SigilKing pour ${socket.id}`);
     sigilKingManager.registerSocket(socket);
 
+    // === SIGIL BOMB ===
+    logger.info(`[WS] Initialisation SigilBomb pour ${socket.id}`);
+    bombManager.registerSocket(socket);
+
     // Gestion de la déconnexion
     socket.on("disconnect", (reason) => {
         logger.info(`[WS] 🔴 Client déconnecté: ${socket.id} (Raison: ${reason})`);
@@ -116,6 +122,7 @@ io.on("connection", (socket: Socket) => {
         skribblManager.handleDisconnect(socket, reason);
         geoguesserManager.handleDisconnect(socket, reason);
         sigilKingManager.handleDisconnect(socket, reason);
+        bombManager.handleDisconnect(socket);
     });
 });
 

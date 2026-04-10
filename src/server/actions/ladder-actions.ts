@@ -38,12 +38,116 @@ export type LadderResponse = {
     currentPage: number;
 };
 
-export type LadderType = "activity" | "seniority" | "success" | "contribution";
+export type LadderType = "activity" | "seniority" | "success" | "contribution" | "discord_messages" | "discord_voice";
 export type ActivityView = "weekly" | "monthly" | "alltime";
 
 // ============================================================================
 // LADDER QUERIES
 // ============================================================================
+
+/**
+ * Get Discord Presence Ladder (Voice Time or Message Count)
+ */
+export async function getPresenceLadder(
+    guildId: string,
+    metric: "messages" | "voice",
+    view: ActivityView = "weekly",
+    page: number = 1,
+    pageSize: number = 25
+): Promise<ActionResponse<LadderResponse>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const currentProfile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } }
+        });
+
+        const skip = (page - 1) * pageSize;
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const adminRoleNames = new Set(Object.entries(rolesMapping)
+            .filter(([_, perms]) => perms.includes("admin:access"))
+            .map(([rid, _]) => rid));
+
+        const cacheKey = `ladder:presence:${guildId}:${metric}:${view}`;
+        const allRankedData = await withCache(cacheKey, 60, async () => {
+            // Determine field name based on metric and view
+            let field: string;
+            if (metric === "messages") {
+                if (view === "weekly") field = "discordMessageCountWeekly";
+                else if (view === "monthly") field = "discordMessageCountMonthly";
+                else field = "discordMessageCountTotal";
+            } else {
+                if (view === "weekly") field = "discordVoiceTimeWeekly";
+                else if (view === "monthly") field = "discordVoiceTimeMonthly";
+                else field = "discordVoiceTimeTotal";
+            }
+
+            const activeProfiles = await db.userProfile.findMany({
+                where: { 
+                    guildId: guildConfig.id, 
+                    status: "ACTIVE",
+                    [field]: { gt: 0 } // Only show people with activity
+                },
+                select: {
+                    id: true,
+                    discordNickname: true,
+                    discordRoleColor: true,
+                    discordRoleName: true,
+                    discordJoinedAt: true,
+                    pseudoDofus: true,
+                    classe: true,
+                    vacationStart: true,
+                    vacationEnd: true,
+                    [field]: true,
+                    user: { select: { image: true } },
+                },
+                orderBy: {
+                    [field]: "desc"
+                }
+            });
+
+            const now = new Date();
+            return activeProfiles.map((p, idx) => {
+                const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
+                return {
+                    rank: idx + 1,
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: p.classe,
+                    value: (p as any)[field] || 0,
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
+                    isInVacation
+                };
+            });
+        });
+
+        const totalCount = allRankedData.length;
+        const paginatedData = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            ...item,
+            isCurrentUser: item.profileId === currentProfile?.id
+        }));
+
+        return {
+            success: true,
+            data: {
+                entries: paginatedData,
+                totalCount,
+                totalPages: Math.ceil(totalCount / pageSize),
+                currentPage: page
+            }
+        };
+    } catch (error) {
+        console.error("Presence Ladder Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
 
 /**
  * Get Activity Ladder (XP-based ranking)

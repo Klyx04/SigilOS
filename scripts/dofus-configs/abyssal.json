@@ -3,22 +3,94 @@
   "displayName": "Dofus Abyssal",
   "color": "#1E90FF",
   "dofusItemId": 17355,
-  "successName": "Quand l'Abîme vous sourit",
+  "successName": "Abysses",
   "recommendedLevel": 200,
+  "successDescription": "Obtenir le Dofus Abyssal en complétant le méta-succès « Abysses » composé de 7 séries de quêtes dans les profondeurs de Sufokia.",
   "successes": [
     {
-      "name": "Abysses de Sufokia",
+      "name": "Prerequis de Sufokia",
       "zone": "Sufokia / Abysses",
+      "isPrerequisite": true,
       "quests": [
-        "Demain, j'arête",
-        "Le vieux gob et la mer",
-        "L'effet Paula Rice",
-        "Fhtagn !",
-        "Aux grands mots les grands remèdes",
-        "Quand les astres seront propices",
-        "Il suffira d'un signe"
+        { "name": "La pêche aux infos" },
+        { "name": "Le héros de Sufokia" }
+      ]
+    },
+    {
+      "name": "La mer en héritage",
+      "zone": "Abysses de Sufokia",
+      "quests": [
+        { "name": "Il y a de l'électricité dans l'eau" },
+        { "name": "Topo le petit robot" },
+        { "name": "Piège de crystal" },
+        { "name": "Son nom est Personne" },
+        { "name": "La clef de l'énigme" },
+        { "name": "Une porte vers le passé" }
+      ]
+    },
+    {
+      "name": "La guerre des profondeurs",
+      "zone": "Abysses de Sufokia",
+      "quests": [
+        { "name": "Reine de beauté" },
+        { "name": "Rançon nage" },
+        { "name": "Stratégie en Trithon Réel" },
+        { "name": "Sur fond de crise" },
+        { "name": "Risquer un œil" },
+        { "name": "La gueule de l'enfer" }
+      ]
+    },
+    {
+      "name": "L'appel de Koutoulou",
+      "zone": "Abysses de Sufokia",
+      "quests": [
+        { "name": "Celle qui glougloutait dans les ténèbres" },
+        { "name": "L'affaire Pollie Perkine" },
+        { "name": "Trop Pollie pour être honnête" },
+        { "name": "Quand les astres seront propices" },
+        { "name": "Il suffira d'un signe" },
+        { "name": "De mal en impie" }
+      ]
+    },
+    {
+      "name": "Vous ne descendrez pas plus bas",
+      "zone": "Abysses de Sufokia",
+      "quests": [
+        { "name": "Le vieux gob et la mer" },
+        { "name": "Demain, j'arête" },
+        { "name": "L'effet Paula Rice" },
+        { "name": "Fhtagn !" }
+      ]
+    },
+    {
+      "name": "Silence on coule",
+      "zone": "Abysses de Sufokia",
+      "quests": [
+        { "name": "Les sept Mercemers" },
+        { "name": "Nos chairs voisines" },
+        { "name": "Concurrence déloyale" },
+        { "name": "Qui a la plus grosse ?" },
+        { "name": "Droit de cuissage" },
+        { "name": "La musique de Rykke Zane" },
+        { "name": "Mémoires d'un amnésique" },
+        { "name": "L'odeur devant le seuil" },
+        { "name": "Aux grands mots les grands remèdes" }
+      ]
+    },
+    {
+      "name": "Test d'étanchéité",
+      "zone": "Abysses de Sufokia",
+      "quests": [
+        { "name": "L'ivresse des profondeurs" },
+        { "name": "Les Mercemers sont bien outillés" },
+        { "name": "Pêche aux krabouilleurs" },
+        { "name": "À bas Kralab Rah" },
+        { "name": "KO pour Bosko Tho" },
+        { "name": "Relevez les niveaux" },
+        { "name": "Prise de notes" }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23010.png"
+  "imageUrl": "https://static.dofusdb.fr/items/23010.png",
+  "iconId": 23010
 }

@@ -1,30 +1,83 @@
 {
-  "slug": "cauchemar",
+  "slug": "du-cauchemar",
   "displayName": "Dofus du Cauchemar",
-  "color": "#4B0082",
+  "color": "#303030",
   "dofusItemId": 26066,
-  "successName": "Le cauchemar d'Hyrkul",
+  "successName": "Eliocalypse... Une rêvélation",
   "recommendedLevel": 200,
+  "successDescription": "Terminer l'arc narratif complet de l'Eliocalypse et obtenir le Dofus du Cauchemar.",
+  "prerequisites": [
+    { "type": "SUCCESS", "id": 1951, "name": "Le phénix renaît de ses cendres" },
+    { "type": "SUCCESS", "id": 3077, "name": "Le Chevaucheur de brume" },
+    { "type": "SUCCESS", "id": 3068, "name": "Esprit es-tu toujours là ?" },
+    { "type": "SUCCESS", "id": 3107, "name": "Massacre spirituel" },
+    { "type": "SUCCESS", "id": 2306, "name": "Eliocalypse : Résonance" },
+    { "type": "SUCCESS", "id": 5077, "name": "Eliocalypse : Résilience" }
+  ],
   "successes": [
     {
-      "name": "Prerequisites",
-      "zone": "Sidimote / Eliocalypse",
+      "name": "Eliocalypse : Réminiscence",
+      "zone": "Eliocalypse",
       "quests": [
-        "Jusqu'à leur dernier soupir",
-        "Pour que son cœur batte comme des ailes"
+        {
+          "name": "La danse de la dissonance",
+          "id": 2421,
+          "externalRef": "https://www.dofuspourlesnoobs.com/la-danse-de-la-dissonance.html"
+        },
+        {
+          "name": "Descendre aux cendres",
+          "id": 2422,
+          "externalRef": "https://www.dofuspourlesnoobs.com/descendre-aux-cendres.html"
+        },
+        {
+          "name": "Un héritage tourmenté",
+          "id": 2423,
+          "externalRef": "https://www.dofuspourlesnoobs.com/un-heritage-tourmente.html"
+        },
+        {
+          "name": "Les totems de Maïmane",
+          "id": 2425,
+          "externalRef": "https://www.dofuspourlesnoobs.com/les-totems-de-maimane.html",
+          "notes": "Rapporter 6 totems. Pour chaque totem, vous avez le choix entre plusieurs donjons (un seul requis par série).",
+          "dungeons": [
+            { "id": 133, "bossId": 6472, "name": "Joie (Klime, Merkator, Imagami, Nidas ou Servitude)" },
+            { "id": 134, "bossId": 6478, "name": "Tristesse (Meno, Amirukam, Sylargh, Torkélonia ou Vortex)" },
+            { "id": 98, "bossId": 4441, "name": "Peur (Anerice, Ilyzaelle, Koutoulou ou Misère)" },
+            { "id": 109, "bossId": 5100, "name": "Colère (Dazak, Guerre, Frizz, Solar ou Tal Kasha)" },
+            { "id": 108, "bossId": 5110, "name": "Dégoût (Bethel, Corruption, Dantinéa, Nileza ou Protozorreur)" },
+            { "id": 135, "bossId": 6654, "name": "Surprise (Chalœil, Harebourg, Kabahal, Kao ou Reine des Voleurs)" }
+          ]
+        }
       ]
     },
     {
-      "name": "Le cauchemar d'Hyrkul",
-      "zone": "Eliocalypse",
+      "name": "Le Chant du Pandamonium",
+      "zone": "Pandamonium",
       "quests": [
-        "Main dans la main",
-        "Deux souffles, une inspiration",
-        "En ce jardin qui nous unit",
-        "Tant de mots et si peu de temps",
-        "De l'encre spectaculaire"
+        {
+          "name": "Toute possession dépossède",
+          "id": 2411,
+          "externalRef": "https://www.dofuspourlesnoobs.com/toute-possession-depossede.html",
+          "dungeons": [{ "id": 135, "bossId": 6654, "name": "Rituel de Kabahal" }]
+        },
+        {
+          "name": "Le chant du Pandamonium",
+          "id": 2412,
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-chant-du-pandamonium.html"
+        },
+        {
+          "name": "Le début de la fin",
+          "id": 2413,
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-debut-de-la-fin-quete.html",
+          "dungeons": [{ "id": 136, "bossId": 6792, "name": "Bataille de l'Aurore Pourpre" }]
+        },
+        {
+          "name": "Quand l'éveil n'est qu'un songe",
+          "id": 2406,
+          "externalRef": "https://www.dofuspourlesnoobs.com/quand-l-eveil-n-est-qu-un-songe.html"
+        }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23034.png"
+  "imageUrl": "https://api.dofusdb.fr/img/items/26066.png"
 }

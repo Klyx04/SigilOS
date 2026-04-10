@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import 'dotenv/config';
 
 const cleanEnv = (val: string | undefined) => {
     if (!val) return '';
@@ -8,15 +9,16 @@ const cleanEnv = (val: string | undefined) => {
 };
 
 const getConnectionString = () => {
-    if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
+    if (process.env.DATABASE_URL) {
         return cleanEnv(process.env.DATABASE_URL);
     }
     const user = cleanEnv(process.env.POSTGRES_USER) || 'sigiluser';
     const pwd = cleanEnv(process.env.POSTGRES_PASSWORD);
     const db_name = cleanEnv(process.env.POSTGRES_DB) || 'sigilos';
     const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-beta' : 'localhost');
+    const port = process.env.DB_PORT || '5432';
     const protocol = 'postgresql';
-    return `${protocol}://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+    return `${protocol}://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
 };
 
 const connectionString = getConnectionString();

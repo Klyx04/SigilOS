@@ -99,7 +99,7 @@ async function resolveItemsBatch(ids: number[]): Promise<void> {
             for (const item of (json.data ?? [])) {
                 itemCache.set(item.id, {
                     name: item.name?.fr ?? `Item #${item.id}`,
-                    img: item.img ?? (item.iconId ? `https://api.dofusdb.fr/img/items/${item.iconId}.png` : null),
+                    img: item.img ?? (item.iconId ? `https://static.dofusdb.fr/items/${item.iconId}.png` : null),
                     level: item.level ?? null,
                     typeId: item.typeId ?? null,
                     typeName: item.type?.name?.fr ?? null,
@@ -121,7 +121,7 @@ async function resolveItemsBatch(ids: number[]): Promise<void> {
                     const d = await apiFetch(`items/${id}`);
                     itemCache.set(id, {
                         name: d.name?.fr ?? `Item #${id}`,
-                        img: d.img ?? (d.iconId ? `https://api.dofusdb.fr/img/items/${d.iconId}.png` : null),
+                        img: d.img ?? (d.iconId ? `https://static.dofusdb.fr/items/${d.iconId}.png` : null),
                         level: d.level ?? null,
                         typeId: d.typeId ?? null,
                         typeName: d.type?.name?.fr ?? null,
@@ -456,7 +456,7 @@ async function compileDofus(slug: string): Promise<void> {
 
     const passOneData: Array<{
         success: any;
-        questResults: Array<{ name: string; quest: any | null }>;
+        questResults: Array<{ name: string; quest: any | null; manualCfg: any }>;
     }> = [];
 
     const allItemIds: number[] = [];
@@ -509,7 +509,7 @@ async function compileDofus(slug: string): Promise<void> {
 
                     if (!exact) {
                         console.log("⚠️  NOT FOUND");
-                        questResults.push({ name: questName, quest: null });
+                        questResults.push({ name: questName, quest: null, manualCfg: typeof questCfg === "object" ? questCfg : {} });
                         continue;
                     }
                     
@@ -533,10 +533,10 @@ async function compileDofus(slug: string): Promise<void> {
                 ].filter(Boolean).join(" ");
 
                 console.log(`✅ (ID:${quest.id}) ${flags}`);
-                questResults.push({ name: questName, quest });
+                questResults.push({ name: questName, quest, manualCfg: typeof questCfg === "object" ? questCfg : {} });
             } catch (e: any) {
                 console.log(`❌ ${e.message}`);
-                questResults.push({ name: questName, quest: null });
+                questResults.push({ name: questName, quest: null, manualCfg: typeof questCfg === "object" ? questCfg : {} });
             }
         }
 
@@ -555,11 +555,40 @@ async function compileDofus(slug: string): Promise<void> {
         passOneData.push({ success, questResults });
     }
 
-    // ── PASS 2: Batch resolve all items, NPCs, dungeons ──
+    // Add manual dungeons from configs to resolution
+    for (const { success, questResults } of passOneData) {
+        for (const qr of questResults) {
+            if (qr.manualCfg.dungeons) {
+                allDungeonIds.push(...qr.manualCfg.dungeons.map((d: any) => d.id));
+            }
+        }
+    }
+
     console.log("\n📡 PASS 2 — Résolution batch des entités");
     await resolveItemsBatch(allItemIds);
     await resolveNpcsBatch(allNpcIds);
     await resolveDungeonsBatch(allDungeonIds);
+
+    // Patch manual dungeon cache
+    for (const { success, questResults } of passOneData) {
+        for (const qr of questResults) {
+            if (qr.manualCfg.dungeons) {
+                for (const man of qr.manualCfg.dungeons) {
+                    if (man.bossId) {
+                        try {
+                            const boss = await apiFetch(`monsters/${man.bossId}`);
+                            dungeonCache.set(man.id, {
+                                name: man.name ?? dungeonCache.get(man.id)?.name ?? `Donjon #${man.id}`,
+                                level: dungeonCache.get(man.id)?.level ?? null,
+                                img: boss?.img ?? `https://api.dofusdb.fr/img/monsters/${man.bossId}.png`,
+                                bossName: boss?.name?.fr ?? man.name ?? "Boss Manuel",
+                            });
+                        } catch { /* skip */ }
+                    }
+                }
+            }
+        }
+    }
 
     // ── PASS 3: Assemble enriched output ──
     console.log("\n🔨 PASS 3 — Assemblage des données enrichies\n");
@@ -574,8 +603,10 @@ async function compileDofus(slug: string): Promise<void> {
         color: config.color,
         successName: config.successName ?? null,
         recommendedLevel: config.recommendedLevel ?? null,
-        successDescription: config.successDescription ?? null,
+        description: config.successDescription ?? null,
         dofusItemId: config.dofusItemId ?? null,
+        iconId: config.iconId ?? null,
+        imageUrl: config.imageUrl ?? null,
         compiledAt: new Date().toISOString(),
         compilerVersion: "3.0",
         chains: [],
@@ -610,7 +641,7 @@ async function compileDofus(slug: string): Promise<void> {
         let lastQuestDbId: number | null = null;
         let isFirstQuest = true;
 
-        for (const { name, quest } of questResults) {
+        for (const { name, quest, manualCfg } of questResults) {
             if (!quest) {
                 chain.entries.push({
                     name,
@@ -628,12 +659,28 @@ async function compileDofus(slug: string): Promise<void> {
                     requirements: lastQuestDbId ? [{ type: "QUEST", dofusdbId: lastQuestDbId }] : [],
                 });
                 isFirstQuest = false;
+                if (manualCfg.externalRef) {
+                    chain.entries[chain.entries.length - 1].externalRef = manualCfg.externalRef;
+                }
+                if (manualCfg.dungeons) {
+                    chain.entries[chain.entries.length - 1].dungeonsRequired = manualCfg.dungeons.map((man: any) => {
+                        const cached = dungeonCache.get(man.id);
+                        return {
+                            id: man.id,
+                            name: man.name ?? cached?.name ?? `Donjon #${man.id}`,
+                            level: cached?.level ?? null,
+                            bossName: cached?.bossName ?? null,
+                            img: cached?.img ?? null,
+                            idoleName: man.idole ?? null,
+                        };
+                    });
+                }
                 continue;
             }
 
-            const items = extractItems(quest);
-            const dungeons = extractDungeons(quest, config);
-            const objectives = extractObjectives(quest);
+            let items = extractItems(quest);
+            let dungeons = extractDungeons(quest, config);
+            let objectives = extractObjectives(quest);
 
             // Inject manual globalItemsRequired on first quest
             const manualItems = [
@@ -693,23 +740,40 @@ async function compileDofus(slug: string): Promise<void> {
             const npcId = extractNpcId(quest);
             const npc = npcId ? npcCache.get(npcId) : null;
 
+            // Manual dungeons override
+            if (manualCfg.dungeons) {
+                dungeons = manualCfg.dungeons.map((man: any) => {
+                    const cached = dungeonCache.get(man.id);
+                    return {
+                        id: man.id,
+                        name: man.name ?? cached?.name ?? `Donjon #${man.id}`,
+                        level: cached?.level ?? null,
+                        bossName: cached?.bossName ?? null,
+                        img: cached?.img ?? null,
+                        idoleName: man.idole ?? null,
+                    };
+                });
+            }
+
             chain.entries.push({
                 name: quest.name?.fr ?? name,
                 dofusdbId: quest.id,
                 level: quest.levelMin ?? null,
                 zone: npc?.subarea ?? rawZone ?? success.zone ?? null,
-                npcName: npc?.name ?? null,
+                npcName: manualCfg.npcName ?? npc?.name ?? null,
                 npcSubArea: npc?.subarea ?? rawZone ?? null,
-                coords,
+                coords: manualCfg.coords ?? coords,
                 isDungeon,
                 itemsRequired: items,
                 dungeonsRequired: dungeons,
+                externalRef: manualCfg.externalRef ?? null,
                 objectives,
                 stepOrder: stepOrder++,
                 isSynergyCandidate: success.isSynergyCandidate ?? false,
                 requirements: lastQuestDbId
                     ? [{ type: "QUEST", dofusdbId: lastQuestDbId }]
                     : [],
+                notes: manualCfg.notes ?? null,
             });
             lastQuestDbId = quest.id;
         }

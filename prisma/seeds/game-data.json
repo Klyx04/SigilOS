@@ -1,0 +1,1999 @@
+{
+  "_meta": {
+    "exportedAt": "2026-04-07T21:09:57.292Z",
+    "environment": "local",
+    "version": "1.0",
+    "counts": {
+      "zones": 15,
+      "monsterFamilies": 60,
+      "challenges": 27,
+      "dungeons": 81
+    }
+  },
+  "zones": [
+    {
+      "name": "Abîme de R'lyugluglu"
+    },
+    {
+      "name": "Carrière Chocolatée"
+    },
+    {
+      "name": "Caserne du Jour sans fin"
+    },
+    {
+      "name": "Forêt enneigée"
+    },
+    {
+      "name": "Galeries d'Ereboria"
+    },
+    {
+      "name": "Gorge des Vents Hurlants"
+    },
+    {
+      "name": "Jardin à la crème"
+    },
+    {
+      "name": "Jardins d'Hiver"
+    },
+    {
+      "name": "Laboratoires des Chocomanciens"
+    },
+    {
+      "name": "Lande Poilue"
+    },
+    {
+      "name": "Marches Magmatiques"
+    },
+    {
+      "name": "Massif de cania"
+    },
+    {
+      "name": "Royaume d'Encre"
+    },
+    {
+      "name": "Royaume de papier"
+    },
+    {
+      "name": "Île de Pwâk"
+    }
+  ],
+  "monsterFamilies": [
+    {
+      "name": "Alchillusions",
+      "description": null,
+      "imageUrl": "/game-data/monsters/alchillusions.webp",
+      "zoneIds": [
+        null
+      ]
+    },
+    {
+      "name": "Armutins",
+      "description": null,
+      "imageUrl": "/game-data/monsters/armutins.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Armée de brume",
+      "description": null,
+      "imageUrl": "/game-data/monsters/arm-e-de-brume.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Asservis",
+      "description": null,
+      "imageUrl": "/game-data/monsters/asservis.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Blops",
+      "description": null,
+      "imageUrl": "/game-data/monsters/blop.webp",
+      "zoneIds": [
+        null
+      ]
+    },
+    {
+      "name": "Bléros",
+      "description": null,
+      "imageUrl": "/game-data/monsters/bl-ros.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Brikoléreux",
+      "description": null,
+      "imageUrl": "/game-data/monsters/brikol-reux.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Brûlames",
+      "description": null,
+      "imageUrl": "/game-data/monsters/br-lames.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Bworks de Gisgoul",
+      "description": null,
+      "imageUrl": "/game-data/monsters/bworks-de-gisgoul.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Calcinés",
+      "description": null,
+      "imageUrl": "/game-data/monsters/kl-mort.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Chassouilleurs",
+      "description": null,
+      "imageUrl": "/game-data/monsters/chassouilleurs.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Chocomanciens",
+      "description": null,
+      "imageUrl": "/game-data/monsters/chocomanciens.webp",
+      "zoneIds": [
+        null
+      ]
+    },
+    {
+      "name": "Clan Martegel",
+      "description": null,
+      "imageUrl": "/game-data/monsters/clan-martegel.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Corrompus",
+      "description": null,
+      "imageUrl": "/game-data/monsters/corrompus.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Cour Sombre",
+      "description": null,
+      "imageUrl": "/game-data/monsters/cour-sombre.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Crocodailles de Crocuzko",
+      "description": null,
+      "imageUrl": "/game-data/monsters/crocodailles-de-crocuzko.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Croquants",
+      "description": "",
+      "imageUrl": "/game-data/monsters/croquants.webp",
+      "zoneIds": [
+        null,
+        null
+      ]
+    },
+    {
+      "name": "Cuirassés",
+      "description": null,
+      "imageUrl": "/game-data/monsters/harrogant.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Enutrofors",
+      "description": null,
+      "imageUrl": "/game-data/monsters/enutrofors.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Fungus",
+      "description": null,
+      "imageUrl": "/game-data/monsters/fungus.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Givrefoux",
+      "description": null,
+      "imageUrl": "/game-data/monsters/givrefoux.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Gloursons",
+      "description": null,
+      "imageUrl": "/game-data/monsters/gloursons.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Gobelins de Sakaï",
+      "description": null,
+      "imageUrl": "/game-data/monsters/gobelins-de-saka.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Goules",
+      "description": null,
+      "imageUrl": "/game-data/monsters/goules.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Grand Jeu",
+      "description": null,
+      "imageUrl": "/game-data/monsters/grand-jeu.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Hordémons",
+      "description": null,
+      "imageUrl": "/game-data/monsters/hord-mons.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Kabombz",
+      "description": null,
+      "imageUrl": "/game-data/monsters/kabombz.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Kanigs des Dents de Pierre",
+      "description": null,
+      "imageUrl": "/game-data/monsters/kanigs-des-dents-de-pierre.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Krobes",
+      "description": null,
+      "imageUrl": "/game-data/monsters/krobes.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Marteaux-Aigris",
+      "description": null,
+      "imageUrl": "/game-data/monsters/marteaux-aigris.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Matougarous",
+      "description": null,
+      "imageUrl": "/game-data/monsters/matougarous.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Maudits",
+      "description": null,
+      "imageUrl": "/game-data/monsters/maudits.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Mercemers",
+      "description": null,
+      "imageUrl": "/game-data/monsters/mercemers.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Miséreux",
+      "description": null,
+      "imageUrl": "/game-data/monsters/mis-reux.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Monstres de Nowel",
+      "description": null,
+      "imageUrl": "/game-data/monsters/monstres-de-nowel.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Monstres de Vulkania",
+      "description": null,
+      "imageUrl": "/game-data/monsters/monstres-de-vulkania.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Monstres des ruines sous-marines",
+      "description": null,
+      "imageUrl": "/game-data/monsters/monstres-des-ruines-sous-marines.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Nécrotiques",
+      "description": null,
+      "imageUrl": "/game-data/monsters/n-crotiques.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Obscuranti",
+      "description": null,
+      "imageUrl": "/game-data/monsters/obscuranti.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Peuple de l'Arbre",
+      "description": null,
+      "imageUrl": "/game-data/monsters/peuple-de-l-arbre.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Possédés",
+      "description": null,
+      "imageUrl": "/game-data/monsters/poss-d-s.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Protecteurs d'Ephedrya",
+      "description": null,
+      "imageUrl": "/game-data/monsters/protecteurs-d-ephedrya.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Ravageurs",
+      "description": null,
+      "imageUrl": "/game-data/monsters/ravageurs.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Rhoarims",
+      "description": null,
+      "imageUrl": "/game-data/monsters/rhoarims.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Sanguinaires",
+      "description": null,
+      "imageUrl": "/game-data/monsters/sanguinaires.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Serviteurs de l'indicible",
+      "description": null,
+      "imageUrl": "/game-data/monsters/serviteurs-de-l-indicible.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Sinistros",
+      "description": null,
+      "imageUrl": "/game-data/monsters/sinistros.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Sinistros ",
+      "description": "",
+      "imageUrl": "/game-data/monsters/sinistros.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Submergés",
+      "description": null,
+      "imageUrl": "/game-data/monsters/submerg-s.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Sulfurieux",
+      "description": null,
+      "imageUrl": "/game-data/monsters/sulfurieux.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Sylvesprits",
+      "description": null,
+      "imageUrl": "/game-data/monsters/sylvesprits.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Trithons",
+      "description": null,
+      "imageUrl": "/game-data/monsters/trithons.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Vers des sables",
+      "description": null,
+      "imageUrl": "/game-data/monsters/vers-des-sables.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Waddicts",
+      "description": "",
+      "imageUrl": "/game-data/monsters/waddicts.webp",
+      "zoneIds": [
+        null,
+        null
+      ]
+    },
+    {
+      "name": "Yokai des Tombeaux",
+      "description": null,
+      "imageUrl": "/game-data/monsters/yokai-des-tombeaux.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Yokianzhi d'Encre",
+      "description": null,
+      "imageUrl": "/game-data/monsters/yokianzhi-d-encre.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Yokianzhi de Papier",
+      "description": null,
+      "imageUrl": "/game-data/monsters/yokianzhi-de-papier.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Zarbivores",
+      "description": null,
+      "imageUrl": "/game-data/monsters/zarbivores.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Zarbivores ",
+      "description": "",
+      "imageUrl": "/game-data/monsters/zarbivores.webp",
+      "zoneIds": []
+    },
+    {
+      "name": "Égarés",
+      "description": null,
+      "imageUrl": "/game-data/monsters/gar-s.webp",
+      "zoneIds": []
+    }
+  ],
+  "challenges": [
+    {
+      "slug": "barbare",
+      "name": "Barbare",
+      "description": "Les personnages alliés doivent achever les ennemis avec une arme.\n",
+      "iconUrl": "/game-data/achievements/barbare.png"
+    },
+    {
+      "slug": "blitzkrieg",
+      "name": "Blitzkrieg",
+      "description": "Lorsqu'un ennemi est attaqué, il doit être achevé avant le début de son tour de jeu.\n",
+      "iconUrl": "/game-data/achievements/blitzkrieg.png"
+    },
+    {
+      "slug": "chrono",
+      "name": "Chrono",
+      "description": "Vaincre tel boss dans son donjon en moins de X tours.\n",
+      "iconUrl": "/game-data/achievements/chrono.png"
+    },
+    {
+      "slug": "circulez",
+      "name": "Circulez",
+      "description": "Ne pas retirer de PM aux adversaires",
+      "iconUrl": "/game-data/achievements/circulez.png"
+    },
+    {
+      "slug": "collant",
+      "name": "Collant",
+      "description": "Les combattants alliés doivent finir leur tour sur une cellule adjacente à celle d'un autre combattant allié.\n",
+      "iconUrl": "/game-data/achievements/collant.png"
+    },
+    {
+      "slug": "compagnon",
+      "name": "Compagnon",
+      "description": "Vaincre Tel Boss dans son donjon avec 4 personnes minimum, dont au moins un des compagnons éligibles à la réalisation de ce succès",
+      "iconUrl": "/game-data/achievements/compagnon.png"
+    },
+    {
+      "slug": "dernier",
+      "name": "Dernier",
+      "description": "La cible désignée doit être achevée en dernier.\n",
+      "iconUrl": "/game-data/achievements/dernier.png"
+    },
+    {
+      "slug": "duel",
+      "name": "Duel",
+      "description": "Lorsqu'un combattant allié attaque un ennemi, aucun autre combattant allié ne doit attaquer cet ennemi pendant toute la durée du combat.\n",
+      "iconUrl": "/game-data/achievements/duel.png"
+    },
+    {
+      "slug": "duo",
+      "name": "Duo",
+      "description": "Vaincre tous les monstres avec 2 personnages maximum et en moins de X tours.",
+      "iconUrl": "/game-data/achievements/duo.png"
+    },
+    {
+      "slug": "focus",
+      "name": "Focus",
+      "description": "Lorsqu'un ennemi est attaqué par un allié, il doit être achevé avant qu'un autre ennemi ne soit attaqué.\n",
+      "iconUrl": "/game-data/achievements/focus.png"
+    },
+    {
+      "slug": "hardi",
+      "name": "Hardi",
+      "description": "Les combattants alliés doivent finir leur tour sur une cellule adjacente à celle d'un ennemi.\n",
+      "iconUrl": "/game-data/achievements/hardi.png"
+    },
+    {
+      "slug": "liberte",
+      "name": "Liberte",
+      "description": "Challenge généré automatiquement",
+      "iconUrl": "/game-data/achievements/liberte.png"
+    },
+    {
+      "slug": "libert",
+      "name": "Liberté",
+      "description": "Ne pas retirer de PM ni de portée aux adversaires.",
+      "iconUrl": "/game-data/achievements/liberte.png"
+    },
+    {
+      "slug": "mains-propres",
+      "name": "Mains Propres",
+      "description": "Les personnages alliés doivent achever les ennemis sans leur occasionner de dommages directs. \n",
+      "iconUrl": "/game-data/achievements/mains-propres.png"
+    },
+    {
+      "slug": "misanthrope",
+      "name": "Misanthrope",
+      "description": "Les combattants alliés ne doivent jamais finir leur tour sur une cellule adjacente à celle d'un autre combattant allié.\n",
+      "iconUrl": "/game-data/achievements/misanthrope.png"
+    },
+    {
+      "slug": "mystique",
+      "name": "Mystique",
+      "description": "Vaincre tel boss dans son donjon en validant le challenge Mystique.",
+      "iconUrl": "/game-data/achievements/mystique.png"
+    },
+    {
+      "slug": "nomade",
+      "name": "Nomade",
+      "description": "Les combattants alliés doivent utiliser tous leurs points de mouvement à chaque tour pendant toute la durée du combat.\n",
+      "iconUrl": "/game-data/achievements/nomade.png"
+    },
+    {
+      "slug": "premier",
+      "name": "Premier",
+      "description": "La cible désignée doit être achevée en premier.\n",
+      "iconUrl": "/game-data/achievements/premier.png"
+    },
+    {
+      "slug": "prudent",
+      "name": "Prudent",
+      "description": "Les combattants alliés ne doivent jamais finir leur tour sur une cellule adjacente à celle d'un ennemi.\n",
+      "iconUrl": "/game-data/achievements/prudent.png"
+    },
+    {
+      "slug": "quatuor",
+      "name": "Quatuor",
+      "description": "Vaincre tel boss dans son donjon en validant le challenge Quatuor.",
+      "iconUrl": "/game-data/achievements/quatuor.png"
+    },
+    {
+      "slug": "sp-cial",
+      "name": "Spécial",
+      "description": "Vaincre tel boss dans son donjon en validant le challenge dédié.",
+      "iconUrl": "/game-data/achievements/spécial.png"
+    },
+    {
+      "slug": "statue",
+      "name": "Statue",
+      "description": "Les combattants alliés doivent finir leur tour sur la même case que celle où ils l'ont commencé, pendant toute la durée du combat.\n",
+      "iconUrl": "/game-data/achievements/statue.png"
+    },
+    {
+      "slug": "survivant",
+      "name": "Survivant",
+      "description": "Aucun combattant allié ne doit mourir.\n",
+      "iconUrl": "/game-data/achievements/survivant.png"
+    },
+    {
+      "slug": "trio",
+      "name": "Trio",
+      "description": "Vaincre tel boss dans son donjon en validant le challenge Trio.",
+      "iconUrl": "/game-data/achievements/trio.png"
+    },
+    {
+      "slug": "versatile",
+      "name": "Versatile",
+      "description": "Les combattants alliés ne doivent utiliser qu'une seule fois une même action pendant leurs tours de jeu.\n",
+      "iconUrl": "/game-data/achievements/versatile.png"
+    },
+    {
+      "slug": "zombie",
+      "name": "Zombie",
+      "description": "Les combattants alliés doivent utiliser exactement un point de mouvement par tour de jeu.\n",
+      "iconUrl": "/game-data/achievements/zombie.png"
+    },
+    {
+      "slug": "conqu-rant",
+      "name": "conquérant",
+      "description": "Lorsqu'un combattant allié tue un ou plusieurs ennemis, il doit finir son tour sur la case qu'occupait l'un de ce ou ces ennemis",
+      "iconUrl": "/game-data/achievements/conquerant.png"
+    }
+  ],
+  "dungeons": [
+    {
+      "name": "Grange du Tournesol Affamé",
+      "bossName": "Tournesol Affamé",
+      "level": 20,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/grange-du-tournesol-affam.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/grange-du-tournesol-affame.html#expeditions",
+      "challengeSlugs": [
+        "collant",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Château Ensablé",
+      "bossName": "Mob l'Éponge",
+      "level": 20,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/ch-teau-ensabl.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/chateau-ensable.html#expeditions",
+      "challengeSlugs": [
+        "misanthrope",
+        "versatile",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Cour du Bouftou Royal",
+      "bossName": "Bouftou Royal",
+      "level": 30,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/cour-du-bouftou-royal.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "http://dofuspourlesnoobs.com/cour-du-bouftou-royal.html#expeditions",
+      "challengeSlugs": [
+        "prudent",
+        "blitzkrieg",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Donjon des Squelettes",
+      "bossName": "Chafer Rōnin",
+      "level": 40,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/donjon-des-squelettes.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-des-squelettes.html#fonctionnement-expedition",
+      "challengeSlugs": [
+        "nomade",
+        "premier",
+        "duo",
+        "sp-cial",
+        "compagnon"
+      ]
+    },
+    {
+      "name": "Donjon des Scarafeuilles",
+      "bossName": "Scarabosse Doré",
+      "level": 40,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/donjon-des-scarafeuilles.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-des-scarafeuilles.html#expeditions",
+      "challengeSlugs": [
+        "zombie",
+        "mains-propres",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Donjon des Forgerons",
+      "bossName": "Coffre des Forgerons",
+      "level": 50,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/donjon-des-forgerons.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-des-forgerons.html#expeditions",
+      "challengeSlugs": [
+        "nomade",
+        "premier",
+        "duo",
+        "compagnon",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Donjon des Bworks",
+      "bossName": "Bworkette",
+      "level": 50,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/donjon-des-bworks.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-des-bworks.html#fonctionnement-expedition",
+      "challengeSlugs": [
+        "misanthrope",
+        "premier",
+        "duo",
+        "sp-cial",
+        "compagnon"
+      ]
+    },
+    {
+      "name": "Fonderie des Waddicts",
+      "bossName": "Mawabouaino",
+      "level": 60,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/fonderie-des-waddicts.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "chrono",
+        "versatile",
+        "collant",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Pitons Rocheux des Craqueleurs",
+      "bossName": "Craqueleur Légendaire",
+      "level": 70,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/pitons-rocheux-des-craqueleurs.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/pitons-rocheux-des-craqueleurs.html",
+      "challengeSlugs": [
+        "prudent",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Arbre de Moon",
+      "bossName": "Moon",
+      "level": 100,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/arbre-de-moon.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/arbre-de-moon.html",
+      "challengeSlugs": [
+        "compagnon",
+        "versatile",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Tanière du Meulou",
+      "bossName": "Meulou",
+      "level": 100,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tani-re-du-meulou.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/taniere-du-meulou.html",
+      "challengeSlugs": [
+        "compagnon",
+        "premier",
+        "hardi",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Caverne du Koulosse",
+      "bossName": "Koulosse ",
+      "level": 100,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/caverne-du-koulosse.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/caverne-du-koulosse.html",
+      "challengeSlugs": [
+        "zombie",
+        "mains-propres",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Garde-manger du Rat Blanc",
+      "bossName": "Rat Blanc",
+      "level": 110,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/garde-manger-du-rat-blanc.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/garde-manger-du-rat-blanc.html#expeditions",
+      "challengeSlugs": [
+        "premier",
+        "hardi",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Salle de lecture du Maître Corbac",
+      "bossName": "Maître Corbac",
+      "level": 110,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/salle-de-lecture-du-ma-tre-corbac.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/bibliotheque-du-maitre-corbac.html",
+      "challengeSlugs": [
+        "collant",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Antre du Dragon Cochon",
+      "bossName": "Dragon Cochon",
+      "level": 110,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/antre-du-dragon-cochon.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/antre-du-dragon-cochon.html",
+      "challengeSlugs": [
+        "compagnon",
+        "hardi",
+        "versatile",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Sousouricière du Rat Noir",
+      "bossName": "Rat Noir",
+      "level": 110,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/sousourici-re-du-rat-noir.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/sousouriciere-du-rat-noir.html#expeditions",
+      "challengeSlugs": [
+        "blitzkrieg",
+        "hardi",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Antre du Blop Multicolore Royal",
+      "bossName": "Blop Multicolore Royal",
+      "level": 120,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/antre-du-blop-multicolore-royal.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "http://dofuspourlesnoobs.com/antre-du-blop-multicolore-royal.html",
+      "challengeSlugs": [
+        "hardi",
+        "duel",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Tofulailler Royal",
+      "bossName": "Tofu Royal",
+      "level": 120,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tofulailler-royal.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/tofulailler-royal.html",
+      "challengeSlugs": [
+        "compagnon",
+        "dernier",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Centre du labyrinthe du Minotoror (2)",
+      "bossName": "Minotoror",
+      "level": 120,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/centre-du-labyrinthe-du-minotoror-2.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/centre-du-labyrinthe-du-minotoror.html#expeditions",
+      "challengeSlugs": [
+        "misanthrope",
+        "mains-propres",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Antre de Crocabulia",
+      "bossName": "Crocabulia",
+      "level": 120,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/antre-de-crocabulia.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/antre-de-crocabulia.html#expeditions",
+      "challengeSlugs": [
+        "statue",
+        "versatile",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Croquanterie",
+      "bossName": "Croqueleur",
+      "level": 130,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/croquanterie.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "chrono",
+        "circulez",
+        "blitzkrieg",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Clairière du Chêne Mou",
+      "bossName": "Chêne Mou",
+      "level": 140,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/clairi-re-du-ch-ne-mou.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "NORMAL"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/clairiegravere-du-checircne-mou.html#fonctionnement-expedition",
+      "challengeSlugs": [
+        "libert",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Galerie du Phossile",
+      "bossName": "Phossile ",
+      "level": 150,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/galerie-du-phossile.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "AUDACE",
+        "BRAVOURE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/galerie-du-phossile.html#expeditions",
+      "challengeSlugs": [
+        "hardi",
+        "libert",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Centre du labyrinthe du Minotoror",
+      "bossName": "Minotot",
+      "level": 160,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/centre-du-labyrinthe-du-minotoror.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/minotot.html#expeditions",
+      "challengeSlugs": [
+        "circulez",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Hypogée de l'Obsidiantre",
+      "bossName": "Obsidiantre",
+      "level": 160,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/hypog-e-de-l-obsidiantre.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Plateau de Ush",
+      "bossName": "Ush Galesh",
+      "level": 160,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/plateau-de-ush.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "zombie",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Canopée du Kimbo",
+      "bossName": "Kimbo",
+      "level": 160,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/canop-e-du-kimbo.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "statue",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Grotte de Kanigroula",
+      "bossName": "Kanigroula",
+      "level": 160,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/kanigroula.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/grotte-de-kanigroula.html#expeditions",
+      "challengeSlugs": [
+        "compagnon",
+        "premier",
+        "hardi",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Tombe du Shogun Tofugawa",
+      "bossName": "Shogun Tofugawa",
+      "level": 160,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tombe-du-shogun-tofugawa.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "hardi",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Tanière Givrefoux",
+      "bossName": "Tengu Givrefoux",
+      "level": 170,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tani-re-givrefoux.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Poste de contrôle du Supervizœuf",
+      "bossName": "Supervizœuf ",
+      "level": 170,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/poste-de-contr-le-du-superviz-uf.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "collant",
+        "duo",
+        "sp-cial",
+        "conqu-rant"
+      ]
+    },
+    {
+      "name": "Demeure des Esprits",
+      "bossName": "Koumiho",
+      "level": 170,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/demeure-des-esprits.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "focus",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Horologium de XLII",
+      "bossName": "XLII",
+      "level": 170,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/horologium-de-xlii.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/horologium-de-xlii.html#expeditions",
+      "challengeSlugs": [
+        "barbare",
+        "collant",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Boyau du Père Ver",
+      "bossName": "Père Ver",
+      "level": 170,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/boyau-du-p-re-ver.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "zombie",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Antre du Kralamoure Géant",
+      "bossName": "Kralamoure Géant",
+      "level": 180,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/antre-du-kralamoure-g-ant.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "compagnon",
+        "nomade",
+        "blitzkrieg",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Cave du Toxoliath",
+      "bossName": "Toxoliath",
+      "level": 180,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/cave-du-toxoliath.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/cave-du-toxoliath.html#expeditions",
+      "challengeSlugs": [
+        "circulez",
+        "misanthrope",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Grotte du Bworker",
+      "bossName": "Bworker",
+      "level": 180,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/grotte-du-bworker.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "AUDACE",
+        "BRAVOURE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/grotte-du-bworker.html#expeditions",
+      "challengeSlugs": [
+        "hardi",
+        "blitzkrieg",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Antre du Korriandre",
+      "bossName": "Korriandre",
+      "level": 180,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/antre-du-korriandre.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "mystique",
+        "zombie",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Temple du Grand Ougah",
+      "bossName": "Ougah",
+      "level": 180,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/temple-du-grand-ougah.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "collant",
+        "dernier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Bastion des Marteaux-Aigris",
+      "bossName": "Barbéryl Clochecuivre",
+      "level": 190,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/bastion-des-marteaux-aigris.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "dernier",
+        "versatile",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Antichambre des Gloursons",
+      "bossName": "Glourséleste",
+      "level": 190,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/antichambre-des-gloursons.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "collant",
+        "duo",
+        "sp-cial",
+        "compagnon"
+      ]
+    },
+    {
+      "name": "Camp du Comte Razof",
+      "bossName": "Comte Razof",
+      "level": 190,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/camp-du-comte-razof.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "libert",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Pyramide d'Ombre",
+      "bossName": "Ombre",
+      "level": 190,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/pyramide-d-ombre.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "AUDACE",
+        "BRAVOURE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/pyramide-dombre.html#expeditions",
+      "challengeSlugs": [
+        "premier",
+        "collant",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Mine abandonnée de Sakaï",
+      "bossName": "Grolloum",
+      "level": 190,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/mine-abandonn-e-de-saka.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-de-la-mine-de-sakaiuml.html#expeditions",
+      "challengeSlugs": [
+        "compagnon",
+        "versatile",
+        "blitzkrieg",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Cavernes des Givrefoux",
+      "bossName": "Fuji Givrefoux",
+      "level": 190,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/cavernes-des-givrefoux.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "dernier",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Cavernes du Kolosso",
+      "bossName": "Kolosso",
+      "level": 190,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/cavernes-du-kolosso.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "dernier",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Temple de Koutoulou",
+      "bossName": "Larve de Koutoulou",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/temple-de-koutoulou.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/temple-de-koutoulou.html#expeditions",
+      "challengeSlugs": [
+        "prudent",
+        "hardi",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Vaisseau du Capitaine Meno",
+      "bossName": "Capitaine Meno",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/capitaine-meno.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/vaisseau-du-capitaine-meno.html#expeditions",
+      "challengeSlugs": [
+        "sp-cial",
+        "blitzkrieg",
+        "prudent",
+        "duo"
+      ]
+    },
+    {
+      "name": "Œil de Vortex",
+      "bossName": "Vortex ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/il-de-vortex.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "focus",
+        "hardi",
+        "trio",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Ventre de la Baleine",
+      "bossName": "Protozorreur ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/ventre-de-la-baleine.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/ventre-de-la-baleine.html#expeditions",
+      "challengeSlugs": [
+        "barbare",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Trône de la Cour Sombre",
+      "bossName": "Reine des Voleurs",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tr-ne-de-la-cour-sombre.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "collant",
+        "trio",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Palais du roi Nidas",
+      "bossName": "Roi Nidas",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/palais-du-roi-nidas.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "statue",
+        "trio",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Donjon du Comte Harebour",
+      "bossName": "Comte Harebourg",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/donjon-du-comte-harebour.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-du-comte-harebourg.html#expeditions",
+      "challengeSlugs": [
+        "versatile",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Autel de la Déchireuse",
+      "bossName": "Déchireuse",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/autel-de-la-d-chireuse.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": []
+    },
+    {
+      "name": "Laboratoire de Nileza",
+      "bossName": "Nileza",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/laboratoire-de-nileza.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "prudent",
+        "dernier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Temple du dieu Kao",
+      "bossName": "Prêtresse de Kao",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/temple-du-dieu-kao.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "chrono",
+        "premier",
+        "libert",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Salons privés de Klime",
+      "bossName": "Klime ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/salons-priv-s-de-klime.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/salons-priveacutes-de-klime.html#expeditions",
+      "challengeSlugs": [
+        "prudent",
+        "nomade",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Transporteur de Sylargh",
+      "bossName": "Sylargh",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/transporteur-de-sylargh.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "misanthrope",
+        "barbare",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Forgefroide de Missiz Frizz",
+      "bossName": "Missiz Frizz",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/forgefroide-de-missiz-frizz.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/forgefroide-de-missiz-frizz.html#expeditions",
+      "challengeSlugs": [
+        "nomade",
+        "collant",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Aquadôme de Merkator",
+      "bossName": "Merkator ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/aquad-me-de-merkator.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/aquadocircme-de-merkator.html#expeditions",
+      "challengeSlugs": [
+        "dernier",
+        "mystique",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Breuil du Vénérable",
+      "bossName": "Vénérable Endormi",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/breuil-du-v-n-rable.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "premier",
+        "hardi",
+        "trio",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Mémoire d'Orukam",
+      "bossName": "Roi Imagami",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/m-moire-d-orukam.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "hardi",
+        "mains-propres",
+        "trio",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Tempête de l’Eliocalypse",
+      "bossName": "Sanctuaire du dernier espoir",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/temp-te-de-l-eliocalypse.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "libert",
+        "hardi",
+        "quatuor"
+      ]
+    },
+    {
+      "name": "Sentence de la Balance",
+      "bossName": "Misère ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/sentence-de-la-balance.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "hardi",
+        "mains-propres",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Fers de la Tyrannie",
+      "bossName": "Servitude",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/fers-de-la-tyrannie.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "focus",
+        "versatile",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Trône de sang ",
+      "bossName": "Guerre",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tr-ne-de-sang.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/trone-de-sang.html#expeditions",
+      "challengeSlugs": [
+        "zombie",
+        "misanthrope",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Arbre de mort",
+      "bossName": "Corruption",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/arbre-de-mort.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "collant",
+        "mains-propres",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Torkélonia ",
+      "bossName": "Torkélonia",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tork-lonia.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "dernier",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Belvédère d'Ilyzaelle",
+      "bossName": "Ilyzaelle",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/belv-d-re-d-ilyzaelle.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/belvedere-d-ilyzaelle.html#expeditions",
+      "challengeSlugs": [
+        "libert",
+        "focus",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Tour de Solar",
+      "bossName": "Solar ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tour-de-solar.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/tour-de-solar.html#expeditions",
+      "challengeSlugs": [
+        "versatile",
+        "focus",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Manoir des Katrepat",
+      "bossName": "Anerice la Shushess",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/manoir-des-katrepat.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "prudent",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Palais de Dantinéa",
+      "bossName": "Dantinéa ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/palais-de-dantin-a.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/palais-de-dantineacutea.html#expeditions",
+      "challengeSlugs": [
+        "dernier",
+        "statue",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Défi du Chalœil",
+      "bossName": "Chalœil ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/d-fi-du-chal-il.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "libert",
+        "prudent",
+        "trio",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Brasserie du roi Dazak",
+      "bossName": "Dazak Martegel",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/brasserie-du-roi-dazak.webp",
+      "isExpedition": true,
+      "expeditionModes": [
+        "BRAVOURE",
+        "AUDACE"
+      ],
+      "expeditionMechanics": "https://www.dofuspourlesnoobs.com/brasserie-du-roi-dazak.html#expeditions",
+      "challengeSlugs": [
+        "premier",
+        "libert",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Tour de Bethel",
+      "bossName": "Bethel Akarna",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/tour-de-bethel.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "mystique",
+        "zombie",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Chambre de Tal Kasha",
+      "bossName": "Tal Kasha",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/chambre-de-tal-kasha.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "statue",
+        "focus",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Chambre des maléfices",
+      "bossName": "Belladone ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/chambre-des-mal-fices.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "collant",
+        "mains-propres",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Souvenir d'Imagiro",
+      "bossName": "Reine Amirukam",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/souvenir-d-imagiro.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "prudent",
+        "mains-propres",
+        "trio",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Rituel de Kabahal",
+      "bossName": "Kabahal ",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/rituel-de-kabahal.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "hardi",
+        "mains-propres",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Bataille de l'Aurore Pourpre",
+      "bossName": "L'Éternel Conflit",
+      "level": 200,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/bataille-de-l-aurore-pourpre.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": [
+        "zombie",
+        "premier",
+        "duo",
+        "sp-cial"
+      ]
+    },
+    {
+      "name": "Caverne de Cire Momore",
+      "bossName": "Cire Momore",
+      "level": 900,
+      "dpnlUrl": null,
+      "imageUrl": "/game-data/dungeons/cire-momore.webp",
+      "isExpedition": false,
+      "expeditionModes": null,
+      "expeditionMechanics": null,
+      "challengeSlugs": []
+    }
+  ]
+}

@@ -14,7 +14,8 @@ import SocialStats from "./social-stats";
 import MiniGamesStats from "./mini-games-stats";
 import PerformanceStats from "./performance-stats";
 import RetentionStats from "./retention-stats";
-import { MessageSquare, Gamepad2, Timer, TrendingUp } from "lucide-react";
+import QuestsStats from "./quests-stats";
+import { MessageSquare, Gamepad2, Timer, TrendingUp, Compass } from "lucide-react";
 
 interface StatsClientProps {
     stats: GuildStats;
@@ -124,6 +125,15 @@ export default function StatsClient({ stats }: StatsClientProps) {
                     Services Guilde — Prêts & Coffre
                 </h3>
                 <ServicesStats services={stats.services} />
+            </section>
+
+            {/* NEW: Quests & Dofus Stats */}
+            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Compass className="w-5 h-5 text-emerald-400" />
+                    Modules Quêtes & Dofus
+                </h3>
+                <QuestsStats quests={stats.quests} />
             </section>
 
             {/* NEW: Discord Activity */}

@@ -3,22 +3,71 @@
   "displayName": "Dofus Argenté Scintillant",
   "color": "#e0e0e0",
   "dofusItemId": 23000,
-  "successName": "Argenté scintillant",
-  "recommendedLevel": 190,
-  "successDescription": "Terminer la série de quêtes du Dofus Argenté Scintillant à Pandala.",
+  "successName": "Le phénix renaît de ses cendres",
+  "recommendedLevel": 200,
+  "successDescription": "Terminer la série de quêtes du Dofus Argenté Scintillant et la réunification des Dofus Primordiaux.",
+  "prerequisites": [
+    { "type": "SUCCESS", "id": 1690, "name": "Un œuf pour le dîner" },
+    { "type": "SUCCESS", "id": 2187, "name": "Le pays des Vermeils" }
+  ],
   "successes": [
     {
       "name": "Quatre sur six",
       "zone": "Pandala / Monde des Douze",
       "quests": [
-        "Les coûts du sort",
-        "Une ombre au tableau",
-        "Un remède draconien",
-        "Le dragon des vents",
-        "Le dragon des flammes",
-        "Le destin de Kalisthe"
+        {
+          "name": "Les coûts du sort",
+          "externalRef": "https://www.dofuspourlesnoobs.com/les-couts-du-sort.html",
+          "dungeons": [{ "id": 22, "bossId": 1159, "name": "Temple du Grand Ougah" }]
+        },
+        {
+          "name": "Une ombre au tableau",
+          "externalRef": "https://www.dofuspourlesnoobs.com/une-ombre-au-tableau.html",
+          "dungeons": [{ "id": 74, "bossId": 3564, "name": "Pyramide d'Ombre" }]
+        },
+        {
+          "name": "Un remède draconien",
+          "externalRef": "https://www.dofuspourlesnoobs.com/un-remede-draconien.html",
+          "dungeons": [{ "id": 61, "bossId": 2864, "name": "Antichambre des Gloursons" }]
+        },
+        {
+           "name": "Le dragon des vents",
+           "externalRef": "https://www.dofuspourlesnoobs.com/le-dragon-des-vents.html"
+        },
+        {
+          "name": "Le dragon des flammes",
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-dragon-des-flammes.html",
+          "dungeons": [{ "id": 57, "bossId": 2924, "name": "Hypogée de l'Obsidiantre" }]
+        }
+      ]
+    },
+    {
+      "name": "Le Phénix",
+      "zone": "Pandala / Écaflipus",
+      "quests": [
+        {
+          "name": "Le destin de Kalisthe",
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-destin-de-kalisthe.html"
+        },
+        {
+          "name": "Dans la gueule du dragon",
+          "externalRef": "https://www.dofuspourlesnoobs.com/dans-la-gueule-du-dragon.html",
+          "dungeons": [
+            { "id": 76, "bossId": 3648, "name": "Palais du roi Nidas" },
+            { "id": 77, "bossId": 3726, "name": "Le Trône de la Reine des Voleurs" },
+            { "id": 79, "bossId": 3835, "name": "L'Oeil de Vortex" },
+            { "id": 105, "bossId": 4263, "name": "Plateau de Chaloeil" }
+          ]
+        },
+        {
+          "name": "Le silence est d'Aure",
+          "externalRef": "https://www.dofuspourlesnoobs.com/le-silence-est-daure.html",
+          "dungeons": [
+            { "id": 107, "bossId": 4967, "name": "Belvédère d'Ilyzaelle" }
+          ]
+        }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23011.png"
+  "imageUrl": "/module-dofus/Dofus_Argente_Scintillant.png"
 }

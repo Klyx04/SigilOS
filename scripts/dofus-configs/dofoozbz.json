@@ -1,43 +1,67 @@
 {
   "slug": "dofoozbz",
   "displayName": "Dofoozbz",
+  "nameShort": "Dofoozbz",
   "color": "#32CD32",
   "dofusItemId": 31794,
+  "iconId": 31794,
+  "imageUrl": "https://api.dofusdb.fr/img/items/23039.png",
   "successName": "Question d'équilibre",
   "recommendedLevel": 200,
   "successDescription": "Obtenir le Dofoozbz en rétablissant l'équilibre dans la dimension Osavora.",
+  "globalItemsRequired": [
+    { "id": 31480, "name": "Lait nourricier", "amount": 3 },
+    { "id": 31481, "name": "Sang brûlant", "amount": 3 },
+    { "id": 31482, "name": "Lymphe régénérante", "amount": 3 },
+    { "id": 32075, "name": "Pelage de la Déchireuse", "amount": 1 },
+    { "id": 31988, "name": "Fourrure de Sekismeth", "amount": 1 },
+    { "id": 31989, "name": "Crinière de Lhéoden", "amount": 1 }
+  ],
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "Osavora",
-      "description": "Quêtes d'introduction à la dimension.",
+      "name": "Préréquis - Voyageurs",
+      "zone": "Dimensions",
       "isPrerequisite": true,
       "quests": [
         { "name": "Voyage, voyage", "id": 1484 },
-        { "name": "Frappez, ami, et entrez", "id": 1641 }
+        { "name": "Vu du ciel", "id": 1641 }
       ]
     },
     {
-      "name": "L'équilibre des forces",
+      "name": "Question d'équilibre",
       "zone": "Osavora",
       "description": "Série principale pour le succès Question d'équilibre.",
-      "isPrerequisite": false,
       "quests": [
         { "name": "Ça barde là-haut", "id": 2515 },
         { "name": "Un problème de taille", "id": 2520 },
-        { "name": "Des petites bêtes qui font bzzbz", "id": 2521 },
-        { "name": "Têtes de ponte", "id": 2522 },
+        { "name": "Des petites bêtes qui font bzzzbz", "id": 2521 },
+        { 
+          "name": "Têtes de ponte", "id": 2522,
+          "dungeons": [{ "id": 163, "name": "Poste de contrôle du Supervizœuf", "level": 170 }]
+        },
         { "name": "Dérive insectaire", "id": 2523 },
-        { "name": "Le vol des bourdons", "id": 2516 },
-        { "name": "Devoir de réserve", "id": 2531 },
-        { "name": "La proie des vérités", "id": 2517 },
+        { 
+          "name": "Le vol des bourdons", "id": 2516,
+          "dungeons": [{ "id": 163, "name": "Poste de contrôle du Supervizœuf", "level": 170 }]
+        },
+        { 
+          "name": "Devoir de réserve", "id": 2531,
+          "dungeons": [{ "id": 164, "name": "Breuil du Vénérable", "level": 200 }]
+        },
+        { 
+          "name": "La proie des vérités", "id": 2517,
+          "dungeons": [{ "id": 164, "name": "Breuil du Vénérable", "level": 200 }]
+        },
+        { "name": "Quand on la cherche, on finit par tomber dessus", "id": 2530 },
         { "name": "Un hôte de marque", "id": 2532 },
         { "name": "L'union sacrée", "id": 2533 },
         { "name": "Trois cœurs, un roi", "id": 2518 },
-        { "name": "Le roi balafré", "id": 2535 },
+        { 
+          "name": "Le roi balafré", "id": 2535,
+          "dungeons": [{ "id": 165, "name": "Autel de la Déchireuse", "level": 200 }]
+        },
         { "name": "Destructeur de mondes", "id": 2519 }
       ]
     }
-  ],
-  "imageUrl": "/module-dofus/Dofus_dofoozbz.png"
+  ]
 }

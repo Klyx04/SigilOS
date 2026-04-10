@@ -20,19 +20,26 @@ interface AdminMembersPageProps {
 export default async function AdminMembersPage({ params }: AdminMembersPageProps) {
     const { guildId } = await params;
     
-    // Parallel fetching for performance
-    const [ctx, stats, members, guildConfig, channels, roles, historyRes] = await Promise.all([
-        getUserContext(guildId),
-        getGuildMemberStats(guildId),
-        getGuildMembers(guildId),
-        db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { welcomeBadgeName: true }
-        }),
-        fetchGuildChannels(guildId),
-        fetchGuildRoles(guildId),
-        getRelanceHistory(guildId)
-    ]);
+    let ctx, stats, members, guildConfig, channels, roles, historyRes;
+    
+    try {
+        // Parallel fetching for performance
+        [ctx, stats, members, guildConfig, channels, roles, historyRes] = await Promise.all([
+            getUserContext(guildId),
+            getGuildMemberStats(guildId),
+            getGuildMembers(guildId),
+            db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { welcomeBadgeName: true }
+            }),
+            fetchGuildChannels(guildId),
+            fetchGuildRoles(guildId),
+            getRelanceHistory(guildId)
+        ]);
+    } catch (err) {
+        console.error("[CRITICAL] Members Page Fetch Error:", err);
+        throw err; // Re-throw to trigger boundary
+    }
 
     const textChannels = (channels || []).filter(c => c.type === 0 || c.type === 5);
     const history = historyRes.success ? historyRes.data : [];

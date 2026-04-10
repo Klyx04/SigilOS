@@ -62,7 +62,10 @@ export type AuditAction =
     | "MISSION_VALIDATED"
     | "MISSION_REJECTED"
     | "MISSION_PUBLISH_DISCORD"
-    | "MISSION_XP_OVERRIDE";
+    | "MISSION_XP_OVERRIDE"
+    | "GUILDATON_UPDATE"
+    | "GUILDATON_CSV_IMPORT"
+    | "GUILDATON_SETTINGS_UPDATE";
 
 export type AuditTargetType =
     | "PERMISSION"

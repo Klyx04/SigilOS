@@ -6,11 +6,12 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
+import { getActiveInvaderRooms } from "@/server/actions/sigil-invader-actions";
 import { getSkribblLadder } from '@/server/actions/skribbl-actions';
 import {
     createGeoguesserSession,
@@ -59,6 +60,9 @@ interface InteractiveMapProps {
     initialZoom?: number;
     initialWorldId?: number;
     hideUI?: boolean;
+    userName?: string;
+    userAvatar?: string;
+    isAdmin?: boolean;
 }
 
 export default function InteractiveMapV2({ 
@@ -71,7 +75,10 @@ export default function InteractiveMapV2({
     initialY,
     initialZoom,
     initialWorldId,
-    hideUI
+    hideUI,
+    userName,
+    userAvatar,
+    isAdmin
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const currentUserId = sessionData?.user?.id;
@@ -91,6 +98,8 @@ export default function InteractiveMapV2({
     );
     const [isMinimapExpanded, setIsMinimapExpanded] = useState(false);
     const [isMinimapHidden, setIsMinimapHidden] = useState(false);
+    const [joiningId, setJoiningId] = useState<string | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
     const [minimapRecenterTrigger, setMinimapRecenterTrigger] = useState(0);
     const [showZoneDetail, setShowZoneDetail] = useState(false);
     const [showMapHelp, setShowMapHelp] = useState(!hideUI);
@@ -100,8 +109,10 @@ export default function InteractiveMapV2({
     const [activeSession, setActiveSession] = useState<any>(null);
     const [availableSessions, setAvailableSessions] = useState<any[]>([]);
     const [skribblRooms, setSkribblRooms] = useState<any[]>([]);
+    const [invaderRooms, setInvaderRooms] = useState<any[]>([]);
     const [garticRooms, setGarticRooms] = useState<any[]>([]);
     const [sigilKingRooms, setSigilKingRooms] = useState<any[]>([]);
+    const [bombRooms, setBombRooms] = useState<any[]>([]);
     const [guessResult, setGuessResult] = useState<any>(null);
     const [timeLeft, setTimeLeft] = useState(30);
     const [score, setScore] = useState(0);
@@ -285,11 +296,18 @@ export default function InteractiveMapV2({
     const allWorldMapsByCoords = useMemo(() => {
         const index = new Map<string, any>();
         worldMap.maps?.forEach(m => {
-            if (m.worldMap === selectedWorldId) {
+            // Inclusion condition: same world ID OR -1 (fallback for World 1)
+            const isRelevant = m.worldMap === selectedWorldId || (selectedWorldId === 1 && m.worldMap === -1);
+            
+            if (isRelevant) {
                 // If multiple maps exist at the same coord (outdoor/indoor), 
                 // we prefer the outdoor one or the first one found.
-                if (!index.has(`${m.x},${m.y}`) || m.outdoor) {
-                    index.set(`${m.x},${m.y}`, m);
+                // We also favor maps with the CORRECT worldMap over -1 if both exist.
+                const key = `${m.x},${m.y}`;
+                const existing = index.get(key);
+                
+                if (!existing || (m.outdoor && !existing.outdoor) || (m.worldMap === selectedWorldId && existing.worldMap === -1)) {
+                    index.set(key, m);
                 }
             }
         });
@@ -317,8 +335,12 @@ export default function InteractiveMapV2({
     const fetchLobbies = useCallback(async () => {
         if (!guildId) return;
         try {
-            const sessions = await getActiveGeoguesserSessions(guildId);
+            const [sessions, invaderData] = await Promise.all([
+                getActiveGeoguesserSessions(guildId),
+                getActiveInvaderRooms(guildId)
+            ]);
             setAvailableSessions(sessions || []);
+            setInvaderRooms(invaderData || []);
         } catch (e) {
             console.error("Error fetching lobbies:", e);
         }
@@ -342,6 +364,18 @@ export default function InteractiveMapV2({
     useEffect(() => {
         fetchLadder();
     }, [fetchLadder]);
+
+    useEffect(() => {
+        // Initial fetch
+        fetchLobbies();
+        
+        // Poll every 10s
+        const interval = setInterval(() => {
+            fetchLobbies();
+        }, 10000);
+        
+        return () => clearInterval(interval);
+    }, [fetchLobbies]);
 
     // Check hash for direct tab access
     useEffect(() => {
@@ -424,8 +458,8 @@ export default function InteractiveMapV2({
                     roomId: currentSession.id,
                     guildId,
                     userId: currentUserId,
-                    pseudo: sessionData?.user?.name || "Joueur",
-                    avatarUrl: sessionData?.user?.image,
+                    pseudo: userName || sessionData?.user?.name || "Joueur",
+                    avatarUrl: userAvatar || sessionData?.user?.image,
                     maxRounds: currentSession.maxRounds,
                     timePerRound: currentSession.timePerRound
                 });
@@ -434,12 +468,14 @@ export default function InteractiveMapV2({
             newSocket.emit("gartic:room:list");
             newSocket.emit("geoguesser:room:list");
             newSocket.emit("sigilking:room:list");
+            newSocket.emit("bomb:room:list");
         });
 
         newSocket.on("geoguesser:room:list", (rooms) => setAvailableSessions(rooms || []));
         newSocket.on("skribbl:room:list", (rooms) => setSkribblRooms(rooms || []));
         newSocket.on("gartic:room:list", (rooms) => setGarticRooms(rooms || []));
         newSocket.on("sigilking:room:list", (rooms) => setSigilKingRooms(rooms || []));
+        newSocket.on("bomb:room:list", (rooms) => setBombRooms(rooms || []));
 
         newSocket.on("geoguesser:player:joined", (data: any) => {
             if (data.userId !== currentUserIdRef.current) {
@@ -490,8 +526,23 @@ export default function InteractiveMapV2({
                 }
             }
 
-            setActiveSession(state);
+            // setActiveSession(state); // Move this after drift check or optimize it
             const serverTime = state.timeLeft ?? 0;
+            const stateRef = activeSessionRef.current;
+            
+            // Only update session if important data changed (avoiding flickering from timeLeft)
+            const importantDataChanged = 
+                !stateRef || 
+                state.state !== stateRef.state || 
+                state.currentRound !== stateRef.currentRound || 
+                state.hostId !== stateRef.hostId ||
+                JSON.stringify(state.participants?.map((p: any) => ({ userId: p.userId, hasGuessed: p.hasGuessed, score: p.score }))) !== 
+                JSON.stringify(stateRef.participants?.map((p: any) => ({ userId: p.userId, hasGuessed: p.hasGuessed, score: p.score })));
+
+            if (importantDataChanged) {
+                setActiveSession(state);
+            }
+            
             setTimeLeft(prev => {
                 // If it's a short countdown (like 3-2-1), don't smooth it
                 if (serverTime <= 5) return serverTime;
@@ -554,11 +605,16 @@ export default function InteractiveMapV2({
                 if (tMap) {
                     const newResult = {
                         target: { x: tMap.x, y: tMap.y, worldMap: tMap.worldMap, mapId: targetId },
-                        guess: (me?.lastGuess && !me.lastGuess.hidden) ? { ...me.lastGuess, x: me.lastGuess.x, y: me.lastGuess.y, worldMap: me.lastGuess.worldId } : null,
+                        guess: (me?.lastGuess && !me.lastGuess.hidden) ? { ...me.lastGuess, x: me.lastGuess.x, y: me.lastGuess.y, worldId: me.lastGuess.worldId, mapId: me.lastGuess.mapId } : null,
                         distance: me?.lastGuess?.distance || 0,
                         score: me?.lastGuess?.score || 0
                     };
-                    setGuessResult(newResult);
+                    
+                    // Memoize guessResult to avoid canvas flicker
+                    setGuessResult(prev => {
+                        if (JSON.stringify(prev) === JSON.stringify(newResult)) return prev;
+                        return newResult;
+                    });
 
                     // --- CELEBRATION TRIGGER ---
                     if (me && me.hasGuessed && !me.isSpectator && newResult.distance === 0 && (newState === 'RESULT' || newState === 'FINISHED')) {
@@ -639,27 +695,33 @@ export default function InteractiveMapV2({
 
 
     const handleJoinRoom = async (room: any, isSpectator: boolean = false) => {
+        if (!socket) return;
         setIsSoloMode(false);
         if (!isSpectator && room.participants?.length >= 8) {
             toast.error("Salon complet (8 joueurs max)");
             return;
         }
+        setJoiningId(room.id);
         const res = await joinGeoguesserSession(room.id, isSpectator);
         if (res.success) {
-            setActiveSession({ ...room, isSpectator });
+            setActiveSession({ ...room, isSpectator, state: room.state || 'LOBBY' });
             toast.success(isSpectator ? "Mode Spectateur activé !" : "Salon rejoint !");
             socket?.emit("geoguesser:room:join", {
                 roomId: room.id,
                 guildId,
                 userId: currentUserId,
-                pseudo: sessionData?.user?.name || "Joueur",
-                avatarUrl: sessionData?.user?.image,
+                pseudo: userName || sessionData?.user?.name || "Joueur",
+                avatarUrl: userAvatar || sessionData?.user?.image,
                 maxRounds: room.maxRounds,
                 timePerRound: room.timePerRound,
                 isSpectator: isSpectator
             });
+            setJoiningId(null);
+            setGamePhase('idle');
+            setActiveTab('games');
         } else {
             toast.error(res.error || "Erreur");
+            setJoiningId(null);
         }
     };
 
@@ -670,8 +732,9 @@ export default function InteractiveMapV2({
     };
 
     const handleCreateRoom = async () => {
-        if (!guildId) return;
+        if (!guildId || !socket) return;
         setIsSoloMode(false);
+        setIsCreating(true);
         const res = await createGeoguesserSession(guildId);
         if (res.success && res.data) {
             setActiveSession(res.data);
@@ -681,14 +744,16 @@ export default function InteractiveMapV2({
                 roomId: res.data.id,
                 guildId,
                 userId: currentUserId,
-                pseudo: sessionData?.user?.name || "Hôte",
-                avatarUrl: sessionData?.user?.image,
+                pseudo: userName || sessionData?.user?.name || "Hôte",
+                avatarUrl: userAvatar || sessionData?.user?.image,
                 maxRounds: res.data.maxRounds,
                 timePerRound: res.data.timePerRound
             });
+            setActiveTab('games');
         } else {
             toast.error(res.error || "Erreur lors de la création.");
         }
+        setIsCreating(false);
     };
 
     const handleSoloMode = async () => {
@@ -703,8 +768,8 @@ export default function InteractiveMapV2({
                 roomId: res.data.id,
                 guildId,
                 userId: currentUserId,
-                pseudo: sessionData?.user?.name || "Solo Explorer",
-                avatarUrl: sessionData?.user?.image,
+                pseudo: userName || sessionData?.user?.name || "Solo Explorer",
+                avatarUrl: userAvatar || sessionData?.user?.image,
                 maxRounds: 5,
                 timePerRound: 30
             });
@@ -968,7 +1033,22 @@ export default function InteractiveMapV2({
                                 <span className="relative z-10">Mini-Jeux</span>
                             </button>
                         </div>
-                    ) : <div />}
+                    ) : (
+                        <button 
+                            onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
+                            className="group flex items-center gap-4 bg-white/5 hover:bg-white/10 px-6 py-2.5 rounded-2xl border border-white/5 transition-all hover:scale-105 active:scale-95"
+                        >
+                            <div className="text-emerald-500 transition-transform group-hover:rotate-12">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                                    <rect x="3" y="3" width="7" height="7" />
+                                    <rect x="14" y="3" width="7" height="7" />
+                                    <rect x="14" y="14" width="7" height="7" />
+                                    <rect x="3" y="14" width="7" height="7" />
+                                </svg>
+                            </div>
+                            <span className="text-[10px] font-black uppercase text-white/60 tracking-widest italic">Choix du Jeu</span>
+                        </button>
+                    )}
 
                     {/* Right: Map Contextual Tools (Visible ONLY on Map Tab) */}
                     <AnimatePresence mode="wait">
@@ -1330,11 +1410,11 @@ export default function InteractiveMapV2({
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 z-[1100] bg-black/60 backdrop-blur-md pointer-events-auto flex flex-col items-center justify-center p-4 md:p-8"
                         >
-                            <motion.div
-                                initial={{ y: 50, opacity: 0, scale: 0.95 }}
-                                animate={{ y: 0, opacity: 1, scale: 1 }}
-                                className="w-[95vw] h-[90vh] max-w-[1600px] max-h-[1000px] bg-[#0d111a]/95 backdrop-blur-[40px] border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-4 sm:p-6 md:p-10 pointer-events-auto relative overflow-y-auto overflow-x-hidden flex flex-col"
-                            >
+                        <motion.div
+                            initial={{ y: 50, opacity: 0, scale: 0.95 }}
+                            animate={{ y: 0, opacity: 1, scale: 1 }}
+                            className="w-full h-full max-w-[1600px] bg-[#0d111a]/95 backdrop-blur-[40px] border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-4 sm:p-6 md:p-10 pointer-events-auto relative overflow-hidden flex flex-col"
+                        >
                                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/[0.03] rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
 
                                 {/* Header: More compact for horizontal layout */}
@@ -1823,7 +1903,7 @@ export default function InteractiveMapV2({
                             </div>
 
                             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
-                                <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+                                <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {/* Geoguesser Card */}
                                     <motion.div
                                         whileHover={getGameStatus('guesser').isEnabled ? { y: -5 } : {}}
@@ -1861,9 +1941,10 @@ export default function InteractiveMapV2({
                                                     <>
                                                         <button
                                                             onClick={handleCreateRoom}
-                                                            className="w-full py-4 rounded-xl bg-emerald-500 text-white font-black uppercase text-[10px] italic shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                                                            disabled={isCreating || joiningId !== null}
+                                                            className="w-full py-4 rounded-xl bg-emerald-500 text-white font-black uppercase text-[10px] italic shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                                         >
-                                                            <Plus size={14} /> Créer un Salon
+                                                            {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus size={14} /> Créer un Salon</>}
                                                         </button>
                                                         <button
                                                             onClick={handleSoloMode}
@@ -1922,9 +2003,6 @@ export default function InteractiveMapV2({
                                                         >
                                                             <Plus size={14} /> Créer un Salon
                                                         </a>
-                                                        <button className="w-full py-4 rounded-xl bg-white/5 text-white/20 font-black uppercase text-[10px] italic border border-white/5 cursor-not-allowed flex items-center justify-center gap-2">
-                                                            Solo bientôt
-                                                        </button>
                                                     </>
                                                 ) : (
                                                     <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
@@ -2033,7 +2111,114 @@ export default function InteractiveMapV2({
                                         </div>
                                     </motion.div>
 
-                                    <div className="md:col-span-2 lg:col-span-2 xl:col-span-4 mt-4 lg:mt-6">
+                                    {/* Sigil-Invader Card (Skeleton) */}
+                                    <motion.div
+                                        whileHover={getGameStatus('invader').isEnabled ? { y: -5 } : {}}
+                                        className={cn(
+                                            "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[2.5rem] p-8 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
+                                            getGameStatus('invader').isEnabled 
+                                                ? "hover:border-indigo-500/40 hover:bg-[#0a0f18]/80 border-white/5" 
+                                                : "border-red-500/20 grayscale opacity-70"
+                                        )}
+                                    >
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[60px] group-hover:bg-indigo-500/10 transition-all duration-700" />
+                                        
+                                        <div className="relative z-10 flex flex-col h-full">
+                                            <div className="flex items-start justify-between mb-6">
+                                                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:scale-110 transition-all duration-300 text-2xl">
+                                                    <Rocket className="text-indigo-400 w-8 h-8" />
+                                                </div>
+                                                <div className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase tracking-widest italic">
+                                                    {getGameStatus('invader').isEnabled ? 'ARCADE' : 'MAINTENANCE'}
+                                                </div>
+                                            </div>
+
+                                            <h3 className="text-white font-black text-2xl uppercase italic mb-1 tracking-tight group-hover:text-indigo-400 transition-colors">Sigil-Invader</h3>
+                                            <div className="mb-4">
+                                                <span className="text-indigo-400/60 text-[9px] font-black uppercase tracking-[0.2em] italic">"L'Invasion des Bouftous Célestes"</span>
+                                            </div>
+                                            <p className="text-white/40 text-[10px] font-medium leading-relaxed mb-8 h-12 overflow-hidden">
+                                                {getGameStatus('invader').isEnabled 
+                                                    ? "Un péril venu des cieux menace le Monde des Douze. Préparez vos sorts, pilotez votre montilier et repoussez l'invasion !"
+                                                    : getGameStatus('invader').message}
+                                            </p>
+
+                                            <div className="space-y-3 mt-auto">
+                                                {getGameStatus('invader').isEnabled ? (
+                                                    <>
+                                                        <a 
+                                                            href={`/dashboard/${guildId}/mini-jeux/sigil-invader`}
+                                                            className="w-full py-4 rounded-xl bg-indigo-600 text-white font-black uppercase text-[10px] italic shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <Plus size={14} /> Créer un Salon
+                                                        </a>
+                                                        <a 
+                                                            href={`/dashboard/${guildId}/mini-jeux/sigil-invader?solo=true`}
+                                                            className="w-full py-4 rounded-xl bg-white/5 text-white/60 font-black uppercase text-[10px] italic border border-white/10 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <Compass size={14} /> Jouer Solo
+                                                        </a>
+                                                    </>
+                                                ) : (
+                                                    <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
+                                                        Indisponible
+                                                    </div>
+                                                )}
+                                                
+                                            </div>
+                                        </div>
+                                    </motion.div>
+
+                                    {/* Sigil-Bomb Card */}
+                                    <motion.div
+                                        whileHover={getGameStatus('bomb').isEnabled ? { y: -5 } : {}}
+                                        className={cn(
+                                            "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[2.5rem] p-8 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
+                                            getGameStatus('bomb').isEnabled 
+                                                ? "hover:border-red-500/40 hover:bg-[#0a0f18]/80 border-white/5" 
+                                                : "border-red-500/20 grayscale opacity-70"
+                                        )}
+                                    >
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[60px] group-hover:bg-red-500/10 transition-all duration-700" />
+                                        
+                                        <div className="relative z-10 flex flex-col h-full">
+                                            <div className="flex items-start justify-between mb-6">
+                                                <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center border border-red-500/20 group-hover:scale-110 transition-all duration-300 text-2xl">
+                                                    <Bomb className="text-red-400 w-8 h-8" />
+                                                </div>
+                                                <div className="px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[8px] font-black uppercase tracking-widest italic">
+                                                    {getGameStatus('bomb').isEnabled ? 'ACTION' : 'MAINTENANCE'}
+                                                </div>
+                                            </div>
+
+                                            <h3 className="text-white font-black text-2xl uppercase italic mb-1 tracking-tight group-hover:text-red-400 transition-colors">Sigil-Bomb</h3>
+                                            <div className="mb-4">
+                                                <span className="text-red-400/60 text-[9px] font-black uppercase tracking-[0.2em] italic">"L'art explosif des Roublards"</span>
+                                            </div>
+                                            <p className="text-white/40 text-[10px] font-medium leading-relaxed mb-8 h-12 overflow-hidden">
+                                                {getGameStatus('bomb').isEnabled 
+                                                    ? "Trouvez les mots imposés par la Reine avant que sa bombe n'explose. Un duel de vocabulaire explosif dans la Dimension Sram !"
+                                                    : getGameStatus('bomb').message}
+                                            </p>
+
+                                            <div className="space-y-3 mt-auto">
+                                                {getGameStatus('bomb').isEnabled ? (
+                                                    <a 
+                                                        href={`/dashboard/${guildId}/mini-jeux/sigil-bomb`}
+                                                        className="w-full py-4 rounded-xl bg-red-600 text-white font-black uppercase text-[10px] italic shadow-lg shadow-red-600/20 hover:bg-red-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Plus size={14} /> Créer un Salon
+                                                    </a>
+                                                ) : (
+                                                    <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
+                                                        Indisponible
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+
+                                    <div className="md:col-span-2 lg:col-span-2 xl:col-span-3 mt-4 lg:mt-6">
                                         <div className="flex items-center gap-4 mb-4 lg:mb-6">
                                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                             <h4 className="text-white/30 font-black uppercase text-xs tracking-[0.2em]">Salons en attente de joueurs</h4>
@@ -2041,7 +2226,7 @@ export default function InteractiveMapV2({
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 max-h-[180px] lg:max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
-                                            {(availableSessions.length === 0 && skribblRooms.length === 0 && garticRooms.length === 0 && sigilKingRooms.length === 0) ? (
+                                            {(availableSessions.length === 0 && skribblRooms.length === 0 && garticRooms.length === 0 && sigilKingRooms.length === 0 && bombRooms.length === 0) ? (
                                                 <div className="col-span-full h-20 lg:h-28 flex items-center justify-center border border-dashed border-white/5 rounded-2xl bg-white/[0.02] text-white/10 italic font-black uppercase text-[10px] tracking-[0.2em] text-center px-4">
                                                     Aucun salon actif • Créez le vôtre pour commencer
                                                 </div>
@@ -2071,9 +2256,21 @@ export default function InteractiveMapV2({
                                                                         Lancé
                                                                     </div>
                                                                 ) : (
-                                                                    <button onClick={() => handleJoinRoom(room)} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500 text-white font-black uppercase text-[10px] shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all">Rejoindre</button>
+                                                                    <button 
+                                                                        onClick={() => handleJoinRoom(room)} 
+                                                                        disabled={joiningId === room.id}
+                                                                        className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500 text-white font-black uppercase text-[10px] shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all disabled:opacity-50"
+                                                                    >
+                                                                        {joiningId === room.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Rejoindre"}
+                                                                    </button>
                                                                 )}
-                                                                <button onClick={() => handleJoinRoom(room, true)} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all">Regarder</button>
+                                                                <button 
+                                                                    onClick={() => handleJoinRoom(room, true)} 
+                                                                    disabled={joiningId === room.id}
+                                                                    className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all disabled:opacity-50"
+                                                                >
+                                                                    Regarder
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -2110,6 +2307,24 @@ export default function InteractiveMapV2({
                                                                     <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500 text-white font-black uppercase text-[10px] shadow-md shadow-amber-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
                                                                 )}
                                                                 <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {bombRooms.map(room => (
+                                                        <div key={room.roomId} className="p-4 bg-white/5 border border-red-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-red-500/5 transition-all">
+                                                            <div className="flex flex-col min-w-0 pr-2">
+                                                                <span className="text-white font-bold text-xs uppercase italic truncate">{room.roomId}</span>
+                                                                <span className="text-red-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Bomb • {room.playerCount}/8</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {room.state !== 'LOBBY' ? (
+                                                                    <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                        Lancé
+                                                                    </div>
+                                                                ) : (
+                                                                    <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500 text-white font-black uppercase text-[10px] shadow-md shadow-red-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                                )}
+                                                                <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -2228,11 +2443,11 @@ export default function InteractiveMapV2({
 
                 {/* --- ACTIVE SESSION LOBBY --- */}
                 {activeSession && activeTab === 'games' && gamePhase === 'idle' && (
-                    <div className="absolute inset-0 z-[950] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 md:p-8 pt-24 overflow-y-auto">
+                    <div className="absolute inset-0 z-[950] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 md:p-6 overflow-hidden">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="max-w-6xl w-full h-[90vh] md:h-auto md:max-h-[90vh] md:aspect-video bg-[#0d111a] border border-white/10 rounded-[2rem] md:rounded-[3rem] flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)] overflow-hidden relative"
+                            className="max-w-6xl w-full h-full md:max-h-full md:aspect-video bg-[#0d111a] border border-white/10 rounded-[2rem] md:rounded-[3rem] flex flex-col md:flex-row shadow-[0_50px_100px_rgba(0,0,0,0.8)] overflow-hidden relative"
                         >
                             {/* Lobby Sidebar */}
                             <div className="w-full md:w-80 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-white/5 p-6 md:p-10 bg-black/40 flex flex-col justify-between relative shrink-0">

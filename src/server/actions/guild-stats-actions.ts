@@ -61,6 +61,14 @@ interface SocialStats {
     topVocal: LeaderboardEntry[];
 }
 
+interface QuestStats {
+    ownership: { slug: string; name: string; count: number; total: number }[];
+    topProgressors: LeaderboardEntry[];
+    bottlenecks: { questName: string; count: number }[];
+    guildCompletionRate: number;
+    recentDofus: { name: string; username: string; obtainedAt: Date }[];
+}
+
 interface MiniGameGlobalStats {
     totalGamesPlayed: number;
     totalPointsRanked: number;
@@ -134,6 +142,7 @@ export interface GuildStats {
     miniGames: MiniGameGlobalStats;
     performance: AdminPerformance;
     retention: RetentionStats;
+    quests: QuestStats;
     records: GuildRecord[];
 }
 
@@ -373,6 +382,36 @@ export async function getGuildStats(guildId: string): Promise<{
             db.sigilKingRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
             db.skribblRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
             db.geoguesserRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
+            // NEW: Quest Stats Batching
+            db.playerDofusProgress.groupBy({
+                by: ["dofusId"],
+                where: { guildId, isObtained: true },
+                _count: true,
+            }),
+            db.playerDofusQuestProgress.groupBy({
+                by: ["questId"],
+                where: { guildId, status: "IN_PROGRESS" },
+                _count: true,
+                orderBy: { _count: { questId: "desc" } },
+                take: 10,
+            }),
+            db.playerDofusProgress.findMany({
+                where: { guildId, isObtained: true },
+                orderBy: { obtainedAt: "desc" },
+                take: 5,
+                select: {
+                    obtainedAt: true,
+                    dofus: { select: { name: true } },
+                    profile: { select: { discordNickname: true, pseudoDofus: true, user: { select: { name: true } } } }
+                }
+            }),
+            db.playerDofusProgress.groupBy({
+                by: ["profileId"],
+                where: { guildId },
+                _avg: { completionPercent: true },
+                orderBy: { _avg: { completionPercent: "desc" } },
+                take: 10
+            })
         ]);
 
         const [
@@ -430,17 +469,7 @@ export async function getGuildStats(guildId: string): Promise<{
 
         // --- BATCH 4: All leaderboard resolvers + helpers in parallel ---
         // Previously these were 9 sequential DB calls. Now they run concurrently.
-        const [
-            weeklyActivity,
-            missionsByCategory,
-            topValidators,
-            topDonors,
-            topSongeLeaders,
-            topOrganizers,
-            topHelpers,
-            topLenders,
-            topVaultContributors,
-        ] = await Promise.all([
+        const resultsBatch4 = await Promise.all([
             getWeeklyActivity(internalGuildId),
             getMissionCategoryStats(internalGuildId),
             getTopValidators(internalGuildId),
@@ -474,7 +503,29 @@ export async function getGuildStats(guildId: string): Promise<{
                 internalGuildId,
                 "profileId"
             ),
+            // NEW: Dofus Meta Data Resolvers
+            db.dofusItem.findMany({
+                select: { id: true, slug: true, name: true }
+            }),
+            db.dofusQuestEntry.findMany({
+                where: { id: { in: (resultsBatch3[16] as any[]).map(q => q.questId) } },
+                select: { id: true, name: true }
+            })
         ]);
+
+        const [
+            weeklyActivity,
+            missionsByCategory,
+            topValidators,
+            topDonors,
+            topSongeLeaders,
+            topOrganizers,
+            topHelpers,
+            topLenders,
+            topVaultContributors,
+            dofusTemplates,
+            questTemplates
+        ] = resultsBatch4 as any[];
 
         // Destructure NEW parameters from BATCH 1 & 2
         // Batch 1 extra results index: BATCH1 [9..12]
@@ -606,7 +657,7 @@ export async function getGuildStats(guildId: string): Promise<{
                 })),
                 topVocal: socialProfiles.sort((a: any, b: any) => (b.discordVoiceTimeWeekly || 0) - (a.discordVoiceTimeWeekly || 0)).slice(0, 5).map((p: any) => ({
                     name: getName(p),
-                    value: Math.round((p.discordVoiceTimeWeekly || 0) / 60) // Convert to hours for display
+                    value: p.discordVoiceTimeWeekly || 0 // Keep raw minutes
                 })),
             },
             miniGames: {
@@ -631,6 +682,31 @@ export async function getGuildStats(guildId: string): Promise<{
                 avgTenureDays: retentionData.filter((r: any) => r.archivedAt).length > 0
                     ? Math.round(retentionData.filter((r: any) => r.archivedAt).reduce((acc: number, r: any) => acc + (r.archivedAt!.getTime() - r.createdAt.getTime()), 0) / retentionData.filter((r: any) => r.archivedAt).length / (1000 * 60 * 60 * 24))
                     : 365, // Default/Placeholder
+            },
+            quests: {
+                ownership: dofusTemplates.map(t => ({
+                    slug: t.slug,
+                    name: t.name,
+                    count: (resultsBatch3[15] as any[]).find(o => o.dofusId === t.id)?._count || 0,
+                    total: activeMembers
+                })).sort((a, b) => b.count - a.count),
+                topProgressors: await resolveLeaderboard(
+                    (resultsBatch3[18] as any[]).map(p => [p.profileId, Math.round(p._avg.completionPercent || 0)] as [string, number]),
+                    internalGuildId,
+                    "profileId"
+                ),
+                bottlenecks: (resultsBatch3[16] as any[]).map(q => ({
+                    questName: questTemplates.find(t => t.id === q.questId)?.name || "Quête inconnue",
+                    count: q._count
+                })),
+                guildCompletionRate: (resultsBatch3[18] as any[]).length > 0
+                    ? Math.round((resultsBatch3[18] as any[]).reduce((acc: number, p: any) => acc + (p._avg.completionPercent || 0), 0) / (resultsBatch3[18] as any[]).length)
+                    : 0,
+                recentDofus: (resultsBatch3[17] as any[]).map(rd => ({
+                    name: rd.dofus.name,
+                    username: getName(rd.profile),
+                    obtainedAt: rd.obtainedAt
+                }))
             },
             records,
         };

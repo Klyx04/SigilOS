@@ -72,8 +72,8 @@ export function ItemInline({ itemId }: { itemId: string }) {
     }, [itemId]);
 
     const iconUrl = item?.iconId
-        ? `https://api.dofusdb.fr/img/items/${item.iconId}.png`
-        : `https://api.dofusdb.fr/img/items/${itemId}.png`;
+        ? `https://static.dofusdb.fr/items/${item.iconId}.png`
+        : `https://static.dofusdb.fr/items/${itemId}.png`;
 
     return (
         <a 
@@ -111,8 +111,8 @@ export function MonsterInline({ monsterId }: { monsterId: string }) {
     }, [monsterId]);
 
     const imgUrl = monster?.iconId 
-        ? `https://api.dofusdb.fr/img/monsters/${monster.iconId}.png`
-        : `https://api.dofusdb.fr/img/monsters/${monsterId}.png`;
+        ? `https://static.dofusdb.fr/monsters/${monster.iconId}.png`
+        : `https://static.dofusdb.fr/monsters/${monsterId}.png`;
 
     return (
         <a 
@@ -146,32 +146,32 @@ export const KNOWN_DUNGEON_BOSSES: Record<string, { name: string; mapImg: string
     "113":  { name: "Donjon des Larves",        mapImg: "https://api.dofusdb.fr/img/dungeons/3.png",   x: -2,  y: -27,  worldId: 0 },
     "119":  { name: "Donjon des Fungus",        mapImg: "https://api.dofusdb.fr/img/dungeons/4.png",   x: -5,  y: -24,  worldId: 0 },
     "107":  { name: "Donjon du Koalak",         mapImg: "https://api.dofusdb.fr/img/dungeons/5.png",   x: -15, y: 24,   worldId: 0 },
-    "57":   { name: "Tanière du Meulou",        mapImg: "https://api.dofusdb.fr/img/monsters/57.png",  x: -2,  y: 1,    worldId: 0 },
-    "3100": { name: "Donjon du Batofu",         mapImg: "https://api.dofusdb.fr/img/monsters/3100.png",x: -1,  y: -26,  worldId: 0 },
-    "2975": { name: "Donjon du Tofu Royal",     mapImg: "https://api.dofusdb.fr/img/monsters/2975.png",x: 3,   y: -25,  worldId: 0 },
-    "2960": { name: "Donjon des Larves",        mapImg: "https://api.dofusdb.fr/img/monsters/2960.png",x: -3,  y: -24,  worldId: 0 },
-    "5823": { name: "Bibliothèque du Maître Corbac", mapImg: "https://api.dofusdb.fr/img/monsters/5823.png", x: -9, y: 2, worldId: 0 },
-    "3460": { name: "Repaire du Draigoch",      mapImg: "https://api.dofusdb.fr/img/monsters/3460.png",x: -12, y: 15,   worldId: 0 },
-    "8052": { name: "Poste de contrôle du Supervizœuf",          mapImg: "https://api.dofusdb.fr/img/monsters/2507.png", x: 24,  y: 23,   worldId: 34 },
-    "8047": { name: "Breuil du Vénérable",       mapImg: "https://api.dofusdb.fr/img/monsters/2488.png", x: 6,   y: 9,    worldId: 34 },
-    "8033": { name: "Autel de la Déchireuse",    mapImg: "https://api.dofusdb.fr/img/monsters/2514.png", x: 12,  y: 2,    worldId: 34 },
-    "8069": { name: "Temple de Gargandyas",       mapImg: "https://api.dofusdb.fr/img/monsters/2517.png", x: 2,   y: 16,   worldId: 34 },
+    "57":   { name: "Tanière du Meulou",        mapImg: "https://static.dofusdb.fr/monsters/57.png",  x: -2,  y: 1,    worldId: 0 },
+    "3100": { name: "Donjon du Batofu",         mapImg: "https://static.dofusdb.fr/monsters/3100.png",x: -1,  y: -26,  worldId: 0 },
+    "2975": { name: "Donjon du Tofu Royal",     mapImg: "https://static.dofusdb.fr/monsters/2975.png",x: 3,   y: -25,  worldId: 0 },
+    "2960": { name: "Donjon des Larves",        mapImg: "https://static.dofusdb.fr/monsters/2960.png",x: -3,  y: -24,  worldId: 0 },
+    "5823": { name: "Bibliothèque du Maître Corbac", mapImg: "https://static.dofusdb.fr/monsters/5823.png", x: -9, y: 2, worldId: 0 },
+    "3460": { name: "Repaire du Draigoch",      mapImg: "https://static.dofusdb.fr/monsters/3460.png",x: -12, y: 15,   worldId: 0 },
+    "8052": { name: "Poste de contrôle du Supervizœuf",          mapImg: "https://static.dofusdb.fr/monsters/2507.png", x: 24,  y: 23,   worldId: 34 },
+    "8047": { name: "Breuil du Vénérable",       mapImg: "https://static.dofusdb.fr/monsters/2488.png", x: 6,   y: 9,    worldId: 34 },
+    "8033": { name: "Autel de la Déchireuse",    mapImg: "https://static.dofusdb.fr/monsters/2514.png", x: 12,  y: 2,    worldId: 34 },
+    "8069": { name: "Temple de Gargandyas",       mapImg: "https://static.dofusdb.fr/monsters/2517.png", x: 2,   y: 16,   worldId: 34 },
     
     // Frigost Bosses
-    "2854": { name: "Royalmouth",               mapImg: "https://api.dofusdb.fr/img/monsters/775.png",  x: -84, y: -49, worldId: 1 },
-    "2848": { name: "Mansot Royal",             mapImg: "https://api.dofusdb.fr/img/monsters/769.png",  x: -64, y: -55, worldId: 1 },
-    "2877": { name: "Ben le Ripate",           mapImg: "https://api.dofusdb.fr/img/monsters/794.png",  x: -60, y: -84, worldId: 1 },
-    "2924": { name: "Obsidiantre",              mapImg: "https://api.dofusdb.fr/img/monsters/825.png",  x: -71, y: -83, worldId: 1 },
-    "2967": { name: "Tengu Givrefoux",          mapImg: "https://api.dofusdb.fr/img/monsters/840.png",  x: -80, y: -75, worldId: 1 },
-    "2977": { name: "Korriandre",               mapImg: "https://api.dofusdb.fr/img/monsters/850.png",  x: -73, y: -69, worldId: 1 },
-    "3065": { name: "Kolosso",                  mapImg: "https://api.dofusdb.fr/img/monsters/860.png",  x: -61, y: -69, worldId: 1 },
-    "2864": { name: "Glourséleste",             mapImg: "https://api.dofusdb.fr/img/monsters/785.png",  x: -63, y: -75, worldId: 1 },
-    "3121": { name: "Nileza",                   mapImg: "https://api.dofusdb.fr/img/monsters/875.png",  x: -61, y: -75, worldId: 1 },
-    "3126": { name: "Sylargh",                  mapImg: "https://api.dofusdb.fr/img/monsters/880.png",  x: -54, y: -82, worldId: 1 },
-    "3154": { name: "Klime",                    mapImg: "https://api.dofusdb.fr/img/monsters/890.png",  x: -65, y: -86, worldId: 1 },
-    "3156": { name: "Missiz Frizz",             mapImg: "https://api.dofusdb.fr/img/monsters/895.png",  x: -72, y: -84, worldId: 1 },
-    "3159": { name: "Comte Harebourg",          mapImg: "https://api.dofusdb.fr/img/monsters/905.png",  x: -68, y: -76, worldId: 1 },
-    "2942": { name: "Grolloum",                 mapImg: "https://api.dofusdb.fr/img/monsters/834.png",  x: -62, y: -76, worldId: 1 },
+    "2854": { name: "Royalmouth",               mapImg: "https://static.dofusdb.fr/monsters/775.png",  x: -84, y: -49, worldId: 1 },
+    "2848": { name: "Mansot Royal",             mapImg: "https://static.dofusdb.fr/monsters/769.png",  x: -64, y: -55, worldId: 1 },
+    "2877": { name: "Ben le Ripate",           mapImg: "https://static.dofusdb.fr/monsters/794.png",  x: -60, y: -84, worldId: 1 },
+    "2924": { name: "Obsidiantre",              mapImg: "https://static.dofusdb.fr/monsters/825.png",  x: -71, y: -83, worldId: 1 },
+    "2967": { name: "Tengu Givrefoux",          mapImg: "https://static.dofusdb.fr/monsters/840.png",  x: -80, y: -75, worldId: 1 },
+    "2977": { name: "Korriandre",               mapImg: "https://static.dofusdb.fr/monsters/850.png",  x: -73, y: -69, worldId: 1 },
+    "3065": { name: "Kolosso",                  mapImg: "https://static.dofusdb.fr/monsters/860.png",  x: -61, y: -69, worldId: 1 },
+    "2864": { name: "Glourséleste",             mapImg: "https://static.dofusdb.fr/monsters/785.png",  x: -63, y: -75, worldId: 1 },
+    "3121": { name: "Nileza",                   mapImg: "https://static.dofusdb.fr/monsters/875.png",  x: -61, y: -75, worldId: 1 },
+    "3126": { name: "Sylargh",                  mapImg: "https://static.dofusdb.fr/monsters/880.png",  x: -54, y: -82, worldId: 1 },
+    "3154": { name: "Klime",                    mapImg: "https://static.dofusdb.fr/monsters/890.png",  x: -65, y: -86, worldId: 1 },
+    "3156": { name: "Missiz Frizz",             mapImg: "https://static.dofusdb.fr/monsters/895.png",  x: -72, y: -84, worldId: 1 },
+    "3159": { name: "Comte Harebourg",          mapImg: "https://static.dofusdb.fr/monsters/905.png",  x: -68, y: -76, worldId: 1 },
+    "2942": { name: "Grolloum",                 mapImg: "https://static.dofusdb.fr/monsters/834.png",  x: -62, y: -76, worldId: 1 },
 };
 
 // Known items that exclusively drop from dungeon bosses and imply a dungeon completion

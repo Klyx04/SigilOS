@@ -318,7 +318,7 @@ export function DofusSuccessGrid({
                                                                                         <img src={d.img} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                                                                     ) : d.id ? (
                                                                                         // eslint-disable-next-line @next/next/no-img-element
-                                                                                        <img src={`https://api.dofusdb.fr/img/monsters/${d.id}.png`} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                                                                        <img src={`https://static.dofusdb.fr/monsters/${d.id}.png`} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                                                                     ) : <span className="text-rose-400">🏰</span>}
                                                                                 </div>
                                                                                 <div className="flex-1 min-w-0">

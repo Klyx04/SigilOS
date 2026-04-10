@@ -27,8 +27,8 @@ export default async function SigilKingPage({ params, searchParams }: Props) {
         <SigilKingGame
             guildId={guildId}
             userId={session.user.id!}
-            userName={session.user.name || "Joueur"}
-            userAvatar={session.user.image || undefined}
+            userName={user.name || "Joueur"}
+            userAvatar={user.image || undefined}
             initialRoomId={room}
             isSpectator={spectate === "true"}
         />

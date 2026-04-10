@@ -27,8 +27,8 @@ export async function submitSkribblScore(
             create: {
                 guildId,
                 userId: session.user.id,
-                userName: session.user.name || "Inconnu",
-                userAvatar: session.user.image,
+                userName: ctx.name || "Inconnu",
+                userAvatar: ctx.image,
                 bestScore: score,
                 totalPoints: score,
                 gamesPlayed: 1
@@ -36,8 +36,8 @@ export async function submitSkribblScore(
             update: {
                 totalPoints: { increment: score },
                 gamesPlayed: { increment: 1 },
-                userName: session.user.name || "Inconnu",
-                userAvatar: session.user.image,
+                userName: ctx.name || "Inconnu",
+                userAvatar: ctx.image,
             }
         });
 

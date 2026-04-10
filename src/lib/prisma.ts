@@ -3,7 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 import { encrypt, decrypt } from './encryption'
 
-// Récupération et nettoyage strict - v3.0.3 (Force Rebuild for Schema Changes)
+// Récupération et nettoyage strict - v3.0.5 (Force Rebuild for Schema Changes)
 const getEnv = (key: string, fallback: string) => {
     const val = process.env[key];
     if (!val) return fallback;

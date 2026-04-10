@@ -1,218 +1,26 @@
 {
   "dofus": "dolmanax",
   "displayName": "Dolmanax",
-  "color": "#1ABC9C",
-  "successName": "Le Dolmanax",
-  "recommendedLevel": 170,
-  "description": "Obtenir le Dolmanax.",
+  "color": "#FFC300",
+  "successName": "L'année du dragon",
+  "recommendedLevel": 1,
+  "description": "Collecter les 365 pages du calendrier de l'Almanax.",
   "dofusItemId": 8774,
   "iconId": null,
   "imageUrl": null,
-  "compiledAt": "2026-04-04T13:37:59.676Z",
+  "compiledAt": "2026-04-09T12:46:19.082Z",
   "chains": [
     {
-      "sectionName": "Prérequis",
-      "sectionType": "PREREQUISITE",
-      "zone": "Monde de Douze",
-      "description": "Conditions requises pour accéder aux quêtes du Dolmanax.",
+      "sectionName": "Calendrier de l'Almanax",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Le Sanctuaire de l'Almanax",
+      "description": "Quête de longue haleine demandant 365 offrandes quotidiennes.",
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
       "entries": [
         {
-          "name": "L'anneau de tous les dangers",
-          "dofusdbId": 1629,
-          "level": 2,
-          "zone": "Salle des métiers",
-          "npcName": null,
-          "npcSubArea": "Salle des métiers",
-          "coords": {
-            "x": -3,
-            "y": -3,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 289,
-              "name": "Blé",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/34009.png"
-            },
-            {
-              "id": 303,
-              "name": "Bois de Frêne",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/38017.png"
-            },
-            {
-              "id": 312,
-              "name": "Fer",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/39024.png"
-            },
-            {
-              "id": 421,
-              "name": "Ortie",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/36642.png"
-            },
-            {
-              "id": 1782,
-              "name": "Goujon",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/41294.png"
-            }
-          ],
-          "objectives": [
-            "Entrer dans la salle des métiers",
-            "Aller voir {npc,2895}",
-            "Récolter du blé",
-            "Cueillir de l'ortie",
-            "Couper du frêne",
-            "Extraire du fer",
-            "Pêcher un goujon",
-            "Fabriquer 1 {item,19622} et fermer l'interface",
-            "Retourner voir {npc,7581}"
-          ],
-          "stepOrder": 0,
-          "isSynergyCandidate": false,
-          "requirements": []
-        },
-        {
-          "name": "Destination Astrub",
-          "dofusdbId": 2004,
-          "level": 10,
-          "zone": "Incarnam - Aire de l'envol",
-          "npcName": null,
-          "npcSubArea": "Incarnam - Aire de l'envol",
-          "coords": {
-            "x": 4,
-            "y": -3,
-            "worldId": 2
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,4360}",
-            "Utiliser le portail pour se rendre à Astrub sur le Monde des Douze",
-            "Aller voir {npc,4355}"
-          ],
-          "stepOrder": 1,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1629
-            }
-          ]
-        },
-        {
-          "name": "On marche sur des œufs",
-          "dofusdbId": 1959,
-          "level": 15,
-          "zone": "Taverne d'Astrub",
-          "npcName": null,
-          "npcSubArea": "Taverne d'Astrub",
-          "coords": {
-            "x": 6,
-            "y": -18,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Entrer dans la taverne d'Astrub",
-            "Parler avec les occupants de la taverne pour attirer l'attention d'un trafiquant",
-            "Aller voir {npc,4379}",
-            "Vaincre x1 {monster,5240} en un seul combat",
-            "Escorter Nowa et le livrer au chef Badufron",
-            "Aller voir {npc,1502}"
-          ],
-          "stepOrder": 2,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2004
-            }
-          ]
-        },
-        {
-          "name": "Conseil de classe",
-          "dofusdbId": 2009,
-          "level": 20,
-          "zone": "Taverne d'Astrub",
-          "npcName": null,
-          "npcSubArea": "Taverne d'Astrub",
-          "coords": {
-            "x": 4,
-            "y": -15,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,4338}",
-            "Aller voir {npc,4326}",
-            "Aller voir {npc,4324}",
-            "Aller voir {npc,4335}",
-            "Aller voir {npc,4337}",
-            "Aller voir {npc,4328}",
-            "Aller voir {npc,4334}",
-            "Aller voir {npc,4329}",
-            "Aller voir {npc,4333}",
-            "Aller voir {npc,4327}",
-            "Aller voir {npc,4347}",
-            "Aller voir {npc,4319}",
-            "Aller voir {npc,4318}",
-            "Aller voir {npc,4317}",
-            "Aller voir {npc,4315}",
-            "Aller voir {npc,4314}",
-            "Aller voir {npc,4313}",
-            "Aller voir {npc,4312}",
-            "Aller voir {npc,6839}"
-          ],
-          "stepOrder": 3,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1959
-            }
-          ]
-        },
-        {
-          "name": "Quête de classe",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 4,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2009
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "sectionName": "Le Dolmanax",
-      "sectionType": "MAIN_CHAIN",
-      "zone": "Monde de Douze",
-      "description": "Quête ou drop pour obtenir le Dolmanax.",
-      "isSynergyCandidate": false,
-      "chainOrder": 1,
-      "requires": [],
-      "entries": [
-        {
-          "name": "La quête du Dolmanax",
+          "name": "L'année du dragon (365 pages)",
           "dofusdbId": null,
           "level": null,
           "zone": null,

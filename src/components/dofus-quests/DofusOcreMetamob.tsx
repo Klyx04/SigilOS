@@ -191,7 +191,7 @@ function MetamobProgressView({ guildId, username, onUnlink }: { guildId: string;
                                             alt={m.name} 
                                             className="w-full h-full object-contain"
                                             onError={(e) => { 
-                                                (e.target as HTMLImageElement).src = `https://api.dofusdb.fr/img/monsters/${m.id}.png`; 
+                                                (e.target as HTMLImageElement).src = `https://static.dofusdb.fr/monsters/${m.id}.png`; 
                                             }}
                                         />
                                     </div>

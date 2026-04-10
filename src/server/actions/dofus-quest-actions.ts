@@ -859,7 +859,7 @@ export async function seedDofusData(guildId: string): Promise<{
     message?: string;
 }> {
     // Accept super-admins (called from /god with no guildId) OR guild admins
-    const superAdmin = await isSuperAdmin();
+    const superAdmin = (process.env.IS_SUPER_ADMIN === "true") || await isSuperAdmin();
     if (!superAdmin) {
         const ctx = await getUserContext(guildId);
         if (!ctx.isAdmin) return { success: false, error: "Admin uniquement" };

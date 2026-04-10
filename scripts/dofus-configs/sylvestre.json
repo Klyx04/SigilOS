@@ -1,226 +1,145 @@
 {
   "slug": "sylvestre",
   "displayName": "Dofus Sylvestre",
-  "color": "#228B22",
+  "nameShort": "Sylvestre",
+  "color": "#2ECC71",
   "dofusItemId": 29136,
-  "successName": "L'arbre qui cache la forêt",
+  "successName": "En attendant le printemps",
   "recommendedLevel": 200,
-  "successDescription": "Terminer la série des quêtes du Dofus Sylvestre.",
+  "successDescription": "Obtenir le Dofus Sylvestre en soignant Silvosse et en restaurant la forêt de l'Androsite.",
+  "globalItemsRequired": [
+    { "id": 14669, "name": "Essence de Moon", "amount": 1 },
+    { "id": 14666, "name": "Essence du Dragon Cochon", "amount": 1 },
+    { "id": 14684, "name": "Essence du Chêne Mou", "amount": 1 },
+    { "id": 14693, "name": "Essence du Korriandre", "amount": 1 },
+    { "id": 16654, "name": "Essence de Torkélonia", "amount": 1 },
+    { "id": 26978, "name": "Essence de Belladone", "amount": 1 },
+    { "id": 468, "name": "Frêne", "amount": 100 },
+    { "id": 449, "name": "Châtaignier", "amount": 100 },
+    { "id": 471, "name": "Noyer", "amount": 100 },
+    { "id": 472, "name": "Chêne", "amount": 100 },
+    { "id": 474, "name": "Bombu", "amount": 100 },
+    { "id": 470, "name": "Érable", "amount": 100 },
+    { "id": 473, "name": "Oliviolet", "amount": 100 },
+    { "id": 476, "name": "If", "amount": 100 },
+    { "id": 7013, "name": "Bambou", "amount": 100 },
+    { "id": 475, "name": "Merisier", "amount": 100 },
+    { "id": 17402, "name": "Noisetier", "amount": 100 },
+    { "id": 469, "name": "Ébène", "amount": 100 },
+    { "id": 445, "name": "Charme", "amount": 100 },
+    { "id": 7016, "name": "Bambou Sombre", "amount": 100 },
+    { "id": 467, "name": "Orme", "amount": 100 },
+    { "id": 8149, "name": "Bambou Sacré", "amount": 100 },
+    { "id": 11111, "name": "Tremble", "amount": 100 },
+    { "id": 18193, "name": "Aquajou", "amount": 100 },
+    { "id": 289, "name": "Blé", "amount": 100 },
+    { "id": 400, "name": "Orge", "amount": 100 },
+    { "id": 405, "name": "Avoine", "amount": 100 },
+    { "id": 414, "name": "Houblon", "amount": 100 },
+    { "id": 412, "name": "Lin", "amount": 100 },
+    { "id": 413, "name": "Seigle", "amount": 100 },
+    { "id": 533, "name": "Riz", "amount": 100 },
+    { "id": 401, "name": "Malt", "amount": 100 },
+    { "id": 415, "name": "Chanvre", "amount": 100 },
+    { "id": 12836, "name": "Maïs", "amount": 100 },
+    { "id": 12837, "name": "Millet", "amount": 100 },
+    { "id": 12838, "name": "Froment", "amount": 100 },
+    { "id": 421, "name": "Ortie", "amount": 100 },
+    { "id": 428, "name": "Sauge", "amount": 100 },
+    { "id": 425, "name": "Trèfle à 5 feuilles", "amount": 100 },
+    { "id": 423, "name": "Menthe Sauvage", "amount": 100 },
+    { "id": 431, "name": "Orchidée Freyesque", "amount": 100 },
+    { "id": 422, "name": "Edelweiss", "amount": 100 },
+    { "id": 7035, "name": "Pandouille", "amount": 100 },
+    { "id": 7036, "name": "Ginseng", "amount": 100 },
+    { "id": 433, "name": "Belladone", "amount": 100 },
+    { "id": 427, "name": "Mandragore", "amount": 100 },
+    { "id": 11107, "name": "Perce-neige", "amount": 100 },
+    { "id": 17403, "name": "Salicorne", "amount": 100 },
+    { "id": 312, "name": "Fer", "amount": 100 },
+    { "id": 441, "name": "Cuivre", "amount": 100 },
+    { "id": 442, "name": "Bronze", "amount": 100 },
+    { "id": 443, "name": "Kobalte", "amount": 100 },
+    { "id": 444, "name": "Manganèse", "amount": 100 },
+    { "id": 7031, "name": "Étain", "amount": 100 },
+    { "id": 7032, "name": "Argent", "amount": 100 },
+    { "id": 7029, "name": "Bauxite", "amount": 100 },
+    { "id": 7030, "name": "Or", "amount": 100 },
+    { "id": 7033, "name": "Dolomite", "amount": 100 },
+    { "id": 11110, "name": "Obsidienne", "amount": 100 },
+    { "id": 17995, "name": "Écume de mer", "amount": 100 },
+    { "id": 1782, "name": "Goujon", "amount": 100 },
+    { "id": 1844, "name": "Truite", "amount": 100 },
+    { "id": 598, "name": "Poisson-chat", "amount": 100 },
+    { "id": 1847, "name": "Brochet", "amount": 100 },
+    { "id": 1757, "name": "Crabe", "amount": 100 },
+    { "id": 603, "name": "Carpe d'Ié", "amount": 100 },
+    { "id": 1805, "name": "Sardine Brillante", "amount": 100 },
+    { "id": 1750, "name": "Greu-vette", "amount": 100 },
+    { "id": 1801, "name": "Perche", "amount": 100 },
+    { "id": 1784, "name": "Raie Bleue", "amount": 100 },
+    { "id": 16465, "name": "Lotte", "amount": 100 },
+    { "id": 11109, "name": "Requin Marteau Faucille", "amount": 100 },
+    { "id": 1779, "name": "Bar Rikain", "amount": 100 },
+    { "id": 16467, "name": "Morue", "amount": 100 },
+    { "id": 16469, "name": "Tanche", "amount": 100 },
+    { "id": 16471, "name": "Espadon", "amount": 100 },
+    { "id": 11106, "name": "Poisskaille", "amount": 100 }
+  ],
   "successes": [
     {
-      "name": "En attendant le printemps (Prérequis)",
-      "zone": "Le Monde des Douze",
-      "description": "Les premiers prérequis monumentaux pour accéder à la floraison.",
-      "isPrerequisite": true,
-      "quests": [
-        "Le secret des Dofus - Prologue",
-        "Obtenir le Dom de Pin"
-      ]
-    },
-    {
       "name": "L'arbre qui cache la forêt",
-      "zone": "Silvosse / Forêt",
-      "description": "Série unique et officielle des quêtes pour acquérir le Dofus Sylvestre (2.70+).",
-      "isPrerequisite": false,
-      "isSynergyCandidate": true,
-      "globalDungeonsRequired": [
-        "Antre de la Reine Nyée",
-        "Domaine Ancestral",
-        "Clairière du Chêne Mou",
-        "Antre du Korriandre",
-        "Palais du Roi Nidas",
-        "Bataille de l'Aurore Pourpre",
-        "Tour de Solar",
-        "Chambre des maléfices"
-      ],
-      "globalItemsRequired": [
-        {
-          "name": "Pépite",
-          "amount": 500,
-          "img": "https://api.dofusdb.fr/img/items/14635.png",
-          "id": 14635
-        },
-        {
-          "name": "Ailes de Moskito",
-          "amount": 31,
-          "img": "https://api.dofusdb.fr/img/items/353.png",
-          "id": 353
-        },
-        {
-          "name": "Métronome du Début-Temps",
-          "amount": 24,
-          "img": "https://api.dofusdb.fr/img/items/18567.png",
-          "id": 18567
-        },
-        {
-          "name": "Eau calme",
-          "amount": 20,
-          "img": "https://api.dofusdb.fr/img/items/11105.png",
-          "id": 11105
-        },
-        {
-          "name": "Poudre de Perlinpainpain",
-          "amount": 12,
-          "id": 372
-        },
-        {
-          "name": "Capsule Explosive",
-          "amount": 12,
-          "id": 12151
-        },
-        {
-          "name": "Poudre d'Artifice",
-          "amount": 12,
-          "id": 16900
-        },
-        {
-          "name": "Goulouboule rouge",
-          "amount": 12,
-          "id": 20491
-        },
-        {
-          "name": "Glande d'Arak-haï",
-          "amount": 6,
-          "id": 16428
-        },
-        {
-          "name": "Citron",
-          "amount": 6,
-          "id": 359
-        },
-        {
-          "name": "Fil de Néfileuse",
-          "amount": 6,
-          "id": 14061
-        },
-        {
-          "name": "Résine",
-          "amount": 6,
-          "id": 883
-        },
-        {
-          "name": "Kouartz",
-          "amount": 6,
-          "id": 7033
-        },
-        {
-          "name": "Volve de Fistulor",
-          "amount": 4,
-          "id": 11116
-        },
-        {
-          "name": "Lamelle de Dramanite",
-          "amount": 4,
-          "id": 11117
-        },
-        {
-          "name": "Lamelle de Mérulette",
-          "amount": 4,
-          "id": 11118
-        },
-        {
-          "name": "Volve de Fongeur",
-          "amount": 4,
-          "id": 11119
-        },
-        {
-          "name": "Écorce d'Abrazif",
-          "amount": 4,
-          "id": 11120
-        },
-        {
-          "name": "Tourmaline",
-          "amount": 4,
-          "id": 14636
-        },
-        {
-          "name": "Œil de Cycloïde",
-          "amount": 4,
-          "id": 15263
-        },
-        {
-          "name": "Huile de Koode",
-          "amount": 3,
-          "id": 1795
-        },
-        {
-          "name": "Queue de Mantaze",
-          "amount": 2,
-          "id": 17875
-        },
-        {
-          "name": "Fragment d'anomalie",
-          "amount": 2,
-          "id": 19445
-        },
-        {
-          "name": "Ardonite",
-          "amount": 2,
-          "id": 13410
-        },
-        {
-          "name": "Galet Solaire",
-          "amount": 2,
-          "id": 20389
-        },
-        {
-          "name": "Jus de cawotte fwelaté ou 100 000 kamas",
-          "amount": 1
-        },
-        {
-          "name": "Élixir des Trépasseurs",
-          "amount": 1,
-          "id": 21104
-        },
-        {
-          "name": "Galet Lunaire",
-          "amount": 1,
-          "id": 20387
-        },
-        {
-          "name": "Substrat de Forêt vierge",
-          "amount": 1,
-          "id": 17351
-        },
-        {
-          "name": "Clef de la Clairière du Chêne Mou",
-          "amount": 1,
-          "id": 10648
-        },
-        {
-          "name": "Dague de Will Killson ou 20 Kama de glace",
-          "amount": 1
-        },
-        {
-          "name": "Essence de Torkélonia",
-          "amount": 1
-        },
-        {
-          "name": "Essence de Tal Kasha",
-          "amount": 1
-        }
-      ],
+      "zone": "Malterre",
+      "id": 7760,
       "quests": [
-        "C'est tout Simple",
-        "Arak-haï en pagaille",
-        "Munster lève le mystère",
-        "L'art de la langue de bois",
-        "Les derniers d'entre nous",
-        "Cultures et turpitudes",
-        "Qui nous protège du Protecteur ?"
+        { "name": "C'est tout Simple", "id": 1618 },
+        { 
+          "name": "Arak-haï en pagaille", "id": 1619,
+          "dungeons": [{ "id": 141, "bossId": 7182, "name": "Antre de la Reine Nyée" }]
+        },
+        { "name": "Munster lève le mystère", "id": 1620 },
+        { 
+          "name": "L'art de la langue de bois", "id": 1621,
+          "dungeons": [
+            { "id": 15, "bossId": 173, "name": "Domaine Ancestral" },
+            { "id": 36, "bossId": 257, "name": "Clairière du Chêne Mou" }
+          ]
+        },
+        { 
+          "name": "Les derniers d'entre nous", "id": 2486,
+          "dungeons": [{ "id": 59, "bossId": 2968, "name": "Antre du Korriandre" }]
+        },
+        { 
+          "name": "Cultures et turpitudes", "id": 2487,
+          "dungeons": [
+            { "id": 69, "bossId": 3648, "name": "Palais du Roi Nidas" },
+            { "id": 136, "bossId": 5612, "name": "Bataille de l'Aurore Pourpre" }
+          ]
+        },
+        { 
+          "name": "Qui nous protège du Protecteur ?", "id": 2488,
+          "dungeons": [{ "id": 104, "bossId": 5100, "name": "Tour de Solar" }]
+        }
       ]
     },
     {
-      "name": "L'éclosion du Dofus",
-      "zone": "Refuge Sylvestre",
-      "description": "La conclusion finale de la quête forestière.",
-      "isPrerequisite": false,
+      "name": "En attendant le printemps",
+      "zone": "Malterre",
+      "id": 5222,
       "quests": [
-        "Flovoraison",
-        "Parler à Silvosse"
+        { "name": "Au détour d'un rêve perdu", "id": 2409 },
+        { "name": "Entretemps, une renaissance", "id": 2420 },
+        { 
+          "name": "La bête au bois dormant", "id": 2449,
+          "dungeons": [{ "id": 126, "bossId": 5806, "name": "Antre de Torkélonia" }]
+        },
+        { 
+          "name": "Flovoraison", "id": 2489,
+          "dungeons": [{ "id": 140, "bossId": 7210, "name": "Chambre des maléfices" }]
+        }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23036.png",
+  "imageUrl": "/module-dofus/Dofus_Sylvestre.png",
   "iconId": 23036
 }

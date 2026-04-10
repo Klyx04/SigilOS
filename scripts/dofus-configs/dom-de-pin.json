@@ -3,57 +3,50 @@
   "displayName": "Dom de Pin",
   "color": "#006400",
   "dofusItemId": 27803,
+  "successName": "L'héritage de l'île brisée",
+  "recommendedLevel": 190,
+  "successDescription": "Obtenir le Dom de Pin via les quêtes de l'île de Valonia et de Pandala.",
   "successes": [
     {
-      "name": "Prérequis des prérequis (... ouais, je sais)",
-      "zone": "unknown",
+      "name": "Prérequis de Pandala & Eliocalypse",
+      "zone": "Pandala / Eliocalypse",
+      "description": "Série de quêtes cross-zones nécessaires avant Valonia.",
+      "isPrerequisite": true,
       "quests": [
-        "Infame pourriture",
-        "Le saule du Promeneur",
-        "Arak-hai en pagaille",
-        "Requiem pour un yokai",
-        "Si loin, si proches",
-        "Jusqu'a leur dernier soupir",
-        "Deux souffles une inspiration",
-        "En ce jardin qui nous unit",
-        "Bucherons en detresse",
-        "L'accuse de la reception",
-        "Attention à la bête !",
-        "Le nouveau monde",
-        "Le Dofus et l'Alchimiste",
-        "Après lui, le déluge",
-        "Comme un corbac sur sa branche",
-        "Rester planté là",
-        "Arrête-la si tu peux",
-        "Pas de fumée sans feu",
-        "Quand les esprits s'échauffent",
-        "Le serment de l'ambre"
+        { "name": "Infâme pourriture" },
+        { "name": "Le saule du Promeneur" },
+        { "name": "Arak-haï en pagaille" },
+        { "name": "Requiem pour un yôkai" },
+        { "name": "Si loin, si proches" },
+        { "name": "Jusqu'à leur dernier soupir" },
+        { "name": "Deux souffles, une inspiration" },
+        { "name": "En ce jardin qui nous unit" }
       ]
     },
     {
-      "name": "Prérequis - Quatre sur six",
-      "zone": "unknown",
+      "name": "Le Secret des Dofus",
+      "zone": "Astrub / Pandala",
+      "description": "Quêtes rattachées à la trame principale des Dofus.",
+      "isPrerequisite": true,
       "quests": [
-        "Les couts du sort"
+        { "name": "La bête au bois dormant" },
+        { "name": "Les coûts du sort" }
       ]
     },
     {
-      "name": "Prérequis - Le secret des Dofus: Prologue",
-      "zone": "unknown",
+      "name": "Quêtes de Valonia",
+      "zone": "Île de Valonia",
+      "description": "La série des quêtes sur l'île de Valonia pour le succès final.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
       "quests": [
-        "La bête au bois dormant"
-      ]
-    },
-    {
-      "name": "100% quêtes Valonia : L'héritage de l'île brisée",
-      "zone": "unknown",
-      "quests": [
-        "Dans la gueule du Trankilou",
-        "Un événement inattendu",
-        "L'île maudite"
+        { "name": "Dans la gueule du Trankilou" },
+        { "name": "Un événement inattendu" },
+        { "name": "L'île maudite" },
+        { "name": "Le serment de l'ambre" }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23035.png",
+  "imageUrl": "https://static.dofusdb.fr/items/23035.png",
   "iconId": 23035
 }

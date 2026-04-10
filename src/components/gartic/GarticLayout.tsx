@@ -15,7 +15,7 @@ export const GarticStarDecorations = () => {
     );
 };
 
-export const GarticLayout = ({ phase, children, onClose, spectators = [] }: { phase: string; children: React.ReactNode; onClose?: () => void; spectators?: any[] }) => {
+export const GarticLayout = ({ phase, children, onClose, spectators = [], guildId = "" }: { phase: string; children: React.ReactNode; onClose?: () => void; spectators?: any[]; guildId?: string }) => {
     return (
         <div className="h-full w-full min-h-screen relative bg-[#3d8be0] font-sans overflow-y-auto overflow-x-hidden select-none">
             {/* Base Gradient background */}
@@ -47,23 +47,41 @@ export const GarticLayout = ({ phase, children, onClose, spectators = [] }: { ph
                 }
             `}</style>
 
-            {/* Spectators bubbles - Top Right */}
-            {spectators.length > 0 && (
-                <div className="absolute top-2 left-2 md:top-6 md:left-6 z-[200] flex items-center gap-3 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl">
-                    <div className="flex -space-x-2">
-                        {spectators.slice(0, 5).map((s, idx) => (
-                            <div key={s.id || idx} className="w-8 h-8 rounded-full border-2 border-white/20 bg-zinc-900 overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:z-10 transition-all cursor-help ring-2 ring-black/10" title={s.username || s.userName}>
-                                <img src={s.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${s.username || s.userName}`} className="w-full h-full object-cover rounded-full" alt="" />
-                            </div>
-                        ))}
-                        {spectators.length > 5 && (
-                            <div className="w-8 h-8 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-[10px] font-black text-white/50 backdrop-blur-sm">
-                                +{spectators.length - 5}
-                            </div>
-                        )}
+            {/* RETOUR SELECTION */}
+            <div className="absolute top-2 left-2 md:top-6 md:left-6 z-[200] flex flex-col gap-2">
+                <button 
+                    onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
+                    className="group flex flex-col items-center justify-center w-10 h-10 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl border border-white/10 shadow-lg transition-all hover:scale-110 active:scale-95 group"
+                    title="Retour à la sélection"
+                >
+                    <div className="text-white transition-transform group-hover:rotate-12">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 md:w-8 md:h-8">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
                     </div>
-                </div>
-            )}
+                </button>
+
+                {/* Spectators bubbles - Below Home button */}
+                {spectators.length > 0 && (
+                    <div className="flex items-center gap-3 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl">
+                        <div className="flex -space-x-2">
+                            {spectators.slice(0, 5).map((s, idx) => (
+                                <div key={s.id || idx} className="w-8 h-8 rounded-full border-2 border-white/20 bg-zinc-900 overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:z-10 transition-all cursor-help ring-2 ring-black/10" title={s.username || s.userName}>
+                                    <img src={s.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${s.username || s.userName}`} className="w-full h-full object-cover rounded-full" alt="" />
+                                </div>
+                            ))}
+                            {spectators.length > 5 && (
+                                <div className="w-8 h-8 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-[10px] font-black text-white/50 backdrop-blur-sm">
+                                    +{spectators.length - 5}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {onClose && (
                 <button 

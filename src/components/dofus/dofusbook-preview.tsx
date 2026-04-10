@@ -44,7 +44,7 @@ function ClothBadge({ cloth }: { cloth: ClothData }) {
                             >
                                 <div className="w-8 h-8 bg-zinc-900 rounded-lg border border-white/5 flex-shrink-0 overflow-hidden">
                                     <NextImage
-                                        src={item.picture ? `https://api.dofusdb.fr/img/items/${item.picture}.png` : `/assets/dofus/placeholder.png`}
+                                        src={item.picture ? `https://static.dofusdb.fr/items/${item.picture}.png` : `/assets/dofus/placeholder.png`}
                                         alt={item.name}
                                         width={32}
                                         height={32}
@@ -253,7 +253,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         {item && (
                                             <>
                                                 <NextImage
-                                                    src={item.picture ? `https://api.dofusdb.fr/img/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
+                                                    src={item.picture ? `https://static.dofusdb.fr/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
                                                     alt={item.name}
                                                     width={32}
                                                     height={32}
@@ -343,7 +343,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 {item && (
                                                     <>
                                                         <NextImage
-                                                            src={item.picture ? `https://api.dofusdb.fr/img/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
+                                                            src={item.picture ? `https://static.dofusdb.fr/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
                                                             alt={item.name}
                                                             width={44}
                                                             height={44}

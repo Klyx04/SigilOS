@@ -737,7 +737,7 @@ export function ItemSearchPanel() {
                                                         {recipe.ingredients.map((ing, i) => (
                                                             <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-black/50 border border-white/5 group/ing hover:border-white/10 transition-all">
                                                                 <div className="w-12 h-12 rounded-xl bg-zinc-950 flex items-center justify-center shrink-0">
-                                                                    <Image src={ing.img || `https://api.dofusdb.fr/img/items/${ing.id}.png`} alt="Ingredient" width={32} height={32} unoptimized />
+                                                                    <Image src={ing.img || `https://static.dofusdb.fr/items/${ing.id}.png`} alt="Ingredient" width={32} height={32} unoptimized />
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="text-[12px] font-bold text-zinc-200 truncate group-hover/ing:text-white transition-colors">{ing.name.fr}</div>

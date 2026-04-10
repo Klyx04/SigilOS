@@ -1,30 +1,32 @@
 {
   "dofus": "ivoire",
   "displayName": "Dofus Ivoire",
-  "color": "#F5F5DC",
-  "successName": "Blanc d'ivoire",
+  "color": "#E6E6FA",
+  "successName": "Blanc ivoire",
   "recommendedLevel": 200,
-  "description": "Terminer la série des quêtes du Dofus Ivoire.",
+  "description": "Terminer la série de quêtes du dragon blanc et obtenir le Dofus Ivoire.",
   "dofusItemId": 7115,
-  "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23011.png",
-  "compiledAt": "2026-04-04T13:43:43.374Z",
+  "iconId": 7115,
+  "imageUrl": "https://api.dofusdb.fr/img/items/7115.png",
+  "compiledAt": "2026-04-09T23:38:55.717Z",
+  "compilerVersion": "3.0",
   "chains": [
     {
-      "sectionName": "Blanc d'ivoire",
+      "sectionName": "Blanc ivoire",
       "sectionType": "MAIN_CHAIN",
-      "zone": "Dimensions Divines / Monde des Douze",
+      "zone": "Monde des Douze",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
+      "dungeons": [],
       "entries": [
         {
           "name": "Le dragon blanc",
           "dofusdbId": 1905,
           "level": 200,
           "zone": "Temple Osamodas",
-          "npcName": null,
+          "npcName": "Joris Jurgen",
           "npcSubArea": "Temple Osamodas",
           "coords": {
             "x": 3,
@@ -36,80 +38,110 @@
             {
               "id": 1983,
               "name": "Graisse Gélatineuse",
-              "amount": 50,
+              "amount": 100,
               "img": "https://api.dofusdb.fr/img/items/15379.png"
             },
             {
               "id": 11110,
               "name": "Obsidienne",
-              "amount": 15,
+              "amount": 30,
               "img": "https://api.dofusdb.fr/img/items/39112.png"
             },
             {
               "id": 13993,
               "name": "Pic du Nocturlabe",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/47823.png"
             },
             {
               "id": 8367,
               "name": "Peau de Crocabulia",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/59612.png"
             },
             {
               "id": 11310,
               "name": "Corde du Fancrôme",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/15779.png"
             },
             {
               "id": 17979,
               "name": "Moustache de Rilur",
-              "amount": 5,
+              "amount": 10,
               "img": "https://api.dofusdb.fr/img/items/54708.png"
             },
             {
               "id": 11102,
               "name": "Perce-Neige",
-              "amount": 15,
+              "amount": 30,
               "img": "https://api.dofusdb.fr/img/items/35635.png"
             },
             {
               "id": 1334,
               "name": "Blague de Soufre",
-              "amount": 20,
+              "amount": 40,
               "img": "https://api.dofusdb.fr/img/items/48051.png"
+            },
+            {
+              "id": 19160,
+              "name": "Cire draconique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24987.png"
+            },
+            {
+              "id": 19161,
+              "name": "Mèche draconique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24984.png"
+            },
+            {
+              "id": 11109,
+              "name": "Frostiz",
+              "amount": 50,
+              "img": "https://api.dofusdb.fr/img/items/34552.png"
             }
           ],
+          "dungeonsRequired": [
+            {
+              "id": 95,
+              "name": "Défi du Chalœil",
+              "level": null,
+              "bossName": "Roi Joueur",
+              "img": "https://api.dofusdb.fr/img/monsters/1360.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
-            "Aller voir {npc,2978}",
+            "Aller voir Joris Jurgen",
             "Trouver le crâne de Dardondakal",
             "En apprendre davantage sur les bougies draconiques",
-            "Fabriquer 1 {item,19160} et fermer l'interface",
-            "Fabriquer 1 {item,19161} et fermer l'interface",
+            "Fabriquer 1 Cire draconique et fermer l'interface",
+            "Fabriquer 1 Mèche draconique et fermer l'interface",
             "Assembler la cire et la mèche pour créer la bougie draconique",
             "Allumer la bougie draconique au temple d'Osamodas",
             "Retourner à l'endroit où se trouve le crâne de Dardondakal pour se recueillir",
             "Vaincre les miliciens zélés",
             "Se recueillir devant le crâne de Dardondakal",
-            "Aller voir {npc,1901}",
+            "Aller voir Kerubim Crépin",
             "Passer le portail vers Ecaflipus",
             "Entrer dans la salle du Chalœil",
             "Vaincre x1 {monster,4263} en un seul combat",
             "Entrer dans la salle du Dofus Ivoire et rencontrer le dragon blanc",
-            "Aller voir {npc,4053}"
+            "Aller voir Dardondakal"
           ],
           "stepOrder": 0,
           "isSynergyCandidate": false,
-          "requirements": []
+          "requirements": [],
+          "notes": "Prérequis : Quête 'La magicienne des marécages'"
         },
         {
           "name": "Examen de passage",
           "dofusdbId": 1906,
           "level": 200,
-          "zone": "Dimensions Divines / Monde des Douze",
-          "npcName": null,
+          "zone": "Monde des Douze",
+          "npcName": "Roi Beldarion",
           "npcSubArea": null,
           "coords": {
             "x": -15,
@@ -121,18 +153,26 @@
             {
               "id": 19165,
               "name": "Masque mortuaire",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/16324.png"
+            },
+            {
+              "id": 19167,
+              "name": "Urne funéraire",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24977.png"
             }
           ],
+          "dungeonsRequired": [],
+          "externalRef": null,
           "objectives": [
-            "Aller voir {npc,2933}",
-            "Aller voir {npc,2904}",
+            "Aller voir Roi Beldarion",
+            "Aller voir Oskar Khas",
             "Trouver un spécialiste des arts funéraires",
             "Localiser le masque dans l'une des deux cités ennemies",
             "Annoncer que vous avez atteint le rang le plus élevé dans l'un des ordres des cités",
             "Récupérer le masque mortuaire",
-            "Montrer à {npc,3956} : 1 {item,19165}",
+            "Montrer à Hellébore Niolle : 1 Masque mortuaire",
             "Ramasser de la poussière d'âme de Wabbit",
             "Ramasser de la poussière d'âme de guerrier pandawa",
             "Ramasser de la poussière d'âme de Maudit",
@@ -145,10 +185,10 @@
             "Ramasser de la poussière d'âme de chasseur de mansot",
             "Ramasser de la poussière d'âme d'alchimiste ailurophile",
             "Ramasser de la poussière d'âme de sectateur de l'Indicible",
-            "Montrer à {npc,3956} : 1 {item,19167}",
+            "Montrer à Hellébore Niolle : 1 Urne funéraire",
             "Obtenir la bénédiction d'un esprit psychopompe",
             "Découvrir la carte : Blessure d'Erazal",
-            "Aller voir {npc,4057}"
+            "Aller voir Ilyzaelle"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": false,
@@ -157,32 +197,52 @@
               "type": "QUEST",
               "dofusdbId": 1905
             }
-          ]
+          ],
+          "notes": "Prérequis MAJEUR : Être d'Alignement niveau 100 et avoir la Quête d'Ordre de rang 5 validée."
         },
         {
-          "name": "Le pays gris",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Le Pays Gris",
+          "dofusdbId": 1907,
+          "level": 200,
+          "zone": "Monde des Douze",
+          "npcName": "Mériana",
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -6,
+            "y": -3,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Franchir le portail vers l'Externam",
+            "Découvrir la carte : Pont des Derniers Soupirs",
+            "Obtenir des informations sur la reine d'Externam",
+            "Entrer dans la Citadelle",
+            "Discuter avec des mânes en attendant l'arrivée d'un huissier",
+            "Aller voir Huissier de la Citadelle",
+            "Attendre le retour de l'huissier",
+            "Convaincre l'huissier de vous laisser rencontrer un magistrat",
+            "Aller voir Archonte Kebesto"
+          ],
           "stepOrder": 2,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1906
             }
-          ]
+          ],
+          "notes": "Prérequis : Accès Frigost 3 (avoir vaincu Nileza, Sylargh, Missiz Frizz, Klime)."
         },
         {
           "name": "Casse en Enutrosor",
           "dofusdbId": 1908,
           "level": 200,
           "zone": "Belvédère d'Ilyzaelle - Blessure d'Erazal (sortie)",
-          "npcName": null,
+          "npcName": "Archonte Kebesto",
           "npcSubArea": "Belvédère d'Ilyzaelle - Blessure d'Erazal (sortie)",
           "coords": {
             "x": -73,
@@ -190,34 +250,69 @@
             "worldId": 12
           },
           "isDungeon": true,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19169,
+              "name": "Morceau de coffret précieux",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15868.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 76,
+              "name": "Palais du roi Nidas",
+              "level": null,
+              "bossName": "Piloztère",
+              "img": "https://api.dofusdb.fr/img/monsters/1114.png",
+              "idoleName": null
+            },
+            {
+              "id": 107,
+              "name": "Belvédère d'Ilyzaelle",
+              "level": null,
+              "bossName": "Crâme",
+              "img": "https://api.dofusdb.fr/img/monsters/1633.png",
+              "idoleName": null
+            },
+            {
+              "id": 95,
+              "name": "Défi du Chalœil",
+              "level": null,
+              "bossName": "Roi Joueur",
+              "img": "https://api.dofusdb.fr/img/monsters/1360.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Passer le portail vers Enutrosor",
             "Chercher des informations sur le coffret précieux",
             "Rencontrer le chef de la confrérie des coffrets précieux",
             "Vaincre x1 {monster,3648} en un seul combat",
             "Briser le coffret précieux",
-            "Montrer à {npc,4072} : 1 {item,19169}",
-            "Aller voir {npc,4076}",
-            "Aller voir {npc,4057}",
+            "Montrer à Archonte Kebesto : 1 Morceau de coffret précieux",
+            "Aller voir Reine Thanatena",
+            "Aller voir Ilyzaelle",
             "Retourner dans la salle ivoirine en Ecaflipus",
-            "Aller voir {npc,4053}"
+            "Aller voir Dardondakal"
           ],
           "stepOrder": 3,
           "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 1906
+              "dofusdbId": 1907
             }
-          ]
+          ],
+          "notes": "Prérequis : Quête 'Espionnage industriel' (Dimensions divines)."
         },
         {
           "name": "Nordalie",
           "dofusdbId": 1909,
           "level": 200,
           "zone": "Caverne du Destin",
-          "npcName": null,
+          "npcName": "Hem le Maudit",
           "npcSubArea": "Caverne du Destin",
           "coords": {
             "x": -76,
@@ -226,6 +321,17 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 103,
+              "name": "Chambre de Tal Kasha",
+              "level": null,
+              "bossName": "Tal Kasha",
+              "img": "https://api.dofusdb.fr/img/monsters/1547.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Découvrir la carte : Caverne du Destin",
             "Parler aux Nordes",
@@ -234,16 +340,16 @@
             "Explorer la Pyramide Maudite à la recherche de Hem",
             "Entrer dans la Chambre de Tal Kasha",
             "Vaincre x1 {monster,4744} en un seul combat",
-            "Aller voir {npc,4078}",
+            "Aller voir Hem le Maudit",
             "Trouver un chef ouginak qui lutte contre le destin",
-            "Aller voir {npc,3907}",
+            "Aller voir Hyrini",
             "Méditer devant le feu sacré",
             "Rencontrer un oracle amateur de mansots",
             "Découvrir la carte : Radeau de Galaethiel",
             "Offrir un poisskaille fantôme au mansot sacré pour partir en radeau",
             "Découvrir la carte : Rocher des mouettes",
-            "Aller voir {npc,4080}",
-            "Aller voir {npc,4082}",
+            "Aller voir Maewin",
+            "Aller voir Galaethiel",
             "Parler aux deux déesses",
             "Retourner voir Atroskulda",
             "Obtenir l'accord de Clothurde",
@@ -252,9 +358,9 @@
             "En apprendre davantage sur Hyrkul le Tendancieux",
             "Placer le fil de Dardondakal sur le métier à tisser",
             "Reprendre le chemin du Belvédère d'Ilyzaelle",
-            "Aller voir {npc,4085}",
+            "Aller voir Hyrkul",
             "Tenter de se défendre contre l'attaque d'Hyrkul",
-            "Aller voir {npc,4086}"
+            "Aller voir Esprit de Menalt"
           ],
           "stepOrder": 4,
           "isSynergyCandidate": false,
@@ -263,14 +369,15 @@
               "type": "QUEST",
               "dofusdbId": 1908
             }
-          ]
+          ],
+          "notes": "Prérequis : Quête 'La garde meurt mais ne se rend pas' (Sahachâ/Sidimote)."
         },
         {
           "name": "Le bonheur est dans le spray",
           "dofusdbId": 1911,
           "level": 200,
           "zone": "Sanctuaire de la likrone",
-          "npcName": null,
+          "npcName": "Coqueline",
           "npcSubArea": "Sanctuaire de la likrone",
           "coords": {
             "x": -63,
@@ -278,28 +385,84 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 19172,
+              "name": "Fiole suspecte",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/12720.png"
+            },
+            {
+              "id": 19173,
+              "name": "Moustache de méchant chacha",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15015.png"
+            },
+            {
+              "id": 19174,
+              "name": "Feuille de salsepareille enchantée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24982.png"
+            },
+            {
+              "id": 19175,
+              "name": "Poudre de champignon hilarant",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/48001.png"
+            },
+            {
+              "id": 19178,
+              "name": "Graines roses",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/58157.png"
+            },
+            {
+              "id": 19179,
+              "name": "Part de bonheur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24978.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 95,
+              "name": "Défi du Chalœil",
+              "level": null,
+              "bossName": "Roi Joueur",
+              "img": "https://api.dofusdb.fr/img/monsters/1360.png",
+              "idoleName": null
+            },
+            {
+              "id": 70,
+              "name": "Laboratoire de Nileza",
+              "level": null,
+              "bossName": "Nileza",
+              "img": "https://api.dofusdb.fr/img/monsters/976.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Parler à un alchimiste heureux",
             "Trouver une likrone",
-            "Aller voir {npc,3733}",
+            "Aller voir Coqueline",
             "Espionner les chasseurs",
             "Faire avouer les chasseurs afin qu'ils dénoncent leurs complices",
             "Trouver la grotte des Compères",
             "Interroger les Compères",
             "Donner une bonne leçon aux Compères",
-            "Aller voir {npc,3762}",
-            "Montrer à {npc,4092} : 1 {item,19172}",
+            "Aller voir Compère Tifoux",
+            "Montrer à Polok Ouelo : 1 Fiole suspecte",
             "Trouver le village des Troumfs",
             "Chercher le grimoire du Grand Troumf",
-            "Ramener à {npc,4092} : x1 {item,19173}",
-            "Ramener à {npc,4092} : x1 {item,19174}",
-            "Ramener à {npc,4092} : x1 {item,19175}",
-            "Ramener à {npc,4092} : x1 {item,19178}",
+            "Ramener à Polok Ouelo : x1 Moustache de méchant chacha",
+            "Ramener à Polok Ouelo : x1 Feuille de salsepareille enchantée",
+            "Ramener à Polok Ouelo : x1 Poudre de champignon hilarant",
+            "Ramener à Polok Ouelo : x1 Graines roses",
             "Pulvériser le remède sur Rainikrone",
             "Aider Rainikrone à voir la vie en rose",
-            "Aller voir {npc,3809}",
-            "Ramener à {npc,2018} : x1 {item,19179}"
+            "Aller voir Rainikrone",
+            "Ramener à Clothurde : x1 Part de bonheur"
           ],
           "stepOrder": 5,
           "isSynergyCandidate": false,
@@ -308,68 +471,202 @@
               "type": "QUEST",
               "dofusdbId": 1909
             }
-          ]
+          ],
+          "notes": "Prérequis : Quête 'La chasse aux chasseurs' (Nimotopia)."
         },
         {
-          "name": "Une voix de cristal",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
+          "name": "Une voix de crystal",
+          "dofusdbId": 1912,
+          "level": 200,
+          "zone": "Vaisseau du Capitaine Meno - Sortie",
+          "npcName": "Asselo",
+          "npcSubArea": "Vaisseau du Capitaine Meno - Sortie",
+          "coords": {
+            "x": -75,
+            "y": -80,
+            "worldId": 12
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 19187,
+              "name": "Crystal de Kallishindri",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24889.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 97,
+              "name": "Vaisseau du Capitaine Meno",
+              "level": null,
+              "bossName": "Capitaine Meno",
+              "img": "https://api.dofusdb.fr/img/monsters/1430.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Asselo",
+            "Aller voir Baron d'Ouillard",
+            "Trouver le fantôme de la meilleure amie de Kallishindri",
+            "Aller voir Fantôme mélomane",
+            "Rencontrer Nileza",
+            "Découvrir qui a créé le crystal évoqué par Nileza",
+            "Aller voir Capitaine Meno",
+            "Récupérer une partition du Concerto pour limonade",
+            "Récupérer une partition du Concerto royal",
+            "Récupérer une partition du Concerto épicé",
+            "Récupérer une partition du Concerto pour toiles",
+            "Récupérer une partition du Concerto pour chacha",
+            "Récupérer une partition du Concerto des mercenaires",
+            "Récupérer une partition du Concerto amaknéen",
+            "Donner les partitions au capitaine Meno",
+            "Ramener à Lachandi : x1 Crystal de Kallishindri"
+          ],
           "stepOrder": 6,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1911
             }
-          ]
+          ],
+          "notes": "Prérequis : Quête 'Son nom est Personne' (Srambad)."
         },
         {
-          "name": "La mort dans l'âme",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
+          "name": "Le mort dans l'âme",
+          "dofusdbId": 1913,
+          "level": 200,
+          "zone": "Manoir des Katrepat - Cinquième salle",
+          "npcName": "Funestaro",
+          "npcSubArea": "Manoir des Katrepat - Cinquième salle",
+          "coords": {
+            "x": -11,
+            "y": 37,
+            "worldId": 1
+          },
+          "isDungeon": true,
           "itemsRequired": [],
-          "objectives": [],
+          "dungeonsRequired": [
+            {
+              "id": 106,
+              "name": "Manoir des Katrepat",
+              "level": null,
+              "bossName": "Anerice la Shushess",
+              "img": "https://api.dofusdb.fr/img/monsters/1600.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Interroger des vampires pour tenter de localiser Funestaro",
+            "Découvrir la carte : Crypte de Funestaro",
+            "Fouiller la crypte",
+            "Lire le parchemin jauni",
+            "Trouver Funestaro",
+            "Aller voir Funestaro",
+            "Retourner à la crypte pour vérifier si Funestaro n'est pas réapparu",
+            "Trouver un spécialiste des vampires",
+            "Se procurer du pain à l'ail",
+            "Faire manger du pain à l'ail à Funestaro",
+            "Se procurer de l'eau bénite",
+            "Faire boire de l'eau bénite à Funestaro",
+            "Se procurer un pieu de chasseur de vampire",
+            "Planter un pieu dans le cœur de Funestaro",
+            "Retourner voir Vanelle Sings",
+            "Escorter Funestaro jusqu'à l'entrée du manoir des Katrepat",
+            "Obtenir par la force une audience avec Anerice",
+            "Présenter Funestaro à la Shushess",
+            "Aller voir Funestaro",
+            "Retourner voir Atroskulda"
+          ],
           "stepOrder": 7,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 1911
+              "dofusdbId": 1912
             }
-          ]
+          ],
+          "notes": null
         },
         {
-          "name": "L'espoir est dans le guerrier noir",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Le guerrier noir",
+          "dofusdbId": 1914,
+          "level": 200,
+          "zone": "Monde des Douze",
+          "npcName": "Joris Jurgen",
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": -34,
+            "y": -58,
+            "worldId": 1
+          },
           "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
+          "itemsRequired": [
+            {
+              "id": 19193,
+              "name": "Crâne de centoror gelé",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/24874.png"
+            },
+            {
+              "id": 19195,
+              "name": "Crâne de centoror mouillé",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/24808.png"
+            },
+            {
+              "id": 19194,
+              "name": "Crâne de centoror volé",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/47480.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 106,
+              "name": "Manoir des Katrepat",
+              "level": null,
+              "bossName": "Anerice la Shushess",
+              "img": "https://api.dofusdb.fr/img/monsters/1600.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Joris Jurgen",
+            "Parler au bibliothécaire de Brâkmar",
+            "Lire le livre sur l'avènement d'Hyrkul",
+            "Lire le tome IX des Fragments Retrouvés",
+            "Lire le tome X des Fragments Retrouvés",
+            "Lire le livre sur la fin d'Hyrkul",
+            "Interroger un Centoror à propos de Menalt",
+            "Se recueillir devant la tombe de Menalt",
+            "Parler au maître de l'ordre du Cœur Vaillant",
+            "Ramener à Jerhyn Gholein : x3 Crâne de centoror gelé",
+            "Ramener à Jerhyn Gholein : x3 Crâne de centoror mouillé",
+            "Ramener à Jerhyn Gholein : x3 Crâne de centoror volé",
+            "Se recueillir une nouvelle fois devant la tombe de Menalt",
+            "Aller voir Esprit de Menalt"
+          ],
           "stepOrder": 8,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 1911
+              "dofusdbId": 1913
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "Il est temps de mourir",
           "dofusdbId": 1915,
           "level": 200,
           "zone": "Transporteur de Sylargh - Salle de Sylargh",
-          "npcName": null,
+          "npcName": "Agonie",
           "npcSubArea": "Transporteur de Sylargh - Salle de Sylargh",
           "coords": {
             "x": -52,
@@ -378,19 +675,62 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 84,
+              "name": "Ventre de la Baleine",
+              "level": null,
+              "bossName": "Protozorreur",
+              "img": "https://api.dofusdb.fr/img/monsters/1204.png",
+              "idoleName": null
+            },
+            {
+              "id": 76,
+              "name": "Palais du roi Nidas",
+              "level": null,
+              "bossName": "Piloztère",
+              "img": "https://api.dofusdb.fr/img/monsters/1114.png",
+              "idoleName": null
+            },
+            {
+              "id": 103,
+              "name": "Chambre de Tal Kasha",
+              "level": null,
+              "bossName": "Tal Kasha",
+              "img": "https://api.dofusdb.fr/img/monsters/1547.png",
+              "idoleName": null
+            },
+            {
+              "id": 97,
+              "name": "Vaisseau du Capitaine Meno",
+              "level": null,
+              "bossName": "Capitaine Meno",
+              "img": "https://api.dofusdb.fr/img/monsters/1430.png",
+              "idoleName": null
+            },
+            {
+              "id": 67,
+              "name": "Transporteur de Sylargh",
+              "level": null,
+              "bossName": "Sylargh",
+              "img": "https://api.dofusdb.fr/img/monsters/986.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Trouver Agonie en Externam",
             "Entrer dans le transporteur de Sylargh",
             "Vaincre x1 {monster,3409} en un seul combat",
             "Détruire l'automate et son phylactère",
-            "Aller voir {npc,4101}",
+            "Aller voir Agonie",
             "Récupérer de la terre provenant de la tombe d'Hyrkul",
             "Récupérer une vieille étoffe de Fauchalak",
             "Localiser l'emplacement du phylactère d'Hyrkul",
             "Découvrir la carte : Caverne du Tendancieux",
             "Vaincre x1 {monster,4974} en un seul combat",
-            "Aller voir {npc,4076}",
-            "Retourner voir {npc,4054}",
+            "Aller voir Reine Thanatena",
+            "Retourner voir Dardondakal",
             "Prendre le Dofus Ivoire"
           ],
           "stepOrder": 9,
@@ -398,11 +738,221 @@
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 1911
+              "dofusdbId": 1914
             }
-          ]
+          ],
+          "notes": null
         }
       ]
     }
-  ]
+  ],
+  "globalSummary": {
+    "totalQuests": 10,
+    "totalItems": 24,
+    "totalDungeons": 7,
+    "items": [
+      {
+        "id": 1983,
+        "name": "Graisse Gélatineuse",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/15379.png"
+      },
+      {
+        "id": 11109,
+        "name": "Frostiz",
+        "totalAmount": 50,
+        "img": "https://api.dofusdb.fr/img/items/34552.png"
+      },
+      {
+        "id": 1334,
+        "name": "Blague de Soufre",
+        "totalAmount": 40,
+        "img": "https://api.dofusdb.fr/img/items/48051.png"
+      },
+      {
+        "id": 11110,
+        "name": "Obsidienne",
+        "totalAmount": 30,
+        "img": "https://api.dofusdb.fr/img/items/39112.png"
+      },
+      {
+        "id": 11102,
+        "name": "Perce-Neige",
+        "totalAmount": 30,
+        "img": "https://api.dofusdb.fr/img/items/35635.png"
+      },
+      {
+        "id": 17979,
+        "name": "Moustache de Rilur",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/54708.png"
+      },
+      {
+        "id": 19193,
+        "name": "Crâne de centoror gelé",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/24874.png"
+      },
+      {
+        "id": 19195,
+        "name": "Crâne de centoror mouillé",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/24808.png"
+      },
+      {
+        "id": 19194,
+        "name": "Crâne de centoror volé",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/47480.png"
+      },
+      {
+        "id": 13993,
+        "name": "Pic du Nocturlabe",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/47823.png"
+      },
+      {
+        "id": 8367,
+        "name": "Peau de Crocabulia",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/59612.png"
+      },
+      {
+        "id": 11310,
+        "name": "Corde du Fancrôme",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15779.png"
+      },
+      {
+        "id": 19165,
+        "name": "Masque mortuaire",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/16324.png"
+      },
+      {
+        "id": 19160,
+        "name": "Cire draconique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24987.png"
+      },
+      {
+        "id": 19161,
+        "name": "Mèche draconique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24984.png"
+      },
+      {
+        "id": 19167,
+        "name": "Urne funéraire",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24977.png"
+      },
+      {
+        "id": 19169,
+        "name": "Morceau de coffret précieux",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15868.png"
+      },
+      {
+        "id": 19172,
+        "name": "Fiole suspecte",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/12720.png"
+      },
+      {
+        "id": 19173,
+        "name": "Moustache de méchant chacha",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15015.png"
+      },
+      {
+        "id": 19174,
+        "name": "Feuille de salsepareille enchantée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24982.png"
+      },
+      {
+        "id": 19175,
+        "name": "Poudre de champignon hilarant",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/48001.png"
+      },
+      {
+        "id": 19178,
+        "name": "Graines roses",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/58157.png"
+      },
+      {
+        "id": 19179,
+        "name": "Part de bonheur",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24978.png"
+      },
+      {
+        "id": 19187,
+        "name": "Crystal de Kallishindri",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24889.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 95,
+        "name": "Défi du Chalœil",
+        "level": null,
+        "bossName": "Roi Joueur",
+        "img": "https://api.dofusdb.fr/img/monsters/1360.png",
+        "idoleName": null
+      },
+      {
+        "id": 76,
+        "name": "Palais du roi Nidas",
+        "level": null,
+        "bossName": "Piloztère",
+        "img": "https://api.dofusdb.fr/img/monsters/1114.png",
+        "idoleName": null
+      },
+      {
+        "id": 107,
+        "name": "Belvédère d'Ilyzaelle",
+        "level": null,
+        "bossName": "Crâme",
+        "img": "https://api.dofusdb.fr/img/monsters/1633.png",
+        "idoleName": null
+      },
+      {
+        "id": 103,
+        "name": "Chambre de Tal Kasha",
+        "level": null,
+        "bossName": "Tal Kasha",
+        "img": "https://api.dofusdb.fr/img/monsters/1547.png",
+        "idoleName": null
+      },
+      {
+        "id": 97,
+        "name": "Vaisseau du Capitaine Meno",
+        "level": null,
+        "bossName": "Capitaine Meno",
+        "img": "https://api.dofusdb.fr/img/monsters/1430.png",
+        "idoleName": null
+      },
+      {
+        "id": 106,
+        "name": "Manoir des Katrepat",
+        "level": null,
+        "bossName": "Anerice la Shushess",
+        "img": "https://api.dofusdb.fr/img/monsters/1600.png",
+        "idoleName": null
+      },
+      {
+        "id": 67,
+        "name": "Transporteur de Sylargh",
+        "level": null,
+        "bossName": "Sylargh",
+        "img": "https://api.dofusdb.fr/img/monsters/986.png",
+        "idoleName": null
+      }
+    ]
+  }
 }

@@ -1,31 +1,38 @@
 {
   "slug": "emeraude",
   "displayName": "Dofus Émeraude",
-  "color": "#32CD32",
+  "color": "#50C878",
   "dofusItemId": 7041,
-  "successName": "Le vert de terre",
+  "successName": "Vert Émeraude",
   "recommendedLevel": 100,
-  "successDescription": "Obtenir le Dofus Émeraude en terminant les quêtes du Dark Vlad.",
+  "successDescription": "Obtenir le Dofus Émeraude en terminant la série de quêtes de Mériana et du Dark Vlad dans les marécages de Cania.",
   "successes": [
     {
-      "name": "Prerequis",
-      "zone": "Pandala / Monde des Douze",
+      "name": "Prérequis",
+      "zone": "Forêt Maléfique / Cania",
+      "description": "Avoir accès à la Forêt Maléfique et avoir progressé dans les quêtes de Mériana.",
+      "isPrerequisite": true,
       "quests": [
-        "Pandavignon",
-        "La diseuse de bonne aventure"
+        { "name": "Voir le Dark Vlad et mourir... ou pas" },
+        { "name": "Qui botte le cul des Culs Bottés ?" }
       ]
     },
     {
-      "name": "Les quêtes du Dofus Émeraude",
-      "zone": "Clairière de l'Orme / Monde des Douze",
+      "name": "Vert Émeraude",
+      "zone": "Marécages de Cania / Forêt Maléfique",
+      "description": "La série principale des quêtes pour obtenir le Dofus Émeraude, initiée par Mériana.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
       "quests": [
-        "Voir le Dark Vlad et mourir... ou pas",
-        "Qui botte le cul des Culs Bottés ?",
-        "À la poursuite du Dark Vlad",
-        "Le Dark Vlad entre en scène",
-        "L'Émeraude est au bout du chemin"
+        { "name": "Le voleur d'âme" },
+        { "name": "L'amour perdu de Nabur" },
+        { "name": "Naissance d'une vocation" },
+        { "name": "Les bandits de Cania" },
+        { "name": "Draconanthropie" },
+        { "name": "Ultime réminiscence" }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/1.png"
+  "imageUrl": "https://static.dofusdb.fr/items/7041.png",
+  "iconId": 7041
 }

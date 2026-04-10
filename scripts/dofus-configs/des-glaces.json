@@ -1,95 +1,124 @@
 {
   "slug": "des-glaces",
   "displayName": "Dofus des Glaces",
-  "color": "#ADD8E6",
+  "color": "#87CEEB",
   "dofusItemId": 7043,
   "successName": "L'œuf à la neige",
   "recommendedLevel": 200,
-  "successDescription": "Terminer toutes les quêtes majeures de Frigost I, II et III (72 quêtes au total).",
+  "successDescription": "Obtenir le Dofus des Glaces après avoir accompli tous les exploits de Frigost.",
   "successes": [
     {
-      "name": "Introduction à Frigost",
+      "name": "Frigost I : Introduction",
       "zone": "La Bourgade",
+      "description": "Quêtes d'introduction à l'île de Frigost.",
+      "isPrerequisite": true,
       "quests": [
-        { "name": "Bienvenue à Frigost" },
-        { "name": "La terre promise" },
-        { "name": "La terre banquise" },
-        { "name": "Maudite soit la glace" },
-        { "name": "Full Contact" }
+        { "id": 649, "name": "Bienvenue à Frigost" },
+        { "id": 611, "name": "Le travail c'est la santé" },
+        { "id": 612, "name": "La terre banquise" },
+        { "id": 613, "name": "La maire de glace" },
+        { "id": 614, "name": "Full contact" }
       ]
     },
     {
-      "name": "Bourgade : La maire dénie",
-      "zone": "La Bourgade",
+      "name": "Frigost I : La maire dénie",
+      "zone": "Zones Frigost I",
+      "description": "Première série de succès de Frigost I.",
       "quests": [
-        { "name": "L'essentiel est dans le Lac Gelé", "id": 649 },
-        { "name": "Les rescapés de Frigost", "id": 650 },
-        { "name": "Frigost, une île pas comme les autres", "id": 651 },
-        { "name": "Développement durable", "id": 655 },
-        { "name": "Donjons et trouffions", "id": 652 },
-        { "name": "Au fion du trou", "id": 653 },
-        { "name": "Bricoleur de génie", "id": 919 }
+        { "id": 649, "name": "Bienvenue à Frigost" },
+        { "id": 650, "name": "L'essentiel est dans Lac Gelé" },
+        { "id": 651, "name": "Les rescapés de Frigost" },
+        { "id": 655, "name": "Frigost, une île pas comme les autres" },
+        { "id": 652, "name": "Développement durable" },
+        { "id": 653, "name": "Donjons et trouffions" },
+        { "id": 919, "name": "Au fion du trou" }
       ]
     },
     {
-      "name": "Champs de glace : Agricole",
-      "zone": "Champs de Glace",
+      "name": "Frigost I : Fri carré",
+      "zone": "Zones Frigost I",
+      "description": "Deuxième série de succès de Frigost I.",
       "quests": [
-        { "name": "Semer la terreur", "id": 657 },
-        { "name": "Mise en boîte", "id": 658 },
-        { "name": "Un froid de canard", "id": 659 },
-        { "name": "Les joyeux de la couronne", "id": 660 },
-        { "name": "Petites graines", "id": 661 },
-        { "name": "La chasse aux voleurs", "id": 662 },
-        { "name": "L'eau à la bouche", "id": 663 },
-        { "name": "Un pichon de riz", "id": 664 },
-        { "name": "Collecte sanglante", "id": 665 },
-        { "name": "La vie est une fleur", "id": 666 }
+        { "id": 611, "name": "Le travail c'est la santé" },
+        { "id": 612, "name": "La terre banquise" },
+        { "id": 613, "name": "La maire de glace" },
+        { "id": 614, "name": "Full contact" },
+        { "id": 615, "name": "Les monologues du vaccin" },
+        { "id": 616, "name": "Faire le tas de pins" },
+        { "id": 617, "name": "Scierie Bambelle" },
+        { "id": 618, "name": "Semer ses graines" },
+        { "id": 619, "name": "Antiroyaliste" },
+        { "id": 620, "name": "Les joyeux de la couronne" },
+        { "id": 621, "name": "Fais dodo, t'auras du gâteau" },
+        { "id": 622, "name": "Lavomatique" },
+        { "id": 623, "name": "C'est frais, mais c'est pas grave" },
+        { "id": 624, "name": "Sans ma barbe, quelle barbe" },
+        { "id": 631, "name": "Épis d'Emi" },
+        { "id": 632, "name": "Convoi humanitaire" },
+        { "id": 633, "name": "Sang dessus-dessous" },
+        { "id": 634, "name": "Groméo et Ginette" },
+        { "id": 635, "name": "Une blague vaseuse ?" },
+        { "id": 636, "name": "Blessure de chasse" }
       ]
     },
     {
-      "name": "Frigostine & Berceau d'Alma",
-      "zone": "Berceau d'Alma",
+      "name": "Frigost II : Halte au péage",
+      "zone": "Zones Frigost II",
+      "description": "L'essentiel des quêtes de Frigost II.",
       "quests": [
-        { "name": "La marche de l'empereur", "id": 641 },
-        { "name": "Il est frais mon pichon", "id": 646 },
-        { "name": "La hache de mémé", "id": 642 },
-        { "name": "Les griffes d'Ernest", "id": 643 },
-        { "name": "L'œuf de la discorde", "id": 644 }
+        { "id": 656, "name": "Fight club" },
+        { "id": 657, "name": "Barnabé dans l'espace" },
+        { "id": 658, "name": "Premier postage" },
+        { "id": 659, "name": "Deuxième postage" },
+        { "id": 660, "name": "Troisième postage" },
+        { "id": 661, "name": "Quatrième postage" },
+        { "id": 662, "name": "Cinquième postage" },
+        { "id": 663, "name": "Sixième postage" },
+        { "id": 664, "name": "Septième postage" },
+        { "id": 665, "name": "Huitième postage" },
+        { "id": 666, "name": "Neuvième postage" },
+        { "id": 667, "name": "Dixième postage" },
+        { "id": 668, "name": "Onzième postage" },
+        { "id": 669, "name": "Douzième postage" },
+        { "id": 670, "name": "Treizième postage" }
       ]
     },
     {
-      "name": "Château du Comte : L'hiver arrive",
-      "zone": "Château du Comte",
+      "name": "Frigost III : L'hiver arrive",
+      "zone": "Zones Frigost III",
+      "description": "Quêtes liées au Château du Comte Harebourg.",
       "quests": [
-        { "name": "Les rescapés du Village Enseveli", "id": 1330 },
-        { "name": "Les derniers rescapés", "id": 1325 },
-        { "name": "La vie de château", "id": 1334 },
-        { "name": "La machine à démonter le temps", "id": 1333 },
-        { "name": "Il faut mettre un terme aux maîtres", "id": 1309 },
-        { "name": "Un comte de faits divers", "id": 1310 }
+        { "id": 1330, "name": "Les rescapés du Village Enseveli" },
+        { "id": 1325, "name": "Les derniers rescapés" },
+        { "id": 1334, "name": "La vie de château" },
+        { "id": 1333, "name": "La machine à démonter le temps" },
+        { "id": 1309, "name": "Il faut mettre un terme aux maîtres" },
+        { "id": 1310, "name": "Un comte de faits divers" }
       ]
     },
     {
-      "name": "Final : L'âme de glace",
-      "zone": "Château du Comte",
+      "name": "Frigost III : L'âme de glace",
+      "zone": "Château de Harebourg",
+      "description": "Finalisation du Château et des quêtes du Comte.",
       "quests": [
-        { "name": "D'un froid glacial", "id": 710 },
-        { "name": "À la recherche de Dan l'Aventurier", "id": 711 },
-        { "name": "Prologue", "id": 1316 },
-        { "name": "Malédiction !", "id": 1317 },
-        { "name": "Mission Solution", "id": 1318 },
-        { "name": "Chaud et froid", "id": 1326 },
-        { "name": "Le givre des révélations", "id": 1327 }
+        { "id": 710, "name": "La destinée" },
+        { "id": 711, "name": "La fatalité" },
+        { "id": 1316, "name": "La rivalité" },
+        { "id": 1317, "name": "Malédiction !" },
+        { "id": 1318, "name": "Mission Solution" },
+        { "id": 1326, "name": "Chaud et froid" },
+        { "id": 1327, "name": "Le givre des révélations" }
       ]
     },
     {
-      "name": "Reconnaissance : Fraîchement pondu",
-      "zone": "Château du Comte",
+      "name": "Le Dofus des Glaces (Final)",
+      "zone": "Donjon Harebourg",
+      "description": "Affronter le Comte et obtenir le Dofus.",
       "quests": [
-        { "name": "Le Dofus des Glaces", "id": 1329 }
+        { "id": 1329, "name": "Le Dofus des Glaces" }
       ]
     }
   ],
-  "imageUrl": "/module-dofus/Dofus_Des_Glaces.png"
+  "imageUrl": "https://static.dofusdb.fr/items/23035.png",
+  "iconId": 7043
 }

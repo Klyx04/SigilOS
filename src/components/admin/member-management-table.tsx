@@ -25,7 +25,9 @@ import {
     ArrowUpDown,
     Copy,
     Check,
-    Crown
+    Crown,
+    Palmtree,
+    CalendarDays
 } from "lucide-react";
 import {
     Table,
@@ -54,6 +56,7 @@ import {
     DialogFooter 
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 import { updateMemberProfileStatus, updateMemberPseudo, updateMemberAnkamaId } from "@/server/actions/user-actions";
 import { deleteProfileByAdmin, reactivateProfileByAdmin } from "@/server/actions/lifecycle-actions";
 import { transferGuildOwnership } from "@/server/actions/god-lifecycle-actions";
@@ -63,6 +66,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ProbationGrantDialog } from "../../app/dashboard/[guildId]/admin/_components/probation-grant-dialog";
 import { sendWelcomeMessage } from "@/server/actions/onboarding-admin-actions";
+import { VacationEditDialog } from "./members/vacation-edit-dialog";
 
 interface Member {
     id: string;
@@ -82,6 +86,9 @@ interface Member {
         image: string | null;
         accounts: Array<{ providerAccountId: string }>;
     };
+    scheduledDeletion: string | null;
+    vacationStart?: string | null;
+    vacationEnd?: string | null;
 }
 
 interface MemberManagementTableProps {
@@ -107,6 +114,8 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     const [idTarget, setIdTarget] = useState<{ id: string, name: string, currentId?: string | null } | null>(null);
     const [namePart, setNamePart] = useState("");
     const [digitsPart, setDigitsPart] = useState("");
+    
+    const [vacationTarget, setVacationTarget] = useState<Member | null>(null);
 
     const filteredMembers = members
         .filter((member: Member) =>
@@ -114,7 +123,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
         )
         .filter((member: Member) =>
             member.user.name?.toLowerCase().includes(search.toLowerCase()) ||
-            member.user.accounts[0]?.providerAccountId.includes(search) ||
+            (member.user.accounts[0]?.providerAccountId || "").includes(search) ||
             member.pseudoDofus?.toLowerCase().includes(search.toLowerCase()) ||
             member.ankamaId?.toLowerCase().includes(search.toLowerCase())
         )
@@ -375,13 +384,14 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                             <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Activité</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Discord ID</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Ankama ID</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4">Suppression</TableHead>
                             <TableHead className="text-right text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 py-4 pr-8">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredMembers.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-32 text-center text-zinc-500">
+                                <TableCell colSpan={8} className="h-32 text-center text-zinc-500">
                                     Aucun membre trouvé.
                                 </TableCell>
                             </TableRow>
@@ -426,6 +436,16 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         {member.status === "BANNED" && <ShieldAlert className="w-2.5 h-2.5 mr-1" />}
                                         {member.status.toLowerCase()}
                                     </Badge>
+                                    {member.vacationStart && (
+                                        <Badge 
+                                            variant="outline" 
+                                            onClick={() => setVacationTarget(member)}
+                                            className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 cursor-pointer hover:bg-cyan-500/20 transition-colors"
+                                        >
+                                            <Palmtree className="w-2.5 h-2.5 mr-1" />
+                                            Vacances
+                                        </Badge>
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-[10px] text-zinc-400 font-medium">
                                     {new Date(member.createdAt).toLocaleDateString("fr-FR", { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -463,6 +483,33 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             <Edit className="w-3 h-3" />
                                             Ajouter ID
                                         </button>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {member.scheduledDeletion ? (() => {
+                                        const deletionDate = new Date(member.scheduledDeletion);
+                                        const now = new Date();
+                                        const diffTime = deletionDate.getTime() - now.getTime();
+                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                        const isUrgent = diffDays <= 2;
+
+                                        return (
+                                            <div className="flex flex-col gap-1">
+                                                <div className={`flex items-center gap-1.5 font-black text-[10px] uppercase tracking-widest px-2 py-1 rounded-lg w-fit ${
+                                                    isUrgent ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-orange-500/10 text-orange-400'
+                                                }`}>
+                                                    <Clock className="w-3 h-3" />
+                                                    {diffDays <= 0 ? "Imminent" : `J-${diffDays}`}
+                                                </div>
+                                                <span className="text-[9px] text-zinc-600 font-medium italic pl-1">
+                                                    {format(deletionDate, "dd/MM HH:mm")}
+                                                </span>
+                                            </div>
+                                        );
+                                    })() : (
+                                        <span className="text-[10px] text-zinc-700 font-medium uppercase tracking-widest pl-2">
+                                            -
+                                        </span>
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -530,6 +577,14 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                             >
                                                 <Edit className="h-3.5 w-3.5 text-indigo-400" />
                                                 Modifier l'ID Dofus
+                                            </DropdownMenuItem>
+
+                                            <DropdownMenuItem
+                                                onClick={() => setVacationTarget(member)}
+                                                className="gap-2 focus:bg-cyan-500/10 focus:text-cyan-400 cursor-pointer"
+                                            >
+                                                <Palmtree className="h-3.5 w-3.5 text-cyan-400" />
+                                                Modifier Vacances
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
@@ -648,6 +703,24 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {vacationTarget && (
+                <VacationEditDialog 
+                    open={!!vacationTarget}
+                    onOpenChange={(open) => !open && setVacationTarget(null)}
+                    guildId={guildId}
+                    profileId={vacationTarget.id}
+                    userId={vacationTarget.userId}
+                    memberName={vacationTarget.pseudoDofus || vacationTarget.user.name || "Membre"}
+                    initialVacationStart={vacationTarget.vacationStart || null}
+                    initialVacationEnd={vacationTarget.vacationEnd || null}
+                    onSuccess={(start, end) => {
+                        setMembers(prev => prev.map(m => 
+                            m.id === vacationTarget.id ? { ...m, vacationStart: start, vacationEnd: end } : m
+                        ));
+                    }}
+                />
+            )}
         </div>
     );
 }

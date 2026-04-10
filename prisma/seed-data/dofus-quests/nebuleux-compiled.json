@@ -1,77 +1,3858 @@
 {
   "dofus": "nebuleux",
-  "displayName": "Dofus Nébuleux",
-  "color": "#9400D3",
-  "successName": "De fil en aiguille",
+  "displayName": "Dofus Nébuleux & Veilleurs",
+  "color": "#9B59B6",
+  "successName": "Je rêvais d'un autre monde",
   "recommendedLevel": 200,
-  "description": null,
-  "dofusItemId": 16327,
+  "description": "Obtenir le Dofus Nébuleux en explorant les dimensions divines.",
+  "dofusItemId": 8698,
   "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23009.png",
-  "compiledAt": "2026-04-04T13:44:18.453Z",
+  "imageUrl": "/module-dofus/Dofus_Nebuleux.png",
+  "compiledAt": "2026-04-10T18:07:04.598Z",
+  "compilerVersion": "3.0",
   "chains": [
     {
-      "sectionName": "De fil en aiguille",
+      "sectionName": "Odyssée en trois dimensions (Veilleurs)",
       "sectionType": "MAIN_CHAIN",
       "zone": "Dimensions Divines",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
+      "dungeons": [],
       "entries": [
         {
-          "name": "Départ en dimensions",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "L'école fantastique",
+          "dofusdbId": 1445,
+          "level": 20,
+          "zone": "Dimensions Divines",
+          "npcName": null,
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 4,
+            "y": 4,
+            "worldId": 1
+          },
           "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
+          "itemsRequired": [
+            {
+              "id": 15263,
+              "name": "Rose des sables",
+              "amount": 1000,
+              "img": "https://api.dofusdb.fr/img/items/50720.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Former une recrue puis faire un rapport à Skale"
+          ],
           "stepOrder": 0,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
         },
         {
-          "name": "Le livre des portails",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Formation des première année",
+          "dofusdbId": 1446,
+          "level": 20,
+          "zone": "Dimensions Divines",
+          "npcName": "Skale",
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 4,
+            "y": 4,
+            "worldId": 1
+          },
           "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
+          "itemsRequired": [
+            {
+              "id": 14920,
+              "name": "Feuille de formation remplie",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24074.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Récupérer une feuille de formation dans la salle d'entraînement",
+            "Se rendre dans la salle de combat",
+            "Former la recrue au combat contre les méchants",
+            "Ramener à Skale : x1 Feuille de formation remplie"
+          ],
           "stepOrder": 1,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1445
+            }
+          ],
+          "notes": null
         },
         {
-          "name": "Choc de civilisations",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Formation des deuxième année",
+          "dofusdbId": 1447,
+          "level": 40,
+          "zone": "Dimensions Divines",
+          "npcName": "Skale",
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 4,
+            "y": 4,
+            "worldId": 1
+          },
           "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
+          "itemsRequired": [
+            {
+              "id": 14920,
+              "name": "Feuille de formation remplie",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24074.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Récupérer une feuille de formation dans la salle d'entraînement",
+            "Se rendre dans la salle de combat",
+            "Former la recrue au combat contre les méchants",
+            "Ramener à Skale : x1 Feuille de formation remplie"
+          ],
           "stepOrder": 2,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1446
+            }
+          ],
+          "notes": null
         },
         {
-          "name": "Renouement",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "La cité de l'indicible mal",
+          "dofusdbId": 1530,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": "L'Explorancienne",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15464,
+              "name": "Gant de Vil Smisse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/9234.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir L'Explorancienne",
+            "Se rendre au lieu de rendez-vous",
+            "Aller voir Vil Smisse",
+            "Retourner voir L'Explorancienne",
+            "Obtenir l'accès à la dimension Srambad et se présenter devant le portail",
+            "Découvrir la carte : Avant-poste des Voyageurs",
+            "Aller voir Sergent Raskzac",
+            "Montrer à Franche Smisse : 1 Gant de Vil Smisse"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1447
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Messager clandestin",
+          "dofusdbId": 1531,
+          "level": 100,
+          "zone": "Dimensions Divines",
+          "npcName": "Sinedia Zieunoir",
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 5,
+            "y": -2,
+            "worldId": 14
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Sinedia Zieunoir",
+            "Aller voir Mama Phia",
+            "Aller voir Madame Hyrda",
+            "Aller voir Goboukhan",
+            "Aller voir Zap Gobdon",
+            "Aller voir Al Capote",
+            "Aller voir Rufiette",
+            "Aller voir Venimeuse",
+            "Parler au Bouché",
+            "Retourner voir Franche Smisse"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1530
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La voix de son maître",
+          "dofusdbId": 1532,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": "Belle Adrenne",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": 5,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Belle Adrenne",
+            "Crocheter la porte de la maison de l'impasse des Comploteurs",
+            "Ouvrir le coffre de la maison de l'impasse des Comploteurs",
+            "Sortir de la prison de Srambad",
+            "Retourner voir Zap Gobdon",
+            "Parler au Coupe-Gorge",
+            "Aller voir Franche Smisse",
+            "Aller voir Belle Adrenne",
+            "Aller voir Reine des Voleurs",
+            "Retourner voir L'Explorancienne"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1531
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le maître des zaaps",
+          "dofusdbId": 1571,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "npcName": "Major Qiu",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15850,
+              "name": "Flacon de lubrifiant",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/60376.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Major Qiu",
+            "Aller voir Amine",
+            "Aller voir Maître des zaaps",
+            "Retrouver le maître près du zaap des Routes Rocailleuses",
+            "Présenter le Maître des zaaps au Major Qiu",
+            "Ramener à Docteur Gaw : x1 Flacon de lubrifiant",
+            "Retourner voir Major Qiu",
+            "Obtenir l'accès à la dimension Xélorium et se présenter devant le portail",
+            "Découvrir la carte : Avant-poste du Xélorium",
+            "Aller voir Maître des zaaps"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1532
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Énergie renouvelable",
+          "dofusdbId": 1572,
+          "level": 100,
+          "zone": "Dimensions Divines",
+          "npcName": "Collecteur Sup",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15851,
+              "name": "Orichor Instable",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15922.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Collecteur Sup",
+            "Trouver l'endroit indiqué par l'orichomètre",
+            "Ouvrir le coffre",
+            "Prendre l'orichor instable dans le coffre",
+            "Aller voir Krosmoglob de Belle Adrenne",
+            "Montrer à Maître des zaaps : 1 Orichor Instable",
+            "Escorter le maître des zaaps jusqu'au temple du temps",
+            "Aider le maître à fabriquer la batterie",
+            "Aller voir Maître des zaaps",
+            "Chercher de l'aide à l'avant-poste du Xélorium"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1571
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Traitement de choc",
+          "dofusdbId": 1573,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "npcName": "Maître des zaaps",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "coords": {
+            "x": 4,
+            "y": 2,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15882,
+              "name": "Batterie Éternelle",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15923.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Utiliser l'électrofoudre sur le Maître des zaaps",
+            "Contacter le Doc Emiette Borgne via son Krosmoglob",
+            "Dissiper les doubles à coup de marteau",
+            "Taper sur la tête du maître des zaaps",
+            "Aller voir Maître des zaaps",
+            "Ramener à Major Qiu : x1 Batterie Éternelle"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1572
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le disparu de Sufokia",
+          "dofusdbId": 1608,
+          "level": 100,
+          "zone": "Grotte sous-marine",
+          "npcName": "Pam Chollion",
+          "npcSubArea": "Grotte sous-marine",
+          "coords": {
+            "x": 21,
+            "y": 13,
+            "worldId": 33
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 16050,
+              "name": "Diamant Dimensionnel",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/50025.png"
+            },
+            {
+              "id": 16019,
+              "name": "Parchemin de Marie Ride",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24050.png"
+            },
+            {
+              "id": 16020,
+              "name": "Lettre de Vardo",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24065.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 79,
+              "name": "Galerie du Phossile",
+              "level": null,
+              "bossName": "Mère Veilleuse",
+              "img": "https://api.dofusdb.fr/img/monsters/1119.png",
+              "idoleName": null
+            },
+            {
+              "id": 77,
+              "name": "Fabrique de Malléfisk",
+              "level": null,
+              "bossName": "Précieux",
+              "img": "https://api.dofusdb.fr/img/monsters/1124.png",
+              "idoleName": null
+            },
+            {
+              "id": 82,
+              "name": "Cave du Toxoliath",
+              "level": null,
+              "bossName": "Toxoliath",
+              "img": "https://api.dofusdb.fr/img/monsters/1166.png",
+              "idoleName": null
+            },
+            {
+              "id": 86,
+              "name": "Horologium de XLII",
+              "level": null,
+              "bossName": "XLII",
+              "img": "https://api.dofusdb.fr/img/monsters/1222.png",
+              "idoleName": null
+            },
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Segmantid",
+              "img": "https://api.dofusdb.fr/img/monsters/1229.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Pam Chollion",
+            "Fouiller l'endroit où travaillait Vardo",
+            "Lire la page du journal de Vardo",
+            "Découvrir la carte : Taverne de Sufokia",
+            "Obtenir des informations sur Vardo et sur l'Hyperscampe",
+            "Trouver des contrebandiers le long du rivage sufokien",
+            "Battre le groupe de contrebandiers",
+            "Vaincre x1 {monster,3955} en un seul combat",
+            "Aller voir Marie Ride",
+            "Ramener à Marie Ride : x1 Diamant Dimensionnel",
+            "Montrer à Rita Byrla : 1 Parchemin de Marie Ride",
+            "Franchir les portes de pierre",
+            "Aller voir Vardo Tercar",
+            "Escorter Vardo jusqu'à Sufokia",
+            "Aller voir Vardo Tercar",
+            "Ramener à Tatine : x1 Lettre de Vardo"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1573
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Rendez-vous avec la mort",
+          "dofusdbId": 1609,
+          "level": 100,
+          "zone": "Temple Sram",
+          "npcName": "Gein le Silencieux",
+          "npcSubArea": "Temple Sram",
+          "coords": {
+            "x": -4,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Se rendre au temple de Sram",
+            "Trouver la personne qui vous a donné rendez-vous",
+            "Aller voir Gein le Silencieux",
+            "Réunir des preuves contre Écho et les montrer à Gein"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1608
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Secret de fabrication",
+          "dofusdbId": 1610,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Prison",
+          "npcName": "Krosmoglob de l'agent Bloude",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Prison",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16059,
+              "name": "Échantillon d'orichor raffiné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15929.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Découvrir la carte : Chercher l'agent Bloude dans les sous-sols",
+            "Découvrir la carte : Chercher l'agent Bloude dans les étages",
+            "Interroger les Voyageurs de la tour",
+            "Activer le Krosmoglob de l'agent Bloude dans la prison",
+            "Aller voir Krosmoglob de l'agent Bloude",
+            "Se servir de l'alambic dans le laboratoire",
+            "Aller voir Colonel Oneuil",
+            "Découvrir la carte : Portail de la mine Istairameur",
+            "Utiliser la Potion de transparence totale pour emprunter le portail en toute discrétion",
+            "Chercher les traces du passage du convoi",
+            "Essayer d'entrer dans la raffinerie",
+            "Chercher où le code a été caché",
+            "Essayer le code pour entrer dans la raffinerie",
+            "Découvrir où a été transporté l'orichor",
+            "Aller voir Zap Gobdon",
+            "Aller voir Belle Adrenne",
+            "Dérober de l'orichor raffiné",
+            "Aller voir Amaurykor",
+            "Aller voir Roi Nidas",
+            "Aller voir Agent Bloude",
+            "Découvrir la carte : Porte de la raffinerie",
+            "Aller voir Agent Bloude",
+            "Montrer à Gein le Silencieux : 1 Échantillon d'orichor raffiné"
+          ],
+          "stepOrder": 11,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1609
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "S'emparer des commandes",
+          "dofusdbId": 1611,
+          "level": 100,
+          "zone": "Planque minuscule",
+          "npcName": "Anne Saulo",
+          "npcSubArea": "Planque minuscule",
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16064,
+              "name": "Potion de transformation en sirène",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/12041.png"
+            },
+            {
+              "id": 16063,
+              "name": "Rapports d'espionnage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15931.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Anne Saulo",
+            "Enquêter sur la récente présence de Gein à Srambad",
+            "Acheter une Potion de transformation en sirène au marché de Srambad",
+            "Ramener à Arielle : x1 Potion de transformation en sirène",
+            "Découvrir la carte : Passage des Hauts Ténébreux",
+            "Chercher des traces du passage de Gein",
+            "Aller voir Haugne Boidboul",
+            "Découvrir la carte : Taverne du Bourreau",
+            "Aller voir Malveilleur en service",
+            "Découvrir la carte : Prison de Srambad",
+            "Aller voir San Tress",
+            "Aller voir Geôlier des Eaux-Suaires",
+            "Aller voir San Tress",
+            "Aller voir Geôlier des Eaux-Suaires",
+            "Chercher un témoin du vol des documents dans la prison de Srambad",
+            "Chercher les hommes de main d'Al Capote récemment sortis de la prison de Srambad",
+            "Interroger les commerçants du marché de Srambad",
+            "Apporter 1 Anneau du Bandit ou 100000 kamas à Grima Fandanga",
+            "Chercher le Râtelier Gris dans les Catacombres",
+            "Chercher des traces du passage du Râtelier Gris",
+            "Chercher un moyen de passer à travers les grilles",
+            "Écouter la conversation entre le Râtelier Gris et Morora",
+            "Vaincre les Milirats et fouiller leurs cadavres",
+            "Retourner au marché pour retrouver la piste du Râtelier Gris",
+            "Chercher la personne qui vous attend",
+            "Montrer à Gein le Silencieux : 1 Rapports d'espionnage"
+          ],
+          "stepOrder": 12,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1610
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "C'est dans la boîte",
+          "dofusdbId": 1612,
+          "level": 100,
+          "zone": "Hall du Muséum",
+          "npcName": "Gardienne du Muséum",
+          "npcSubArea": "Hall du Muséum",
+          "coords": {
+            "x": 3,
+            "y": 1,
+            "worldId": 15
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 16062,
+              "name": "Symboles du Dodécariam",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15930.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Segmantid",
+              "img": "https://api.dofusdb.fr/img/monsters/1229.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Gardienne du Muséum",
+            "Lire l'Historibus Compendium",
+            "Retourner voir Gardienne du Muséum",
+            "Trouver l'hordémon qui a vandalisé le livre",
+            "Vaincre x1 {monster,3971} en un seul combat",
+            "Interroger le dévoreur de livres",
+            "Rejoindre l'avant-poste des Voyageurs et se renseigner sur Olivie Frange",
+            "Aller voir Hypéria Gritch",
+            "Récupérer 4 Bouts de Temps",
+            "Découvrir la carte : Salle de la Pierre de Méthée",
+            "Aller voir Méthée",
+            "Aller voir Olivie Frange",
+            "Parler de nouveau à Olivie Frange",
+            "Montrer à Gein le Silencieux : 1 Symboles du Dodécariam"
+          ],
+          "stepOrder": 13,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1611
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Crise d'identité",
+          "dofusdbId": 1613,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": "Colonel Oneuil",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Colonel Oneuil",
+            "Découvrir la carte : Salle de Briefing",
+            "Aller voir L'Explorancienne",
+            "Aller voir Gein le Silencieux",
+            "Aller voir Colonel Oneuil",
+            "Aller voir Major Qiu",
+            "Aller voir Gladis",
+            "Aller voir Docteur Gaw",
+            "Aller voir Belle Adrenne",
+            "Aller voir Zap Gobdon",
+            "Retourner voir L'Explorancienne",
+            "Aller voir Écho",
+            "Aider Gein à vaincre Écho",
+            "Aller voir Septange"
+          ],
+          "stepOrder": 14,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1612
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Le pays des Vermeils (Enutrosor)",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Enutrosor",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Elle va finir par se faire coffrer",
+          "dofusdbId": 1487,
+          "level": 100,
+          "zone": "Enutrosor",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": -3,
+            "y": -2,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 93,
+              "name": "Fabrique de Malléfisk",
+              "level": null,
+              "bossName": "Grath",
+              "img": "https://api.dofusdb.fr/img/monsters/1366.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Escorter l'Agent Tiyette jusqu'en Enutrosor",
+            "Aider l'Agent Tiyette à vaincre un Koffrefor Esseulé",
+            "Aider l'Agent Tiyette à vaincre un petit groupe de Koffrefors",
+            "Aider l'Agent Tiyette à vaincre une colonne de Koffrefors",
+            "Retourner à l'avant-poste d'Enutrosor et parler à l'Agent Tiyette"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Pompe à fric",
+          "dofusdbId": 1501,
+          "level": 100,
+          "zone": "Enutrosor",
+          "npcName": "Agent Kohmer Sial",
+          "npcSubArea": null,
+          "coords": {
+            "x": -5,
+            "y": -2,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15298,
+              "name": "Morceau de Koffrefor",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 15299,
+              "name": "Morceau de Koffrefor recyclé",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/15832.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Agent Kohmer Sial",
+            "Défendre l'Agent Kohmer Sial puis lui parler à nouveau.",
+            "Récupérer 1 Morceau de Koffrefor",
+            "Ramener à Maréchal des logis Stik : x10 Morceau de Koffrefor",
+            "Ramener à Agent Kohmer Sial : x10 Morceau de Koffrefor recyclé",
+            "Aller voir Sergent Frinklan"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1487
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Koffrologie",
+          "dofusdbId": 1504,
+          "level": 100,
+          "zone": "Enutrosor",
+          "npcName": "Professeur Maximilio",
+          "npcSubArea": null,
+          "coords": {
+            "x": -1,
+            "y": -1,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 34134,
+              "name": "Âme capturée de Boursoin",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/85001.png"
+            },
+            {
+              "id": 34135,
+              "name": "Âme capturée de Mimikado",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/85001.png"
+            },
+            {
+              "id": 34136,
+              "name": "Âme capturée de Trésantène",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/85001.png"
+            },
+            {
+              "id": 34133,
+              "name": "Âme capturée de Bersekoffre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/85001.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Professeur Maximilio : x1 Âme capturée de Boursoin",
+            "Ramener à Professeur Maximilio : x1 Âme capturée de Mimikado",
+            "Ramener à Professeur Maximilio : x1 Âme capturée de Trésantène",
+            "Ramener à Professeur Maximilio : x1 Âme capturée de Bersekoffre",
+            "Découvrir la carte : Essai du sifflet",
+            "Utiliser le Sifflet de Koffrefor",
+            "Aller voir Trésantène",
+            "Aller voir Krosmoglob du Professeur Maximilio",
+            "Découvrir la carte : Essai de vol",
+            "Tenter de voler un sac de kamas",
+            "Aller voir Berserkoffre",
+            "Aller voir Krosmoglob du Professeur Maximilio",
+            "Agresser un mannequin Enutrofor",
+            "Aller voir Boursoin",
+            "Aller voir Ribériche",
+            "Aller voir Professeur Maximilio"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1501
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Trésorphelinat",
+          "dofusdbId": 1505,
+          "level": 100,
+          "zone": "Enutrosor",
+          "npcName": "Mimikmatti",
+          "npcSubArea": null,
+          "coords": {
+            "x": -2,
+            "y": -4,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15310,
+              "name": "Mimikmatti",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/32084.png"
+            },
+            {
+              "id": 15309,
+              "name": "Reblochonchon",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15558.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Découvrir la carte : Entrée du Trésorphelinat",
+            "Simuler une noyade dans des kamas mouvants",
+            "Vaincre x1 {monster,3694} en un seul combat",
+            "Ramener à Mimikmatti : x1 Reblochonchon",
+            "Ramener à Ribériche : x1 Mimikmatti",
+            "Aller voir Mimikmatti",
+            "Aller voir Professeur Maximilio",
+            "Aller voir Ribériche",
+            "Découvrir la carte : Benne à ordures",
+            "Aller voir Mimikmatti",
+            "Aller voir Ribériche"
+          ],
           "stepOrder": 3,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1504
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Malladie",
+          "dofusdbId": 1506,
+          "level": 100,
+          "zone": "Fabrique de Malléfisk - Sortie",
+          "npcName": "Ribériche",
+          "npcSubArea": "Fabrique de Malléfisk - Sortie",
+          "coords": {
+            "x": -1,
+            "y": -1,
+            "worldId": 13
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 77,
+              "name": "Fabrique de Malléfisk",
+              "level": null,
+              "bossName": "Précieux",
+              "img": "https://api.dofusdb.fr/img/monsters/1124.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Ribériche",
+            "Aller voir Kamalonnête",
+            "Aller voir Inès Karcel",
+            "Aller voir Malléfisk",
+            "Aller voir Krosmoglob du Professeur Maximilio",
+            "Aller voir Malléfisk",
+            "Aller voir Professeur Maximilio"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1505
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Crache Test",
+          "dofusdbId": 1488,
+          "level": 150,
+          "zone": "Enutrosor",
+          "npcName": "Professeur Maximilio",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -5,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15291,
+              "name": "Rapport de Test",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/24055.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 90,
+              "name": "Galerie du Phossile",
+              "level": null,
+              "bossName": "Éclaireur Porkass",
+              "img": "https://api.dofusdb.fr/img/monsters/68.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Tester le cracheur sur un Jeune Phorrêveur et noter les résultats",
+            "Tester le cracheur sur un Phozami Mature et noter les résultats",
+            "Tester le cracheur sur un Vieux Métaphorreur et noter les résultats",
+            "Ramener à Professeur Maximilio : x3 Rapport de Test"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1506
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La quatrième dimension",
+          "dofusdbId": 1490,
+          "level": 150,
+          "zone": "Enutrosor",
+          "npcName": "Krosmoglob de Rol Sterding",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -4,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Utiliser l'holodateur sur un cristal de la carrière Aurifère",
+            "Aller voir Krosmoglob de Rol Sterding"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1488
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "On ne prête qu'à Richard",
+          "dofusdbId": 1492,
+          "level": 200,
+          "zone": "Enutrosor",
+          "npcName": "Richard le Trésorier",
+          "npcSubArea": null,
+          "coords": {
+            "x": -5,
+            "y": -5,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15286,
+              "name": "Calculateur Portatif de Blablage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/139064.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 69,
+              "name": "Palais du Roi Nidas",
+              "level": null,
+              "bossName": "Roi Nidas",
+              "img": "https://api.dofusdb.fr/img/monsters/1106.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Demander à rencontrer Richard le Trésorier",
+            "Vaincre x2 {monster,3672} sur la carte {map,129499136::Banque royale} en un seul combat",
+            "Parler à nouveau au guichetier d'Enutrosor",
+            "Trouver Richard le Trésorier",
+            "Ramener à Richard le Trésorier : x1 Calculateur Portatif de Blablage"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1490
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Touchez pas à Grisebigle",
+          "dofusdbId": 1489,
+          "level": 200,
+          "zone": "Enutrosor",
+          "npcName": "Agent Grisebigle",
+          "npcSubArea": null,
+          "coords": {
+            "x": -7,
+            "y": -4,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Activer le détecteur de balise à l'entrée de la Retraite des Éternels",
+            "Rejoindre la position indiquée par le détecteur",
+            "Trouver l'Agent Grisebigle",
+            "Se débarrasser des Enutrofors qui en veulent à Grisebigle",
+            "Aller voir Agent Grisebigle",
+            "Escorter Grisebigle jusqu'à l'avant-poste d'Enutrosor"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1492
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La meilleure défense, c'est l'attaque",
+          "dofusdbId": 1497,
+          "level": 150,
+          "zone": "Galerie du Phossile - Sortie",
+          "npcName": null,
+          "npcSubArea": "Galerie du Phossile - Sortie",
+          "coords": {
+            "x": -2,
+            "y": -3,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x1 {monster,3683} en un seul combat",
+            "Vaincre x3 {monster,3684} en un seul combat",
+            "Vaincre x5 {monster,3685} en un seul combat",
+            "Amener les défenses de phorreur à Dyane Phossé"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1489
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Phorreurs dans la brume",
+          "dofusdbId": 1498,
+          "level": 150,
+          "zone": "Galerie du Phossile - Sortie",
+          "npcName": "Dyane Phossé",
+          "npcSubArea": "Galerie du Phossile - Sortie",
+          "coords": {
+            "x": 0,
+            "y": -3,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vaporiser de la sueur de prespic sur une phorreuse amoureuse",
+            "Retourner voir Dyane Phossé"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1497
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le phormidiable au corps",
+          "dofusdbId": 1499,
+          "level": 150,
+          "zone": "Galerie du Phossile - Sortie",
+          "npcName": "Dyane Phossé",
+          "npcSubArea": "Galerie du Phossile - Sortie",
+          "coords": {
+            "x": 2,
+            "y": -4,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Trouver la tanière du phormidiable",
+            "Vaincre x1 {monster,3686} en un seul combat",
+            "Retourner voir Dyane Phossé"
+          ],
+          "stepOrder": 11,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1498
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La pelle de la Phorrée",
+          "dofusdbId": 1500,
+          "level": 150,
+          "zone": "Galerie du Phossile - Salle des pépites",
+          "npcName": "Professeur Maximilio",
+          "npcSubArea": "Galerie du Phossile - Salle des pépites",
+          "coords": {
+            "x": -2,
+            "y": -3,
+            "worldId": 13
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 79,
+              "name": "Galerie du Phossile",
+              "level": null,
+              "bossName": "Mère Veilleuse",
+              "img": "https://api.dofusdb.fr/img/monsters/1119.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x1 {monster,3651} en un seul combat",
+            "Parler à Dyane Phossé à l'intérieur de la galerie du Phossile",
+            "Retourner voir Professeur Maximilio"
+          ],
+          "stepOrder": 12,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1499
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Les grandes galeries",
+          "dofusdbId": 1507,
+          "level": 150,
+          "zone": "Enutrosor",
+          "npcName": "Drayefontaine",
+          "npcSubArea": null,
+          "coords": {
+            "x": 0,
+            "y": -5,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15311,
+              "name": "Phorreurs apprivoisés",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/32077.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Drayefontaine",
+            "Aller voir Foolk",
+            "Aller voir Yanacoché",
+            "Ramener à Grabergue : x1 Phorreurs apprivoisés",
+            "Aller voir Williamwadui"
+          ],
+          "stepOrder": 13,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1500
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Un cœur d'or",
+          "dofusdbId": 1508,
+          "level": 150,
+          "zone": "Enutrosor",
+          "npcName": "Taupinambourg",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": -4,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15313,
+              "name": "Repas chaud",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/69145.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Chercher quelqu'un à aider dans la carrière aurifère",
+            "Vaincre x1 {monster,3707} en un seul combat",
+            "Aller voir Taupinambourg",
+            "Aller voir Flemmarcel",
+            "S'occuper des excréments dans la carrière aurifère",
+            "Aller voir Flemmarcel",
+            "Ramener à Héraut d'Enutrof : x1 Repas chaud",
+            "Aller voir Tanguy",
+            "Aller voir Chipsou",
+            "Compter les kamas",
+            "Vérifier l'authenticité des kamas",
+            "Remettre les kamas à leur place",
+            "Aller voir Chipsou",
+            "Aller voir Grabergue"
+          ],
+          "stepOrder": 14,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1507
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Maudite générosité",
+          "dofusdbId": 1509,
+          "level": 150,
+          "zone": "Enutrosor",
+          "npcName": "Williamwadui",
+          "npcSubArea": null,
+          "coords": {
+            "x": 3,
+            "y": -4,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15314,
+              "name": "Œil du Phozami agressif",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15873.png"
+            },
+            {
+              "id": 15315,
+              "name": "Gaufren Or",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/171002.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Trouver une pierre plus précieuse que les autres",
+            "Trouver une cache pour la pierre précieuse",
+            "Aller voir Williamwadui",
+            "Vaincre seul et à mains nues un Phozami agressif",
+            "Ramener à Williamwadui : x1 Œil du Phozami agressif",
+            "Fabriquer une gaufren or",
+            "Ramener à Chipsou : x1 Gaufren Or",
+            "Aller voir Chipsou"
+          ],
+          "stepOrder": 15,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1508
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Coiffeur de génie",
+          "dofusdbId": 1514,
+          "level": 200,
+          "zone": "Palais du roi Nidas - Salle des coffres",
+          "npcName": "Léonard",
+          "npcSubArea": "Palais du roi Nidas - Salle des coffres",
+          "coords": {
+            "x": -8,
+            "y": -4,
+            "worldId": 13
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 15177,
+              "name": "Corne de Kamasterisk",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/15876.png"
+            },
+            {
+              "id": 15178,
+              "name": "Sourcil de Barbétoal",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/15877.png"
+            },
+            {
+              "id": 15179,
+              "name": "Dent de Lévitrof",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/15878.png"
+            },
+            {
+              "id": 15180,
+              "name": "Morceau de clef de Paspartou",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/15879.png"
+            },
+            {
+              "id": 15375,
+              "name": "Cristal bleu",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/51151.png"
+            },
+            {
+              "id": 15376,
+              "name": "Pépite dorée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/39022.png"
+            },
+            {
+              "id": 15377,
+              "name": "Sac",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/81030.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 76,
+              "name": "Palais du roi Nidas",
+              "level": null,
+              "bossName": "Piloztère",
+              "img": "https://api.dofusdb.fr/img/monsters/1114.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Récupérer 1 Cristal bleu",
+            "Récupérer 1 Pépite dorée",
+            "Récupérer 1 Sac",
+            "Ramener à Léonard : x1 Cristal bleu",
+            "Ramener à Léonard : x1 Pépite dorée",
+            "Ramener à Léonard : x1 Sac",
+            "Ramener à Léonard : x1 Corne de Kamasterisk",
+            "Ramener à Léonard : x1 Sourcil de Barbétoal",
+            "Ramener à Léonard : x1 Dent de Lévitrof",
+            "Ramener à Léonard : x1 Morceau de clef de Paspartou",
+            "Aller voir Méchanteur",
+            "Aller voir Léonard",
+            "Vaincre x1 {monster,3648} en un seul combat",
+            "Découvrir la carte : Sortie du Palais du roi Nidas",
+            "Aller voir Roi Nidas",
+            "Aller voir Léonard"
+          ],
+          "stepOrder": 16,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1509
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Espionnage industriel",
+          "dofusdbId": 1510,
+          "level": 200,
+          "zone": "Enutrosor",
+          "npcName": "Paprikama",
+          "npcSubArea": null,
+          "coords": {
+            "x": -8,
+            "y": -5,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Fouiller le bâtiment à la recherche d'indices",
+            "Apporter les indices à Pépénible",
+            "Aller voir Paprikama",
+            "Aller voir Papizza",
+            "Aller voir Fripépé",
+            "Chercher René dans le bâtiment",
+            "Découvrir la carte : Salle des projets",
+            "Aller voir René",
+            "Aller voir Gardien Paspartou",
+            "Vaincre x1 {monster,3713} en un seul combat",
+            "Aller voir Gardien Paspartou",
+            "Aller voir Pépénible"
+          ],
+          "stepOrder": 17,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1514
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Prise d'otages",
+          "dofusdbId": 1511,
+          "level": 200,
+          "zone": "Enutrosor",
+          "npcName": "Pépénible",
+          "npcSubArea": null,
+          "coords": {
+            "x": -8,
+            "y": -5,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Trouver un démineur",
+            "Aller voir Pépénible",
+            "Aller voir Orpailleur clandestin",
+            "Vaincre les Enutrofors voulant lyncher l'Orpailleur clandestin",
+            "Aller voir Pépénible",
+            "Aller voir Gardien Paspartou",
+            "Découvrir la carte : Salle des otages",
+            "Aller voir René",
+            "Vaincre x1 {monster,3714} en un seul combat",
+            "Aller voir Gardien Paspartou"
+          ],
+          "stepOrder": 18,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1510
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La grève de la fin",
+          "dofusdbId": 1512,
+          "level": 200,
+          "zone": "Enutrosor",
+          "npcName": "Vieunuque",
+          "npcSubArea": null,
+          "coords": {
+            "x": -8,
+            "y": -5,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Vieunuque",
+            "Convaincre Vieunuque de vous prendre au sérieux",
+            "Aller voir Vieurêka",
+            "Convaincre Vieurêka de vous prendre au sérieux",
+            "Aller voir Fripépé",
+            "Convaincre Fripépé de vous prendre au sérieux",
+            "Aller voir Pépénible",
+            "Aller voir Sergent Frinklan",
+            "Aller voir Pépénible",
+            "Aller voir Vétérancien"
+          ],
+          "stepOrder": 19,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1511
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Malle des profondeurs",
+          "dofusdbId": 1513,
+          "level": 200,
+          "zone": "Fabrique de Malléfisk - Sortie",
+          "npcName": "Yanacoché",
+          "npcSubArea": "Fabrique de Malléfisk - Sortie",
+          "coords": {
+            "x": 0,
+            "y": -5,
+            "worldId": 13
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 77,
+              "name": "Fabrique de Malléfisk",
+              "level": null,
+              "bossName": "Précieux",
+              "img": "https://api.dofusdb.fr/img/monsters/1124.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Yanacoché",
+            "Aller voir Grabergue",
+            "Aller voir Pépénible",
+            "Aller voir Malléfisk",
+            "Vaincre x1 {monster,3715} en un seul combat",
+            "Aller voir Malléfisk",
+            "Aller voir Sergent Frinklan"
+          ],
+          "stepOrder": 20,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1512
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Reconnaissance de dette",
+          "dofusdbId": 1515,
+          "level": 200,
+          "zone": "Enutrosor",
+          "npcName": "Amaradin",
+          "npcSubArea": null,
+          "coords": {
+            "x": -8,
+            "y": -4,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15316,
+              "name": "Échantillon de pilules bleues",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/42039.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Amaradin : x1 Échantillon de pilules bleues",
+            "Aller voir Gravia",
+            "Aller voir Amaradin",
+            "Vaincre les confrères d'Amaradin",
+            "Aller voir Amaradin",
+            "Aller voir Gravia",
+            "Aller voir Amaradin",
+            "Vérifier le paiement",
+            "Aller voir Amaradin",
+            "Aller voir Gravia"
+          ],
+          "stepOrder": 21,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1513
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Laissé en plan",
+          "dofusdbId": 1516,
+          "level": 200,
+          "zone": "Enutrosor",
+          "npcName": "Ribériche",
+          "npcSubArea": null,
+          "coords": {
+            "x": -1,
+            "y": -1,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15335,
+              "name": "Vieux plan d'Enutrosor",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24055.png"
+            },
+            {
+              "id": 15336,
+              "name": "Caisse de pièces de Koffrefor",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Ribériche : x1 Vieux plan d'Enutrosor",
+            "Récupérer des morceaux de Koffrefors dans la carrière aurifère et le creuset des fortunés",
+            "Récupérer des gemmes enchantées dans la carrière aurifère et le creuset des fortunés",
+            "Aller voir Méchanteur",
+            "Vaincre x1 {monster,3716} en un seul combat",
+            "Aller voir Méchanteur",
+            "Montrer à Ribériche : 1 Caisse de pièces de Koffrefor",
+            "Ramener à Pépénible : x1 Caisse de pièces de Koffrefor"
+          ],
+          "stepOrder": 22,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1515
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Le royaume des ombres (Srambad)",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Srambad",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 2,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Ça katche ou ça casse",
+          "dofusdbId": 1533,
+          "level": 130,
+          "zone": "Srambad",
+          "npcName": "Agent Durhan",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 81,
+              "name": "Ring du Capitaine Ekarlatte",
+              "level": null,
+              "bossName": "Capitaine Ekarlatte",
+              "img": "https://api.dofusdb.fr/img/monsters/1167.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Agent Durhan",
+            "Aider l'Agent Durhan à vaincre Leny le Lenald",
+            "Aider l'Agent Durhan à vaincre El Troolito",
+            "Aider l'Agent Durhan à vaincre Dédé le Géant",
+            "Retourner à l'avant-poste de Srambad et parler à l'Agent Durhan"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Nécrotiques, tiques, tiques",
+          "dofusdbId": 1534,
+          "level": 180,
+          "zone": "Srambad",
+          "npcName": "Assistant du Docteur Gaw",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 92,
+              "name": "Cave du Toxoliath",
+              "level": null,
+              "bossName": "Diablotin Beurlaik",
+              "img": "https://api.dofusdb.fr/img/monsters/85.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Capturer un scoliopode affaibli et le ramener à l'avant-poste",
+            "Capturer un lucrane affaibli et le ramener à l'avant-poste",
+            "Capturer une puceronde affaiblie et la ramener à l'avant-poste",
+            "Capturer une éperfide affaiblie et la ramener à l'avant-poste",
+            "Aller voir Assistant du Docteur Gaw"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1533
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Les sentiers de la perdition",
+          "dofusdbId": 1548,
+          "level": 200,
+          "zone": "Srambad",
+          "npcName": "Agent Tourloupe",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15616,
+              "name": "Sac d'argent sale",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/100056.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 91,
+              "name": "Trône de la Cour Sombre",
+              "level": null,
+              "bossName": "Gobvious",
+              "img": "https://api.dofusdb.fr/img/monsters/1028.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Agent Tourloupe",
+            "Aller voir Silverbwork",
+            "Aller voir Lann Desk",
+            "Aller voir Umberto Robinet",
+            "Aller voir Dance Rance",
+            "Vaincre Dance Rance et son escorte",
+            "Ramener à Arielle : x1 Sac d'argent sale",
+            "Aller voir Silverbwork",
+            "Aller voir Krosmoglob de l'agent Tourloupe"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1534
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Faux-semblants",
+          "dofusdbId": 1535,
+          "level": 200,
+          "zone": "Srambad",
+          "npcName": "Sergent Raskzac",
+          "npcSubArea": null,
+          "coords": {
+            "x": 7,
+            "y": 4,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Tester l'appareil de camouflage sur la place marchande de Srambad",
+            "Tester l'appareil de camouflage sur une terrasse des Hauts Ténébreux",
+            "Tester l'appareil de camouflage au cœur des Catacombres",
+            "Aller voir Sergent Raskzac",
+            "Vaincre x1 {monster,3787} en un seul combat",
+            "Donner le Générateur Eidolonique au Sergent Raskzac"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1548
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Fanfouille",
+          "dofusdbId": 1538,
+          "level": 130,
+          "zone": "Srambad",
+          "npcName": "Agent Gklung",
+          "npcSubArea": null,
+          "coords": {
+            "x": 7,
+            "y": 3,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Agent Gklung",
+            "Défendre l'Agent Gklung puis lui parler à nouveau",
+            "Emprunter des kamas aux habitants de Srambad pour une durée indéterminée",
+            "Soudoyer la milice de Srambad",
+            "Aller voir Agent Gklung",
+            "Aller voir Sergent Raskzac",
+            "Aller voir Sinedia Zieunoir"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1535
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La seinoise",
+          "dofusdbId": 1541,
+          "level": 130,
+          "zone": "Srambad",
+          "npcName": "Bonnie Menteuse",
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15491,
+              "name": "Signe de Krosmoglob défectueux",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/169008.png"
+            },
+            {
+              "id": 15492,
+              "name": "Peluche de Bonnie Menteuse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/61689.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Interroger les habitants de Srambad",
+            "Trouver puis interroger le crâne témoin de la scène",
+            "Aller voir Bonnie Menteuse",
+            "Aller voir Kathy Brennan",
+            "Aller voir Sergent Raskzac",
+            "Ramener à Bonnie Menteuse : x1 Signe de Krosmoglob défectueux",
+            "Chercher un moyen de faire pression sur Bonnie Menteuse",
+            "Découvrir la cachette du butin de Bonnie Menteuse",
+            "Ramener à Bonnie Menteuse : x1 Peluche de Bonnie Menteuse"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1538
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Ça se katche",
+          "dofusdbId": 1542,
+          "level": 130,
+          "zone": "Srambad",
+          "npcName": "Sramouraï soupe-au-lailait",
+          "npcSubArea": null,
+          "coords": {
+            "x": 5,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Chercher les Malveilleurs impliqués dans la mort des Voyageurs",
+            "Parler aux Malveilleurs",
+            "Vaincre x1 {monster,3776} en un seul combat",
+            "Aller voir Sramouraï soupe-au-lailait",
+            "Aller voir Prisonnier sobre",
+            "Aller voir Kathy Brennan",
+            "Utiliser le déguisement de Milimaître",
+            "Écouter les conversations des Malveilleurs",
+            "Découvrir la carte : Partie de pêche",
+            "Aller voir Lieutenant Cormoran",
+            "Aller voir El Rumo",
+            "Vaincre El Rumo puis l'interroger"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1541
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Un ring pour les gouverner tous",
+          "dofusdbId": 1543,
+          "level": 130,
+          "zone": "Ring du Capitaine Ekarlatte",
+          "npcName": "Guy Cheutié",
+          "npcSubArea": "Ring du Capitaine Ekarlatte",
+          "coords": {
+            "x": 6,
+            "y": 3,
+            "worldId": 14
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 81,
+              "name": "Ring du Capitaine Ekarlatte",
+              "level": null,
+              "bossName": "Capitaine Ekarlatte",
+              "img": "https://api.dofusdb.fr/img/monsters/1167.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Parler aux videurs du ring",
+            "Aller voir Guy Cheutié",
+            "Vaincre x1 {monster,3753} en un seul combat",
+            "Découvrir la carte : Sortie du Ring",
+            "Aller voir Capitaine Ekarlatte",
+            "Aller voir Kathy Brennan"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1542
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La pêche au poison",
+          "dofusdbId": 1536,
+          "level": 180,
+          "zone": "Tour des Voyageurs Dimensionnels - Salle de localisation des fissures",
+          "npcName": "Gladis",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle de localisation des fissures",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15403,
+              "name": "Jus Toxique de Nécrotique",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/126019.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Gladis : x10 Jus Toxique de Nécrotique"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1543
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Les troupiers",
+          "dofusdbId": 1539,
+          "level": 180,
+          "zone": "Srambad",
+          "npcName": "Krosmoglob du Sergent Raskzac",
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": 9,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Chercher les agents dans les Catacombres",
+            "Défendre l'Agent Jayne Pato puis lui parler à nouveau",
+            "Aller voir Krosmoglob du Sergent Raskzac",
+            "Découvrir la carte : Catacombres",
+            "Aller voir Agent Jayne Pato",
+            "Aller voir Agent Jayne Pato",
+            "Aller voir Agent Jayne Pato",
+            "Vaincre la nuée de Scoliopodes puis donner le Krosmoglob à l'Agent Jayne Pato",
+            "Aller voir Krosmoglob du Docteur Jacquot",
+            "Aller voir Agent Jayne Pato",
+            "Aller voir Krosmoglob du Sergent Raskzac"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1536
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Épidémiologie",
+          "dofusdbId": 1544,
+          "level": 180,
+          "zone": "Srambad",
+          "npcName": "Kathy Brennan",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15509,
+              "name": "Échantillon de Scoliopode sain",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15189.png"
+            },
+            {
+              "id": 15511,
+              "name": "Échantillon d'Éperfide saine",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15189.png"
+            },
+            {
+              "id": 15513,
+              "name": "Échantillon de Lucrane sain",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15189.png"
+            },
+            {
+              "id": 15517,
+              "name": "Échantillon de Puceronde saine",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15189.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Kathy Brennan : x1 Échantillon de Scoliopode sain",
+            "Ramener à Kathy Brennan : x1 Échantillon d'Éperfide saine",
+            "Ramener à Kathy Brennan : x1 Échantillon de Lucrane sain",
+            "Ramener à Kathy Brennan : x1 Échantillon de Puceronde saine",
+            "Effectuer des prélèvements sur des œufs de Nécrotiques",
+            "Apporter les prélèvements d'œufs de Nécrotiques à Kathy Brennan",
+            "Aller voir Sergent Raskzac",
+            "Découvrir la carte : Zone à sécuriser",
+            "Aller voir Marshall Palegnor",
+            "Se servir du combustible pour éloigner les Nécrotiques",
+            "Aller voir Tim Trauma",
+            "Aller voir Sergent Raskzac"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1539
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Tique attaque",
+          "dofusdbId": 1545,
+          "level": 180,
+          "zone": "Srambad",
+          "npcName": "Kathy Brennan",
+          "npcSubArea": null,
+          "coords": {
+            "x": 7,
+            "y": 9,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15550,
+              "name": "Échantillon de Nécrotique agressive",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15189.png"
+            },
+            {
+              "id": 15552,
+              "name": "Colis pour Kathy Brennan",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24715.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Rejoindre le membre d'Hyrda au point de rendez-vous",
+            "Prélever un échantillon de Nécrotique agressive puis parler à Serpentine des Fosses 12",
+            "Ramener à Kathy Brennan : x1 Échantillon de Nécrotique agressive",
+            "Aller voir Amuza Ataga",
+            "Ramener à Kathy Brennan : x1 Colis pour Kathy Brennan",
+            "Prélever des échantillons de nourriture dans les Catacombres",
+            "Aller voir Serpentine des Fosses 12"
+          ],
+          "stepOrder": 11,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1544
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Sa Majesté des Nécrotiques",
+          "dofusdbId": 1546,
+          "level": 180,
+          "zone": "Srambad",
+          "npcName": "Nosf",
+          "npcSubArea": null,
+          "coords": {
+            "x": 6,
+            "y": 8,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Nosf",
+            "Aller voir Serpentine des Fosses 12",
+            "Explorer les Catacombres",
+            "Aller voir Serpentine des Fosses 12",
+            "Découvrir la carte : Passage des enfants",
+            "Aller voir Merridiou",
+            "Vaincre Merridiou",
+            "Aller voir Samuel",
+            "Aller voir Liame",
+            "Aller voir Rick",
+            "Aller voir Oldie",
+            "Aller voir Rufiette",
+            "Aller voir Serpentine des Fosses 12",
+            "Aller voir Sergent Raskzac",
+            "Aller voir Kathy Brennan"
+          ],
+          "stepOrder": 12,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1545
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "L'art me ment",
+          "dofusdbId": 1547,
+          "level": 180,
+          "zone": "Cave du Toxoliath - Salle des pontes",
+          "npcName": "Bikini",
+          "npcSubArea": "Cave du Toxoliath - Salle des pontes",
+          "coords": {
+            "x": 2,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 15553,
+              "name": "Fluide gastrique du Toxoliath",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24032.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 82,
+              "name": "Cave du Toxoliath",
+              "level": null,
+              "bossName": "Toxoliath",
+              "img": "https://api.dofusdb.fr/img/monsters/1166.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Bikini",
+            "Aller voir Ron Jerric",
+            "Aller voir Marshall Palegnor",
+            "Aller voir Sergent Raskzac",
+            "Aller voir Krosmoglob du Major Qiu",
+            "Aller voir Kathy Brennan",
+            "Aller voir Serpentine des Fosses 12",
+            "Aller voir Serpentine des Fosses 110",
+            "Vaincre la Serpentine des Fosses 110 et ses hommes de main",
+            "Aller voir Serpentine des Fosses 110",
+            "Aller voir Lucy Anur",
+            "Vaincre x1 {monster,3752} en un seul combat",
+            "Découvrir la carte : Cave du Toxoliath - Sortie",
+            "Aller voir Starchy Tropeur",
+            "Ramener à Kathy Brennan : x1 Fluide gastrique du Toxoliath",
+            "Aller voir Krosmoglob du Major Qiu"
+          ],
+          "stepOrder": 13,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1546
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Viande fraîche",
+          "dofusdbId": 1553,
+          "level": 180,
+          "zone": "Srambad",
+          "npcName": "Crâne Sanguinaire",
+          "npcSubArea": null,
+          "coords": {
+            "x": 6,
+            "y": 7,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15568,
+              "name": "Bière de Chachamo",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/37004.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Enquêter auprès des crânes",
+            "Enquêter dans les ruelles des Eaux-Suaires",
+            "Continuer l'enquête dans les ruelles des Eaux-Suaires",
+            "Enquêter dans les Catacombres",
+            "Ramener à Crâne Sanguinaire : x1 Bière de Chachamo",
+            "Découvrir la carte : Repaire du Bouché",
+            "Aller voir Le Bouché",
+            "Vaincre Le Bouché et lui parler à nouveau",
+            "Aller voir Tchô Wabbit"
+          ],
+          "stepOrder": 14,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1547
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La morte Adèle",
+          "dofusdbId": 1554,
+          "level": 180,
+          "zone": "Srambad",
+          "npcName": "Adèle",
+          "npcSubArea": null,
+          "coords": {
+            "x": 5,
+            "y": -2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Adèle",
+            "Aller voir Sinedia Zieunoir",
+            "Aller voir Madame Loseil",
+            "Récupérer 1 Cendres mortuaires",
+            "Aller voir Madame Loseil",
+            "Aller voir Adèle",
+            "Aller voir Madame Loseil",
+            "Aller voir Euph le Nécromant",
+            "Récupérer 1 Ossement dans les Catacombres",
+            "Aller voir Ellie Ksire",
+            "Apporter les ingrédients à Euph",
+            "Aller voir Adèle",
+            "Aller voir Sinedia Zieunoir"
+          ],
+          "stepOrder": 15,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1553
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Comme un poison dans l'eau",
+          "dofusdbId": 1555,
+          "level": 180,
+          "zone": "Srambad",
+          "npcName": "Docteur Deal Linger",
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": 8,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15570,
+              "name": "Fiole remplie d'eau-suaire",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/70064.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Prélever de l'eau",
+            "Ramener à Docteur Deal Linger : x5 Fiole remplie d'eau-suaire",
+            "Découvrir la carte : Panorama des Hauts Ténébreux",
+            "Aller voir Patxi Misce",
+            "Chercher des indices sur l'empoisonnement des eaux",
+            "Aller voir Pépérimé",
+            "Chercher le passage caché vers l'Os-Pisse",
+            "Aller voir Vieuthanasie",
+            "Aller voir Docteur Deal Linger"
+          ],
+          "stepOrder": 16,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1554
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Le domaine des possibles (Xélorium)",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Xélorium",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 3,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Anomalies temporelles",
+          "dofusdbId": 1588,
+          "level": 120,
+          "zone": "Xélorium",
+          "npcName": "Agent Nick Couteau",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": 5,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 102,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Jeune Pampactus",
+              "img": "https://api.dofusdb.fr/img/monsters/1481.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Agent Nick Couteau",
+            "Défendre l'Agent Nick Couteau puis lui parler à nouveau",
+            "Découvrir la carte : Chercher les êtres du passé.",
+            "Trouver un moyen de se débarrasser de Grozilla du passé",
+            "Fabriquer une savonnette géante",
+            "Placer une savonnette géante sur le chemin de Grozilla du passé",
+            "Trouver un moyen de se débarrasser de Primeval",
+            "Récupérer des herbes loin de Primeval",
+            "Placer les herbes sur un arbre",
+            "Attirer Primeval jusqu'à l'arbre",
+            "Renvoyer Primeval à son époque",
+            "Aller voir Agent Nick Couteau",
+            "Aller voir Caporale Tarte"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Les voleurs de couleurs",
+          "dofusdbId": 1575,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Caporale Tarte",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15712,
+              "name": "Krosmorbe Orange",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15917.png"
+            },
+            {
+              "id": 15713,
+              "name": "Krosmorbe Vert",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15916.png"
+            },
+            {
+              "id": 15714,
+              "name": "Krosmorbe Pourpre",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15915.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 103,
+              "name": "Horologium de XLII",
+              "level": null,
+              "bossName": "Érudit Cactoblongo",
+              "img": "https://api.dofusdb.fr/img/monsters/1480.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Caporale Tarte : x4 Krosmorbe Orange",
+            "Ramener à Caporale Tarte : x4 Krosmorbe Vert",
+            "Ramener à Caporale Tarte : x4 Krosmorbe Pourpre"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1588
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Juste une illusion",
+          "dofusdbId": 1579,
+          "level": 200,
+          "zone": "Xélorium",
+          "npcName": "Docteur William Blême",
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": -3,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 101,
+              "name": "Œil de Vortex",
+              "level": null,
+              "bossName": "Ancien Cactana",
+              "img": "https://api.dofusdb.fr/img/monsters/1479.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Se faire passer pour un Égaré afin d'approcher le Docteur Blême",
+            "Aller voir Docteur William Blême",
+            "Apporter 5 Racines du Lendemain au Docteur Blême",
+            "Retourner voir Doc Emiette Borgne"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1575
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Déchirures temporelles",
+          "dofusdbId": 1590,
+          "level": 200,
+          "zone": "Hall du Muséum",
+          "npcName": "Sergent Zetroc",
+          "npcSubArea": "Hall du Muséum",
+          "coords": {
+            "x": 4,
+            "y": -5,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15895,
+              "name": "Cristal de bois",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/50098.png"
+            },
+            {
+              "id": 15896,
+              "name": "Flamme temporelle",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15247.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Sergent Zetroc",
+            "Combattre aux côtés du sergent Zetroc puis lui parler à nouveau",
+            "Aller voir Gardienne du Muséum",
+            "Récupérer un Cristal de bois dans les lendemains incertains",
+            "Récupérer une Flamme temporelle dans les lendemains incertains",
+            "Ramener à Gardienne du Muséum : x1 Cristal de bois",
+            "Ramener à Gardienne du Muséum : x1 Flamme temporelle",
+            "Traquer les créatures d'autre-temps",
+            "Découvrir la carte : Traquer les créatures d'autre-temps",
+            "Renvoyer les créatures d'autre-temps à leur époque",
+            "Aller voir Sergent Zetroc",
+            "Aller voir Caporale Tarte"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1579
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "C'est ton destin",
+          "dofusdbId": 1591,
+          "level": 120,
+          "zone": "Xélorium",
+          "npcName": "Doc Emiette Borgne",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15870,
+              "name": "Œufs de Tempax",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/105630.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Ramener à Doc Emiette Borgne : x5 Œufs de Tempax"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1590
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Retour vers le présent",
+          "dofusdbId": 1592,
+          "level": 120,
+          "zone": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "npcName": "Docteur Hou",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "coords": {
+            "x": 20,
+            "y": 25,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15872,
+              "name": "Sac de pièces détachées",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/141010.png"
+            },
+            {
+              "id": 15879,
+              "name": "Fragment de mémoire de Xélomorphe",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/15910.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Docteur Hou",
+            "Aller voir Major Qiu",
+            "Ramener à Doc Emiette Borgne : x1 Sac de pièces détachées",
+            "Ramener à Doc Emiette Borgne : x10 Fragment de mémoire de Xélomorphe",
+            "Aller voir Doc Emiette Borgne"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1591
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Prisonniers du temps",
+          "dofusdbId": 1593,
+          "level": 120,
+          "zone": "Hall du Muséum",
+          "npcName": "Gardienne du Muséum",
+          "npcSubArea": "Hall du Muséum",
+          "coords": {
+            "x": 3,
+            "y": 1,
+            "worldId": 15
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Segmantid",
+              "img": "https://api.dofusdb.fr/img/monsters/1229.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Gardienne du Muséum",
+            "Découvrir la carte : Temple du Temps",
+            "Récupérer la Lame de Légende",
+            "Aller voir Doc Emiette Borgne",
+            "Vaincre x1 {monster,3852} en un seul combat",
+            "Découvrir la carte : Mégalithe de Fraktale - Sortie",
+            "Utiliser le détecteur portable",
+            "Aller voir Doc Emiette Borgne"
+          ],
+          "stepOrder": 6,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1592
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Terminutor : le jugement de la machine",
+          "dofusdbId": 1577,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Caporale Tarte",
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": 0,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Trouver le Terminutor",
+            "Vaincre x1 {monster,3846} en un seul combat",
+            "Aller voir Caporale Tarte"
+          ],
+          "stepOrder": 7,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1593
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Les démons de midi",
+          "dofusdbId": 1583,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Doc Emiette Borgne",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Interroger un Hordémon Seith",
+            "Interroger un Hordémon Trezz",
+            "Interroger un Hordémon Vindeux",
+            "Interroger un Hordémon Trantroa",
+            "Retourner voir Doc Emiette Borgne"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1577
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Aux origines du mal",
+          "dofusdbId": 1584,
+          "level": 170,
+          "zone": "Hall du Muséum",
+          "npcName": "Gardienne du Muséum",
+          "npcSubArea": "Hall du Muséum",
+          "coords": {
+            "x": 3,
+            "y": 1,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Gardienne du Muséum",
+            "Lire le Compendium dans le Muséum",
+            "Retourner voir Doc Emiette Borgne",
+            "Trouver le lieu cité dans le compendium",
+            "Examiner la déchirure temporelle",
+            "Aller voir Vindeux Timoré",
+            "Retourner voir Doc Emiette Borgne"
+          ],
+          "stepOrder": 9,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1583
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "De fil en aiguille",
+          "dofusdbId": 1585,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Henual",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": 1,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15219,
+              "name": "Trame Dimensionnelle",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/59642.png"
+            },
+            {
+              "id": 15894,
+              "name": "Fil de Soie du Temps",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/15486.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Trouver le surveillant du temps",
+            "Aller voir Henual",
+            "Ramener à Henual : x1 Trame Dimensionnelle",
+            "Récupérer des feuilles d'Éphémûrier",
+            "Ramener à Henual : x4 Fil de Soie du Temps",
+            "Repousser la vague d'Hordémons",
+            "Aller voir Karandeux",
+            "Aller voir Henual",
+            "Retourner voir Doc Emiette Borgne"
+          ],
+          "stepOrder": 10,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1584
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La Vie, l'Hormonde et le Reste",
+          "dofusdbId": 1586,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Gardien de l'Horologium",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 15
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 86,
+              "name": "Horologium de XLII",
+              "level": null,
+              "bossName": "XLII",
+              "img": "https://api.dofusdb.fr/img/monsters/1222.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Gardien de l'Horologium",
+            "Vaincre x1 {monster,3849} en un seul combat",
+            "Aller voir XLII",
+            "Retourner voir Doc Emiette Borgne"
+          ],
+          "stepOrder": 11,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1585
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Failles spatio-temporelles",
+          "dofusdbId": 1589,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Agent Valérien",
+          "npcSubArea": null,
+          "coords": {
+            "x": 2,
+            "y": 0,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15832,
+              "name": "Caisse à outils du Doc",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24897.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Agent Valérien",
+            "Défendre l'Agent Valérien puis lui parler à nouveau",
+            "Chercher l'Agent Dauredine dans le jour présent",
+            "Aller voir Doc Emiette Borgne",
+            "Ramener à Agent Dauredine : x1 Caisse à outils du Doc",
+            "Apporter 7 Pièces technomagiques endommagées différentes à l'Agent Dauredine",
+            "Aller voir Agent Dauredine",
+            "Aller voir Caporale Tarte"
+          ],
+          "stepOrder": 12,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1586
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "C'est quoi ton 06 ?",
+          "dofusdbId": 1594,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Hibuspokus",
+          "npcSubArea": null,
+          "coords": {
+            "x": 4,
+            "y": 1,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15971,
+              "name": "Morceau de viande de choix",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/63350.png"
+            },
+            {
+              "id": 15972,
+              "name": "Livre de l'agent Pascal",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25130.png"
+            },
+            {
+              "id": 15973,
+              "name": "Caisse de nettoyage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            },
+            {
+              "id": 15974,
+              "name": "Fleur du passé",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/35634.png"
+            },
+            {
+              "id": 15975,
+              "name": "Fleur du futur",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/35633.png"
+            },
+            {
+              "id": 15976,
+              "name": "Billet doux de Trezz énamouré",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15770.png"
+            },
+            {
+              "id": 15977,
+              "name": "Bouquet de Trezz énamouré",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/6047.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Réfléchir à comment éduquer un Hordémon amoureux puis parler à Trezz énamouré",
+            "Aller voir Hibuspokus",
+            "Aller voir Agent Pascal",
+            "Aller voir Rachelle Kiki",
+            "Ramener à Trezz énamouré : x1 Morceau de viande de choix",
+            "Ramener à Agent Pascal : x1 Livre de l'agent Pascal",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Lieutenant Braylle",
+            "Ramener à Trezz énamouré : x1 Caisse de nettoyage",
+            "Ramasser des fleurs exotiques dans les chemins d'hier",
+            "Ramasser des fleurs exotiques dans les lendemains incertains",
+            "Ramener à Trezz énamouré : x1 Fleur du passé",
+            "Ramener à Trezz énamouré : x1 Fleur du futur",
+            "Ramener à Agent Da : x1 Billet doux de Trezz énamouré",
+            "Ramener à Agent Da : x1 Bouquet de Trezz énamouré",
+            "Aller voir Rachelle Kiki",
+            "Aller voir Trezz énamouré",
+            "Vaincre x1 {monster,3928} en un seul combat",
+            "Aller voir Trezz énamouré"
+          ],
+          "stepOrder": 13,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1589
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Aujourd'hui à jamais",
+          "dofusdbId": 1595,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Rita Foulmétal",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Vérifier l'état des prototypes d'armement",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Elvis Irr",
+            "Aller voir Elvis Irr",
+            "Chercher un moyen de sortir de prison",
+            "Aller voir Elvis Irr",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Caporale Tarte",
+            "Aller voir Rita Foulmétal",
+            "Passer la tête dans le portail",
+            "Aller voir Elvis Irr",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Elvis Irr",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Rita Foulmétal",
+            "Découvrir la carte : Atelier de l'avant-poste",
+            "Aller voir Lieutenant Braylle",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Lieutenant Braylle"
+          ],
+          "stepOrder": 14,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1594
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Tout ce qu'il te faut, c'est tuer",
+          "dofusdbId": 1596,
+          "level": 170,
+          "zone": "Xélorium",
+          "npcName": "Rita Foulmétal",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Interroger les gardes de l'entrepôt",
+            "Interroger les agents aux alentours",
+            "Continuer à interroger les agents aux alentours",
+            "Se rendre aux cuisines",
+            "Poursuivre la silhouette",
+            "Chercher des traces du passage de la silhouette pour retrouver sa piste",
+            "Reprendre la traque",
+            "Aller voir Rita Foulmétal",
+            "Traquer la silhouette",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Lieutenant Braylle",
+            "Aller voir Rita Foulmétal",
+            "Aller voir Elvis Irr"
+          ],
+          "stepOrder": 15,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1595
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Je rêvais d'un autre monde",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Multi-Dimensional",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 4,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "La quête de l'oiseau du temps",
+          "dofusdbId": 1614,
+          "level": 200,
+          "zone": "Salle de la Pierre de Méthée",
+          "npcName": "Khelebragon",
+          "npcSubArea": "Salle de la Pierre de Méthée",
+          "coords": {
+            "x": 3,
+            "y": 1,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 16061,
+              "name": "Dofus des Veilleurs",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/23020.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Segmantid",
+              "img": "https://api.dofusdb.fr/img/monsters/1229.png",
+              "idoleName": null
+            },
+            {
+              "id": 87,
+              "name": "Œil de Vortex",
+              "level": null,
+              "bossName": "Brabuzar",
+              "img": "https://api.dofusdb.fr/img/monsters/1212.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Montrer à Khelebragon : 1 Dofus des Veilleurs",
+            "Trouver Khelebragon",
+            "Combattre l'Oiseau du Temps pour libérer Khelebragon",
+            "Aller voir Méthée",
+            "Aller voir Khelebragon",
+            "Rencontrer le dieu Xélor",
+            "Aller voir Khelebragon"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
         }
       ]
     }
-  ]
+  ],
+  "globalSummary": {
+    "totalQuests": 72,
+    "totalItems": 69,
+    "totalDungeons": 8,
+    "items": [
+      {
+        "id": 15263,
+        "name": "Rose des sables",
+        "totalAmount": 1000,
+        "img": "https://api.dofusdb.fr/img/items/50720.png"
+      },
+      {
+        "id": 15298,
+        "name": "Morceau de Koffrefor",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/39024.png"
+      },
+      {
+        "id": 15299,
+        "name": "Morceau de Koffrefor recyclé",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/15832.png"
+      },
+      {
+        "id": 15403,
+        "name": "Jus Toxique de Nécrotique",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/126019.png"
+      },
+      {
+        "id": 15879,
+        "name": "Fragment de mémoire de Xélomorphe",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/15910.png"
+      },
+      {
+        "id": 15570,
+        "name": "Fiole remplie d'eau-suaire",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/70064.png"
+      },
+      {
+        "id": 15870,
+        "name": "Œufs de Tempax",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/105630.png"
+      },
+      {
+        "id": 15712,
+        "name": "Krosmorbe Orange",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15917.png"
+      },
+      {
+        "id": 15713,
+        "name": "Krosmorbe Vert",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15916.png"
+      },
+      {
+        "id": 15714,
+        "name": "Krosmorbe Pourpre",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15915.png"
+      },
+      {
+        "id": 15894,
+        "name": "Fil de Soie du Temps",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/15486.png"
+      },
+      {
+        "id": 15291,
+        "name": "Rapport de Test",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/24055.png"
+      },
+      {
+        "id": 14920,
+        "name": "Feuille de formation remplie",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/24074.png"
+      },
+      {
+        "id": 15310,
+        "name": "Mimikmatti",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/32084.png"
+      },
+      {
+        "id": 15311,
+        "name": "Phorreurs apprivoisés",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/32077.png"
+      },
+      {
+        "id": 15177,
+        "name": "Corne de Kamasterisk",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15876.png"
+      },
+      {
+        "id": 15178,
+        "name": "Sourcil de Barbétoal",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15877.png"
+      },
+      {
+        "id": 15179,
+        "name": "Dent de Lévitrof",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15878.png"
+      },
+      {
+        "id": 15180,
+        "name": "Morceau de clef de Paspartou",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15879.png"
+      },
+      {
+        "id": 15219,
+        "name": "Trame Dimensionnelle",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/59642.png"
+      },
+      {
+        "id": 16061,
+        "name": "Dofus des Veilleurs",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/23020.png"
+      },
+      {
+        "id": 15464,
+        "name": "Gant de Vil Smisse",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/9234.png"
+      },
+      {
+        "id": 15850,
+        "name": "Flacon de lubrifiant",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/60376.png"
+      },
+      {
+        "id": 15851,
+        "name": "Orichor Instable",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15922.png"
+      },
+      {
+        "id": 15882,
+        "name": "Batterie Éternelle",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15923.png"
+      },
+      {
+        "id": 16050,
+        "name": "Diamant Dimensionnel",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/50025.png"
+      },
+      {
+        "id": 16019,
+        "name": "Parchemin de Marie Ride",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24050.png"
+      },
+      {
+        "id": 16020,
+        "name": "Lettre de Vardo",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24065.png"
+      },
+      {
+        "id": 16059,
+        "name": "Échantillon d'orichor raffiné",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15929.png"
+      },
+      {
+        "id": 16064,
+        "name": "Potion de transformation en sirène",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/12041.png"
+      },
+      {
+        "id": 16063,
+        "name": "Rapports d'espionnage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15931.png"
+      },
+      {
+        "id": 16062,
+        "name": "Symboles du Dodécariam",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15930.png"
+      },
+      {
+        "id": 34134,
+        "name": "Âme capturée de Boursoin",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/85001.png"
+      },
+      {
+        "id": 34135,
+        "name": "Âme capturée de Mimikado",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/85001.png"
+      },
+      {
+        "id": 34136,
+        "name": "Âme capturée de Trésantène",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/85001.png"
+      },
+      {
+        "id": 34133,
+        "name": "Âme capturée de Bersekoffre",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/85001.png"
+      },
+      {
+        "id": 15309,
+        "name": "Reblochonchon",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15558.png"
+      },
+      {
+        "id": 15286,
+        "name": "Calculateur Portatif de Blablage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/139064.png"
+      },
+      {
+        "id": 15313,
+        "name": "Repas chaud",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/69145.png"
+      },
+      {
+        "id": 15314,
+        "name": "Œil du Phozami agressif",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15873.png"
+      },
+      {
+        "id": 15315,
+        "name": "Gaufren Or",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/171002.png"
+      },
+      {
+        "id": 15375,
+        "name": "Cristal bleu",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/51151.png"
+      },
+      {
+        "id": 15376,
+        "name": "Pépite dorée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/39022.png"
+      },
+      {
+        "id": 15377,
+        "name": "Sac",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/81030.png"
+      },
+      {
+        "id": 15316,
+        "name": "Échantillon de pilules bleues",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/42039.png"
+      },
+      {
+        "id": 15335,
+        "name": "Vieux plan d'Enutrosor",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24055.png"
+      },
+      {
+        "id": 15336,
+        "name": "Caisse de pièces de Koffrefor",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 15616,
+        "name": "Sac d'argent sale",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/100056.png"
+      },
+      {
+        "id": 15491,
+        "name": "Signe de Krosmoglob défectueux",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/169008.png"
+      },
+      {
+        "id": 15492,
+        "name": "Peluche de Bonnie Menteuse",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/61689.png"
+      },
+      {
+        "id": 15509,
+        "name": "Échantillon de Scoliopode sain",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15189.png"
+      },
+      {
+        "id": 15511,
+        "name": "Échantillon d'Éperfide saine",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15189.png"
+      },
+      {
+        "id": 15513,
+        "name": "Échantillon de Lucrane sain",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15189.png"
+      },
+      {
+        "id": 15517,
+        "name": "Échantillon de Puceronde saine",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15189.png"
+      },
+      {
+        "id": 15550,
+        "name": "Échantillon de Nécrotique agressive",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15189.png"
+      },
+      {
+        "id": 15552,
+        "name": "Colis pour Kathy Brennan",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24715.png"
+      },
+      {
+        "id": 15553,
+        "name": "Fluide gastrique du Toxoliath",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24032.png"
+      },
+      {
+        "id": 15568,
+        "name": "Bière de Chachamo",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/37004.png"
+      },
+      {
+        "id": 15895,
+        "name": "Cristal de bois",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/50098.png"
+      },
+      {
+        "id": 15896,
+        "name": "Flamme temporelle",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15247.png"
+      },
+      {
+        "id": 15872,
+        "name": "Sac de pièces détachées",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/141010.png"
+      },
+      {
+        "id": 15832,
+        "name": "Caisse à outils du Doc",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24897.png"
+      },
+      {
+        "id": 15971,
+        "name": "Morceau de viande de choix",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/63350.png"
+      },
+      {
+        "id": 15972,
+        "name": "Livre de l'agent Pascal",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/25130.png"
+      },
+      {
+        "id": 15973,
+        "name": "Caisse de nettoyage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 15974,
+        "name": "Fleur du passé",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/35634.png"
+      },
+      {
+        "id": 15975,
+        "name": "Fleur du futur",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/35633.png"
+      },
+      {
+        "id": 15976,
+        "name": "Billet doux de Trezz énamouré",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15770.png"
+      },
+      {
+        "id": 15977,
+        "name": "Bouquet de Trezz énamouré",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/6047.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 79,
+        "name": "Galerie du Phossile",
+        "level": null,
+        "bossName": "Mère Veilleuse",
+        "img": "https://api.dofusdb.fr/img/monsters/1119.png",
+        "idoleName": null
+      },
+      {
+        "id": 77,
+        "name": "Fabrique de Malléfisk",
+        "level": null,
+        "bossName": "Précieux",
+        "img": "https://api.dofusdb.fr/img/monsters/1124.png",
+        "idoleName": null
+      },
+      {
+        "id": 82,
+        "name": "Cave du Toxoliath",
+        "level": null,
+        "bossName": "Toxoliath",
+        "img": "https://api.dofusdb.fr/img/monsters/1166.png",
+        "idoleName": null
+      },
+      {
+        "id": 86,
+        "name": "Horologium de XLII",
+        "level": null,
+        "bossName": "XLII",
+        "img": "https://api.dofusdb.fr/img/monsters/1222.png",
+        "idoleName": null
+      },
+      {
+        "id": 85,
+        "name": "Mégalithe de Fraktale",
+        "level": null,
+        "bossName": "Segmantid",
+        "img": "https://api.dofusdb.fr/img/monsters/1229.png",
+        "idoleName": null
+      },
+      {
+        "id": 76,
+        "name": "Palais du roi Nidas",
+        "level": null,
+        "bossName": "Piloztère",
+        "img": "https://api.dofusdb.fr/img/monsters/1114.png",
+        "idoleName": null
+      },
+      {
+        "id": 81,
+        "name": "Ring du Capitaine Ekarlatte",
+        "level": null,
+        "bossName": "Capitaine Ekarlatte",
+        "img": "https://api.dofusdb.fr/img/monsters/1167.png",
+        "idoleName": null
+      },
+      {
+        "id": 87,
+        "name": "Œil de Vortex",
+        "level": null,
+        "bossName": "Brabuzar",
+        "img": "https://api.dofusdb.fr/img/monsters/1212.png",
+        "idoleName": null
+      }
+    ]
+  }
 }

@@ -620,7 +620,7 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                                                                 ? "Aucune XP récente"
                                                             : criteria === "DOFUS_INACTIVE"
                                                                 ? "Cible Manuelle"
-                                                                : `Site: ${formatDistanceToNow(new Date(user.lastSeen), { locale: fr, addSuffix: true })}`
+                                                                : `Site: ${user.lastSeen ? formatDistanceToNow(new Date(user.lastSeen), { locale: fr, addSuffix: true }) : 'Jamais'}`
                                                         }
                                                     </span>
                                                     {user.discordStats && (

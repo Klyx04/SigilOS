@@ -39,7 +39,7 @@ export function DofusIcon({
     };
 
     const localSrc = `/module-dofus/Dofus_${normalizeName(name)}.png`;
-    const fallbackSrc = "https://api.dofusdb.fr/img/items/19000.png";
+    const fallbackSrc = "https://static.dofusdb.fr/items/19000.png";
 
     if (error) {
         return (

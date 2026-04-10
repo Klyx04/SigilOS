@@ -29,7 +29,9 @@ import { LoansSettingsClient } from "../_components/loans-settings-client";
 import { SystemSettingsClient } from "../_components/system-settings-client";
 import { getOnboardingSettings } from "@/server/actions/onboarding-admin-actions";
 import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
+import { GuildatonSettingsClient } from "../_components/guildaton-settings-client";
 import Link from "next/link";
+import { Trophy } from "lucide-react";
 
 // ============================================================================
 // NAV ITEMS
@@ -57,6 +59,7 @@ function buildNavItems(): SettingsSection[] {
         { id: "dofus", label: "Dofus", icon: Sword, description: "Serveur de jeu", accent: "indigo" },
         { id: "sondages", label: "Sondages", icon: BarChart3, description: "Sondages Discord", accent: "cyan" },
         { id: "discord", label: "Discord Notifications", icon: Hash, description: "Salons & Pings Reset", accent: "indigo" },
+        { id: "guildaton", label: "Guildaton Admin", icon: Trophy, description: "Reminders & Admin Channel", accent: "emerald" },
         { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Badges", accent: "rose" },
     ];
 }
@@ -218,6 +221,7 @@ export default async function FeatureSettingsPage({
                     {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
                     {activeTab === "onboarding" && <OnboardingSettingsClient guildId={guildId} />}
                     {activeTab === "discord" && <DiscordSettingsClient guildId={guildId} />}
+                    {activeTab === "guildaton" && <GuildatonSettingsClient guildId={guildId} />}
 
 
                 </div>

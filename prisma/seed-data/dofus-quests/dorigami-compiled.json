@@ -1,56 +1,30 @@
 {
   "dofus": "dorigami",
   "displayName": "Dorigami",
-  "color": "#8B0000",
+  "color": "#F0E68C",
   "successName": "Le destin de deux dragons",
   "recommendedLevel": 180,
-  "description": null,
-  "dofusItemId": 23146,
-  "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23031.png",
-  "compiledAt": "2026-04-04T13:39:56.292Z",
+  "successDescription": "Obtenir le Dorigami via les quêtes de Pandala.",
+  "dofusItemId": 23232,
+  "compiledAt": "2026-04-09T12:14:43.968Z",
+  "compilerVersion": "3.0",
   "chains": [
     {
-      "sectionName": "Eliocalypse & Pandala",
-      "sectionType": "MAIN_CHAIN",
-      "zone": "Pandala / Dimensions",
+      "sectionName": "Prerequisites Pandala",
+      "sectionType": "PREREQUISITE",
+      "zone": "Pandala",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
+      "dungeons": [],
       "entries": [
-        {
-          "name": "Eliocalypse : Résonance",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 0,
-          "requirements": []
-        },
-        {
-          "name": "Eliocalypse : Prélude",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 1,
-          "requirements": []
-        },
         {
           "name": "Le réveil de Pandala",
           "dofusdbId": 2149,
           "level": 30,
           "zone": "Taverne du Pandazaap",
-          "npcName": null,
+          "npcName": "Moktwa",
           "npcSubArea": "Taverne du Pandazaap",
           "coords": {
             "x": 12,
@@ -62,53 +36,99 @@
             {
               "id": 421,
               "name": "Ortie",
-              "amount": 50,
+              "amount": 100,
               "img": "https://api.dofusdb.fr/img/items/36642.png"
             },
             {
               "id": 885,
               "name": "Laine de Boufton Noir",
-              "amount": 5,
+              "amount": 10,
               "img": "https://api.dofusdb.fr/img/items/57210.png"
             },
             {
               "id": 23038,
               "name": "Échantillon sanguin de Sel Dawa",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/24031.png"
+            },
+            {
+              "id": 23039,
+              "name": "Sérum contre la Pandrista",
               "amount": 1,
               "img": "https://api.dofusdb.fr/img/items/24031.png"
             }
           ],
+          "dungeonsRequired": [],
           "objectives": [
             "Vaincre x5 {monster,5228}",
             "Vaincre x5 {monster,5229}",
             "Vaincre x5 {monster,5230}",
             "Vaincre x5 {monster,5231}",
-            "Retourner voir {npc,5604}",
+            "Retourner voir Moktwa",
             "Trouver quelqu'un capable de vous prémunir de la Pandrista",
             "Demander conseil à Nibé Lulle pour élaborer un sérum",
-            "Fabriquer 1 {item,23039} et fermer l'interface",
+            "Fabriquer 1 Sérum contre la Pandrista et fermer l'interface",
             "Se faire administrer le sérum en retournant voir Nepra Lido",
             "Traverser le pont de Pandala",
-            "Aller voir {npc,5605}",
+            "Aller voir Garde Chopynju",
             "Boire la bière pour ouvrir votre conscience aux esprits alentours",
             "Parler à l'esprit présent dans la pièce",
             "Sortir de la chambre"
           ],
-          "stepOrder": 2,
+          "stepOrder": 0,
           "isSynergyCandidate": false,
           "requirements": []
         },
         {
-          "name": "L'héritage de Kozuna",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Dites-le avec des fleurs",
+          "dofusdbId": 2164,
+          "level": 110,
+          "zone": "Pandala",
+          "npcName": "Sobomori",
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 27,
+            "y": -31,
+            "worldId": 1
+          },
           "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 3,
+          "itemsRequired": [
+            {
+              "id": 23018,
+              "name": "Bave de braconnier",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15958.png"
+            },
+            {
+              "id": 23019,
+              "name": "Bave de crapodo",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15006.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Trouver les fleurs bleues dans la forêt de Plantala",
+            "Examiner les fleurs de plus près",
+            "Récupérer de l'eau spirituelle de Plantala",
+            "Arroser la fleur assoiffée",
+            "Tenter de communiquer avec la fleur-esprit",
+            "Trouver un moyen de dialoguer avec la fleur en explorant Plantala",
+            "Ramener à Sobomori : x1 Bave de braconnier",
+            "Ramener à Sobomori : x1 Bave de crapodo",
+            "Discuter avec une fleur bavarde",
+            "Tester votre maîtrise du langage des fleurs auprès d'une fleur timide",
+            "Aller voir Fleur-esprit",
+            "Tenter de discuter avec le bourgeon",
+            "Parler de nouveau à la fleur-esprit",
+            "Retourner voir Fleurawa l'apprentie",
+            "Escorter l'apprentie jusqu'aux massifs de fleurs",
+            "Aider l'apprentie à communiquer avec son maître",
+            "Se procurer un pot auprès des Tanuki",
+            "Donner le pot à l'apprentie"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
@@ -117,24 +137,408 @@
           ]
         },
         {
-          "name": "Le destin de deux dragons",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
+          "name": "Protection divine",
+          "dofusdbId": 2194,
+          "level": 40,
+          "zone": "Pandala",
+          "npcName": "Wally Elconom",
           "npcSubArea": null,
-          "coords": null,
+          "coords": {
+            "x": 4,
+            "y": 1,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 4,
+          "dungeonsRequired": [],
+          "objectives": [
+            "Parler au maître de votre temple",
+            "Parler au maître des Dopeuls de votre temple",
+            "Vaincre x1 {monster,505} en un seul combat",
+            "Prier devant la statue du temple pour recevoir la bénédiction des Douze",
+            "Aller à la bibliothèque d'Amakna",
+            "Aller voir Wally Elconom",
+            "Lire l'ouvrage de Wally Elconom",
+            "Se rendre à l'orée enchantée de la forêt Maléfique",
+            "Aller voir Lanseuft de Troille"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 2149
+              "dofusdbId": 2164
+            }
+          ]
+        },
+        {
+          "name": "L'équilibre des forces",
+          "dofusdbId": 2155,
+          "level": 140,
+          "zone": "Palais de bambou",
+          "npcName": "Esprit du Vent",
+          "npcSubArea": "Palais de bambou",
+          "coords": {
+            "x": 21,
+            "y": -39,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 10831,
+              "name": "Bananagrume",
+              "amount": 16,
+              "img": "https://api.dofusdb.fr/img/items/46001.png"
+            },
+            {
+              "id": 2294,
+              "name": "Viscères de Scarafeuille",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/15445.png"
+            },
+            {
+              "id": 381,
+              "name": "Fraise",
+              "amount": 6,
+              "img": "https://api.dofusdb.fr/img/items/46053.png"
+            },
+            {
+              "id": 23118,
+              "name": "Offrande à l'esprit du Vent",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/69780.png"
+            },
+            {
+              "id": 23120,
+              "name": "Permission de circuler",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24065.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 122,
+              "name": "Dojo du Vent",
+              "level": null,
+              "bossName": "Lichangoro",
+              "img": "https://api.dofusdb.fr/img/monsters/669.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Fabriquer 1 Offrande à l'esprit du Vent et fermer l'interface",
+            "Déposer l'offrande à l'esprit du Vent au sommet de la montagne",
+            "Aller voir Esprit du Vent",
+            "Aller voir Yokaïkido",
+            "Découvrir la carte : Camps des Pandissidans",
+            "Aller voir Jun Pandawane",
+            "Intercepter les poseurs de bombe près des maisons Pandawas",
+            "Neutraliser d'autres poseurs de bombe près des habitations Pandawas",
+            "Aller voir Jun Pandawane",
+            "Découvrir la carte : Tour de guet",
+            "Protéger Ten Rowa de l'attaque de la Garde Kozaru",
+            "Aller voir Ten Rowa",
+            "Aller voir Yokaïkido",
+            "Aller voir Capitaine de la garde Kozaru",
+            "Entrer dans le Dojo du Vent",
+            "Vaincre x1 {monster,6212} en un seul combat",
+            "Aller voir Hanshi",
+            "Suivre l'échange entre Ten Rowa et les Maîtres Kozaru",
+            "Ramener à Capitaine de la garde Kozaru : x1 Permission de circuler",
+            "Retrouver Jun Pandawane et Ten Rowa au Sommet d'Aerdala",
+            "Aller voir Yokaïkido",
+            "Aller voir Esprit du Vent",
+            "Retourner voir Daimya Hikomi"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2194
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Le destin de deux dragons",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Pandala",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Les métamorphoses d'un Tanuki",
+          "dofusdbId": 2167,
+          "level": 130,
+          "zone": "Taverne d'Osakwa",
+          "npcName": "Pandawa déboussolé",
+          "npcSubArea": "Taverne d'Osakwa",
+          "coords": {
+            "x": 23,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 23247,
+              "name": "Mot d'excuse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24065.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Interroger les Tanuki à propos du voleur",
+            "Retourner voir Pandawa déboussolé",
+            "Trouver un Pandawa qui s'y connait en capture d'âme",
+            "Ramener à Sakwaba : x1 Mot d'excuse",
+            "Effacer la dette de l'assistant de Surivitna",
+            "Aller voir Assistant du chaman",
+            "Examiner l'art Tanuki à la recherche du voleur",
+            "Aller voir Tanuya Shisa",
+            "Toucher des œuvres d'art Tanuki pour trouver le voleur",
+            "Capturer l'âme du Voleur Tanuki",
+            "Montrer une pierre contenant l'âme du voleur Tanuki au Pandawa déboussolé",
+            "Libérer l'âme du voleur Tanuki",
+            "Aller voir Voleur Tanuki",
+            "Aller voir Pandawa déboussolé"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Requiem pour un Yokai",
+          "dofusdbId": 2180,
+          "level": 170,
+          "zone": "Tombe du Shogun Tofugawa - Cinquième Salle",
+          "npcName": "Ronald le sage lenald",
+          "npcSubArea": "Tombe du Shogun Tofugawa - Cinquième Salle",
+          "coords": {
+            "x": 36,
+            "y": -44,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 23578,
+              "name": "Outil de gravure",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/24901.png"
+            },
+            {
+              "id": 23576,
+              "name": "Broche d'Inali",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/1024.png"
+            },
+            {
+              "id": 23577,
+              "name": "Flamme du Kitsounebi de Koumiho",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164754.png"
+            },
+            {
+              "id": 23579,
+              "name": "Grimoire de Tonam Etamwa",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/25008.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 132,
+              "name": "Tombe du Shogun Tofugawa",
+              "level": null,
+              "bossName": "Shogun Tofugawa",
+              "img": "https://api.dofusdb.fr/img/monsters/2095.png",
+              "idoleName": null
+            },
+            {
+              "id": 131,
+              "name": "Demeure des Esprits",
+              "level": null,
+              "bossName": "Koumiho",
+              "img": "https://api.dofusdb.fr/img/monsters/2097.png",
+              "idoleName": null
+            }
+          ],
+          "objectives": [
+            "Négocier les termes du marché avec le Shogun",
+            "Aller voir Ronald le sage lenald",
+            "Découvrir la carte : Première salle de la Demeure des Esprits",
+            "Vaincre x1 {monster,6394} en un seul combat",
+            "Montrer à Koumiho : 1 Broche d'Inali",
+            "Retrouver le feu perdu de la Kitsoune",
+            "Emporter une flamme du Kitsounebi de Koumiho",
+            "Montrer à Shogun Tofugawa : 1 Flamme du Kitsounebi de Koumiho",
+            "Tenter d'entrer dans l'Antre du Péki Garou",
+            "Trouver un moyen de se prémunir du Feu noir de la Malédiction",
+            "Parler de vos connaissances à propos du voleur d'âmes et en acquérir davantage si nécessaire.",
+            "Aller voir Melazutam",
+            "Trouver l'endroit où repose Tonam Etamwa",
+            "Aller voir Esprit torturé de Tonam Etamwa",
+            "Aller voir Melazutam",
+            "Montrer à Melazutam : 1 Outil de gravure",
+            "Graver la tombe du voleur d'âme à son nom",
+            "Aller voir Esprit apaisé de Tonam Etamwa",
+            "Retrouver le Grimoire de Tonam Etamwa",
+            "Ramener à Hakamori : x1 Grimoire de Tonam Etamwa",
+            "Découvrir la carte : Antre du Peki Garou",
+            "Vaincre x1 {monster,6382} en un seul combat",
+            "Aller voir Shogun Tofugawa",
+            "Tenter de communiquer avec Ronald",
+            "Assister à la confrontation entre Imagiro et le Shogun dans le Plan Astral",
+            "Aller voir Ronald le sage lenald",
+            "Aller voir Imagiro"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2167
             }
           ]
         }
       ]
     }
-  ]
+  ],
+  "globalSummary": {
+    "totalQuests": 6,
+    "totalItems": 16,
+    "totalDungeons": 3,
+    "items": [
+      {
+        "id": 421,
+        "name": "Ortie",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/36642.png"
+      },
+      {
+        "id": 10831,
+        "name": "Bananagrume",
+        "totalAmount": 16,
+        "img": "https://api.dofusdb.fr/img/items/46001.png"
+      },
+      {
+        "id": 885,
+        "name": "Laine de Boufton Noir",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/57210.png"
+      },
+      {
+        "id": 2294,
+        "name": "Viscères de Scarafeuille",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/15445.png"
+      },
+      {
+        "id": 381,
+        "name": "Fraise",
+        "totalAmount": 6,
+        "img": "https://api.dofusdb.fr/img/items/46053.png"
+      },
+      {
+        "id": 23038,
+        "name": "Échantillon sanguin de Sel Dawa",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/24031.png"
+      },
+      {
+        "id": 23578,
+        "name": "Outil de gravure",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/24901.png"
+      },
+      {
+        "id": 23039,
+        "name": "Sérum contre la Pandrista",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24031.png"
+      },
+      {
+        "id": 23018,
+        "name": "Bave de braconnier",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15958.png"
+      },
+      {
+        "id": 23019,
+        "name": "Bave de crapodo",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15006.png"
+      },
+      {
+        "id": 23118,
+        "name": "Offrande à l'esprit du Vent",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/69780.png"
+      },
+      {
+        "id": 23120,
+        "name": "Permission de circuler",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24065.png"
+      },
+      {
+        "id": 23247,
+        "name": "Mot d'excuse",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24065.png"
+      },
+      {
+        "id": 23576,
+        "name": "Broche d'Inali",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/1024.png"
+      },
+      {
+        "id": 23577,
+        "name": "Flamme du Kitsounebi de Koumiho",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164754.png"
+      },
+      {
+        "id": 23579,
+        "name": "Grimoire de Tonam Etamwa",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/25008.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 122,
+        "name": "Dojo du Vent",
+        "level": null,
+        "bossName": "Lichangoro",
+        "img": "https://api.dofusdb.fr/img/monsters/669.png",
+        "idoleName": null
+      },
+      {
+        "id": 132,
+        "name": "Tombe du Shogun Tofugawa",
+        "level": null,
+        "bossName": "Shogun Tofugawa",
+        "img": "https://api.dofusdb.fr/img/monsters/2095.png",
+        "idoleName": null
+      },
+      {
+        "id": 131,
+        "name": "Demeure des Esprits",
+        "level": null,
+        "bossName": "Koumiho",
+        "img": "https://api.dofusdb.fr/img/monsters/2097.png",
+        "idoleName": null
+      }
+    ]
+  }
 }

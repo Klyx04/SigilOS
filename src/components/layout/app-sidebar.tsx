@@ -87,6 +87,7 @@ export function AppSidebar({
         `/dashboard/${guildId}/songes`,
         `/dashboard/${guildId}/quete-ocre`,
         `/dashboard/${guildId}/quetes-dofus`,
+        `/dashboard/${guildId}/ladder`,
     ];
     const [progressionOpen, setProgressionOpen] = useState(
         () => progressionRoutes.some(r => pathname.startsWith(r))
@@ -128,13 +129,13 @@ export function AppSidebar({
         { name: "Ressources", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", visible: user.isMember && user.canViewResources && modules.resources },
         { name: "Stats Guilde", href: `/dashboard/${guildId}/stats`, icon: Hammer, color: "emerald", visible: user.isMember && user.canViewStats && modules.stats },
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", visible: user.canViewCalendar && modules.calendar },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "emerald", visible: user.canViewLadder && modules.ladder },
         { name: "Documentation", href: `/docs`, icon: BookOpen, color: "emerald", visible: user.isMember && user.canViewDocs && modules.docs },
     ];
 
     const NAV_PROGRESSION = [
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", visible: user.canViewMissions && modules.missions },
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "amber", visible: user.canViewSonges && modules.songes },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", visible: user.canViewLadder && modules.ladder },
         { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/module-dofus/Dofus_Ocre.png", color: "amber", visible: user.canViewOcre && modules.ocre },
         { name: "Quêtes Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/module-dofus/Dofus_Sylvestre.png", color: "amber", visible: user.isMember && user.canViewQuests && modules.quests },
     ];

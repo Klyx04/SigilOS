@@ -316,7 +316,12 @@ export async function getArchivedProfiles(discordGuildId: string) {
         },
         orderBy: { archivedAt: "desc" },
         take: 100,
-        include: {
+        select: {
+            id: true,
+            userId: true,
+            status: true,
+            archivedAt: true,
+            scheduledDeletion: true,
             user: {
                 select: {
                     name: true,

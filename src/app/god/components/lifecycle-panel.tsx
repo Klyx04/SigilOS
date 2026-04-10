@@ -52,6 +52,7 @@ interface ArchivedProfile {
     id: string;
     archivedAt: Date | null;
     archiveReason: string | null;
+    scheduledDeletion: Date | null;
     guild: { name: string };
     user: { name: string | null };
 }
@@ -658,10 +659,22 @@ function OrphanPanel({
                                         'GUILD_DELETED': '🏰 Guilde',
                                     }[profile.archiveReason || ''] || profile.archiveReason}
                                 </div>
-                                <div className="text-zinc-600 text-xs">
-                                    {profile.archivedAt
-                                        ? formatDistanceToNow(new Date(profile.archivedAt), { addSuffix: true, locale: fr })
-                                        : '—'}
+                                <div className="flex flex-col items-end gap-1">
+                                    <div className="text-zinc-600 text-[10px] font-medium">
+                                        {profile.archivedAt
+                                            ? formatDistanceToNow(new Date(profile.archivedAt), { addSuffix: true, locale: fr })
+                                            : '—'}
+                                    </div>
+                                    {profile.scheduledDeletion && (
+                                        <div className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${
+                                            differenceInDays(new Date(profile.scheduledDeletion), new Date()) <= 3
+                                                ? 'bg-red-500/10 text-red-500 animate-pulse'
+                                                : 'bg-amber-500/10 text-amber-500'
+                                        }`}>
+                                            <Clock className="w-2.5 h-2.5" />
+                                            J-{differenceInDays(new Date(profile.scheduledDeletion), new Date())}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

@@ -13,7 +13,7 @@ interface MemberStatsOverviewProps {
 }
 
 export function MemberStatsOverview({ stats }: MemberStatsOverviewProps) {
-    const capacityPercent = Math.min(100, (stats.active / stats.maxMembers) * 100);
+    const capacityPercent = stats.maxMembers > 0 ? Math.min(100, (stats.active / stats.maxMembers) * 100) : 0;
 
     const getCapacityColor = () => {
         if (capacityPercent >= 95) return "text-red-400 bg-red-400/20";

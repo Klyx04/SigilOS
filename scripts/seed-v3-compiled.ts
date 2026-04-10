@@ -3,6 +3,7 @@
  * Seed direct depuis les fichiers *-compiled.json V3
  * Usage: npx tsx scripts/seed-v3-compiled.ts
  */
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";

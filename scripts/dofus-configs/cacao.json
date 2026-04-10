@@ -10,11 +10,14 @@
       "name": "Un Dofus qui a du goût",
       "zone": "Monde des Douze",
       "quests": [
-        "Choco-poids",
-        "Choco-peine",
-        "Choc de cacao"
+        "L'île flottante au chocolat",
+        "La crise de foi",
+        "Un œuf à part",
+        "Chocomagie contre chocomancie",
+        "Mystère et œuf au chocolat",
+        "Le cas Kao"
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/25019.png"
+  "imageUrl": "https://static.dofusdb.fr/items/25019.png"
 }

@@ -1,26 +1,48 @@
 {
   "slug": "pourpre",
   "displayName": "Dofus Pourpre",
-  "color": "#800020",
+  "nameShort": "Pourpre",
+  "color": "#C0392B",
   "dofusItemId": 694,
   "successName": "Pourpre profond",
-  "recommendedLevel": 150,
-  "successDescription": "Terminer la série des quêtes du Dofus Pourpre.",
+  "recommendedLevel": 140,
+  "successDescription": "Partir à la recherche du Dofus Pourpre en suivant les traces de Totankama.",
+  "globalItemsRequired": [
+    { "id": 15263, "name": "Rose des sables", "amount": 20000 },
+    { "id": 15444, "name": "Tête de mort", "amount": 1 },
+    { "id": 7290, "name": "Tige de Bambouto", "amount": 1 }
+  ],
   "successes": [
     {
       "name": "Pourpre profond",
-      "zone": "Minotot / Monde des Douze",
+      "zone": "Plaine de Cania / Île du Minotaure",
+      "id": 1101,
       "quests": [
-        "Le livre des Taures",
-        "Taures et détours",
-        "Le trésor de Totankama",
-        "Il faut battre le lait quand il est chaud",
-        "Regrets d'éternailes",
-        "L'anneau de Tot",
-        "Une âme en peine",
-        "Le pouvoir derrière le trône"
+        { 
+          "name": "Le livre des Taures", "id": 1521,
+          "dungeons": [{ "id": 3, "bossId": 289, "name": "Bibliothèque du Maître Corbac" }]
+        },
+        { 
+          "name": "Taures et détours", "id": 1522,
+          "dungeons": [{ "id": 17, "bossId": 121, "name": "Labyrinthe du Minotoror" }]
+        },
+        { "name": "Le trésor de Totankama", "id": 1523 },
+        { 
+          "name": "Il faut battre le lait quand il est chaud", "id": 1524,
+          "dungeons": [{ "id": 54, "bossId": 2854, "name": "Serre du Royalmouth" }]
+        },
+        { 
+          "name": "Regrets d'éternailes", "id": 1525,
+          "dungeons": [{ "id": 81, "bossId": 3753, "name": "Ring du Capitaine Ekarlatte" }]
+        },
+        { "name": "L'anneau de Tot", "id": 1526 },
+        { "name": "Une âme en peine", "id": 1528 },
+        { 
+          "name": "Le pouvoir derrière le trône", "id": 1529,
+          "dungeons": [{ "id": 49, "bossId": 1188, "name": "Antre du Blop Multicolore Royal" }]
+        }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23001.png"
+  "imageUrl": "/module-dofus/Dofus_Pourpre.png"
 }

@@ -25,7 +25,9 @@ import {
     Bell,
     Send,
     Loader2,
-    Check
+    Check,
+    MessageSquare,
+    Mic
 } from "lucide-react";
 import { 
     Card, 
@@ -59,6 +61,7 @@ import {
 } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { 
     getMemberReconciliation, 
     sendManualRosterReport,
@@ -79,6 +82,8 @@ import { MemberManagementTable } from "@/components/admin/member-management-tabl
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { RelanceClient } from "@/components/admin/relance/relance-client";
+import { MemberDiscordCharts } from "@/components/admin/members/member-discord-charts";
+import { GuildatonManagement } from "@/components/admin/members/guildaton-management";
 
 interface Member {
     id: string;
@@ -171,12 +176,18 @@ export default function MemberManagement({
     canManageMembers,
     canManageRelance
 }: MemberManagementProps) {
-    const [loading, setLoading] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState(() => {
         if (!canManageMembers && canManageRelance) return "relances";
         return "audit";
     });
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [data, setData] = useState<{
         members: MemberReconciliationData[];
         stats: RoleStats[];
@@ -188,7 +199,8 @@ export default function MemberManagement({
         ownerId: initialMembers.ownerId
     });
 
-    // Filters for Audit Tab
+    const [idTarget, setIdTarget] = useState<{ id: string, name: string } | null>(null);
+    const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -287,6 +299,11 @@ export default function MemberManagement({
         return data.members.filter(m => !m.hasDashboardProfile).length;
     }, [data]);
 
+    // Mounting guard MUST be after all hook declarations (useState, useEffect, useMemo)
+    if (!mounted) {
+        return <div className="min-h-[800px] animate-pulse bg-zinc-900/10 rounded-3xl" />;
+    }
+
     return (
         <div className="relative min-h-[800px] space-y-8 pb-20">
             {/* Background Decorative Elements */}
@@ -332,7 +349,7 @@ export default function MemberManagement({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
                         { label: "Total Discord", value: data?.members.length || "...", sub: "Membres humains détectés", icon: Users, color: "blue" },
-                        { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${data ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, color: "emerald", progress: true },
+                        { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${(data && data.members.length > 0) ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, color: "emerald", progress: true },
                         { label: "Manquants Dashboard", value: missingMebersCount, sub: "Membres à inviter sur le site", icon: ShieldAlert, color: "amber" },
                         { label: "Rôles Actifs", value: data?.stats.length || 0, sub: "Rôles mappés sur le Dashboard", icon: Trophy, color: "purple" }
                     ].map((stat, i) => (
@@ -371,6 +388,7 @@ export default function MemberManagement({
                     {[
                         { id: "audit", label: "Audit & Sync", icon: ShieldCheck, requiresFull: true },
                         { id: "management", label: "Roster & Historique", icon: UserCircle, requiresFull: true },
+                        { id: "guildaton", label: "Analyse Guildaton", icon: ({ className }: { className?: string }) => <img src="/guildaton.png" className={cn("w-4 h-4 object-contain", className)} alt="" />, requiresFull: true },
                         { id: "relances", label: "Relances Discord", icon: Bell, requiresFull: false },
                     ].map(tab => {
                         const isDisabled = tab.requiresFull && !canManageMembers;
@@ -405,6 +423,9 @@ export default function MemberManagement({
                 {/* --- TAB 1: AUDIT --- */}
                 <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="space-y-8">
+                        {/* Advanced Discord Activity Charts */}
+                        {data && <MemberDiscordCharts members={data.members} />}
+
                         {/* Bottom Utility Cards */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Embedded Sync Card */}
@@ -626,6 +647,16 @@ export default function MemberManagement({
                                                                     {member.ankamaId && (
                                                                         <span className="text-[9px] text-violet-400 font-black tracking-tight uppercase px-1.5 py-0.5 rounded bg-violet-600/10 border border-violet-500/20">{member.ankamaId}</span>
                                                                     )}
+                                                                    {member.hasDashboardProfile && (
+                                                                        <div className="flex items-center gap-2 ml-1">
+                                                                            <span className="text-[9px] text-blue-400 font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                                                <MessageSquare className="w-2.5 h-2.5" /> {member.discordMessageCountWeekly || 0}
+                                                                            </span>
+                                                                            <span className="text-[9px] text-emerald-400 font-black flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                                                <Mic className="w-2.5 h-2.5" /> {(member.discordVoiceTimeWeekly || 0) < 60 ? `${member.discordVoiceTimeWeekly || 0}m` : `${Math.round((member.discordVoiceTimeWeekly || 0) / 60)}h`}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -720,6 +751,11 @@ export default function MemberManagement({
                             initialHistory={initialHistory}
                         />
                     </div>
+                </TabsContent>
+
+                {/* --- TAB 4: GUILDATON --- */}
+                <TabsContent value="guildaton" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <GuildatonManagement guildId={guildId} />
                 </TabsContent>
             </Tabs>
         </div>

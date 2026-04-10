@@ -614,7 +614,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                     return {
                         objectId: d.objectId,
                         name: item?.name?.fr || "Objet",
-                        imageUrl: `https://api.dofusdb.fr/img/items/${iconId}.png`,
+                        imageUrl: `https://static.dofusdb.fr/items/${iconId}.png`,
                         percent: formattedPercent
                     };
                 }) || [],

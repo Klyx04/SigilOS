@@ -8,51 +8,38 @@
   "successDescription": "Obtenir le Dofus Cawotte en aidant les gardiens de l'île des Wabbits.",
   "successes": [
     {
-      "name": "Mais où sont les Dofus ?",
-      "zone": "Astrub",
-      "description": "Prérequis d'accès aux quêtes Wabbit",
+      "name": "Accès : Pandala & Wabbit (Prerequis)",
+      "zone": "Pandala / Astrub",
       "isPrerequisite": true,
       "quests": [
-        "Un sage parmi les sages"
+        { "name": "Un sage parmi les sages" },
+        { "name": "Le réveil de Pandala" }
       ]
     },
     {
       "name": "Rusé comme une Lenalde",
       "zone": "Île des Wabbits",
-      "description": "Succès principal d'exploration de l'île.",
-      "isPrerequisite": false,
       "quests": [
-        "Sauvegarder l'espèce",
-        "Faites l'amour, pas la guerre",
-        "Ça sent la cawotte",
-        "Il y a un os, de Wabbit",
-        "Art gastronomique",
-        "Expédition culinaire",
-        "Voyage au centre du Wabbit",
-        "Des pwinces pas très charmants"
+        { "name": "Sauvegarder l'espèce" },
+        { "name": "Faites l'amour, pas la guerre" },
+        { "name": "Ça sent la cawotte" },
+        { "name": "Il y a un os, de Wabbit" },
+        { "name": "Art gastronomique" },
+        { "name": "Expédition culinaire" },
+        { "name": "Voyage au centre du Wabbit" },
+        { "name": "Des pwinces pas très charmants" }
       ]
     },
     {
       "name": "Un Wa de pacotille",
       "zone": "Île des Wabbits",
-      "description": "Succès final requérant d'affronter le Wa Wabbit dans ses deux donjons.",
-      "isPrerequisite": false,
-      "dungeons": [
-        {
-          "name": "Château du Wa Wabbit",
-          "idoleName": null
-        },
-        {
-          "name": "Terrier du Wa Wabbit",
-          "idoleName": null
-        }
-      ],
       "quests": [
-        "Jamais deux sans trois",
-        "Le château du Wa",
-        "L'œuf ou la cawotte ?"
+        { "name": "Jamais deux sans trois" },
+        { "name": "Le château du Wa" },
+        { "name": "L'œuf ou la cawotte ?" }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23006.png"
+  "imageUrl": "https://static.dofusdb.fr/items/972.png",
+  "iconId": 23012
 }

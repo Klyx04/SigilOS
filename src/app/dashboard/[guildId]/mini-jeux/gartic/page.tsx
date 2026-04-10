@@ -27,7 +27,7 @@ export default async function SigilGarticPage({
     return (
         <div className="fixed top-14 bottom-0 left-0 md:left-[280px] right-0 bg-[#c83d5a] z-[41] overflow-hidden">
             <div className="h-full w-full overflow-hidden relative">
-                <GarticGameWrapper roomId={roomId} guildId={guildId} />
+                <GarticGameWrapper roomId={roomId} guildId={guildId} userName={user.name!} userAvatar={user.image!} />
             </div>
         </div>
     );

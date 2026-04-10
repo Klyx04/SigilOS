@@ -492,12 +492,12 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
         const user = await getUserContext(guildId);
         if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
-        const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
+        const canEditOthers = user.canEditVacation || user.isSuperAdmin;
+        const effectiveUserId = (canEditOthers && targetUserId) ? targetUserId : session.user.id;
         const isOwner = effectiveUserId === session.user.id;
-        const isGod = user.isSuperAdmin;
 
-        if (!isOwner && !isGod) {
-            logger.warn(`[Security] Unauthorized vacation update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
+        if (!isOwner && !canEditOthers) {
+            logger.warn(`[Security] Unauthorized vacation update attempt by ${session.user.id} on ${effectiveUserId} (CanEditOthers: ${canEditOthers})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ce mode absence." };
         }
 

@@ -11,6 +11,7 @@ import ChatPanel from "./ChatPanel";
 import TopBarInfo from "./TopBarInfo";
 import { SkribblStarDecorations } from "./SkribblDecorations";
 import { AtmosphericParticles } from "../ui/AtmosphericParticles";
+import { SkribblGallery } from "./SkribblGallery";
 import { toast } from "sonner";
 import { 
     Loader2, 
@@ -51,7 +52,7 @@ interface AvailableRoom {
     isSpectator?: boolean;
 }
 
-export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId?: string, guildId: string }) {
+export default function SkribblGame({ roomId: initialRoomId, guildId, userName, userAvatar }: { roomId?: string, guildId: string, userName?: string, userAvatar?: string }) {
     const { data: session } = useSession();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -97,9 +98,9 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                 s.emit("skribbl:room:join", {
                     roomId: rId,
                     playerObj: { 
-                        userName: user.name, 
+                        userName: userName || user.name, 
                         userId: user.id, 
-                        userAvatar: user.image,
+                        userAvatar: userAvatar || user.image,
                         isSpectator: isSpectatorMode
                     }
                 });
@@ -119,11 +120,11 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
             if (!user) return;
             setCurrentRoomId(roomId);
             const url = new URL(window.location.href);
-            url.searchParams.set("skribbl", roomId);
+            url.searchParams.set("room", roomId);
             window.history.replaceState(null, "", url.toString());
             s.emit("skribbl:room:join", {
                 roomId,
-                playerObj: { userName: user.name, userId: user.id, userAvatar: user.image }
+                playerObj: { userName: userName || user.name, userId: user.id, userAvatar: userAvatar || user.image }
             });
         });
 
@@ -146,6 +147,8 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
             }
             lastHostId.current = state.hostId;
             setGameState(state);
+            setJoiningId(null);
+            setIsCreating(false);
             if (phase !== "game") setPhase("game");
         });
 
@@ -165,6 +168,10 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
             toast.error(err.message || "Une erreur est survenue");
             setIsCreating(false);
             setJoiningId(null);
+            setGameState(null);
+            setCurrentRoomId(undefined);
+            setPhase("browse");
+            setTimeout(() => s.emit("skribbl:room:list"), 600);
         });
 
         s.on("skribbl:room:deleted", () => {
@@ -226,9 +233,9 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
         socket.emit("skribbl:room:join", {
             roomId,
             playerObj: { 
-                userName: user.name, 
+                userName: userName || user.name, 
                 userId: user.id, 
-                userAvatar: user.image,
+                userAvatar: userAvatar || user.image,
                 isSpectator: asSpectator 
             }
         });
@@ -574,6 +581,18 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                                             Annuler
                                                                         </button>
                                                                      </div>
+                                                                     <button
+                                                                         onClick={() => {
+                                                                             const url = `${window.location.origin}/dashboard/${guildId}/mini-jeux/skribbl?room=${gameState.id}`;
+                                                                             if (navigator.clipboard) {
+                                                                                 navigator.clipboard.writeText(url);
+                                                                                 toast.success("Lien du salon copié !", { icon: "🔗" });
+                                                                             }
+                                                                         }}
+                                                                         className="w-full py-3 bg-blue-500/10 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 font-black rounded-xl text-xs transition-all uppercase italic shadow-xl flex items-center justify-center gap-2"
+                                                                     >
+                                                                         Copier le lien d'invitation
+                                                                     </button>
                                                                      {!canStart && (
                                                                          <p className="text-center text-amber-400 text-[10px] md:text-xs font-black uppercase tracking-widest animate-pulse italic">
                                                                              ⚠️ Il faut au moins 2 joueurs !
@@ -691,18 +710,20 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                 <motion.div 
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
-                                                    className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center z-50 backdrop-blur-xl gap-8 p-6"
+                                                    className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-start z-50 backdrop-blur-xl gap-8 p-6 overflow-y-auto custom-scrollbar"
                                                 >
-                                                    <div className="relative">
-                                                        <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-20 animate-pulse" />
-                                                        <Trophy className="w-16 h-16 md:w-32 md:h-32 text-yellow-400 drop-shadow-[0_0_30px_rgba(250,204,21,0.5)] relative z-10" />
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <h2 className="text-white font-black text-3xl md:text-6xl uppercase italic tracking-tighter mb-2">PARTIE TERMINÉE !</h2>
-                                                        <p className="text-white/40 font-black uppercase text-[10px] md:text-sm tracking-[0.4em] italic">Le Hall des Champions est là</p>
+                                                    <div className="flex flex-col items-center shrink-0">
+                                                        <div className="relative">
+                                                            <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-20 animate-pulse" />
+                                                            <Trophy className="w-16 h-16 md:w-32 md:h-32 text-yellow-400 drop-shadow-[0_0_30px_rgba(250,204,21,0.5)] relative z-10" />
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <h2 className="text-white font-black text-3xl md:text-6xl uppercase italic tracking-tighter mb-2">PARTIE TERMINÉE !</h2>
+                                                            <p className="text-white/40 font-black uppercase text-[10px] md:text-sm tracking-[0.4em] italic">Le Hall des Champions est là</p>
+                                                        </div>
                                                     </div>
                                                     
-                                                    <div className="flex flex-col gap-3 w-full max-w-[400px]">
+                                                    <div className="flex flex-col gap-3 w-full max-w-[400px] shrink-0">
                                                         {[...gameState.players].sort((a: any, b: any) => b.score - a.score).slice(0, 3).map((p: any, i: number) => (
                                                             <div 
                                                                 key={p.id} 
@@ -724,6 +745,13 @@ export default function SkribblGame({ roomId: initialRoomId, guildId }: { roomId
                                                             </div>
                                                         ))}
                                                     </div>
+
+                                                    {/* GALLERY SECTION */}
+                                                    <div className="w-full mt-10 border-t border-white/10 pt-10">
+                                                        <SkribblGallery history={gameState.gameHistory || []} />
+                                                    </div>
+
+                                                    <div className="h-20 shrink-0" /> {/* Spacer */}
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>

@@ -682,6 +682,8 @@ export class SigilKingRoom {
                         cards: JSON.stringify(p.hand),
                     },
                     update: {
+                        userName: p.userName,
+                        userAvatar: p.userAvatar,
                         totalScore: p.score,
                         cards: JSON.stringify(p.hand),
                         lastActive: new Date(),
@@ -732,6 +734,8 @@ export class SigilKingRoom {
                         wins: isWinner ? 1 : 0,
                     },
                     update: {
+                        userName: p.userName,
+                        userAvatar: p.userAvatar,
                         bestScore: { set: Math.max(p.score, 0) }, // will handle in custom way below if needed
                         totalPoints: { increment: p.score },
                         gamesPlayed: { increment: 1 },

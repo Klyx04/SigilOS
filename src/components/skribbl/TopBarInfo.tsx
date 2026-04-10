@@ -32,6 +32,22 @@ export default function TopBarInfo({ gameState, socket, isDrawer }: TopBarInfoPr
 
     return (
         <div className="flex items-center w-full grow relative h-full gap-2 md:gap-4">
+            {/* RETOUR SELECTION */}
+            <button 
+                onClick={() => window.location.href = `/dashboard/${gameState.guildId || ""}/mini-jeux`}
+                className="group flex flex-col items-center justify-center w-10 h-10 md:w-16 md:h-16 bg-white/50 backdrop-blur-md rounded-xl md:rounded-[2rem] border-b-4 border-black/5 shadow-lg transition-all hover:scale-110 active:scale-95 group shrink-0"
+                title="Retour à la sélection"
+            >
+                <div className="text-[#5d3fd3] transition-transform group-hover:rotate-12">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 md:w-8 md:h-8">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                </div>
+                <span className="hidden md:block text-[8px] font-black uppercase text-[#5d3fd3]/60 tracking-widest mt-0.5">Lobby</span>
+            </button>
             {/* ROUND & TIMER LEFT */}
             <div className="w-[110px] md:w-[160px] shrink-0 flex items-center gap-2 md:gap-4 bg-white/50 backdrop-blur-md px-3 md:px-5 py-2.5 rounded-2xl md:rounded-[2rem] border-b-4 border-black/5 shadow-inner h-fit">
                 <div className="flex flex-col items-start leading-none select-none">
@@ -65,17 +81,19 @@ export default function TopBarInfo({ gameState, socket, isDrawer }: TopBarInfoPr
                                         {gameState.currentWord}
                                     </span>
                                 </div>
-                                <div className="w-14 h-14 md:w-24 md:h-24 lg:w-28 lg:h-28 bg-white rounded-xl md:rounded-[2.5rem] p-1.5 flex items-center justify-center shadow-2xl relative transform group-hover:scale-110 lg:group-hover:scale-150 transition-all duration-300 ring-4 ring-white/10 z-[100] cursor-zoom-in shrink-0 overflow-hidden border-b-4 border-black/10">
-                                    <div className="absolute inset-0 bg-gradient-to-tr from-[#5d3fd3]/5 to-transparent pointer-events-none" />
+                                <div className="w-20 h-20 md:w-36 md:h-36 lg:w-48 lg:h-48 bg-white rounded-xl md:rounded-[2.5rem] p-1.5 flex items-center justify-center shadow-2xl relative transform hover:scale-125 lg:hover:scale-[2] lg:hover:translate-x-12 transition-all duration-500 ring-4 ring-white/20 z-[100] cursor-zoom-in shrink-0 overflow-hidden border-b-8 border-black/10">
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-[#5d3fd3]/10 to-transparent pointer-events-none" />
                                     <img 
-                                        src={gameState.currentWordIcon || "https://api.dofusdb.fr/img/items/4349.png"} 
+                                        src={gameState.currentWordIcon || "https://static.dofusdb.fr/items/4349.png"} 
                                         alt="" 
-                                        className="w-full h-full object-contain relative z-10 p-1 md:p-2"
+                                        className="w-full h-full object-contain relative z-10 p-1 md:p-3 drop-shadow-2xl"
                                         onError={(e) => { 
                                             (e.currentTarget as HTMLImageElement).src = 'https://api.dicebear.com/7.x/bottts/svg?seed=sigil-hint';
                                             (e.currentTarget as HTMLImageElement).style.opacity = '0.3';
                                         }}
                                     />
+                                    {/* Glass reflection effect */}
+                                    <div className="absolute top-0 left-0 w-full h-[50%] bg-white/20 -skew-y-12 translate-y-[-50%] group-hover:translate-y-[100%] transition-transform duration-1000 pointer-events-none" />
                                 </div>
                             </div>
                         ) : (

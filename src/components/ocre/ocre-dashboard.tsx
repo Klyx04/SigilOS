@@ -377,22 +377,22 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
             {/* Main Navigation Sub-menu */}
             <Tabs defaultValue="progression" className="w-full space-y-8">
-                <TabsList className="flex items-center justify-start h-auto p-1 bg-transparent border-b border-border rounded-none w-full gap-8 overflow-x-auto no-scrollbar">
+                <TabsList className="flex items-center justify-start h-auto p-1.5 bg-zinc-900/50 border border-white/5 rounded-2xl w-full gap-3 overflow-x-auto no-scrollbar shrink-0">
                     <TabsTrigger
                         value="progression"
-                        className="pb-3 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground text-muted-foreground font-bold transition-all px-1"
+                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
                     >
                         Progression
                     </TabsTrigger>
                     <TabsTrigger
                         value="monstres"
-                        className="pb-3 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground text-muted-foreground font-bold transition-all px-1"
+                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
                     >
                         Bestiaire
                     </TabsTrigger>
                     <TabsTrigger
                         value="echanges"
-                        className="pb-3 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent data-[state=active]:text-foreground text-muted-foreground font-bold transition-all px-1"
+                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
                     >
                         Échanges
                     </TabsTrigger>
@@ -463,22 +463,22 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                     {/* Secondary Tabs (Grid) */}
                     <Tabs defaultValue="manquants" className="w-full">
                         <div className="overflow-x-auto no-scrollbar pb-1">
-                            <TabsList className="inline-flex w-auto bg-muted/30 backdrop-blur-sm border border-border p-1 rounded-xl min-w-full sm:min-w-0">
-                                <TabsTrigger value="manquants" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                            <TabsList className="inline-flex w-auto bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-1.5 rounded-2xl min-w-full sm:min-w-0 gap-2">
+                                <TabsTrigger value="manquants" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-red-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-red-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Manquants</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-red-500/10 text-red-500 border-none">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-red-500/10 text-red-500 border-none font-black">
                                         {filteredManquants.length}
                                     </Badge>
                                 </TabsTrigger>
-                                <TabsTrigger value="possedes" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                <TabsTrigger value="possedes" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-emerald-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Possédés</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 border-none">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 border-none font-black">
                                         {filteredPossedes.length}
                                     </Badge>
                                 </TabsTrigger>
-                                <TabsTrigger value="doublons" className="gap-2 rounded-lg py-2 px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                <TabsTrigger value="doublons" className="gap-3 rounded-xl py-3 px-6 data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-400 data-[state=active]:shadow-lg border border-transparent data-[state=active]:border-amber-500/20 hover:bg-white/5 transition-all font-bold tracking-tight">
                                     <span className="hidden sm:inline">Doublons</span>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-500 border-none">
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-500 border-none font-black">
                                         {filteredDoublons.length}
                                     </Badge>
                                 </TabsTrigger>

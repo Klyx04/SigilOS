@@ -23,7 +23,7 @@ interface AvailableRoom {
     mode: string;
 }
 
-export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { roomId?: string, guildId: string }) {
+export default function GarticGameWrapper({ roomId: initialRoomId, guildId, userName, userAvatar }: { roomId?: string, guildId: string, userName?: string, userAvatar?: string }) {
     const { data: session } = useSession();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -36,6 +36,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
     const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
+    const [isViewingGallery, setIsViewingGallery] = useState(false);
 
     // Stable refs
     const sessionRef = useRef(session);
@@ -69,9 +70,9 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
                 s.emit("gartic:room:join", { 
                     roomId: rId, 
                     playerObj: { 
-                        userName: user.name, 
+                        userName: userName || user.name, 
                         userId: user.id, 
-                        userAvatar: user.image,
+                        userAvatar: userAvatar || user.image,
                         isSpectator: isSpectatorMode
                     } 
                 });
@@ -96,7 +97,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
             window.history.replaceState(null, "", url.toString());
             s.emit("gartic:room:join", { 
                 roomId, 
-                playerObj: { userName: user.name, userId: user.id, userAvatar: user.image } 
+                playerObj: { userName: userName || user.name, userId: user.id, userAvatar: userAvatar || user.image } 
             });
         });
 
@@ -152,7 +153,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
         setIsCreating(true);
         socket.emit("gartic:room:create", {
             maxPlayers: 14, drawTime: 60, mode: "NORMAL",
-            userName: user.name, userId: user.id, userAvatar: user.image,
+            userName: userName || user.name, userId: user.id, userAvatar: userAvatar || user.image,
         });
     }, [socket, isCreating]);
 
@@ -165,9 +166,9 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
         socket.emit("gartic:room:join", { 
             roomId, 
             playerObj: { 
-                userName: user.name, 
+                userName: userName || user.name, 
                 userId: user.id, 
-                userAvatar: user.image,
+                userAvatar: userAvatar || user.image,
                 isSpectator: asSpectator 
             } 
         });
@@ -413,25 +414,56 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
                             </p>
                         </div>
 
-                        <div className="w-full flex flex-wrap justify-center gap-6">
-                            {gameState.players.map((p: any) => (
-                                <div 
-                                    key={p.id} 
-                                    className="flex flex-col items-center gap-3 group"
-                                >
-                                    <div className="w-24 h-24 rounded-full border-[6px] border-white/10 bg-white/5 p-1 backdrop-blur-sm group-hover:scale-110 transition-transform duration-500">
-                                        <img 
-                                            src={p.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${p.username || p.userName}`} 
-                                            alt="avatar" 
-                                            className="w-full h-full object-cover rounded-full" 
-                                        />
-                                    </div>
-                                    <span className="font-black text-white uppercase tracking-tighter text-sm italic group-hover:text-purple-300 transition-colors">
-                                        {p.username || p.userName}
-                                    </span>
+                        {isViewingGallery ? (
+                            <div className="w-full flex-1 min-h-[500px] animate-in fade-in slide-in-from-bottom-10 duration-700">
+                                <div className="flex justify-end mb-4">
+                                    <button 
+                                        onClick={() => setIsViewingGallery(false)}
+                                        className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black uppercase text-xs transition-all flex items-center gap-2"
+                                    >
+                                        <X size={16} /> Fermer la Galerie
+                                    </button>
                                 </div>
-                            ))}
-                        </div>
+                                <RevealScreen 
+                                    albums={gameState.albums || []}
+                                    revealIndex={gameState.revealIndex || 0}
+                                    isHost={false} // In scores, no auto-advance
+                                    onNextAlbum={() => {}}
+                                    onExit={() => setIsViewingGallery(false)}
+                                    players={gameState.players}
+                                />
+                            </div>
+                        ) : (
+                            <>
+                            <div className="w-full flex flex-wrap justify-center gap-6">
+                                {gameState.players.map((p: any) => (
+                                    <div 
+                                        key={p.id} 
+                                        className="flex flex-col items-center gap-3 group"
+                                    >
+                                        <div className="w-24 h-24 rounded-full border-[6px] border-white/10 bg-white/5 p-1 backdrop-blur-sm group-hover:scale-110 transition-transform duration-500">
+                                            <img 
+                                                src={p.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${p.username || p.userName}`} 
+                                                alt="avatar" 
+                                                className="w-full h-full object-cover rounded-full" 
+                                            />
+                                        </div>
+                                        <span className="font-black text-white uppercase tracking-tighter text-sm italic group-hover:text-purple-300 transition-colors">
+                                            {p.username || p.userName}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={() => setIsViewingGallery(true)}
+                                className="w-full max-w-md py-6 rounded-[2.5rem] bg-white/10 hover:bg-white/20 text-white font-black uppercase italic tracking-widest text-lg transition-all border-b-[8px] border-black/20 hover:border-b-[4px] hover:translate-y-1 shadow-2xl flex items-center justify-center gap-4 group"
+                            >
+                                <Users size={24} className="group-hover:scale-110 transition-transform" />
+                                <span>VOIR TOUT L'ALBUM</span>
+                            </button>
+                            </>
+                        )}
 
                         <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full max-w-2xl mt-4 md:mt-8">
                             <button 
@@ -469,6 +501,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId }: { 
                 phase={gameState?.phase || "LOBBY"} 
                 onClose={handleExitToMenu}
                 spectators={gameState?.players?.filter((p: any) => p.isSpectator) || []}
+                guildId={guildId}
             >
                 {renderPhase()}
             </GarticLayout>

@@ -59,9 +59,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
     return (
         <div className="relative group/badge">
             <a
-                href={count === 1 ? first.url : `/dashboard/${guildId}/ressources`}
-                target={count === 1 ? "_blank" : "_self"}
-                rel={count === 1 ? "noopener noreferrer" : ""}
+                href={`/dashboard/${guildId}/ressources?tab=creators`}
                 className={cn(
                     "flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600/10 border border-red-500/20 hover:bg-red-600/20 transition-all duration-300 group shadow-[0_0_15px_rgba(239,68,68,0.15)] hover:shadow-[0_0_20px_rgba(239,68,68,0.25)]",
                     "animate-in fade-in slide-in-from-top-2 duration-700"

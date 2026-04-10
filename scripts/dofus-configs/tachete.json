@@ -1,51 +1,50 @@
 {
   "slug": "tachete",
   "displayName": "Dofus Tacheté",
+  "nameShort": "Tacheté",
   "color": "#8B4513",
-  "dofusItemId": 7112,
+  "dofusItemId": 23238,
   "successName": "Un rêve en clair-obscur",
   "recommendedLevel": 200,
   "successDescription": "Terminer la série des quêtes du Dofus Tacheté. Nécessite de posséder un Domakuro ET un Dorigami.",
+  "globalItemsRequired": [
+    { "id": 7018, "name": "Riz", "amount": 100 },
+    { "id": 7014, "name": "Bois de Bambou Sacré", "amount": 20 },
+    { "id": 24056, "name": "Pwimen", "amount": 10 },
+    { "id": 23311, "name": "Artefact Pandawushu Bois", "amount": 10 },
+    { "id": 7225, "name": "Artefact Pandawushu Feu", "amount": 10 },
+    { "id": 7222, "name": "Artefact Pandawushu Eau", "amount": 10 },
+    { "id": 7223, "name": "Artefact Pandawushu Vent", "amount": 10 },
+    { "id": 7224, "name": "Artefact Pandawushu Roc", "amount": 10 },
+    { "id": 24007, "name": "Bière Tsingtawo", "amount": 5 },
+    { "id": 23972, "name": "Pizwa", "amount": 2 },
+    { "id": 23731, "name": "Limo d'Grobe", "amount": 1 },
+    { "id": 7055, "name": "Pandneken", "amount": 1 },
+    { "id": 23179, "name": "Pandazahi", "amount": 1 },
+    { "id": 1977, "name": "Épices", "amount": 1 },
+    { "id": 23957, "name": "Pétale de Papier", "amount": 1 },
+    { "id": 23965, "name": "Pétale d'encre", "amount": 1 },
+    { "id": 23150, "name": "Umeshushu", "amount": 1 },
+    { "id": 23806, "name": "Gnôle de Grobe", "amount": 1 },
+    { "id": 24021, "name": "Bière forte légère", "amount": 1 }
+  ],
   "successes": [
     {
-      "name": "Prérequis",
-      "zone": "Pandala",
-      "description": "Toutes les quêtes de Pandala doivent être complétées avant de commencer la série du Dofus Tacheté.",
-      "isPrerequisite": true,
+      "name": "Un rêve en clair-obscur",
+      "zone": "Pandala / Dimensions",
       "quests": [
-        "Dites-le avec des fleurs",
-        "Un pendule pour guider ses pas",
-        "Protection divine",
-        "Voir le dark Vlad et mourir... ou pas",
-        "La magicienne des marécages",
-        "Retourner voir le dark Vlad, toujours sans mourir",
-        "Qui botte le cul des culs-bottés ?",
-        "Le voleur d'âmes",
-        "Ça est frugal, une fois",
-        "À la croisée des mondes",
-        "Sous le bois de sa colère",
-        "Au nom de l'art",
-        "La jetée des enfants perdus",
-        "Le festival de la lanterne",
-        "L'équilibre des forces",
-        "Sang d'encre",
-        "Maudite disparition",
-        "Requiem pour un yôkai",
-        "Jusqu'à leur dernier soupir"
-      ]
-    },
-    {
-      "name": "Les quêtes du Dofus Tacheté",
-      "zone": "Pandala — Royaumes de Papier et d'Encre",
-      "description": "La série de 3 quêtes pour obtenir le Dofus Tacheté. Inclut les donjons Mémoire d'Orukam et Souvenir d'Imagiro. Nécessite d'être Paysan niv. 20+, et de posséder un Domakuro et un Dorigami.",
-      "isPrerequisite": false,
-      "isSynergyCandidate": true,
-      "quests": [
-        "Main dans la main",
-        "Deux souffles, une inspiration",
-        "En ce jardin qui nous unit"
+        { "name": "Main dans la main", "id": 2200 },
+        { 
+          "name": "Deux souffles, une inspiration", "id": 2201,
+          "dungeons": [
+            { "id": 133, "name": "Mémoire d'Orukam" },
+            { "id": 134, "name": "Souvenir d'Imagiro" }
+          ]
+        },
+        { "name": "En ce jardin qui nous unit", "id": 2202 }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23008.png"
+  "imageUrl": "https://api.dofusdb.fr/img/items/23238.png",
+  "iconId": 23238
 }

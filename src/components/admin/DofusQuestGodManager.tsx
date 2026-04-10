@@ -22,6 +22,9 @@ import { Badge } from "@/components/ui/badge";
 import { 
     Dialog, DialogContent, DialogHeader, DialogTitle 
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DofusHealthChecker from "./DofusHealthChecker";
+
 
 export default function DofusQuestGodManager() {
     const params = useParams();
@@ -61,7 +64,27 @@ export default function DofusQuestGodManager() {
     );
 
     return (
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <div className="space-y-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase">God Mode: Quêtes Dofus</h1>
+                    <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest mt-1">Édition de la matrice et monitoring de santé</p>
+                </div>
+            </div>
+
+            <Tabs defaultValue="editor" className="w-full">
+                <TabsList className="bg-zinc-950/50 border border-white/5 p-1 rounded-2xl mb-8">
+                    <TabsTrigger value="editor" className="data-[state=active]:bg-white data-[state=active]:text-black rounded-xl px-6 font-black uppercase text-[10px] tracking-widest">
+                        Éditeur de Matrice
+                    </TabsTrigger>
+                    <TabsTrigger value="health" className="data-[state=active]:bg-rose-500 data-[state=active]:text-white rounded-xl px-6 font-black uppercase text-[10px] tracking-widest">
+                        Santé des Données
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="editor">
+                    <div className="flex flex-col lg:flex-row gap-6 items-start">
+
             {/* Sidebar: Dofus List */}
             <div className="w-full lg:w-80 shrink-0 bg-zinc-950/40 backdrop-blur-xl border border-white/5 rounded-3xl flex flex-col group/sidebar shadow-2xl overflow-hidden">
                 <div className="p-5 border-b border-white/5 space-y-4 bg-zinc-900/20">
@@ -248,12 +271,26 @@ export default function DofusQuestGodManager() {
                                                                 {/* Content */}
                                                                 <div className="space-y-1.5 min-w-0">
                                                                     <div className="flex flex-wrap items-center gap-2">
-                                                                        <h4 className="text-base font-black text-white italic tracking-tighter truncate">
+                                                                         <h4 className="text-base font-black text-white italic tracking-tighter truncate">
                                                                             {entry.name}
                                                                         </h4>
                                                                         {entry.isLast && <Badge className="bg-emerald-500/20 text-emerald-400 border-none uppercase font-black text-[9px] px-1.5 py-0.5 rounded-md">Final</Badge>}
                                                                         {entry.isOptional && <Badge className="bg-zinc-500/20 text-zinc-400 border-none uppercase font-black text-[9px] px-1.5 py-0.5 rounded-md">Optionnel</Badge>}
+                                                                        {entry.externalRef && <Badge className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase font-black text-[9px] px-1.5 py-0.5 rounded-md flex items-center gap-1"><BookOpen className="w-2.5 h-2.5" /> DPLN OK</Badge>}
                                                                     </div>
+                                                                    
+                                                                    {/* Dungeons Required display in card */}
+                                                                    {Array.isArray(entry.dungeonsRequired) && entry.dungeonsRequired.length > 0 && (
+                                                                        <div className="flex flex-wrap gap-1.5 mt-0.5">
+                                                                            {entry.dungeonsRequired.map((d: any, i: number) => (
+                                                                                <div key={i} className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
+                                                                                    {d.id && <img src={`https://api.dofusdb.fr/img/monsters/${d.id}.png`} className="w-3 h-3 object-contain" alt="" />}
+                                                                                    {!d.id && <Castle className="w-2.5 h-2.5 text-rose-500" />}
+                                                                                    <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest">{d.name}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
                                                                     <div className="flex flex-wrap items-center gap-3 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
                                                                         <div className="flex items-center gap-1.5 text-zinc-400">
                                                                             <MapPin className="w-3 h-3 text-emerald-400/70" />
@@ -316,14 +353,23 @@ export default function DofusQuestGodManager() {
                     </div>
                 )}
             </div>
-
-            {/* Modals */}
-            <DofusEditDialog open={isDofusDialogOpen} onOpenChange={setIsDofusDialogOpen} dofus={editingDofus} onSuccess={loadData} />
-            <ChainEditDialog open={isChainDialogOpen} onOpenChange={setIsChainDialogOpen} chain={editingChain} dofusId={selectedDofusId} onSuccess={loadData} />
-            <EntryEditDialog open={isEntryDialogOpen} onOpenChange={setIsEntryDialogOpen} entry={editingEntry} onSuccess={loadData} />
         </div>
-    );
+
+        <DofusEditDialog open={isDofusDialogOpen} onOpenChange={setIsDofusDialogOpen} dofus={editingDofus} onSuccess={loadData} />
+        <ChainEditDialog open={isChainDialogOpen} onOpenChange={setIsChainDialogOpen} chain={editingChain} dofusId={selectedDofusId} onSuccess={loadData} />
+        <EntryEditDialog open={isEntryDialogOpen} onOpenChange={setIsEntryDialogOpen} entry={editingEntry} onSuccess={loadData} />
+    </TabsContent>
+
+    <TabsContent value="health">
+        <DofusHealthChecker />
+    </TabsContent>
+</Tabs>
+</div>
+);
 }
+
+
+
 
 // --- Sub-components (Simplified Editor Dialogs) ---
 
@@ -494,8 +540,29 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (entry) setFormData({ ...entry, dofusdbId: entry.dofusdbId || "", mapId: entry.mapId || "", coords: entry.coords || { x: null, y: null } });
-        else setFormData({ chainId: "", name: "", zone: "", questType: "QUEST", stepOrder: 0, isOptional: false, isLast: false, dofusdbId: "", mapId: "", coords: { x: null, y: null }, notes: "" });
+        if (entry) setFormData({ 
+            ...entry, 
+            dofusdbId: entry.dofusdbId || "", 
+            mapId: entry.mapId || "", 
+            coords: entry.coords || { x: null, y: null }, 
+            externalRef: entry.externalRef || "",
+            dungeonsRequired: Array.isArray(entry.dungeonsRequired) ? entry.dungeonsRequired : []
+        });
+        else setFormData({ 
+            chainId: "", 
+            name: "", 
+            zone: "", 
+            questType: "QUEST", 
+            stepOrder: 0, 
+            isOptional: false, 
+            isLast: false, 
+            dofusdbId: "", 
+            mapId: "", 
+            coords: { x: null, y: null }, 
+            notes: "", 
+            externalRef: "",
+            dungeonsRequired: []
+        });
     }, [entry, open]);
 
     async function handleSubmit(e: any) {
@@ -538,9 +605,15 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                 
                 <div className="max-h-[60vh] overflow-y-auto custom-scrollbar p-8">
                     <form onSubmit={handleSubmit} className="space-y-8">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Intitulé de la Quête</label>
-                            <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-black/40 border-white/5 h-12 rounded-xl text-lg font-black" placeholder="Ex: La Vengeance du Bouftou" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Intitulé de la Quête</label>
+                                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-black/40 border-white/5 h-12 rounded-xl text-lg font-black" placeholder="Ex: La Vengeance du Bouftou" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic">Lien Stratégie (DPLN)</label>
+                                <Input value={formData.externalRef || ""} onChange={e => setFormData({...formData, externalRef: e.target.value})} className="bg-indigo-500/10 border-indigo-500/20 h-12 rounded-xl text-xs font-medium" placeholder="https://www.dofuspourlesnoobs.com/..." />
+                            </div>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-900/20 p-6 rounded-2xl border border-white/5">
@@ -598,6 +671,111 @@ function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: any) {
                                 <span className="text-xs font-black uppercase tracking-widest text-zinc-300">Valide un Donjon</span>
                             </label>
                         </div>
+
+                        {/* Manual Dungeon Selection (Visible only if isDungeon is checked) */}
+                        {formData.isDungeon && (
+                            <div className="space-y-4 p-6 bg-rose-500/5 rounded-3xl border border-rose-500/10 animate-in slide-in-from-top-4 duration-300">
+                                <div className="flex items-center justify-between border-b border-rose-500/10 pb-4">
+                                    <div className="flex items-center gap-3">
+                                        <Castle className="w-5 h-5 text-rose-500" />
+                                        <h5 className="text-[10px] font-black uppercase tracking-widest text-rose-500">Donjon(s) Requis</h5>
+                                    </div>
+                                    <Button 
+                                        type="button" 
+                                        onClick={() => {
+                                            const newDungeon = { name: "", id: null, img: null, dplnUrl: "" };
+                                            setFormData({
+                                                ...formData,
+                                                dungeonsRequired: [...(formData.dungeonsRequired || []), newDungeon]
+                                            });
+                                        }}
+                                        className="h-8 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 font-black text-[9px] uppercase tracking-widest rounded-lg px-3"
+                                    >
+                                        <Plus className="w-3 h-3 mr-1.5" /> Ajouter
+                                    </Button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {(formData.dungeonsRequired || []).length === 0 ? (
+                                        <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest text-center py-2 italic">Aucun donjon spécifié — Cliquez sur Ajouter</p>
+                                    ) : (
+                                        formData.dungeonsRequired.map((d: any, idx: number) => (
+                                            <div key={idx} className="flex gap-4 items-center p-4 bg-black/40 rounded-2xl border border-white/5 group/dungeon">
+                                                {/* Boss Image Preview */}
+                                                <div className="w-12 h-12 rounded-xl bg-black border border-white/10 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-inner">
+                                                    {d.img && d.img.includes('api.dofusdb.fr') ? (
+                                                        <img src={d.img} alt="Boss" className="w-full h-full object-contain" />
+                                                    ) : d.id ? (
+                                                        <img src={`https://api.dofusdb.fr/img/monsters/${d.id}.png`} alt="Boss" className="w-full h-full object-contain" />
+                                                    ) : (
+                                                        <Castle className="w-5 h-5 text-zinc-800" />
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">
+                                                    <div className="md:col-span-5 space-y-1">
+                                                        <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 ml-1">Nom du Donjon</label>
+                                                        <Input 
+                                                            value={d.name} 
+                                                            onChange={(e) => {
+                                                                const newList = [...formData.dungeonsRequired];
+                                                                newList[idx] = { ...d, name: e.target.value };
+                                                                setFormData({ ...formData, dungeonsRequired: newList });
+                                                            }}
+                                                            className="bg-black/60 border-white/5 h-9 rounded-xl text-xs" 
+                                                            placeholder="Ex: Crypte de Kardorim" 
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-5 space-y-1">
+                                                        <label className="text-[8px] font-black uppercase tracking-widest text-indigo-400 ml-1">Lien Stratégie DPLN</label>
+                                                        <Input 
+                                                            value={d.dplnUrl || ""} 
+                                                            onChange={(e) => {
+                                                                const newList = [...formData.dungeonsRequired];
+                                                                newList[idx] = { ...d, dplnUrl: e.target.value };
+                                                                setFormData({ ...formData, dungeonsRequired: newList });
+                                                            }}
+                                                            className="bg-indigo-500/10 border-indigo-500/30 h-9 rounded-xl text-[10px]" 
+                                                            placeholder="https://www.dofuspourlesnoobs.com/..." 
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-2 space-y-1 text-center">
+                                                        <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600">ID Boss</label>
+                                                        <Input 
+                                                            value={d.id || ""} 
+                                                            onChange={(e) => {
+                                                                const val = e.target.value ? parseInt(e.target.value) : null;
+                                                                const newList = [...formData.dungeonsRequired];
+                                                                newList[idx] = { 
+                                                                    ...d, 
+                                                                    id: val,
+                                                                    img: val ? `https://api.dofusdb.fr/img/monsters/${val}.png` : null 
+                                                                };
+                                                                setFormData({ ...formData, dungeonsRequired: newList });
+                                                            }}
+                                                            className="bg-black/60 border-white/5 h-9 rounded-xl text-xs text-center font-mono" 
+                                                            placeholder="ID" 
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <Button 
+                                                    type="button" 
+                                                    variant="ghost" 
+                                                    onClick={() => {
+                                                        const newList = formData.dungeonsRequired.filter((_: any, i: number) => i !== idx);
+                                                        setFormData({ ...formData, dungeonsRequired: newList });
+                                                    }}
+                                                    className="h-9 w-9 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl shrink-0"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </form>
                 </div>
                 

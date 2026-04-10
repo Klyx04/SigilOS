@@ -12,6 +12,8 @@ export default auth(async (req) => {
     const isPublicApi = 
         nextUrl.pathname.startsWith("/api/auth") || 
         nextUrl.pathname.startsWith("/api/health") ||
+        nextUrl.pathname.startsWith("/api/god/notify") || 
+        nextUrl.pathname.startsWith("/api/cron/guildaton-report") || // Handled via CRON_SECRET
         nextUrl.pathname.startsWith("/api/discord/interactions") || // Discord webhooks use signatures
         nextUrl.pathname.startsWith("/api/storage") || // Fine-grained RBAC handled in route
         nextUrl.pathname.startsWith("/api/og"); // Social previews

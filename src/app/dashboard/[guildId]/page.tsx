@@ -350,26 +350,7 @@ export default async function DashboardPage({
                                 </Card>
                             </Link>
                         )}
-                        {user.canViewRoster && (
-                            <Link href={`/dashboard/${guildId}/members`} className="h-full">
-                                <Card className="glass-premium h-full hover:border-pink-500/50 transition-all group overflow-hidden relative">
-                                    <CardHeader className="p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <Users className="w-5 h-5 text-pink-500" />
-                                            {guildStats && (
-                                                <span className="text-[10px] font-black text-pink-500/80 bg-pink-500/10 px-2 py-0.5 rounded-full border border-pink-500/20">
-                                                    {guildStats.activeMembers}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-300">Annuaire</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="px-4 pb-4 pt-0">
-                                        <p className="text-[10px] text-zinc-500 font-bold leading-tight">Membres & Métiers.</p>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        )}
+
                     </div>
 
                 </main>

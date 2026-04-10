@@ -49,6 +49,9 @@ export default async function MiniJeuxPage({ params }: Props) {
                     initialKingLadder={JSON.parse(JSON.stringify(kingLadder))}
                     initialTab="games" 
                     gameStatuses={JSON.parse(JSON.stringify(gameStatuses))}
+                    userName={user.name!}
+                    userAvatar={user.image!}
+                    isAdmin={user.isAdmin}
                 />
             </div>
         </div>

@@ -181,9 +181,19 @@ export function ClassDisplay({
 
                     <div className="flex-1 min-h-0 overflow-hidden px-8">
                         <Tabs defaultValue="main" className="h-full flex flex-col">
-                            <TabsList className="grid w-full grid-cols-2 mb-6 bg-zinc-900/50 shrink-0">
-                                <TabsTrigger value="main">Classe Principale</TabsTrigger>
-                                <TabsTrigger value="secondary">Classes Secondaires ({selectedSecondary.length})</TabsTrigger>
+                            <TabsList className="w-full grid grid-cols-2 gap-2 p-1 bg-zinc-900/50 border border-white/5 rounded-xl mb-6 h-auto">
+                                <TabsTrigger 
+                                    value="main" 
+                                    className="py-3 px-4 rounded-lg data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-zinc-800/40 transition-all border border-transparent data-[state=active]:border-white/5 font-bold uppercase tracking-widest text-xs"
+                                >
+                                    Classe Principale
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value="secondary" 
+                                    className="py-3 px-4 rounded-lg data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-zinc-800/40 transition-all border border-transparent data-[state=active]:border-white/5 font-bold uppercase tracking-widest text-xs"
+                                >
+                                    Classes Secondaires ({selectedSecondary.length})
+                                </TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="main" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden shadow-inner overflow-hidden">

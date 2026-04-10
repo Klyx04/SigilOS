@@ -556,7 +556,7 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
 
     useMapEvents(!interactive ? {} : {
         mousemove: (e) => {
-            if (!activeWorld || isMiniMap) return; // Hide tooltip on minimap (no spoilers!)
+            if (!activeWorld) return; 
 
             const now = performance.now();
             if (now - lastTooltipTime.current < TOOLTIP_THROTTLE_MS) {
@@ -565,12 +565,22 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
             }
             lastTooltipTime.current = now;
 
+            const world = activeWorld;
             const mapX = e.latlng.lng;
             const mapY = -e.latlng.lat;
-            const gameX = Math.floor((mapX - activeWorld.origineX) / activeWorld.mapWidth);
-            const gameY = Math.floor((mapY - activeWorld.origineY) / activeWorld.mapHeight);
+            const gameX = Math.floor((mapX - world.origineX) / world.mapWidth);
+            const gameY = Math.floor((mapY - world.origineY) / world.mapHeight);
 
             const foundMap = mapsByCoords.get(`${gameX},${gameY}`);
+            // In minimap (Geoguesser), only show coordinates if it's over a valid map area
+            if (isMiniMap && !foundMap) {
+                if (tooltipRef.current) {
+                    map.removeLayer(tooltipRef.current);
+                    tooltipRef.current = null;
+                }
+                return;
+            }
+
             const subAreaName = foundMap ? subAreasById.get(foundMap.subAreaId)?.name : null;
             const tooltipContent = `<div class="flex items-center gap-2"><span class="font-bold text-white">${subAreaName || 'Hors Map'}</span><span class="text-white/50 text-[10px] font-mono">[${gameX}, ${gameY}]</span></div>`;
 
@@ -747,7 +757,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
             const mh = activeWorld.mapHeight || 49.7;
             return {
                 ...activeWorld,
-                origineX: (activeWorld.origineX || 0) + (2.5 * mw),
+                origineX: (activeWorld.origineX || 0) + (2.0 * mw),
                 origineY: (activeWorld.origineY || 0) + (2.0 * mh)
             };
         }

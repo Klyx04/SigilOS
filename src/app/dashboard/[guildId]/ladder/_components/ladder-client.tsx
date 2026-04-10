@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -13,6 +13,7 @@ import {
     getContributionLadder,
     getGuildatonsLadder,
     getGeneralLadder,
+    getPresenceLadder,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
@@ -28,7 +29,8 @@ type Props = {
 };
 
 export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons">("activity");
+    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons" | "discord">("activity");
+    const [discordMetric, setDiscordMetric] = useState<"messages" | "voice">("messages");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [pagination, setPagination] = useState<{ totalPages: number; totalCount: number } | null>(null);
@@ -38,7 +40,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     // Reset page when switching tabs or timeframes
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeTab, activityView]);
+    }, [activeTab, activityView, discordMetric]);
 
     useEffect(() => {
         async function loadLadder() {
@@ -63,6 +65,9 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     break;
                 case "guildatons":
                     result = await getGuildatonsLadder(guildId, activityView, currentPage);
+                    break;
+                case "discord":
+                    result = await getPresenceLadder(guildId, discordMetric, activityView, currentPage);
                     break;
             }
 
@@ -106,11 +111,38 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 );
             case "guildatons":
                 return (
-                    <div className="flex items-center gap-1.5 font-black">
+                    <div className="flex items-center gap-1.5 font-black text-yellow-500">
                         <span>{entry.value.toLocaleString()}</span>
                         <Image src="/guildaton.png" alt="G" width={16} height={16} className="object-contain" />
                     </div>
                 );
+            case "discord":
+                if (discordMetric === "messages") {
+                    return (
+                        <div className="flex items-center gap-2 font-black text-indigo-400">
+                            <Zap className="w-3.5 h-3.5 fill-indigo-400" />
+                            <span>{entry.value.toLocaleString()} messages</span>
+                        </div>
+                    );
+                } else {
+                    const totalMinutes = entry.value;
+                    const months = Math.floor(totalMinutes / (30 * 24 * 60));
+                    const days = Math.floor((totalMinutes % (30 * 24 * 60)) / (24 * 60));
+                    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+                    const mins = totalMinutes % 60;
+
+                    return (
+                        <div className="flex items-center gap-2 font-black text-cyan-400">
+                            <Clock className="w-3.5 h-3.5" />
+                            <div className="flex gap-1 items-baseline">
+                                {months > 0 && <span>{months}<span className="text-[10px] text-zinc-500 font-medium ml-0.5">M</span></span>}
+                                {days > 0 && <span>{days}<span className="text-[10px] text-zinc-500 font-medium ml-0.5">J</span></span>}
+                                {hours > 0 && <span>{hours}<span className="text-[10px] text-zinc-500 font-medium ml-0.5">H</span></span>}
+                                <span>{mins}<span className="text-[10px] text-zinc-500 font-medium ml-0.5">m</span></span>
+                            </div>
+                        </div>
+                    );
+                }
             default:
                 return entry.value.toString();
         }
@@ -119,6 +151,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     const categories = [
         { id: "activity", label: "Activité", icon: "/PA.png", isImage: true, color: "#10b981" },
         { id: "guildatons", label: "Guildatons", icon: "/guildaton.png", isImage: true, color: "#eab308" },
+        { id: "discord", label: "Discord", icon: MessageSquare, isImage: false, color: "#818cf8" },
         { id: "contribution", label: "Contribution", icon: HandHeart, isImage: false, color: "#a855f7" },
         { id: "seniority", label: "Ancienneté", icon: Clock, isImage: false, color: "#06b6d4" },
         { id: "success", label: "Succès", icon: Trophy, isImage: false, color: "#f59e0b" },
@@ -240,8 +273,34 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                 </h2>
 
                                 {/* Contextual Period Selector */}
-                                {(activeTab === "activity" || activeTab === "guildatons") && (
-                                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                                {(activeTab === "activity" || activeTab === "guildatons" || activeTab === "discord") && (
+                                    <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
+                                        {activeTab === "discord" && (
+                                            <div className="flex bg-white/[0.03] border border-white/10 rounded-xl p-1 shadow-xl backdrop-blur-3xl">
+                                                <button
+                                                    onClick={() => setDiscordMetric("messages")}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                                        discordMetric === "messages" 
+                                                            ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" 
+                                                            : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                                                    )}
+                                                >
+                                                    Messages
+                                                </button>
+                                                <button
+                                                    onClick={() => setDiscordMetric("voice")}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                                        discordMetric === "voice" 
+                                                            ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" 
+                                                            : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                                                    )}
+                                                >
+                                                    Vocal
+                                                </button>
+                                            </div>
+                                        )}
                                         <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
                                             <SelectTrigger className="w-full sm:w-[200px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20">
                                                 <div className="flex items-center gap-2">
@@ -266,6 +325,11 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                 {activeTab === 'success' && "Le score de prestige Dofus par excellence. Ce ladder synchronise vos points de succès réels directement depuis les serveurs officiels d'Ankama."}
                                 {activeTab === 'general' && "L'expérience totale (XP) accumulée par votre personnage sur Dofus. Une mesure brute de puissance et de temps passé à parcourir le Monde des Douze."}
                                 {activeTab === 'guildatons' && "La richesse monétaire interne de la guilde. Le Guildaton est la monnaie virtuelle utilisée pour les échanges, les récompenses et la boutique exclusive."}
+                                {activeTab === 'discord' && (
+                                    discordMetric === "messages" 
+                                        ? "Le volume de discussion sur Discord. Vos messages contribuent à l'animation de la guilde et à l'entraide communautaire."
+                                        : "Le temps passé en vocal pour jouer ensemble, coordonner des activités ou simplement discuter. Le cœur battant de la guilde."
+                                )}
                             </p>
                             
                             {(activeTab === 'success' || activeTab === 'general') && hasPseudoIssue && (
@@ -290,7 +354,14 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             activeTab === 'activity' ? 'bg-emerald-400' : activeTab === 'contribution' ? 'bg-purple-400' : activeTab === 'seniority' ? 'bg-cyan-400' : activeTab === 'guildatons' ? 'bg-yellow-400' : 'bg-amber-400'
                         )} />
                         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-zinc-400">
-                             CLASSEMENT {activeTab === 'activity' ? 'D\'ACTIVITÉ' : activeTab === 'contribution' ? 'DE CONTRIBUTION' : activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : activeTab === 'guildatons' ? 'DE RICHESSE' : (activeTab === 'general' ? 'D\'XP GÉNÉRALE' : 'DE PRESTIGE')}
+                             CLASSEMENT {
+                                activeTab === 'activity' ? 'D\'ACTIVITÉ' : 
+                                activeTab === 'contribution' ? 'DE CONTRIBUTION' : 
+                                activeTab === 'seniority' ? 'D\'ANCIENNETÉ' : 
+                                activeTab === 'guildatons' ? 'DE RICHESSE' : 
+                                activeTab === 'discord' ? (discordMetric === 'messages' ? 'DE DISCUSSION' : 'DE PRÉSENCE VOCALE') :
+                                (activeTab === 'general' ? 'D\'XP GÉNÉRALE' : 'DE PRESTIGE')
+                             }
                         </h2>
                     </div>
 
@@ -329,7 +400,14 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                     key={entry.profileId}
                                     entry={entry}
                                     valueLabel={getValueLabel(entry)}
-                                    accentColor={activeTab === 'activity' ? 'emerald' : activeTab === 'contribution' ? 'purple' : activeTab === 'seniority' ? 'cyan' : activeTab === 'guildatons' ? 'yellow' : (activeTab === 'general' ? 'blue' : 'amber')}
+                                    accentColor={
+                                        activeTab === 'activity' ? 'emerald' : 
+                                        activeTab === 'contribution' ? 'purple' : 
+                                        activeTab === 'seniority' ? 'cyan' : 
+                                        activeTab === 'guildatons' ? 'yellow' : 
+                                        activeTab === 'discord' ? (discordMetric === 'messages' ? 'indigo' : 'cyan') :
+                                        (activeTab === 'general' ? 'blue' : 'amber')
+                                    }
                                 />
                             ))}
                         </div>

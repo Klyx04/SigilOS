@@ -473,7 +473,9 @@ client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
     await updateDiscordActivity(message.author.id, message.guild.id, {
         lastDiscordMessageAt: new Date(),
-        discordMessageCountWeekly: { increment: 1 }
+        discordMessageCountWeekly: { increment: 1 },
+        discordMessageCountMonthly: { increment: 1 },
+        discordMessageCountTotal: { increment: 1 }
     }, 'Message');
 });
 
@@ -497,7 +499,9 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
             const durationMin = Math.floor((now - startTime) / 60000);
             if (durationMin > 0) {
                 await updateDiscordActivity(userId, guildId, { 
-                    discordVoiceTimeWeekly: { increment: durationMin } 
+                    discordVoiceTimeWeekly: { increment: durationMin },
+                    discordVoiceTimeMonthly: { increment: durationMin },
+                    discordVoiceTimeTotal: { increment: durationMin }
                 }, `Voice Session (${durationMin}m)`);
             }
             voiceSessions.delete(userId);
@@ -511,8 +515,6 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     await updateDiscordActivity(user.id, reaction.message.guild.id, { 
         lastDiscordReactionAt: new Date() 
     }, 'Reaction');
-});
-
 // 4. TRACK TYPING
 client.on(Events.TypingStart, async (typing) => {
     if (typing.user.bot || !typing.guild) return;
@@ -521,18 +523,22 @@ client.on(Events.TypingStart, async (typing) => {
     }, 'Typing');
 });
 
-// 5. PERIODIC RESET - Every Tuesday 07:00
+// 5. PERIODIC RESET - Every Tuesday 07:00 (Weekly) & 1st of Month (Monthly)
 let lastResetWeek = -1;
+let lastResetMonth = -1;
 
-// On startup, if we are already past the reset time for the current week,
-// set lastResetWeek to current week to prevent a reset loop on every restart on Tuesdays.
+// On startup, if we are already past the reset time for the current week/month,
+// set to current to prevent a reset loop on every restart.
 const startupNow = new Date();
 if (startupNow.getDay() === 2 && startupNow.getHours() >= 7) {
     lastResetWeek = getWeekNumber(startupNow);
 }
+lastResetMonth = startupNow.getMonth();
 
 setInterval(async () => {
     const now = new Date();
+    
+    // Weekly Reset (Tuesdays)
     const currentWeek = getWeekNumber(now);
     if (now.getDay() === 2 && now.getHours() >= 7 && lastResetWeek !== currentWeek) {
         lastResetWeek = currentWeek;
@@ -546,7 +552,25 @@ setInterval(async () => {
             });
             console.log("[Discord Bot] Weekly Reset of Discord stats completed.");
         } catch (e) {
-            console.error(`[Discord Bot] Failed to reset Discord stats:`, e);
+            console.error(`[Discord Bot] Failed to reset Weekly Discord stats:`, e);
+        }
+    }
+
+    // Monthly Reset (1st of Month)
+    const currentMonth = now.getMonth();
+    if (now.getDate() === 1 && now.getHours() >= 0 && lastResetMonth !== currentMonth) {
+        lastResetMonth = currentMonth;
+        console.log("[Discord Bot] Monthly Reset of Discord stats starting...");
+        try {
+            await db.userProfile.updateMany({
+                data: {
+                    discordVoiceTimeMonthly: 0,
+                    discordMessageCountMonthly: 0
+                }
+            });
+            console.log("[Discord Bot] Monthly Reset of Discord stats completed.");
+        } catch (e) {
+            console.error(`[Discord Bot] Failed to reset Monthly Discord stats:`, e);
         }
     }
 }, 60000);

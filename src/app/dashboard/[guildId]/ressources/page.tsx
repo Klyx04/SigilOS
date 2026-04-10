@@ -19,7 +19,10 @@ export const metadata = {
     description: "Hub centralisé : Almanax, actualités Ankama, guides, builds et outils communautaires Dofus.",
 };
 
-type Props = { params: Promise<{ guildId: string }> };
+type Props = { 
+    params: Promise<{ guildId: string }>;
+    searchParams: Promise<{ tab?: string }>;
+};
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
@@ -68,11 +71,13 @@ async function AlmanaxSection() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function RessourcesPage({ params }: Props) {
+export default async function RessourcesPage({ params, searchParams }: Props) {
     const session = await auth();
     if (!session?.user) redirect("/");
 
     const { guildId } = await params;
+    const { tab } = await searchParams;
+    const initialTab = tab || "almanax";
 
     const user = await getUserContext(guildId);
     if (!user.canViewResources) return <AccessDenied />;
@@ -91,7 +96,7 @@ export default async function RessourcesPage({ params }: Props) {
                 backHref={`/dashboard/${guildId}`}
             />
 
-            <Tabs defaultValue="almanax" className="w-full">
+            <Tabs defaultValue={initialTab} className="w-full">
                 <div className="overflow-x-auto pb-4 custom-scrollbar">
                     <TabsList className="inline-flex h-auto w-max min-w-full justify-start md:justify-center p-1 bg-zinc-950/40 border border-white/5 rounded-2xl gap-2 font-mono">
                         <TabsTrigger

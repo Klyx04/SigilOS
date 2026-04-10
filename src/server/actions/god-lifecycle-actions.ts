@@ -259,10 +259,17 @@ export async function getSoftDeletedGuilds() {
             isActive: false,
             deletedAt: { not: null }
         },
-        include: {
+        orderBy: { scheduledDeletion: 'asc' },
+        select: {
+            id: true,
+            name: true,
+            discordGuildId: true,
+            isActive: true,
+            deletedAt: true,
+            deletionReason: true,
+            scheduledDeletion: true,
             _count: { select: { profiles: true } }
-        },
-        orderBy: { scheduledDeletion: 'asc' }
+        }
     });
 }
 
@@ -278,7 +285,13 @@ export async function getSoftDeletedProfiles() {
             status: 'ARCHIVED',
             archivedAt: { not: null }
         },
-        include: {
+        select: {
+            id: true,
+            userId: true,
+            guildId: true,
+            status: true,
+            archivedAt: true,
+            scheduledDeletion: true,
             guild: { select: { name: true } },
             user: { select: { name: true } }
         },
@@ -295,7 +308,13 @@ export async function getArchivedProfiles() {
 
     return db.userProfile.findMany({
         where: { status: 'ARCHIVED' },
-        include: {
+        select: {
+            id: true,
+            userId: true,
+            guildId: true,
+            status: true,
+            archivedAt: true,
+            scheduledDeletion: true,
             guild: { select: { name: true } },
             user: { select: { name: true } }
         },
@@ -328,6 +347,14 @@ export async function getPlatformBans() {
     if (!isAdmin) return [];
 
     return db.platformBan.findMany({
+        select: {
+            id: true,
+            entityType: true,
+            discordId: true,
+            reason: true,
+            bannedBy: true,
+            createdAt: true
+        },
         orderBy: { createdAt: 'desc' }
     });
 }
@@ -385,7 +412,17 @@ export async function getGuildMembersForGod(guildId: string) {
     const [members, guild] = await Promise.all([
         db.userProfile.findMany({
             where: { guildId },
-            include: {
+            select: {
+                id: true,
+                userId: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+                archivedAt: true,
+                archiveReason: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                scheduledDeletion: true,
                 user: {
                     select: {
                         name: true,
@@ -417,6 +454,7 @@ export async function getGuildMembersForGod(guildId: string) {
             archiveReason: m.archiveReason,
             pseudoDofus: m.pseudoDofus,
             discordNickname: m.discordNickname,
+            scheduledDeletion: m.scheduledDeletion?.toISOString() || null,
             user: {
                 name: m.user.name,
                 image: m.user.image,

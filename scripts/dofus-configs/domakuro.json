@@ -3,20 +3,32 @@
   "displayName": "Domakuro",
   "color": "#2F4F4F",
   "dofusItemId": 23237,
-  "successName": "Le destin de deux dragons",
+  "successName": "Les grands esprits se rencontrent",
   "recommendedLevel": 180,
+  "successDescription": "Obtenir le Domakuro après avoir réconcilié les esprits de Pandala.",
   "successes": [
     {
-      "name": "Eliocalypse & Pandala",
-      "zone": "Pandala / Dimensions",
+      "name": "Prerequisites Pandala",
+      "zone": "Pandala",
+      "isPrerequisite": true,
       "quests": [
-        "Eliocalypse : Résonance",
-        "Eliocalypse : Prélude",
-        "Le réveil de Pandala",
-        "L'héritage de Tanukoui-San",
-        "Le destin de deux dragons"
+        { "id": 2149, "name": "Le réveil de Pandala" },
+        { "id": 2150, "name": "À la croisée des mondes" }
+      ]
+    },
+    {
+      "name": "Les grands esprits se rencontrent",
+      "zone": "Pandala",
+      "quests": [
+        { "id": 2151, "name": "Sous le bois de sa colère" },
+        { "id": 2152, "name": "Au nom de l'Art" },
+        { "id": 2153, "name": "La jetée des enfants perdus" },
+        { "id": 2154, "name": "Le festival de la lanterne" },
+        { "id": 2155, "name": "L'équilibre des forces" },
+        { "id": 2197, "name": "Sang d'encre" }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23032.png"
+  "imageUrl": "https://static.dofusdb.fr/items/23237.png",
+  "iconId": 23237
 }

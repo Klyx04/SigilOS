@@ -3,36 +3,90 @@
   "displayName": "Dofus Ocre",
   "color": "#FFA500",
   "successName": "L'éternelle moisson",
-  "recommendedLevel": 160,
-  "description": null,
+  "recommendedLevel": 40,
+  "successDescription": "Capturer les âmes de nombreux monstres, boss de donjons et archimonstres pour obtenir le Dofus Ocre. Quête longue terme — utiliser Metamob pour suivre la progression.",
   "dofusItemId": 714,
-  "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23006.png",
-  "compiledAt": "2026-04-04T13:44:52.230Z",
+  "compiledAt": "2026-04-09T09:36:04.882Z",
+  "compilerVersion": "3.0",
   "chains": [
     {
-      "sectionName": "L'éternelle moisson",
-      "sectionType": "MAIN_CHAIN",
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
       "zone": "Monde des Douze",
-      "description": null,
+      "description": "Avoir le sort Capture d'Âme (obtenu après le donjon du Kwakwa). Niveau minimum 40.",
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Un sage parmi les sages",
+          "dofusdbId": 2193,
+          "level": 40,
+          "zone": "Maison des Lenalds",
+          "npcName": "Wanald le Sage Lenald",
+          "npcSubArea": "Maison des Lenalds",
+          "coords": {
+            "x": 22,
+            "y": -28,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Entrer dans la maison des Lenalds pour voir Ronald",
+            "Prouver que vous êtes folt et lusé comme un Lenald",
+            "Parler à la doyenne des Lenalds",
+            "Rencontrer la capitaine Lily au port de Madrestam",
+            "Se prémunir contre la myxomawose et prendre le bateau pour l'île des Wabbits",
+            "Trouver un sage lenald sur l'île de la Cawotte",
+            "Aller voir Wanald le Sage Lenald",
+            "Retrouver le sage disparu dans les souterrains des Wabbits",
+            "Vaincre les mangeuws de cawottes",
+            "Aller voir Ronald le sage lenald",
+            "Escorter Ronald en lieu sûr",
+            "Discuter avec Ronald pour en apprendre davantage sur les six Dofus Primordiaux"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        }
+      ]
+    },
+    {
+      "sectionName": "L'éternelle moisson",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Monde des Douze (tous les donjons)",
+      "description": "La quête principale : capturer les âmes de monstres, archimonstres et boss de donjons répartis sur tout le Monde des Douze. Suivi recommandé via Metamob.fr et DPLN.",
+      "isSynergyCandidate": true,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
       "entries": [
         {
           "name": "La moisson éternelle",
           "dofusdbId": null,
           "level": null,
           "zone": null,
+          "npcName": null,
           "npcSubArea": null,
           "coords": null,
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
           "objectives": [],
           "stepOrder": 0,
           "requirements": []
         }
       ]
     }
-  ]
+  ],
+  "globalSummary": {
+    "totalQuests": 2,
+    "totalItems": 0,
+    "totalDungeons": 0,
+    "items": [],
+    "dungeons": []
+  }
 }

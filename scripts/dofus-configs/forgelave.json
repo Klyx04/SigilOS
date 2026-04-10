@@ -1,26 +1,80 @@
 {
   "slug": "forgelave",
   "displayName": "Dofus Forgelave",
-  "color": "#FF4500",
+  "nameShort": "Forgelave",
+  "color": "#E67E22",
   "dofusItemId": 19398,
+  "successName": "Entre le marteau et l'enclume",
+  "recommendedLevel": 200,
+  "successDescription": "Obtenir le Dofus Forgelave en enquêtant sur la Fratrie des Oubliés et les tours de Bethel et Solar.",
+  "globalItemsRequired": [
+    { "id": 15263, "name": "Rose des sables", "amount": 1000 },
+    { "id": 472, "name": "Bois de Chêne", "amount": 70 },
+    { "id": 425, "name": "Trèfle à 5 feuilles", "amount": 50 },
+    { "id": 433, "name": "Belladone", "amount": 45 },
+    { "id": 310, "name": "Eau potable", "amount": 20 },
+    { "id": 17403, "name": "Salicorne", "amount": 8 },
+    { "id": 17995, "name": "Écume de mer", "amount": 8 },
+    { "id": 18193, "name": "Bois d'Aquajou", "amount": 8 }
+  ],
   "successes": [
     {
-      "name": "Les quêtes",
-      "zone": "unknown",
+      "name": "La Fratrie des Oubliés",
+      "zone": "Tours de la Fratrie",
+      "id": 1650,
       "quests": [
-        "Dernier contact",
-        "L'arme fatale",
-        "Battre le fer tant qu'il est chaud",
-        "La quete sous l'eau",
-        "Algue au rythme",
-        "La croisiere ca m'use",
-        "Coeur de pierre",
-        "Les pierres a feu",
-        "Plantes contre trepamorts",
-        "La guerre des marches",
-        "Du feu de dieu"
+        { "name": "Aventure miniature", "id": 1607 },
+        { "name": "Ne tirez pas sur le messager", "id": 1845 },
+        { "name": "À la rescousse des magypus", "id": 1853 },
+        { "name": "Dernier contact", "id": 1867 },
+        { "name": "La voix des morts", "id": 1868 },
+        { "name": "Le fléau de Burin", "id": 1869 },
+        { "name": "Le gang des Toxines", "id": 1934 },
+        { "name": "Sombres desseins", "id": 1935 },
+        { "name": "Le jour des assassins", "id": 1936 },
+        { "name": "Le piège se referme", "id": 1937 }
+      ]
+    },
+    {
+      "name": "L'armée des morts",
+      "zone": "Marches de l'Est",
+      "id": 1651,
+      "quests": [
+        { "name": "La colère des dieux", "id": 1938 },
+        { "name": "L'arme fatale", "id": 1939 },
+        { "name": "Les coeurs livides", "id": 1954 },
+        { "name": "La guerre des Marches", "id": 1940 },
+        { "name": "La quête sous l'eau", "id": 1955 },
+        { "name": "Craquements de coeur", "id": 1956 }
+      ]
+    },
+    {
+      "name": "Marche et crève",
+      "zone": "Volcan de Chabrulé",
+      "id": 1652,
+      "quests": [
+        { "name": "Coeur de pierre", "id": 1941 },
+        { "name": "Les pierres à feu", "id": 1942 },
+        { "name": "Du feu de dieu", "id": 1943 },
+        { "name": "Plantes contre Trépamorts", "id": 1944 },
+        { "name": "Le héros de Plantes contre Trépamorts", "id": 1945 },
+        { "name": "Battre le fer tant qu'il est chaud", "id": 1957, "dungeons": [{ "id": 105, "bossId": 5110, "name": "Tour de Bethel" }] }
+      ]
+    },
+    {
+      "name": "Cimetière marin",
+      "zone": "Zone Krobe",
+      "id": 1653,
+      "quests": [
+        { "name": "Algue au rythme", "id": 1946 },
+        { "name": "Au-delà de la Côte", "id": 1947 },
+        { "name": "La croisière, ça m'use", "id": 1948 },
+        { "name": "Toucher le fond", "id": 1949 },
+        { "name": "La mort de ma vie", "id": 1950 },
+        { "name": "Krobe en bourg", "id": 1958, "dungeons": [{ "id": 104, "bossId": 5100, "name": "Tour de Solar" }] }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23024.png"
+  "imageUrl": "/module-dofus/Dofus_Forgelave.png",
+  "iconId": 23024
 }

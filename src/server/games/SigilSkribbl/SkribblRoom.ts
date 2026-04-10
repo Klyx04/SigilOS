@@ -52,7 +52,7 @@ export class SkribblRoom {
     private id: string;
     private guildId: string;
     private maxRounds: number = 3;
-    private roundDuration: number = 60;
+    private roundDuration: number = 90; // Increased to 90s for more drawing time
     private difficulty: "facile" | "moyen" | "difficile" = "moyen";
     private allowedCategories: string[] = [];
 
@@ -81,6 +81,7 @@ export class SkribblRoom {
     // Canvas history pour les spectateurs qui rejoignent en retard
     private canvasActions: any[] = [];
     private usedWords: Set<string> = new Set();
+    private gameHistory: any[] = []; // Stores summaries of finished rounds
 
     constructor(private io: Server, private manager: SkribblManager, config: any) {
         this.id = config.id;
@@ -193,6 +194,8 @@ export class SkribblRoom {
             this.canvasActions.pop();
         }
         this.emitToAll("skribbl:draw:undo");
+        // [Hotfix] Automatically restore the canvas layout internally for all clients when undoing
+        this.emitToAll("skribbl:canvas:restore", { actions: this.canvasActions });
     }
 
     public syncState() {
@@ -234,7 +237,8 @@ export class SkribblRoom {
                 isSpectator: p.isSpectator
             })),
             drawerId: this.players.find(p => p.isDrawing)?.id || null,
-            drawerUserId: this.players.find(p => p.isDrawing)?.userId || null
+            drawerUserId: this.players.find(p => p.isDrawing)?.userId || null,
+            gameHistory: this.state === "GAME_END" ? this.gameHistory : [],
         };
 
         // On ne doit pas envoyer currentWord à tout le monde
@@ -275,8 +279,8 @@ export class SkribblRoom {
 
     public startGame() {
         if (this.state !== "LOBBY") return;
-        if (this.players.filter(p => p.isConnected && !p.isSpectator).length < 2) {
-            this.emitToAll("skribbl:chat:message", { type: "system", text: "Il faut au moins 2 joueurs (hors spectateurs) pour lancer la partie." });
+        if (this.players.filter(p => p.isConnected && !p.isSpectator).length < 1) {
+            this.emitToAll("skribbl:chat:message", { type: "system", text: "Il faut au moins 1 joueur pour lancer la partie." });
             return;
         }
 
@@ -466,6 +470,14 @@ export class SkribblRoom {
 
     private endRound() {
         this.stopTimer();
+        
+        // Store round in history before clearing
+        this.gameHistory.push({
+            word: this.currentWord,
+            drawer: this.players[this.drawerIndex]?.userName || "Inconnu",
+            canvasActions: [...this.canvasActions]
+        });
+
         this.state = "ROUND_END";
 
         // Logic for drawer points
@@ -577,6 +589,7 @@ export class SkribblRoom {
             this.drawerIndex = -1;
             this.players.forEach(p => p.score = 0);
             this.usedWords.clear();
+            this.gameHistory = [];
             this.syncState();
         }, 10000); // 10 sec de podium
     }

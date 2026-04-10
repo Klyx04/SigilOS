@@ -72,7 +72,7 @@ async function generateWords() {
     if (lowerName.includes("donjon") || lowerName.includes("quête") || lowerName.includes("succès") || lowerName.includes("pnj") || lowerName.includes("test")) return;
     if (name.startsWith("Panoplie")) return;
 
-    const iconUrl = m.img || (m.ankamaId ? `https://api.dofusdb.fr/img/monsters/${m.ankamaId}.png` : null);
+    const iconUrl = m.img || (m.ankamaId ? `https://static.dofusdb.fr/monsters/${m.ankamaId}.png` : null);
     if (!iconUrl || iconUrl.includes("undefined")) return;
 
     const difficulty = classifyWord(name, m.level);
@@ -89,7 +89,7 @@ async function generateWords() {
     if (name.startsWith("(") || name.includes("Test") || lowerName.includes("quête") || lowerName.includes("succès") || lowerName.includes("pnj") || lowerName.includes("[")) return;
     if (name.startsWith("Panoplie")) return;
 
-    const iconUrl = i.img || (i.ankamaId ? `https://api.dofusdb.fr/img/items/${i.ankamaId}.png` : null);
+    const iconUrl = i.img || (i.ankamaId ? `https://static.dofusdb.fr/items/${i.ankamaId}.png` : null);
     if (!iconUrl || iconUrl.includes("/0.png") || iconUrl.includes("undefined")) return;
 
     // Priorité Dofus (toujours en difficile ou moyen si petit)

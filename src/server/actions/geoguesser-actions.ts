@@ -28,25 +28,25 @@ export async function submitGeoguesserScore(
                         userId: session.user.id
                     }
                 },
-                create: {
-                    guildId,
-                    userId: session.user.id,
-                    userName: session.user.name || "Inconnu",
-                    userAvatar: session.user.image,
-                    bestScore: score,
-                    totalPoints: score,
-                    gamesPlayed: 1,
-                    avgDistance: avgDistance
-                },
-                update: {
-                    totalPoints: { increment: score },
-                    gamesPlayed: { increment: 1 },
-                    avgDistance: {
-                        set: avgDistance
+                    create: {
+                        guildId,
+                        userId: session.user.id,
+                        userName: ctx.name || "Inconnu",
+                        userAvatar: ctx.image,
+                        bestScore: score,
+                        totalPoints: score,
+                        gamesPlayed: 1,
+                        avgDistance: avgDistance
                     },
-                    userName: session.user.name || "Inconnu",
-                    userAvatar: session.user.image,
-                }
+                    update: {
+                        totalPoints: { increment: score },
+                        gamesPlayed: { increment: 1 },
+                        avgDistance: {
+                            set: avgDistance
+                        },
+                        userName: ctx.name || "Inconnu",
+                        userAvatar: ctx.image,
+                    }
             });
 
             // Re-check best score to ensure we don't overwrite with lower
@@ -64,8 +64,8 @@ export async function submitGeoguesserScore(
             data: {
                 guildId,
                 userId: session.user.id,
-                userName: session.user.name || "Inconnu",
-                userAvatar: session.user.image,
+                userName: ctx.name || "Inconnu",
+                userAvatar: ctx.image,
                 score,
                 distance: avgDistance
             }

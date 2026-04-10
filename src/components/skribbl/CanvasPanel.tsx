@@ -122,9 +122,9 @@ export default function CanvasPanel({ socket, gameState, isDrawer, isSpectator }
 
         const redrawCanvas = (actions: any[]) => {
             if (!canvas) return;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const ctx2 = canvas.getContext("2d");
+            if (!ctx2) return;
+            ctx2.clearRect(0, 0, canvas.width, canvas.height);
             actions.forEach((dataList: any) => {
                 const arr = Array.isArray(dataList) ? dataList : [dataList];
                 arr.forEach((data: any) => {
@@ -143,12 +143,21 @@ export default function CanvasPanel({ socket, gameState, isDrawer, isSpectator }
             });
         };
 
+        // Redraw on mount or when gameState changes
+        if (gameState.canvasData && Array.isArray(gameState.canvasData)) {
+            redrawCanvas(gameState.canvasData);
+        }
+
         socket.on("skribbl:canvas:restore", ({ actions }) => {
             redrawCanvas(actions);
         });
 
         socket.on("skribbl:draw:undo", () => {
-            socket.emit("skribbl:room:join", { roomId: gameState.id, playerObj: {} });
+            // Server handles undo and emits skribbl:canvas:restore
+        });
+
+        socket.on("skribbl:draw:undo", () => {
+            // Do not force a rejoin, the server will send a skribbl:canvas:restore event.
         });
 
         const sendBatch = setInterval(() => {

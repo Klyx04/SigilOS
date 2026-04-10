@@ -28,7 +28,7 @@ export default async function SigilSkribblPage({
         <div className="fixed inset-0 top-14 md:left-[280px] bg-[#1a4e9b] z-[41] overflow-hidden">
             {/* Main Game Interface - Breaks out of the 1600px container limit for true full-width */}
             <div className="h-full w-full overflow-hidden relative">
-                <SkribblGame roomId={roomId} guildId={guildId} />
+                <SkribblGame roomId={roomId} guildId={guildId} userName={user.name!} userAvatar={user.image!} />
             </div>
         </div>
     );

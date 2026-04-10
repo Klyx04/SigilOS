@@ -2,17 +2,19 @@
   "dofus": "vulbis",
   "displayName": "Dofus Vulbis",
   "color": "#FFD700",
-  "successName": "Le pouvoir de l'imagination",
-  "recommendedLevel": 200,
-  "successDescription": "Obtenir le Dofus Vulbis via les quêtes de Crocabulia et la forêt Maléfique.",
-  "dofusItemId": 925,
-  "compiledAt": "2026-04-04T15:56:45.798Z",
+  "successName": "Rêves de dragons",
+  "recommendedLevel": 180,
+  "description": "Obtenir le Dofus Vulbis via la série de quêtes de l'Éliocalypse. Nécessite un métier Alchimiste ou Paysan niveau 200.",
+  "dofusItemId": 21186,
+  "iconId": 23004,
+  "imageUrl": "/module-dofus/Dofus_Vulbis.png",
+  "compiledAt": "2026-04-10T16:43:20.594Z",
   "compilerVersion": "3.0",
   "chains": [
     {
-      "sectionName": "Le pouvoir de l'imagination",
-      "sectionType": "MAIN_CHAIN",
-      "zone": "Crocabulia / Pandala",
+      "sectionName": "Prérequis",
+      "sectionType": "PREREQUISITE",
+      "zone": "Éliocalypse",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
@@ -20,90 +22,557 @@
       "dungeons": [],
       "entries": [
         {
-          "name": "Un œuf de rêve",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcName": null,
-          "npcSubArea": null,
-          "coords": null,
+          "name": "Ce sera mieux avant",
+          "dofusdbId": 2064,
+          "level": 50,
+          "zone": "Tainéla",
+          "npcName": "Entropix",
+          "npcSubArea": "Tainéla",
+          "coords": {
+            "x": 2,
+            "y": 1,
+            "worldId": 1
+          },
           "isDungeon": false,
-          "itemsRequired": [],
-          "dungeonsRequired": [],
-          "objectives": [],
+          "itemsRequired": [
+            {
+              "id": 20899,
+              "name": "Inspiration du moment",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/136116.png"
+            },
+            {
+              "id": 20898,
+              "name": "Date d'expiration",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/136115.png"
+            },
+            {
+              "id": 20897,
+              "name": "Air du temps",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/136114.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 114,
+              "name": "Sanctuaire de Torkélonia",
+              "level": null,
+              "bossName": "Cronnibal",
+              "img": "https://api.dofusdb.fr/img/monsters/1908.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Entropix",
+            "Aller voir Envoyée de Xélor",
+            "Aller voir Docteur Hou",
+            "Ramener à Roukerol de Nerouz : x4 Inspiration du moment",
+            "Ramener à Roukerol de Nerouz : x4 Date d'expiration",
+            "Ramener à Roukerol de Nerouz : x4 Air du temps",
+            "Escorter Entropix jusqu'au portail de Tainéla",
+            "Entrer dans l'anomalie du passé en étant équipé du scaphandre",
+            "Aller voir Martalo",
+            "Détruire le gardien de l'anomalie pour libérer le Veilleur",
+            "Aller voir Martalo",
+            "Retourner voir Envoyée de Xélor"
+          ],
           "stepOrder": 0,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
         },
         {
-          "name": "La magicienne des marécages",
-          "dofusdbId": 1462,
-          "level": 40,
-          "zone": "Crocabulia / Pandala",
-          "npcName": "Mériana",
+          "name": "Le sens du sacrifice",
+          "dofusdbId": 2087,
+          "level": 200,
+          "zone": "Sanctuaire de Torkélonia - Cinquième salle",
+          "npcName": "Porte-voix de Torkélonia",
+          "npcSubArea": "Sanctuaire de Torkélonia - Cinquième salle",
+          "coords": {
+            "x": -84,
+            "y": -16,
+            "worldId": 22
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 114,
+              "name": "Sanctuaire de Torkélonia",
+              "level": null,
+              "bossName": "Cronnibal",
+              "img": "https://api.dofusdb.fr/img/monsters/1908.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Vaincre x1 {monster,5806} en un seul combat",
+            "Aller voir Porte-voix de Torkélonia",
+            "Aller voir Prêtre d'Ixchelonia",
+            "Découvrir la carte : Autel des sacrifices",
+            "Aller voir Prêtre d'Ixchelonia",
+            "Capturer un crapaud-mufle albinos et l'enfermer dans la cage",
+            "Collecter 5 algues sous la surface du lac",
+            "Attacher le crapaud-mufle albinos au piédestal",
+            "Aller voir Prêtre d'Ixchelonia",
+            "Suivre les instructions du Prêtre d'Ixchelonia tout au long du rituel sacrificiel",
+            "Aller voir Porte-voix de Torkélonia",
+            "Faire apparaître la déesse Ixchelonia",
+            "Aller voir Ixchelonia",
+            "Aller voir Ixchelonia",
+            "Aller voir Prêtre d'Ixchelonia",
+            "Aller voir Crokalcrolak",
+            "Ramener Crokalcrolak en toute sécurité jusqu'à Astrub",
+            "Aller voir Crokalcrolak"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2064
+            }
+          ],
+          "notes": null
+        }
+      ]
+    },
+    {
+      "sectionName": "Rêves de dragons",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Éliocalypse / Crocuzko",
+      "description": null,
+      "isSynergyCandidate": true,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Amaknanomalie",
+          "dofusdbId": 2078,
+          "level": 200,
+          "zone": "Éliocalypse / Crocuzko",
+          "npcName": "Envoyée de Xélor",
           "npcSubArea": null,
           "coords": {
-            "x": -6,
-            "y": -3,
+            "x": -1,
+            "y": 24,
             "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 21186,
+              "name": "Dofus Vulbis",
+              "amount": 4,
+              "img": "https://api.dofusdb.fr/img/items/23004.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Entrer dans l'anomalie signalée par l'Envoyée de Xélor",
+            "Vaincre les gardiens de l'anomalie",
+            "Explorer l'anomalie du village incendié",
+            "Affronter le chef du village",
+            "Équiper le Dofus et quitter l'anomalie",
+            "Montrer à Envoyée de Xélor : 1 Dofus Vulbis",
+            "Vaincre les assaillants dragoeufs",
+            "Aller voir Envoyée de Xélor",
+            "Se rendre dans la dimension du Xélorium",
+            "Montrer à Doc Emiette Borgne : 1 Dofus Vulbis",
+            "Capturer la première boule d'énergie dans l'avant-poste des Voyageurs",
+            "Capturer la seconde boule d'énergie dans l'avant-poste des Voyageurs",
+            "Retourner voir Doc Emiette Borgne"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": true,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "La mère des Dragoeufs",
+          "dofusdbId": 2079,
+          "level": 200,
+          "zone": "Temple Osamodas",
+          "npcName": "Zeurg",
+          "npcSubArea": "Temple Osamodas",
+          "coords": {
+            "x": 8,
+            "y": 2,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 21188,
+              "name": "Corne dorée",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/47700.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 116,
+              "name": "Épreuve de Draegnerys",
+              "level": null,
+              "bossName": "Draegnerys",
+              "img": "https://api.dofusdb.fr/img/monsters/1915.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Se rendre au temple d'Osamodas",
+            "Survivre à l'embuscade des dragoeufs",
+            "Aller voir Zeurg",
+            "Obtenir un parangon et le déposer au pied de la statue du dieu Osamodas",
+            "Montrer à Dicton Karly : 1 Corne dorée",
+            "Vaincre les assassins dragoeufs",
+            "Aller voir Dicton Karly",
+            "Aller voir Draegnerys",
+            "Combattre des aventuriers dans le sanctuaire des Dragoeufs jusqu'à ce que Draegnerys soit satisfaite",
+            "Retourner voir Draegnerys",
+            "Découvrir la carte : Portail de Crocuzko",
+            "Trouver l'entrée de l'antre du dragon",
+            "Affronter les dragoeufs qui gardent l'entrée",
+            "Découvrir la carte : Antre de la Mort Rouge",
+            "Aller voir La Mort Rouge",
+            "Aller voir Tylezia"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2078
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Cauchemar infini",
+          "dofusdbId": 2080,
+          "level": 200,
+          "zone": "Jungle Lunaire",
+          "npcName": "Draconiros",
+          "npcSubArea": "Jungle Lunaire",
+          "coords": {
+            "x": -79,
+            "y": -11,
+            "worldId": 22
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 21190,
+              "name": "Griffe de chagouar",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/47680.png"
+            },
+            {
+              "id": 21191,
+              "name": "Ombre prédatrice",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24112.png"
+            },
+            {
+              "id": 21192,
+              "name": "Rugissement nocturne",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24113.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Draconiros",
+            "Ramener à Draconiros : x1 Griffe de chagouar",
+            "Ramener à Draconiros : x1 Ombre prédatrice",
+            "Ramener à Draconiros : x1 Rugissement nocturne",
+            "Retrouver l'esprit d'Oyukipoca dans les paradoxes des Songes infinis",
+            "Aller voir Oyukipoca",
+            "Vaincre le cauchemar avec l'aide d'Oyukipoca",
+            "Aller voir Oyukipoca",
+            "Découvrir la carte : Temple oublié d'Oyukipoca",
+            "Se frayer un chemin dans le temple",
+            "Prier dans le temple d'Oyukipoca",
+            "Retourner voir Tylezia"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2079
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La Nuit-qui-rugit",
+          "dofusdbId": 2081,
+          "level": 200,
+          "zone": "Puits de l'Eau-qui-mord",
+          "npcName": "Ixchelonia",
+          "npcSubArea": "Puits de l'Eau-qui-mord",
+          "coords": {
+            "x": -83,
+            "y": -15,
+            "worldId": 22
           },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
+          "externalRef": null,
           "objectives": [
-            "Aller voir Mériana"
+            "Amener la déesse Ixchelonia à se manifester sur Crocuzko",
+            "Aller voir Ixchelonia",
+            "Prier dans le temple de Kinichinti",
+            "Aller voir Kinichinti",
+            "Montrer aux Crocuzkiens la puissance du Lézard-Soleil",
+            "Retourner voir Kinichinti",
+            "Prier devant le puits de Chaklaplok",
+            "Aller voir Chaklaplok",
+            "Jeter une vingtaine d'anémones de sang dans le puits de Chaklaplok",
+            "Aller voir Chaklaplok",
+            "Attirer un chagouar devant l'antre de Tylezia",
+            "Dompter les chagouars",
+            "Guider les chagouars jusqu'au temple d'Oyukipoca",
+            "Convertir un Crocodaille crocuzkien au culte d'Oyukipoca",
+            "Escorter le Crocuzkien dévôt jusqu'au temple d'Oyukipoca",
+            "Prier devant l'autel pour qu'Oyukipoca se manifeste",
+            "Aller voir Oyukipoca",
+            "Assister aux retrouvailles entre Tylezia et Oyukipoca",
+            "Aller voir Dieu Osamodas",
+            "Aller voir Tylezia"
           ],
-          "stepOrder": 1,
-          "isSynergyCandidate": false,
-          "requirements": []
-        },
-        {
-          "name": "Une étrange rencontre",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcName": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "dungeonsRequired": [],
-          "objectives": [],
-          "stepOrder": 2,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 1462
-            }
-          ]
-        },
-        {
-          "name": "Le mystère de l'œuf de Vulbis",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcName": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "dungeonsRequired": [],
-          "objectives": [],
           "stepOrder": 3,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 1462
+              "dofusdbId": 2080
             }
-          ]
+          ],
+          "notes": null
+        },
+        {
+          "name": "Les raisons de la colère",
+          "dofusdbId": 2082,
+          "level": 200,
+          "zone": "Antre de la Mort Rouge",
+          "npcName": "Terrakourial",
+          "npcSubArea": "Antre de la Mort Rouge",
+          "coords": {
+            "x": -57,
+            "y": -1,
+            "worldId": 19
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Entrer dans le rêve de Terrakourial",
+            "Explorer le rêve de Terrakourial",
+            "Aller voir Terrakourial",
+            "Tenter d'apaiser la colère de Terrakourial",
+            "Aller voir Draconiros",
+            "Obtenir un souvenir de Maminala",
+            "Obtenir une offrande du gardien du Dofus Ocre",
+            "Obtenir un morceau d'écorce de l'ancienne demeure de Terrakourial",
+            "Obtenir une offrande de la fille de Terrakourial",
+            "Obtenir un souffle de la mère de Terrakourial",
+            "Apaiser la colère de Terrakourial",
+            "Aller voir Terrakourial",
+            "Retourner voir Tylezia"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2081
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "Le temps des secrets",
+          "dofusdbId": 2083,
+          "level": 200,
+          "zone": "Bibliotemple",
+          "npcName": "Envoyée de Xélor",
+          "npcSubArea": "Bibliotemple",
+          "coords": {
+            "x": 2,
+            "y": 1,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 8365,
+              "name": "Corne brisée de Crocabulia",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/47652.png"
+            },
+            {
+              "id": 21205,
+              "name": "Binocles du Grand Chronomaître",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/164022.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 7,
+              "name": "Antre de Crocabulia",
+              "level": null,
+              "bossName": "Dragmatique",
+              "img": "https://api.dofusdb.fr/img/monsters/1902.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Envoyée de Xélor",
+            "Découvrir la date de la mort du fils de Tylezia",
+            "Retourner voir Envoyée de Xélor",
+            "Rejoindre le lieu où vous devez rencontrer Martalo",
+            "Se débarrasser des chronomorphes qui perturbent le point de rendez-vous",
+            "Aller voir Martalo",
+            "Entrer dans l'Horloge de Xélor",
+            "Aller voir Fraouctor",
+            "Ramener à Fraouctor : x1 Corne brisée de Crocabulia",
+            "Ramener à Fraouctor : x1 Binocles du Grand Chronomaître",
+            "Veiller à ce que Fraouctor ne soit pas dérangé pendant qu'il consulte les archives",
+            "Voyager dans le passé avec Fraouctor",
+            "Écouter la discussion entre Osamodas et le fils de Tylezia",
+            "Aller voir Fraouctor",
+            "Retourner voir Tylezia",
+            "Aller voir Dieu Osamodas",
+            "Affronter l'invocation du dieu Osamodas",
+            "Aller voir Dieu Osamodas",
+            "Aller voir Tylezia"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2082
+            }
+          ],
+          "notes": null
         }
       ]
     }
   ],
   "globalSummary": {
-    "totalQuests": 4,
-    "totalItems": 0,
-    "totalDungeons": 0,
-    "items": [],
-    "dungeons": []
+    "totalQuests": 8,
+    "totalItems": 10,
+    "totalDungeons": 4,
+    "items": [
+      {
+        "id": 20899,
+        "name": "Inspiration du moment",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/136116.png"
+      },
+      {
+        "id": 20898,
+        "name": "Date d'expiration",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/136115.png"
+      },
+      {
+        "id": 20897,
+        "name": "Air du temps",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/136114.png"
+      },
+      {
+        "id": 21186,
+        "name": "Dofus Vulbis",
+        "totalAmount": 4,
+        "img": "https://api.dofusdb.fr/img/items/23004.png"
+      },
+      {
+        "id": 8365,
+        "name": "Corne brisée de Crocabulia",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/47652.png"
+      },
+      {
+        "id": 21205,
+        "name": "Binocles du Grand Chronomaître",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/164022.png"
+      },
+      {
+        "id": 21188,
+        "name": "Corne dorée",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/47700.png"
+      },
+      {
+        "id": 21190,
+        "name": "Griffe de chagouar",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/47680.png"
+      },
+      {
+        "id": 21191,
+        "name": "Ombre prédatrice",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24112.png"
+      },
+      {
+        "id": 21192,
+        "name": "Rugissement nocturne",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24113.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 114,
+        "name": "Sanctuaire de Torkélonia",
+        "level": null,
+        "bossName": "Cronnibal",
+        "img": "https://api.dofusdb.fr/img/monsters/1908.png",
+        "idoleName": null
+      },
+      {
+        "id": 116,
+        "name": "Épreuve de Draegnerys",
+        "level": null,
+        "bossName": "Draegnerys",
+        "img": "https://api.dofusdb.fr/img/monsters/1915.png",
+        "idoleName": null
+      },
+      {
+        "id": 7,
+        "name": "Antre de Crocabulia",
+        "level": null,
+        "bossName": "Dragmatique",
+        "img": "https://api.dofusdb.fr/img/monsters/1902.png",
+        "idoleName": null
+      },
+      {
+        "id": 147,
+        "name": "Expédition - Antre de Crocabulia",
+        "level": null,
+        "bossName": "Dragueuse",
+        "img": "https://api.dofusdb.fr/img/monsters/480.png",
+        "idoleName": null
+      }
+    ]
   }
 }

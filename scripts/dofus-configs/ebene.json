@@ -5,24 +5,32 @@
   "dofusItemId": 7114,
   "successName": "Noir d'ébène",
   "recommendedLevel": 200,
-  "successDescription": "Terminer la série des quêtes du Dofus Ébène.",
   "successes": [
+    {
+      "name": "Prerequis d'Alignement",
+      "zone": "Bonta / Brakmar",
+      "isPrerequisite": true,
+      "description": "Nécessite l'alignement niveau 100.",
+      "quests": [
+        { "name": "L'épée du rocher" }
+      ]
+    },
     {
       "name": "Noir d'ébène",
       "zone": "Pandala / Monde des Douze",
       "quests": [
-        "L'épée du rocher",
-        "Le forgeur de légende",
-        "Jusqu'au bout du rêve",
-        "À la recherche de Crocoburio",
-        "Le creuset de Mériana",
-        "Une douloureuse séparation",
-        "Le dragon noir",
-        "La vengeance du dernier empereur",
-        "L'œuf de Crocabulia",
-        "Un nouvel héritier"
+        { "name": "Le forgeur de légende" },
+        { "name": "Jusqu'au bout du rêve" },
+        { "name": "À la recherche de Crocoburio" },
+        { "name": "Le creuset de Mériana" },
+        { "name": "Une douloureuse séparation" },
+        { "name": "Le dragon noir" },
+        { "name": "La vengeance du dernier empereur" },
+        { "name": "L'œuf de Crocabulia" },
+        { "name": "Un nouvel héritier" }
       ]
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23007.png"
+  "imageUrl": "https://static.dofusdb.fr/items/23007.png",
+  "iconId": 23007
 }

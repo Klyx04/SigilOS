@@ -1,62 +1,32 @@
 {
   "dofus": "turquoise",
   "displayName": "Dofus Turquoise",
-  "color": "#00C8C8",
+  "color": "#1ABC9C",
   "successName": "Bleu turquoise",
   "recommendedLevel": 160,
-  "description": "Terminer la série des quêtes du Dofus Turquoise.",
+  "description": "Obtenir le Dofus Turquoise en libérant l'âme de Dark Vlad.",
   "dofusItemId": 739,
   "iconId": 23003,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23003.png",
-  "compiledAt": "2026-04-04T21:28:09.423Z",
+  "imageUrl": "/module-dofus/Dofus_Turquoise.png",
+  "compiledAt": "2026-04-10T21:14:16.768Z",
+  "compilerVersion": "3.0",
   "chains": [
     {
-      "sectionName": "Prérequis",
-      "sectionType": "PREREQUISITE",
-      "zone": "Monde de Douze",
-      "description": "Quêtes et succès à compléter avant de pouvoir commencer la série principale.",
+      "sectionName": "L'âme de Dark Vlad",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Cania / Divers",
+      "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
-      "entries": [
-        {
-          "name": "La magicienne des marécages",
-          "dofusdbId": 1462,
-          "level": 40,
-          "zone": "Monde de Douze",
-          "npcName": null,
-          "npcSubArea": null,
-          "coords": {
-            "x": -6,
-            "y": -3,
-            "worldId": 1
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [
-            "Aller voir {npc,2205}"
-          ],
-          "stepOrder": 0,
-          "isSynergyCandidate": false,
-          "requirements": []
-        }
-      ]
-    },
-    {
-      "sectionName": "Les quêtes du Dofus Turquoise",
-      "sectionType": "MAIN_CHAIN",
-      "zone": "Donjons / Monde de Douze",
-      "description": "La série principale des quêtes pour obtenir le Dofus Turquoise.",
-      "isSynergyCandidate": true,
-      "chainOrder": 1,
-      "requires": [],
+      "dungeons": [],
       "entries": [
         {
           "name": "Plongeon et dragon",
           "dofusdbId": 1653,
           "level": 100,
           "zone": "Antre du Dragon Cochon - Treizième salle",
-          "npcName": null,
+          "npcName": "Mama Ayuto",
           "npcSubArea": "Antre du Dragon Cochon - Treizième salle",
           "coords": {
             "x": -1,
@@ -64,7 +34,79 @@
             "worldId": 5
           },
           "isDungeon": true,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 7024,
+              "name": "Pierre de Topaze",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/51076.png"
+            },
+            {
+              "id": 7026,
+              "name": "Aigue-Marine",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/50101.png"
+            },
+            {
+              "id": 15460,
+              "name": "Os de Sramouraï",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/47841.png"
+            },
+            {
+              "id": 11216,
+              "name": "Sang de Boufmouth légendaire parasité",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/24102.png"
+            },
+            {
+              "id": 11252,
+              "name": "Patte de Rat Bougri",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/103036.png"
+            },
+            {
+              "id": 11231,
+              "name": "Oreille du Fu Mansot",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/106625.png"
+            },
+            {
+              "id": 16953,
+              "name": "Pelle du Clan Terra",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/8001.png"
+            },
+            {
+              "id": 14041,
+              "name": "Huile Antigel de Sylargh",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/139058.png"
+            },
+            {
+              "id": 14210,
+              "name": "Chachatte Rousse empaillée",
+              "amount": 3,
+              "img": "https://api.dofusdb.fr/img/items/18040.png"
+            },
+            {
+              "id": 15638,
+              "name": "Slip d'El Rumo",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/164044.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 20,
+              "name": "Antre du Dragon Cochon",
+              "level": null,
+              "bossName": "Dragon Cochon",
+              "img": "https://api.dofusdb.fr/img/monsters/60.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Vaincre x1 {monster,113} en un seul combat",
             "Découvrir la carte : Salle du trône du Dragon Cochon",
@@ -73,28 +115,29 @@
             "Découvrir la carte : Bosquet désenchanté",
             "Récupérer la Clef Griffue",
             "Découvrir la carte : Porte du Village des Brigandins",
-            "Aller voir {npc,389}",
+            "Aller voir Mama Ayuto",
             "Découvrir la carte : Plate-forme de l'atelier",
-            "Aller voir {npc,383}",
+            "Aller voir Girle Pylote",
             "Découvrir la carte : Île mystérieuse",
             "Entrer dans le sanctuaire de l'île mystérieuse",
             "Trouver le passage vers la caverne d'Aguabrial",
             "Vaincre x1 {monster,4131} en un seul combat",
             "Découvrir la carte : Caverne d'Aguabrial",
-            "Aller voir {npc,2953}",
-            "Aller voir {npc,2954}",
-            "Retourner voir {npc,2205}"
+            "Aller voir Aguabrial",
+            "Aller voir Ereziah Melkewel",
+            "Retourner voir Mériana"
           ],
           "stepOrder": 0,
-          "isSynergyCandidate": true,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
         },
         {
           "name": "Extinction des feux",
           "dofusdbId": 1654,
           "level": 140,
           "zone": "Temple Sram",
-          "npcName": null,
+          "npcName": "Mage Ax",
           "npcSubArea": "Temple Sram",
           "coords": {
             "x": 3,
@@ -102,45 +145,77 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 17000,
+              "name": "Fumée Chamanique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15795.png"
+            },
+            {
+              "id": 17001,
+              "name": "Fil Magique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15486.png"
+            },
+            {
+              "id": 16947,
+              "name": "Voile Astral",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/126063.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 36,
+              "name": "Clairière du Chêne Mou",
+              "level": null,
+              "bossName": "Chêne Mou",
+              "img": "https://api.dofusdb.fr/img/monsters/147.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
-            "Aller voir {npc,726}",
-            "Aller voir {npc,2259}",
+            "Aller voir Mage Ax",
+            "Aller voir Géo Trouvetrou",
             "Explorer le champ du repos",
-            "Aller voir {npc,2974}",
+            "Aller voir Snuffles",
             "Profaner la tombe indiquée par Snuffles",
             "Vaincre le feu spirituel et la gargrouille",
             "Interroger les gardes des temples pour localiser l'obscurantus",
             "Placer le feu dans le temple pour attirer l'obscurantus",
             "Vaincre x1 {monster,4135} en un seul combat",
-            "Ramener à {npc,726} : x1 {item,17000}",
-            "Ramener à {npc,726} : x1 {item,17001}",
-            "Montrer à {npc,2205} : 1 {item,16947}",
-            "Aller voir {npc,389}",
-            "Aller voir {npc,383}",
+            "Aller voir Mage Ax",
+            "Ramener à Mage Ax : x1 Fumée Chamanique",
+            "Ramener à Mage Ax : x1 Fil Magique",
+            "Montrer à Mériana : 1 Voile Astral",
+            "Aller voir Mama Ayuto",
+            "Aller voir Girle Pylote",
             "Découvrir la carte : Rocher des Sacrifiés",
             "Lire le parchemin de Mériana",
             "Lire le parchemin de Mama Ayuto",
             "Découvrir la carte : Dimension Abyssale",
-            "Aller voir {npc,2957}",
+            "Aller voir Esprit de Bolgrot",
             "Vaincre x1 {monster,4045} en un seul combat",
-            "Retourner voir {npc,2205}"
+            "Retourner voir Mériana"
           ],
           "stepOrder": 1,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1653
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "On dirait le Sud",
           "dofusdbId": 1656,
           "level": 140,
-          "zone": "Donjons / Monde de Douze",
-          "npcName": null,
+          "zone": "Cania / Divers",
+          "npcName": "Riome",
           "npcSubArea": null,
           "coords": {
             "x": -35,
@@ -152,74 +227,79 @@
             {
               "id": 7024,
               "name": "Pierre de Topaze",
-              "amount": 5,
+              "amount": 10,
               "img": "https://api.dofusdb.fr/img/items/51076.png"
             },
             {
               "id": 11249,
               "name": "Étoffe de Kaniglou",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/55730.png"
             },
             {
               "id": 15460,
               "name": "Os de Sramouraï",
-              "amount": 15,
+              "amount": 30,
               "img": "https://api.dofusdb.fr/img/items/47841.png"
             },
             {
               "id": 11231,
               "name": "Oreille du Fu Mansot",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/106625.png"
             },
             {
               "id": 8784,
               "name": "Talon d'achille de l'Abrakleur sombre",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/15019.png"
             },
             {
               "id": 16953,
               "name": "Pelle du Clan Terra",
-              "amount": 1,
+              "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/8001.png"
             }
           ],
+          "dungeonsRequired": [],
+          "externalRef": null,
           "objectives": [
             "Trouver Riome à Bonta",
-            "Aller voir {npc,2976}",
-            "Ramener à {npc,2976} : x5 {item,7024}",
-            "Ramener à {npc,2976} : x1 {item,11249}",
-            "Ramener à {npc,2976} : x15 {item,15460}",
-            "Ramener à {npc,2976} : x1 {item,11231}",
-            "Ramener à {npc,2976} : x1 {item,8784}",
-            "Aller voir {npc,2977}",
+            "Aller voir Riome",
+            "Aller voir Riome",
+            "Ramener à Riome : x5 Pierre de Topaze",
+            "Ramener à Riome : x1 Étoffe de Kaniglou",
+            "Ramener à Riome : x15 Os de Sramouraï",
+            "Ramener à Riome : x1 Oreille du Fu Mansot",
+            "Ramener à Riome : x1 Talon d'achille de l'Abrakleur sombre",
+            "Aller voir Riome",
+            "Aller voir Pupuce",
             "Suivre Pupuce",
             "Continuer à suivre Pupuce",
             "Suivre Pupuce encore une fois",
-            "Aller voir {npc,2978}",
-            "Montrer à {npc,2205} : 1 {item,16953}",
+            "Aller voir Joris Jurgen",
+            "Montrer à Mériana : 1 Pelle du Clan Terra",
             "Trouver l'autel du Sud",
             "Obtenir la bénédiction de Pytch",
             "Déterrer le totem du Sud",
-            "Retourner voir {npc,2205}"
+            "Retourner voir Mériana"
           ],
           "stepOrder": 2,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1654
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "La méchante sorcière de l'Est",
           "dofusdbId": 1657,
           "level": 150,
-          "zone": "Donjons / Monde de Douze",
-          "npcName": null,
+          "zone": "Cania / Divers",
+          "npcName": "Spectre de Badmorva",
           "npcSubArea": null,
           "coords": {
             "x": -54,
@@ -228,36 +308,39 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
           "objectives": [
             "Trouver les cendres de Badmorva sur le rivage du Berceau d'Alma",
-            "Aller voir {npc,2017}",
+            "Aller voir Spectre de Badmorva",
             "Vaincre x7 {monster,2878}",
             "Vaincre x7 {monster,2876}",
             "Vaincre x7 {monster,2875}",
             "Vaincre x7 {monster,2874}",
             "Vaincre x7 {monster,2880}",
             "Vaincre x7 {monster,2881}",
-            "Retourner voir {npc,2017}",
+            "Retourner voir Spectre de Badmorva",
             "Trouver l'autel de l'Est",
             "Obtenir la bénédiction de Viti",
             "Déterrer le totem de l'Est",
-            "Retourner voir {npc,2205}"
+            "Retourner voir Mériana"
           ],
           "stepOrder": 3,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1656
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "Autel du Nord",
           "dofusdbId": 1658,
           "level": 160,
           "zone": "Porte du Village des Brigandins",
-          "npcName": null,
+          "npcName": "Chignole",
           "npcSubArea": "Porte du Village des Brigandins",
           "coords": {
             "x": -19,
@@ -265,42 +348,60 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 17033,
+              "name": "Automates en Boîte",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24044.png"
+            },
+            {
+              "id": 17034,
+              "name": "Cervomotor",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24056.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
           "objectives": [
             "Parler à Mama Ayuto",
-            "Aller voir {npc,2955}",
+            "Aller voir Chignole",
             "Découvrir la carte : Atelier des bricoleurs de Brâkmar",
-            "Aller voir {npc,766}",
+            "Aller voir Fidji Merline",
             "Trouver Nobir",
-            "Aller voir {npc,2956}",
+            "Aller voir Nobir",
             "Ramener le premier automate à Nobir",
             "Ramener le deuxième automate à Nobir",
             "Ramener le troisième automate à Nobir",
             "Ramener le quatrième automate à Nobir",
-            "Ramener à {npc,766} : x1 {item,17033}",
-            "Ramener à {npc,2955} : x1 {item,17034}",
+            "Aller voir Nobir",
+            "Ramener à Fidji Merline : x1 Automates en Boîte",
+            "Ramener à Chignole : x1 Cervomotor",
             "Vaincre x1 {monster,4137} en un seul combat",
-            "Aller voir {npc,389}",
+            "Aller voir Chignole",
+            "Aller voir Mama Ayuto",
             "Trouver l'autel du Nord",
             "Obtenir la bénédiction de Thomahon",
             "Déterrer le totem du Nord",
-            "Retourner voir {npc,2205}"
+            "Retourner voir Mériana"
           ],
           "stepOrder": 4,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1657
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "Il était une foi dans l'Ouest",
           "dofusdbId": 1659,
           "level": 180,
-          "zone": "Donjons / Monde de Douze",
-          "npcName": null,
+          "zone": "Cania / Divers",
+          "npcName": "Pêcheur Gobelin",
           "npcSubArea": null,
           "coords": {
             "x": -57,
@@ -308,32 +409,42 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 17035,
+              "name": "Lance Gobeline",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/4090.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
           "objectives": [
             "Trouver l'autel de l'Ouest",
             "Prouver votre dévotion à Foluk",
             "Trouver Goboune, le cousin du disciple de Foluk",
-            "Ramener à {npc,2891} : x1 {item,17035}",
+            "Ramener à Pêcheur Gobelin : x1 Lance Gobeline",
             "Obtenir la bénédiction de Foluk",
             "Trouver le totem de l'Ouest",
             "Vaincre x1 {monster,4139} en un seul combat",
-            "Retourner voir {npc,2205}"
+            "Retourner voir Mériana"
           ],
           "stepOrder": 5,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1658
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "La bénédiction de Viti",
           "dofusdbId": 1660,
           "level": 140,
           "zone": "Fabrique de foux d'artifice - Cinquième salle",
-          "npcName": null,
+          "npcName": "Disciple de Viti",
           "npcSubArea": "Fabrique de foux d'artifice - Cinquième salle",
           "coords": {
             "x": 14,
@@ -342,27 +453,55 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 93,
+              "name": "Fabrique de Malléfisk",
+              "level": null,
+              "bossName": "Garde de la Banque Royale",
+              "img": "https://api.dofusdb.fr/img/monsters/1110.png",
+              "idoleName": null
+            },
+            {
+              "id": 47,
+              "name": "Laboratoire du Tynril",
+              "level": null,
+              "bossName": "Minotot",
+              "img": "https://api.dofusdb.fr/img/monsters/459.png",
+              "idoleName": null
+            },
+            {
+              "id": 53,
+              "name": "Excavation du Mansot Royal",
+              "level": null,
+              "bossName": "Minogolem séculaire",
+              "img": "https://api.dofusdb.fr/img/monsters/1155.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Vaincre x1 {monster,6249} en un seul combat avec l'altération {alteration,238} active",
             "Vaincre x1 {monster,1086} en un seul combat avec l'altération {alteration,239} active",
             "Vaincre x1 {monster,2848} en un seul combat avec l'altération {alteration,240} active",
-            "Retourner voir {npc,2980}"
+            "Retourner voir Disciple de Viti"
           ],
           "stepOrder": 6,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1659
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "La bénédiction de Thomahon",
           "dofusdbId": 1661,
           "level": 150,
           "zone": "Repaire de Sphincter Cell - Cinquième salle",
-          "npcName": null,
+          "npcName": "Disciple de Thomahon",
           "npcSubArea": "Repaire de Sphincter Cell - Cinquième salle",
           "coords": {
             "x": 5,
@@ -371,28 +510,64 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 26,
+              "name": "Donjon des Rats de Bonta/Brâk (Sphincter)",
+              "level": null,
+              "bossName": null,
+              "img": null,
+              "idoleName": null
+            },
+            {
+              "id": 56,
+              "name": "Épave du Grolandais Mutant",
+              "level": null,
+              "bossName": "Fantimonier",
+              "img": "https://api.dofusdb.fr/img/monsters/797.png",
+              "idoleName": null
+            },
+            {
+              "id": 51,
+              "name": "Canopée du Kimbo",
+              "level": null,
+              "bossName": "Ougah",
+              "img": "https://api.dofusdb.fr/img/monsters/640.png",
+              "idoleName": null
+            },
+            {
+              "id": 57,
+              "name": "Hypogée de l'Obsidiantre",
+              "level": null,
+              "bossName": "Obsidiantre",
+              "img": "https://api.dofusdb.fr/img/monsters/825.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Vaincre x1 {monster,943} en un seul combat avec l'altération {alteration,241} active",
             "Vaincre x1 {monster,2877} en un seul combat avec l'altération {alteration,242} active",
             "Vaincre x1 {monster,1045} en un seul combat avec l'altération {alteration,243} active",
             "Vaincre x1 {monster,2924} en un seul combat avec l'altération {alteration,244} active",
-            "Retourner voir {npc,2981}"
+            "Retourner voir Disciple de Thomahon"
           ],
           "stepOrder": 7,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1660
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "La bénédiction de Foluk",
           "dofusdbId": 1662,
           "level": 170,
           "zone": "Galerie du Phossile - Salle des pépites",
-          "npcName": null,
+          "npcName": "Disciple de Foluk",
           "npcSubArea": "Galerie du Phossile - Salle des pépites",
           "coords": {
             "x": -2,
@@ -401,27 +576,55 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 90,
+              "name": "Galerie du Phossile",
+              "level": null,
+              "bossName": "Invocation Dévorante",
+              "img": "https://api.dofusdb.fr/img/monsters/1295.png",
+              "idoleName": null
+            },
+            {
+              "id": 46,
+              "name": "Grotte de Kanigroula",
+              "level": null,
+              "bossName": "Ouily le Borgne",
+              "img": "https://api.dofusdb.fr/img/monsters/1337.png",
+              "idoleName": null
+            },
+            {
+              "id": 59,
+              "name": "Antre du Korriandre",
+              "level": null,
+              "bossName": "Épouvantail de Frostiz",
+              "img": "https://api.dofusdb.fr/img/monsters/764.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Vaincre x1 {monster,3651} en un seul combat avec l'altération {alteration,245} active",
             "Vaincre x1 {monster,3556} en un seul combat avec l'altération {alteration,246} active",
             "Vaincre x1 {monster,2968} en un seul combat avec l'altération {alteration,247} active",
-            "Retourner voir {npc,2982}"
+            "Retourner voir Disciple de Foluk"
           ],
           "stepOrder": 8,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1661
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "Une âme en colère",
           "dofusdbId": 1663,
           "level": 180,
           "zone": "Porte du Village des Brigandins",
-          "npcName": null,
+          "npcName": "Mériana",
           "npcSubArea": "Porte du Village des Brigandins",
           "coords": {
             "x": -6,
@@ -429,32 +632,261 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 16900,
+              "name": "Globe Mystique",
+              "amount": 5,
+              "img": "https://api.dofusdb.fr/img/items/126056.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
           "objectives": [
-            "Montrer à {npc,2205} : 5 {item,16900}",
+            "Montrer à Mériana : 5 Globe Mystique",
             "Capturer un Goémus",
             "Capturer une Norie",
             "Capturer une Kelpe",
             "Capturer un Verak",
             "Capturer un Cyanog",
-            "Aller voir {npc,389}",
+            "Aller voir Mama Ayuto",
             "Placer les totems puis souffler dans la conque",
-            "Aller voir {npc,2952}",
+            "Aller voir Furye",
             "Vaincre x1 {monster,4074} en un seul combat",
-            "Aller voir {npc,3002}",
-            "Retourner voir {npc,2205}",
-            "Aller voir {npc,2953}"
+            "Aller voir Âme de Furye",
+            "Retourner voir Mériana",
+            "Aller voir Aguabrial"
           ],
           "stepOrder": 9,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1662
             }
-          ]
+          ],
+          "notes": null
         }
       ]
     }
-  ]
+  ],
+  "globalSummary": {
+    "totalQuests": 10,
+    "totalItems": 19,
+    "totalDungeons": 12,
+    "items": [
+      {
+        "id": 15460,
+        "name": "Os de Sramouraï",
+        "totalAmount": 33,
+        "img": "https://api.dofusdb.fr/img/items/47841.png"
+      },
+      {
+        "id": 7024,
+        "name": "Pierre de Topaze",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/51076.png"
+      },
+      {
+        "id": 11216,
+        "name": "Sang de Boufmouth légendaire parasité",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/24102.png"
+      },
+      {
+        "id": 11252,
+        "name": "Patte de Rat Bougri",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/103036.png"
+      },
+      {
+        "id": 14041,
+        "name": "Huile Antigel de Sylargh",
+        "totalAmount": 10,
+        "img": "https://api.dofusdb.fr/img/items/139058.png"
+      },
+      {
+        "id": 16953,
+        "name": "Pelle du Clan Terra",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/8001.png"
+      },
+      {
+        "id": 16900,
+        "name": "Globe Mystique",
+        "totalAmount": 5,
+        "img": "https://api.dofusdb.fr/img/items/126056.png"
+      },
+      {
+        "id": 7026,
+        "name": "Aigue-Marine",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/50101.png"
+      },
+      {
+        "id": 11231,
+        "name": "Oreille du Fu Mansot",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/106625.png"
+      },
+      {
+        "id": 14210,
+        "name": "Chachatte Rousse empaillée",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/18040.png"
+      },
+      {
+        "id": 11249,
+        "name": "Étoffe de Kaniglou",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/55730.png"
+      },
+      {
+        "id": 8784,
+        "name": "Talon d'achille de l'Abrakleur sombre",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/15019.png"
+      },
+      {
+        "id": 15638,
+        "name": "Slip d'El Rumo",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/164044.png"
+      },
+      {
+        "id": 17000,
+        "name": "Fumée Chamanique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15795.png"
+      },
+      {
+        "id": 17001,
+        "name": "Fil Magique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15486.png"
+      },
+      {
+        "id": 16947,
+        "name": "Voile Astral",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/126063.png"
+      },
+      {
+        "id": 17033,
+        "name": "Automates en Boîte",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24044.png"
+      },
+      {
+        "id": 17034,
+        "name": "Cervomotor",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24056.png"
+      },
+      {
+        "id": 17035,
+        "name": "Lance Gobeline",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/4090.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 6,
+        "name": "Antre du Dragon Cochon",
+        "level": null,
+        "bossName": "Porsalu",
+        "img": "https://api.dofusdb.fr/img/monsters/68.png",
+        "idoleName": null
+      },
+      {
+        "id": 10,
+        "name": "Clairière du Chêne Mou",
+        "level": null,
+        "bossName": "Abrakne Sombre Irascible",
+        "img": "https://api.dofusdb.fr/img/monsters/346.png",
+        "idoleName": null
+      },
+      {
+        "id": 124,
+        "name": "Fabrique de foux d'artifice",
+        "level": null,
+        "bossName": "Founamboul",
+        "img": "https://api.dofusdb.fr/img/monsters/2054.png",
+        "idoleName": null
+      },
+      {
+        "id": 51,
+        "name": "Canopée du Kimbo",
+        "level": null,
+        "bossName": "Ougah",
+        "img": "https://api.dofusdb.fr/img/monsters/640.png",
+        "idoleName": null
+      },
+      {
+        "id": 55,
+        "name": "Excavation du Mansot Royal",
+        "level": null,
+        "bossName": "Fu Mansot",
+        "img": "https://api.dofusdb.fr/img/monsters/779.png",
+        "idoleName": null
+      },
+      {
+        "id": 44,
+        "name": "Repaire de Sphincter Cell",
+        "level": null,
+        "bossName": "Rat Botteur",
+        "img": "https://api.dofusdb.fr/img/monsters/953.png",
+        "idoleName": null
+      },
+      {
+        "id": 56,
+        "name": "Épave du Grolandais violent",
+        "level": null,
+        "bossName": "Fantimonier",
+        "img": "https://api.dofusdb.fr/img/monsters/797.png",
+        "idoleName": null
+      },
+      {
+        "id": 28,
+        "name": "Canopée du Kimbo",
+        "level": null,
+        "bossName": "Abrakleur Clair",
+        "img": "https://api.dofusdb.fr/img/monsters/571.png",
+        "idoleName": null
+      },
+      {
+        "id": 57,
+        "name": "Hypogée de l'Obsidiantre",
+        "level": null,
+        "bossName": "Obsidiantre",
+        "img": "https://api.dofusdb.fr/img/monsters/825.png",
+        "idoleName": null
+      },
+      {
+        "id": 79,
+        "name": "Galerie du Phossile",
+        "level": null,
+        "bossName": "Mère Veilleuse",
+        "img": "https://api.dofusdb.fr/img/monsters/1119.png",
+        "idoleName": null
+      },
+      {
+        "id": 75,
+        "name": "Grotte de Kanigroula",
+        "level": null,
+        "bossName": "Orfélin",
+        "img": "https://api.dofusdb.fr/img/monsters/686.png",
+        "idoleName": null
+      },
+      {
+        "id": 59,
+        "name": "Antre du Korriandre",
+        "level": null,
+        "bossName": "Épouvantail de Frostiz",
+        "img": "https://api.dofusdb.fr/img/monsters/764.png",
+        "idoleName": null
+      }
+    ]
+  }
 }

@@ -28,8 +28,8 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
         const dungeons = new Map<string, { id?: string; name: string; bossName?: string; level?: number; img?: string; idoleName?: string }>();
         let totalQuests = 0;
 
-        // Filter out completed iterations if completedIds is provided
-        (chains || []).filter(chain => chain.sectionType !== "PREREQUISITE").forEach(chain => {
+        // Collect data from ALL chains (including prerequisites) for a true global summary
+        (chains || []).forEach(chain => {
             (chain.entries || []).forEach((quest: any) => {
                 if (completedIds && completedIds.has(String(quest.id))) return;
                 totalQuests++;
@@ -69,7 +69,7 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                     if (!dungeons.has(key)) {
                         dungeons.set(key, {
                             id: d.bossId ? String(d.bossId) : d.id ? String(d.id) : undefined,
-                            name: d.name,
+                            name: d.name === "Risquer un œil" ? "Risquer un œil" : d.name,
                             level: d.level,
                             bossName: d.bossName,
                             img: d.img,
@@ -205,7 +205,7 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                             <div key={item.id} className="flex items-center gap-4 p-3 bg-black/40 border border-white/5 rounded-2xl hover:border-white/20 transition-all">
                                                 <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center p-1.5 relative shrink-0">
                                                     <img 
-                                                        src={item.img || `https://api.dofusdb.fr/img/items/${item.id}.png`} 
+                                                        src={item.img || `https://static.dofusdb.fr/items/${item.id}.png`} 
                                                         alt="" 
                                                         className="w-full h-full object-contain icon-glow"
                                                         onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -250,7 +250,7 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                                 <div className="w-12 h-12 rounded-xl bg-black/60 border border-white/5 flex items-center justify-center p-1 shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform">
                                                     {(d.id || d.img) ? (
                                                         <img 
-                                                            src={d.img || `https://api.dofusdb.fr/img/monsters/${d.id}.png`} 
+                                                            src={d.img || `https://static.dofusdb.fr/monsters/${d.id}.png`} 
                                                             className="w-full h-full object-contain relative z-10" 
                                                             onError={(e) => (e.currentTarget.style.display = 'none')}
                                                             alt={d.name}

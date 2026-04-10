@@ -4,15 +4,30 @@
   "color": "#FFA500",
   "dofusItemId": 714,
   "successName": "L'éternelle moisson",
-  "recommendedLevel": 160,
+  "recommendedLevel": 40,
+  "successDescription": "Capturer les âmes de nombreux monstres, boss de donjons et archimonstres pour obtenir le Dofus Ocre. Quête longue terme — utiliser Metamob pour suivre la progression.",
   "successes": [
     {
-      "name": "L'éternelle moisson",
+      "name": "Prérequis",
       "zone": "Monde des Douze",
+      "description": "Avoir le sort Capture d'Âme (obtenu après le donjon du Kwakwa). Niveau minimum 40.",
+      "isPrerequisite": true,
       "quests": [
-        "La moisson éternelle"
+        { "name": "Un sage parmi les sages" }
       ]
+    },
+    {
+      "name": "L'éternelle moisson",
+      "zone": "Monde des Douze (tous les donjons)",
+      "description": "La quête principale : capturer les âmes de monstres, archimonstres et boss de donjons répartis sur tout le Monde des Douze. Suivi recommandé via Metamob.fr et DPLN.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
+      "quests": [
+        { "name": "La moisson éternelle" }
+      ],
+      "notes": "L'Étape finale nécessite une pierre d'âme du Kralamoure Géant (accès calendrier limité). Utiliser Metamob pour les échanges d'archimonstres."
     }
   ],
-  "imageUrl": "https://api.dofusdb.fr/img/items/23006.png"
+  "imageUrl": "https://static.dofusdb.fr/items/714.png",
+  "iconId": 714
 }

@@ -60,7 +60,7 @@ export class GarticRoom {
             })),
         };
         
-        if (phase === "REVEAL") {
+        if (phase === "REVEAL" || phase === "SCORES") {
             (basicState as any).albums = Array.from(this.state.chains.entries()).map(([ownerId, entries]) => ({
                 owner: { username: this.state.players.get(ownerId)?.username || "Inconnu" },
                 entries: entries.map(e => ({
@@ -68,7 +68,7 @@ export class GarticRoom {
                     author: { username: this.state.players.get(e.playerId)?.username || "Inconnu" }
                 }))
             }));
-            (basicState as any).revealIndex = this.state.revealIndex;
+            if (phase === "REVEAL") (basicState as any).revealIndex = this.state.revealIndex;
         }
 
         if (phase === "SCORES") {
@@ -154,8 +154,8 @@ export class GarticRoom {
 
     public startGame() {
         const activePlayers = Array.from(this.state.players.values()).filter(p => !p.isSpectator);
-        if (activePlayers.length < 2) {
-            this.io.to(this.state.roomId).emit("gartic:error", { message: "Il faut au moins 2 joueurs (hors spectateurs) !" });
+        if (activePlayers.length < 1) {
+            this.io.to(this.state.roomId).emit("gartic:error", { message: "Il faut au moins 1 joueur (hors spectateurs) !" });
             return;
         }
         this.machine.send({ type: "START_GAME" });

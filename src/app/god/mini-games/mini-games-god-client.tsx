@@ -32,6 +32,8 @@ const GAMES: MiniGame[] = [
     { gameId: "draw", name: "Sigil-Draw", color: "blue" },
     { gameId: "phone", name: "Sigil-Phone", color: "amber" },
     { gameId: "king", name: "Sigil-King", color: "purple" },
+    { gameId: "invader", name: "Sigil-Invader", color: "indigo" },
+    { gameId: "bomb", name: "Sigil-Bomb", color: "red" },
 ];
 
 type Tab = "MAINTENANCE" | "GUESSER";

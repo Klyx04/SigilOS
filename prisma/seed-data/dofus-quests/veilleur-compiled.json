@@ -1,18 +1,20 @@
 {
   "dofus": "veilleur",
   "displayName": "Dofus des Veilleurs",
-  "color": "#1ABC9C",
-  "successName": null,
-  "recommendedLevel": null,
-  "successDescription": null,
-  "dofusItemId": 7850,
-  "compiledAt": "2026-04-03T08:45:30.329Z",
+  "color": "#9e7011",
+  "successName": "Odyssée en trois dimensions",
+  "recommendedLevel": 180,
+  "description": "Terminer l'odyssée dimensionnelle et obtenir le Dofus des Veilleurs.",
+  "dofusItemId": 16061,
+  "iconId": null,
+  "imageUrl": "https://api.dofusdb.fr/img/items/16061.png",
+  "compiledAt": "2026-04-09T20:27:23.234Z",
   "compilerVersion": "3.0",
   "chains": [
     {
-      "sectionName": "Les quêtes",
+      "sectionName": "D'un monde à l'autre",
       "sectionType": "MAIN_CHAIN",
-      "zone": "unknown",
+      "zone": "Enutrosor",
       "description": null,
       "isSynergyCandidate": false,
       "chainOrder": 0,
@@ -20,28 +22,962 @@
       "dungeons": [],
       "entries": [
         {
-          "name": "Crise d'identite",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcName": null,
-          "npcSubArea": null,
-          "coords": null,
+          "name": "Voyage, voyage",
+          "dofusdbId": 1484,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": "Colonel Oneuil",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
-          "objectives": [],
+          "externalRef": null,
+          "objectives": [
+            "Découvrir la carte : Hall des Voyageurs",
+            "Aller voir Colonel Oneuil",
+            "Aller voir L'Explorancienne",
+            "Retourner voir Colonel Oneuil",
+            "Aller voir Collecteur Hystik",
+            "Découvrir la carte : Salle de localisation",
+            "Aller voir Gladis"
+          ],
           "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "La porte d'Enutrosor",
+          "dofusdbId": 1485,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Salle de localisation des fissures",
+          "npcName": "Sergent Frinklan",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle de localisation des fissures",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 77,
+              "name": "Fabrique de Malléfisk",
+              "level": null,
+              "bossName": "Eskoglyphe",
+              "img": "https://api.dofusdb.fr/img/monsters/1061.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Obtenir l'accès à la dimension Enutrosor et se présenter devant le portail",
+            "Découvrir la carte : Avant-poste des Voyageurs",
+            "Aller voir Sergent Frinklan",
+            "Aller voir Collectrice Megisthe"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1484
+            }
+          ]
+        },
+        {
+          "name": "Orichomania",
+          "dofusdbId": 1486,
+          "level": 100,
+          "zone": "Galerie du Phossile - Sortie",
+          "npcName": "Zap Gobdon",
+          "npcSubArea": "Galerie du Phossile - Sortie",
+          "coords": {
+            "x": -6,
+            "y": -2,
+            "worldId": 13
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Mesurer le taux d'orichor devant la Fabrique de Malléfisk",
+            "Mesurer le taux d'orichor devant la Galerie du Phossile",
+            "Mesurer le taux d'orichor dans la banque du Palais du roi Nidas",
+            "Mesurer le taux d'orichor devant le panorama de la carrière Aurifère",
+            "Mesurer le taux d'orichor devant le panorama de la Retraite des Éternels",
+            "Trouver le caporal Gobdon",
+            "Vaincre x1 {monster,3671} en un seul combat",
+            "Aller voir Zap Gobdon",
+            "Retourner voir Collectrice Megisthe"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1485
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Aux portes de la nuit",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Srambad",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 1,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "La cité de l'indicible mal",
+          "dofusdbId": 1530,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": "L'Explorancienne",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15464,
+              "name": "Gant de Vil Smisse",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/9234.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir L'Explorancienne",
+            "Se rendre au lieu de rendez-vous",
+            "Aller voir Vil Smisse",
+            "Retourner voir L'Explorancienne",
+            "Obtenir l'accès à la dimension Srambad et se présenter devant le portail",
+            "Découvrir la carte : Avant-poste des Voyageurs",
+            "Aller voir Sergent Raskzac",
+            "Montrer à Franche Smisse : 1 Gant de Vil Smisse"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Messager clandestin",
+          "dofusdbId": 1531,
+          "level": 100,
+          "zone": "Srambad",
+          "npcName": "Sinedia Zieunoir",
+          "npcSubArea": null,
+          "coords": {
+            "x": 5,
+            "y": -2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 79,
+              "name": "Galerie du Phossile",
+              "level": null,
+              "bossName": "Mère Veilleuse",
+              "img": "https://api.dofusdb.fr/img/monsters/1119.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Sinedia Zieunoir",
+            "Aller voir Mama Phia",
+            "Aller voir Madame Hyrda",
+            "Aller voir Goboukhan",
+            "Aller voir Zap Gobdon",
+            "Aller voir Al Capote",
+            "Aller voir Rufiette",
+            "Aller voir Venimeuse",
+            "Parler au Bouché",
+            "Retourner voir Franche Smisse"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1530
+            }
+          ]
+        },
+        {
+          "name": "La voix de son maître",
+          "dofusdbId": 1532,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": "Belle Adrenne",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": 5,
+            "y": 2,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 81,
+              "name": "Ring du Capitaine Ekarlatte",
+              "level": null,
+              "bossName": "Capitaine Ekarlatte",
+              "img": "https://api.dofusdb.fr/img/monsters/1167.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Belle Adrenne",
+            "Crocheter la porte de la maison de l'impasse des Comploteurs",
+            "Ouvrir le coffre de la maison de l'impasse des Comploteurs",
+            "Sortir de la prison de Srambad",
+            "Retourner voir Zap Gobdon",
+            "Parler au Coupe-Gorge",
+            "Aller voir Franche Smisse",
+            "Aller voir Belle Adrenne",
+            "Aller voir Reine des Voleurs",
+            "Retourner voir L'Explorancienne"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1531
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Générations futures",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Xélorium",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 2,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Le maître des zaaps",
+          "dofusdbId": 1571,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "npcName": "Major Qiu",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15850,
+              "name": "Flacon de lubrifiant",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/60376.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Major Qiu",
+            "Aller voir Amine",
+            "Aller voir Maître des zaaps",
+            "Retrouver le maître près du zaap des Routes Rocailleuses",
+            "Présenter le Maître des zaaps au Major Qiu",
+            "Ramener à Docteur Gaw : x1 Flacon de lubrifiant",
+            "Retourner voir Major Qiu",
+            "Obtenir l'accès à la dimension Xélorium et se présenter devant le portail",
+            "Découvrir la carte : Avant-poste du Xélorium",
+            "Aller voir Maître des zaaps"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Énergie renouvelable",
+          "dofusdbId": 1572,
+          "level": 100,
+          "zone": "Xélorium",
+          "npcName": "Collecteur Sup",
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15851,
+              "name": "Orichor Instable",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15922.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 82,
+              "name": "Cave du Toxoliath",
+              "level": null,
+              "bossName": "Puceronde Affaiblie",
+              "img": "https://api.dofusdb.fr/img/monsters/1151.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Collecteur Sup",
+            "Trouver l'endroit indiqué par l'orichomètre",
+            "Ouvrir le coffre",
+            "Prendre l'orichor instable dans le coffre",
+            "Aller voir Krosmoglob de Belle Adrenne",
+            "Montrer à Maître des zaaps : 1 Orichor Instable",
+            "Escorter le maître des zaaps jusqu'au temple du temps",
+            "Aider le maître à fabriquer la batterie",
+            "Aller voir Maître des zaaps",
+            "Chercher de l'aide à l'avant-poste du Xélorium"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1571
+            }
+          ]
+        },
+        {
+          "name": "Traitement de choc",
+          "dofusdbId": 1573,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "npcName": "Maître des zaaps",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Salle du générateur",
+          "coords": {
+            "x": 4,
+            "y": 2,
+            "worldId": 15
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 15882,
+              "name": "Batterie Éternelle",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15923.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Utiliser l'électrofoudre sur le Maître des zaaps",
+            "Contacter le Doc Emiette Borgne via son Krosmoglob",
+            "Dissiper les doubles à coup de marteau",
+            "Taper sur la tête du maître des zaaps",
+            "Aller voir Maître des zaaps",
+            "Ramener à Major Qiu : x1 Batterie Éternelle"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1572
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "Par-delà les apparences",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Sufokia / Dimensions",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 3,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "Le disparu de Sufokia",
+          "dofusdbId": 1608,
+          "level": 100,
+          "zone": "Grotte sous-marine",
+          "npcName": "Pam Chollion",
+          "npcSubArea": "Grotte sous-marine",
+          "coords": {
+            "x": 21,
+            "y": 13,
+            "worldId": 33
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 16050,
+              "name": "Diamant Dimensionnel",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/50025.png"
+            },
+            {
+              "id": 16019,
+              "name": "Parchemin de Marie Ride",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24050.png"
+            },
+            {
+              "id": 16020,
+              "name": "Lettre de Vardo",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/24065.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 79,
+              "name": "Galerie du Phossile",
+              "level": null,
+              "bossName": "Mère Veilleuse",
+              "img": "https://api.dofusdb.fr/img/monsters/1119.png",
+              "idoleName": null
+            },
+            {
+              "id": 77,
+              "name": "Fabrique de Malléfisk",
+              "level": null,
+              "bossName": "Eskoglyphe",
+              "img": "https://api.dofusdb.fr/img/monsters/1061.png",
+              "idoleName": null
+            },
+            {
+              "id": 82,
+              "name": "Cave du Toxoliath",
+              "level": null,
+              "bossName": "Puceronde Affaiblie",
+              "img": "https://api.dofusdb.fr/img/monsters/1151.png",
+              "idoleName": null
+            },
+            {
+              "id": 86,
+              "name": "Horologium de XLII",
+              "level": null,
+              "bossName": "Farfacette",
+              "img": "https://api.dofusdb.fr/img/monsters/1226.png",
+              "idoleName": null
+            },
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Agent Valérien",
+              "img": "https://api.dofusdb.fr/img/monsters/2547.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Pam Chollion",
+            "Fouiller l'endroit où travaillait Vardo",
+            "Lire la page du journal de Vardo",
+            "Découvrir la carte : Taverne de Sufokia",
+            "Obtenir des informations sur Vardo et sur l'Hyperscampe",
+            "Trouver des contrebandiers le long du rivage sufokien",
+            "Battre le groupe de contrebandiers",
+            "Vaincre x1 {monster,3955} en un seul combat",
+            "Aller voir Marie Ride",
+            "Ramener à Marie Ride : x1 Diamant Dimensionnel",
+            "Montrer à Rita Byrla : 1 Parchemin de Marie Ride",
+            "Franchir les portes de pierre",
+            "Aller voir Vardo Tercar",
+            "Escorter Vardo jusqu'à Sufokia",
+            "Aller voir Vardo Tercar",
+            "Ramener à Tatine : x1 Lettre de Vardo"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": []
+        },
+        {
+          "name": "Rendez-vous avec la mort",
+          "dofusdbId": 1609,
+          "level": 100,
+          "zone": "Temple Sram",
+          "npcName": "Gein le Silencieux",
+          "npcSubArea": "Temple Sram",
+          "coords": {
+            "x": -4,
+            "y": 0,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Agent Valérien",
+              "img": "https://api.dofusdb.fr/img/monsters/2547.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Se rendre au temple de Sram",
+            "Trouver la personne qui vous a donné rendez-vous",
+            "Aller voir Gein le Silencieux",
+            "Réunir des preuves contre Écho et les montrer à Gein"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1608
+            }
+          ]
+        },
+        {
+          "name": "Secret de fabrication",
+          "dofusdbId": 1610,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Prison",
+          "npcName": "Krosmoglob de l'agent Bloude",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Prison",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16059,
+              "name": "Échantillon d'orichor raffiné",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15929.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Découvrir la carte : Chercher l'agent Bloude dans les sous-sols",
+            "Découvrir la carte : Chercher l'agent Bloude dans les étages",
+            "Interroger les Voyageurs de la tour",
+            "Activer le Krosmoglob de l'agent Bloude dans la prison",
+            "Aller voir Krosmoglob de l'agent Bloude",
+            "Se servir de l'alambic dans le laboratoire",
+            "Aller voir Colonel Oneuil",
+            "Découvrir la carte : Portail de la mine Istairameur",
+            "Utiliser la Potion de transparence totale pour emprunter le portail en toute discrétion",
+            "Chercher les traces du passage du convoi",
+            "Essayer d'entrer dans la raffinerie",
+            "Chercher où le code a été caché",
+            "Essayer le code pour entrer dans la raffinerie",
+            "Découvrir où a été transporté l'orichor",
+            "Aller voir Zap Gobdon",
+            "Aller voir Belle Adrenne",
+            "Dérober de l'orichor raffiné",
+            "Aller voir Amaurykor",
+            "Aller voir Roi Nidas",
+            "Aller voir Agent Bloude",
+            "Découvrir la carte : Porte de la raffinerie",
+            "Aller voir Agent Bloude",
+            "Montrer à Gein le Silencieux : 1 Échantillon d'orichor raffiné"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1609
+            }
+          ]
+        },
+        {
+          "name": "S'emparer des commandes",
+          "dofusdbId": 1611,
+          "level": 100,
+          "zone": "Planque minuscule",
+          "npcName": "Anne Saulo",
+          "npcSubArea": "Planque minuscule",
+          "coords": {
+            "x": 1,
+            "y": 6,
+            "worldId": 14
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 16064,
+              "name": "Potion de transformation en sirène",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/12041.png"
+            },
+            {
+              "id": 16063,
+              "name": "Rapports d'espionnage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15931.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 86,
+              "name": "Horologium de XLII",
+              "level": null,
+              "bossName": "Farfacette",
+              "img": "https://api.dofusdb.fr/img/monsters/1226.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Anne Saulo",
+            "Enquêter sur la récente présence de Gein à Srambad",
+            "Acheter une Potion de transformation en sirène au marché de Srambad",
+            "Ramener à Arielle : x1 Potion de transformation en sirène",
+            "Découvrir la carte : Passage des Hauts Ténébreux",
+            "Chercher des traces du passage de Gein",
+            "Aller voir Haugne Boidboul",
+            "Découvrir la carte : Taverne du Bourreau",
+            "Aller voir Malveilleur en service",
+            "Découvrir la carte : Prison de Srambad",
+            "Aller voir San Tress",
+            "Aller voir Geôlier des Eaux-Suaires",
+            "Aller voir San Tress",
+            "Aller voir Geôlier des Eaux-Suaires",
+            "Chercher un témoin du vol des documents dans la prison de Srambad",
+            "Chercher les hommes de main d'Al Capote récemment sortis de la prison de Srambad",
+            "Interroger les commerçants du marché de Srambad",
+            "Apporter 1 Anneau du Bandit ou 100000 kamas à Grima Fandanga",
+            "Chercher le Râtelier Gris dans les Catacombres",
+            "Chercher des traces du passage du Râtelier Gris",
+            "Chercher un moyen de passer à travers les grilles",
+            "Écouter la conversation entre le Râtelier Gris et Morora",
+            "Vaincre les Milirats et fouiller leurs cadavres",
+            "Retourner au marché pour retrouver la piste du Râtelier Gris",
+            "Chercher la personne qui vous attend",
+            "Montrer à Gein le Silencieux : 1 Rapports d'espionnage"
+          ],
+          "stepOrder": 3,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1610
+            }
+          ]
+        },
+        {
+          "name": "C'est dans la boîte",
+          "dofusdbId": 1612,
+          "level": 100,
+          "zone": "Hall du Muséum",
+          "npcName": "Gardienne du Muséum",
+          "npcSubArea": "Hall du Muséum",
+          "coords": {
+            "x": 3,
+            "y": 1,
+            "worldId": 15
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 16062,
+              "name": "Symboles du Dodécariam",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/15930.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "level": null,
+              "bossName": "Agent Valérien",
+              "img": "https://api.dofusdb.fr/img/monsters/2547.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Gardienne du Muséum",
+            "Lire l'Historibus Compendium",
+            "Retourner voir Gardienne du Muséum",
+            "Trouver l'hordémon qui a vandalisé le livre",
+            "Vaincre x1 {monster,3971} en un seul combat",
+            "Interroger le dévoreur de livres",
+            "Rejoindre l'avant-poste des Voyageurs et se renseigner sur Olivie Frange",
+            "Aller voir Hypéria Gritch",
+            "Récupérer 4 Bouts de Temps",
+            "Découvrir la carte : Salle de la Pierre de Méthée",
+            "Aller voir Méthée",
+            "Aller voir Olivie Frange",
+            "Parler de nouveau à Olivie Frange",
+            "Montrer à Gein le Silencieux : 1 Symboles du Dodécariam"
+          ],
+          "stepOrder": 4,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1611
+            }
+          ]
+        },
+        {
+          "name": "Crise d'identité",
+          "dofusdbId": 1613,
+          "level": 100,
+          "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "npcName": "Colonel Oneuil",
+          "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
+          "coords": {
+            "x": -22,
+            "y": -24,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Aller voir Colonel Oneuil",
+            "Découvrir la carte : Salle de Briefing",
+            "Aller voir L'Explorancienne",
+            "Aller voir Gein le Silencieux",
+            "Aller voir Colonel Oneuil",
+            "Aller voir Major Qiu",
+            "Aller voir Gladis",
+            "Aller voir Docteur Gaw",
+            "Aller voir Belle Adrenne",
+            "Aller voir Zap Gobdon",
+            "Retourner voir L'Explorancienne",
+            "Aller voir Écho",
+            "Aider Gein à vaincre Écho",
+            "Aller voir Septange"
+          ],
+          "stepOrder": 5,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 1612
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sectionName": "La fin des temps",
+      "sectionType": "MAIN_CHAIN",
+      "zone": "Dimensions",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 4,
+      "requires": [],
+      "dungeons": [],
+      "entries": [
+        {
+          "name": "La quête de l'oiseau du temps",
+          "dofusdbId": 1614,
+          "level": 200,
+          "zone": "Salle de la Pierre de Méthée",
+          "npcName": "Khelebragon",
+          "npcSubArea": "Salle de la Pierre de Méthée",
+          "coords": {
+            "x": 3,
+            "y": 1,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 16061,
+              "name": "Dofus des Veilleurs",
+              "amount": 2,
+              "img": "https://api.dofusdb.fr/img/items/23020.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 87,
+              "name": "Œil de Vortex",
+              "level": null,
+              "bossName": "Vortex",
+              "img": "https://api.dofusdb.fr/img/monsters/1208.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Montrer à Khelebragon : 1 Dofus des Veilleurs",
+            "Trouver Khelebragon",
+            "Combattre l'Oiseau du Temps pour libérer Khelebragon",
+            "Aller voir Méthée",
+            "Aller voir Khelebragon",
+            "Rencontrer le dieu Xélor",
+            "Aller voir Khelebragon"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
           "requirements": []
         }
       ]
     }
   ],
   "globalSummary": {
-    "totalQuests": 1,
-    "totalItems": 0,
-    "totalDungeons": 0,
-    "items": [],
-    "dungeons": []
+    "totalQuests": 16,
+    "totalItems": 12,
+    "totalDungeons": 6,
+    "items": [
+      {
+        "id": 16061,
+        "name": "Dofus des Veilleurs",
+        "totalAmount": 2,
+        "img": "https://api.dofusdb.fr/img/items/23020.png"
+      },
+      {
+        "id": 15464,
+        "name": "Gant de Vil Smisse",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/9234.png"
+      },
+      {
+        "id": 15850,
+        "name": "Flacon de lubrifiant",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/60376.png"
+      },
+      {
+        "id": 15851,
+        "name": "Orichor Instable",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15922.png"
+      },
+      {
+        "id": 15882,
+        "name": "Batterie Éternelle",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15923.png"
+      },
+      {
+        "id": 16050,
+        "name": "Diamant Dimensionnel",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/50025.png"
+      },
+      {
+        "id": 16019,
+        "name": "Parchemin de Marie Ride",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24050.png"
+      },
+      {
+        "id": 16020,
+        "name": "Lettre de Vardo",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/24065.png"
+      },
+      {
+        "id": 16059,
+        "name": "Échantillon d'orichor raffiné",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15929.png"
+      },
+      {
+        "id": 16064,
+        "name": "Potion de transformation en sirène",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/12041.png"
+      },
+      {
+        "id": 16063,
+        "name": "Rapports d'espionnage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15931.png"
+      },
+      {
+        "id": 16062,
+        "name": "Symboles du Dodécariam",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/15930.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 79,
+        "name": "Galerie du Phossile",
+        "level": null,
+        "bossName": "Mère Veilleuse",
+        "img": "https://api.dofusdb.fr/img/monsters/1119.png",
+        "idoleName": null
+      },
+      {
+        "id": 77,
+        "name": "Fabrique de Malléfisk",
+        "level": null,
+        "bossName": "Eskoglyphe",
+        "img": "https://api.dofusdb.fr/img/monsters/1061.png",
+        "idoleName": null
+      },
+      {
+        "id": 82,
+        "name": "Cave du Toxoliath",
+        "level": null,
+        "bossName": "Puceronde Affaiblie",
+        "img": "https://api.dofusdb.fr/img/monsters/1151.png",
+        "idoleName": null
+      },
+      {
+        "id": 86,
+        "name": "Horologium de XLII",
+        "level": null,
+        "bossName": "Farfacette",
+        "img": "https://api.dofusdb.fr/img/monsters/1226.png",
+        "idoleName": null
+      },
+      {
+        "id": 85,
+        "name": "Mégalithe de Fraktale",
+        "level": null,
+        "bossName": "Agent Valérien",
+        "img": "https://api.dofusdb.fr/img/monsters/2547.png",
+        "idoleName": null
+      },
+      {
+        "id": 87,
+        "name": "Œil de Vortex",
+        "level": null,
+        "bossName": "Vortex",
+        "img": "https://api.dofusdb.fr/img/monsters/1208.png",
+        "idoleName": null
+      }
+    ]
   }
 }

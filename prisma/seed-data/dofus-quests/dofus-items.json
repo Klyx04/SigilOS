@@ -332,13 +332,13 @@
     "isSylvestreReq": true,
     "isMeta": false,
     "bonusSummary": "+1000 Initiative. Éternel Cauchemar : bouclier ou puissance selon les entraves et poussées subies.",
-    "levelRecommended": 180,
-    "imageUrl": "https://api.dofusdb.fr/img/items/23034.png",
+    "levelRecommended": 200,
+    "imageUrl": "https://api.dofusdb.fr/img/items/26066.png",
     "color": "#dc2626",
     "displayOrder": 18,
     "description": "« Si la nuit est noire, c'est pour que rien ne puisse nous distraire de nos cauchemars » : tels étaient les mots du jeune Kilvan avant qu'il ne s'endorme, rassuré par son chtigre en peluche.\nPourquoi la nuit est-elle si sombre ? Parce qu'elle cache en son sein toutes les craintes, et tous les mystères, de l'éternuitée. Peurs bleues, braises rouges et glyphes mordorés se fondent et se confondent dans le berceau du bien et du mal, source d'un conflit éternellement renouvelé.",
     "successName": "Éternel Cauchemar",
-    "filterCategory": "SONGES",
+    "filterCategory": "QUEST",
     "dofusDbItemId": 26066
   },
   {

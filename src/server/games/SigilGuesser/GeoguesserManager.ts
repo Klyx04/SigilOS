@@ -15,6 +15,7 @@ export class GeoguesserManager {
     private syncInterval: NodeJS.Timeout | null = null;
 
     constructor(private io: Server) { 
+        console.log("[GeoguesserManager] 🚀 Initialisé (V1.2 - SOLO ALLOWED)");
         this.startBlacklistSync();
     }
 
@@ -165,13 +166,15 @@ export class GeoguesserManager {
 
         if (room.isHost(socket.id)) {
             const publicInfo = room.getPublicInfo(roomId);
-            if (publicInfo.playerCount < 2) {
-                console.warn(`[Geoguesser] ⚠️ Lancement refusé : Pas assez de joueurs (hors spectateurs) dans la room ${roomId}`);
-                socket.emit("geoguesser:error", { message: "Il faut au moins 2 joueurs (hors spectateurs) !" });
+            const activeCount = room.getPublicInfo(roomId).playerCount;
+            
+            if (activeCount < 1) {
+                console.warn(`[Geoguesser] ⚠️ Lancement refusé : Personne dans la room ${roomId}`);
+                socket.emit("geoguesser:error", { message: "Il faut au moins 1 joueur (hors spectateurs) !" });
                 return;
             }
 
-            console.log(`[Geoguesser] ✅ Lancement autorisé (Hôte: ${socket.id})`);
+            console.log(`[Geoguesser] ✅ Lancement autorisé (Joueurs: ${activeCount})`);
             if (data.maxRounds) room.setMaxRounds(data.maxRounds);
             if (data.timePerRound) room.setTimePerRound(data.timePerRound);
             // Difficulty setting removed

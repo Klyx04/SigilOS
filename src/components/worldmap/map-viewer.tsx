@@ -16,7 +16,6 @@ const MapWithNoSSR = dynamic<any>(
         )
     }
 );
-
 export function MapViewer({ 
     initialLadder, 
     initialKingLadder, 
@@ -26,7 +25,10 @@ export function MapViewer({
     initialY,
     initialZoom,
     initialWorldId,
-    hideUI
+    hideUI,
+    userName,
+    userAvatar,
+    isAdmin
 }: { 
     initialLadder?: any[], 
     initialKingLadder?: any[], 
@@ -36,7 +38,10 @@ export function MapViewer({
     initialY?: number,
     initialZoom?: number,
     initialWorldId?: number,
-    hideUI?: boolean
+    hideUI?: boolean,
+    userName?: string,
+    userAvatar?: string,
+    isAdmin?: boolean
 }) {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
@@ -97,6 +102,9 @@ export function MapViewer({
             initialZoom={initialZoom}
             initialWorldId={initialWorldId}
             hideUI={hideUI}
+            userName={userName}
+            userAvatar={userAvatar}
+            isAdmin={isAdmin}
         />
     );
 }

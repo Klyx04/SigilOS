@@ -945,3 +945,78 @@ export async function sendGuildWelcomeEmbed(channelId: string, guildName: string
         ]
     });
 }
+
+/**
+ * Send a weekly Guildaton report comparing members to their weekly quota.
+ */
+export async function sendGuildatonWeeklyReport(params: {
+    guildId: string;
+    channelId: string;
+    quota: number;
+    slackers: Array<{ discordId: string, username: string, delta: number }>;
+    masters: Array<{ discordId: string, username: string, delta: number }>;
+}) {
+    if (params.slackers.length === 0 && params.masters.length === 0) return;
+
+    let description = `Voici le bilan Guildaton de la semaine passée (Quota ciblé : **${params.quota} pts/semaine**).\n\n`;
+
+    if (params.masters.length > 0) {
+        description += `🏆 **Les Bons Élèves** (${params.masters.length})\n`;
+        // Top 5 maximum
+        const top5 = [...params.masters].sort((a,b) => b.delta - a.delta).slice(0, 5);
+        top5.forEach(m => {
+            description += `- <@${m.discordId}> : +${m.delta} pts\n`;
+        });
+        if (params.masters.length > 5) {
+            description += `- ... et ${params.masters.length - 5} autres.\n`;
+        }
+        description += `\n`;
+    }
+
+    if (params.slackers.length > 0) {
+        description += `⚠️ **Attention (Objectif non atteint)** (${params.slackers.length})\n`;
+        // Warning: on peut taguer, mais c'est violent. On mentionne discrètement
+        const sortedSlackers = [...params.slackers].sort((a,b) => a.delta - b.delta);
+        sortedSlackers.slice(0, 15).forEach(m => {
+            description += `- <@${m.discordId}> : +${m.delta} pts (manque ${params.quota - m.delta} pts)\n`;
+        });
+        if (sortedSlackers.length > 15) {
+            description += `- ... et ${sortedSlackers.length - 15} autres membres en retard.\n`;
+        }
+    }
+
+    await sendChannelMessage(params.channelId, "", {
+        embedTitle: `📊 Bilan Hebdomadaire Guildaton`,
+        embedDescription: description,
+        embedColor: 0x9333EA, // Purple
+        embedFooter: "SigilOS Manager",
+        embedThumbnail: "https://beta.sigilos.fr/guildaton.png"
+    });
+}
+
+/**
+ * Send an admin-only reminder to launch SigilOCR and scan members.
+ */
+export async function sendGuildatonAdminReminder(channelId: string, guildId: string) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    
+    return sendChannelMessage(channelId, "", {
+        embedTitle: "🗓️ Rappel Guildaton (Admins)",
+        embedDescription: "C'est l'heure du scan hebdomadaire ! Pensez à lancer **SigilOCR** pour récupérer les scores et valider la semaine dans le panel d'administration.",
+        embedColor: 0x8B5CF6, // Violet
+        fields: [
+            {
+                name: "Logiciel Requis",
+                value: "[Télécharger SigilOCR v3.2](https://github.com/Klyx04/SigilOCR/releases/latest)",
+                inline: true
+            },
+            {
+                name: "Panel Admin",
+                value: `[Gérer les membres](${baseUrl}/dashboard/${guildId}/admin/members)`,
+                inline: true
+            }
+        ],
+        embedThumbnail: "https://beta.sigilos.fr/guildaton.png",
+        embedFooter: "SigilOS Manager • Rappel Automatique"
+    });
+}

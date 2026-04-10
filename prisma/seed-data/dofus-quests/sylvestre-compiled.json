@@ -1,67 +1,32 @@
 {
   "dofus": "sylvestre",
   "displayName": "Dofus Sylvestre",
-  "color": "#228B22",
-  "successName": "L'arbre qui cache la forêt",
+  "color": "#2ECC71",
+  "successName": "En attendant le printemps",
   "recommendedLevel": 200,
-  "description": "Terminer la série des quêtes du Dofus Sylvestre.",
+  "description": "Obtenir le Dofus Sylvestre en soignant Silvosse et en restaurant la forêt de l'Androsite.",
   "dofusItemId": 29136,
   "iconId": 23036,
-  "imageUrl": "https://api.dofusdb.fr/img/items/23036.png",
-  "compiledAt": "2026-04-04T13:46:08.959Z",
+  "imageUrl": "/module-dofus/Dofus_Sylvestre.png",
+  "compiledAt": "2026-04-10T17:46:37.028Z",
+  "compilerVersion": "3.0",
   "chains": [
-    {
-      "sectionName": "En attendant le printemps (Prérequis)",
-      "sectionType": "PREREQUISITE",
-      "zone": "Le Monde des Douze",
-      "description": "Les premiers prérequis monumentaux pour accéder à la floraison.",
-      "isSynergyCandidate": false,
-      "chainOrder": 0,
-      "requires": [],
-      "entries": [
-        {
-          "name": "Le secret des Dofus - Prologue",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 0,
-          "requirements": []
-        },
-        {
-          "name": "Obtenir le Dom de Pin",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 1,
-          "requirements": []
-        }
-      ]
-    },
     {
       "sectionName": "L'arbre qui cache la forêt",
       "sectionType": "MAIN_CHAIN",
-      "zone": "Silvosse / Forêt",
-      "description": "Série unique et officielle des quêtes pour acquérir le Dofus Sylvestre (2.70+).",
-      "isSynergyCandidate": true,
-      "chainOrder": 1,
+      "zone": "Malterre",
+      "description": null,
+      "isSynergyCandidate": false,
+      "chainOrder": 0,
       "requires": [],
+      "dungeons": [],
       "entries": [
         {
           "name": "C'est tout Simple",
           "dofusdbId": 1618,
           "level": 90,
           "zone": "Forêt des Abraknydes - Atelier des forgemages",
-          "npcName": null,
+          "npcName": "Arbabra",
           "npcSubArea": "Forêt des Abraknydes - Atelier des forgemages",
           "coords": {
             "x": -5,
@@ -71,208 +36,496 @@
           "isDungeon": false,
           "itemsRequired": [
             {
-              "name": "Pépite",
-              "amount": 500,
-              "img": "https://api.dofusdb.fr/img/items/14635.png",
-              "id": 14635
-            },
-            {
-              "name": "Ailes de Moskito",
-              "amount": 31,
-              "img": "https://api.dofusdb.fr/img/items/353.png",
-              "id": 353
-            },
-            {
-              "name": "Métronome du Début-Temps",
-              "amount": 24,
-              "img": "https://api.dofusdb.fr/img/items/18567.png",
-              "id": 18567
-            },
-            {
-              "name": "Eau calme",
-              "amount": 20,
-              "img": "https://api.dofusdb.fr/img/items/11105.png",
-              "id": 11105
-            },
-            {
-              "name": "Poudre de Perlinpainpain",
-              "amount": 12,
-              "id": 372
-            },
-            {
-              "name": "Capsule Explosive",
-              "amount": 12,
-              "id": 12151
-            },
-            {
-              "name": "Poudre d'Artifice",
-              "amount": 12,
-              "id": 16900
-            },
-            {
-              "name": "Goulouboule rouge",
-              "amount": 12,
-              "id": 20491
-            },
-            {
-              "name": "Glande d'Arak-haï",
-              "amount": 6,
-              "id": 16428
-            },
-            {
-              "name": "Citron",
-              "amount": 6,
-              "id": 359
-            },
-            {
-              "name": "Fil de Néfileuse",
-              "amount": 6,
-              "id": 14061
-            },
-            {
-              "name": "Résine",
-              "amount": 6,
-              "id": 883
-            },
-            {
-              "name": "Kouartz",
-              "amount": 6,
-              "id": 7033
-            },
-            {
-              "name": "Volve de Fistulor",
-              "amount": 4,
-              "id": 11116
-            },
-            {
-              "name": "Lamelle de Dramanite",
-              "amount": 4,
-              "id": 11117
-            },
-            {
-              "name": "Lamelle de Mérulette",
-              "amount": 4,
-              "id": 11118
-            },
-            {
-              "name": "Volve de Fongeur",
-              "amount": 4,
-              "id": 11119
-            },
-            {
-              "name": "Écorce d'Abrazif",
-              "amount": 4,
-              "id": 11120
-            },
-            {
-              "name": "Tourmaline",
-              "amount": 4,
-              "id": 14636
-            },
-            {
-              "name": "Œil de Cycloïde",
-              "amount": 4,
-              "id": 15263
-            },
-            {
-              "name": "Huile de Koode",
-              "amount": 3,
-              "id": 1795
-            },
-            {
-              "name": "Queue de Mantaze",
-              "amount": 2,
-              "id": 17875
-            },
-            {
-              "name": "Fragment d'anomalie",
-              "amount": 2,
-              "id": 19445
-            },
-            {
-              "name": "Ardonite",
-              "amount": 2,
-              "id": 13410
-            },
-            {
-              "name": "Galet Solaire",
-              "amount": 2,
-              "id": 20389
-            },
-            {
-              "name": "Jus de cawotte fwelaté ou 100 000 kamas",
+              "id": 14669,
+              "name": "Essence de Moon",
               "amount": 1,
-              "id": -1024
+              "img": "https://api.dofusdb.fr/img/items/167001.png"
             },
             {
-              "name": "Élixir des Trépasseurs",
+              "id": 14666,
+              "name": "Essence du Dragon Cochon",
               "amount": 1,
-              "id": 21104
+              "img": "https://api.dofusdb.fr/img/items/167001.png"
             },
             {
-              "name": "Galet Lunaire",
+              "id": 14684,
+              "name": "Essence du Chêne Mou",
               "amount": 1,
-              "id": 20387
+              "img": "https://api.dofusdb.fr/img/items/167001.png"
             },
             {
-              "name": "Substrat de Forêt vierge",
+              "id": 14693,
+              "name": "Essence du Korriandre",
               "amount": 1,
-              "id": 17351
+              "img": "https://api.dofusdb.fr/img/items/167001.png"
             },
             {
-              "name": "Clef de la Clairière du Chêne Mou",
+              "id": 16654,
+              "name": "Item #16654",
               "amount": 1,
-              "id": 10648
+              "img": null
             },
             {
-              "name": "Dague de Will Killson ou 20 Kama de glace",
+              "id": 26978,
+              "name": "Item #26978",
               "amount": 1,
-              "id": -1029
+              "img": null
             },
             {
-              "name": "Essence de Torkélonia",
-              "amount": 1,
-              "id": -1030
+              "id": 468,
+              "name": "Pain d'Incarnam",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/33013.png"
             },
             {
-              "name": "Essence de Tal Kasha",
-              "amount": 1,
-              "id": -1031
+              "id": 449,
+              "name": "Bois d'Ébène",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38073.png"
+            },
+            {
+              "id": 471,
+              "name": "Bois d'Érable",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38153.png"
+            },
+            {
+              "id": 472,
+              "name": "Bois de Charme",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38138.png"
+            },
+            {
+              "id": 474,
+              "name": "Bois de Merisier",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38139.png"
+            },
+            {
+              "id": 470,
+              "name": "Bois d'Orme",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38140.png"
+            },
+            {
+              "id": 473,
+              "name": "Bois de Châtaignier",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38086.png"
+            },
+            {
+              "id": 476,
+              "name": "Bois de Noyer",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38095.png"
+            },
+            {
+              "id": 7013,
+              "name": "Bois de Bambou",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38673.png"
+            },
+            {
+              "id": 475,
+              "name": "Item #475",
+              "amount": 100,
+              "img": null
+            },
+            {
+              "id": 17402,
+              "name": "Œuf de dodoune",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/105038.png"
+            },
+            {
+              "id": 469,
+              "name": "Baguette en Racine d'Abraknyde",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/3003.png"
+            },
+            {
+              "id": 445,
+              "name": "Manganèse",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39397.png"
+            },
+            {
+              "id": 7016,
+              "name": "Bois de Bambou Sombre",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38672.png"
+            },
+            {
+              "id": 467,
+              "name": "Rubis",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/50100.png"
+            },
+            {
+              "id": 8149,
+              "name": "Craquanneau Légendaire",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/9105.png"
+            },
+            {
+              "id": 11111,
+              "name": "Sac de Poisskaille",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/100059.png"
+            },
+            {
+              "id": 18193,
+              "name": "Item #18193",
+              "amount": 100,
+              "img": null
+            },
+            {
+              "id": 289,
+              "name": "Blé",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34009.png"
+            },
+            {
+              "id": 400,
+              "name": "Orge",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34082.png"
+            },
+            {
+              "id": 405,
+              "name": "Malt",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34561.png"
+            },
+            {
+              "id": 414,
+              "name": "Plume du Kwak de Glace",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/53112.png"
+            },
+            {
+              "id": 412,
+              "name": "Bec du Kwak de Flamme",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/47132.png"
+            },
+            {
+              "id": 413,
+              "name": "Bec du Kwak de Vent",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/47110.png"
+            },
+            {
+              "id": 533,
+              "name": "Avoine",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34154.png"
+            },
+            {
+              "id": 401,
+              "name": "Houblon",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34080.png"
+            },
+            {
+              "id": 415,
+              "name": "Plume du Kwak de Flamme",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/53111.png"
+            },
+            {
+              "id": 12836,
+              "name": "Moule de Clef de la Caverne de Nowel",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/153005.png"
+            },
+            {
+              "id": 12837,
+              "name": "Moule de Clef de la Maison du Papa Nowel",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/153006.png"
+            },
+            {
+              "id": 12838,
+              "name": "Kama Bronzé en Chocolat",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/148002.png"
+            },
+            {
+              "id": 421,
+              "name": "Ortie",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/36642.png"
+            },
+            {
+              "id": 428,
+              "name": "Sauge",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/36643.png"
+            },
+            {
+              "id": 425,
+              "name": "Chanvre",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34121.png"
+            },
+            {
+              "id": 423,
+              "name": "Lin",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34122.png"
+            },
+            {
+              "id": 431,
+              "name": "Pierre du Craqueleur",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/51127.png"
+            },
+            {
+              "id": 422,
+              "name": "Graine de Lin",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/58119.png"
+            },
+            {
+              "id": 7035,
+              "name": "Pyrute",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/40708.png"
+            },
+            {
+              "id": 7036,
+              "name": "Rutile",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/40707.png"
+            },
+            {
+              "id": 433,
+              "name": "Fémur du Chafer Archer",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/47101.png"
+            },
+            {
+              "id": 427,
+              "name": "Graine de Chanvre",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/58157.png"
+            },
+            {
+              "id": 11107,
+              "name": "Bois de Tremble",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/38677.png"
+            },
+            {
+              "id": 17403,
+              "name": "Œuf de dodoune",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/105038.png"
+            },
+            {
+              "id": 312,
+              "name": "Fer",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39024.png"
+            },
+            {
+              "id": 441,
+              "name": "Cuivre",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39108.png"
+            },
+            {
+              "id": 442,
+              "name": "Bronze",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39109.png"
+            },
+            {
+              "id": 443,
+              "name": "Kobalte",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39077.png"
+            },
+            {
+              "id": 444,
+              "name": "Étain",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39078.png"
+            },
+            {
+              "id": 7031,
+              "name": "Pendule du Gudule",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/1090.png"
+            },
+            {
+              "id": 7032,
+              "name": "Silicate",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39111.png"
+            },
+            {
+              "id": 7029,
+              "name": "Ceinture de Sangroku",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/10080.png"
+            },
+            {
+              "id": 7030,
+              "name": "Peau de Krambwork",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/59047.png"
+            },
+            {
+              "id": 7033,
+              "name": "Dolomite",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39110.png"
+            },
+            {
+              "id": 11110,
+              "name": "Obsidienne",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39112.png"
+            },
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/39399.png"
+            },
+            {
+              "id": 1782,
+              "name": "Goujon",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41294.png"
+            },
+            {
+              "id": 1844,
+              "name": "Truite",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41394.png"
+            },
+            {
+              "id": 598,
+              "name": "Greuvette",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41292.png"
+            },
+            {
+              "id": 1847,
+              "name": "Brochet",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41400.png"
+            },
+            {
+              "id": 1757,
+              "name": "Crabe Sourimi",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41273.png"
+            },
+            {
+              "id": 603,
+              "name": "Poisson-Chaton",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41277.png"
+            },
+            {
+              "id": 1805,
+              "name": "Sardine Brillante",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41317.png"
+            },
+            {
+              "id": 1750,
+              "name": "Poisson Pané",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41269.png"
+            },
+            {
+              "id": 1801,
+              "name": "Perche",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41313.png"
+            },
+            {
+              "id": 1784,
+              "name": "Raie Bleue",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41296.png"
+            },
+            {
+              "id": 16465,
+              "name": "Lotte",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41411.png"
+            },
+            {
+              "id": 11109,
+              "name": "Frostiz",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/34552.png"
+            },
+            {
+              "id": 1779,
+              "name": "Bar Rikain",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41290.png"
+            },
+            {
+              "id": 16467,
+              "name": "Morue",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41413.png"
+            },
+            {
+              "id": 16469,
+              "name": "Tanche",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41415.png"
+            },
+            {
+              "id": 16471,
+              "name": "Espadon",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41417.png"
+            },
+            {
+              "id": 11106,
+              "name": "Poisskaille",
+              "amount": 100,
+              "img": "https://api.dofusdb.fr/img/items/41403.png"
             }
           ],
+          "dungeonsRequired": [],
+          "externalRef": null,
           "objectives": [
             "Découvrir la carte : Maison du magicien",
             "Découvrir la carte : Arbre du barbare",
             "Découvrir la carte : Mine Est du Bois des Arak-haï",
             "Découvrir la carte : Mine Nord du Bois des Arak-haï",
             "Découvrir la carte : Maison abandonnée",
-            "Aller voir {npc,2851}",
+            "Aller voir Arbabra",
             "Suivre la piste d'Arbabra",
             "Continuer à suivre la piste d'Arbabra",
             "Vaincre les Arak-haï qui menacent la vie de Simple",
-            "Aller voir {npc,2850}",
+            "Aller voir Simple",
             "Escorter Simple jusqu'au temple de Sadida",
-            "Aller voir {npc,43}",
-            "Aller voir {npc,2847}",
-            "Vaincre : Antre de la Reine Nyée",
-            "Vaincre : Domaine Ancestral",
-            "Vaincre : Clairière du Chêne Mou",
-            "Vaincre : Antre du Korriandre",
-            "Vaincre : Palais du Roi Nidas",
-            "Vaincre : Bataille de l'Aurore Pourpre",
-            "Vaincre : Tour de Solar",
-            "Vaincre : Chambre des maléfices"
+            "Aller voir Epuop Tik",
+            "Aller voir Colonel Rumo"
           ],
           "stepOrder": 0,
-          "isSynergyCandidate": true,
-          "requirements": []
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
         },
         {
           "name": "Arak-haï en pagaille",
           "dofusdbId": 1619,
           "level": 90,
           "zone": "Antre de la Reine Nyée - Cinquième salle",
-          "npcName": null,
+          "npcName": "Cornelia Granpa",
           "npcSubArea": "Antre de la Reine Nyée - Cinquième salle",
           "coords": {
             "x": -6,
@@ -281,33 +534,46 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 141,
+              "name": "Antre de la Reine Nyée",
+              "level": null,
+              "bossName": "Barbéryl Clochecuivre",
+              "img": "https://api.dofusdb.fr/img/monsters/2331.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Vaincre x3 {monster,3992}",
             "Vaincre x3 {monster,3993}",
             "Vaincre x3 {monster,3995}",
             "Vaincre x3 {monster,3994}",
-            "Aller voir {npc,2852}",
+            "Aller voir Cornelia Granpa",
             "Se défendre contre l'embuscade",
+            "Aller voir Cornelia Granpa",
             "Trouver la reine des Arak-haï",
             "Vaincre x1 {monster,3996} sur la carte {map,149165056} en un seul combat",
-            "Aller voir {npc,2846}",
-            "Retourner voir {npc,2852}"
+            "Aller voir Reine Nyée",
+            "Retourner voir Cornelia Granpa"
           ],
           "stepOrder": 1,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1618
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "Munster lève le mystère",
           "dofusdbId": 1620,
           "level": 90,
           "zone": "Forêt des Abraknydes - Atelier des forgemages",
-          "npcName": null,
+          "npcName": "Hel Munster",
           "npcSubArea": "Forêt des Abraknydes - Atelier des forgemages",
           "coords": {
             "x": -5,
@@ -315,37 +581,76 @@
             "worldId": 1
           },
           "isDungeon": true,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 16200,
+              "name": "Gargantûl en Cage",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/126038.png"
+            },
+            {
+              "id": 16227,
+              "name": "Potion Magique",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/12038.png"
+            },
+            {
+              "id": 16201,
+              "name": "Œuf d'Arak-haï",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/126039.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 89,
+              "name": "Antre de la Reine Nyée",
+              "level": null,
+              "bossName": "Reine Nyée",
+              "img": "https://api.dofusdb.fr/img/monsters/1267.png",
+              "idoleName": null
+            },
+            {
+              "id": 9,
+              "name": "Domaine Ancestral",
+              "level": null,
+              "bossName": "Araknotron",
+              "img": "https://api.dofusdb.fr/img/monsters/505.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
-            "Aller voir {npc,176}",
+            "Aller voir Hel Munster",
             "Capturer un Gargantûl solitaire près de l'orée de la forêt",
-            "Ramener à {npc,176} : x1 {item,16200}",
-            "Ramener à {npc,176} : x1 {item,16227}",
-            "Ramener à {npc,176} : x1 {item,16201}",
+            "Ramener à Hel Munster : x1 Gargantûl en Cage",
+            "Ramener à Hel Munster : x1 Potion Magique",
+            "Ramener à Hel Munster : x1 Œuf d'Arak-haï",
             "Se rendre au cœur du Domaine Ancestral",
             "Vaincre x1 {monster,173} sur la carte {map,149688320} en un seul combat",
-            "Aller voir {npc,2863}",
-            "Retourner voir {npc,176}",
+            "Aller voir Abraknyde Ancestral",
+            "Retourner voir Hel Munster",
             "Découvrir la carte : Clairière",
             "Examiner la statue",
-            "Aller voir {npc,2854}",
-            "Retourner voir {npc,2852}"
+            "Aller voir Silvosse",
+            "Retourner voir Cornelia Granpa"
           ],
           "stepOrder": 2,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1619
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "L'art de la langue de bois",
           "dofusdbId": 1621,
           "level": 140,
           "zone": "Clairière du Chêne Mou - Cinquième salle",
-          "npcName": null,
+          "npcName": "Buisson de la Forêt Sombre",
           "npcSubArea": "Clairière du Chêne Mou - Cinquième salle",
           "coords": {
             "x": -13,
@@ -354,36 +659,58 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 15,
+              "name": "Domaine Ancestral",
+              "level": null,
+              "bossName": "Abraknyde Ancestral",
+              "img": "https://api.dofusdb.fr/img/monsters/97.png",
+              "idoleName": null
+            },
+            {
+              "id": 36,
+              "name": "Clairière du Chêne Mou",
+              "level": null,
+              "bossName": "Chêne Mou",
+              "img": "https://api.dofusdb.fr/img/monsters/147.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
-            "Aller voir {npc,2855}",
-            "Aller voir {npc,2856}",
-            "Aller voir {npc,2857}",
-            "Aller voir {npc,2858}",
-            "Aller voir {npc,2859}",
-            "Retourner voir {npc,2854}",
+            "Aller voir Buisson de la Forêt Sombre",
+            "Aller voir Bulbe de la Forêt Sombre",
+            "Aller voir Champignon de la Forêt Sombre",
+            "Aller voir Ronce de la Forêt Sombre",
+            "Aller voir Souche de la Forêt Sombre",
+            "Retourner voir Silvosse",
             "Entrer dans la Clairière du Chêne Mou et se présenter devant le maître des lieux",
             "Vaincre x1 {monster,257} sur la carte {map,149427200} en un seul combat",
-            "Aller voir {npc,2864}",
+            "Aller voir Chêne Mou",
+            "Retourner voir Silvosse",
             "Déposer la pierre enchantée dans le seau du puits de la Forêt Sombre",
             "S'éloigner du puits, puis revenir pour surprendre la poupée",
-            "Aller voir {npc,2860}",
-            "Vaincre x1 {monster,4037} en un seul combat"
+            "Aller voir La Comploteuse",
+            "Vaincre x1 {monster,4037} en un seul combat",
+            "Retourner voir Silvosse"
           ],
           "stepOrder": 3,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1620
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "Les derniers d'entre nous",
           "dofusdbId": 2486,
           "level": 180,
           "zone": "Antre du Korriandre - Cinquième salle",
-          "npcName": null,
+          "npcName": "Cornelia Granpa",
           "npcSubArea": "Antre du Korriandre - Cinquième salle",
           "coords": {
             "x": -4,
@@ -392,10 +719,21 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 59,
+              "name": "Antre du Korriandre",
+              "level": null,
+              "bossName": "Korriandre",
+              "img": "https://api.dofusdb.fr/img/monsters/841.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Trouver Cornelia Granpa",
             "Libérer Cornelia",
-            "Aller voir {npc,7120}",
+            "Aller voir Cornelia Granpa",
             "Traverser la mer Kantil jusqu'aux quais du Port de givre",
             "Pister le mystérieux inconnu avec l'aide de Cornelia et de Kroa",
             "Débusquer les animaux enragés et les combattre",
@@ -407,23 +745,25 @@
             "Affronter le Korriandre et les Sylvesprits pour se frayer un chemin dans l'antre",
             "Neutraliser la disciple",
             "Purifier le temple mystifié",
-            "S'entretenir avec les dieux de la forêt"
+            "S'entretenir avec les dieux de la forêt",
+            "Aller voir Cornelia Granpa"
           ],
           "stepOrder": 4,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 1621
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "Cultures et turpitudes",
           "dofusdbId": 2487,
           "level": 200,
           "zone": "Temple Sadida",
-          "npcName": null,
+          "npcName": "Epuop Tik",
           "npcSubArea": "Temple Sadida",
           "coords": {
             "x": -1,
@@ -431,9 +771,65 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 28437,
+              "name": "Humus plantalien",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/164175.png"
+            },
+            {
+              "id": 28438,
+              "name": "Pierre fertile",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/164176.png"
+            },
+            {
+              "id": 28439,
+              "name": "Limon des cascades",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/164177.png"
+            },
+            {
+              "id": 28440,
+              "name": "Cendres fécondes",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/164178.png"
+            },
+            {
+              "id": 28441,
+              "name": "Akènes à tout vent",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/164179.png"
+            },
+            {
+              "id": 28442,
+              "name": "Pandouille fantôme",
+              "amount": 20,
+              "img": "https://api.dofusdb.fr/img/items/164180.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 69,
+              "name": "Palais du Roi Nidas",
+              "level": null,
+              "bossName": "Roi Nidas",
+              "img": "https://api.dofusdb.fr/img/monsters/1106.png",
+              "idoleName": null
+            },
+            {
+              "id": 136,
+              "name": "Bataille de l'Aurore Pourpre",
+              "level": null,
+              "bossName": "L'Éternel Conflit",
+              "img": "https://api.dofusdb.fr/img/monsters/2236.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
-            "Aller voir {npc,43}",
+            "Aller voir Epuop Tik",
             "Rejoindre Simple dans les champs des Ingalsse",
             "Aider Simple à se défendre contre les esprits du champ de citwouilles",
             "Escorter Simple jusqu'au champ d'orge",
@@ -443,36 +839,37 @@
             "Trouver la propriétaire du potager",
             "Se rendre sur Grobe pour rencontrer le jardinier",
             "Fouiller la cabane de jardinage",
-            "Ramener à {npc,5895} : x20 {item,28437}",
-            "Ramener à {npc,5895} : x20 {item,28438}",
-            "Ramener à {npc,5895} : x20 {item,28439}",
-            "Ramener à {npc,5895} : x20 {item,28440}",
-            "Ramener à {npc,5895} : x20 {item,28441}",
-            "Ramener à {npc,5895} : x20 {item,28442}",
+            "Ramener à Grobelin Jardinier : x20 Humus plantalien",
+            "Ramener à Grobelin Jardinier : x20 Pierre fertile",
+            "Ramener à Grobelin Jardinier : x20 Limon des cascades",
+            "Ramener à Grobelin Jardinier : x20 Cendres fécondes",
+            "Ramener à Grobelin Jardinier : x20 Akènes à tout vent",
+            "Ramener à Grobelin Jardinier : x20 Pandouille fantôme",
             "Récupérer du terreau grobelin",
             "Répandre le terreau dans le premier champ avec l'aide de Simple",
             "Rendre visible la créature qui hante le champ de citwouilles",
             "Parlementer avec le gnome des jardins",
             "Vaincre le gnome des jardins",
-            "Aller voir {npc,2854}",
+            "Aller voir Silvosse",
             "Subir le jugement de Silvosse",
             "Prévenir Epuop Tik"
           ],
           "stepOrder": 5,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 2486
             }
-          ]
+          ],
+          "notes": null
         },
         {
           "name": "Qui nous protège du Protecteur ?",
           "dofusdbId": 2488,
           "level": 200,
           "zone": "Temple Xélor",
-          "npcName": null,
+          "npcName": "Amine",
           "npcSubArea": "Temple Xélor",
           "coords": {
             "x": 3,
@@ -481,10 +878,21 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 104,
+              "name": "Tour de Solar",
+              "level": null,
+              "bossName": "Solar",
+              "img": "https://api.dofusdb.fr/img/monsters/1661.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
-            "Aller voir {npc,37}",
+            "Aller voir Amine",
             "Ouvrir le livre des Protecteurs dans le temple de Xélor",
-            "Aller voir {npc,6354}",
+            "Aller voir Maïmane",
             "Obtenir le sigil de Jiva",
             "Obtenir le sigil de Silvosse",
             "Obtenir le sigil d'Ulgrude",
@@ -505,28 +913,265 @@
             "Affronter le Protecteur de flovor",
             "Constater l'état de Silvosse",
             "Être témoin de l'ultime choix de Simple",
-            "Aller voir {npc,2854}"
+            "Aller voir Silvosse"
           ],
           "stepOrder": 6,
-          "isSynergyCandidate": true,
+          "isSynergyCandidate": false,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 2487
             }
-          ]
+          ],
+          "notes": null
         }
       ]
     },
     {
-      "sectionName": "L'éclosion du Dofus",
+      "sectionName": "En attendant le printemps",
       "sectionType": "MAIN_CHAIN",
-      "zone": "Refuge Sylvestre",
-      "description": "La conclusion finale de la quête forestière.",
+      "zone": "Malterre",
+      "description": null,
       "isSynergyCandidate": false,
-      "chainOrder": 2,
+      "chainOrder": 1,
       "requires": [],
+      "dungeons": [],
       "entries": [
+        {
+          "name": "Au détour d'un rêve perdu",
+          "dofusdbId": 2409,
+          "level": 200,
+          "zone": "Caverne du réceptacle",
+          "npcName": "Onigori diabolique",
+          "npcSubArea": "Caverne du réceptacle",
+          "coords": {
+            "x": 21,
+            "y": -33,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 737,
+              "name": "Dofus Émeraude",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23002.png"
+            },
+            {
+              "id": 694,
+              "name": "Dofus Pourpre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23001.png"
+            },
+            {
+              "id": 739,
+              "name": "Dofus Turquoise",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23003.png"
+            },
+            {
+              "id": 7754,
+              "name": "Dofus Ocre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23012.png"
+            },
+            {
+              "id": 7115,
+              "name": "Dofus Ivoire",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23011.png"
+            },
+            {
+              "id": 7114,
+              "name": "Dofus Ébène",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23007.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Rencontrer le personnage qui a guidé votre destinée",
+            "Tenter d'ouvrir le coffret mystérieux",
+            "Explorer les ruines des songes perdus",
+            "Affronter la douleur avec l'aide des Onigori",
+            "Aller voir Onigori diabolique",
+            "Discuter avec Draconiros dans la caverne du réceptacle",
+            "Tenter de découvrir les origines de la douleur au temple de Sacrieur",
+            "Braver les flammes de la cime maudite",
+            "Faire face au Dark Vlad",
+            "S'exposer au courroux de Médoroziam",
+            "Retourner voir Draconiros"
+          ],
+          "stepOrder": 0,
+          "isSynergyCandidate": false,
+          "requirements": [],
+          "notes": null
+        },
+        {
+          "name": "Entretemps, une renaissance",
+          "dofusdbId": 2420,
+          "level": 200,
+          "zone": "Temple de Bakujikera",
+          "npcName": "Esprit de Bakujikera",
+          "npcSubArea": "Temple de Bakujikera",
+          "coords": {
+            "x": 43,
+            "y": -55,
+            "worldId": 1
+          },
+          "isDungeon": false,
+          "itemsRequired": [
+            {
+              "id": 737,
+              "name": "Dofus Émeraude",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23002.png"
+            },
+            {
+              "id": 694,
+              "name": "Dofus Pourpre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23001.png"
+            },
+            {
+              "id": 739,
+              "name": "Dofus Turquoise",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23003.png"
+            },
+            {
+              "id": 7754,
+              "name": "Dofus Ocre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23012.png"
+            },
+            {
+              "id": 7115,
+              "name": "Dofus Ivoire",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23011.png"
+            },
+            {
+              "id": 7114,
+              "name": "Dofus Ébène",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23007.png"
+            }
+          ],
+          "dungeonsRequired": [],
+          "externalRef": null,
+          "objectives": [
+            "Retourner voir Esprit de Bakujikera",
+            "Voyager dans le temps jusqu'au Sanctuaire du dernier espoir pour en savoir plus sur Allisterine",
+            "Communiquer avec Entropix",
+            "Aller voir Fallanster",
+            "Découvrir la carte : Chapelle royale de Féca",
+            "Emprunter le médaillon placé sur l'autel",
+            "Résister aux coups du bélier divin",
+            "Aller voir Déesse Féca",
+            "Rejoindre les Portes d'Onékros",
+            "Guider Allisterine",
+            "Aller voir Allisterine",
+            "Interroger Entropix, puis neutraliser les Cavaliers",
+            "Aller voir Allisterine",
+            "Donner le médaillon à Allisteria"
+          ],
+          "stepOrder": 1,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2409
+            }
+          ],
+          "notes": null
+        },
+        {
+          "name": "La bête au bois dormant",
+          "dofusdbId": 2449,
+          "level": 200,
+          "zone": "Temple Crâ",
+          "npcName": "Terrakourial",
+          "npcSubArea": "Temple Crâ",
+          "coords": {
+            "x": -57,
+            "y": -1,
+            "worldId": 1
+          },
+          "isDungeon": true,
+          "itemsRequired": [
+            {
+              "id": 737,
+              "name": "Dofus Émeraude",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23002.png"
+            },
+            {
+              "id": 694,
+              "name": "Dofus Pourpre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23001.png"
+            },
+            {
+              "id": 739,
+              "name": "Dofus Turquoise",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23003.png"
+            },
+            {
+              "id": 7754,
+              "name": "Dofus Ocre",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23012.png"
+            },
+            {
+              "id": 7115,
+              "name": "Dofus Ivoire",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23011.png"
+            },
+            {
+              "id": 7114,
+              "name": "Dofus Ébène",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23007.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 126,
+              "name": "Antre de Torkélonia",
+              "level": null,
+              "bossName": "Torkélonia",
+              "img": "https://api.dofusdb.fr/img/monsters/1903.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
+          "objectives": [
+            "Entrer dans le rêve de Terrakourial",
+            "Aller voir Terrakourial",
+            "S'entretenir avec le maître du temple de Crâ",
+            "Passer l'épreuve de la baliste de Crâ",
+            "Parler à la Grande Chasseresse",
+            "Explorer la Forêt Maléfique à la recherche d'une créature qui se souvient de Terrakourial",
+            "Faire face au vieux moussu",
+            "Aller voir Vieux moussu",
+            "Pénétrer dans le bloc d'ambre caché sous le tumulus",
+            "Aller voir Reine cornue",
+            "Aller voir Terrakourial"
+          ],
+          "stepOrder": 2,
+          "isSynergyCandidate": false,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2420
+            }
+          ],
+          "notes": null
+        },
         {
           "name": "Flovoraison",
           "dofusdbId": 2489,
@@ -540,7 +1185,25 @@
             "worldId": 1
           },
           "isDungeon": true,
-          "itemsRequired": [],
+          "itemsRequired": [
+            {
+              "id": 27803,
+              "name": "Dom de Pin",
+              "amount": 1,
+              "img": "https://api.dofusdb.fr/img/items/23035.png"
+            }
+          ],
+          "dungeonsRequired": [
+            {
+              "id": 140,
+              "name": "Chambre des maléfices",
+              "level": null,
+              "bossName": "Belladone",
+              "img": "https://api.dofusdb.fr/img/monsters/2325.png",
+              "idoleName": null
+            }
+          ],
+          "externalRef": null,
           "objectives": [
             "Découvrir la carte : Sylve céleste",
             "Converser avec les dieux",
@@ -551,29 +1214,640 @@
             "Régénérer le Dom de Pin",
             "Utiliser le Dofus à bon escient"
           ],
-          "stepOrder": 0,
+          "stepOrder": 3,
           "isSynergyCandidate": false,
-          "requirements": []
-        },
-        {
-          "name": "Parler à Silvosse",
-          "dofusdbId": null,
-          "level": null,
-          "zone": null,
-          "npcSubArea": null,
-          "coords": null,
-          "isDungeon": false,
-          "itemsRequired": [],
-          "objectives": [],
-          "stepOrder": 1,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 2489
+              "dofusdbId": 2449
             }
-          ]
+          ],
+          "notes": null
         }
       ]
     }
-  ]
+  ],
+  "globalSummary": {
+    "totalQuests": 11,
+    "totalItems": 93,
+    "totalDungeons": 7,
+    "items": [
+      {
+        "id": 468,
+        "name": "Pain d'Incarnam",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/33013.png"
+      },
+      {
+        "id": 449,
+        "name": "Bois d'Ébène",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38073.png"
+      },
+      {
+        "id": 471,
+        "name": "Bois d'Érable",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38153.png"
+      },
+      {
+        "id": 472,
+        "name": "Bois de Charme",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38138.png"
+      },
+      {
+        "id": 474,
+        "name": "Bois de Merisier",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38139.png"
+      },
+      {
+        "id": 470,
+        "name": "Bois d'Orme",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38140.png"
+      },
+      {
+        "id": 473,
+        "name": "Bois de Châtaignier",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38086.png"
+      },
+      {
+        "id": 476,
+        "name": "Bois de Noyer",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38095.png"
+      },
+      {
+        "id": 7013,
+        "name": "Bois de Bambou",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38673.png"
+      },
+      {
+        "id": 475,
+        "name": "Item #475",
+        "totalAmount": 100,
+        "img": null
+      },
+      {
+        "id": 17402,
+        "name": "Œuf de dodoune",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/105038.png"
+      },
+      {
+        "id": 469,
+        "name": "Baguette en Racine d'Abraknyde",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/3003.png"
+      },
+      {
+        "id": 445,
+        "name": "Manganèse",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39397.png"
+      },
+      {
+        "id": 7016,
+        "name": "Bois de Bambou Sombre",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38672.png"
+      },
+      {
+        "id": 467,
+        "name": "Rubis",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/50100.png"
+      },
+      {
+        "id": 8149,
+        "name": "Craquanneau Légendaire",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/9105.png"
+      },
+      {
+        "id": 11111,
+        "name": "Sac de Poisskaille",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/100059.png"
+      },
+      {
+        "id": 18193,
+        "name": "Item #18193",
+        "totalAmount": 100,
+        "img": null
+      },
+      {
+        "id": 289,
+        "name": "Blé",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34009.png"
+      },
+      {
+        "id": 400,
+        "name": "Orge",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34082.png"
+      },
+      {
+        "id": 405,
+        "name": "Malt",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34561.png"
+      },
+      {
+        "id": 414,
+        "name": "Plume du Kwak de Glace",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/53112.png"
+      },
+      {
+        "id": 412,
+        "name": "Bec du Kwak de Flamme",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/47132.png"
+      },
+      {
+        "id": 413,
+        "name": "Bec du Kwak de Vent",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/47110.png"
+      },
+      {
+        "id": 533,
+        "name": "Avoine",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34154.png"
+      },
+      {
+        "id": 401,
+        "name": "Houblon",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34080.png"
+      },
+      {
+        "id": 415,
+        "name": "Plume du Kwak de Flamme",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/53111.png"
+      },
+      {
+        "id": 12836,
+        "name": "Moule de Clef de la Caverne de Nowel",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/153005.png"
+      },
+      {
+        "id": 12837,
+        "name": "Moule de Clef de la Maison du Papa Nowel",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/153006.png"
+      },
+      {
+        "id": 12838,
+        "name": "Kama Bronzé en Chocolat",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/148002.png"
+      },
+      {
+        "id": 421,
+        "name": "Ortie",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/36642.png"
+      },
+      {
+        "id": 428,
+        "name": "Sauge",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/36643.png"
+      },
+      {
+        "id": 425,
+        "name": "Chanvre",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34121.png"
+      },
+      {
+        "id": 423,
+        "name": "Lin",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34122.png"
+      },
+      {
+        "id": 431,
+        "name": "Pierre du Craqueleur",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/51127.png"
+      },
+      {
+        "id": 422,
+        "name": "Graine de Lin",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/58119.png"
+      },
+      {
+        "id": 7035,
+        "name": "Pyrute",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/40708.png"
+      },
+      {
+        "id": 7036,
+        "name": "Rutile",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/40707.png"
+      },
+      {
+        "id": 433,
+        "name": "Fémur du Chafer Archer",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/47101.png"
+      },
+      {
+        "id": 427,
+        "name": "Graine de Chanvre",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/58157.png"
+      },
+      {
+        "id": 11107,
+        "name": "Bois de Tremble",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/38677.png"
+      },
+      {
+        "id": 17403,
+        "name": "Œuf de dodoune",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/105038.png"
+      },
+      {
+        "id": 312,
+        "name": "Fer",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39024.png"
+      },
+      {
+        "id": 441,
+        "name": "Cuivre",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39108.png"
+      },
+      {
+        "id": 442,
+        "name": "Bronze",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39109.png"
+      },
+      {
+        "id": 443,
+        "name": "Kobalte",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39077.png"
+      },
+      {
+        "id": 444,
+        "name": "Étain",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39078.png"
+      },
+      {
+        "id": 7031,
+        "name": "Pendule du Gudule",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/1090.png"
+      },
+      {
+        "id": 7032,
+        "name": "Silicate",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39111.png"
+      },
+      {
+        "id": 7029,
+        "name": "Ceinture de Sangroku",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/10080.png"
+      },
+      {
+        "id": 7030,
+        "name": "Peau de Krambwork",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/59047.png"
+      },
+      {
+        "id": 7033,
+        "name": "Dolomite",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39110.png"
+      },
+      {
+        "id": 11110,
+        "name": "Obsidienne",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39112.png"
+      },
+      {
+        "id": 17995,
+        "name": "Écume de mer",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/39399.png"
+      },
+      {
+        "id": 1782,
+        "name": "Goujon",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41294.png"
+      },
+      {
+        "id": 1844,
+        "name": "Truite",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41394.png"
+      },
+      {
+        "id": 598,
+        "name": "Greuvette",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41292.png"
+      },
+      {
+        "id": 1847,
+        "name": "Brochet",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41400.png"
+      },
+      {
+        "id": 1757,
+        "name": "Crabe Sourimi",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41273.png"
+      },
+      {
+        "id": 603,
+        "name": "Poisson-Chaton",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41277.png"
+      },
+      {
+        "id": 1805,
+        "name": "Sardine Brillante",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41317.png"
+      },
+      {
+        "id": 1750,
+        "name": "Poisson Pané",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41269.png"
+      },
+      {
+        "id": 1801,
+        "name": "Perche",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41313.png"
+      },
+      {
+        "id": 1784,
+        "name": "Raie Bleue",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41296.png"
+      },
+      {
+        "id": 16465,
+        "name": "Lotte",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41411.png"
+      },
+      {
+        "id": 11109,
+        "name": "Frostiz",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/34552.png"
+      },
+      {
+        "id": 1779,
+        "name": "Bar Rikain",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41290.png"
+      },
+      {
+        "id": 16467,
+        "name": "Morue",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41413.png"
+      },
+      {
+        "id": 16469,
+        "name": "Tanche",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41415.png"
+      },
+      {
+        "id": 16471,
+        "name": "Espadon",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41417.png"
+      },
+      {
+        "id": 11106,
+        "name": "Poisskaille",
+        "totalAmount": 100,
+        "img": "https://api.dofusdb.fr/img/items/41403.png"
+      },
+      {
+        "id": 28437,
+        "name": "Humus plantalien",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/164175.png"
+      },
+      {
+        "id": 28438,
+        "name": "Pierre fertile",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/164176.png"
+      },
+      {
+        "id": 28439,
+        "name": "Limon des cascades",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/164177.png"
+      },
+      {
+        "id": 28440,
+        "name": "Cendres fécondes",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/164178.png"
+      },
+      {
+        "id": 28441,
+        "name": "Akènes à tout vent",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/164179.png"
+      },
+      {
+        "id": 28442,
+        "name": "Pandouille fantôme",
+        "totalAmount": 20,
+        "img": "https://api.dofusdb.fr/img/items/164180.png"
+      },
+      {
+        "id": 737,
+        "name": "Dofus Émeraude",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/23002.png"
+      },
+      {
+        "id": 694,
+        "name": "Dofus Pourpre",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/23001.png"
+      },
+      {
+        "id": 739,
+        "name": "Dofus Turquoise",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/23003.png"
+      },
+      {
+        "id": 7754,
+        "name": "Dofus Ocre",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/23012.png"
+      },
+      {
+        "id": 7115,
+        "name": "Dofus Ivoire",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/23011.png"
+      },
+      {
+        "id": 7114,
+        "name": "Dofus Ébène",
+        "totalAmount": 3,
+        "img": "https://api.dofusdb.fr/img/items/23007.png"
+      },
+      {
+        "id": 14669,
+        "name": "Essence de Moon",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/167001.png"
+      },
+      {
+        "id": 14666,
+        "name": "Essence du Dragon Cochon",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/167001.png"
+      },
+      {
+        "id": 14684,
+        "name": "Essence du Chêne Mou",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/167001.png"
+      },
+      {
+        "id": 14693,
+        "name": "Essence du Korriandre",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/167001.png"
+      },
+      {
+        "id": 16654,
+        "name": "Item #16654",
+        "totalAmount": 1,
+        "img": null
+      },
+      {
+        "id": 26978,
+        "name": "Item #26978",
+        "totalAmount": 1,
+        "img": null
+      },
+      {
+        "id": 16200,
+        "name": "Gargantûl en Cage",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/126038.png"
+      },
+      {
+        "id": 16227,
+        "name": "Potion Magique",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/12038.png"
+      },
+      {
+        "id": 16201,
+        "name": "Œuf d'Arak-haï",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/126039.png"
+      },
+      {
+        "id": 27803,
+        "name": "Dom de Pin",
+        "totalAmount": 1,
+        "img": "https://api.dofusdb.fr/img/items/23035.png"
+      }
+    ],
+    "dungeons": [
+      {
+        "id": 89,
+        "name": "Antre de la Reine Nyée",
+        "level": null,
+        "bossName": "Reine Nyée",
+        "img": "https://api.dofusdb.fr/img/monsters/1267.png",
+        "idoleName": null
+      },
+      {
+        "id": 9,
+        "name": "Domaine Ancestral",
+        "level": null,
+        "bossName": "Araknotron",
+        "img": "https://api.dofusdb.fr/img/monsters/505.png",
+        "idoleName": null
+      },
+      {
+        "id": 10,
+        "name": "Clairière du Chêne Mou",
+        "level": null,
+        "bossName": "Abrakne Sombre Irascible",
+        "img": "https://api.dofusdb.fr/img/monsters/346.png",
+        "idoleName": null
+      },
+      {
+        "id": 59,
+        "name": "Antre du Korriandre",
+        "level": null,
+        "bossName": "Korriandre",
+        "img": "https://api.dofusdb.fr/img/monsters/841.png",
+        "idoleName": null
+      },
+      {
+        "id": 76,
+        "name": "Palais du roi Nidas",
+        "level": null,
+        "bossName": "Piloztère",
+        "img": "https://api.dofusdb.fr/img/monsters/1114.png",
+        "idoleName": null
+      },
+      {
+        "id": 136,
+        "name": "Bataille de l'Aurore Pourpre",
+        "level": null,
+        "bossName": "L'Éternel Conflit",
+        "img": "https://api.dofusdb.fr/img/monsters/2236.png",
+        "idoleName": null
+      },
+      {
+        "id": 139,
+        "name": "Tertre du long sommeil",
+        "level": null,
+        "bossName": "Malbois",
+        "img": "https://api.dofusdb.fr/img/monsters/2263.png",
+        "idoleName": null
+      }
+    ]
+  }
 }

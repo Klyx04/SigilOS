@@ -101,6 +101,7 @@ export type UserContext = {
     canManageCalendar: boolean;
     canViewChat: boolean;
     canModerateChat: boolean;
+    canEditVacation: boolean;
     // Admin Tools
     canEditPresentation: boolean;
     canManageRelance: boolean;
@@ -212,6 +213,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canManageCalendar: false,
         canViewChat: false,
         canModerateChat: false,
+        canEditVacation: false,
         canEditPresentation: false,
         canManageRelance: false,
         canManageRBAC: false,
@@ -467,6 +469,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 canManageCalendar: true,
                 canViewChat: true,
                 canModerateChat: true,
+                canEditVacation: true,
                 canViewRoster: true,
                 canViewQuests: true,
                 canManageQuests: true,
@@ -633,6 +636,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canManageCalendar = permissionSet.has(PERMISSIONS.CALENDAR_MANAGE) || isAdminFinal;
     const canViewChat = permissionSet.has(PERMISSIONS.CHAT_VIEW) || isAdminFinal;
     const canModerateChat = permissionSet.has(PERMISSIONS.CHAT_MODERATE) || isAdminFinal;
+    const canEditVacation = permissionSet.has(PERMISSIONS.MEMBER_VACATION_EDIT) || isAdminFinal;
     const canViewPolls = permissionSet.has(PERMISSIONS.POLLS_VIEW) || isAdminFinal;
     const canManageRelance = permissionSet.has(PERMISSIONS.RELANCE_MANAGE) || permissionSet.has(PERMISSIONS.MEMBER_MANAGE) || isAdminFinal;
     const canManageRBAC = hasDiscordAdmin || isGod; // STRICT: Only Discord admins and God can manage RBAC
@@ -688,6 +692,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canManageCalendar: !!applyModule(!!mod?.calendar, !!canManageCalendar),
         canViewChat: !!applyModule(!!mod?.chat, !!canViewChat),
         canModerateChat: !!applyModule(!!mod?.chat, !!canModerateChat),
+        canEditVacation: !!canEditVacation,
         canEditPresentation: !!applyModule(!!mod?.presentation, !!canEditPresentation),
         canManageRelance: !!canManageRelance,
         canManageRBAC: !!canManageRBAC,
@@ -1079,7 +1084,24 @@ export async function getGuildMembers(guildId: string) {
 
     const members = await db.userProfile.findMany({
         where: { guildId: guildConfig.id },
-        include: {
+        select: {
+            id: true,
+            userId: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            archivedAt: true,
+            archiveReason: true,
+            pseudoDofus: true,
+            discordNickname: true,
+            discordRoleName: true,
+            discordRoleColor: true,
+            ankamaId: true,
+            discordMessageCountWeekly: true,
+            discordVoiceTimeWeekly: true,
+            scheduledDeletion: true,
+            vacationStart: true,
+            vacationEnd: true,
             user: {
                 select: {
                     name: true,
@@ -1109,6 +1131,11 @@ export async function getGuildMembers(guildId: string) {
             discordRoleName: m.discordRoleName,
             discordRoleColor: m.discordRoleColor,
             ankamaId: m.ankamaId,
+            discordMessageCountWeekly: m.discordMessageCountWeekly,
+            discordVoiceTimeWeekly: m.discordVoiceTimeWeekly,
+            scheduledDeletion: m.scheduledDeletion?.toISOString() || null,
+            vacationStart: m.vacationStart?.toISOString() || null,
+            vacationEnd: m.vacationEnd?.toISOString() || null,
             user: {
                 name: m.user.name,
                 image: m.user.image,

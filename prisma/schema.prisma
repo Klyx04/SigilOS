@@ -247,6 +247,14 @@ model GuildConfig {
   sigilRoles                       SigilRole[]
   profiles                         UserProfile[]
   vaultEntries                     VaultEntry[]
+  guildatonRecords                 GuildatonRecord[]
+  guildatonHistories               GuildatonHistory[]
+  guildatonTrackedRoles            String[]                @default([])
+  guildatonNotifyChannelId         String?
+  guildatonAdminChannelId          String?
+  guildatonWeeklyQuota             Int                     @default(0)
+  guildatonReminderDay             Int?                    @default(0)
+  guildatonReminderTime            String?                 @default("18:00")
 }
 
 model GuildModules {
@@ -368,8 +376,12 @@ model UserProfile {
   dofusLevel                Int?                       @default(0)
   totalXp                   BigInt?                    @default(0)
   ankamaId                  String?
-  discordMessageCountWeekly Int                        @default(0)
+  discordMessageCountWeekly  Int                        @default(0)
   discordVoiceTimeWeekly    Int                        @default(0)
+  discordMessageCountMonthly Int                       @default(0)
+  discordVoiceTimeMonthly    Int                       @default(0)
+  discordMessageCountTotal   Int                       @default(0)
+  discordVoiceTimeTotal      Int                       @default(0)
   lastDiscordMessageAt      DateTime?
   lastDiscordReactionAt     DateTime?
   lastDiscordTypingAt       DateTime?
@@ -1953,6 +1965,7 @@ enum MentionType {
 
 enum DocAccessLevel {
   PUBLIC
+  MEMBER
   ADMIN
 }
 
@@ -2075,4 +2088,32 @@ enum DofusQuestStatus {
   IN_PROGRESS
   COMPLETED
   SKIPPED
+}
+
+model GuildatonRecord {
+  id        String   @id @default(cuid())
+  guildId   String
+  discordId String
+  username  String?
+  ankamaId  String?
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+  
+  guild     GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  
+  @@unique([guildId, discordId])
+  @@index([guildId])
+}
+
+model GuildatonHistory {
+  id        String   @id @default(cuid())
+  guildId   String
+  discordId String
+  value     Int
+  createdAt DateTime @default(now())
+  
+  guild     GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  
+  @@index([guildId, discordId])
+  @@index([createdAt])
 }

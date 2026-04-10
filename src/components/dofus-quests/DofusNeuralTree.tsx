@@ -215,7 +215,7 @@ function QuestCard({
                                         ) : d.id ? (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img
-                                                src={`https://api.dofusdb.fr/img/monsters/${d.id}.png`}
+                                                src={`https://static.dofusdb.fr/monsters/${d.id}.png`}
                                                 alt={d.name}
                                                 className="w-full h-full object-contain"
                                                 onError={(e) => {
@@ -509,7 +509,7 @@ function RoadmapResources({ chains, dofusColor, completedIds }: { chains: any[];
                                 <div className="w-9 h-9 bg-white/5 rounded-xl flex items-center justify-center p-1 relative shrink-0">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                        src={item.img || `https://api.dofusdb.fr/img/items/${item.id}.png`}
+                                        src={item.img || `https://static.dofusdb.fr/items/${item.id}.png`}
                                         alt=""
                                         className="w-full h-full object-contain"
                                         onError={(e) => ((e.currentTarget.style.display = "none"))}
@@ -554,7 +554,7 @@ function RoadmapResources({ chains, dofusColor, completedIds }: { chains: any[];
                                     {(d.id || d.img) ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
-                                            src={d.img || `https://api.dofusdb.fr/img/monsters/${d.id}.png`}
+                                            src={d.img || `https://static.dofusdb.fr/monsters/${d.id}.png`}
                                             className="w-full h-full object-contain"
                                             alt={d.name}
                                             onError={(e) => ((e.currentTarget.style.display = "none"))}

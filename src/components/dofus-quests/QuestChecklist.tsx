@@ -191,6 +191,15 @@ function QuestEntryRow({
                                             {d.idoleName && <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded">{d.idoleName}</span>}
                                         </div>
                                     </div>
+                                    {(d as any).dplnUrl && (
+                                        <a href={(d as any).dplnUrl}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="h-10 px-4 bg-indigo-500/20 hover:bg-indigo-500/30 text-white rounded-xl border border-indigo-500/30 flex items-center justify-center gap-2 transition-all hover:scale-105"
+                                            onClick={(e) => e.stopPropagation()}>
+                                            <BookOpen className="w-4 h-4" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Stratégie</span>
+                                        </a>
+                                    )}
                                 </div>
                             ))}
 
@@ -280,12 +289,21 @@ function QuestEntryRow({
                                     onClick={(e) => e.stopPropagation()}>
                                     DofusDB
                                 </a>
-                                <a href={(entry as any).externalRef || `https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`}
-                                    target="_blank" rel="noopener noreferrer"
-                                    className="text-[9px] font-black uppercase italic text-zinc-500 hover:text-white px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 transition-all hover:bg-white/10"
-                                    onClick={(e) => e.stopPropagation()}>
-                                    Noobs
-                                </a>
+                                {entry.externalRef ? (
+                                    <a href={entry.externalRef}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="text-[9px] font-black uppercase italic text-white px-2.5 py-1 bg-indigo-500/20 rounded-lg border border-indigo-500/30 transition-all hover:bg-indigo-500/30 flex items-center gap-1.5"
+                                        onClick={(e) => e.stopPropagation()}>
+                                        <BookOpen className="w-3 h-3" /> Stratégie DPLN
+                                    </a>
+                                ) : (
+                                    <a href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="text-[9px] font-black uppercase italic text-zinc-500 hover:text-white px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 transition-all hover:bg-white/10"
+                                        onClick={(e) => e.stopPropagation()}>
+                                        Noobs
+                                    </a>
+                                )}
                                 {(entry as any).coords && (
                                     <button onClick={(e) => { e.stopPropagation(); const c = (entry as any).coords; copyWithToast(`/travel ${c.x} ${c.y}`); }}
                                         className="text-[9px] font-black uppercase italic text-zinc-500 hover:text-emerald-400 px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 flex items-center gap-1 transition-all hover:bg-white/10">

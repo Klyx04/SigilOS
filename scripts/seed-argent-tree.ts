@@ -64,7 +64,7 @@ async function seedDofus() {
 
     try {
         // 1. Upsert DofusItem
-        const imageUrl = compiled.imageUrl ? compiled.imageUrl : (compiled.iconId ? `https://api.dofusdb.fr/img/items/${compiled.iconId}.png` : (compiled.dofusItemId ? `https://api.dofusdb.fr/img/items/${compiled.dofusItemId}.png` : `https://api.dofusdb.fr/img/items/${dofus_slug_to_icon(dofusSlug)}.png`));
+        const imageUrl = compiled.imageUrl ? compiled.imageUrl : (compiled.iconId ? `https://static.dofusdb.fr/items/${compiled.iconId}.png` : (compiled.dofusItemId ? `https://static.dofusdb.fr/items/${compiled.dofusItemId}.png` : `https://static.dofusdb.fr/items/${dofus_slug_to_icon(dofusSlug)}.png`));
         const name = compiled.displayName ?? dofus_slug_to_name(dofusSlug);
         const nameShort = dofus_slug_to_short(dofusSlug);
         const color = compiled.color ?? "#aaaaaa";
@@ -105,12 +105,8 @@ async function seedDofus() {
 
         // 4. Seed chains + entries
         for (const chainData of compiled.chains) {
-            if (chainData.sectionType === "PREREQUISITE") {
-                console.log(`⏩ Skipping prerequisite chain: ${chainData.sectionName}`);
-                continue;
-            }
-
             const pos = layout.get(chainData.chainOrder) ?? { baseX: 80, baseY: 100 };
+
 
             const chain = await db.dofusQuestChain.create({
                 data: {
@@ -135,10 +131,12 @@ async function seedDofus() {
                     ? entry.name
                     : (entry.name as any)?.name ?? String(entry.name);
 
-                // Build a stable ID: slug-dofusdbId or slug-name
+                // Build a stable ID: slug-section-dofusdbId or slug-section-name
+                const sectionSlug = chainData.sectionName.toLowerCase().replace(/[^a-z0-9]/g, "");
+                const nameSlug = entryName.toLowerCase().replace(/[^a-z0-9]/g, "");
                 const stableId = entry.dofusdbId
-                    ? `${dofusSlug}-${entry.dofusdbId}`
-                    : `${dofusSlug}-${entryName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+                    ? `${dofusSlug}-${sectionSlug}-${entry.dofusdbId}`
+                    : `${dofusSlug}-${sectionSlug}-${nameSlug}`;
 
                 await db.dofusQuestEntry.create({
                     data: {

@@ -1,22 +1,34 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Maximize2, Minimize2, MapPin, ZoomIn, ZoomOut, RefreshCw, Sparkles, Swords } from 'lucide-react';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { X, Maximize2, Minimize2, MapPin, ZoomIn, ZoomOut, RefreshCw, Sparkles, Swords, Plus, Minus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface MapDetailsPanelProps {
     position: { x: number; y: number; displayX: number; displayY: number; mapId?: number };
+    allLayers?: any[];
     subAreaName?: string;
     guildId: string;
     onClose: () => void;
     onOpenZoneDetails?: () => void;
+    onSelectMap?: (map: any) => void;
 }
 
-export default function MapDetailsPanel({ position, subAreaName, guildId, onClose, onOpenZoneDetails }: MapDetailsPanelProps) {
+export default function MapDetailsPanel({ 
+    position, 
+    allLayers = [], 
+    subAreaName, 
+    guildId, 
+    onClose, 
+    onOpenZoneDetails,
+    onSelectMap
+}: MapDetailsPanelProps) {
     const [isMaximized, setIsMaximized] = useState(false);
     const [zoom, setZoom] = useState(1);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
+    const dragControls = useDragControls();
 
     // HD Map URL
     const hdMapUrl = position.mapId ? `/game-data/hd_maps/${position.mapId}.webp` : null;
@@ -41,61 +53,160 @@ export default function MapDetailsPanel({ position, subAreaName, guildId, onClos
 
     return (
         <AnimatePresence>
+            {/* Backdrop for maximized mode */}
+            {isMaximized && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={onClose}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[4999]"
+                />
+            )}
+
             <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                initial={{ opacity: 0, scale: 0.9 }}
                 animate={{
                     opacity: 1,
                     scale: 1,
-                    y: 0,
-                    width: isMaximized ? '100%' : 'min(360px, calc(100vw - 2rem))',
-                    height: isMaximized ? 'calc(100% - 64px)' : 'min(400px, calc(100vh - 8rem))',
-                    left: isMaximized ? '0' : 'auto',
-                    top: isMaximized ? '64px' : 'auto',
-                    right: isMaximized ? '2rem' : '1rem', 
-                    bottom: isMaximized ? '0' : '2rem',
-                    borderRadius: isMaximized ? '0px' : '1rem',
+                    width: isMaximized ? 'min(1400px, 95vw)' : 'min(440px, 95vw)',
+                    height: isMaximized ? 'min(900px, 90vh)' : 'min(520px, 85vh)',
+                    left: isMaximized ? '50%' : 'auto',
+                    top: isMaximized ? '50%' : 'auto',
+                    x: isMaximized ? '-50%' : '0%',
+                    y: isMaximized ? '-50%' : '0%',
+                    right: isMaximized ? 'auto' : '2rem', 
+                    bottom: isMaximized ? 'auto' : '3rem',
+                    borderRadius: '2.5rem',
                 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                drag={!isMaximized}
+                exit={{ opacity: 0, scale: 0.9 }}
+                drag
+                dragControls={dragControls}
+                dragListener={false}
                 dragMomentum={false}
-                className="absolute z-[1000] overflow-hidden bg-[#080b12]/95 backdrop-blur-3xl border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.9)] flex flex-col transition-[border-radius] duration-500 ease-out"
+                className={cn(
+                    "overflow-hidden bg-[#020408]/98 backdrop-blur-3xl border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.9)] flex flex-col transition-all duration-500 ease-out",
+                    isMaximized ? "fixed z-[5000] border-white/20" : "absolute z-[1000]"
+                )}
             >
-                {/* Header */}
-                <div className="p-4 flex items-center justify-between border-b border-white/5 shrink-0 bg-white/5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner shrink-0">
-                            <MapPin size={20} />
+                {/* ─── HEADER ─── */}
+                <div 
+                    onPointerDown={(e) => dragControls.start(e)}
+                    className={cn(
+                        "flex border-b border-white/5 shrink-0 transition-all cursor-grab active:cursor-grabbing select-none relative z-[100]",
+                        isMaximized ? "items-center bg-white/5 px-10 py-6 gap-6" : "flex-col bg-white/5 p-4 gap-4"
+                    )}
+                >
+                    <div className="flex items-center justify-between w-full min-w-0 gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className={cn(
+                                "rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner shrink-0 transition-all",
+                                isMaximized ? "w-12 h-12" : "w-10 h-10"
+                            )}>
+                                <MapPin size={isMaximized ? 24 : 20} />
+                            </div>
+                            <div className="min-w-0 pr-2">
+                                <h3 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-1 truncate">Renseignement Satellite</h3>
+                                <h2 className={cn(
+                                    "font-black text-white uppercase italic tracking-tighter leading-tight truncate transition-all",
+                                    isMaximized ? "text-xl" : "text-sm"
+                                )}>
+                                    {subAreaName || "Zone Inconnue"}
+                                </h2>
+                            </div>
+                            {isMaximized && (
+                                <div className="ml-4 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 shrink-0">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[10px] font-black text-emerald-400 italic tracking-widest">
+                                        [ {position.x}, {position.y} ]
+                                    </span>
+                                </div>
+                            )}
                         </div>
-                        <div className="min-w-0 pr-2">
-                            <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-0.5 truncate">Tactical</h3>
-                            <h2 className="text-sm font-black text-white uppercase italic tracking-tighter leading-tight truncate">
-                                {subAreaName || "Zone Inconnue"}
-                            </h2>
+
+                        {/* Top-Right Area */}
+                        <div className="flex items-center gap-4 shrink-0">
+                            {/* Layer Switcher (Visible on the same line ONLY if maximized) */}
+                            {isMaximized && allLayers.length > 1 && (
+                                <div 
+                                    className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-black/40 border border-white/10" 
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                >
+                                    {allLayers.sort((a, b) => (a.altitude || 0) - (b.altitude || 0)).map((layer) => {
+                                        const isActive = position.mapId === layer.id;
+                                        const label = (layer.altitude ?? 0) === 0 ? "Sol" : (layer.altitude ?? 0) === 1 ? "Air" : `Z${layer.altitude}`;
+                                        return (
+                                            <button
+                                                key={layer.id}
+                                                onClick={(e) => { e.stopPropagation(); onSelectMap?.(layer); }}
+                                                className={cn(
+                                                    "h-8 px-4 rounded-xl flex items-center justify-center transition-all border text-[10px] font-black uppercase italic cursor-pointer whitespace-nowrap",
+                                                    isActive 
+                                                        ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg' 
+                                                        : 'bg-transparent text-white/40 border-transparent hover:bg-white/10 hover:text-white'
+                                                )}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            <div className={cn("flex items-center gap-2", isMaximized && "border-l border-white/5 pl-4")}>
+                                <button
+                                    onPointerDown={e => e.stopPropagation()}
+                                    onClick={() => {
+                                        setIsMaximized(!isMaximized);
+                                        handleReset();
+                                    }}
+                                    className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 transition-all hover:scale-105 active:scale-95 shadow-xl"
+                                >
+                                    {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                                </button>
+                                <button
+                                    onPointerDown={e => e.stopPropagation()}
+                                    onClick={onClose}
+                                    className="p-2.5 rounded-xl bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        <button
-                            onClick={() => {
-                                setIsMaximized(!isMaximized);
-                                handleReset();
-                            }}
-                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 transition-all hover:scale-105 active:scale-95 shadow-xl"
+
+                    {/* Bottom Area: If small, show layer switcher here on a second row */}
+                    {!isMaximized && allLayers.length > 1 && (
+                        <div 
+                            className="w-full flex items-center gap-1.5 p-1.5 rounded-2xl bg-black/40 border border-white/10 overflow-x-auto no-scrollbar" 
+                            onPointerDown={(e) => e.stopPropagation()}
                         >
-                            {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                        </button>
-                        <button
-                            onClick={onClose}
-                            className="p-2 rounded-xl bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all"
-                        >
-                            <X size={16} />
-                        </button>
-                    </div>
+                            {allLayers.sort((a, b) => (a.altitude || 0) - (b.altitude || 0)).map((layer) => {
+                                const isActive = position.mapId === layer.id;
+                                const label = (layer.altitude ?? 0) === 0 ? "Sol" : (layer.altitude ?? 0) === 1 ? "Air" : `Z${layer.altitude}`;
+                                return (
+                                    <button
+                                        key={layer.id}
+                                        onClick={(e) => { e.stopPropagation(); onSelectMap?.(layer); }}
+                                        className={cn(
+                                            "h-8 px-4 rounded-xl flex items-center justify-center transition-all border text-[10px] font-black uppercase italic cursor-pointer whitespace-nowrap",
+                                            isActive 
+                                                ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg' 
+                                                : 'bg-transparent text-white/40 border-transparent hover:bg-white/10 hover:text-white'
+                                        )}
+                                    >
+                                        {label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
-                {/* Main Content Area */}
-                <div className="flex-1 overflow-hidden relative flex flex-col bg-[#020408]">
+                {/* ─── MAP VIEWPORT (THE CONTENT) ─── */}
+                <div className="flex-1 relative bg-[#020408] overflow-hidden min-h-[300px] z-10">
                     <div
-                        className="w-full h-full relative cursor-move"
+                        className="absolute inset-0 cursor-move"
                         ref={containerRef}
                         onWheel={isMaximized ? handleWheel : undefined}
                     >
@@ -110,7 +221,10 @@ export default function MapDetailsPanel({ position, subAreaName, guildId, onClos
                                 <img
                                     src={hdMapUrl}
                                     alt="HD Preview"
-                                    className="w-full h-full object-contain pointer-events-none"
+                                    className={cn(
+                                        "max-w-full max-h-full object-contain pointer-events-none transition-all duration-700",
+                                        isMaximized && "shadow-2xl ring-1 ring-white/5"
+                                    )}
                                     onError={(e) => {
                                         (e.target as HTMLImageElement).src = '/game-data/tiles/w1/1/1.webp';
                                     }}
@@ -124,56 +238,83 @@ export default function MapDetailsPanel({ position, subAreaName, guildId, onClos
                                 </span>
                             </div>
                         )}
+                    </div>
 
-                        {/* Top Action Overlay */}
-                        <div className="absolute top-4 left-4 right-4 flex items-center justify-center pointer-events-none">
+                    {/* Gradient shadow for bottom readability */}
+                    <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none z-[20]" />
+
+                    {/* Left Toolbar (Zoom) */}
+                    {hdMapUrl && (
+                        <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[30]">
                             <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onOpenZoneDetails?.();
-                                }}
-                                className="pointer-events-auto px-4 py-2 rounded-xl bg-amber-500 text-black font-black text-[10px] uppercase italic shadow-[0_15px_40px_rgba(245,158,11,0.4)] flex items-center gap-2 hover:scale-105 hover:bg-amber-400 active:scale-95 transition-all group"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
+                                className="w-12 h-12 rounded-2xl bg-slate-950 border border-white/20 text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all cursor-pointer"
                             >
-                                <Sparkles size={14} className="group-hover:rotate-12 transition-transform" /> 
-                                Analyser zone
+                                <Plus size={20} />
+                            </button>
+                            <button 
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
+                                className="w-12 h-12 rounded-2xl bg-slate-950 border border-white/20 text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all cursor-pointer"
+                            >
+                                <Minus size={20} />
                             </button>
                         </div>
+                    )}
+                </div>
 
-                        {/* Visual Gradients */}
-                        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/90 to-transparent pointer-events-none" />
+                {/* ─── OVERLAYS DESKTOP / TOP-LEVEL (Outside Main Content for perfect Z-index) ─── */}
+                
 
-                        {/* Bottom Info Overlay */}
-                        <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between pointer-events-none">
-                            <div className="px-3 py-2 rounded-xl bg-black/80 backdrop-blur-2xl border border-white/10 text-emerald-400 font-mono text-xs font-black shadow-2xl flex items-center gap-2 max-w-[60%]">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,1)] animate-pulse shrink-0" />
-                                <span className="truncate">[{position.displayX}, {position.displayY}]</span>
+
+                {/* Bottom Action Area (Always visible, highest Z) */}
+                <div className={cn(
+                    "absolute left-8 right-8 flex items-center justify-between pointer-events-none z-[2000] transition-all",
+                    isMaximized ? "bottom-12" : "bottom-14"
+                )}>
+                    <div className="flex items-center gap-3 pointer-events-auto">
+                        <div className="px-5 py-3 rounded-2xl bg-black border border-white/20 text-emerald-400 font-mono text-sm font-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-3">
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_#10b981]" />
+                            <span className="tracking-tight">[{position.displayX}, {position.displayY}]</span>
+                        </div>
+                        
+                        <button 
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onOpenZoneDetails?.();
+                            }}
+                            className="px-10 py-3 rounded-2xl bg-amber-500 text-black font-black text-xs uppercase italic shadow-[0_20px_50px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer relative z-10"
+                        >
+                            <Sparkles size={16} /> 
+                            Analyser
+                        </button>
+                    </div>
+
+                    {zoom > 1 && (
+                        <button 
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); handleReset(); }}
+                            className="pointer-events-auto w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white flex items-center justify-center shadow-2xl transition-all cursor-pointer hover:bg-white/20"
+                        >
+                            <RefreshCw size={18} />
+                        </button>
+                    )}
+                </div>
+
+                {/* ─── FOOTER ─── */}
+                {!isMaximized && (
+                    <div className="h-10 px-8 bg-black/80 border-t border-white/5 flex items-center shrink-0">
+                        <div className="flex items-center gap-4 opacity-20">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1 h-1 rounded-full bg-white" />
+                                <span className="text-[7px] font-black uppercase tracking-[0.3em]">Live Feed</span>
                             </div>
-                            
-                            {zoom > 1 && (
-                                <button 
-                                    onClick={handleReset}
-                                    className="pointer-events-auto p-2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/10 text-white/60 hover:text-white transition-all shadow-xl shrink-0"
-                                >
-                                    <RefreshCw size={14} />
-                                </button>
-                            )}
                         </div>
                     </div>
-                </div>
-
-                {/* Mini Footer Stats */}
-                <div className="p-3 px-4 bg-black/50 border-t border-white/5 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-3 opacity-30">
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                            <span className="text-[8px] font-black uppercase tracking-widest">Live Sync</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                            <span className="text-[8px] font-black uppercase tracking-widest">{isMaximized ? 'Focus Mode' : 'Preview'}</span>
-                        </div>
-                    </div>
-                </div>
+                )}
             </motion.div>
         </AnimatePresence>
     );

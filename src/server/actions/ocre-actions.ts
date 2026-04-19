@@ -303,7 +303,7 @@ export async function linkOcreAccount(
 
             if (force) {
                 // Check if user is Admin
-                const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL);
+                const guard = await checkGuildPermission(session, guildId, PERMISSIONS.SYSTEM_CONFIG);
                 if (guard.allowed) {
                     canOverwrite = true;
                     // Detach the previous owner
@@ -483,7 +483,7 @@ export async function getMyOcreProgress(
         const rateCheck = await rateLimit(`ocre:progress:${userId}`, 30, 60);
         if (!rateCheck.success) return { success: false, error: "Trop de requÃªtes." };
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
 
         // Use Prisma ORM — $queryRawUnsafe is forbidden by project rules
@@ -521,7 +521,25 @@ export async function getMyOcreProgress(
                 }
 
                 // API calls
-                const firstPage = await getQuestDetails(profile.metamobPseudo!, questSlug, { guildApiKey: effectiveApiKey });
+                let firstPage;
+                try {
+                    firstPage = await getQuestDetails(profile.metamobPseudo!, questSlug, { guildApiKey: effectiveApiKey });
+                } catch (e: any) {
+                    if (e instanceof MetamobApiError && e.code === "NOT_FOUND") {
+                        console.warn(`[getMyOcreProgress] Quest slug ${questSlug} not found. Re-fetching quest list...`);
+                        const quests = await getUserQuests(profile.metamobPseudo!, { guildApiKey: effectiveApiKey });
+                        const ocreQuest = quests.find(q => q.slug.includes("ocre") || q.slug.includes("eternelle-moisson"));
+                        if (!ocreQuest) return { success: false, error: "NO_QUEST" };
+                        
+                        questSlug = ocreQuest.slug;
+                        await db.userProfile.update({ where: { id: profile.id }, data: { metamobQuestSlug: questSlug } });
+                        // Retry with new slug
+                        firstPage = await getQuestDetails(profile.metamobPseudo!, questSlug, { guildApiKey: effectiveApiKey });
+                    } else {
+                        throw e;
+                    }
+                }
+
                 const userQuestData = [...firstPage.monsters];
                 let uOffset = userQuestData.length;
                 while (uOffset < (firstPage.pagination?.total || 0)) {
@@ -682,7 +700,7 @@ export async function findOcreExchangePartners(
         }
 
         // Permission check
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) {
             return { success: false, error: "AccÃ¨s non autorisÃ©" };
         }
@@ -768,7 +786,7 @@ export async function findMonsterOwnersAction(
         if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
         const { guildId, monsterId } = parsed.data;
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
 
         const guildApiKey = undefined; // Deprecated guild key
@@ -882,7 +900,7 @@ export async function getProfileMatchingArchis(
         if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
         const { guildId, targetProfileId } = parsed.data;
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
 
         // 1. Get Me and Target (scoped to this guild to prevent cross-guild probing)
@@ -995,7 +1013,7 @@ export async function getGuildExchangeMap(
         }
 
         // Permission check
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) {
             return { success: true, data: { availableExchanges: {}, totalMonstersAvailable: 0 } };
         }
@@ -1195,7 +1213,7 @@ export async function getOcreZones(
         }
 
         // Permission check
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.OCRE_VIEW);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) return { success: true, data: [] }; // Silent fail for common data
 
         const guildApiKey = undefined;
@@ -1542,7 +1560,7 @@ export async function adminForceUnlink(
         const { guildId, targetPseudo } = parsed.data;
 
         // Security check
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.SYSTEM_CONFIG);
         if (!guard.allowed) return { success: false, error: "Accès refusé" };
 
         // Find the user holding this pseudo
@@ -1596,7 +1614,7 @@ export async function searchMetamobPseudos(
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.SYSTEM_CONFIG);
         if (!guard.allowed) return { success: false, error: "Accès refusé" };
 
         if (query.length < 2) return { success: true, data: [] };
@@ -1918,20 +1936,6 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
             }
         });
 
-        // Guild Feed Message
-        try {
-            const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
-            const targetName = tradeRequest.target.discordNickname || tradeRequest.target.pseudoDofus || tradeRequest.target.metamobPseudo || "Un membre";
-            const requesterName = tradeRequest.requester.discordNickname || tradeRequest.requester.pseudoDofus || tradeRequest.requester.metamobPseudo || "Un membre";
-            await pushSystemChatMessage(
-                guildId,
-                `ðŸ¤ **${targetName}** a acceptÃ© une demande d'Ã©change Ocre avec **${requesterName}** !`,
-                { type: "ocre_trade_accepted", requestId }
-            );
-        } catch (chatErr) {
-            console.error("Failed to push system chat message for ocre trade", chatErr);
-        }
-
         // Metamob Auto-Update
         try {
             const { getUserMonsters, updateMonsterQuantity } = await import("@/lib/metamob-client");
@@ -2075,13 +2079,13 @@ export async function getZoneArchmonsters(guildId: string, zoneName: string): Pr
             const mZone = (m.zone || "").toLowerCase();
             const mSubzone = (m.subzone || "").toLowerCase();
 
-            // Split zones by comma to handle multi-zone monsters (e.g., "Astrub, Bonta, Brakmar")
+            // Split zones by comma to handle multi-zone monsters
             const monsterZones = mZone.split(",").map(z => z.trim()).filter(Boolean);
             const monsterSubzones = mSubzone.split(",").map(z => z.trim()).filter(Boolean);
 
-            // Check if any of the monster's zones match the search or vice-versa
-            const matchesZone = monsterZones.some(mz => mz.includes(search) || search.includes(mz));
-            const matchesSubzone = monsterSubzones.some(msz => msz.includes(search) || search.includes(msz));
+            // Strict: exact equality only (avoids "Incarnam" matching "Champs de l'Incarnam")
+            const matchesZone = monsterZones.some(mz => mz === search);
+            const matchesSubzone = monsterSubzones.some(msz => msz === search);
 
             return matchesZone || matchesSubzone;
         });

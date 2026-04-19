@@ -6,7 +6,7 @@ import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { MissionXpOverrideControl } from "@/components/missions/mission-xp-override-control";
-import { getDofusConfig } from "@/server/actions/admin-actions";
+import { getDofusConfig, getMissionConfig } from "@/server/actions/admin-actions";
 import { getWeekMissions } from "@/server/actions/mission-actions";
 import { getDofusWeek } from "@/lib/date-utils";
 
@@ -30,8 +30,14 @@ export default async function MissionsManagePage({ params }: { params: Promise<{
 
     // Use published mission tier if available (source of truth)
     const { week, year } = getDofusWeek();
-    const missionsRes = await getWeekMissions(guildId, week, year);
+    
+    const [missionsRes, missionConfigRes] = await Promise.all([
+        getWeekMissions(guildId, week, year),
+        getMissionConfig(guildId)
+    ]);
+    
     const missions = missionsRes.data || [];
+    const isDiscordConfigured = !!missionConfigRes.data?.missionChannelId;
     const missionTierFromPublished = missions.length > 0 ? (missions[0] as any)?.tier ?? null : null;
     const targetTier = missionTierFromPublished !== null ? missionTierFromPublished : configTier;
 
@@ -47,7 +53,7 @@ export default async function MissionsManagePage({ params }: { params: Promise<{
             {/* [MIS-1] Contrôle de la barre XP manuelle */}
             <MissionXpOverrideControl guildId={guildId} targetTier={targetTier} />
 
-            <MissionEditor guildId={guildId} />
+            <MissionEditor guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
         </div>
     );
 }

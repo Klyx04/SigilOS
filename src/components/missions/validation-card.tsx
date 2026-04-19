@@ -313,21 +313,19 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
             {/* ----------------- FOOTER: ACTIONS ----------------- */}
             <CardFooter className="p-3 bg-zinc-950/30 border-t border-zinc-800/50 grid grid-cols-2 gap-3">
                 <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full border-red-900/30 hover:bg-red-950/50 hover:text-red-400 text-red-500"
+                    variant="sigil-destructive"
                     onClick={onReject}
                     disabled={isProcessing}
+                    className="h-10"
                 >
                     <X className="w-4 h-4 mr-2" />
                     Refuser
                 </Button>
                 <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full bg-green-600 hover:bg-green-500 text-white"
+                    variant="sigil-emerald"
                     onClick={onValidate}
                     disabled={isProcessing}
+                    className="h-10"
                 >
                     <Check className="w-4 h-4 mr-2" />
                     Valider

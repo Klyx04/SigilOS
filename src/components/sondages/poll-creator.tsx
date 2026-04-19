@@ -13,7 +13,8 @@ import {
     Megaphone,
     Trash2,
     GripVertical,
-    AtSign
+    AtSign,
+    Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -581,6 +582,15 @@ export function PollCreator({
                                     </div>
                                     <Switch disabled={!publishToDiscord} checked={mentionEveryone} onCheckedChange={setMentionEveryone} className="scale-90" />
                                 </div>
+
+                                {!discordSetup?.channelId && (
+                                    <div className="flex items-start gap-3 p-4 rounded-xl bg-[#5865F2]/5 border border-[#5865F2]/10 animate-in fade-in slide-in-from-top-2">
+                                        <Info className="w-4 h-4 text-[#5865F2]/80 shrink-0 mt-0.5" />
+                                        <p className="text-[10px] font-bold text-[#5865F2]/80 uppercase tracking-tight leading-relaxed">
+                                            Le salon Discord n&apos;est pas configuré. Activez-le dans l&apos;admin pour publier vos sondages.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

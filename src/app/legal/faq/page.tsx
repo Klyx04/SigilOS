@@ -1,12 +1,8 @@
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion";
-import { ShieldCheck, HelpCircle, Server, Lock, Fingerprint, Coins } from "lucide-react";
-import { Metadata } from "next";
 import { getAppBaseUrl } from "@/lib/utils";
+import { Metadata } from "next";
+import { headers } from "next/headers";
+import { HelpCircle, ShieldCheck, Server, Lock, Fingerprint } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export const metadata: Metadata = {
     title: "FAQ Dofus & Aide | SigilOS",
@@ -16,7 +12,11 @@ export const metadata: Metadata = {
     },
 };
 
-export default function FAQPage() {
+export default async function FAQPage() {
+    // [AUDIT 2026] Retrieve nonce for inline scripts
+    const headersList = await headers();
+    const nonce = headersList.get('x-nonce') ?? '';
+
     // FAQPage structured data for Google rich snippets
     const faqJsonLd = {
         "@context": "https://schema.org",
@@ -69,6 +69,7 @@ export default function FAQPage() {
         <>
             <script
                 type="application/ld+json"
+                nonce={nonce}
                 // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
             />

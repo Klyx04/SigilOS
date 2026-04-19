@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock, Calendar, Command } from "lucide-react";
+import { Calendar, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PresenceModal } from "./presence-modal";
@@ -14,29 +14,10 @@ interface SmartBarProps {
 }
 
 export function SmartBar({ memberCount, onlineCount }: SmartBarProps) {
-    const [time, setTime] = useState<string>("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeUsers, setActiveUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const { guildId } = useParams() as { guildId: string };
-
-    // Dofus Time (France/Paris)
-    useEffect(() => {
-        const updateTime = () => {
-            const now = new Date();
-            // Force Paris timezone
-            const timeString = now.toLocaleTimeString("fr-FR", {
-                timeZone: "Europe/Paris",
-                hour: "2-digit",
-                minute: "2-digit",
-            });
-            setTime(timeString);
-        };
-
-        updateTime();
-        const interval = setInterval(updateTime, 1000);
-        return () => clearInterval(interval);
-    }, []);
 
     const [liveOnlineCount, setLiveOnlineCount] = useState(onlineCount);
 
@@ -111,12 +92,6 @@ export function SmartBar({ memberCount, onlineCount }: SmartBarProps) {
                 onOpenChange={setIsModalOpen}
                 users={activeUsers}
             />
-
-            {/* 3. Server Time (Pure Flat) */}
-            <div className="flex items-center gap-2 px-3 text-[11px] font-black text-zinc-300 min-w-[70px] justify-center group/time">
-                <Clock className="w-3.5 h-3.5 text-indigo-400 group-hover/time:rotate-12 transition-transform" />
-                <span className="tracking-tighter font-mono">{time || "--:--"}</span>
-            </div>
         </div>
     );
 }

@@ -112,13 +112,13 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                     <WeeklyGuildatonCounter current={weeklyGuildatons || 0} />
                     
                     {/* Placeholder for other stats/widgets if needed */}
-                    <div className="p-5 rounded-2xl bg-zinc-900/40 border border-white/5 flex flex-col items-center justify-center gap-3 text-center">
-                         <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                             <Info className="w-5 h-5 text-indigo-400" />
+                    <div className="p-5 rounded-2xl bg-foreground/[0.03] border border-border flex flex-col items-center justify-center gap-3 text-center">
+                         <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
+                             <Info className="w-5 h-5 text-primary" />
                          </div>
                          <div>
-                             <p className="text-xs font-bold text-white uppercase tracking-tighter">Information</p>
-                             <p className="text-[10px] text-zinc-500 leading-relaxed mt-1">
+                             <p className="text-xs font-black text-foreground uppercase tracking-widest italic">Information</p>
+                             <p className="text-[10px] text-muted-foreground font-bold leading-relaxed mt-1 italic">
                                 Pensez à lier vos stuffs Dofusbook dans votre Profil (onglet Stuff) pour plus de visibilité.
                              </p>
                          </div>

@@ -1,5 +1,4 @@
-"use client";
-
+import { useState, useEffect } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { HandHeart, ArrowLeftRight, Vote, Gift } from "lucide-react";
 
@@ -26,6 +25,9 @@ const BONUS_LABELS: Record<string, string> = {
 const BONUS_COLORS = ["#f59e0b", "#ef4444", "#22c55e", "#8b5cf6", "#06b6d4"];
 
 export default function CommunityStats({ community }: CommunityStatsProps) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    
     const bonusPie = community.bonusByType.map(b => ({
         name: BONUS_LABELS[b.type] || b.type,
         value: b.count,
@@ -62,41 +64,49 @@ export default function CommunityStats({ community }: CommunityStatsProps) {
                 <div>
                     <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Bonus par type</h4>
                     <div className="h-36">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={bonusPie}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={30}
-                                    outerRadius={55}
-                                    paddingAngle={3}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {bonusPie.map((_, i) => (
-                                        <Cell key={i} fill={BONUS_COLORS[i % BONUS_COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "rgba(24,24,27,0.95)",
-                                        border: "1px solid rgba(255,255,255,0.1)",
-                                        borderRadius: "8px",
-                                        color: "#fff",
-                                        fontSize: "13px",
-                                    }}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        <div className="flex flex-wrap gap-3 justify-center">
-                            {bonusPie.map((d, i) => (
-                                <div key={d.name} className="flex items-center gap-1.5 text-xs text-zinc-400">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: BONUS_COLORS[i % BONUS_COLORS.length] }} />
-                                    {d.name}
-                                </div>
-                            ))}
-                        </div>
+                        {!mounted ? (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-600 text-[10px] italic bg-white/[0.02] rounded-xl border border-dashed border-white/5">
+                                Chargement du graphique...
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                                <PieChart>
+                                    <Pie
+                                        data={bonusPie}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={30}
+                                        outerRadius={55}
+                                        paddingAngle={3}
+                                        dataKey="value"
+                                        stroke="none"
+                                    >
+                                        {bonusPie.map((_, i) => (
+                                            <Cell key={i} fill={BONUS_COLORS[i % BONUS_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: "rgba(24,24,27,0.95)",
+                                            border: "1px solid rgba(255,255,255,0.1)",
+                                            borderRadius: "8px",
+                                            color: "#fff",
+                                            fontSize: "13px",
+                                        }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        )}
+                        {mounted && (
+                            <div className="flex flex-wrap gap-3 justify-center">
+                                {bonusPie.map((d, i) => (
+                                    <div key={d.name} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: BONUS_COLORS[i % BONUS_COLORS.length] }} />
+                                        {d.name}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

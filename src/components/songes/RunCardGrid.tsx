@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
     waitlist: DreamWaitlist[];
-    joinRequests?: { id: string; userId: string }[];
+    joinRequests?: { id: string; userId: string; message: string | null; classe: string; }[];
     _count: { floors: number; bonuses: number };
 };
 
@@ -18,6 +18,7 @@ interface RunCardGridProps {
     currentUserId?: string;
     canJoinSonges?: boolean;
     isAdmin?: boolean;
+    isDiscordConfigured?: boolean;
 }
 
 type TierFilter = "ALL" | "REVE" | "PARADOXE" | "CAUCHEMAR";
@@ -49,7 +50,7 @@ const TIER_CONFIG: Record<TierFilter, { label: string; icon: React.ReactNode; co
     },
 };
 
-export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges, isAdmin = false }: RunCardGridProps) {
+export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges, isAdmin = false, isDiscordConfigured = false }: RunCardGridProps) {
     const [runs, setRuns] = useState(initialRuns);
     const [tierFilter, setTierFilter] = useState<TierFilter>("ALL");
 
@@ -124,6 +125,7 @@ export function RunCardGrid({ runs: initialRuns, currentUserId, canJoinSonges, i
                             currentUserId={currentUserId}
                             canJoinSonges={canJoinSonges}
                             isAdmin={isAdmin}
+                            isDiscordConfigured={isDiscordConfigured}
                         />
                     ))}
                 </div>

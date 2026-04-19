@@ -6,7 +6,6 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { getGeoguesserLadder } from "@/server/actions/geoguesser-actions";
-import { getSigilKingLadder } from "@/server/actions/sigil-king-actions";
 import { getMiniGamesStatus } from "@/server/actions/god-mini-games-actions";
 import { Trophy } from "lucide-react";
 
@@ -27,7 +26,6 @@ export default async function MiniJeuxPage({ params }: Props) {
     if (!enabled) return <AccessDenied />;
 
     const ladder = await getGeoguesserLadder(guildId);
-    const kingLadder = await getSigilKingLadder(guildId);
     const gameStatuses = await getMiniGamesStatus();
 
     return (
@@ -46,7 +44,6 @@ export default async function MiniJeuxPage({ params }: Props) {
             <div className="flex-1 w-full relative">
                 <MapViewer 
                     initialLadder={JSON.parse(JSON.stringify(ladder))} 
-                    initialKingLadder={JSON.parse(JSON.stringify(kingLadder))}
                     initialTab="games" 
                     gameStatuses={JSON.parse(JSON.stringify(gameStatuses))}
                     userName={user.name!}

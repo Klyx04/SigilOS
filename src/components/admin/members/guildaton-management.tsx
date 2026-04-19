@@ -441,7 +441,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                 <Loader2 className="w-4 h-4 animate-spin text-zinc-800" />
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%" minHeight={120}>
+                            <ResponsiveContainer width="100%" height="100%" minHeight={120} minWidth={0}>
                                 <AreaChart data={graphData}>
                                     <defs>
                                         <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
@@ -714,7 +714,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                                     
                                                     {/* Petit graphique d'évolution */}
                                                     <div className="h-8 w-32 mt-2 opacity-30 group-hover:opacity-100 transition-opacity">
-                                                        <ResponsiveContainer width="100%" height="100%">
+                                                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                                             <AreaChart data={data.history?.filter(h => h.discordId === m.discordId).map(h => ({ value: h.value })) || []}>
                                                                 <Area 
                                                                     type="monotone" 

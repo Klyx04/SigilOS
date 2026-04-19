@@ -474,7 +474,7 @@ async function compileDofus(slug: string): Promise<void> {
              allItemIds.push(...config.globalItemsRequired.map((m: any) => m.id).filter((id: any) => !!id));
         }
         console.log(`📦 Succès : "${success.name}" [${success.zone ?? "?"}]`);
-        const questResults: Array<{ name: string; quest: any | null }> = [];
+        const questResults: Array<{ name: string; quest: any | null; manualCfg: any }> = [];
 
         for (const questCfg of success.quests) {
             const questName = typeof questCfg === "string" ? questCfg : questCfg.name;

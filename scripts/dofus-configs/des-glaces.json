@@ -8,66 +8,83 @@
   "successDescription": "Obtenir le Dofus des Glaces après avoir accompli tous les exploits de Frigost.",
   "successes": [
     {
-      "name": "Frigost I : Introduction",
+      "name": "La Bourgade & Environnement",
       "zone": "La Bourgade",
-      "description": "Quêtes d'introduction à l'île de Frigost.",
+      "description": "Quêtes de base, vaccins, postages et ressources nécessaires.",
       "isPrerequisite": true,
+      "globalItemsRequired": [
+        { "id": 312, "amount": 150, "name": "Fer" },
+        { "id": 310, "amount": 75, "name": "Etain" },
+        { "id": 447, "amount": 50, "name": "Charbon" },
+        { "id": 445, "amount": 50, "name": "Manganèse" },
+        { "id": 443, "amount": 50, "name": "Kobalte" },
+        { "id": 747, "amount": 10, "name": "Aluminite" },
+        { "id": 6457, "amount": 10, "name": "Kriptonite" },
+        { "id": 11107, "amount": 50, "name": "Bois de Tremble" },
+        { "id": 11229, "amount": 10, "name": "Poil de barbe du Shamansot" },
+        { "id": 11250, "amount": 10, "name": "Poil de Chachachovage" },
+        { "id": 11241, "amount": 10, "name": "Poils de Smilomouth" },
+        { "id": 11117, "amount": 10, "name": "Laine de Boufmouth" },
+        { "id": 11136, "amount": 1, "name": "Laine de Boufmouth légendaire" },
+        { "id": 11227, "amount": 10, "name": "Duvet de Mamansot" },
+        { "id": 11243, "amount": 10, "name": "Cuir du Sanglacier" },
+        { "id": 11223, "amount": 10, "name": "Plume du Timansot" },
+        { "id": 11248, "amount": 10, "name": "Oreille de Kaniglou" },
+        { "id": 11120, "amount": 10, "name": "Cuir de Bouftonmouth" },
+        { "id": 11254, "amount": 10, "name": "Pince de Crabe Hijacob" },
+        { "id": 11257, "amount": 10, "name": "Plume de Gélikan" },
+        { "id": 11238, "amount": 10, "name": "Queue d'Ecumouth" },
+        { "id": 11222, "amount": 10, "name": "Bec du Timansot" },
+        { "id": 11224, "amount": 10, "name": "Aile de Mansobèse" },
+        { "id": 11242, "amount": 10, "name": "Défense du Sanglacier" },
+        { "id": 11240, "amount": 10, "name": "Dent de Smilomouth" },
+        { "id": 11226, "amount": 10, "name": "Huile de Mamansot" },
+        { "id": 11228, "amount": 10, "name": "Arête géante du Shamansot" },
+        { "id": 11256, "amount": 10, "name": "Bec de Gélikan" },
+        { "id": 11249, "amount": 10, "name": "Étoffe de Kaniglou" },
+        { "id": 11239, "amount": 10, "name": "Gland de l'Écumouth" },
+        { "id": 11255, "amount": 10, "name": "Oeil de Crabe Hijacob" },
+        { "id": 11246, "amount": 10, "name": "Oeil torve de Fricochère" },
+        { "id": 11251, "amount": 10, "name": "Sternum de Chachachovage" },
+        { "id": 11221, "amount": 10, "name": "Laine du Royalmouth" },
+        { "id": 11109, "amount": 30, "name": "Frostiz" },
+        { "id": 11225, "amount": 10, "name": "Peau de Mansobèse" },
+        { "id": 11230, "amount": 10, "name": "Queue du Fu Mansot" },
+        { "id": 11338, "amount": 10, "name": "Laine de Maho Givrefoux" },
+        { "id": 11339, "amount": 10, "name": "Laine de Yokaï Givrefoux" },
+        { "id": 11880, "amount": 10, "name": "Malléole de Yomi Givrefoux" },
+        { "id": 12001, "amount": 1, "name": "Larme de Givrefoux" },
+        { "id": 11337, "amount": 10, "name": "Cuir de Maho Givrefoux" },
+        { "id": 11882, "amount": 10, "name": "Queue de Yomi Givrefoux" },
+        { "id": 11253, "amount": 10, "name": "Étoffe de Rat Bougri" },
+        { "id": 11247, "amount": 10, "name": "Oreille percée du Fricochère" },
+        { "id": 1334, "amount": 2, "name": "Blague de Soufre" },
+        { "id": 21256, "amount": 2, "name": "Griffe de Dragoeuf Albâtre" },
+        { "id": 9941, "amount": 2, "name": "Nacre" },
+        { "id": 11885, "amount": 10, "name": "Lamelle de Dramanite" },
+        { "id": 13919, "amount": 10, "name": "Cuir d'Empaillé" },
+        { "id": 13941, "amount": 10, "name": "Plume de Dodox" },
+        { "id": 13929, "amount": 10, "name": "Sang de Karkanik" },
+        { "id": 11884, "amount": 10, "name": "Volve de Mérulo" },
+        { "id": 11231, "amount": 10, "name": "Oreille du Fu Mansot" },
+        { "id": 11252, "amount": 10, "name": "Patte de Rat Bougri" },
+        { "id": 7045, "amount": 5, "name": "Pandaburg" },
+        { "id": 11889, "amount": 10, "name": "Pédoncule de Fongeur" }
+      ],
       "quests": [
-        { "id": 649, "name": "Bienvenue à Frigost" },
         { "id": 611, "name": "Le travail c'est la santé" },
-        { "id": 612, "name": "La terre banquise" },
-        { "id": 613, "name": "La maire de glace" },
-        { "id": 614, "name": "Full contact" }
-      ]
-    },
-    {
-      "name": "Frigost I : La maire dénie",
-      "zone": "Zones Frigost I",
-      "description": "Première série de succès de Frigost I.",
-      "quests": [
-        { "id": 649, "name": "Bienvenue à Frigost" },
-        { "id": 650, "name": "L'essentiel est dans Lac Gelé" },
-        { "id": 651, "name": "Les rescapés de Frigost" },
-        { "id": 655, "name": "Frigost, une île pas comme les autres" },
-        { "id": 652, "name": "Développement durable" },
-        { "id": 653, "name": "Donjons et trouffions" },
-        { "id": 919, "name": "Au fion du trou" }
-      ]
-    },
-    {
-      "name": "Frigost I : Fri carré",
-      "zone": "Zones Frigost I",
-      "description": "Deuxième série de succès de Frigost I.",
-      "quests": [
-        { "id": 611, "name": "Le travail c'est la santé" },
-        { "id": 612, "name": "La terre banquise" },
-        { "id": 613, "name": "La maire de glace" },
-        { "id": 614, "name": "Full contact" },
         { "id": 615, "name": "Les monologues du vaccin" },
-        { "id": 616, "name": "Faire le tas de pins" },
-        { "id": 617, "name": "Scierie Bambelle" },
-        { "id": 618, "name": "Semer ses graines" },
-        { "id": 619, "name": "Antiroyaliste" },
-        { "id": 620, "name": "Les joyeux de la couronne" },
-        { "id": 621, "name": "Fais dodo, t'auras du gâteau" },
-        { "id": 622, "name": "Lavomatique" },
-        { "id": 623, "name": "C'est frais, mais c'est pas grave" },
-        { "id": 624, "name": "Sans ma barbe, quelle barbe" },
-        { "id": 631, "name": "Épis d'Emi" },
-        { "id": 632, "name": "Convoi humanitaire" },
-        { "id": 633, "name": "Sang dessus-dessous" },
-        { "id": 634, "name": "Groméo et Ginette" },
-        { "id": 635, "name": "Une blague vaseuse ?" },
-        { "id": 636, "name": "Blessure de chasse" }
-      ]
-    },
-    {
-      "name": "Frigost II : Halte au péage",
-      "zone": "Zones Frigost II",
-      "description": "L'essentiel des quêtes de Frigost II.",
-      "quests": [
         { "id": 656, "name": "Fight club" },
-        { "id": 657, "name": "Barnabé dans l'espace" },
+        { "id": 589, "name": "Bricole Girl" },
+        { "id": 590, "name": "Promenons-nous dans les bois" },
+        { "id": 591, "name": "Les chasseurs", "dungeons": [{ "id": 54, "name": "Serre Royale", "bossId": 2864 }] },
+        { "id": 592, "name": "Il préfère la mort en mer" },
+        { "id": 593, "name": "Chauffage à moindre frais" },
+        { "id": 594, "name": "À la recherche de Dan Lavy", "dungeons": [{ "id": 55, "name": "Excavation du Mansot Royal", "bossId": 2854 }] },
+        { "id": 595, "name": "À qui profite le boufmouth" },
+        { "id": 596, "name": "Dépôt de ravitaillement" },
+        { "id": 597, "name": "Un ami qui ne vous veut pas que du bien", "dungeons": [{ "id": 58, "name": "Tanière du Tengu Givrefoux", "bossId": 2967 }] },
+        { "id": 598, "name": "Maya la belle" },
         { "id": 658, "name": "Premier postage" },
         { "id": 659, "name": "Deuxième postage" },
         { "id": 660, "name": "Troisième postage" },
@@ -84,22 +101,61 @@
       ]
     },
     {
-      "name": "Frigost III : L'hiver arrive",
-      "zone": "Zones Frigost III",
-      "description": "Quêtes liées au Château du Comte Harebourg.",
+      "name": "Fri carré",
+      "zone": "Zones Frigost I",
+      "description": "Premier succès de quêtes de Frigost I.",
+      "quests": [
+        { "id": 612, "name": "La terre banquise" },
+        { "id": 613, "name": "La maire de glace" },
+        { "id": 614, "name": "Full contact" }
+      ]
+    },
+    {
+      "name": "Halte au péage",
+      "zone": "Zones Frigost II",
+      "description": "L'essentiel des quêtes de Frigost II.",
+      "quests": [
+        { "id": 619, "name": "Antiroyaliste", "dungeons": [{ "id": 54, "name": "Serre Royale", "bossId": 2864 }] },
+        { "id": 620, "name": "Les joyeux de la couronne", "dungeons": [{ "id": 55, "name": "Excavation du Mansot Royal", "bossId": 2854 }] },
+        { "id": 621, "name": "Fais dodo, t'auras du gâteau", "dungeons": [{ "id": 56, "name": "Épave du Grolandais violent", "bossId": 2877 }] },
+        { "id": 622, "name": "Lavomatique", "dungeons": [{ "id": 58, "name": "Tanière du Tengu Givrefoux", "bossId": 2967 }] },
+        { "id": 623, "name": "C'est frais, mais c'est pas grave", "dungeons": [{ "id": 59, "name": "Antre du Korriandre", "bossId": 2968 }] },
+        { "id": 624, "name": "Sans ma barbe, quelle barbe", "dungeons": [{ "id": 60, "name": "Cavernes du Kolosso", "bossId": 2986 }] },
+        { "id": 625, "name": "Là-haut sur la montagne", "dungeons": [{ "id": 61, "name": "Antichambre des Gloursons", "bossId": 2865 }] },
+        { "id": 626, "name": "Le pic qui glace", "dungeons": [{ "id": 58, "name": "Tanière du Tengu (Fuji)", "bossId": 2967 }] }
+      ]
+    },
+    {
+      "name": "La maire dénie",
+      "zone": "Mairie de Frigost",
+      "description": "Quêtes de la Mairie et accès à Frigost III.",
+      "quests": [
+        { "id": 649, "name": "Bienvenue à Frigost" },
+        { "id": 650, "name": "L'essentiel est dans Lac Gelé" },
+        { "id": 651, "name": "Les rescapés de Frigost" },
+        { "id": 655, "name": "Frigost, une île pas comme les autres" },
+        { "id": 652, "name": "Développement durable", "dungeons": [{ "id": 54, "name": "Serre Royale", "bossId": 2864 }] },
+        { "id": 653, "name": "Donjons et trouffions", "dungeons": [{ "id": 55, "name": "Excavation du Mansot Royal", "bossId": 2854 }] },
+        { "id": 919, "name": "Au fion du trou", "dungeons": [{ "id": 57, "name": "Hypogée de l'Obsidiantre", "bossId": 2924 }] }
+      ]
+    },
+    {
+      "name": "L'hiver arrive",
+      "zone": "Château de Harebourg",
+      "description": "Quêtes préparatoires au Château.",
       "quests": [
         { "id": 1330, "name": "Les rescapés du Village Enseveli" },
-        { "id": 1325, "name": "Les derniers rescapés" },
-        { "id": 1334, "name": "La vie de château" },
-        { "id": 1333, "name": "La machine à démonter le temps" },
-        { "id": 1309, "name": "Il faut mettre un terme aux maîtres" },
+        { "id": 1325, "name": "Les derniers rescapés", "dungeons": [{ "id": 67, "name": "Rempart du Vent (Sylargh)", "bossId": 3409 }] },
+        { "id": 1334, "name": "La vie de château", "dungeons": [{ "id": 69, "name": "Bastion des Froideurs (Frizz)", "bossId": 3391 }] },
+        { "id": 1333, "name": "La machine à démonter le temps", "dungeons": [{ "id": 70, "name": "Laboratoire de Nileza", "bossId": 3397 }] },
+        { "id": 1309, "name": "Il faut mettre un terme aux maîtres", "dungeons": [{ "id": 68, "name": "Transporteur de Sylargh", "bossId": 3409 }, { "id": 71, "name": "Transporteur de Klime", "bossId": 3384 }] },
         { "id": 1310, "name": "Un comte de faits divers" }
       ]
     },
     {
-      "name": "Frigost III : L'âme de glace",
-      "zone": "Château de Harebourg",
-      "description": "Finalisation du Château et des quêtes du Comte.",
+      "name": "L'âme de glace",
+      "zone": "Frigost III",
+      "description": "L'intrigue principale de Frigost III.",
       "quests": [
         { "id": 710, "name": "La destinée" },
         { "id": 711, "name": "La fatalité" },
@@ -111,14 +167,14 @@
       ]
     },
     {
-      "name": "Le Dofus des Glaces (Final)",
+      "name": "Le Dofus des Glaces",
       "zone": "Donjon Harebourg",
-      "description": "Affronter le Comte et obtenir le Dofus.",
+      "description": "La quête finale pour l'obtention de l'œuf.",
       "quests": [
-        { "id": 1329, "name": "Le Dofus des Glaces" }
+        { "id": 1329, "name": "Le Dofus des Glaces", "dungeons": [{ "id": 62, "name": "Donjon du Comte Harebourg", "bossId": 3416 }] }
       ]
     }
   ],
-  "imageUrl": "https://static.dofusdb.fr/items/23035.png",
+  "imageUrl": "https://api.dofusdb.fr/img/items/23005.png",
   "iconId": 7043
 }

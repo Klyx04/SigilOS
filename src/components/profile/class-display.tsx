@@ -15,22 +15,19 @@ import { toast } from "sonner";
 interface ClassDisplayProps {
     pseudoDofus?: string | null;
     mainClass?: string | null;
-    secondaryClasses?: string[];
-    onSave?: (mainClass: string, secondaryClasses: string[], pseudoDofus: string) => void;
+    onSave?: (mainClass: string, pseudoDofus: string) => void;
     readOnly?: boolean;
 }
 
 export function ClassDisplay({
     pseudoDofus,
     mainClass,
-    secondaryClasses = [],
     onSave,
     readOnly = false,
 }: ClassDisplayProps) {
     const searchParams = useSearchParams();
     const [isOpen, setIsOpen] = useState(false);
     const [selectedMain, setSelectedMain] = useState<string>(mainClass || "");
-    const [selectedSecondary, setSelectedSecondary] = useState<string[]>(secondaryClasses);
     const [localPseudo, setLocalPseudo] = useState<string>(pseudoDofus || "");
 
     // Auto-open if redirected with ?edit=identity (Security: check readOnly)
@@ -43,28 +40,13 @@ export function ClassDisplay({
 
     const mainClassData = getClass(mainClass || "");
 
-    const toggleSecondary = (classId: string) => {
-        if (classId === selectedMain) return;
-
-        if (selectedSecondary.includes(classId)) {
-            setSelectedSecondary(prev => prev.filter(c => c !== classId));
-        } else {
-            if (selectedSecondary.length >= 10) {
-                toast.error("Vous ne pouvez pas sélectionner plus de 10 classes secondaires.");
-                return;
-            }
-            setSelectedSecondary(prev => [...prev, classId]);
-        }
-    };
-
     const handleSave = () => {
-        onSave?.(selectedMain, selectedSecondary, localPseudo);
+        onSave?.(selectedMain, localPseudo);
         setIsOpen(false);
     };
 
     const handleOpen = () => {
         setSelectedMain(mainClass || "");
-        setSelectedSecondary(secondaryClasses);
         setLocalPseudo(pseudoDofus || "");
     };
 
@@ -77,8 +59,13 @@ export function ClassDisplay({
                     </h3>
                     {!readOnly && (
                         <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleOpen}>
-                                <Pencil className="w-3 h-3" />
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-all duration-300"
+                                onClick={handleOpen}
+                            >
+                                <Pencil className="w-4 h-4" strokeWidth={2.5} />
                             </Button>
                         </DialogTrigger>
                     )}
@@ -150,7 +137,7 @@ export function ClassDisplay({
                 <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
                     <DialogHeader className="p-8 pb-4 border-b border-white/5 shrink-0">
                         <DialogTitle className="text-2xl font-black">Modifier votre profil</DialogTitle>
-                        <DialogDescription className="text-base text-zinc-400">Définissez votre identité en jeu et vos spécialisations.</DialogDescription>
+                        <DialogDescription className="text-base text-zinc-400">Définissez votre identité en jeu.</DialogDescription>
                     </DialogHeader>
 
                     <div className="px-8 pt-6 pb-2 shrink-0">
@@ -179,169 +166,70 @@ export function ClassDisplay({
                         </div>
                     </div>
 
-                    <div className="flex-1 min-h-0 overflow-hidden px-8">
-                        <Tabs defaultValue="main" className="h-full flex flex-col">
-                            <TabsList className="w-full grid grid-cols-2 gap-2 p-1 bg-zinc-900/50 border border-white/5 rounded-xl mb-6 h-auto">
-                                <TabsTrigger 
-                                    value="main" 
-                                    className="py-3 px-4 rounded-lg data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-zinc-800/40 transition-all border border-transparent data-[state=active]:border-white/5 font-bold uppercase tracking-widest text-xs"
-                                >
-                                    Classe Principale
-                                </TabsTrigger>
-                                <TabsTrigger 
-                                    value="secondary" 
-                                    className="py-3 px-4 rounded-lg data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-zinc-800/40 transition-all border border-transparent data-[state=active]:border-white/5 font-bold uppercase tracking-widest text-xs"
-                                >
-                                    Classes Secondaires ({selectedSecondary.length})
-                                </TabsTrigger>
-                            </TabsList>
+                    <div className="flex-1 min-h-0 overflow-hidden px-8 flex flex-col">
+                        <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-6 mb-2 pl-1">Classe Principale</h4>
+                        <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 py-4 pb-24">
+                                {DOFUS_CLASSES.map(c => {
+                                    const isSelected = selectedMain === c.id;
+                                    return (
+                                        <button
+                                            key={c.id}
+                                            onClick={() => setSelectedMain(c.id)}
+                                            className={cn(
+                                                "group relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 aspect-square overflow-hidden",
+                                                isSelected
+                                                    ? "border-white/40 shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
+                                                    : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
+                                            )}
+                                            style={isSelected ? {
+                                                borderColor: c.color,
+                                                backgroundColor: `${c.color}25`,
+                                                boxShadow: `0 0 20px -5px ${c.color}60`
+                                            } : undefined}
+                                        >
+                                            <div className={cn("mb-2 transform transition-transform group-hover:scale-110 duration-300", isSelected ? "scale-110" : "")}>
+                                                <ClassIcon classId={c.id} size={36} />
+                                            </div>
+                                            <span className={cn("w-full px-1 text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-white" : "text-zinc-500")}
+                                                style={isSelected ? { color: 'white', textShadow: `0 0 10px ${c.color}` } : undefined}
+                                            >
+                                                {c.name}
+                                            </span>
 
-                            <TabsContent value="main" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden shadow-inner overflow-hidden">
-                                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 py-4 pb-24">
-                                        {DOFUS_CLASSES.map(c => {
-                                            const isSelected = selectedMain === c.id;
-                                            return (
-                                                <button
-                                                    key={c.id}
-                                                    onClick={() => setSelectedMain(c.id)}
-                                                    className={cn(
-                                                        "group relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 aspect-square overflow-hidden",
-                                                        isSelected
-                                                            ? "border-white/40 shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
-                                                            : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
-                                                    )}
-                                                    style={isSelected ? {
-                                                        borderColor: c.color,
-                                                        backgroundColor: `${c.color}25`,
-                                                        boxShadow: `0 0 20px -5px ${c.color}60`
-                                                    } : undefined}
-                                                >
-                                                    <div className={cn("mb-2 transform transition-transform group-hover:scale-110 duration-300", isSelected ? "scale-110" : "")}>
-                                                        <ClassIcon classId={c.id} size={36} />
-                                                    </div>
-                                                    <span className={cn("w-full px-1 text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-white" : "text-zinc-500")}
-                                                        style={isSelected ? { color: 'white', textShadow: `0 0 10px ${c.color}` } : undefined}
+                                            {isSelected && (
+                                                <>
+                                                    <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-white flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+                                                        style={{ backgroundColor: c.color }}
                                                     >
-                                                        {c.name}
-                                                    </span>
-
-                                                    {isSelected && (
-                                                        <>
-                                                            <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-white flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                                                                style={{ backgroundColor: c.color }}
-                                                            >
-                                                                <div className="w-1 h-1 rounded-full bg-white" />
-                                                            </div>
-                                                            <div className="absolute inset-0 rounded-xl ring-2 ring-inset ring-white/20" />
-                                                        </>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="secondary" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden shadow-inner overflow-hidden">
-                                <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-3 text-sm text-blue-300 shrink-0">
-                                    <Info className="w-5 h-5 shrink-0 mt-0.5" />
-                                    <p>Sélectionnez vos classes secondaires. Votre classe principale ({DOFUS_CLASSES.find(c => c.id === selectedMain)?.name || "non selectionnée"}) est bloquée ici.</p>
-                                </div>
-                                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 pb-24">
-                                        {DOFUS_CLASSES.map(c => {
-                                            const isSelected = selectedSecondary.includes(c.id);
-                                            const isMain = selectedMain === c.id;
-                                            const classData = getClass(c.id);
-
-                                            return (
-                                                <button
-                                                    key={c.id}
-                                                    onClick={() => toggleSecondary(c.id)}
-                                                    disabled={isMain}
-                                                    className={cn(
-                                                        "group relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 aspect-square overflow-hidden",
-                                                        isMain ? "opacity-20 cursor-not-allowed border-zinc-900 bg-zinc-950 grayscale" : "",
-                                                        !isMain && isSelected
-                                                            ? "border-white/40 shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
-                                                            : "border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60"
-                                                    )}
-                                                    style={!isMain && isSelected && classData ? {
-                                                        borderColor: classData.color,
-                                                        backgroundColor: `${classData.color}25`,
-                                                        boxShadow: `0 0 20px -5px ${classData.color}60`
-                                                    } : undefined}
-                                                >
-                                                    <div className={cn("mb-2 transform transition-transform group-hover:scale-110 duration-300", isSelected ? "scale-110" : "")}>
-                                                        <ClassIcon classId={c.id} size={32} />
+                                                        <div className="w-1 h-1 rounded-full bg-white" />
                                                     </div>
-                                                    <span className={cn("w-full px-1 text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-colors truncate text-center", isSelected ? "text-white" : "text-zinc-500")}
-                                                        style={isSelected && classData ? { color: 'white', textShadow: `0 0 10px ${classData.color}` } : undefined}
-                                                    >
-                                                        {c.name}
-                                                    </span>
-
-                                                    {isSelected && (
-                                                        <>
-                                                            <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-white flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                                                                style={classData ? { backgroundColor: classData.color } : undefined}
-                                                            >
-                                                                <div className="w-1 h-1 rounded-full bg-white" />
-                                                            </div>
-                                                            <div className="absolute inset-0 rounded-xl ring-2 ring-inset ring-white/20" />
-                                                        </>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </TabsContent>
-                        </Tabs>
+                                                    <div className="absolute inset-0 rounded-xl ring-2 ring-inset ring-white/20" />
+                                                </>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="p-6 border-t border-white/5 bg-zinc-900/40 flex justify-end gap-3 shrink-0">
-                        <div className="flex-1 flex items-center">
-                            {selectedSecondary.length > 0 && (
-                                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest bg-zinc-950/50 px-3 py-1.5 rounded-full border border-white/5">
-                                    {selectedSecondary.length} / 10 <span className="text-zinc-600">classes sélectionnées</span>
-                                </p>
-                            )}
-                        </div>
                         <DialogClose asChild>
                             <Button variant="ghost" className="text-zinc-400 hover:text-white">
                                 Annuler
                             </Button>
                         </DialogClose>
-                        <Button onClick={handleSave} className="px-8 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
+                        <Button 
+                            onClick={handleSave} 
+                            variant="sigil"
+                            size="xl"
+                        >
                             Confirmer les changements
                         </Button>
                     </div>
                 </DialogContent>
             </Dialog>
-
-            {/* Secondary Classes - Chips */}
-            {secondaryClasses.length > 0 && (
-                <div className="mt-3">
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 pl-1">Classes Secondaires</p>
-                    <div className="flex flex-wrap gap-1.5">
-                        {secondaryClasses.map(classId => {
-                            const data = getClass(classId);
-                            if (!data) return null;
-                            return (
-                                <div
-                                    key={classId}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors h-9"
-                                >
-                                    <ClassIcon classId={data.id} size={20} />
-                                    <span className="text-sm font-medium text-zinc-200">{data.name}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

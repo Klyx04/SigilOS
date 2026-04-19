@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Library, Flame, BookOpen, Link2, Tv } from "lucide-react";
 
 export const metadata = {
-    title: "Ressources Communautaires | SigilOS",
+    title: "Ressources Dofus | SigilOS",
     description: "Hub centralisé : Almanax, actualités Ankama, guides, builds et outils communautaires Dofus.",
 };
 
@@ -89,7 +89,7 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
         <div className="space-y-12 pb-24">
             {/* ── Header ──────────────────────────────────────────────── */}
             <UnifiedModuleHeader
-                title="Ressources"
+                title="Ressources Dofus"
                 description="Hub centralisé : Almanax, actualités Ankama et outils communautaires."
                 icon={Library}
                 iconColor="#a855f7"
@@ -98,40 +98,44 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
 
             <Tabs defaultValue={initialTab} className="w-full">
                 <div className="overflow-x-auto pb-4 custom-scrollbar">
-                    <TabsList className="inline-flex h-auto w-max min-w-full justify-start md:justify-center p-1 bg-zinc-950/40 border border-white/5 rounded-2xl gap-2 font-mono">
+                    <TabsList className="inline-flex h-auto w-max min-w-full justify-start md:justify-center p-1.5 bg-zinc-950/50 border border-white/5 rounded-2xl gap-1 font-mono backdrop-blur-xl">
                         <TabsTrigger
                             value="almanax"
-                            className="px-6 py-3 rounded-xl data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-500 data-[state=active]:border-amber-500/20 border border-transparent shadow-none"
+                            className="relative px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-500 data-[state=active]:border-amber-500/20 border border-transparent shadow-none transition-all duration-300 group
+                                     after:absolute after:right-[-0.5px] after:top-[25%] after:h-[50%] after:w-px after:bg-white/5 last:after:hidden data-[state=active]:after:hidden"
                         >
-                            <Flame className="w-4 h-4 mr-2" />
+                            <Flame className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
                             Almanax
                         </TabsTrigger>
                         <TabsTrigger
                             value="news"
-                            className="px-6 py-3 rounded-xl data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-500 data-[state=active]:border-blue-500/20 border border-transparent shadow-none"
+                            className="relative px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-500 data-[state=active]:border-blue-500/20 border border-transparent shadow-none transition-all duration-300 group
+                                     after:absolute after:right-[-0.5px] after:top-[25%] after:h-[50%] after:w-px after:bg-white/5 last:after:hidden data-[state=active]:after:hidden"
                         >
-                            <BookOpen className="w-4 h-4 mr-2" />
+                            <BookOpen className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
                             Actualités
                         </TabsTrigger>
                         <TabsTrigger
                             value="encyclopedia"
-                            className="px-6 py-3 rounded-xl data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-400 data-[state=active]:border-purple-500/20 border border-transparent shadow-none"
+                            className="relative px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-400 data-[state=active]:border-purple-500/20 border border-transparent shadow-none transition-all duration-300 group
+                                     after:absolute after:right-[-0.5px] after:top-[25%] after:h-[50%] after:w-px after:bg-white/5 last:after:hidden data-[state=active]:after:hidden"
                         >
-                            <Library className="w-4 h-4 mr-2" />
+                            <Library className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
                             Encyclopédie
                         </TabsTrigger>
                         <TabsTrigger
                             value="creators"
-                            className="px-6 py-3 rounded-xl data-[state=active]:bg-red-500/10 data-[state=active]:text-red-400 data-[state=active]:border-red-500/20 border border-transparent shadow-none"
+                            className="relative px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-red-500/10 data-[state=active]:text-red-400 data-[state=active]:border-red-500/20 border border-transparent shadow-none transition-all duration-300 group
+                                     after:absolute after:right-[-0.5px] after:top-[25%] after:h-[50%] after:w-px after:bg-white/5 last:after:hidden data-[state=active]:after:hidden"
                         >
-                            <Tv className="w-4 h-4 mr-2" />
+                            <Tv className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
                             Créateurs
                         </TabsTrigger>
                         <TabsTrigger
                             value="links"
-                            className="px-6 py-3 rounded-xl data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 data-[state=active]:border-emerald-500/20 border border-transparent shadow-none"
+                            className="px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 data-[state=active]:border-emerald-500/20 border border-transparent shadow-none transition-all duration-300 group"
                         >
-                            <Link2 className="w-4 h-4 mr-2" />
+                            <Link2 className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
                             Liens & Outils
                         </TabsTrigger>
                     </TabsList>

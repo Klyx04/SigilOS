@@ -73,15 +73,10 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
         const dofusReqDone = sylvestreReqDofus.filter(d => d.isObtained).length;
         const dofusReqPercent = dofusReqTotal > 0 ? Math.round((dofusReqDone / dofusReqTotal) * 100) : 0;
 
-        // Segment 2 — Arc quêtes (from Sylvestre own MAIN_CHAIN progress)
-        // We approximate from progressPercent of the sylvestre itself (roughly 30%)
-        // More accurate when the Sylvestre chains are seeded
-        const sylvestrePercent = sylvestre.progressPercent;
-
-        // Segment 3 — Ressources & Donjons
-        // Estimated from Sylvestre RESOURCE_CHAIN: use same source but weight differently
-        // For now approximate from overall Sylvestre completion
-        const resourcePercent = Math.min(100, Math.round(sylvestrePercent * 0.9));
+        // Segment 2 — Arc quêtes (from Sylvestre own stages)
+        const questPercent = sylvestre.totalQuests > 0 
+            ? Math.round((sylvestre.completedQuests / sylvestre.totalQuests) * 100) 
+            : 0;
 
         return [
             {
@@ -99,10 +94,10 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                 label: "Arc de quêtes",
                 color: "#34d399",
                 bgColor: "rgba(52,211,153,0.15)",
-                percent: sylvestrePercent,
-                guildPercent: sylvestrePercent,
+                percent: questPercent,
+                guildPercent: questPercent,
                 icon: "📜",
-                description: "Silvosse, Flovoraison, Refuge",
+                description: `${sylvestre.completedQuests}/${sylvestre.totalQuests} quêtes complétées`,
             },
         ];
     }, [sylvestreReqDofus, sylvestre]);
@@ -242,41 +237,7 @@ export function SylvestreDonut({ sylvestre, allDofus, guildId }: SylvestreDonutP
                 </div>
             </div>
 
-            {/* Required Dofus pills */}
-            {sylvestreReqDofus.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-white/5">
-                    <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-2">Dofus prérequis</p>
-                    <div className="flex flex-wrap gap-1.5">
-                        {sylvestreReqDofus.map((d) => (
-                            <Link
-                                key={d.id}
-                                href={`/dashboard/${guildId}/quetes-dofus/${d.slug}`}
-                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all hover:scale-105"
-                                style={{
-                                    background: d.isObtained ? `${d.color || "#6366f1"}22` : "rgba(255,255,255,0.04)",
-                                    border: `1px solid ${d.isObtained ? (d.color || "#6366f1") + "55" : "rgba(255,255,255,0.08)"}`,
-                                    color: d.isObtained ? (d.color || "#6366f1") : "rgba(255,255,255,0.3)",
-                                }}
-                            >
-                                {d.isObtained ? (
-                                    <CheckCircle2 className="w-2.5 h-2.5" />
-                                ) : (
-                                    <Circle className="w-2.5 h-2.5" />
-                                )}
-                                {d.nameShort}
-                            </Link>
-                        ))}
-                    </div>
-                </div>
-            )}
 
-            {/* Bonus summary */}
-            {sylvestre.bonusSummary && (
-                <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(34,197,94,0.06)" }}>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60">Bonus</span>
-                    <span className="text-[11px] text-white/40">{sylvestre.bonusSummary}</span>
-                </div>
-            )}
         </div>
     );
 }

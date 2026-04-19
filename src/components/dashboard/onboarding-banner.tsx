@@ -171,10 +171,7 @@ export function OnboardingBanner({
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
                             {guideHref && !isFinished && (
-                                <Button asChild className={cn(
-                                    "font-black px-8 py-6 rounded-xl transition-all group/btn",
-                                    variant === "user" ? "bg-blue-500 hover:bg-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.3)]" : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-                                )}>
+                                <Button asChild variant={variant === "user" ? "sigil" : "sigil-emerald"} className="h-12 px-8">
                                     <Link href={guideHref}>
                                         {variant === "user" ? "MON PARCOURS" : "AVANCEMENT"}
                                         <ArrowRight className="ml-2 w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />

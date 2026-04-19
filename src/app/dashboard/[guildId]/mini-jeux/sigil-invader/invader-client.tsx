@@ -24,14 +24,18 @@ export default function InvaderClient({ initialRoom, guildId, user }: { initialR
     const [isLoading, setIsLoading] = useState(false);
     const searchParams = useSearchParams();
     const isSoloRequest = searchParams.get('solo') === 'true';
+    const isSpectator = searchParams.get('spectate') === 'true';
 
     useEffect(() => {
-        if (initialRoom && initialRoom.state === 'LOBBY') {
-            // Auto join if room provided in URL
+        if (initialRoom && initialRoom.state === 'LOBBY' && !isSpectator) {
+            // Auto join if room provided in URL and not spectating
             joinInvaderRoom(initialRoom.roomId, guildId).catch(err => {
                 toast.error(err.message);
                 setRoom(null);
             });
+        } else if (initialRoom && isSpectator) {
+            // Just show it
+            setRoom(initialRoom);
         } else if (!initialRoom && isSoloRequest) {
             handleSolo();
         }
@@ -124,7 +128,7 @@ export default function InvaderClient({ initialRoom, guildId, user }: { initialR
     if (room.state === 'PLAYING') {
         return (
             <div className="w-full h-full p-4 md:p-8">
-                <SigilInvaderGame room={room} guildId={guildId} isSolo={isSoloRequest} />
+                <SigilInvaderGame room={room} guildId={guildId} isSolo={isSoloRequest} isSpectator={isSpectator} />
             </div>
         );
     }

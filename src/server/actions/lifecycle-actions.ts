@@ -6,7 +6,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { getUserContext } from "./user-actions";
+import { getUserContext, invalidateUserContextCache } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { createAuditLog } from "./audit-actions";
@@ -15,7 +15,7 @@ import { auth } from "@/auth";
 /**
  * Archive a profile (Self-service or Admin)
  */
-export async function archiveProfile(guildId: string, profileId?: string) {
+export async function archiveProfile(guildId: string, profileId?: string, durationMonths?: number) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
 
@@ -45,14 +45,30 @@ export async function archiveProfile(guildId: string, profileId?: string) {
             });
         }
 
-        await db.userProfile.update({
+        const duration = durationMonths || 3; // Default to 3 months for self archival
+        const days = duration * 30.5;
+        const scheduledDeletion = new Date(Date.now() + Math.floor(days * 24 * 60 * 60 * 1000));
+
+        const updatedProfile = await db.userProfile.update({
             where: { id: targetProfileId },
+            include: { user: { include: { accounts: { where: { provider: "discord" }, select: { providerAccountId: true } } } } },
             data: {
                 status: "ARCHIVED",
                 archivedAt: new Date(),
-                archiveReason: profileId ? "ADMIN_ACTION" : "USER_LEAVE"
+                archiveReason: profileId ? "ADMIN_ACTION" : "USER_LEAVE",
+                archiveDuration: duration,
+                scheduledDeletion,
+                reactivationRequestedAt: null,
+                reactivationRequestReason: null,
             }
         });
+
+        // Invalidate Redis cache to prevent stale restricted access
+        await invalidateUserContextCache(
+            updatedProfile.userId, 
+            guildId, 
+            updatedProfile.user.accounts[0]?.providerAccountId
+        );
 
         await createAuditLog({
             guildId,
@@ -174,7 +190,7 @@ export async function reactivateProfileByAdmin(
 
         const previousStatus = profile.status;
 
-        await db.userProfile.update({
+        const updated = await db.userProfile.update({
             where: { id: profileId },
             data: {
                 status: "ACTIVE",
@@ -189,6 +205,13 @@ export async function reactivateProfileByAdmin(
                 } : {})
             }
         });
+
+        // Invalidate Redis cache to ensure the user sees their restored access immediately
+        await invalidateUserContextCache(
+            updated.userId, 
+            guildId, 
+            profile.user.accounts[0]?.providerAccountId
+        );
 
         // Invalidate sessions so they must re-auth (picks up new ACTIVE status)
         await db.session.deleteMany({ where: { userId: profile.userId } });
@@ -609,5 +632,148 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
     } catch (error) {
         console.error("[Manual Wipe] Error:", error);
         return { success: false, error: "Erreur lors du nettoyage" };
+    }
+}
+
+/**
+ * Request reactivation for an ARCHIVED profile (User action)
+ */
+export async function requestProfileReactivation(guildId: string, reason?: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, missionValidationChannelId: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
+
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: {
+                userId_guildId: {
+                    userId: session.user.id,
+                    guildId: guildConfig.id
+                }
+            },
+            include: { user: { select: { name: true, image: true } } }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+        if (profile.status !== "ARCHIVED") return { success: false, error: "Seuls les comptes archivés peuvent demander une réintégration." };
+
+        // Update profile
+        await db.userProfile.update({
+            where: { id: profile.id },
+            data: {
+                reactivationRequestedAt: new Date(),
+                reactivationRequestReason: reason || "Demande via le Dashboard"
+            }
+        });
+
+        // 📝 Audit Log
+        await createAuditLog({
+            guildId,
+            action: "MEMBER_JOIN_REQUEST" as any,
+            actorUserId: session.user.id,
+            actorName: profile.pseudoDofus || session.user.name || "Membre",
+            targetType: "PROFILE" as any,
+            targetId: profile.id,
+            metadata: {
+                description: "Demande de réintégration (Retour d'archive)",
+                reason: reason || "Action utilisateur"
+            }
+        });
+
+        // 🔔 Discord Notification
+        try {
+            const channelId = guildConfig.missionValidationChannelId || guildConfig.missionNotifyChannelId;
+            if (channelId) {
+                const { sendChannelMessage } = await import("@/server/discord");
+                const mentionMode = guildConfig.missionValidationNotifyRoleId;
+                const mention = mentionMode ? (mentionMode === "everyone" ? "@everyone" : `<@&${mentionMode}>`) : "Staff";
+
+                await sendChannelMessage(channelId, `Bonjour ${mention} !`, {
+                    embedTitle: "🔄 Demande de Réintégration",
+                    embedDescription: `Le membre **${profile.pseudoDofus || session.user.name}** souhaite réintégrer la guilde.`,
+                    embedColor: 0x10b981, // Green
+                    embedThumbnail: profile.user.image || undefined,
+                    fields: [
+                        { name: "Raison", value: reason || "Non précisée" },
+                        { name: "Lien Admin", value: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildId}/admin/validation?tab=retours` }
+                    ],
+                    components: [
+                        {
+                            type: 1, // Action Row
+                            components: [
+                                {
+                                    type: 2, style: 3, // Success
+                                    label: "✅ Approuver",
+                                    custom_id: `validate:reactivation:approve:${profile.id}:${guildId}`,
+                                },
+                                {
+                                    type: 2, style: 4, // Danger
+                                    label: "❌ Refuser",
+                                    custom_id: `validate:reactivation:reject:${profile.id}:${guildId}`,
+                                },
+                            ],
+                        },
+                    ]
+                });
+            }
+        } catch (discordErr) {
+            console.error("Discord notification failed for reactivation request:", discordErr);
+        }
+
+        revalidatePath(`/dashboard/${guildId}`);
+        revalidatePath(`/dashboard/${guildId}/admin/validation`);
+        return { success: true };
+    } catch (e) {
+        console.error("Request reactivation error:", e);
+        return { success: false, error: "Erreur lors de la demande" };
+    }
+}
+
+/**
+ * Get pending reactivation requests for admin validation
+ */
+export async function getPendingReactivations(guildId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAdmin && !ctx.canValidateMissions) {
+        return { success: false, error: "Forbidden" };
+    }
+
+    try {
+        const requests = await db.userProfile.findMany({
+            where: {
+                guild: { discordGuildId: guildId },
+                status: "ARCHIVED",
+                reactivationRequestedAt: { not: null }
+            },
+            select: {
+                id: true,
+                userId: true,
+                pseudoDofus: true,
+                discordNickname: true,
+                reactivationRequestedAt: true,
+                reactivationRequestReason: true,
+                archiveReason: true,
+                archivedAt: true,
+                scheduledDeletion: true,
+                user: {
+                    select: {
+                        name: true,
+                        image: true
+                    }
+                }
+            },
+            orderBy: { reactivationRequestedAt: "desc" }
+        });
+
+        return { success: true, data: requests };
+    } catch (e) {
+        console.error("Fetch pending reactivations error:", e);
+        return { success: false, error: "Database error" };
     }
 }

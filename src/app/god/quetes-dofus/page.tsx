@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { db } from "@/lib/prisma";
-import { Database, Sparkles } from "lucide-react";
+import { Database, Sparkles, Tag } from "lucide-react";
 import { WorkflowExplanation } from "@/components/admin/dofus-quest-editor/WorkflowExplanation";
 import { DofusQuestGodClient } from "@/components/admin/dofus-quest-editor/DofusQuestGodClient";
 import DofusQuestGodManager from "@/components/admin/DofusQuestGodManager";
+import { DofusTagManager } from "@/components/admin/DofusTagManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const metadata = {
@@ -139,6 +140,10 @@ export default async function QuestsDofusGodPage() {
                         <Database className="w-4 h-4 mr-2" />
                         Quest Builder (Structure Manuelle)
                     </TabsTrigger>
+                    <TabsTrigger value="tags" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white bg-zinc-900/50 text-zinc-400 border border-white/5 rounded-xl px-6 py-3 font-black uppercase text-xs tracking-widest transition-all shadow-md">
+                        <Tag className="w-4 h-4 mr-2" />
+                        Tags Dofus
+                    </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="curation" className="space-y-6">
@@ -147,6 +152,16 @@ export default async function QuestsDofusGodPage() {
                 
                 <TabsContent value="builder" className="space-y-6 animate-in fade-in duration-500">
                     <DofusQuestGodManager />
+                </TabsContent>
+
+                <TabsContent value="tags" className="space-y-6 animate-in fade-in duration-500">
+                    <div className="space-y-3">
+                        <p className="text-zinc-500 text-sm max-w-2xl leading-relaxed">
+                            Définissez les attributs de chaque Dofus : <strong className="text-white/70">Primordial</strong>, <strong className="text-white/70">Prérequis Sylvestre</strong>, <strong className="text-white/70">Méta</strong> et ordre d'affichage.
+                            Ces tags pilotent directement l'interface utilisateur et les filtres côté membres.
+                        </p>
+                        <DofusTagManager />
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>

@@ -12,27 +12,35 @@ import { emitGuildActivity } from "./activity-actions";
 import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
 
-// In-memory cache for user context paths that don't change often
-// BUGFIX: Cache TTL réduit à 0 pour éviter les incohérences entre workers PM2/Docker.
-// Le cache en Map() n'est pas partagé entre les processus Node — chaque worker a son état.
-// React cache() (per-request) est suffisant pour éviter les requêtes redondantes dans un même render.
+import { redis } from "@/lib/redis";
+
+// In-memory cache for configs and user context
 const configCache = new Map<string, { data: any, expiresAt: number }>();
 const profileCache = new Map<string, { data: any, expiresAt: number }>();
-const CACHE_TTL = 0; // Désactivé (0 = pas de cache inter-requêtes)
+const CACHE_TTL = 60; // 60 seconds — must stay short so role revocations propagate quickly
 
 /**
- * Invalidate cache for a specific user in a specific guild
+ * Invalidate cache for a specific user in a specific guild.
+ * Handles both the in-memory profile cache (uses DB UUID) 
+ * and the Redis context cache (uses Discord Guild ID).
  */
-export async function invalidateUserContextCache(userId: string, guildId?: string) {
-    const profileCacheKey = `profile:${userId}:${guildId || ""}`;
+export async function invalidateUserContextCache(userId: string, guildId: string, discordGuildId?: string) {
+    // 1. Clear In-memory profile cache (uses internal DB UUID)
+    const profileCacheKey = `profile:${userId}:${guildId}`;
     profileCache.delete(profileCacheKey);
+    
+    // 2. Clear Redis context cache (uses Discord Guild ID)
+    // Ensure we clear using the Discord ID if provided, fallback to guildId
+    const redisKey = `user:ctx:${userId}:${discordGuildId || guildId}`;
+    await redis.del(redisKey).catch(() => {});
 }
 
 /**
  * Invalidate cache for a whole guild configuration
  */
 export async function invalidateGuildCache(guildId: string) {
-    configCache.delete(`config:${guildId}`);
+    // Invalidate a generic guild config cache if needed
+    await redis.del(`config:${guildId}`).catch(() => {});
 }
 
 /**
@@ -53,8 +61,12 @@ export async function revalidateUserContext(guildId?: string) {
     const { invalidateDiscordCache } = await import("@/server/discord");
     invalidateDiscordCache(`member:${guildId || ""}:${userId}`);
 
-    // 3. Clear Next.js tag-based cache (if any)
-    revalidatePath(`/dashboard/${guildId || ""}`);
+    // 3. Revalidate all relevant paths so the sidebar guild switcher picks up
+    //    the newly created UserProfile on the very first connection.
+    //    Without this, getUserGuilds() returns [] until a hard refresh because
+    //    the profile is created during render and the layout cache is stale.
+    revalidatePath(`/dashboard/${guildId || ""}`, "layout");
+    revalidatePath("/", "layout"); // Invalidate root layout (guild switcher data)
 
     return { success: true };
 }
@@ -90,6 +102,7 @@ export type UserContext = {
     canViewOcre: boolean;
     canViewLadder: boolean;
     canSyncLadder: boolean;
+    canManualSyncLadder: boolean;
     canViewQuests: boolean;
     canViewWorldmap: boolean;
     canViewFinder: boolean;
@@ -99,8 +112,6 @@ export type UserContext = {
     canViewPolls: boolean;
     canViewCalendar: boolean;
     canManageCalendar: boolean;
-    canViewChat: boolean;
-    canModerateChat: boolean;
     canEditVacation: boolean;
     // Admin Tools
     canEditPresentation: boolean;
@@ -130,6 +141,8 @@ export type UserContext = {
     classe?: string | null;
     dofusLevel?: number | null;
     altPseudos?: any[] | null;
+    pinnedNavItems?: string[];
+    hiddenNavItems?: string[];
     newsBroadcastEnabled?: boolean;
 };
 
@@ -174,6 +187,22 @@ export const getUserContext = cache(async (targetGuildId?: string): Promise<User
 
 async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const session = await auth();
+    if (!session?.user?.id) return { isAuthenticated: false } as any;
+
+    const guildId = targetGuildId || process.env.DISCORD_GUILD_ID || "";
+    const redisKey = `user:ctx:${session.user.id}:${guildId}`;
+
+    // 1. Try Redis Cache first
+    try {
+        const cached = await redis.get(redisKey);
+        if (cached) {
+            const data = JSON.parse(cached);
+            // Verify session integrity (optional but safe)
+            if (data.id === session.user.id) return data;
+        }
+    } catch (e) {
+        console.error("[UserContext] Redis fetch error:", e);
+    }
 
     // Default context for non-authenticated or base cases
     const baseContext: UserContext = {
@@ -202,6 +231,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewOcre: false,
         canViewLadder: false,
         canSyncLadder: false,
+        canManualSyncLadder: false,
         canViewQuests: false,
         canViewWorldmap: false,
         canViewFinder: false,
@@ -211,8 +241,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewPolls: false,
         canViewCalendar: false,
         canManageCalendar: false,
-        canViewChat: false,
-        canModerateChat: false,
         canEditVacation: false,
         canEditPresentation: false,
         canManageRelance: false,
@@ -249,7 +277,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         : null;
 
     if (!guildConfig) {
-        guildConfig = await (db.guildConfig as any).findFirst({
+        guildConfig = await db.guildConfig.findFirst({
             where: {
                 OR: [
                     { id: effectiveGuildId },
@@ -291,8 +319,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         quests: true,
                         worldmap: true,
                         resources: true,
-                        chat: true,
                         ladderSync: true,
+                        manualLadderSync: true,
                         minigames: true,
                     }
                 }
@@ -467,8 +495,6 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 canViewAdminDocs: true,
                 canViewCalendar: true,
                 canManageCalendar: true,
-                canViewChat: true,
-                canModerateChat: true,
                 canEditVacation: true,
                 canViewRoster: true,
                 canViewQuests: true,
@@ -516,17 +542,17 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // MASTER ADMIN: Must be checked against the USER'S OWN roles, not all guild roles
     const userHasAdminPermission = memberRoles.some(rId => {
         const perms = rolesMapping[rId];
-        return perms && perms.includes(PERMISSIONS.ADMIN_FULL);
+        return perms && (perms.includes(PERMISSIONS.SYSTEM_GOD) || perms.includes(PERMISSIONS.SYSTEM_GOD));
     });
     const isAdmin = userHasAdminPermission || hasDiscordAdmin || isGod;
     const isAdminFinal = isAdmin;
 
     // 2. Authorization Check (The Gatekeeper) — STRICT DENY-BY-DEFAULT
-    // A role MUST have DASHBOARD_ACCESS explicitly to pass. No legacy fallback.
+    // A role MUST have DASHBOARD_LOGIN explicitly to pass. No legacy fallback.
     const hasAuthorizedRole = memberRoles.some(rId => {
         const perms = rolesMapping[rId];
         if (!perms || perms.length === 0) return false;
-        return perms.includes(PERMISSIONS.DASHBOARD_ACCESS);
+        return perms.includes(PERMISSIONS.DASHBOARD_LOGIN) || perms.includes(PERMISSIONS.COMMUNITY_ACCESS);
     });
     const isAuthorizedMember = hasAuthorizedRole || isAdminFinal;
 
@@ -536,7 +562,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isAuthenticated: true,
             id: session.user.id,
             name: displayName,
-            isMember: isGod,
+            isMember: !!member || isGod,
             guildName: guildConfig?.name || "Serveur Inconnu",
             canViewDashboard: false,
             error: !isGod ? "Vous n'avez pas de rôle autorisé." : undefined
@@ -601,47 +627,88 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     }
 
     // 4. Permissions Calculation
+    const LEGACY_MAPPING: Record<string, PermissionId> = {
+        "dashboard:access": PERMISSIONS.DASHBOARD_LOGIN,
+        "bienvenue:view": PERMISSIONS.DASHBOARD_LOGIN,
+        "resources:view": PERMISSIONS.DASHBOARD_LOGIN,
+        "docs:view": PERMISSIONS.DASHBOARD_LOGIN,
+        "profile:view_all": PERMISSIONS.COMMUNITY_ACCESS,
+        "polls:view": PERMISSIONS.COMMUNITY_ACCESS,
+        "calendar:view": PERMISSIONS.COMMUNITY_ACCESS,
+        "chat:view": PERMISSIONS.COMMUNITY_ACCESS,
+        "chat:moderate": PERMISSIONS.COMMUNITY_MOD,
+        "calendar:manage": PERMISSIONS.COMMUNITY_MOD,
+        "missions:view": PERMISSIONS.MISSIONS_PLAY,
+        "missions:manage": PERMISSIONS.MISSIONS_OFFICER,
+        "missions:validate": PERMISSIONS.MISSIONS_OFFICER,
+        "game:ocre_view": PERMISSIONS.GAME_VIEW,
+        "game:ladder_view": PERMISSIONS.GAME_VIEW,
+        "game:quests_view": PERMISSIONS.GAME_VIEW,
+        "game:worldmap_view": PERMISSIONS.GAME_VIEW,
+        "game:minigames_view": PERMISSIONS.GAME_VIEW,
+        "songes:view": PERMISSIONS.GAME_OPERATIONS,
+        "songes:create": PERMISSIONS.GAME_OPERATIONS,
+        "songes:join": PERMISSIONS.GAME_OPERATIONS,
+        "game:services_view": PERMISSIONS.GAME_OPERATIONS,
+        "game:dj_quests_view": PERMISSIONS.GAME_OPERATIONS,
+        "admin:member_manage": PERMISSIONS.STAFF_MEMBER_MGMT,
+        "admin:relance_manage": PERMISSIONS.STAFF_MEMBER_MGMT,
+        "admin:member_vacation_edit": PERMISSIONS.STAFF_MEMBER_MGMT,
+        "presentation:edit": PERMISSIONS.STAFF_CONTENT,
+        "docs:view_admin": PERMISSIONS.STAFF_CONTENT,
+        "admin:audit": PERMISSIONS.STAFF_AUDIT,
+        "stats:view": PERMISSIONS.STAFF_AUDIT,
+        "admin:settings": PERMISSIONS.SYSTEM_CONFIG,
+        "admin:full": PERMISSIONS.SYSTEM_GOD,
+    };
+
     const permissionSet = new Set<PermissionId>();
     memberRoles.forEach(rId => {
         const perms = rolesMapping[rId];
-        if (perms) perms.forEach(p => permissionSet.add(p));
+        if (perms) perms.forEach(p => {
+             permissionSet.add(p as PermissionId);
+             if (LEGACY_MAPPING[p]) permissionSet.add(LEGACY_MAPPING[p]);
+        });
     });
 
     const personalPerms = individualMapping[discordUserId];
-    if (personalPerms) personalPerms.forEach(p => permissionSet.add(p));
+    if (personalPerms) personalPerms.forEach(p => {
+         permissionSet.add(p as PermissionId);
+         if (LEGACY_MAPPING[p]) permissionSet.add(LEGACY_MAPPING[p]);
+    });
 
-    const canViewWelcome = permissionSet.has(PERMISSIONS.BIENVENUE_VIEW) || isAdminFinal || (Object.keys(rolesMapping).length === 0);
-    const canViewPresentation = true;
-    const canEditPresentation = permissionSet.has(PERMISSIONS.PRESENTATION_EDIT) || isAdminFinal;
-    const canViewStats = permissionSet.has(PERMISSIONS.STATS_VIEW) || isAdminFinal;
-    const canViewDocs = permissionSet.has(PERMISSIONS.DOCS_VIEW) || isAdminFinal;
-    const canViewAdminDocs = permissionSet.has(PERMISSIONS.DOCS_VIEW_ADMIN) || isAdminFinal;
-    const canViewRoster = permissionSet.has(PERMISSIONS.MEMBER_VIEW_ALL) || isAdminFinal;
-    const canManageMembers = permissionSet.has(PERMISSIONS.MEMBER_MANAGE) || isAdminFinal;
-    const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_VIEW) || isAdminFinal;
-    const canManageMissions = permissionSet.has(PERMISSIONS.MISSIONS_MANAGE) || isAdminFinal;
-    const canValidateMissions = permissionSet.has(PERMISSIONS.MISSIONS_VALIDATE) || isAdminFinal;
-    const canManageBonus = permissionSet.has(PERMISSIONS.MISSIONS_MANAGE) || isAdminFinal;
-    const canViewSonges = permissionSet.has(PERMISSIONS.SONGES_VIEW) || isAdminFinal;
-    const canCreateSonges = permissionSet.has(PERMISSIONS.SONGES_CREATE) || isAdminFinal;
-    const canJoinSonges = permissionSet.has(PERMISSIONS.SONGES_JOIN) || isAdminFinal;
-    const canViewOcre = permissionSet.has(PERMISSIONS.OCRE_VIEW) || isAdminFinal;
-    const canViewLadder = permissionSet.has(PERMISSIONS.LADDER_VIEW) || isAdminFinal;
-    const canViewQuests = permissionSet.has(PERMISSIONS.QUESTS_VIEW) || isAdminFinal;
-    const canViewWorldmap = permissionSet.has(PERMISSIONS.WORLDMAP_VIEW) || isAdminFinal;
-    const canViewDJQuests = permissionSet.has(PERMISSIONS.DJ_QUESTS_VIEW) || isAdminFinal;
-    const canViewServices = permissionSet.has(PERMISSIONS.SERVICES_VIEW) || isAdminFinal;
-    const canViewMiniGames = permissionSet.has(PERMISSIONS.MINIGAMES_VIEW) || isAdminFinal;
-    const canViewCalendar = permissionSet.has(PERMISSIONS.CALENDAR_VIEW) || isAdminFinal;
-    const canManageCalendar = permissionSet.has(PERMISSIONS.CALENDAR_MANAGE) || isAdminFinal;
-    const canViewChat = permissionSet.has(PERMISSIONS.CHAT_VIEW) || isAdminFinal;
-    const canModerateChat = permissionSet.has(PERMISSIONS.CHAT_MODERATE) || isAdminFinal;
-    const canEditVacation = permissionSet.has(PERMISSIONS.MEMBER_VACATION_EDIT) || isAdminFinal;
-    const canViewPolls = permissionSet.has(PERMISSIONS.POLLS_VIEW) || isAdminFinal;
-    const canManageRelance = permissionSet.has(PERMISSIONS.RELANCE_MANAGE) || permissionSet.has(PERMISSIONS.MEMBER_MANAGE) || isAdminFinal;
-    const canManageRBAC = hasDiscordAdmin || isGod; // STRICT: Only Discord admins and God can manage RBAC
-    const canViewSettings = permissionSet.has(PERMISSIONS.ADMIN_SETTINGS) || isAdminFinal;
-    const canViewAuditLogs = permissionSet.has(PERMISSIONS.ADMIN_AUDIT) || isAdminFinal;
+    const noRolesConfigured = Object.keys(rolesMapping).length === 0;
+
+    const canViewWelcome = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
+    const canViewPresentation = permissionSet.has(PERMISSIONS.PRESENTATION_VIEW) || isAdminFinal || noRolesConfigured;
+    const canEditPresentation = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
+    const canViewStats = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
+    const canViewDocs = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
+    const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
+    const canViewRoster = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
+    const canManageMembers = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
+    const canViewMissions = permissionSet.has(PERMISSIONS.MISSIONS_PLAY) || isAdminFinal;
+    const canManageMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
+    const canValidateMissions = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
+    const canManageBonus = permissionSet.has(PERMISSIONS.MISSIONS_OFFICER) || isAdminFinal;
+    const canViewSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
+    const canCreateSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
+    const canJoinSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
+    const canViewOcre = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
+    const canViewLadder = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
+    const canViewQuests = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
+    const canViewWorldmap = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
+    const canViewDJQuests = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
+    const canViewServices = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
+    const canViewMiniGames = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
+    const canViewCalendar = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
+    const canManageCalendar = permissionSet.has(PERMISSIONS.COMMUNITY_MOD) || isAdminFinal;
+    const canEditVacation = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
+    const canViewPolls = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
+    const canManageRelance = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
+    const canManageRBAC = permissionSet.has(PERMISSIONS.SYSTEM_RBAC) || hasDiscordAdmin || isGod; 
+    const canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal;
+    const canViewAuditLogs = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
 
     const mod = (guildConfig as any)?.modules;
     const bypassModules = isGod || isAdminFinal;
@@ -649,7 +716,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const applyModule = (moduleEnabled: any, perm: boolean): boolean =>
         !!(bypassModules ? perm : (moduleEnabled !== false) && perm);
 
-    return {
+    const finalContext = {
         isAuthenticated: true,
         id: session.user.id,
         name: displayName,
@@ -681,6 +748,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewOcre: !!applyModule(!!mod?.ocre, !!canViewOcre),
         canViewLadder: !!applyModule(!!mod?.ladder, !!canViewLadder),
         canSyncLadder: !!applyModule(!!mod?.ladderSync, !!isAdminFinal),
+        canManualSyncLadder: !!(isGod || mod?.manualLadderSync),
         canViewQuests: !!applyModule(!!mod?.quests, !!canViewQuests),
         canViewWorldmap: !!applyModule(!!mod?.worldmap, !!canViewWorldmap),
         canViewFinder: !!applyModule(!!mod?.donjons, !!canViewDJQuests),
@@ -690,9 +758,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewPolls: !!applyModule(!!mod?.polls, !!canViewPolls),
         canViewCalendar: !!applyModule(!!mod?.calendar, !!canViewCalendar),
         canManageCalendar: !!applyModule(!!mod?.calendar, !!canManageCalendar),
-        canViewChat: !!applyModule(!!mod?.chat, !!canViewChat),
-        canModerateChat: !!applyModule(!!mod?.chat, !!canModerateChat),
         canEditVacation: !!canEditVacation,
+        canViewDJQuests: !!applyModule(!!mod?.donjons, !!canViewDJQuests),
         canEditPresentation: !!applyModule(!!mod?.presentation, !!canEditPresentation),
         canManageRelance: !!canManageRelance,
         canManageRBAC: !!canManageRBAC,
@@ -701,7 +768,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isAdmin: !!isAdminFinal,
         isDiscordAdmin: !!(hasDiscordAdmin || isGod),
         isSuperAdmin: !!isGod,
-        isMember: !!isAuthorizedMember,
+        isMember: !!member,
         hasPseudoIssue: !profile?.pseudoDofus || profile.pseudoDofus.startsWith("Voyageur"),
         pseudoDofus: profile?.pseudoDofus,
         ankamaId: profile?.ankamaId,
@@ -719,9 +786,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         classe: profile?.classe,
         dofusLevel: profile?.dofusLevel,
         altPseudos: (profile?.altPseudos as any[]) || [],
+        pinnedNavItems: profile?.pinnedNavItems || [],
+        hiddenNavItems: profile?.hiddenNavItems || [],
     };
 
+    // Store in Redis before returning
+    await redis.set(redisKey, JSON.stringify(finalContext), "EX", CACHE_TTL).catch(() => {});
 
+    return finalContext;
 }
 
 /**
@@ -993,7 +1065,7 @@ export async function internalCheckPermission(
         const userPerms = userMapping[discordUserId];
         if (userPerms) userPerms.forEach((p: PermissionId) => allPerms.add(p));
 
-        return allPerms.has(PERMISSIONS.ADMIN_FULL) || allPerms.has(permission);
+        return allPerms.has(PERMISSIONS.SYSTEM_CONFIG) || allPerms.has(permission);
     } catch (e) {
         console.error(`[PermissionCheck] Error for ${discordUserId} in ${guildId}:`, e);
         return false;
@@ -1151,7 +1223,8 @@ export async function getGuildMembers(guildId: string) {
 export async function updateMemberProfileStatus(
     profileId: string,
     status: "ACTIVE" | "ARCHIVED" | "BANNED",
-    reason?: string
+    reason?: string,
+    durationMonths?: number
 ) {
     const session = await auth();
     if (!session?.user) throw new Error("Unauthorized");
@@ -1174,11 +1247,14 @@ export async function updateMemberProfileStatus(
     }
 
     // 4. Update with retention policy
-    const scheduledDeletion = status === "ACTIVE"
-        ? null
-        : status === "BANNED"
-            ? new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h for BANNED
-            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30d for ARCHIVED
+    let scheduledDeletion = null;
+    if (status === "ARCHIVED") {
+        // Duration logic: 30 days default if no months provided
+        const days = durationMonths ? durationMonths * 30.5 : 30; // Use 30.5 for a more accurate month
+        scheduledDeletion = new Date(Date.now() + Math.floor(days * 24 * 60 * 60 * 1000));
+    } else if (status === "BANNED") {
+        scheduledDeletion = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h for BANNED
+    }
 
     const updated = await db.userProfile.update({
         where: { id: profileId },
@@ -1186,9 +1262,18 @@ export async function updateMemberProfileStatus(
             status,
             archivedAt: status !== "ACTIVE" ? new Date() : null,
             archiveReason: status !== "ACTIVE" ? (reason || "MANUAL_ADMIN_ACTION") : null,
-            scheduledDeletion
+            archiveDuration: durationMonths || (status === "ARCHIVED" ? 1 : null),
+            scheduledDeletion,
+            reactivationRequestedAt: null, // Reset any pending request
+            reactivationRequestReason: null
         }
     });
+
+    // Invalidate Redis cache to prevent stale access states
+    await invalidateUserContextCache(
+        updated.userId, 
+        profile.guild.discordGuildId,
+    );
 
     // 5. Audit & Activity
     const targetProfile = await db.userProfile.findUnique({
@@ -1317,15 +1402,15 @@ export async function getDiscordRolesAction(guildId: string) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
-    // Security: Must be admin to access role configuration settings
+    // Security: Must be member to fetch guild roles (for finder/songes)
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) return { success: false, error: "Forbidden: Admin access required" };
+    if (!user.isMember) return { success: false, error: "Forbidden: Member access required" };
 
     try {
         const roles = await fetchGuildRoles(guildId, { excludeManaged: true });
         return {
             success: true,
-            data: roles.map(r => ({
+            roles: roles.map(r => ({
                 id: r.id,
                 name: r.name,
                 color: r.color

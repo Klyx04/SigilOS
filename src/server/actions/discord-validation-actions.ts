@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Discord Interaction Validation Actions
  *
  * Fonctions "internal" appelées UNIQUEMENT depuis /api/discord/interactions.
@@ -30,7 +30,7 @@ async function requireDiscordAdmin(discordGuildId: string, discordUserId: string
     { allowed: false; error: string }
 > {
     const { internalCheckPermission } = await import("@/server/actions/user-actions");
-    const hasPermission = await internalCheckPermission(discordGuildId, discordUserId, PERMISSIONS.MISSIONS_VALIDATE);
+    const hasPermission = await internalCheckPermission(discordGuildId, discordUserId, PERMISSIONS.MISSIONS_OFFICER);
     if (!hasPermission) return { allowed: false, error: "Permissions insuffisantes (MISSIONS_VALIDATE requis)." };
 
     const account = await db.account.findFirst({

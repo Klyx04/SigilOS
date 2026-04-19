@@ -311,6 +311,83 @@ function SideCard({
     );
 }
 
+// ─── List item card ───────────────────────────────────────────────────────────
+
+function ListCard({ 
+    item, 
+    userCtx, 
+    currentFeed, 
+    sending, 
+    handleSendToDiscord, 
+    handleBroadcast, 
+    broadcasting 
+}: { 
+    item: NewsItem; 
+    userCtx: UserContext | null; 
+    currentFeed: any; 
+    sending: string | null; 
+    handleSendToDiscord: (item: NewsItem) => void; 
+    handleBroadcast: (item: NewsItem) => void; 
+    broadcasting: boolean;
+}) {
+    const [imgError, setImgError] = useState(false);
+
+    return (
+        <a
+            href={item.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative flex items-center gap-6 p-3 rounded-2xl bg-zinc-950/20 border border-white/5 hover:bg-white/[0.04] transition-all duration-300"
+        >
+            {/* Dot / Timeline */}
+            <div className="relative z-10 w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white/[0.03] border border-white/10 group-hover:border-amber-500/30 transition-colors flex items-center justify-center">
+                {item.imageUrl && !imgError ? (
+                    <img 
+                        src={item.imageUrl} 
+                        alt="" 
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                        onError={() => setImgError(true)}
+                    />
+                ) : (
+                    <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-500/10 to-transparent">
+                        <Scroll className="w-6 h-6" style={{ color: currentFeed.color, opacity: 0.5 }} />
+                        <Zap className="absolute top-2 right-2 w-3 h-3 text-amber-500 animate-pulse" />
+                    </div>
+                )}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        {formatPubDate(item.pubDate)}
+                    </span>
+                    <div className="h-px w-8 bg-white/10" />
+                </div>
+                <h4 className="text-base font-bold text-white group-hover:text-amber-500 transition-colors line-clamp-1">
+                    {item.title}
+                </h4>
+            </div>
+
+            {currentFeed.key !== "changelog" && (
+                <NewsActions 
+                    item={item} 
+                    userCtx={userCtx} 
+                    sending={sending} 
+                    handleSendToDiscord={handleSendToDiscord} 
+                    handleBroadcast={handleBroadcast} 
+                    broadcasting={broadcasting}
+                />
+            )}
+
+            <div className="px-4 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-amber-500 group-hover:border-amber-500/20 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+                Détails
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2 mr-2" />
+        </a>
+    );
+}
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function Skeleton() {
@@ -544,58 +621,16 @@ export function NewsGrid({
                     <div className="absolute left-[31px] top-6 bottom-6 w-px bg-white/5" />
                     
                     {items.slice(0, maxItems).map((item, i) => (
-                        <a
-                            key={i}
-                            href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group relative flex items-center gap-6 p-3 rounded-2xl bg-zinc-950/20 border border-white/5 hover:bg-white/[0.04] transition-all duration-300"
-                        >
-                            {/* Dot / Timeline */}
-                            <div className="relative z-10 w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white/[0.03] border border-white/10 group-hover:border-amber-500/30 transition-colors flex items-center justify-center">
-                                {item.imageUrl ? (
-                                    <img 
-                                        src={item.imageUrl} 
-                                        alt="" 
-                                        referrerPolicy="no-referrer"
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                                    />
-                                ) : (
-                                    <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-500/10 to-transparent">
-                                        <Scroll className="w-6 h-6" style={{ color: currentFeed.color, opacity: 0.5 }} />
-                                        <Zap className="absolute top-2 right-2 w-3 h-3 text-amber-500 animate-pulse" />
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                        {formatPubDate(item.pubDate)}
-                                    </span>
-                                    <div className="h-px w-8 bg-white/10" />
-                                </div>
-                                <h4 className="text-base font-bold text-white group-hover:text-amber-500 transition-colors line-clamp-1">
-                                    {item.title}
-                                </h4>
-                            </div>
-
-                            {activeFeed !== "changelog" && (
-                                <NewsActions 
-                                    item={item} 
-                                    userCtx={userCtx} 
-                                    sending={sending} 
-                                    handleSendToDiscord={handleSendToDiscord} 
-                                    handleBroadcast={handleBroadcast} 
-                                    broadcasting={broadcasting}
-                                />
-                            )}
-
-                            <div className="px-4 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-hover:text-amber-500 group-hover:border-amber-500/20 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
-                                Détails
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity ml-2 mr-2" />
-                        </a>
+                        <ListCard 
+                            key={i} 
+                            item={item} 
+                            currentFeed={currentFeed}
+                            userCtx={userCtx}
+                            sending={sending}
+                            handleSendToDiscord={handleSendToDiscord}
+                            handleBroadcast={handleBroadcast}
+                            broadcasting={broadcasting}
+                        />
                     ))}
                 </div>
             ) : (

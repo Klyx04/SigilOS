@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { cn } from "@/lib/utils";
 import { PublicPlayer, GameMode } from "../../types/socket-events";
+import { ShareRoomButton } from "../shared/ShareRoomButton";
 
 interface LobbyScreenProps {
     room: {
@@ -15,11 +15,14 @@ interface LobbyScreenProps {
     onInvite: (url: string) => void;
     onClose: () => void;
     isHost?: boolean;
+    voiceUsers?: any[];
 }
 
-import { Share2, X, Play, Shield, Users as UsersIcon } from "lucide-react";
+import { Share2, X, Play, Shield, Users as UsersIcon, Mic } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyScreenProps) => {
+export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost, voiceUsers = [] }: LobbyScreenProps) => {
+    const voiceUserIds = voiceUsers.map(u => (u as any).userId);
     const [countdown, setCountdown] = React.useState<number | null>(null);
     const canStart = room.players.length >= 1;
 
@@ -29,9 +32,7 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
     };
 
     const handleInvite = () => {
-        const roomUrl = `${window.location.origin}${window.location.pathname}?room=${room.id}`;
-        navigator.clipboard.writeText(roomUrl).catch(() => {});
-        onInvite(roomUrl);
+        // Obsolete: uses window.location.origin
     };
 
     return (
@@ -64,13 +65,7 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
 
                 {/* Floating Action Buttons */}
                 <div className="absolute top-4 md:top-8 right-4 md:right-8 flex gap-2 md:gap-3">
-                    <button 
-                        onClick={handleInvite}
-                        className="w-10 h-10 md:w-14 md:h-14 flex items-center justify-center bg-[#5d3fd3] hover:bg-[#6c4be0] text-white rounded-xl md:rounded-2xl border-b-4 border-black/20 transition-all active:translate-y-1 active:border-b-0 shadow-lg"
-                        title="Inviter des amis"
-                    >
-                        <Share2 size={18} className="md:w-6 md:h-6" />
-                    </button>
+                    <ShareRoomButton roomId={room.id} className="scale-75 md:scale-100 origin-right" />
                     <button 
                         onClick={onClose}
                         className="w-10 h-10 md:w-14 md:h-14 flex items-center justify-center bg-red-500 hover:bg-red-400 text-white rounded-xl md:rounded-2xl border-b-4 border-black/20 transition-all active:translate-y-1 active:border-b-0 shadow-lg"
@@ -93,8 +88,13 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
                                 <div className="flex flex-wrap gap-4">
                                     {room.players.filter(p => (p as any).isSpectator).map((spectator) => (
                                         <div key={spectator.id} className="flex items-center gap-3 bg-white/5 pr-4 pl-1 py-1 rounded-full border border-white/10 group hover:bg-white/10 transition-all">
-                                            <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/10">
+                                            <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/10 relative">
                                                 <img src={spectator.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${spectator.username}`} alt="avatar" className="w-full h-full object-cover" />
+                                                {voiceUserIds.includes((spectator as any).userId) && (
+                                                    <div className="absolute -top-0.5 -right-0.5 z-10 p-0.5 bg-emerald-500 rounded border border-zinc-950 shadow-sm">
+                                                        <Mic size={6} className="text-white fill-white/20" />
+                                                    </div>
+                                                )}
                                             </div>
                                             <span className="text-white/60 font-black text-[10px] uppercase italic truncate max-w-[100px]">{spectator.username}</span>
                                         </div>
@@ -121,8 +121,13 @@ export const LobbyScreen = ({ room, onStart, onInvite, onClose, isHost }: LobbyS
                                             isHostPlayer && "ring-4 ring-purple-500/50"
                                         )}
                                     >
-                                        <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-100 p-1 border-4 border-black/5 overflow-hidden shadow-inner group-hover:scale-110 transition-transform">
+                                        <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-100 p-1 border-4 border-black/5 overflow-hidden shadow-inner group-hover:scale-110 transition-transform relative">
                                             <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${player.username}`} alt="avatar" className="w-full h-full object-cover" />
+                                            {voiceUserIds.includes((player as any).userId) && (
+                                                <div className="absolute top-1 right-1 z-10 p-1 bg-emerald-500 rounded-md border border-zinc-950 shadow-lg animate-bounce-subtle">
+                                                    <Mic size={10} className="text-white fill-white/20" />
+                                                </div>
+                                            )}
                                         </div>
                                         
                                         <div className="text-center min-w-0 w-full">

@@ -34,8 +34,50 @@ const nextConfig: NextConfig = {
         hostname: "dofusdb.fr",
       },
       {
+        // DofusDB static CDN — item icons used in dofusbook-preview
+        protocol: "https",
+        hostname: "static.dofusdb.fr",
+      },
+      {
+        // DofusBook — fallback placeholder images for items without picture
+        protocol: "https",
+        hostname: "www.dofusbook.net",
+      },
+      {
         protocol: "https",
         hostname: "static.ankama.com",
+      },
+      {
+        protocol: "https",
+        hostname: "www.ankama.com",
+      },
+      {
+        protocol: "https",
+        hostname: "www.dofus.com",
+      },
+      {
+        protocol: "https",
+        hostname: "www.dofuspourlesnoobs.com",
+      },
+      {
+        protocol: "https",
+        hostname: "static-cdn.jtvnw.net", // Twitch
+      },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com", // YouTube
+      },
+      {
+        protocol: "https",
+        hostname: "dofusskinmanga.com",
+      },
+      {
+        protocol: "https",
+        hostname: "barbofus.com",
+      },
+      {
+        protocol: "https",
+        hostname: "www.barbofus.com",
       },
     ],
   },
@@ -68,22 +110,6 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
           // HSTS - Force HTTPS for 1 year
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "img-src 'self' blob: data: https:",
-              "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://discord.com https://api.metamob.fr https://tesseract.projectnaptha.com https://cdn.jsdelivr.net https://unpkg.com https://api.dofusdb.fr ws://localhost:3001 ws://127.0.0.1:3001 http://localhost:3001 http://127.0.0.1:3001 wss://sigilos.fr wss://beta.sigilos.fr",
-              "worker-src 'self' blob:",
-              "frame-ancestors 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-              process.env.NODE_ENV === "production" ? "upgrade-insecure-requests" : "",
-            ].filter(Boolean).join("; ")
-          },
         ],
       },
     ];

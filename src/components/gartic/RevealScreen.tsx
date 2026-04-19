@@ -56,16 +56,7 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
         }
     }, [visibleCount, entries.length, isHost, onNextAlbum]);
 
-    const handleDownload = () => {
-        // Simple download logic (could be improved to download as image)
-        const content = JSON.stringify(album, null, 2);
-        const blob = new Blob([content], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `album-${ownerName}.json`;
-        a.click();
-    };
+
 
     return (
         <div className="w-full h-full max-w-[95vw] flex flex-col gap-4 animate-in fade-in duration-1000 py-4 relative">
@@ -174,26 +165,44 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
                                         isText ? "min-h-0 py-4 md:min-h-[120px]" : "min-h-[150px] md:min-h-[350px]"
                                     )}>
                                         {/* Spiral decorations at the top of the "paper" */}
-                                        <div className="absolute top-0 left-0 w-full flex justify-around px-12 opacity-[0.05] pointer-events-none">
-                                            {Array.from({length: 8}).map((_, i) => (
-                                                <div key={i} className="w-2.5 h-8 bg-black rounded-full -mt-4 shadow-inner" />
-                                            ))}
+                                            <div className="absolute top-0 left-0 w-full flex justify-around px-12 opacity-[0.05] pointer-events-none">
+                                                {Array.from({length: 8}).map((_, i) => (
+                                                    <div key={i} className="w-2.5 h-8 bg-black rounded-full -mt-4 shadow-inner" />
+                                                ))}
+                                            </div>
+
+                                            {isText ? (
+                                                <p className="text-[#3d2080] font-black text-lg md:text-2xl lg:text-4xl text-center uppercase tracking-tight leading-tight p-2 md:p-4 relative z-10">
+                                                    {entry.content}
+                                                </p>
+                                            ) : (
+                                                    <div className="relative group/img w-full flex flex-col items-center">
+                                                        <img src={entry.content} alt="Drawing" className="max-w-full max-h-[250px] md:max-h-[450px] object-contain rounded-xl relative z-10 shadow-lg" />
+                                                        <div className="flex justify-center mt-4 gap-4 relative z-20">
+                                                            <button 
+                                                                onClick={() => {
+                                                                    const link = document.createElement("a");
+                                                                    link.href = entry.content;
+                                                                    link.download = `sigil-phone-${ownerName.replace(/\s+/g, '-')}-${idx}.png`;
+                                                                    document.body.appendChild(link);
+                                                                    link.click();
+                                                                    document.body.removeChild(link);
+                                                                }}
+                                                                className="flex items-center gap-2 px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase text-[10px] italic rounded-xl border-b-4 border-emerald-700 transition-all active:translate-y-1 active:border-b-0 shadow-lg"
+                                                            >
+                                                                <Download size={14} />
+                                                                Télécharger PNG
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                            )}
+
+                                            {/* Subtle line pattern for text */}
+                                            {isText && (
+                                                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px)', backgroundSize: '100% 40px' }} />
+                                            )}
                                         </div>
-
-                                        {isText ? (
-                                            <p className="text-[#3d2080] font-black text-lg md:text-2xl lg:text-4xl text-center uppercase tracking-tight leading-tight p-2 md:p-4 relative z-10">
-                                                {entry.content}
-                                            </p>
-                                        ) : (
-                                            <img src={entry.content} alt="Drawing" className="max-w-full max-h-[250px] md:max-h-[450px] object-contain rounded-xl relative z-10" />
-                                        )}
-
-                                        {/* Subtle line pattern for text */}
-                                        {isText && (
-                                            <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px)', backgroundSize: '100% 40px' }} />
-                                        )}
                                     </div>
-                                </div>
                             );
                         })}
 
@@ -205,14 +214,7 @@ export const RevealScreen = ({ albums, revealIndex, isHost, onNextAlbum, onExit,
                                     FIN DE L'ALBUM DE {ownerName.toUpperCase()}
                                 </span>
                                 
-                                <div className="flex gap-4 mt-4 w-full max-w-md">
-                                    <button 
-                                        onClick={handleDownload}
-                                        className="flex-1 bg-white/10 hover:bg-white/20 text-white p-6 rounded-3xl border-b-[8px] border-black/20 transition-all active:translate-y-2 active:border-b-0 flex items-center justify-center"
-                                    >
-                                        <Download size={32} strokeWidth={3} />
-                                    </button>
-                                </div>
+
                             </div>
                         )}
                     </div>

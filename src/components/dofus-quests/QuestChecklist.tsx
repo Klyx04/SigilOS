@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useTransition, useMemo, useCallback } from "react";
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, Swords, Star, Briefcase, Wand2, ListChecks, Shield, AlertCircle, MapPin, Lock, Copy } from "lucide-react";
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, Swords, Star, Briefcase, Wand2, ListChecks, Shield, AlertCircle, MapPin, Lock, Copy, BookOpen, Users, Target, Navigation } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { toggleQuestStatus } from "@/server/actions/dofus-quest-actions";
+import { Button } from "@/components/ui/button";
+import { toggleQuestStatus, getOtherMembersOnQuest, type MemberOnQuest } from "@/server/actions/dofus-quest-actions";
 import type { DofusChainWithProgress, DofusEntryWithProgress } from "@/server/actions/dofus-quest-actions";
 import { DofusQuestStatus } from "@prisma/client";
 import { NpcName, ItemInline, ParsedObjective, copyWithToast, detectRealDungeons, extractObjectiveText } from "./dofus-resolvers";
+import { QuestGuildStatus } from "./QuestGuildStatus";
 
 // ─── Icons per quest type ────────────────────────────────────────────────────
 function QuestTypeIcon({ type, className }: { type: string; className?: string }) {
@@ -192,13 +194,17 @@ function QuestEntryRow({
                                         </div>
                                     </div>
                                     {(d as any).dplnUrl && (
-                                        <a href={(d as any).dplnUrl}
-                                            target="_blank" rel="noopener noreferrer"
-                                            className="h-10 px-4 bg-indigo-500/20 hover:bg-indigo-500/30 text-white rounded-xl border border-indigo-500/30 flex items-center justify-center gap-2 transition-all hover:scale-105"
-                                            onClick={(e) => e.stopPropagation()}>
-                                            <BookOpen className="w-4 h-4" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Stratégie</span>
-                                        </a>
+                                        <Button
+                                            asChild
+                                            variant="sigil"
+                                            className="h-10 px-4"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <a href={(d as any).dplnUrl} target="_blank" rel="noopener noreferrer">
+                                                <BookOpen className="w-4 h-4 mr-2" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Stratégie</span>
+                                            </a>
+                                        </Button>
                                     )}
                                 </div>
                             ))}
@@ -280,36 +286,75 @@ function QuestEntryRow({
                                     })}
                                 </div>
                             )}
-
                             {/* Quick Links */}
-                            <div className="flex items-center gap-2 pt-1 flex-wrap">
-                                <a href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`}
-                                    target="_blank" rel="noopener noreferrer"
-                                    className="text-[9px] font-black uppercase italic text-zinc-500 hover:text-white px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 transition-all hover:bg-white/10"
-                                    onClick={(e) => e.stopPropagation()}>
-                                    DofusDB
-                                </a>
-                                {entry.externalRef ? (
-                                    <a href={entry.externalRef}
-                                        target="_blank" rel="noopener noreferrer"
-                                        className="text-[9px] font-black uppercase italic text-white px-2.5 py-1 bg-indigo-500/20 rounded-lg border border-indigo-500/30 transition-all hover:bg-indigo-500/30 flex items-center gap-1.5"
-                                        onClick={(e) => e.stopPropagation()}>
-                                        <BookOpen className="w-3 h-3" /> Stratégie DPLN
-                                    </a>
-                                ) : (
-                                    <a href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`}
-                                        target="_blank" rel="noopener noreferrer"
-                                        className="text-[9px] font-black uppercase italic text-zinc-500 hover:text-white px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 transition-all hover:bg-white/10"
-                                        onClick={(e) => e.stopPropagation()}>
-                                        Noobs
-                                    </a>
-                                )}
-                                {(entry as any).coords && (
-                                    <button onClick={(e) => { e.stopPropagation(); const c = (entry as any).coords; copyWithToast(`/travel ${c.x} ${c.y}`); }}
-                                        className="text-[9px] font-black uppercase italic text-zinc-500 hover:text-emerald-400 px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 flex items-center gap-1 transition-all hover:bg-white/10">
-                                        <Copy className="w-2.5 h-2.5" /> Travel
-                                    </button>
-                                )}
+                            <div className="pt-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button
+                                        asChild
+                                        variant="sigil"
+                                        className="h-20 flex-col gap-2 rounded-2xl bg-indigo-500/5 border-indigo-500/10"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <a href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`} target="_blank" rel="noopener noreferrer">
+                                            <Target className="w-5 h-5" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">DofusDB</span>
+                                        </a>
+                                    </Button>
+                                    
+                                    {entry.externalRef ? (
+                                        <Button
+                                            asChild
+                                            variant="sigil"
+                                            className="h-20 flex-col gap-2 rounded-2xl bg-amber-500/5 border-amber-500/10"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <a href={entry.externalRef} target="_blank" rel="noopener noreferrer">
+                                                <BookOpen className="w-5 h-5" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Stratégie</span>
+                                            </a>
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            asChild
+                                            variant="sigil"
+                                            className="h-20 flex-col gap-2 rounded-2xl bg-amber-500/5 border-amber-500/10"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <a href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`} target="_blank" rel="noopener noreferrer">
+                                                <BookOpen className="w-5 h-5" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Noobs</span>
+                                            </a>
+                                        </Button>
+                                    )}
+
+                                    {(entry as any).coords ? (
+                                        <>
+                                            <Button
+                                                variant="sigil-emerald"
+                                                className="h-20 flex-col gap-2 rounded-2xl"
+                                                onClick={(e) => { e.stopPropagation(); const c = (entry as any).coords; copyWithToast(`/travel ${c.x} ${c.y}`); }}
+                                            >
+                                                <Navigation className="w-5 h-5" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Travel</span>
+                                            </Button>
+                                            <QuestGuildStatus 
+                                                guildId={guildId} 
+                                                questId={entry.id} 
+                                                dofusColor={dofusColor} 
+                                                variant="action"
+                                            />
+                                        </>
+                                    ) : (
+                                        <div className="col-span-2">
+                                            <QuestGuildStatus 
+                                                guildId={guildId} 
+                                                questId={entry.id} 
+                                                dofusColor={dofusColor} 
+                                                variant="action"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </motion.div>

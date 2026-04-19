@@ -29,6 +29,7 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
     const [filter, setFilter] = useState<FilterType>("all");
 
     useEffect(() => {
+        // Refresh every 60s — this is just a badge count, not realtime
         const interval = setInterval(async () => {
             try {
                 const res = await getPendingValidationsCount(guildId);
@@ -38,7 +39,7 @@ export function ValidatorInboxClient({ guildId, initialData }: ValidatorInboxCli
             } catch (err) {
                 console.error("Failed to poll pending validations", err);
             }
-        }, 15000);
+        }, 60000);
         return () => clearInterval(interval);
     }, [guildId]);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Plus, Pencil, ShieldAlert, RefreshCw } from "lucide-react";
+import { Link2, Trash2, Plus, Pencil, ShieldAlert, RefreshCw, Copy, Megaphone } from "lucide-react";
 import NextImage from "next/image";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateDofusBookLinks } from "@/server/actions/profile-actions";
+import { shareGalleryItemOnDiscord } from "@/server/actions/gallery-actions";
 import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import type { BUILD_TAG_TYPE } from "@/lib/dofus-tags";
@@ -264,6 +265,11 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
         }
     };
 
+    const handleCopyLink = (url: string) => {
+        navigator.clipboard.writeText(url);
+        toast.success("Lien copié !");
+    };
+
     if (readOnly && links.length === 0) return null;
 
     const filteredLinks = selectedTagFilter
@@ -286,7 +292,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 {!readOnly && links.length < 20 && (
                     <Dialog open={isOpen} onOpenChange={setIsOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="default" size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all font-black uppercase tracking-widest text-[10px] h-9 rounded-xl border border-emerald-400/20">
+                            <Button variant="sigil-emerald" size="sm" className="gap-2 h-9 px-4">
                                 <Plus className="w-4 h-4" />
                                 <span className="hidden sm:inline">Ajouter un Build</span>
                             </Button>
@@ -369,7 +375,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
 
                             <DialogFooter>
                                 <Button variant="ghost" onClick={() => setIsOpen(false)}>Annuler</Button>
-                                <Button onClick={handleAddLink} disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                <Button onClick={handleAddLink} disabled={isSubmitting} variant="sigil-emerald" className="h-10 px-6">
                                     {isSubmitting ? "Ajout..." : "Ajouter"}
                                 </Button>
                             </DialogFooter>
@@ -463,8 +469,29 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                         <div key={link.id} className="relative group/card h-full flex flex-col">
                             <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
 
-                            {!readOnly && (
-                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-all z-20">
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-all z-20 pointer-events-none">
+                                <div className="flex gap-1 pointer-events-auto">
+                                    <button
+                                        onClick={() => handleCopyLink(link.url)}
+                                        className="p-2 bg-zinc-800/90 hover:bg-emerald-500 text-zinc-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
+                                        title="Copier le lien"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            const res = await shareGalleryItemOnDiscord(guildId, link.id, "STUFF", undefined /*targetUserId || "unknown"*/);
+                                            if (res.success) toast.success("Partagé sur Discord !");
+                                            else toast.error(res.error || "Erreur lors du partage");
+                                        }}
+                                        className="p-2 bg-zinc-800/90 hover:bg-indigo-500 text-indigo-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
+                                        title="Partager sur Discord"
+                                    >
+                                        <Megaphone className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                {!readOnly && (
+                                    <>
                                     <button
                                         onClick={() => handleForceBake(link)}
                                         disabled={isSubmitting}
@@ -475,10 +502,10 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                     </button>
                                     <button
                                         onClick={() => setEditingLink({ ...link })}
-                                        className="p-2 bg-zinc-800/90 hover:bg-indigo-500 text-zinc-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
+                                        className="p-2 bg-zinc-800/90 hover:bg-indigo-500 text-white/50 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
                                         title="Modifier ce build"
                                     >
-                                        <Pencil className="w-4 h-4" />
+                                        <Pencil className="w-4 h-4" strokeWidth={2.5} />
                                     </button>
                                     <button
                                         onClick={() => handleDeleteLink(link.id)}
@@ -487,8 +514,9 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
-                                </div>
-                            )}
+                                    </>
+                                )}
+                            </div>
                         </div>
                     ))
                 ) : (
@@ -515,10 +543,10 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
 
                         {!readOnly && (
                             <Button 
-                                variant="default" 
-                                size="lg" 
+                                variant="sigil-emerald" 
+                                size="xl"
                                 onClick={() => setIsOpen(true)}
-                                className="relative bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-[11px] h-12 px-8 rounded-2xl shadow-[0_0_25px_rgba(16,185,129,0.2)] hover:shadow-[0_0_35px_rgba(16,185,129,0.4)] transition-all border border-emerald-400/20"
+                                className="h-14"
                             >
                                 <Plus className="w-5 h-5 mr-3" />
                                 Importer mon premier stuff
@@ -608,7 +636,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                     )}
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setEditingLink(null)}>Annuler</Button>
-                        <Button onClick={handleEditLink} disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                        <Button onClick={handleEditLink} disabled={isSubmitting} variant="sigil" className="h-10 px-6">
                             {isSubmitting ? "Sauvegarde..." : "Enregistrer"}
                         </Button>
                     </DialogFooter>

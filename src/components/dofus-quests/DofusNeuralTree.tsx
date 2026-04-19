@@ -30,6 +30,7 @@ import {
 } from "./dofus-resolvers";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DofusIcon } from "./DofusIcon";
+import { QuestGuildStatus } from "./QuestGuildStatus";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -77,13 +78,19 @@ function QuestCard({
 }) {
     const [expanded, setExpanded] = useState(false);
 
-    const isDone = entry.status === "COMPLETED";
-    const isLocked =
-        Array.isArray(entry.requirements) &&
-        entry.requirements.length > 0 &&
-        entry.requirements.some(
-            (r: any) => r?.type === "QUEST" && !completedIds.has(r.id?.toString())
-        );
+    const isDone = useMemo(() => 
+        completedIds.has(entry.id) || (entry.dofusdbId && completedIds.has(String(entry.dofusdbId))),
+    [entry.id, entry.dofusdbId, completedIds]);
+
+    const isLocked = useMemo(() => {
+        const reqs = Array.isArray(entry.requirements) ? entry.requirements : [];
+        if (reqs.length === 0) return false;
+        return reqs.some((r: any) => {
+            if (r?.type !== "QUEST") return false;
+            const rid = r.id || r.dofusdbId;
+            return !completedIds.has(String(rid));
+        });
+    }, [entry.requirements, completedIds]);
 
     // V3 structured dungeons
     const structuredDungeons: any[] = entry.dungeonsRequired ?? [];
@@ -414,24 +421,59 @@ function QuestCard({
                                 )}
                             </div>
 
-                            {/* Validate button */}
-                            <Button
-                                disabled={isLocked && !isDone}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (isLocked && !isDone) return;
-                                    onToggle(entry.id, isDone ? "NOT_STARTED" : "COMPLETED");
-                                }}
-                                className={`w-full h-10 rounded-xl font-black italic uppercase text-[11px] tracking-widest transition-all ${
-                                    isDone
-                                        ? "bg-zinc-900 border border-white/10 text-zinc-500"
-                                        : isLocked
-                                        ? "bg-zinc-950 text-white/10 border border-white/5 cursor-not-allowed"
-                                        : "bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.08)]"
-                                }`}
-                            >
-                                {isDone ? "✓ Réinitialiser" : isLocked ? "🔒 Verrouillée" : "Valider l'étape"}
-                            </Button>
+                            {/* Action terminal */}
+                            <div className="flex flex-col gap-3">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <a 
+                                        href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`} 
+                                        target="_blank" 
+                                        className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/15 hover:border-indigo-500/30 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-all shadow-lg shadow-indigo-900/10"
+                                    >
+                                        <Target className="w-5 h-5" /> DofusDB
+                                    </a>
+                                    
+                                    <a 
+                                        href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`} 
+                                        target="_blank" 
+                                        className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-amber-500/5 border border-amber-500/10 hover:bg-amber-500/15 hover:border-amber-500/30 text-[10px] font-black text-amber-400 uppercase tracking-widest transition-all shadow-lg shadow-amber-900/10"
+                                    >
+                                        <BookOpen className="w-5 h-5" /> Noobs
+                                    </a>
+
+                                    {entry.coords && (
+                                        <button 
+                                            onClick={() => copyWithToast(`/travel ${entry.coords?.x} ${entry.coords?.y}`)}
+                                            className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/15 hover:border-emerald-500/30 text-[10px] font-black text-emerald-400 uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/10"
+                                        >
+                                            <MapPin className="w-5 h-5" /> Travel
+                                        </button>
+                                    )}
+
+                                    <QuestGuildStatus 
+                                        guildId={guildId} 
+                                        questId={entry.id} 
+                                        dofusColor={dofusColor} 
+                                        variant="action"
+                                    />
+                                </div>
+                                <Button
+                                    disabled={isLocked && !isDone}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isLocked && !isDone) return;
+                                        onToggle(entry.id, isDone ? "NOT_STARTED" : "COMPLETED");
+                                    }}
+                                    className={`w-full h-10 rounded-xl font-black italic uppercase text-[11px] tracking-widest transition-all ${
+                                        isDone
+                                            ? "bg-zinc-900 border border-white/10 text-zinc-500"
+                                            : isLocked
+                                            ? "bg-zinc-950 text-white/10 border border-white/5 cursor-not-allowed"
+                                            : "bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+                                    }`}
+                                >
+                                    {isDone ? "✓ Réinitialiser" : isLocked ? "🔒 Verrouillée" : "Valider l'étape"}
+                                </Button>
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -596,20 +638,17 @@ export function DofusNeuralTree({
     chains,
     dofusColor,
     onToggleStatus,
+    completedIds,
+    synergy,
 }: DofusNeuralTreeProps) {
     const [activeTab, setActiveTab] = useState<"roadmap" | "resources">("roadmap");
     const [openChainId, setOpenChainId] = useState<string | null>(null);
 
-    const completedIds = useMemo(() => {
-        const ids = chains.flatMap((c) => c.entries || []).filter((e: any) => e.status === "COMPLETED").map((e: any) => e.id?.toString());
-        return new Set<string>(ids);
-    }, [chains]);
-
     const stats = useMemo(() => {
         const total = chains.flatMap((c) => c.entries || []).length;
-        const done = chains.flatMap((c) => c.entries || []).filter((e: any) => e.status === "COMPLETED").length;
+        const done = chains.flatMap((c) => c.entries || []).filter((e: any) => completedIds.has(e.id) || (e.dofusdbId && completedIds.has(String(e.dofusdbId)))).length;
         return { total, done, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
-    }, [chains]);
+    }, [chains, completedIds]);
 
     return (
         <div className="space-y-6">
@@ -666,7 +705,7 @@ export function DofusNeuralTree({
                 <div className="space-y-6">
                     {chains.map((chain, ci) => {
                         const entries = chain.entries || [];
-                        const done = entries.filter((e: any) => e.status === "COMPLETED").length;
+                        const done = entries.filter((e: any) => completedIds.has(e.id) || (e.dofusdbId && completedIds.has(String(e.dofusdbId)))).length;
                         const total = entries.length;
                         const allDone = done === total && total > 0;
                         const meta = sectionMeta(chain.sectionType, dofusColor);

@@ -1,36 +1,45 @@
 {
   "slug": "ebene",
   "displayName": "Dofus Ébène",
-  "color": "#2D1B00",
+  "color": "#1a1a1a",
   "dofusItemId": 7114,
   "successName": "Noir d'ébène",
   "recommendedLevel": 200,
+  "successDescription": "Obtenir le Dofus Ébène en terminant la série de quêtes épiques du dragon noir Terrakourial. Requiert métiers paysan (niv 80) et mineur (niv 20), accès à Frigost III, Xélorium et Srambad.",
   "successes": [
     {
-      "name": "Prerequis d'Alignement",
+      "name": "Préréquis d'Alignement",
       "zone": "Bonta / Brakmar",
       "isPrerequisite": true,
-      "description": "Nécessite l'alignement niveau 100.",
+      "description": "Nécessite l'alignement niveau 100 et les quêtes d'alignement jusqu'à L'épée du rocher.",
       "quests": [
-        { "name": "L'épée du rocher" }
+        { "name": "L'épée du rocher", "id": 2035 }
       ]
     },
     {
       "name": "Noir d'ébène",
       "zone": "Pandala / Monde des Douze",
+      "description": "La série principale du Dofus Ébène.",
+      "isPrerequisite": false,
+      "isSynergyCandidate": true,
+      "globalItemsRequired": [
+        { "id": 11110, "name": "Obsidienne", "amount": 10, "img": "https://api.dofusdb.fr/img/items/51163.png" },
+        { "id": 7033, "name": "Dolomite", "amount": 10, "img": "https://api.dofusdb.fr/img/items/51151.png" },
+        { "id": 17995, "name": "Écume de mer", "amount": 10, "img": "https://api.dofusdb.fr/img/items/83151.png" },
+        { "id": 20162, "name": "Métal abyssal", "amount": 10, "img": "https://api.dofusdb.fr/img/items/101019.png" }
+      ],
       "quests": [
-        { "name": "Le forgeur de légende" },
-        { "name": "Jusqu'au bout du rêve" },
-        { "name": "À la recherche de Crocoburio" },
-        { "name": "Le creuset de Mériana" },
-        { "name": "Une douloureuse séparation" },
-        { "name": "Le dragon noir" },
-        { "name": "La vengeance du dernier empereur" },
-        { "name": "L'œuf de Crocabulia" },
-        { "name": "Un nouvel héritier" }
+        { "name": "Le forgeur de légende", "id": 2036, "dungeons": [{ "id": 46, "bossId": 780, "name": "Repaire de Skeunk" }] },
+        { "name": "Jusqu'au bout du rêve", "id": 2037, "dungeons": [{ "id": 85, "bossId": 3852, "name": "Mégalithe de Fraktale" }] },
+        { "name": "À la recherche de Crocoburio", "id": 2038, "dungeons": [{ "id": 108, "bossId": 5110, "name": "Tour de Bethel" }] },
+        { "name": "Le creuset de Mériana", "id": 2039, "dungeons": [{ "id": 98, "bossId": 4453, "name": "Temple de Koutoulou" }, { "id": 110, "bossId": 5319, "name": "Brasserie du Roi Dazak" }] },
+        { "name": "Une douloureuse séparation", "id": 2040, "dungeons": [{ "id": 109, "bossId": 5100, "name": "Tour de Solar" }] },
+        { "name": "Le dragon noir", "id": 2041, "dungeons": [{ "id": 107, "bossId": 4967, "name": "Belvédère d'Ilyzaelle" }] },
+        { "name": "La vengeance du dernier empereur", "id": 2042, "dungeons": [{ "id": 83, "bossId": 3726, "name": "Salons Privés de Klime" }] },
+        { "name": "L'œuf de Crocabulia", "id": 2043, "dungeons": [{ "id": 89, "bossId": 3996, "name": "Trône de la Cour Sombre" }] },
+        { "name": "Un nouvel héritier", "id": 2044 }
       ]
     }
   ],
-  "imageUrl": "https://static.dofusdb.fr/items/23007.png",
-  "iconId": 23007
+  "imageUrl": "/module-dofus/Dofus_Ebene.png"
 }

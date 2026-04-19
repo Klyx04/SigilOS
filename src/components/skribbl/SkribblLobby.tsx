@@ -1,16 +1,20 @@
 import React from "react";
 import { Socket } from "socket.io-client";
 import { cn } from "@/lib/utils";
-import { Pencil } from "lucide-react";
+import { Pencil, Mic } from "lucide-react";
+import { ShareRoomButton } from "../shared/ShareRoomButton";
 
 interface SkribblLobbyProps {
     gameState: any;
     socket: Socket;
+    voiceUsers?: any[];
 }
 
-export default function SkribblLobby({ gameState, socket }: SkribblLobbyProps) {
+export default function SkribblLobby({ gameState, socket, voiceUsers = [] }: SkribblLobbyProps) {
+    const voiceUserIds = voiceUsers.map(u => u.userId);
     return (
         <div className="flex flex-col h-full bg-transparent p-2 md:p-3 gap-4">
+            <ShareRoomButton roomId={gameState?.roomId || gameState?.id} className="w-full mb-2" />
             {/* Spectators Section at the top */}
             {(gameState?.players || []).filter((p: any) => p.isSpectator).length > 0 && (
                 <div className="flex flex-col gap-2 p-2 bg-white/5 rounded-2xl border border-white/5">
@@ -21,12 +25,17 @@ export default function SkribblLobby({ gameState, socket }: SkribblLobbyProps) {
                     <div className="flex flex-wrap gap-2">
                         {(gameState?.players || []).filter((p: any) => p.isSpectator).map((p: any) => (
                             <div key={p.id} className="group relative">
-                                <div className="w-8 h-8 rounded-full border-2 border-white/10 p-0.5 bg-slate-900 overflow-hidden hover:scale-110 transition-transform cursor-help shadow-lg" title={p.userName}>
+                                <div className="w-8 h-8 rounded-full border-2 border-white/10 p-0.5 bg-slate-900 overflow-hidden hover:scale-110 transition-transform cursor-help shadow-lg relative" title={p.userName}>
                                     <img 
                                         src={p.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${p.userId || p.id}`} 
                                         alt="avatar" 
                                         className="w-full h-full object-cover rounded-full grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all" 
                                     />
+                                    {voiceUserIds.includes(p.userId) && (
+                                        <div className="absolute -top-0.5 -right-0.5 z-10 p-0.5 bg-emerald-500 rounded border border-zinc-950 shadow-sm">
+                                            <Mic size={6} className="text-white fill-white/20" />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -82,6 +91,12 @@ export default function SkribblLobby({ gameState, socket }: SkribblLobbyProps) {
                                 
                                 {(p.userId === gameState?.hostId || p.id === gameState?.hostId) && (
                                     <div className="absolute -bottom-1 -left-1 text-[10px] md:text-base drop-shadow-md animate-pulse">👑</div>
+                                )}
+
+                                {voiceUserIds.includes(p.userId) && (
+                                    <div className="absolute -top-1 -right-1 z-10 p-1 bg-emerald-500 rounded-md border border-zinc-950 shadow-lg animate-bounce-subtle">
+                                        <Mic size={10} className="text-white fill-white/20" />
+                                    </div>
                                 )}
                             </div>
 

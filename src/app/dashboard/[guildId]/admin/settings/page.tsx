@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
     Settings, Bell, Key, Moon, Users, Calendar, Sword, Target, BarChart3,
     HandCoins, ArrowLeft, ChevronRight, Loader2, Save, AlertTriangle, Hash, Megaphone,
-    ShieldAlert, UserCheck, Sparkles, Gem
+    ShieldAlert, UserCheck, Sparkles, Gem, Layout
 } from "lucide-react";
 import { AbsenceSettingsClient } from "../absence/_components/absence-settings-client";
 import { MetamobUnlocker } from "../archimonstres/_components/metamob-unlocker";
@@ -30,6 +30,8 @@ import { SystemSettingsClient } from "../_components/system-settings-client";
 import { getOnboardingSettings } from "@/server/actions/onboarding-admin-actions";
 import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
 import { GuildatonSettingsClient } from "../_components/guildaton-settings-client";
+import { BlacklistSettingsClient } from "../_components/blacklist-settings-client";
+import { GallerySettingsClient } from "../_components/gallery-settings-client";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 
@@ -61,6 +63,8 @@ function buildNavItems(): SettingsSection[] {
         { id: "discord", label: "Discord Notifications", icon: Hash, description: "Salons & Pings Reset", accent: "indigo" },
         { id: "guildaton", label: "Guildaton Admin", icon: Trophy, description: "Reminders & Admin Channel", accent: "emerald" },
         { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Badges", accent: "rose" },
+        { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "rose" },
+        { id: "gallery", label: "Galerie", icon: Layout, description: "Salons Stuffs & Skins", accent: "pink" },
     ];
 }
 
@@ -74,6 +78,7 @@ const ACCENT: Record<string, { border: string; text: string; bg: string; pill: s
     indigo: { border: "border-indigo-500/30", text: "text-indigo-400", bg: "bg-indigo-500/10", pill: "bg-indigo-500/20 text-indigo-400" },
     violet: { border: "border-violet-500/30", text: "text-violet-400", bg: "bg-violet-500/10", pill: "bg-violet-500/20 text-violet-400" },
     rose: { border: "border-rose-500/30", text: "text-rose-400", bg: "bg-rose-500/10", pill: "bg-rose-500/20 text-rose-400" },
+    pink: { border: "border-pink-500/30", text: "text-pink-400", bg: "bg-pink-500/10", pill: "bg-pink-500/20 text-pink-400" },
     slate: { border: "border-slate-500/30", text: "text-slate-400", bg: "bg-slate-500/10", pill: "bg-slate-500/20 text-slate-400" },
 };
 
@@ -220,8 +225,10 @@ export default async function FeatureSettingsPage({
                     {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
                     {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
                     {activeTab === "onboarding" && <OnboardingSettingsClient guildId={guildId} />}
-                    {activeTab === "discord" && <DiscordSettingsClient guildId={guildId} />}
-                    {activeTab === "guildaton" && <GuildatonSettingsClient guildId={guildId} />}
+                    { activeTab === "discord" && <DiscordSettingsClient guildId={guildId} /> }
+                    { activeTab === "guildaton" && <GuildatonSettingsClient guildId={guildId} /> }
+                    { activeTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
+                    { activeTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
 
 
                 </div>

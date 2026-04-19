@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -115,7 +115,7 @@ async function notifyValidators(guildId: string, title: string, message: string,
         // 1. Find all users in this guild with "MISSIONS_VALIDATE" permission
         // We first get the guild's roles mapping to see which roles have this perm
         const { getGuildAdminsWithPermission } = await import("@/server/actions/admin-actions");
-        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_VALIDATE);
+        const validators = await getGuildAdminsWithPermission(guildId, PERMISSIONS.MISSIONS_OFFICER);
 
         if (validators.length === 0) {
             logger.warn(`[Notification] No validators found for guild ${guildId}`);
@@ -163,7 +163,7 @@ export async function createWeekMissions(
     const data = validation.data;
 
     // 2. Auth & Permission
-    const guard = await checkGuildPermission(session, data.guildId, PERMISSIONS.MISSIONS_MANAGE);
+    const guard = await checkGuildPermission(session, data.guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) {
         logger.error("createWeekMissions - Permission denied", { error: guard.error, guildId: data.guildId, userId: session?.user?.id });
         return { success: false, error: guard.error };
@@ -294,7 +294,7 @@ export async function updateWeekTier(
     tier: number
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -354,7 +354,7 @@ export async function resetMission(
     slotIndex: number
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -404,7 +404,7 @@ export async function resetWeek(
 ): Promise<ActionResponse> {
     const session = await auth();
 
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) {
         logger.error("ResetWeek - Permission denied", { error: guard.error, guildId });
         return { success: false, error: guard.error };
@@ -511,7 +511,7 @@ export async function getWeekMissions(
     year: number
 ): Promise<ActionResponse<any>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) {
         return { success: false, error: guard.error };
     }
@@ -617,7 +617,7 @@ export async function toggleMissionInterest(
         });
         if (!mission) return { success: false, error: "Mission not found" };
 
-        const guard = await checkGuildPermission(session, mission.guild.discordGuildId, PERMISSIONS.MISSIONS_VIEW);
+        const guard = await checkGuildPermission(session, mission.guild.discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) return { success: false, error: guard.error };
 
         // 2. Get User Profile linked to this Guild
@@ -696,7 +696,7 @@ export async function submitMissionProof(
         if (!mission) return { success: false, error: "Mission introuvable" };
         if (mission.status !== "ACTIVE") return { success: false, error: "Mission non active" };
 
-        const guard = await checkGuildPermission(session, mission.guild.discordGuildId, PERMISSIONS.MISSIONS_VIEW);
+        const guard = await checkGuildPermission(session, mission.guild.discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) return { success: false, error: guard.error };
 
         const profile = await db.userProfile.findUnique({
@@ -911,7 +911,7 @@ export async function validateSubmission(
         });
         if (!submission) return { success: false, error: "Submission not found" };
 
-        const guard = await checkGuildPermission(session, submission.mission.guild.discordGuildId, PERMISSIONS.MISSIONS_VALIDATE);
+        const guard = await checkGuildPermission(session, submission.mission.guild.discordGuildId, PERMISSIONS.MISSIONS_OFFICER);
         if (!guard.allowed) return { success: false, error: guard.error };
 
         // 1. Delete the temp file (if it exists)
@@ -990,21 +990,6 @@ export async function validateSubmission(
             );
         }
 
-        // 5. Guild Feed Message (if validated)
-        if (status === "VALIDATED") {
-            try {
-                const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
-                const userName = updatedSubmission.profile.discordNickname || updatedSubmission.profile.pseudoDofus || updatedSubmission.profile.user.name || "Un membre";
-                const missionTitle = submission.mission.title || "Mission Inconnue";
-                await pushSystemChatMessage(
-                    discordGuildId,
-                    `🎯 **${userName}** a accompli la mission **${missionTitle}** !`,
-                    { type: "mission_validated", submissionId, missionId: submission.mission.id }
-                );
-            } catch (chatErr) {
-                logger.error("Failed to push system chat message for mission", { error: chatErr });
-            }
-        }
 
         revalidatePath(`/dashboard/${discordGuildId}/missions`);
         revalidatePath(`/dashboard/${discordGuildId}/ladder`);
@@ -1232,7 +1217,7 @@ export async function cleanupExpiredSubmissions(discordGuildId: string) {
  */
 export async function getPendingSubmissions(discordGuildId: string): Promise<ActionResponse<any>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.MISSIONS_VALIDATE);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     // 🧹 LAZY CLEANUP
@@ -1459,7 +1444,7 @@ export async function publishMissionsToDiscord(
 ): Promise<ActionResponse> {
     const session = await auth();
     // Security check: Must have permission to manage missions
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -1584,7 +1569,7 @@ export async function setGuildMissionXpOverride(
     if (!parsed.success) return { success: false, error: "Donnees invalides" };
     const { guildId, xpOverride } = parsed.data;
 
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_MANAGE);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const limiter = await rateLimit(`xp_override:${session.user.id}:${guildId}`, 10, 60 * 1000);
@@ -1632,7 +1617,7 @@ export async function getGuildMissionXpOverride(
     guildId: string
 ): Promise<ActionResponse<{ xpOverride: number | null, realXp: number }>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {

@@ -184,10 +184,10 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
         href = `/dashboard/${guildId}/mini-jeux/gartic?room=${(event.metadata as any).roomId}${spec}`;
     } else if (event.type === "GAME_GEOGUESSER") {
         const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
-        href = `/dashboard/${guildId}/mini-jeux#mini-jeux?room=${(event.metadata as any).roomId}${spec}`;
+        href = `/dashboard/${guildId}/mini-jeux?room=${(event.metadata as any).roomId}${spec}#mini-jeux`;
     } else if (event.type === "GAME_KING") {
         const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
-        href = `/dashboard/${guildId}/mini-jeux/sigil-king?room=${(event.metadata as any).roomId}${spec}`;
+        href = `/dashboard/${guildId}/mini-jeux/sigil-invader?room=${(event.metadata as any).roomId}${spec}`;
     }
 
     return (
@@ -198,9 +198,9 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
                         key={event.id}
                         href={href}
                         className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-full border bg-zinc-900/40 backdrop-blur-xl transition-all hover:bg-zinc-800/60 hover:scale-105 active:scale-95 group relative shadow-lg",
+                            "flex h-8 items-center gap-2.5 px-3 rounded-full border bg-background/40 backdrop-blur-xl transition-all hover:bg-foreground/[0.05] hover:scale-[1.02] active:scale-95 group relative shadow-lg shrink-0",
                             typeConfig.glow,
-                            typeConfig.bg.replace("/10", "/20").replace("border-", "border-white/10 group-hover:border-")
+                            typeConfig.bg.replace("border-", "border-white/10 group-hover:border-")
                         )}
                     >
                         {isLive && (
@@ -228,12 +228,12 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
                             <div className={cn("h-1.5 w-1.5 rounded-full", typeConfig.color.replace("text-", "bg-"))} />
 
                             {/* Title */}
-                            <span className="text-sm font-bold text-zinc-100 truncate max-w-[120px] lg:max-w-[200px] group-hover:text-amber-400 transition-colors">
+                            <span className="text-[11px] font-black text-foreground uppercase tracking-tight truncate max-w-[120px] lg:max-w-[180px] group-hover:text-primary transition-colors italic">
                                 {event.title}
                             </span>
 
                             {/* Date */}
-                            <span className="text-xs text-zinc-400 font-medium hidden sm:inline-block">
+                            <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest hidden sm:inline-block whitespace-nowrap">
                                 {isToday(startDate) ? "Aujourd'hui" : format(startDate, "dd MMM", { locale: fr })} {format(startDate, "HH:mm")}
                             </span>
 
@@ -251,9 +251,9 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
                     <div
                         key={event.id}
                         className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-full border bg-zinc-900/40 backdrop-blur-md opacity-80 group relative shadow-lg",
+                            "flex h-8 items-center gap-2.5 px-3 rounded-full border bg-background/40 backdrop-blur-md opacity-80 group relative shadow-lg shrink-0",
                             typeConfig.glow,
-                            typeConfig.bg.replace("/10", "/20").replace("border-", "border-white/10 group-hover:border-")
+                            typeConfig.bg.replace("border-", "border-white/10 group-hover:border-")
                         )}
                     >
                         <motion.div

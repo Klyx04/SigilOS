@@ -1,11 +1,16 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Rocket, Shield, Heart, Trophy, Pause, Play, RefreshCcw, LogOut, Loader2, Music, Volume2, Plus, BookOpen, Settings, Link2 } from 'lucide-react';
+import { Rocket, Shield, Heart, Trophy, Pause, Play, RefreshCcw, LogOut, Loader2, Music, Volume2, Plus, BookOpen, Settings, Link2, Mic, MicOff } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useDiscordVoice } from '@/hooks/use-discord-voice';
+import { DiscordVoiceOverlay } from '@/components/shared/DiscordVoiceOverlay';
 import { updatePlayerScore, InvaderRoom } from '@/server/actions/sigil-invader-actions';
 import { toast } from 'sonner';
+import { io, Socket } from "socket.io-client";
+import { buildWsUrl } from "@/lib/socket-utils";
+import { cn } from "@/lib/utils";
 
 // --- Types & Constants ---
 interface Projectile {
@@ -34,6 +39,23 @@ interface Enemy {
     trajectory: 'linear' | 'sine' | 'zigzag' | 'dive' | 'spiral';
     targetX?: number; // For dive behavior
     dead?: boolean; // Marked for removal — avoids splice inside forEach
+    baseX?: number; // Formation anchor X
+    baseY?: number; // Formation anchor Y
+}
+
+interface Obstacle {
+    id: number;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    radius: number;
+    hp: number;
+    maxHp: number;
+    type: 'asteroid' | 'mine';
+    rotation: number;
+    spin: number;
+    lastBlink?: number;
 }
 
 interface Particle {
@@ -65,13 +87,15 @@ interface WeaponState {
     projectileCount: number;
 }
 
-export default function SigilInvaderGame({ room, guildId, isSolo }: { room: InvaderRoom, guildId: string, isSolo?: boolean }) {
+export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }: { room: InvaderRoom, guildId: string, isSolo?: boolean, isSpectator?: boolean }) {
     const { data: session } = useSession();
+    const [socket, setSocket] = useState<Socket | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [gameState, setGameState] = useState<'CLASS_SELECT' | 'LOADING' | 'IDLE' | 'PLAYING' | 'PAUSED' | 'GAMEOVER' | 'SHOP'>('LOADING');
     const [score, setScore] = useState(0);
     const [lives, _setLives] = useState(5); // Internal for UI
+    const [hp, setHp] = useState(100);
     const [wave, setWave] = useState(1);
     const [difficulty, setDifficulty] = useState(1);
     const [weapon, setWeapon] = useState<WeaponState>({ level: 1, activeTypes: ['basic'], projectileCount: 1 });
@@ -80,9 +104,16 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
     const [volume, setVolume] = useState(0.5);
     const [playerClass, setPlayerClass] = useState<'cra' | 'iop' | 'enutrof' | 'xelor'>('cra');
     const [announcement, setAnnouncement] = useState<{ text: string, type: 'wave' | 'boss' } | null>(null);
+
+    const { voiceUsers } = useDiscordVoice(guildId, socket);
     const [showGuide, setShowGuide] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [showVoiceOverlay, setShowVoiceOverlay] = useState(true);
     const [particlesEnabled, setParticlesEnabled] = useState(true);
+
+
+
+
     const [gameManifest, setGameManifest] = useState<GameManifest | null>(null);
     const [assetsLoaded, setAssetsLoaded] = useState(false);
     const [isMusicEnabled, setIsMusicEnabled] = useState(true);
@@ -105,6 +136,15 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             recoil: 0, // Visual only recoil
             spin: 0, // Visual only rotation kick
             muzzleFlash: 0, // Bug fix: was at root level, must be on player
+            health: 100, maxHealth: 100,
+            isDead: false, // NEW: Spectator state
+            armor: 0, maxArmor: 100, // NEW: Abraknyde Bonus
+            perks: {
+                slowProjectiles: false, // Xelor
+                dodgeChance: 0,        // Ecaflip
+                sacrierFury: false,     // Sacrier
+                piercingShots: false,   // Cra
+            },
             permanentUpgrades: { damage: 1, speed: 1, fireRate: 1 }
         },
         projectiles: [] as Projectile[],
@@ -123,8 +163,9 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         mouseY: 0,
         muzzleFlash: 0,
         bossHitFlash: 0, 
-        damageToasts: [] as { x: number, y: number, text: string, life: number, color: string }[],
-        souls: {} as Record<string, { x: number, y: number, class: string, name: string }>, // Ghost Multiplayer
+        damageToasts: [] as { id?: number, x: number, y: number, text: string, life: number, color: string }[],
+        souls: {} as Record<string, { x: number, y: number, class: string, name: string, score: number, isDead?: boolean }>, // Ghost Multiplayer
+        obstacles: [] as Obstacle[], // NEW: Debris and Asteroids
         // --- High-Frequency Optimized State ---
         score: 0,
         lives: 5,
@@ -132,10 +173,26 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         waveQuota: 0, // Total to kill this wave
         mobsKilled: 0, // Current kills
         weaponTime: 0,
+        combo: 0,
         comboTime: 0,
+        tick: 0,
         syncTime: 0,
-        combatLog: [] as { id: number, text: string, life: number, color: string }[]
+        shopEndTime: 0, // Market sync timer
+        combatLog: [] as { id: number, text: string, life: number, color: string }[],
+        purchaseHistory: {} as Record<string, number>, // Scaling Shop Costs
+        bot: null as { x: number, y: number, lastShot: number, rotation: number } | null
     });
+
+    // Filter voice users to only show active participants (Safe to access engineRef now)
+    const gameParticipantIds = useMemo(() => {
+        const ids = new Set<string>();
+        if (session?.user?.id) ids.add(session.user.id);
+        (room?.players || []).forEach(p => ids.add(p.userId));
+        Object.keys(engineRef.current.souls).forEach(uid => ids.add(uid));
+        return Array.from(ids);
+    }, [room?.players, session?.user?.id]);
+    const voiceUserIds = voiceUsers.map(u => u.userId);
+
 
     // --- DJ CROSSFADE MUSIC ENGINE ---
     useEffect(() => {
@@ -162,9 +219,9 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 nextTrack.currentTime = 0;
                 nextTrack.play().then(() => {
                     // Crossfade duration 8s
-                    let duration = 8000;
-                    let interval = 100;
-                    let steps = duration / interval;
+                    const duration = 8000;
+                    const interval = 100;
+                    const steps = duration / interval;
                     let step = 0;
 
                     const crossfade = setInterval(() => {
@@ -189,7 +246,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             }
         };
 
-        if (gameState === 'PLAYING' && isMusicEnabled && !isMuted) {
+        if ((gameState === 'PLAYING' || gameState === 'SHOP') && isMusicEnabled && !isMuted) {
             tracks.forEach(t => t.addEventListener('timeupdate', handleTimeUpdate));
             
             const activeTrack = tracks[currentTrackIndex.current];
@@ -240,7 +297,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
     }, [gameState, isMusicEnabled, isMuted, musicVolume, volume]);
 
     // Sound logic
-    const playSound = useCallback((type: 'shoot' | 'laser' | 'explosion' | 'powerup' | '1up') => {
+    const playSound = useCallback((type: 'shoot' | 'laser' | 'explosion' | 'powerup' | '1up' | 'kamas') => {
         if (isMuted) return;
         if (!audioCtx.current) {
             audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -279,24 +336,52 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             osc.start(now);
             osc.stop(now + 0.15);
         } else if (type === 'explosion') {
-            // Variable explosion spectrum
-            const isHeavy = Math.random() > 0.8;
-            const bufferSize = ctx.sampleRate * (isHeavy ? 0.4 : 0.2);
+            // Highly Varied Explosion Synthesis (Metal Slug Style)
+            const r = Math.random();
+            const isHeavy = r > 0.65;
+            const isMetallic = r < 0.25;
+            
+            const dur = isHeavy ? 0.7 : 0.4;
+            const bufferSize = ctx.sampleRate * dur;
             const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
             const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            
+            for (let i = 0; i < bufferSize; i++) {
+                const t = i / bufferSize;
+                const env = Math.pow(1 - t, isHeavy ? 4 : 2);
+                // Mix white noise with periodic "crunch"
+                data[i] = (Math.random() * 2 - 1) * env * (isMetallic ? (Math.random() > 0.6 ? 1.5 : 0.2) : 1);
+            }
             
             const noise = ctx.createBufferSource();
             noise.buffer = buffer;
             const filter = ctx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(isHeavy ? 400 : 1000 + Math.random() * 1000, now);
-            noise.connect(filter);
-            filter.connect(gainNode);
+            filter.type = isMetallic ? 'bandpass' : 'lowpass';
+            filter.frequency.setValueAtTime(isHeavy ? 120 : (isMetallic ? 1800 : 700 + Math.random() * 900), now);
+            if (isMetallic) filter.Q.value = 4.0;
             
-            gainNode.gain.setValueAtTime((isHeavy ? 0.3 : 0.15) * vol, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + (isHeavy ? 0.4 : 0.2));
+            const mainGain = ctx.createGain();
+            mainGain.gain.setValueAtTime((isHeavy ? 0.45 : 0.2) * vol, now);
+            mainGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+            
+            noise.connect(filter);
+            filter.connect(mainGain);
+            mainGain.connect(ctx.destination);
+            
+            // Sub-Bass "Thump" Layer
+            const sub = ctx.createOscillator();
+            sub.type = 'sine';
+            sub.frequency.setValueAtTime(isHeavy ? 55 : 90 + Math.random() * 40, now);
+            sub.frequency.exponentialRampToValueAtTime(10, now + (dur * 0.4));
+            const subGain = ctx.createGain();
+            subGain.gain.setValueAtTime(0.6 * vol, now);
+            subGain.gain.exponentialRampToValueAtTime(0.001, now + (dur * 0.3));
+            sub.connect(subGain);
+            subGain.connect(ctx.destination);
+            
             noise.start(now);
+            sub.start(now);
+            sub.stop(now + dur);
         } else if (type === 'powerup' || type === '1up') {
             osc.type = 'sine';
             const base = type === '1up' ? 600 : 400;
@@ -384,8 +469,8 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             const assetEntries = Object.entries(assets);
             setLoadProgress({ current: 0, total: assetEntries.length });
 
-            const loadedImages: Record<string, HTMLImageElement | HTMLCanvasElement> = {};
-            const successfullyLoadedIds: number[] = [];
+            const loadedImages: Record<string, HTMLImageElement | HTMLCanvasElement | null> = {};
+            let localLoadedCount = 0;
             
             const promises = Object.entries(assets).map(([key, src]) => {
                 return new Promise((resolve) => {
@@ -394,20 +479,21 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                     img.src = src;
 
                     const onAssetFinished = () => {
-                        setLoadProgress(prev => ({ ...prev, current: prev.current + 1 }));
+                        localLoadedCount++;
+                        // Throttle state updates to avoid render thrashing
+                        if (localLoadedCount % 5 === 0 || localLoadedCount === assetEntries.length) {
+                            setLoadProgress({ current: localLoadedCount, total: assetEntries.length });
+                        }
                         resolve(null);
                     };
 
                     img.onload = () => {
                         loadedImages[key] = processTransparency(img);
-                        if (key.startsWith('mob_')) {
-                            successfullyLoadedIds.push(parseInt(key.replace('mob_', '')));
-                        }
                         onAssetFinished();
                     };
                     img.onerror = () => {
-                        console.error(`SigilInvader: CRITICAL - Failed asset ${src}`);
-                        // We still resolve so the loading completes, but we mark it as missing
+                        console.warn(`SigilInvader: Asset ${src} missing, will fallback.`);
+                        loadedImages[key] = null; // Mark as failed
                         onAssetFinished();
                     };
                 });
@@ -415,8 +501,29 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
 
             await Promise.all(promises);
             
-            // We keep the manifest as it is (curated by us), but we could filter it if we wanted to be strict
-            engineRef.current.images = loadedImages;
+            // --- Atomic Fallback Assignment (Post-Load) ---
+            // Now that we've tried everything, fill the gaps
+            const fallbackMob = loadedImages['mob_36'] || null;
+            const fallbackPlayer = loadedImages['class_cra'] || null;
+
+            Object.keys(assets).forEach(key => {
+                if (!loadedImages[key]) {
+                    if (key.startsWith('mob_')) {
+                        loadedImages[key] = fallbackMob || fallbackPlayer;
+                    } else if (key.startsWith('boss_')) {
+                        loadedImages[key] = loadedImages['boss_placeholder'] || fallbackMob || fallbackPlayer;
+                    } else if (key.startsWith('class_') || key === 'player') {
+                        loadedImages[key] = fallbackPlayer || loadedImages['mob_36'];
+                    }
+                }
+            });
+
+            // Clean up nulls just in case (to avoid crashes in draw loop)
+            Object.keys(loadedImages).forEach(key => {
+                if (loadedImages[key] === null) delete loadedImages[key];
+            });
+
+            engineRef.current.images = loadedImages as any;
             setAssetsLoaded(true);
             setGameState('CLASS_SELECT');
             console.log("SigilInvader: Assets Loaded", Object.keys(loadedImages));
@@ -442,8 +549,11 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
 
         if (gameState === 'LOADING') {
             loadAssets();
+            if (isSpectator) {
+                setGameState('PLAYING'); // Jump straight to play for spectators
+            }
         }
-    }, [gameState]);
+    }, [gameState, isSpectator]);
 
     // --- Gameplay Logic ---
     const spawnWave = useCallback((waveIndex: number) => {
@@ -465,17 +575,27 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             engine.wavePending = false; // RELEASE spawn lock after announcement
         }, 3000);
         
-        // Wave Scaling — Much gentler early game!
-        const speedMult = 1.0 + Math.log10(1 + waveIndex) * 1.2;
-        const hpMult = 1 + Math.log10(1 + waveIndex) * 2.0;
+        // Wave Scaling — Logarithmic + Linear Late-Game Boost!
+        const logMult = Math.log10(1 + waveIndex);
+        const linearMult = Math.max(0, waveIndex - 20) * 0.15; // Kicks in after wave 20
+        const speedMult = 1.0 + (logMult * 1.2) + (linearMult * 0.05);
+        const hpMult = 1 + (logMult * 2.0) + linearMult;
+
+        // Player Count Scaling
+        const playerCount = Object.keys(engine.souls).length + 1;
+        const playerHpMult = 1 + (playerCount - 1) * 0.45;
+        const playerQuotaMult = 1 + (playerCount - 1) * 0.65;
 
         // Wave start invulnerability
         engineRef.current.player.isShielded = true;
         engineRef.current.player.shieldTime = 3000;
 
         if (waveIndex % 5 === 0) {
-            // Boss Pool expands as you get further
-            const maxBossIndex = Math.min((gameManifest?.bosses.length || 1) - 1, Math.floor(waveIndex / 5) * 2);
+            // Boss Pool expands dynamically: 4 new bosses unlocked per boss wave
+            // Wave 5 → first 4 | Wave 10 → first 8 | Wave 25 → all 20 | etc.
+            const bossWave = Math.floor(waveIndex / 5); // 1, 2, 3, ...
+            const poolSize = Math.max(3, Math.min((gameManifest?.bosses.length || 1), bossWave * 4));
+            const maxBossIndex = poolSize - 1;
             const bossData = gameManifest?.bosses[Math.floor(Math.random() * (maxBossIndex + 1))] || { id: 147, name: "Bouftou Royal" };
             enemies.push({
                 x: (canvasRef.current?.width || 800) / 2 - 80,
@@ -483,8 +603,8 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 width: 160,
                 height: 160,
                 type: `boss_${bossData.id}`,
-                health: 500 * hpMult * 1.5,
-                maxHealth: 500 * hpMult * 1.5,
+                health: 500 * hpMult * 1.5 * playerHpMult,
+                maxHealth: 500 * hpMult * 1.5 * playerHpMult,
                 speed: 0.8 + (speedMult * 0.2), // Bosses shouldn't zoom instantly
                 amplitude: 150 + Math.random() * 100,
                 phase: 0,
@@ -510,8 +630,8 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             if (waveIndex > 6) traj = (['linear', 'sine', 'zigzag'] as const)[Math.floor(Math.random() * 3)];
             
             const sharedPhase = Math.random() * Math.PI * 2;
-            const sharedSpeed = (0.7 + (waveIndex * 0.08)) * speedMult;
-            const baseHp = Math.floor((10 + waveIndex * 5) * hpMult);
+            const sharedSpeed = (1.2 + (waveIndex * 0.1)) * speedMult;
+            const baseHp = Math.floor((10 + waveIndex * 5) * hpMult * playerHpMult);
 
             let spawnedCount = 0;
             const addMob = (rx: number, ry: number) => {
@@ -536,8 +656,8 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             };
 
             if (formation === 'grid') {
-                const rows = Math.min(3 + Math.floor(waveIndex / 3), 6);
-                const cols = Math.min(8 + Math.floor(waveIndex / 2), 16);
+                const rows = Math.min(3 + Math.floor(waveIndex / 3), 7);
+                const cols = Math.min(Math.floor((8 + Math.floor(waveIndex / 2)) * playerQuotaMult), 24);
                 const spacingX = Math.min(90, canvasW / (cols + 1));
                 const startX = centerX - ((cols - 1) * spacingX) / 2;
                 for (let r = 0; r < rows; r++) {
@@ -607,20 +727,21 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
     const handleEnemyDeath = (e: any, eIdx: number) => {
         playSound('explosion');
         const isBoss = e.type.toString().includes('boss');
-        const points = isBoss ? 10000 : 150;
+        const basePoints = isBoss ? 15000 : 200;
+        const finalPoints = (e as any).lastHitWasCrit ? basePoints * 2 : basePoints;
         
         // Push to Combat Feed
         engineRef.current.combatLog.unshift({
             id: Math.random(),
-            text: isBoss ? "BOSS DÉTRUIT" : `CRITICAL HIT [ +${points} ]`,
+            text: isBoss ? "BOSS DÉTRUIT" : ((e as any).lastHitWasCrit ? `CRIT KILL! [ +${finalPoints} ]` : `CIBLE ABATTUE [ +${finalPoints} ]`),
             life: 1.0,
-            color: isBoss ? '#ef4444' : '#60a5fa'
+            color: isBoss ? '#ef4444' : ((e as any).lastHitWasCrit ? '#fbbf24' : '#60a5fa')
         });
         if (engineRef.current.combatLog.length > 8) engineRef.current.combatLog.pop();
 
         // Update both React state and Engine Ref
-        setScore(prev => prev + points);
-        engineRef.current.score += points;
+        engineRef.current.score += finalPoints;
+        setScore(engineRef.current.score);
 
         if (!isBoss) {
             engineRef.current.mobsKilled++;
@@ -636,7 +757,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         // Damage Toasts (Cap at 15 for visibility/perf)
         if (engineRef.current.damageToasts.length < 15) {
             engineRef.current.damageToasts.push({
-                x: e.x + e.width / 2, y: e.y, text: `+${points}`, life: 1, color: '#facc15'
+                x: e.x + e.width / 2, y: e.y, text: `+${finalPoints}`, life: 1, color: '#facc15'
             });
         }
         if (isBoss) {
@@ -684,22 +805,22 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         const engine = engineRef.current;
         
         // --- Unified Tactical Deployment: All classes start with CRA's Arrow System ---
-        setWeapon({ level: 1, type: 'basic', projectileCount: 1 });
+        setWeapon({ level: 1, activeTypes: ['basic'], projectileCount: 1 });
         engine.player.weapon = 'basic';
         engine.weaponTime = 0;
         
-        // Minor Stat Variances (Speed/FireRate) keep some flavor
+        // Equilibrage strict communautaire : Les classes sont 100% cosmétiques, base stats fixes
         if (choice === 'xelor') {
-            engine.player.permanentUpgrades.fireRate = 1.2;
+            engine.player.permanentUpgrades.fireRate = 1.0;
         } else if (choice === 'enutrof') {
-            engine.player.permanentUpgrades.fireRate = 0.9;
-            engine.player.permanentUpgrades.damage = 1.2;
+            engine.player.permanentUpgrades.fireRate = 1.0;
+            engine.player.permanentUpgrades.damage = 1.0;
         } else if (choice === 'iop') {
-            engine.player.permanentUpgrades.damage = 1.5;
-            engine.player.permanentUpgrades.fireRate = 0.8;
+            engine.player.permanentUpgrades.damage = 1.0;
+            engine.player.permanentUpgrades.fireRate = 1.0;
         } else {
             // Cra
-            engine.player.permanentUpgrades.fireRate = 1.6;
+            engine.player.permanentUpgrades.fireRate = 1.0;
         }
         
         // Reset Aiming to perfect center-up
@@ -735,6 +856,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
 
     const update = (dt: number) => {
         if (gameState !== 'PLAYING') return;
+        const isHost = session?.user?.id === room.hostId;
         const engine = engineRef.current;
         engine.tick = (engine.tick || 0) + 1;
         const canvas = canvasRef.current;
@@ -763,7 +885,8 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         let vy = 0;
         const moveSpeed = PLAYER_SPEED * (engine.player?.permanentUpgrades?.speed || 1);
 
-        if (engine.keys['w'] || engine.keys['ArrowUp'] || engine.keys['z']) vy -= moveSpeed;
+        if (!isSpectator) {
+            if (engine.keys['w'] || engine.keys['ArrowUp'] || engine.keys['z']) vy -= moveSpeed;
         if (engine.keys['s'] || engine.keys['ArrowDown']) vy += moveSpeed;
         if (engine.keys['a'] || engine.keys['ArrowLeft'] || engine.keys['q']) vx -= moveSpeed;
         if (engine.keys['d'] || engine.keys['ArrowRight']) vx += moveSpeed;
@@ -771,6 +894,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         // Apply movement & clamping (keeping player in realistic bounds)
         engine.player.x += vx;
         engine.player.y += vy;
+        }
         
         // Bounds checking (Strictly inside the 600 width decor)
         if (engine.player.x < 10) engine.player.x = 10;
@@ -793,7 +917,10 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         const normalizedDelta = Math.atan2(Math.sin(delta), Math.cos(delta));
         engine.player.rotation += normalizedDelta * 0.25; 
 
-        const canShoot = now - (engine.player?.lastShot || 0) > (currentCooldown / (engine.player?.permanentUpgrades?.fireRate || 1));
+        const sacrierMult = engine.player.perks.sacrierFury ? 1 + (1 - engine.player.health/100) * 0.8 : 1;
+        const finalDmgMult = (engine.player?.permanentUpgrades?.damage || 1) * sacrierMult;
+
+        const canShoot = !isSpectator && !engine.player.isDead && now - (engine.player?.lastShot || 0) > (currentCooldown / (engine.player?.permanentUpgrades?.fireRate || 1));
         
         if (canShoot && shouldShoot) {
             engine.player.lastShot = now;
@@ -804,8 +931,9 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             if (now - engine.comboTime > 2500) engine.combo = 0;
 
             const comboBonus = engine.combo >= 40 ? 4 : (engine.combo >= 25 ? 2 : (engine.combo >= 10 ? 1 : 0));
-            const count = (weapon?.projectileCount || 1) + comboBonus;
-            const angleStep = 0.15;
+            // Cap projectile count to avoid extreme browser lag
+            const count = Math.min(12, (weapon?.projectileCount || 1) + comboBonus);
+            const angleStep = Math.max(0.08, 0.15 - (count * 0.005));
 
             // --- MULTI-WEAPON STACKING SYSTEM ---
             (weapon?.activeTypes || []).forEach(wType => {
@@ -835,7 +963,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                         engine.projectiles.push({
                             x: pCenterX, y: pCenterY,
                             speed: 15, vx: Math.cos(shootAngle) * 15, vy: Math.sin(shootAngle) * 15,
-                            damage: 10 * difficulty * (engine.player?.permanentUpgrades?.damage || 1),
+                            damage: 10 * difficulty * finalDmgMult,
                             color: '#f97316', fromPlayer: true
                         });
                     }
@@ -869,11 +997,10 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         if (engine.flashTime > 0) engine.flashTime -= dt;
 
         // Projectiles movement
-        engine.projectiles.forEach((p, idx) => {
+        engine.projectiles = engine.projectiles.filter((p) => {
             // Failsafe: Remove NaN projectiles
             if (!isFinite(p.x) || !isFinite(p.y)) {
-                engine.projectiles.splice(idx, 1);
-                return;
+                return false;
             }
 
             if (p.vx !== undefined && p.vy !== undefined) {
@@ -883,8 +1010,9 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 p.y += p.speed;
             }
             if (p.y < -100 || p.y > canvas.height + 100 || p.x < -100 || p.x > canvas.width + 100) {
-                engine.projectiles.splice(idx, 1);
+                return false;
             }
+            return true;
         });
 
         // Wave progression: Check mobsKilled vs waveQuota
@@ -924,19 +1052,20 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             // --- Trajectory Engine ---
             if (isBoss) {
                 // Boss AI: Tactical Floating & Horizontal Swaying
-                // Initial descent until it reaches the 'combat altitude'
                 if (e.y < 100) {
                     e.y += e.speed * 2;
                 } else {
-                    // Once in position, hover and sway
-                    e.y = 100 + Math.sin(now / 800 + e.phase) * 40; // Float between 60 and 140
-                    e.x = (canvas.width / 2 - e.width / 2) + Math.cos(now / 1200 + e.phase) * (canvas.width / 2.5);
+                    // Smooth tracking to orbital position (Fixed violent snapping/saccades)
+                    const targetY = 100 + Math.sin(now / 800 + e.phase) * 40; 
+                    const targetX = (canvas.width / 2 - e.width / 2) + Math.cos(now / 1200 + e.phase) * (canvas.width / 3);
+                    e.y += (targetY - e.y) * 0.06;
+                    e.x += (targetX - e.x) * 0.06;
                 }
             } else if (e.trajectory === 'sine' || e.trajectory === 'zigzag' || e.trajectory === 'linear') {
                 // Formatting Engine (Chicken Invaders Style)
                 if (e.baseY !== undefined && !(e as any).inFormation && e.y < e.baseY) {
                     e.y += e.speed * 4; // Swoop in fast
-                    e.x += (e.baseX - e.x) * 0.08; // Converge to column
+                    e.x += (e.baseX! - e.x) * 0.08; // Converge to column
                     if (e.y >= e.baseY) (e as any).inFormation = true;
                 } else {
                     // Hover in formation + Looming threat (slowly descend over time!)
@@ -945,7 +1074,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                     }
 
                     const sway = Math.sin(now / 1500 + (e.trajectory === 'sine' ? e.phase : 0)) * 120;
-                    if (e.baseX !== undefined) e.x = e.baseX + sway;
+                    if (e.baseX !== undefined) e.x = e.baseX + sway + Math.sin(now / 400 + e.phase) * (e.trajectory === 'sine' ? 25 : 0); // Erratic wobble
                     if (e.baseY !== undefined) e.y = e.baseY + Math.sin(now / 800 + e.phase) * (e.trajectory === 'zigzag' ? 30 : 10);
                     
                     // Dive Bomb! (Elites or deep waves)
@@ -968,73 +1097,155 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 e.y += e.speed * 0.8;
             }
             
-            // Enemy shooting patterns (Extreme Aggression - Bullet Hell style)
-            const fireRate = isBoss ? 450 : Math.max(500, 2200 - (difficulty * 250)); // Shoots MUCH more frequently
+            // Enemy shooting patterns
+            const bossData = isBoss ? gameManifest?.bosses.find(b => b.id === parseInt(e.type.replace('boss_', ''))) : null;
+            const bossTier = (bossData as any)?.tier ?? 2;
+            let bossPattern = (bossData as any)?.pattern ?? 'SPIRAL_SLOW';
             
-            if (now - e.lastShot > fireRate) {
-                // Randomize actual firing to avoid perfectly synced waves
-                if (Math.random() > 0.4) {
-                if (isBoss) {
-                    const bossIdStr = e.type.replace('boss_', '');
-                    const bossId = parseInt(bossIdStr);
-                    // Explicit pattern map — avoids 3 bosses sharing same pattern via ID-modulo
-                    const BOSS_PATTERNS: Record<number, number> = {
-                        147: 0, // Bouftou Royal      → Spiral Storm
-                        121: 1, // Minotoror          → Tracking Spread
-                        180: 2, // Wa Wabbit          → Chaos Rain
-                        113: 3, // Dragon Cochon      → Borker Beam
-                        107: 0, // Hell Mina          → Spiral Storm
-                        173: 1, // Abraknyde Ancestral → Tracking Spread
-                        226: 2, // Moon               → Chaos Rain
-                        58:  3, // Gelée Royale Bleuet → Borker Beam
-                        85:  0, // Gelée Royale Menthe → Spiral Storm
-                        86:  1, // Gelée Royale Fraise → Tracking Spread
-                    };
-                    const patternType = BOSS_PATTERNS[bossId] ?? (bossId % 4);
+            // Dynamic Boss Phases (HP based)
+            if (isBoss) {
+                const hpRatio = e.health / Math.max(1, (e as any).maxHealth || 100);
+                if (hpRatio < 0.25) bossPattern = 'HELLFIRE'; // Phase 3: Enraged
+                else if (hpRatio < 0.6) bossPattern = 'CHARGE_BEAM'; // Phase 2: Aggressive
+            }
 
-                    if (patternType === 0) {
-                        // SPIRAL STORM (Tofu Royal Style)
-                        const shots = 12 + Math.floor(wave / 2);
-                        for(let i=0; i < shots; i++) {
-                            const angle = (i / shots) * Math.PI * 2 + (now / 400);
-                            engine.projectiles.push({
-                                x: e.x + e.width / 2, y: e.y + e.height / 2, speed: 4,
-                                vx: Math.cos(angle) * 4, vy: Math.sin(angle) * 4,
-                                damage: 1, color: '#f43f5e', fromPlayer: false
-                            });
+            // Boss fire rate scales with tier: Tier 0 = 700ms, Tier 5 = 300ms
+            const bossFireRate = Math.max(300, 700 - bossTier * 70);
+            const fireRate = isBoss ? bossFireRate : Math.max(500, 2200 - (difficulty * 250));
+            
+            // Multi scaling: extra projectiles per additional player
+            const playerCount = Object.keys(engine.souls).length + 1;
+            const multiProjectileBonus = Math.max(0, playerCount - 1); // 0 in solo, +1 per extra player
+
+            if (now - e.lastShot > fireRate) {
+                if (Math.random() > 0.1) {
+                if (isBoss) {
+                    const bx = e.x + e.width / 2;
+                    const by = e.y + e.height / 2;
+                    const angleToPlayer = Math.atan2(
+                        (engine.player.y + engine.player.height / 2) - by,
+                        (engine.player.x + engine.player.width / 2) - bx
+                    );
+                    // Wave bonus: patterns get more intense over time
+                    const waveBonus = Math.floor(wave / 5);
+
+                    if (bossPattern === 'SPIRAL_SLOW') {
+                        // Slow rotating spiral — tutorial tier, telegraphed
+                        const shots = 6 + waveBonus + multiProjectileBonus;
+                        for (let i = 0; i < shots; i++) {
+                            const angle = (i / shots) * Math.PI * 2 + (now / 800);
+                            engine.projectiles.push({ x: bx, y: by, speed: 3, vx: Math.cos(angle) * 3, vy: Math.sin(angle) * 3, damage: 1, color: '#f87171', fromPlayer: false });
                         }
-                    } else if (patternType === 1) {
-                        // TRACKING SPREAD (Minotoror Style)
-                        const angleToPlayer = Math.atan2((engine.player.y + engine.player.height/2) - (e.y + e.height/2), (engine.player.x + engine.player.width/2) - (e.x + e.width/2));
-                        const spread = 3 + Math.floor(wave / 10);
-                        for(let i = -Math.floor(spread/2); i <= Math.floor(spread/2); i++) {
-                            const angle = angleToPlayer + (i * 0.2);
-                            engine.projectiles.push({
-                                x: e.x + e.width / 2, y: e.y + e.height / 2, speed: 5,
-                                vx: Math.cos(angle) * 6, vy: Math.sin(angle) * 6,
-                                damage: 1, color: '#fb7185', fromPlayer: false
-                            });
-                        }
-                    } else if (patternType === 2) {
-                        // CHAOS RAIN (Dragon Cochon Style)
-                        for(let i=0; i<8; i++) {
-                            engine.projectiles.push({
-                                x: Math.random() * canvas.width, y: -50, speed: 5,
-                                vx: 0, vy: 5 + Math.random()*3,
-                                damage: 1, color: '#9f1239', fromPlayer: false
-                            });
-                        }
-                    } else {
-                        // BORKER BEAM (Pre-telegraphed Frontal)
-                        engine.shakeTime = 500;
-                        engine.projectiles.push({
-                            x: e.x + e.width / 2, y: e.y + e.height / 2, speed: 12,
-                            vx: 0, vy: 12, damage: 2, color: '#e11d48', fromPlayer: false
+
+                    } else if (bossPattern === 'JELLY_BOUNCE') {
+                        // Bouncing blobs in all 4 diagonal directions — floaty and cute
+                        const dirs = [[-1,-1],[1,-1],[-1,1],[1,1]];
+                        const extra = multiProjectileBonus > 0 ? [[-1,0],[1,0]] : [];
+                        [...dirs, ...extra].forEach(([dx, dy]) => {
+                            engine.projectiles.push({ x: bx, y: by, speed: 4, vx: dx * (3 + waveBonus * 0.3), vy: dy * (3 + waveBonus * 0.3), damage: 1, color: '#a78bfa', fromPlayer: false });
                         });
+
+                    } else if (bossPattern === 'TRACKING_BASIC') {
+                        // Simple aimed shot — beginner tracking
+                        const count = 1 + multiProjectileBonus;
+                        for (let i = 0; i < count; i++) {
+                            const spread = (i - (count - 1) / 2) * 0.3;
+                            engine.projectiles.push({ x: bx, y: by, speed: 6, vx: Math.cos(angleToPlayer + spread) * 6, vy: Math.sin(angleToPlayer + spread) * 6, damage: 1, color: '#fb923c', fromPlayer: false });
+                        }
+
+                    } else if (bossPattern === 'FRONTAL_BEAM') {
+                        // Dragon Cochon style: pre-telegraphed vertical beam
+                        engine.shakeTime = 300;
+                        const beamCount = 1 + multiProjectileBonus;
+                        for (let i = 0; i < beamCount; i++) {
+                            const offsetX = (i - (beamCount - 1) / 2) * 80;
+                            engine.projectiles.push({ x: bx + offsetX, y: by, speed: 10 + waveBonus, vx: 0, vy: 10 + waveBonus, damage: 2, color: '#e11d48', fromPlayer: false });
+                        }
+
+                    } else if (bossPattern === 'TRACKING_SPREAD') {
+                        // Minotoror style: wide aimed spread
+                        const spread = 3 + Math.floor(wave / 8) + multiProjectileBonus;
+                        for (let i = -Math.floor(spread / 2); i <= Math.floor(spread / 2); i++) {
+                            const angle = angleToPlayer + (i * 0.22);
+                            engine.projectiles.push({ x: bx, y: by, speed: 6, vx: Math.cos(angle) * 7, vy: Math.sin(angle) * 7, damage: 1, color: '#f43f5e', fromPlayer: false });
+                        }
+
+                    } else if (bossPattern === 'SPIRAL_STORM') {
+                        // Hell Mina style: fast dense spiral
+                        const shots = 12 + waveBonus * 2 + multiProjectileBonus * 3;
+                        const speed = 4.5 + waveBonus * 0.3;
+                        for (let i = 0; i < shots; i++) {
+                            const angle = (i / shots) * Math.PI * 2 + (now / 350);
+                            engine.projectiles.push({ x: bx, y: by, speed, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: 1, color: '#ec4899', fromPlayer: false });
+                        }
+
+                    } else if (bossPattern === 'CHAOS_RAIN') {
+                        // Wa Wabbit style: falling rain from top of screen
+                        const count = 6 + waveBonus + multiProjectileBonus * 2;
+                        for (let i = 0; i < count; i++) {
+                            const pSpeed = (6 + Math.random() * 3) * (engine.player.perks.slowProjectiles ? 0.7 : 1);
+                        engine.projectiles.push({ x: Math.random() * canvas.width, y: -60, speed: pSpeed, vx: (Math.random() - 0.5) * 3, vy: pSpeed, damage: 1, color: '#be185d', fromPlayer: false });
+                        }
+
+                    } else if (bossPattern === 'PHASE_BURST') {
+                        // Moon style: alternating burst phases (aimed then spiral)
+                        const phase = Math.floor(now / 1500) % 2;
+                        if (phase === 0) {
+                            // Aimed burst
+                            for (let i = -2; i <= 2; i++) {
+                                engine.projectiles.push({ x: bx, y: by, speed: 8, vx: Math.cos(angleToPlayer + i * 0.25) * 8, vy: Math.sin(angleToPlayer + i * 0.25) * 8, damage: 1, color: '#7c3aed', fromPlayer: false });
+                            }
+                        } else {
+                            // Radial burst
+                            const shots = 8 + multiProjectileBonus * 2;
+                            for (let i = 0; i < shots; i++) {
+                                const angle = (i / shots) * Math.PI * 2;
+                                engine.projectiles.push({ x: bx, y: by, speed: 6, vx: Math.cos(angle) * 6, vy: Math.sin(angle) * 6, damage: 1, color: '#8b5cf6', fromPlayer: false });
+                            }
+                        }
+
+                    } else if (bossPattern === 'CHARGE_BEAM') {
+                        // Bworker style: telegraphed super beam + side shots in multi
+                        engine.shakeTime = 600;
+                        engine.flashTime = 200;
+                        engine.projectiles.push({ x: bx, y: by, speed: 16, vx: Math.cos(angleToPlayer) * 16, vy: Math.sin(angleToPlayer) * 16, damage: 3, color: '#dc2626', fromPlayer: false });
+                        // Multi: extra side beams
+                        for (let i = 0; i < multiProjectileBonus; i++) {
+                            const sideAngle = angleToPlayer + (i % 2 === 0 ? 0.4 : -0.4) * Math.ceil(i / 2);
+                            engine.projectiles.push({ x: bx, y: by, speed: 12, vx: Math.cos(sideAngle) * 12, vy: Math.sin(sideAngle) * 12, damage: 2, color: '#ef4444', fromPlayer: false });
+                        }
+
+                    } else if (bossPattern === 'DOUBLE_SPIRAL') {
+                        // Tynril style: two counter-rotating spirals
+                        const shots = 8 + waveBonus + multiProjectileBonus * 2;
+                        const speed = 5 + waveBonus * 0.4;
+                        for (let i = 0; i < shots; i++) {
+                            const a1 = (i / shots) * Math.PI * 2 + (now / 300);
+                            const a2 = (i / shots) * Math.PI * 2 - (now / 300);
+                            engine.projectiles.push({ x: bx, y: by, speed, vx: Math.cos(a1) * speed, vy: Math.sin(a1) * speed, damage: 1, color: '#06b6d4', fromPlayer: false });
+                            engine.projectiles.push({ x: bx, y: by, speed, vx: Math.cos(a2) * speed, vy: Math.sin(a2) * speed, damage: 1, color: '#0891b2', fromPlayer: false });
+                        }
+
+                    } else { // HELLFIRE — Brutal tier
+                        // Père Fwetar / Tynril Perfide: all at once
+                        engine.shakeTime = 800;
+                        engine.flashTime = 300;
+                        const shots = 16 + waveBonus * 2 + multiProjectileBonus * 4;
+                        for (let i = 0; i < shots; i++) {
+                            const angle = (i / shots) * Math.PI * 2 + (now / 200);
+                            const speed = 5 + Math.random() * 4;
+                            engine.projectiles.push({ x: bx, y: by, speed, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: 2, color: i % 2 === 0 ? '#f97316' : '#dc2626', fromPlayer: false });
+                        }
+                        // Extra aimed burst in multi
+                        if (multiProjectileBonus > 0) {
+                            for (let i = -multiProjectileBonus; i <= multiProjectileBonus; i++) {
+                                engine.projectiles.push({ x: bx, y: by, speed: 14, vx: Math.cos(angleToPlayer + i * 0.2) * 14, vy: Math.sin(angleToPlayer + i * 0.2) * 14, damage: 3, color: '#fbbf24', fromPlayer: false });
+                            }
+                        }
                     }
-                } else if (Math.random() > 0.80 - (engine.wave * 0.02)) {
+
+                } else if (Math.random() > Math.max(0.70, 0.99 - (difficulty * 0.002))) {
                     // Standard mob shooting
-                    // Elites and deep waves shoot aimed lasers!
                     const isAimed = Math.random() > 0.6 && difficulty > 3;
                     let vx = 0;
                     if (isAimed) {
@@ -1048,24 +1259,17 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                     engine.projectiles.push({
                         x: e.x + e.width / 2, y: e.y + e.height, 
                         speed: speed,
-                        vx: vx, vy: isAimed ? speed + 2 : speed, // Faster if aimed
+                        vx: vx, vy: isAimed ? speed + 2 : speed,
                         damage: 1, color: isAimed ? '#ef4444' : '#f43f5e', fromPlayer: false
                     });
                     
-                    // High wave burst / Bullet Hell mode!
                     if (difficulty > 5 && Math.random() > 0.8) {
-                        engine.projectiles.push({
-                            x: e.x + e.width / 2 - 15, y: e.y + e.height,
-                            speed: speed, vx: -3, vy: speed - 1, damage: 1, color: '#f59e0b', fromPlayer: false
-                        });
-                        engine.projectiles.push({
-                            x: e.x + e.width / 2 + 15, y: e.y + e.height,
-                            speed: speed, vx: 3, vy: speed - 1, damage: 1, color: '#f59e0b', fromPlayer: false
-                        });
+                        engine.projectiles.push({ x: e.x + e.width / 2 - 15, y: e.y + e.height, speed: speed, vx: -3, vy: speed - 1, damage: 1, color: '#f59e0b', fromPlayer: false });
+                        engine.projectiles.push({ x: e.x + e.width / 2 + 15, y: e.y + e.height, speed: speed, vx: 3, vy: speed - 1, damage: 1, color: '#f59e0b', fromPlayer: false });
                     }
                 }
                 } // Close the random 0.4 bracket!
-                e.lastShot = now + (Math.random() * parseInt(fireRate.toString()) * 0.5); // Add jitter to next shot
+                e.lastShot = now + (Math.random() * fireRate * 0.5);
             }
 
             // Hit collision with player: MICRO-HITBOX (14px radius, focused on soul core)
@@ -1078,15 +1282,45 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
 
             if (dist < collisionThreshold) {
                 if (!engine.player.isShielded) {
-                    engine.lives--;
-                    if (engine.lives <= 0) setGameState('GAMEOVER');
-                    
-                    engine.player.isShielded = true;
-                    engine.player.shieldTime = 2000;
+                    const rawDmg = 50;
+                    if (engine.player.armor > 0) {
+                        engine.player.armor -= rawDmg;
+                        if (engine.player.armor < 0) {
+                            engine.player.health += engine.player.armor;
+                            engine.player.armor = 0;
+                        }
+                    } else {
+                        engine.player.health -= rawDmg;
+                    }
+
+                    spawnExplosion(px, py, '#ff0000', 15);
                     engine.flashTime = 400;
-                    engine.shakeTime = 300; // SHAKE ON HIT
-                    spawnExplosion(px, py, '#ff0000', 30);
-                    toast.error("HIT ! MICRO-HITBOX TOUCHÉE", { style: { background: '#7f1d1d', color: 'white' } });
+                    engine.shakeTime = 300;
+                    toast.error("HIT ! COLLISION CRITIQUE", { style: { background: '#7f1d1d', color: 'white' } });
+
+                    if (engine.player.health <= 0) {
+                        engine.lives--;
+                        engine.player.health = 100;
+                        engine.player.isShielded = true;
+                        engine.player.shieldTime = 3000;
+                        spawnExplosion(px, py, '#ff0000', 40);
+                        
+                        if (engine.lives <= 0) {
+                            if (isSolo) {
+                                setGameState('GAMEOVER');
+                            } else {
+                                engine.player.isDead = true;
+                                engine.combatLog.unshift({
+                                    id: Math.random(),
+                                    text: `L'ÂME DE ${session?.user?.name || 'Guerrier'} ERRANCE DANS LE VIDE !`,
+                                    life: 2.5,
+                                    color: '#6366f1'
+                                });
+                                toast.error("VOTRE ÂME A QUITTÉ VOTRE CORPS... MODE SPECTATEUR ACTIVÉ !");
+                            }
+                        }
+                        toast.error("-1 VIE ! SYSTÈME ENDOMMAGÉ", { style: { background: '#991b1b', color: 'white' } });
+                    }
                 }
                 if (e.type !== 'boss') {
                     engine.enemies.splice(eIdx, 1);
@@ -1114,69 +1348,321 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         }
 
         // Bullet collisions
-        engine.projectiles.forEach((p, pIdx) => {
+        // Bullet collisions - Reversed loop to allow safe element splicing
+        // --- BOT AI LOGIC (Host Only) ---
+        if (isHost && room.withBot && gameState === 'PLAYING') {
+            if (!engine.bot) {
+                engine.bot = { 
+                    x: engine.player.x + 100, 
+                    y: engine.player.y, 
+                    lastShot: 0,
+                    rotation: 0
+                };
+            }
+            const bot = engine.bot;
+            
+            // Follow player with a "companion" behavior: stay to the right or left with some springiness
+            const targetX = engine.player.x + (Math.sin(now / 1500) * 100 + 120);
+            const targetY = engine.player.y + Math.cos(now / 1000) * 30;
+            
+            bot.x += (targetX - bot.x) * 0.08;
+            bot.y += (targetY - bot.y) * 0.08;
+
+            // Advanced Target Acquisition
+            const nearestEnemy = engine.enemies.length > 0 ? engine.enemies.reduce((prev, curr) => {
+                const distPrev = Math.hypot(prev.x - bot.x, prev.y - bot.y);
+                const distCurr = Math.hypot(curr.x - bot.x, curr.y - bot.y);
+                return distCurr < distPrev ? curr : prev;
+            }) : null;
+
+            if (nearestEnemy) {
+                const targetAngle = Math.atan2(nearestEnemy.y - (bot.y + 35), nearestEnemy.x - (bot.x + 35));
+                bot.rotation += (targetAngle + Math.PI/2 - bot.rotation) * 0.1;
+                
+                if (now - bot.lastShot > 600) {
+                    playSound('shoot');
+                    engine.projectiles.push({
+                        x: bot.x + 35, y: bot.y + 35,
+                        speed: 15, 
+                        vx: Math.cos(targetAngle) * 16, 
+                        vy: Math.sin(targetAngle) * 16,
+                        damage: 8 * difficulty,
+                        color: '#6366f1', fromPlayer: true
+                    });
+                    bot.lastShot = now;
+                }
+            } else {
+                bot.rotation += (0 - bot.rotation) * 0.05;
+            }
+        }
+
+        for (let pIdx = engine.projectiles.length - 1; pIdx >= 0; pIdx--) {
+            const p = engine.projectiles[pIdx];
+            p.x += (p.vx || 0);
+            p.y += (p.vy || (p.fromPlayer ? -p.speed : p.speed));
+
+            // CAP PROJECTILES: Prevent memory leak and lag from infinite bullets
+            if (engine.projectiles.length > 150) {
+                engine.projectiles.splice(0, engine.projectiles.length - 150);
+                break;
+            }
+            
+            let removeProjectile = false;
+
             if (p.fromPlayer) {
-                engine.enemies.forEach((e, eIdx) => {
+                for (let eIdx = engine.enemies.length - 1; eIdx >= 0; eIdx--) {
+                    const e = engine.enemies[eIdx];
                     if (
                         p.x < e.x + e.width &&
                         p.x + 8 > e.x &&
                         p.y < e.y + e.height &&
                         p.y + 16 > e.y
                     ) {
-                        e.health -= p.damage;
+                        // Critical Hit Calculation (15% chance by default)
+                        const isCrit = Math.random() < 0.15;
+                        const finalDamage = isCrit ? p.damage * 2 : p.damage;
+                        e.health -= finalDamage;
+                        
+                        if (isCrit) {
+                            (e as any).lastHitWasCrit = true;
+                            // Add a visual indicator for critical hit on the entity
+                            engine.damageToasts.push({
+                                id: Math.random(),
+                                text: "CRITIQUE!",
+                                x: e.x + e.width / 2, y: e.y - 10,
+                                life: 1, color: '#fbbf24'
+                            });
+                        } else {
+                            (e as any).lastHitWasCrit = false;
+                        }
+
                         if (e.type.includes('boss')) {
                             engine.bossHitFlash = 5;
                             // Log boss hits specifically in the feed
                             if (Math.random() > 0.8) {
                                 engine.combatLog.unshift({
                                     id: Math.random(),
-                                    text: `BOSS DMG: -${Math.round(p.damage)} HP`,
+                                    text: `BOSS DMG: -${Math.round(finalDamage)} HP`,
                                     life: 0.8,
-                                    color: '#f87171'
+                                    color: isCrit ? '#fbbf24' : '#f87171'
                                 });
                             }
                         }
-                        if (p.color !== 'laser_purple') {
-                            engine.projectiles.splice(pIdx, 1);
+                        if (p.color !== 'laser_purple' && !engine.player.perks.piercingShots) {
+                            removeProjectile = true;
                         }
                         if (e.health <= 0) {
                             handleEnemyDeath(e, eIdx);
-                            // handleEnemyDeath already handles the engine.enemies.splice(eIdx, 1)
                         }
+                        if (removeProjectile) break; // Break out of enemies loop if projectile is absorbed
                     }
-                });
+                }
             } else {
-                    const px = engine.player.x + engine.player.width / 2;
-                    const py = engine.player.y + engine.player.height / 2;
-                    const dist = Math.sqrt(Math.pow(px - (p.x), 2) + Math.pow(py - (p.y), 2));
+                const px = engine.player.x + engine.player.width / 2;
+                const py = engine.player.y + engine.player.height / 2;
+                const dist = Math.sqrt(Math.pow(px - (p.x), 2) + Math.pow(py - (p.y), 2));
 
-                    if (dist < 28) {
-                        if (!engine.player.isShielded) {
-                            engine.lives--;
-                            if (engine.lives <= 0) {
-                                setGameState('GAMEOVER');
+                if (dist < 28) {
+                    if (!engine.player.isShielded) {
+                        if (engine.player.perks.dodgeChance > 0 && Math.random() < engine.player.perks.dodgeChance) {
+                            engine.damageToasts.push({
+                                id: Math.random(),
+                                text: "ESQUIVE!",
+                                x: px, y: py - 20,
+                                life: 1, color: '#34d399'
+                            });
+                            removeProjectile = true;
+                            continue; // Skip damage
+                        }
+
+                        const rawDmg = p.damage * 10;
+                        if (engine.player.armor > 0) {
+                            engine.player.armor -= rawDmg;
+                            if (engine.player.armor < 0) {
+                                engine.player.health += engine.player.armor;
+                                engine.player.armor = 0;
                             }
+                        } else {
+                            engine.player.health -= rawDmg;
+                        }
+
+                        spawnExplosion(px, py, '#ff0000', 10);
+                        
+                        if (engine.player.health <= 0) {
+                            engine.lives--;
+                            engine.player.health = 100;
                             engine.player.isShielded = true;
-                            engine.player.shieldTime = 2000;
+                            engine.player.shieldTime = 3000;
+                            
+                            if (engine.lives <= 0) {
+                                if (isSolo) {
+                                    setGameState('GAMEOVER');
+                                } else {
+                                    engine.player.isDead = true;
+                                    engine.combatLog.unshift({
+                                        id: Math.random(),
+                                        text: `L'ÂME DE ${session?.user?.name || 'Guerrier'} S'EST VOLATILISÉE !`,
+                                        life: 2.5,
+                                        color: '#6366f1'
+                                    });
+                                }
+                            }
                             engine.flashTime = 400; // RED FLASH
                             spawnExplosion(px, py, '#ff0000', 30);
                             toast.error("-1 VIE ! T'ES TOUCHÉ", { style: { background: '#7f1d1d', color: 'white' } });
                         }
-                        engine.projectiles.splice(pIdx, 1);
+                    }
+                    removeProjectile = true;
+                }
+            }
+
+            if (removeProjectile) {
+                engine.projectiles.splice(pIdx, 1);
+            }
+        }
+
+        // --- OBSTACLES LOGIC (Host Only Spawning) ---
+        if (gameState === 'PLAYING' && isHost && Math.random() < (0.004 + engine.wave * 0.001)) {
+            const isMine = Math.random() < 0.3;
+            const radius = 20 + Math.random() * 40;
+            engine.obstacles.push({
+                id: Math.random(),
+                x: Math.random() * 1920,
+                y: -100,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (1 + Math.random() * 3),
+                radius,
+                hp: isMine ? 15 : (radius * 0.4), // Asteroids shattered easily as obstacles
+                maxHp: isMine ? 15 : (radius * 0.4),
+                type: isMine ? 'mine' : 'asteroid',
+                rotation: Math.random() * Math.PI * 2,
+                spin: (Math.random() - 0.5) * 0.05
+            });
+        }
+
+        const triggerMineExplosion = (mineX: number, mineY: number) => {
+            spawnExplosion(mineX, mineY, '#ef4444', 60);
+            playSound('explosion');
+            engine.shakeTime = 30;
+            engine.flashTime = 200;
+            
+            const blastRadius = 350; // Massive shockwave
+            
+            // Damage player if caught in collateral
+            if (!engine.player.isDead && !engine.player.isShielded) {
+                const dx = (engine.player.x + engine.player.width/2) - mineX;
+                const dy = (engine.player.y + engine.player.height/2) - mineY;
+                if (Math.sqrt(dx*dx + dy*dy) < blastRadius) {
+                    engine.player.health -= 40; // Heavy collateral
+                    toast.error("SOUFFLE EXPLOSIF ! -40 HP", { style: { background: '#7f1d1d', color: 'white' } });
+                }
+            }
+            
+            // Wipe out enemies in radius
+            for (let eIdx = engine.enemies.length - 1; eIdx >= 0; eIdx--) {
+                const e = engine.enemies[eIdx];
+                const dx = (e.x + e.width/2) - mineX;
+                const dy = (e.y + e.height/2) - mineY;
+                if (Math.sqrt(dx*dx + dy*dy) < blastRadius) {
+                    e.health -= 5000; // Massive damage to enemies
+                    if (e.health <= 0) {
+                        (e as any).lastHitWasCrit = true; // Make it look cool in the feed
+                        handleEnemyDeath(e, eIdx);
                     }
                 }
-        });
+            }
+        };
+
+        for (let i = engine.obstacles.length - 1; i >= 0; i--) {
+            const obs = engine.obstacles[i];
+            obs.x += obs.vx;
+            obs.y += obs.vy;
+            obs.rotation += obs.spin;
+            
+            if (obs.type === 'mine') {
+                // Homing Logic: Accelerate towards player if close
+                const dxp = (engine.player.x + 32) - obs.x;
+                const dyp = (engine.player.y + 32) - obs.y;
+                const distP = Math.sqrt(dxp*dxp + dyp*dyp);
+                
+                if (distP < 300 && !engine.player.isDead) {
+                    obs.vx += (dxp / distP) * 0.15;
+                    obs.vy += (dyp / distP) * 0.15;
+                    // Cap speed
+                    const speed = Math.sqrt(obs.vx*obs.vx + obs.vy*obs.vy);
+                    if (speed > 5) {
+                        obs.vx = (obs.vx / speed) * 5;
+                        obs.vy = (obs.vy / speed) * 5;
+                    }
+                } else {
+                    obs.vx *= 0.95; 
+                    obs.vy = Math.max(0.8, obs.vy); // Allow drifting down (Gravity), no full freeze
+                }
+            }
+
+            // Player Collision
+            if (!engine.player.isDead) {
+                const dx = (engine.player.x + 32) - obs.x;
+                const dy = (engine.player.y + 32) - obs.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < obs.radius + 20) {
+                    if (obs.type === 'mine') {
+                        triggerMineExplosion(obs.x, obs.y);
+                    } else {
+                        if (!engine.player.isShielded) {
+                            engine.player.health -= 15;
+                            engine.shakeTime = 15;
+                            playSound('explosion');
+                        }
+                        spawnExplosion(obs.x, obs.y, '#71717a', 20);
+                    }
+                    engine.obstacles.splice(i, 1);
+                    continue;
+                }
+            }
+
+            // Projectile Collision
+            for (let j = engine.projectiles.length - 1; j >= 0; j--) {
+                const p = engine.projectiles[j];
+                const dx = p.x - obs.x;
+                const dy = p.y - obs.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < obs.radius) {
+                    obs.hp -= p.damage;
+                    engine.projectiles.splice(j, 1);
+                    if (obs.hp <= 0) {
+                        if (obs.type === 'mine') {
+                            triggerMineExplosion(obs.x, obs.y);
+                            engine.score += 50;
+                        } else {
+                            spawnExplosion(obs.x, obs.y, '#71717a', 15);
+                            playSound('explosion');
+                            engine.shakeTime = 8;
+                            engine.score += 25;
+                        }
+                        engine.obstacles.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            if (obs.y > 1180) engine.obstacles.splice(i, 1);
+        }
 
         // Particles
-        engine.particles.forEach((p, idx) => {
+        // Particles Capping
+        if (engine.particles.length > 300) {
+            engine.particles.splice(0, engine.particles.length - 300);
+        }
+        engine.particles = engine.particles.filter((p) => {
             p.x += p.vx;
             p.y += p.vy;
             p.life -= 0.02;
-            if (p.life <= 0) engine.particles.splice(idx, 1);
+            return p.life > 0;
         });
 
         // Powerups movement & pickup
-        engine.powerups.forEach((pu, idx) => {
+        engine.powerups = engine.powerups.filter((pu) => {
             pu.y += pu.speed;
             if (
                 pu.x < engine.player.x + engine.player.width &&
@@ -1204,7 +1690,8 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                         const next = { 
                             activeTypes: nextTypes, 
                             level: nextLevel,
-                            projectileCount: nextCount
+                            projectileCount: nextCount,
+                            piercingShots: prev.activeTypes.includes('piercing' as any) // Keep perk state
                         };
                         
                         engine.player.weapon = nextTypes[nextTypes.length - 1]; // Visual focus on last
@@ -1216,15 +1703,35 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                     });
                     playSound('powerup');
                 }
-                engine.powerups.splice(idx, 1);
+                return false;
             }
-            if (pu.y > canvas.height) engine.powerups.splice(idx, 1);
+            if (pu.y > canvas.height) return false;
+            return true;
         });
 
         // Cleanup: remove all enemies marked dead this frame (safe, no mid-loop splice)
         if (engine.enemies.some(e => e.dead)) {
             engine.enemies = engine.enemies.filter(e => !e.dead);
         }
+
+        // --- Wave End Logic ---
+        if (engine.enemies.length === 0 && !engine.wavePending) {
+            engine.wavePending = true;
+            if (engine.wave % 5 === 0) {
+                // Ensure boss explosion plays before fading to shop
+                setTimeout(() => {
+                    engine.shopEndTime = Date.now() + 60000;
+                    setGameState('SHOP');
+                    engine.wavePending = false;
+                }, 3500);
+            } else {
+                engine.wave++;
+                spawnWave(engine.wave);
+            }
+        }
+
+        // --- Shop Timer Enforcement ---
+        // Also removed gameState check to avoid TS error, moved to top level loop control
     };
 
     const drawPlayerFallback = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -1254,7 +1761,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         ctx.globalAlpha = 1.0;
         ctx.filter = 'none';
         ctx.shadowBlur = 0;
-        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingEnabled = false;
 
         const W = canvas.width || 1920;
         const H = canvas.height || 1080;
@@ -1276,15 +1783,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         ctx.fillStyle = skyGrd;
         ctx.fillRect(0, 0, W, H);
 
-        // ALWAYS show Diagnostic Overlay for now
-        ctx.fillStyle = 'rgba(0,0,0,0.8)';
-        ctx.fillRect(10, 10, 180, 80);
-        ctx.fillStyle = '#4ade80';
-        ctx.font = 'bold 12px monospace';
-        ctx.fillText(`RENDER: ACTIVE`, 20, 25);
-        ctx.fillText(`DIM: ${W}x${H}`, 20, 40);
-        ctx.fillText(`MOBS: ${engine.enemies.length}`, 20, 55);
-        ctx.fillText(`GAME: ${gameState}`, 20, 70);
+        // Diagnostic Overlay disabled for production
         
         // Failsafe: Draw a bright marker to prove canvas is alive
         ctx.fillStyle = '#f43f5e';
@@ -1320,6 +1819,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             ctx.arc(cloud.x - cloud.size * 0.3, cloud.y - cloud.size * 0.1, cloud.size * 0.35, 0, Math.PI*2);
             ctx.fill();
         });
+        ctx.globalAlpha = 1.0;
         
         ctx.save();
         try {
@@ -1371,9 +1871,9 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                     if (img) {
                         try {
                             ctx.drawImage(img, e.x, e.y + hover, e.width, e.height);
-                        } catch (e) {
+                        } catch (err) {
                             // Secondary fallback inside try-catch
-                            ctx.fillStyle = e.isBoss ? '#f43f5e' : '#facc15';
+                            ctx.fillStyle = (e as any).isBoss ? '#f43f5e' : '#facc15';
                             ctx.beginPath();
                             ctx.arc(e.x + e.width / 2, e.y + e.height / 2 + hover, e.width / 3, 0, Math.PI * 2);
                             ctx.fill();
@@ -1446,25 +1946,37 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 ctx.save();
                 ctx.translate(tx, ty);
                 
-                // Outer HUD Ring
+                // Outer HUD Ring - MORE VISIBLE
                 ctx.beginPath();
-                ctx.arc(0, 0, 18, 0, Math.PI * 2);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-                ctx.lineWidth = 2;
+                ctx.arc(0, 0, 24, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 3;
                 ctx.stroke();
 
-                // Class-specific Feedback
-                ctx.font = '16px Arial';
+                // Dynamic spinning dashed outer ring
+                ctx.beginPath();
+                ctx.setLineDash([10, 10]);
+                ctx.arc(0, 0, 36, Date.now()/500, Math.PI*2 + Date.now()/500);
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.8)';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset dash
+
+                // Class-specific Feedback with Shadow
+                ctx.font = '24px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#000000';
                 
                 if (playerClass === 'cra') {
                     // Sniper Crosshair
                     ctx.beginPath();
-                    ctx.moveTo(-22, 0); ctx.lineTo(22, 0);
-                    ctx.moveTo(0, -22); ctx.lineTo(0, 22);
+                    ctx.moveTo(-35, 0); ctx.lineTo(35, 0);
+                    ctx.moveTo(0, -35); ctx.lineTo(0, 35);
                     ctx.strokeStyle = '#f97316';
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#f97316';
                     ctx.stroke();
                 } else if (playerClass === 'iop') {
                     ctx.fillText('⚔️', 0, 0);
@@ -1474,10 +1986,18 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                     ctx.fillText('⏳', 0, 0);
                 }
                 
-                // Core Aim Dot
+                // Core Aim Dot (Glowing Red/White)
+                ctx.beginPath();
+                ctx.arc(0, 0, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#ef4444';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ef4444';
+                ctx.fill();
+                
                 ctx.beginPath();
                 ctx.arc(0, 0, 3, 0, Math.PI * 2);
-                ctx.fillStyle = 'white';
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowBlur = 0;
                 ctx.fill();
                 
                 ctx.restore();
@@ -1507,9 +2027,10 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
 
         // Draw Player: Silhouette Detourée or Fallback Shape
         const px = engine.player.x + engine.player.width/2;
-            const py = engine.player.y + engine.player.height/2 + engine.player.recoil;
-            const breath = Math.sin(Date.now() / 400) * (3 + engine.player.recoil/2);
+        const py = engine.player.y + engine.player.height/2 + engine.player.recoil;
+        const breath = Math.sin(Date.now() / 400) * (3 + engine.player.recoil / 2);
 
+        if (!isSpectator && !engine.player.isDead) {
             ctx.save();
             try {
                 // Draw Dynamic Glow Backdrop
@@ -1530,15 +2051,15 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 ctx.shadowBlur = engine.player.isShielded ? 25 : 15;
                 ctx.shadowColor = engine.player.isShielded ? '#38bdf8' : 'rgba(255,255,255,0.4)';
                 ctx.setLineDash([]);
-            if (engine.images.player && engine.images.player.width > 1) {
-                try {
-                    ctx.drawImage(engine.images.player, -engine.player.width/2, -engine.player.height/2, engine.player.width, engine.player.height);
-                } catch (e) {
+                if (engine.images.player && engine.images.player.width > 1) {
+                    try {
+                        ctx.drawImage(engine.images.player, -engine.player.width/2, -engine.player.height/2, engine.player.width, engine.player.height);
+                    } catch (e) {
+                        drawPlayerFallback(ctx, engine.player.width, engine.player.height);
+                    }
+                } else {
                     drawPlayerFallback(ctx, engine.player.width, engine.player.height);
                 }
-            } else {
-                drawPlayerFallback(ctx, engine.player.width, engine.player.height);
-            }
                 ctx.shadowBlur = 0;
 
                 // DRAW MICRO-HITBOX (CORE)
@@ -1548,36 +2069,128 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 ctx.shadowBlur = 20; ctx.shadowColor = '#60a5fa';
                 ctx.fill();
                 ctx.shadowBlur = 0;
+
             } finally {
                 ctx.restore();
             }
-
-            // Self Trail (Expert Detail)
-            if (Date.now() % 3 === 0) {
-                 engine.particles.push({
-                    x: px, y: py,
-                    vx: (Math.random() - 0.5) * 2,
-                    vy: 2 + Math.random() * 2,
-                    life: 1, maxLife: 0.3,
-                    color: 'rgba(99, 102, 241, 0.4)', size: 10
-                });
+            
+            // --- HUGE HEALTH BAR BELOW AVATAR (Not affected by rotation) ---
+            if (!isSpectator) {
+                const barWidth = 80;
+                const barHeight = 8;
+                const hpPct = Math.max(0, engine.player.health / 100);
+                const barX = px - barWidth/2;
+                const barY = py + engine.player.height/2 + 15;
+                
+                // Dark Background with border
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 2;
+                ctx.fillRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4);
+                ctx.strokeRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4);
+                
+                // Color Fill
+                ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : (hpPct > 0.25 ? '#eab308' : '#ef4444');
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.fillRect(barX, barY, barWidth * hpPct, barHeight);
+                ctx.shadowBlur = 0;
+                
+                // Big Lives Indicator
+                ctx.fillStyle = '#ef4444';
+                for(let l = 0; l < engine.lives; l++) {
+                    ctx.beginPath();
+                    // Draw big hearts or distinct bright red circles
+                    ctx.arc(barX + l * 14 + 6, barY + 18, 5, 0, Math.PI * 2);
+                    ctx.shadowBlur = 5;
+                    ctx.shadowColor = '#ef4444';
+                    ctx.fill();
+                }
+                ctx.shadowBlur = 0;
             }
+        }
+        
+        // Draw Obstacles
+        engine.obstacles.forEach(obs => {
+            ctx.save();
+            ctx.translate(obs.x, obs.y);
+            ctx.rotate(obs.rotation);
 
-            // Movement Particles (Class Feedback)
-            const isMoving = engine.keys['a'] || engine.keys['ArrowLeft'] || engine.keys['q'] || engine.keys['d'] || engine.keys['ArrowRight'] || engine.keys['w'] || engine.keys['s'] || engine.keys['z'];
-            if (isMoving && Math.random() > 0.6) {
-                const pColor = playerClass === 'cra' ? '#bae6fd' : (playerClass === 'iop' ? '#4ade80' : '#fde047');
-                engine.particles.push({
-                    x: px + (Math.random() - 0.5) * 40,
-                    y: py + 30,
-                    vx: (Math.random() - 0.5) * 3,
-                    vy: 3 + Math.random() * 4,
-                    life: 1,
-                    maxLife: 0.4,
-                    color: pColor,
-                    size: 1 + Math.random() * 4
-                });
+            if (obs.type === 'asteroid') {
+                // Procedural Asteroid
+                ctx.beginPath();
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const r = obs.radius * (0.8 + Math.random() * 0.4);
+                    const tx = Math.cos(angle) * r;
+                    const ty = Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(tx, ty);
+                    else ctx.lineTo(tx, ty);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Craters
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.arc(-obs.radius/3, -obs.radius/4, obs.radius/4, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Mine
+                const blink = Math.sin(Date.now() / 150) > 0;
+                ctx.beginPath();
+                ctx.arc(0, 0, obs.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#18181b';
+                ctx.strokeStyle = blink ? '#ef4444' : '#7f1d1d';
+                ctx.lineWidth = 3;
+                ctx.fill();
+                ctx.stroke();
+                
+                // Core
+                ctx.beginPath();
+                ctx.arc(0, 0, obs.radius/2, 0, Math.PI * 2);
+                ctx.fillStyle = blink ? '#f87171' : '#450a0a';
+                ctx.fill();
+                
+                if (blink) {
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#ef4444';
+                    ctx.stroke();
+                }
             }
+            ctx.restore();
+        });
+
+        // Self Trail (Expert Detail)
+        if (!isSpectator && Date.now() % 3 === 0) {
+             engine.particles.push({
+                x: px, y: py,
+                vx: (Math.random() - 0.5) * 2,
+                vy: 2 + Math.random() * 2,
+                life: 1, maxLife: 0.3,
+                color: 'rgba(99, 102, 241, 0.4)', size: 10
+            });
+        }
+ 
+        // Movement Particles (Class Feedback)
+        const isMoving = !isSpectator && (engine.keys['a'] || engine.keys['ArrowLeft'] || engine.keys['q'] || engine.keys['d'] || engine.keys['ArrowRight'] || engine.keys['w'] || engine.keys['s'] || engine.keys['z']);
+        if (isMoving && Math.random() > 0.6) {
+            const pColor = playerClass === 'cra' ? '#bae6fd' : (playerClass === 'iop' ? '#4ade80' : '#fde047');
+            engine.particles.push({
+                x: px + (Math.random() - 0.5) * 40,
+                y: py + 30,
+                vx: (Math.random() - 0.5) * 3,
+                vy: 3 + Math.random() * 4,
+                life: 1,
+                maxLife: 0.4,
+                color: pColor,
+                size: 1 + Math.random() * 4
+            });
+        }
 
         // --- Draw HUD (Boss Health Bar) ---
         const activeBoss = engine.enemies.find(e => e.type.startsWith('boss_'));
@@ -1666,7 +2279,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             ctx.translate(p.x, p.y);
             
             if (p.fromPlayer) {
-                const angle = Math.atan2(p.vy || -1, p.vx || 0);
+                const angle = Math.atan2(p.vy !== undefined ? p.vy : -1, p.vx !== undefined ? p.vx : 0);
                 ctx.rotate(angle + Math.PI/2);
                 
                     if (p.color === 'laser_purple') {
@@ -1788,10 +2401,10 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                         ctx.moveTo(-8, -10); ctx.lineTo(0, -25); ctx.lineTo(8, -10); // Spear head
                         ctx.stroke();
                         
-                        // Fletching
+                        // Fletching (Tail)
                         ctx.lineWidth = 2;
                         ctx.beginPath();
-                        ctx.moveTo(-6, 20); ctx.lineTo(0, 10); ctx.lineTo(6, 20);
+                        ctx.moveTo(-6, 12); ctx.lineTo(0, 22); ctx.lineTo(6, 12);
                         ctx.stroke();
                     }
             } else {
@@ -1859,8 +2472,14 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             // Text shadow for readability
             ctx.shadowBlur = 4; ctx.shadowColor = 'black';
             
+            // Background box for readability
+            ctx.font = 'bold italic 14px "Inter", sans-serif';
+            const hw = ctx.measureText(log.text).width;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(8, -1, hw + 8, 18);
+
             // Text
-            ctx.font = 'black 10px italic "Inter", sans-serif';
+            ctx.shadowBlur = 4; ctx.shadowColor = 'black';
             ctx.textAlign = 'left';
             ctx.fillStyle = 'white';
             ctx.fillText(log.text, 12, 12);
@@ -1871,29 +2490,47 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
 
         // --- DRAW GHOST SOULS (MULTIPLAYER SPECTATOR) ---
         Object.values(engine.souls).forEach(soul => {
+            if (soul.isDead) return; // Hide dead allies for a cleaner look
             ctx.save();
-            ctx.globalAlpha = 0.4;
+            ctx.globalAlpha = 0.65; // High visibility ghostly
             
-            // Spectral Glow Trail
-            const grd = ctx.createRadialGradient(soul.x, soul.y, 2, soul.x, soul.y, 15);
-            grd.addColorStop(0, 'rgba(56, 189, 248, 0.8)');
-            grd.addColorStop(1, 'rgba(56, 189, 248, 0)');
-            ctx.fillStyle = grd;
-            ctx.beginPath();
-            ctx.arc(soul.x, soul.y, 20, 0, Math.PI * 2);
-            ctx.fill();
+            // Draw Specific Class Silhouette for the soul
+            const classKey = `class_${soul.class}`;
+            const soulImg = engine.images[classKey];
+            
+            if (soulImg) {
+                ctx.translate(soul.x, soul.y);
+                const pulse = 1 + Math.sin(Date.now() / 400) * 0.08;
+                ctx.scale(0.8 * pulse, 0.8 * pulse);
+                ctx.shadowBlur = 20; ctx.shadowColor = '#6366f1';
+                // Add spectral effect
+                ctx.filter = 'grayscale(80%) brightness(150%) contrast(120%)';
+                try {
+                    ctx.drawImage(soulImg, -35, -35, 70, 70);
+                } catch (e) {
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
+                }
+            } else {
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(soul.x, soul.y, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
 
-            // Name & Class Badge
+            // Name & Class Badge (Fixed position above)
+            ctx.save();
+            ctx.translate(soul.x, soul.y);
             ctx.globalAlpha = 1.0;
-            ctx.font = 'black 9px italic "Inter", sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.font = 'black 10px italic "Inter", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(soul.name.toUpperCase(), soul.x, soul.y - 15);
-            
-            // Score Label
+            const className = soul.class === 'cra' ? 'CRÂ' : (soul.class === 'iop' ? 'IOP' : (soul.class === 'enutrof' ? 'ENU' : 'XEL'));
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.fillText(`${soul.name.toUpperCase()} [${className}]`, 0, -45);
             ctx.fillStyle = '#fbbf24';
-            ctx.fillText(`${(soul as any).score?.toLocaleString() || 0}`, soul.x, soul.y + 15);
-            
+            ctx.font = 'bold 9px monospace';
+            ctx.fillText(`${soul.score?.toLocaleString() || 0} pts`, 0, 45);
             ctx.restore();
 
             // Spawn soul particles
@@ -1907,8 +2544,43 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             }
         });
 
+        // --- DRAW ROBOT BOT (MULTIPLAYER SYNC) ---
+        if (room.withBot) {
+            const bot = engine.bot;
+            if (bot) {
+                ctx.save();
+                ctx.translate(bot.x + 35, bot.y + 35);
+                ctx.rotate(bot.rotation);
+                
+                // Draw a sleek robotic drone
+                ctx.shadowBlur = 15; ctx.shadowColor = '#6366f1';
+                ctx.fillStyle = '#1e1b4b';
+                ctx.beginPath();
+                ctx.moveTo(0, -25); ctx.lineTo(-20, 15); ctx.lineTo(20, 15); ctx.closePath(); ctx.fill();
+                
+                // Glowing Core
+                ctx.fillStyle = '#6366f1';
+                ctx.beginPath(); ctx.arc(0, -5, 6, 0, Math.PI*2); ctx.fill();
+                
+                // Robot Eyes
+                ctx.fillStyle = '#818cf8';
+                ctx.fillRect(-10, 0, 4, 3); ctx.fillRect(6, 0, 4, 3);
+                
+                ctx.restore();
+                
+                // Tag
+                ctx.save();
+                ctx.translate(bot.x + 35, bot.y + 35);
+                ctx.font = 'black 8px italic "Inter", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(99,102,241,0.6)';
+                ctx.fillText("BOT ASSISTANT", 0, 35);
+                ctx.restore();
+            }
+        }
+
         // --- DRAW DAMAGE TOASTS ---
-        engine.damageToasts.forEach((t, i) => {
+        engine.damageToasts = engine.damageToasts.filter((t) => {
             ctx.save();
             ctx.globalAlpha = t.life;
             ctx.fillStyle = t.color;
@@ -1919,7 +2591,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             
             t.y -= 1; // Float up
             t.life -= 0.02;
-            if (t.life <= 0) engine.damageToasts.splice(i, 1);
+            return t.life > 0;
         });
 
         // Damage Flash UI
@@ -1938,6 +2610,7 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
             const engine = engineRef.current;
             setScore(engine.score);
             _setLives(engine.lives);
+            setHp(engine.player.health);
             setWave(engine.wave);
             setWeaponTime(engine.weaponTime);
         }, 100);
@@ -1971,39 +2644,132 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
         return () => cancelAnimationFrame(frameId);
     }, [gameState]);
 
-    // --- Ghost Multiplayer Sync ---
+    // --- Shop Auto-Close Timer ---
     useEffect(() => {
-        if (!room.roomId || gameState !== 'PLAYING') return;
+        if (gameState !== 'SHOP') return;
         
-        // Broadcast position every 150ms
-        const syncInterval = setInterval(() => {
-            const socket = (window as any).socket; 
-            if (socket) {
-                socket.emit("invader:pos:sync", {
-                    roomId: room.roomId,
-                    x: engineRef.current.player.x + engineRef.current.player.width/2,
-                    y: engineRef.current.player.y + engineRef.current.player.height/2,
-                    name: session?.user?.name || "Disciple",
-                    class: playerClass,
-                    score: engineRef.current.score,
-                    wave: engineRef.current.wave
+        const interval = setInterval(() => {
+            if (Date.now() > (engineRef.current.shopEndTime || 0)) {
+                setGameState('PLAYING');
+                engineRef.current.wave++;
+                spawnWave(engineRef.current.wave);
+            }
+        }, 1000);
+        
+        return () => clearInterval(interval);
+    }, [gameState, spawnWave]);
+
+    // --- WebSocket Connection ---
+    useEffect(() => {
+        const s = io(buildWsUrl(), {
+            path: "/socket.io/",
+            transports: ["websocket", "polling"],
+            query: { guildId }
+        });
+        setSocket(s);
+
+        s.on("connect", () => {
+            console.log("[Invader] Connected to WebSocket");
+            s.emit("invader:room:join", room.roomId);
+        });
+
+        s.on("invader:pos:update", (data: any) => {
+            if (data.userId === session?.user?.id) return;
+            
+            // Log joining if it's the first time we see this soul
+            if (!engineRef.current.souls[data.userId]) {
+                const name = data.name || "Un disciple";
+                engineRef.current.combatLog.unshift({
+                    id: Math.random(),
+                    text: `✨ ${name.toUpperCase()} REJOINT LE SECTEUR`,
+                    color: '#6366f1',
+                    life: 3.0
                 });
+            }
+            
+            engineRef.current.souls[data.userId] = data;
+        });
+
+        s.on("invader:bot:update", (data: any) => {
+            const isHost = session?.user?.id === room.hostId;
+            if (isHost) return; 
+            engineRef.current.bot = data;
+        });
+
+        s.on("invader:obstacles:update", (data: any) => {
+            const isHost = session?.user?.id === room.hostId;
+            if (isHost) return;
+            
+            const serverObs = data.obstacles || [];
+            engineRef.current.obstacles = serverObs.map((so: any) => {
+                const existing = engineRef.current.obstacles.find(o => o.id === so.id);
+                if (existing) {
+                    existing.x = so.x, existing.y = so.y, existing.rotation = so.rotation;
+                    return existing;
+                }
+                return { ...so, vx: 0, vy: 0, spin: 0, hp: 10, maxHp: 10 };
+            });
+        });
+
+        return () => { s.disconnect(); };
+    }, [room.roomId, guildId, session?.user?.id]);
+
+    // --- Ghost Multiplayer Sync loop ---
+    useEffect(() => {
+        if (!room.roomId || !socket || gameState !== 'PLAYING') return;
+        
+        const syncInterval = setInterval(() => {
+            const engine = engineRef.current;
+            const now = Date.now();
+            
+            // Sync loop (approx 10 FPS for network efficiency)
+            if (now - engine.syncTime > 100) {
+                engine.syncTime = now;
+                
+                // --- HOST MIGRATION LOGIC ---
+                // Original logic was tied strictly to room.hostId. 
+                // Now we check if we are the "eldest" active player.
+                const activePlayerIds = Object.keys(engine.souls).sort();
+                const myId = session?.user?.id || socket?.id;
+                const oldestId = activePlayerIds[0] || myId; 
+                const isEffectiveHost = myId === oldestId || myId === room.hostId;
+
+                if (socket && !isSpectator) {
+                    // Sync our position to others
+                    socket.emit("invader:pos:sync", {
+                        roomId: room.roomId,
+                        userId: session?.user?.id,
+                        x: engine.player.x,
+                        y: engine.player.y,
+                        class: playerClass,
+                        name: session?.user?.name,
+                        score: engine.score,
+                        isDead: engine.player.isDead
+                    });
+
+                    // Host-only sync for global state
+                    if (isEffectiveHost) {
+                        if (engine.bot) {
+                            socket.emit("invader:bot:sync", {
+                                roomId: room.roomId,
+                                ...engine.bot
+                            });
+                        }
+                        if (engine.obstacles.length > 0) {
+                            socket.emit("invader:obstacles:sync", {
+                                roomId: room.roomId,
+                                obstacles: engine.obstacles.map(o => ({
+                                    id: o.id, x: o.x, y: o.y, type: o.type, rotation: o.rotation, radius: o.radius
+                                }))
+                            });
+                        }
+                    }
+                }
             }
         }, 150);
 
-        const socket = (window as any).socket;
-        if (socket) {
-            socket.on("invader:pos:update", (data: any) => {
-                if (data.userId === session?.user?.id) return;
-                engineRef.current.souls[data.userId] = data;
-            });
-        }
-
-        return () => {
-            clearInterval(syncInterval);
-            if (socket) socket.off("invader:pos:update");
-        };
-    }, [gameState, room.roomId, playerClass]);
+        return () => clearInterval(syncInterval);
+    }, [gameState, room.roomId, socket, session?.user?.id, playerClass, room.hostId, room.withBot]);
 
     // --- Inputs ---
     useEffect(() => {
@@ -2086,9 +2852,23 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                         
                         <div className="flex items-center justify-between relative z-10">
                             <h2 className="text-white text-2xl font-black italic tracking-tighter leading-none uppercase drop-shadow-md">SIGIL-INVADER</h2>
-                            <button onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`} className="p-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all pointer-events-auto" title="Quitter">
-                                <LogOut size={16} strokeWidth={3} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
+                                    className={cn(
+                                        "p-2 rounded-xl border transition-all pointer-events-auto",
+                                        showVoiceOverlay 
+                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white" 
+                                            : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white"
+                                    )}
+                                    title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
+                                >
+                                    {showVoiceOverlay ? <Mic size={16} strokeWidth={3} /> : <MicOff size={16} strokeWidth={3} />}
+                                </button>
+                                <button onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`} className="p-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all pointer-events-auto" title="Quitter">
+                                    <LogOut size={16} strokeWidth={3} />
+                                </button>
+                            </div>
                         </div>
                         
                         {(!isSolo && (room.playerCount > 1 || !room.roomId.includes('solo'))) && (
@@ -2142,10 +2922,20 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                             <div className="space-y-1.5 pb-2">
                                 <div className="bg-indigo-500/10 rounded-xl p-2 border border-indigo-500/30 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-lg border border-indigo-500/50 overflow-hidden bg-black">
+                                        <div className="w-6 h-6 rounded-lg border border-indigo-500/50 overflow-hidden bg-black relative">
                                             <img src={session?.user?.image || `https://ui-avatars.com/api/?name=${session?.user?.name}`} className="w-full h-full object-cover" alt="" />
+                                            {voiceUserIds.includes(session?.user?.id as string) && (
+                                                <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
+                                                    <Mic size={10} className="text-emerald-500 fill-emerald-500" />
+                                                </div>
+                                            )}
                                         </div>
-                                        <span className="text-white text-[9px] font-black uppercase italic truncate max-w-[80px]">{session?.user?.name || "Opérateur"}</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-white text-[9px] font-black uppercase italic truncate max-w-[80px]">{session?.user?.name || "Opérateur"}</span>
+                                            {voiceUserIds.includes(session?.user?.id as string) && (
+                                                <Mic size={8} className="text-emerald-500" />
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="text-white text-xs font-black italic tabular-nums">{score.toLocaleString()}</div>
                                 </div>
@@ -2190,13 +2980,35 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
 
                         <div className="space-y-2 relative z-10">
                             <span className="text-white/40 text-[8px] font-black uppercase tracking-widest italic flex justify-end">Cœurs d'Intégrité</span>
-                            <div className="grid grid-cols-5 gap-1.5">
+                            <div className="grid grid-cols-5 gap-1.5 mb-3">
                                 {[...Array(5)].map((_, i) => (
                                     <div key={i} className={`aspect-square rounded-lg flex items-center justify-center border transition-all duration-700 ${i < lives ? 'bg-red-500/20 border-red-500/40 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-black/60 border-white/5 text-white/5'}`}>
                                         <Heart size={14} fill={i < lives ? "currentColor" : "none"} className={i < lives ? "animate-pulse" : ""} />
                                     </div>
                                 ))}
                             </div>
+                            <div className="pt-2">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="text-white/40 text-[8px] font-black uppercase tracking-widest italic">Bouclier Structurel Phaseur</span>
+                                    <span className="text-[10px] font-black italic tabular-nums" style={{ color: hp > 50 ? '#34d399' : (hp > 25 ? '#fbbf24' : '#ef4444') }}>{hp}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-black/60 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                                    <div className="h-full transition-all duration-300" style={{ width: `${hp}%`, backgroundColor: hp > 50 ? '#34d399' : (hp > 25 ? '#fbbf24' : '#ef4444') }} />
+                                </div>
+                            </div>
+
+                            {/* ARMOR BAR (ABRAKNYDE) */}
+                            {(engineRef.current.player.armor > 0) && (
+                                <div className="pt-2 animate-in fade-in slide-in-from-right-4">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-indigo-400 text-[8px] font-black uppercase tracking-widest italic">Écorce Abraknyde</span>
+                                        <span className="text-[10px] font-black italic tabular-nums text-indigo-300">{engineRef.current.player.armor} AR</span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden border border-indigo-500/20 shadow-inner">
+                                        <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${(engineRef.current.player.armor / 100) * 100}%` }} />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2 relative z-10 pt-2">
@@ -2232,15 +3044,43 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 {/* --- CENTER COLUMN (GAME CORE) --- */}
                 <div className="flex-1 flex flex-col relative overflow-hidden min-h-0 min-w-0 bg-transparent">
                     <div className="flex-1 relative bg-zinc-950 rounded-[2.5rem] border border-white/5 shadow-[0_0_80px_rgba(0,0,0,1)] overflow-hidden">
+                        {showVoiceOverlay && (
+                            <DiscordVoiceOverlay 
+                                users={voiceUsers} 
+                                guildId={guildId}
+                                gamePlayerIds={gameParticipantIds} 
+                                currentUserId={(session?.user as any)?.discordId}
+                            />
+                        )}
                         <canvas 
                             ref={canvasRef} 
                             width={1920} 
                             height={1080} 
-                            className="w-full h-full object-fill cursor-none select-none relative z-10" 
+                            className="w-full h-full object-fill cursor-none select-none relative z-10 [image-rendering:pixelated]" 
                         />
+
+                        {/* SPECTATOR OVERLAY */}
+                        {engineRef.current.player.isDead && (
+                            <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-1000">
+                                <div className="bg-zinc-950/90 border border-indigo-500/30 p-10 rounded-[4rem] text-center space-y-8 shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute -top-20 -left-20 w-40 h-40 bg-indigo-500/20 blur-[60px] rounded-full animate-pulse" />
+                                    <div className="space-y-3 relative z-10">
+                                        <div className="flex flex-col gap-3 relative z-10">
+                                            <button 
+                                                onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
+                                                className="px-10 py-5 bg-red-500/20 border border-red-500/50 text-red-500 font-black uppercase text-sm italic rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-xl shadow-red-500/5"
+                                            >
+                                                Quitter la Session
+                                            </button>
+                                            <p className="text-[10px] text-white/20 font-black uppercase italic animate-pulse">Mode spectateur actif...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         
-                        {/* REACT DEBUG OVERLAY */}
-                        <div className="absolute top-20 left-4 z-[99] bg-black/80 p-2 rounded border border-green-500/30 font-mono text-[10px] text-green-400 pointer-events-none">
+                        {/* REACT DEBUG OVERLAY (HIDDEN) */}
+                        <div className="hidden absolute top-20 left-4 z-[99] bg-black/80 p-2 rounded border border-green-500/30 font-mono text-[10px] text-green-400 pointer-events-none">
                             TICK: {engineRef.current.tick || 0}<br/>
                             MOBS: {engineRef.current.enemies.length}<br/>
                             PROJ: {engineRef.current.projectiles.length}<br/>
@@ -2249,8 +3089,25 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                         </div>
                     
                     <div className="absolute top-4 right-4 z-[90] flex flex-col gap-3">
-                            <button onClick={() => setGameState(gameState === 'PAUSED' ? 'PLAYING' : 'PAUSED')} className="p-4 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl text-white/40 hover:text-white transition-all cursor-pointer pointer-events-auto">
+                            <button 
+                                onClick={() => setShowVoiceOverlay(!showVoiceOverlay)} 
+                                className={cn(
+                                    "p-4 bg-black/60 backdrop-blur-md border rounded-2xl transition-all cursor-pointer pointer-events-auto shadow-xl group relative",
+                                    showVoiceOverlay ? "border-indigo-500/50 text-indigo-400" : "border-white/10 text-white/20 hover:text-white"
+                                )}
+                                title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
+                            >
+                                <Mic size={20} className={showVoiceOverlay ? "animate-pulse" : ""} />
+                                {!showVoiceOverlay && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-0.5 bg-red-500/50 rotate-45 rounded-full" />}
+                            </button>
+                            <button onClick={() => setIsMuted(!isMuted)} className="p-4 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl text-white/40 hover:text-indigo-400 transition-all cursor-pointer pointer-events-auto shadow-xl" title="Couper le son">
+                                {isMuted ? <Music size={20} className="text-red-400" /> : <Volume2 size={20} />}
+                            </button>
+                            <button onClick={() => setGameState(gameState === 'PAUSED' ? 'PLAYING' : 'PAUSED')} className="p-4 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl text-white/40 hover:text-white transition-all cursor-pointer pointer-events-auto shadow-xl" title="Pause">
                                 {gameState === 'PAUSED' ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
+                            </button>
+                            <button onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`} className="p-4 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl text-white/40 hover:text-red-400 transition-all cursor-pointer pointer-events-auto shadow-xl" title="Quitter la partie">
+                                <LogOut size={20} />
                             </button>
                         </div>
 
@@ -2281,6 +3138,14 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                     )}
 
                     {/* Announcements (Stays Centered) */}
+                    {isSpectator && (
+                        <div className="absolute top-6 left-6 z-[90]">
+                            <div className="bg-amber-500/10 backdrop-blur-xl border border-amber-500/40 py-2 px-4 rounded-xl flex items-center gap-3 shadow-2xl">
+                                <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping" />
+                                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest italic">MODE SPECTATEUR</span>
+                            </div>
+                        </div>
+                    )}
                     <AnimatePresence>
                         {announcement && gameState === 'PLAYING' && (
                             <motion.div 
@@ -2338,6 +3203,9 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
 
                         {gameState === 'CLASS_SELECT' && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center z-50 p-6 lg:p-12 pt-16 overflow-y-auto custom-scrollbar">
+                                <button onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`} className="absolute top-6 right-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 hover:bg-red-500 hover:text-white transition-all">
+                                    <LogOut size={20} />
+                                </button>
                                 <div className="text-center mb-8">
                                     <span className="text-indigo-500 font-black uppercase italic tracking-[0.5em] text-[10px] mb-2 block">Protocole Sigil</span>
                                     <h2 className="text-3xl md:text-5xl font-black text-white uppercase italic tracking-tighter">SÉLECTIONNEZ VOTRE INCARNATION</h2>
@@ -2402,50 +3270,83 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                                         { id: 'dmg',          name: 'Arsenal Offensif',  desc: '+20% Dégâts par tir',             cost: 800,  icon: '🔥' },
                                         { id: 'rate',         name: 'Cycle Rapide',      desc: '+25% Cadence de Tir',             cost: 1200, icon: '⚡' },
                                         { id: 'heal',         name: 'Réparation',        desc: '+1 Cœur d\'Intégrité',            cost: 2000, icon: '❤️' },
-                                        { id: 'speed',        name: 'Sprint Sigil',      desc: '+20% Vitesse de Déplacement',    cost: 1000, icon: '💨' },
+                                        { id: 'armor_abrak',  name: 'Écorce Abraknyde',  desc: '50 Armor (Songe)',               cost: 1500, icon: '🪵' },
+                                        { id: 'fury_sacri',   name: 'Fureur Sacrieur',   desc: 'Dégâts si HP bas (Songe)',        cost: 3000, icon: '🩸' },
+                                        { id: 'chance_eca',   name: 'Chance Écaflip',    desc: '25% Esquive (Songe)',            cost: 2500, icon: '🎲' },
+                                        { id: 'slow_xelor',   name: 'Poussière Xelor',   desc: 'Projectiles -15% Speed (Songe)',  cost: 2500, icon: '⏳' },
+                                        { id: 'pierce_cra',   name: 'Tir Perçant',       desc: 'Tirs traversant (Songe)',         cost: 4000, icon: '🏹' },
                                         { id: 'multi',        name: 'Salve Sigil',       desc: '+1 Projectile Permanent (max 8)', cost: 2500, icon: '🎯' },
                                         { id: 'shield_regen', name: 'Égide du Sigil',   desc: 'Bouclier Instantané 4 secondes', cost: 1500, icon: '🛡️' },
-                                    ].map(item => (
-                                        <button 
-                                            key={item.id} 
-                                            onClick={() => {
-                                                if (score >= item.cost) {
-                                                    const engine = engineRef.current;
-                                                    playSound('powerup');
-                                                    if (item.id === 'dmg') engine.player.permanentUpgrades.damage += 0.20;
-                                                    if (item.id === 'rate') engine.player.permanentUpgrades.fireRate += 0.25;
-                                                    if (item.id === 'heal') engine.lives = Math.min(5, engine.lives + 1);
-                                                    if (item.id === 'speed') engine.player.permanentUpgrades.speed = (engine.player.permanentUpgrades.speed || 1) + 0.2;
-                                                    if (item.id === 'multi') setWeapon(prev => ({ ...prev, projectileCount: Math.min(prev.projectileCount + 1, 8) }));
-                                                    if (item.id === 'shield_regen') { engine.player.isShielded = true; engine.player.shieldTime = 4000; }
-                                                    engine.score -= item.cost;
-                                                    setScore(engine.score);
-                                                    setGameState('PLAYING');
-                                                }
-                                            }}
-                                            disabled={score < item.cost}
-                                            className={`p-6 rounded-[2rem] border transition-all text-left group flex flex-col justify-between min-h-[150px] relative overflow-hidden ${score >= item.cost ? 'bg-white/5 border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/10' : 'bg-white/[0.02] border-white/5 opacity-50 grayscale'}`}
-                                        >
-                                            <div className="relative z-10">
-                                                <div className="text-4xl mb-6">{item.icon}</div>
-                                                <div className="text-white font-black text-xl italic mb-2 uppercase">{item.name}</div>
-                                                <p className="text-white/40 text-[10px] uppercase font-bold leading-relaxed">{item.desc}</p>
-                                            </div>
-                                            <div className="relative z-10 mt-8 flex items-end justify-between">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[10px] text-white/20 font-bold uppercase tracking-widest italic">Coût</span>
-                                                    <span className="text-white text-2xl font-black italic">{item.cost.toLocaleString()}</span>
+                                    ].map(baseItem => {
+                                        const purchases = (engineRef.current.purchaseHistory as any)[baseItem.id] || 0;
+                                        const cost = Math.floor(baseItem.cost * (1 + purchases * 0.5));
+                                        const isPerk = ['fury_sacri', 'chance_eca', 'slow_xelor', 'pierce_cra'].includes(baseItem.id);
+                                        const alreadyOwned = isPerk && purchases > 0;
+                                        const canAfford = score >= cost && !alreadyOwned;
+
+                                        return (
+                                            <button 
+                                                key={baseItem.id} 
+                                                onClick={() => {
+                                                    if (canAfford) {
+                                                        const engine = engineRef.current;
+                                                        playSound('powerup');
+                                                        engine.purchaseHistory[baseItem.id] = (engine.purchaseHistory[baseItem.id] || 0) + 1;
+                                                        if (baseItem.id === 'dmg') engine.player.permanentUpgrades.damage += 0.20;
+                                                        if (baseItem.id === 'rate') engine.player.permanentUpgrades.fireRate += 0.25;
+                                                        if (baseItem.id === 'heal') engine.lives = Math.min(5, engine.lives + 1);
+                                                        if (baseItem.id === 'armor_abrak') engine.player.armor = Math.min(100, engine.player.armor + 50);
+                                                        if (baseItem.id === 'fury_sacri') engine.player.perks.sacrierFury = true;
+                                                        if (baseItem.id === 'chance_eca') engine.player.perks.dodgeChance = 0.25;
+                                                        if (baseItem.id === 'slow_xelor') engine.player.perks.slowProjectiles = true;
+                                                        if (baseItem.id === 'pierce_cra') engine.player.perks.piercingShots = true;
+                                                        if (baseItem.id === 'speed') engine.player.permanentUpgrades.speed = (engine.player.permanentUpgrades.speed || 1) + 0.2;
+                                                        if (baseItem.id === 'multi') setWeapon(prev => ({ ...prev, projectileCount: Math.min(prev.projectileCount + 1, 8) }));
+                                                        if (baseItem.id === 'shield_regen') { engine.player.isShielded = true; engine.player.shieldTime = 4000; }
+                                                        engine.score -= cost;
+                                                        setScore(engine.score);
+                                                        setGameState('PLAYING');
+                                                    }
+                                                }}
+                                                disabled={!canAfford}
+                                                className={`p-6 rounded-[2rem] border transition-all text-left group flex flex-col justify-between min-h-[150px] relative overflow-hidden ${canAfford ? 'bg-white/5 border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/10' : 'bg-white/[0.02] border-white/5 opacity-50 grayscale'}`}
+                                            >
+                                                {alreadyOwned && (
+                                                    <div className="absolute inset-0 z-20 bg-indigo-500/20 backdrop-blur-sm flex items-center justify-center">
+                                                        <span className="text-white font-black italic uppercase text-xs tracking-widest border border-white/20 px-4 py-2 rounded-xl bg-black/40 shadow-2xl">DÉBLOQUÉ</span>
+                                                    </div>
+                                                )}
+                                                <div className="relative z-10">
+                                                    <div className="text-4xl mb-6">{baseItem.icon}</div>
+                                                    <div className="text-white font-black text-xl italic mb-2 uppercase">{baseItem.name}</div>
+                                                    <p className="text-white/40 text-[10px] uppercase font-bold leading-relaxed">{baseItem.desc}</p>
                                                 </div>
-                                                <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase italic ${score >= item.cost ? 'bg-indigo-500 text-white' : 'bg-white/5 text-white/20'}`}>
-                                                    {score >= item.cost ? 'Acquérir' : 'Insuffisant'}
-                                                </span>
-                                            </div>
-                                            <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </button>
-                                    ))}
+                                                <div className="relative z-10 mt-8 flex items-end justify-between">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] text-white/20 font-bold uppercase tracking-widest italic">Coût Actuel</span>
+                                                        <span className={`text-2xl font-black italic tabular-nums ${canAfford ? 'text-white' : 'text-red-500/50'}`}>{cost.toLocaleString()} 🪙</span>
+                                                    </div>
+                                                    <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase italic transition-all ${canAfford ? 'bg-indigo-500 text-white' : 'bg-white/5 text-white/20'}`}>
+                                                        {alreadyOwned ? 'Unique' : (score >= cost ? 'Acquérir' : 'Insuffisant')}
+                                                    </div>
+                                                </div>
+                                                <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </button>
+                                        );
+                                    })}
                                 </div>
 
-                                <button onClick={() => setGameState('PLAYING')} className="mt-12 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-[0.4em] italic transition-colors">Ignorer le Marché (Garder les Crédits)</button>
+                                <div className="mt-8 mb-4 px-6 py-3 bg-red-500/20 border border-red-500/40 rounded-2xl flex items-center justify-between w-full max-w-md">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+                                        <span className="text-red-400 font-black uppercase text-[10px] italic">Déploiement Imminent</span>
+                                    </div>
+                                    <span className="text-white text-2xl font-black italic tabular-nums">
+                                        {Math.max(0, Math.ceil(((engineRef.current.shopEndTime || 0) - Date.now()) / 1000))}s
+                                    </span>
+                                </div>
+
+                                <button onClick={() => { setGameState('PLAYING'); engineRef.current.wave++; spawnWave(engineRef.current.wave); }} className="mt-8 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-[0.4em] italic transition-colors">Ignorer le Marché (Prêt pour la Suite)</button>
                             </motion.div>
                         )}
                         
@@ -2459,7 +3360,10 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                                         <h2 className="text-7xl font-black text-white uppercase italic tracking-tighter leading-none">DÉFAITE</h2>
                                         <p className="text-red-400 font-black uppercase tracking-[0.3em] text-[10px] italic">Votre âme a été réclamée</p>
                                     </div>
-                                    <button onClick={resetGame} className="w-full py-6 rounded-3xl bg-white text-black font-black uppercase text-sm italic hover:bg-red-500 transition-all shadow-[0_20px_50px_rgba(0,0,0,0.5)]">Réessayer</button>
+                                    <div className="flex flex-col gap-3 w-full">
+                                        <button onClick={resetGame} className="w-full py-6 rounded-3xl bg-white text-black font-black uppercase text-sm italic hover:bg-red-500 hover:text-white transition-all shadow-[0_20px_50px_rgba(0,0,0,0.5)]">Réessayer</button>
+                                        <button onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`} className="w-full py-4 rounded-3xl bg-white/5 border border-white/10 text-white/40 hover:text-white font-black uppercase text-xs italic tracking-widest transition-all">Abandonner la Mission</button>
+                                    </div>
                                 </div>
                             </motion.div>
                         )}
@@ -2542,11 +3446,6 @@ export default function SigilInvaderGame({ room, guildId, isSolo }: { room: Inva
                 </div> {/* End center column wrapper */}
             </div> {/* End flex row container */}
 
-            {/* Mute button placed at the bottom outer container if needed */}
-            <button onClick={() => setIsMuted(!isMuted)} className="absolute bottom-4 right-4 z-50 p-4 border border-white/10 bg-black/60 backdrop-blur-md rounded-2xl flex items-center justify-center gap-3 text-white/40 hover:text-indigo-400 hover:border-indigo-500/40 transition-all">
-                {isMuted ? <Music size={18} strokeWidth={3} /> : <Volume2 size={18} strokeWidth={3} />}
-                <span className="text-[10px] font-black uppercase italic">{isMuted ? 'Muet' : 'Son On'}</span>
-            </button>
         </div>
     );
 }

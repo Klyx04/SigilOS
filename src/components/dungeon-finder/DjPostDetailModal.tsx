@@ -385,7 +385,7 @@ export function DjPostDetailModal({
                                         onClick={() => setIsEditModalOpen(true)}
                                         disabled={isPending}
                                     >
-                                        <Pencil className="w-4 h-4 mr-2" />
+                                        <Pencil className="w-4 h-4 mr-2" strokeWidth={2.5} />
                                         Modifier le groupe
                                     </Button>
                                 )}

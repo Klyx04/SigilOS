@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -35,7 +35,7 @@ export async function validateAchievementSubmission(
         if (!submission) return { success: false, error: "Demande introuvable" };
 
         // Check if user has permission to validate (using same permission as missions for now or a specific one)
-        const guard = await checkGuildPermission(session, submission.guild.discordGuildId, PERMISSIONS.MISSIONS_VALIDATE);
+        const guard = await checkGuildPermission(session, submission.guild.discordGuildId, PERMISSIONS.MISSIONS_OFFICER);
         if (!guard.allowed) return { success: false, error: "Permissions insuffisantes." };
 
         if (status === "VALIDATED") {
@@ -142,10 +142,13 @@ export async function getPendingAchievements(guildId: string) {
     await cleanupExpiredAchievements(guildId);
 
     try {
-        const guild = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guild = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
-        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL);
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.SYSTEM_CONFIG);
         if (!guard.allowed) return { success: false, error: "Accès refusé" };
 
         const submissions = await (db as any).achievementSubmission.findMany({
@@ -179,7 +182,10 @@ export async function cleanupExpiredAchievements(guildId: string) {
     const thresholdDate = new Date(Date.now() - EXPIRATION_MS);
 
     try {
-        const guild = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guild = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
         if (!guild) return;
 
         const expired = await (db as any).achievementSubmission.findMany({

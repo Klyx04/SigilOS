@@ -9,7 +9,6 @@ interface MiniGamesStatsProps {
 
 export default function MiniGamesStats({ miniGames }: MiniGamesStatsProps) {
     const records = [
-        { label: "👑 Sigil King", ...miniGames.records.sigilKing, color: "text-amber-400" },
         { label: "✍️ Skribbl", ...miniGames.records.skribbl, color: "text-pink-400" },
         { label: "🌍 Geoguesser", ...miniGames.records.geoguesser, color: "text-emerald-400" },
     ];

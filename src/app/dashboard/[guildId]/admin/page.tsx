@@ -21,6 +21,7 @@ import {
     ArrowRight,
     Bell,
     Activity,
+    ShieldAlert,
 } from "lucide-react";
 
 // ============================================================================
@@ -114,20 +115,20 @@ function buildSections(guildId: string): AdminSection[] {
                     accent: "cyan",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
                 },
+                {
+                    href: `/dashboard/${guildId}/admin/bounties`,
+                    icon: ShieldAlert,
+                    title: "Gestion des Avis",
+                    description: "Édition des mécaniques, doplons, zones et visuels des avis de recherche.",
+                    accent: "rose",
+                    permission: (u) => u.canManageMissions || u.isDiscordAdmin,
+                },
             ],
         },
         {
             label: "Supervision & Sécurité",
             icon: Shield,
             cards: [
-                {
-                    href: `/dashboard/${guildId}/admin/chat`,
-                    icon: Activity,
-                    title: "Modération Chat",
-                    description: "Historique et contrôle des messages échangés sur la plateforme.",
-                    accent: "violet",
-                    permission: (u) => u.canModerateChat,
-                },
                 {
                     href: `/dashboard/${guildId}/admin/logs`,
                     icon: FileText,

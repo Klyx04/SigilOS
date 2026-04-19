@@ -90,8 +90,13 @@ export function JobsGrid({
                 {!readOnly && (
                     <Dialog open={isOpen} onOpenChange={setIsOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleOpen}>
-                                <Pencil className="w-4 h-4" />
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-all duration-300" 
+                                onClick={handleOpen}
+                            >
+                                <Pencil className="w-4 h-4" strokeWidth={2.5} />
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800">
@@ -156,7 +161,7 @@ export function JobsGrid({
                                 <DialogClose asChild>
                                     <Button variant="ghost" className="text-zinc-400 hover:text-white">Annuler</Button>
                                 </DialogClose>
-                                <Button onClick={handleSave} className="px-8 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
+                                <Button onClick={handleSave} variant="sigil" className="px-8">
                                     Enregistrer
                                 </Button>
                             </div>
@@ -264,8 +269,8 @@ export function JobsGrid({
                             </div>
                             <Button
                                 onClick={handleSavePrices}
-                                size="sm"
-                                className="w-full h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                                variant="sigil"
+                                className="w-full h-8 text-[11px]"
                             >
                                 Sauvegarder les tarifs
                             </Button>

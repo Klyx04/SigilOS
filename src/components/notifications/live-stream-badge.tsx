@@ -61,7 +61,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
             <a
                 href={`/dashboard/${guildId}/ressources?tab=creators`}
                 className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600/10 border border-red-500/20 hover:bg-red-600/20 transition-all duration-300 group shadow-[0_0_15px_rgba(239,68,68,0.15)] hover:shadow-[0_0_20px_rgba(239,68,68,0.25)]",
+                    "flex h-8 items-center gap-2.5 px-3 rounded-full bg-red-600/10 border border-red-500/20 hover:bg-red-600/20 transition-all duration-300 group shadow-lg shadow-red-500/20 shrink-0",
                     "animate-in fade-in slide-in-from-top-2 duration-700"
                 )}
             >
@@ -71,24 +71,21 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 </span>
 
-                <Tv className="w-3.5 h-3.5 text-red-500" />
+                <Tv className="w-3 h-3 text-red-500" />
 
-                <span className="text-[10px] font-black uppercase tracking-widest text-white leading-none whitespace-nowrap">
+                <span className="text-[10px] font-black uppercase tracking-widest text-foreground leading-none whitespace-nowrap italic">
                     {text}
                 </span>
 
                 {/* Dismiss Button */}
                 <button
                     onClick={handleDismiss}
-                    className="ml-1 p-0.5 rounded-full hover:bg-black/20 text-white/30 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                    className="ml-1 p-0.5 rounded-full hover:bg-black/20 text-foreground/20 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                     title="Cacher pour 4h"
                 >
                     <X className="w-2.5 h-2.5" />
                 </button>
             </a>
-
-            {/* Ambient Glow */}
-            <div className="absolute -inset-1 bg-red-500/5 blur-lg rounded-full -z-10 group-hover:bg-red-500/10 transition-colors" />
         </div>
     );
 }

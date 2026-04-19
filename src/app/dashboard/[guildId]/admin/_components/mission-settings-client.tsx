@@ -60,8 +60,8 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 setManagementRoleId(configRes.data.missionManagementNotifyRoleId || null);
             }
 
-            if (rolesRes.success && rolesRes.data) {
-                setRoles(rolesRes.data);
+            if (rolesRes.success && rolesRes.roles) {
+                setRoles(rolesRes.roles);
             }
 
             setIsLoading(false);

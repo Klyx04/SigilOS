@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { sendGuildatonWeeklyReport, sendGuildatonAdminReminder } from "@/server/discord";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 export const maxDuration = 300; // 5 mins max pour le cron
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
     try {
-        // Optionnel: protéger cette route par un token
-        const { searchParams } = new URL(req.url);
-        const token = searchParams.get('token');
-        if (token !== process.env.CRON_SECRET && process.env.NODE_ENV === 'production') {
+        // [AUDIT 2026] CRIT-02: Use header-based auth instead of URL tokens (querystring leaks)
+        if (!verifyCronSecret(req)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const { searchParams } = new URL(req.url);
         const forceGuild = searchParams.get('forceGuild');
 
         const guilds = await db.guildConfig.findMany({
@@ -66,9 +66,9 @@ export async function GET(req: Request) {
                     const pastValue = userPastValueMap.get(record.discordId) || 0;
                     const delta = record.value - pastValue;
                     if (delta < guild.guildatonWeeklyQuota) {
-                        slackers.push({ discordId: record.discordId, username: record.username, delta });
+                        slackers.push({ discordId: record.discordId, username: record.username || "Inconnu", delta });
                     } else {
-                        masters.push({ discordId: record.discordId, username: record.username, delta });
+                        masters.push({ discordId: record.discordId, username: record.username || "Inconnu", delta });
                     }
                 }
 

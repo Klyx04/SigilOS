@@ -73,7 +73,6 @@ interface MiniGameGlobalStats {
     totalGamesPlayed: number;
     totalPointsRanked: number;
     records: {
-        sigilKing: { name: string; score: number };
         skribbl: { name: string; score: number };
         geoguesser: { name: string; score: number };
     };
@@ -284,7 +283,6 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { discordMessageCountWeekly: "desc" },
                 take: 100, // For aggregation + top talkers
             }),
-            db.sigilKingScore.count({ where: { guildId } }),
             db.skribblScore.count({ where: { guildId } }),
             db.geoguesserScore.count({ where: { guildId } }),
         ]);
@@ -303,9 +301,8 @@ export async function getGuildStats(guildId: string): Promise<{
         ] = resultsBatch2 as any[];
 
         const socialProfiles = resultsBatch2[10] as any[];
-        const skCount = resultsBatch2[11] as number;
-        const skribblCount = resultsBatch2[12] as number;
-        const geoCount = resultsBatch2[13] as number;
+        const skribblCount = resultsBatch2[11] as number;
+        const geoCount = resultsBatch2[12] as number;
 
         // --- BATCH 3: Services, Kama & Top Achievers ---
         // NOTE: missionsWithValidatedSubs replaces the old validatedMissionsWithRewards findMany.
@@ -379,7 +376,6 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { createdAt: "asc" },
             }),
             // NEW: Mini Game Records
-            db.sigilKingRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
             db.skribblRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
             db.geoguesserRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
             // NEW: Quest Stats Batching
@@ -429,9 +425,8 @@ export async function getGuildStats(guildId: string): Promise<{
 
         const performanceData = resultsBatch3[10] as { createdAt: Date, updatedAt: Date }[];
         const retentionData = resultsBatch3[11] as { createdAt: Date, archivedAt: Date | null }[];
-        const recordSK = resultsBatch3[12] as any;
-        const recordSkribbl = resultsBatch3[13] as any;
-        const recordGeo = resultsBatch3[14] as any;
+        const recordSkribbl = resultsBatch3[12] as any;
+        const recordGeo = resultsBatch3[13] as any;
 
         // ===== PRE-PROCESS IN-MEMORY (no DB calls) =====
 
@@ -661,10 +656,9 @@ export async function getGuildStats(guildId: string): Promise<{
                 })),
             },
             miniGames: {
-                totalGamesPlayed: skCount + skribblCount + geoCount,
+                totalGamesPlayed: skribblCount + geoCount,
                 totalPointsRanked: 0, // Simplified for now
                 records: {
-                    sigilKing: { name: recordSK?.userName || "N/A", score: recordSK?.bestScore || 0 },
                     skribbl: { name: recordSkribbl?.userName || "N/A", score: recordSkribbl?.bestScore || 0 },
                     geoguesser: { name: recordGeo?.userName || "N/A", score: recordGeo?.bestScore || 0 },
                 }
@@ -684,25 +678,25 @@ export async function getGuildStats(guildId: string): Promise<{
                     : 365, // Default/Placeholder
             },
             quests: {
-                ownership: dofusTemplates.map(t => ({
+                ownership: dofusTemplates.map((t: any) => ({
                     slug: t.slug,
                     name: t.name,
-                    count: (resultsBatch3[15] as any[]).find(o => o.dofusId === t.id)?._count || 0,
+                    count: (resultsBatch3[14] as any[]).find((o: any) => o.dofusId === t.id)?._count?._all || 0,
                     total: activeMembers
-                })).sort((a, b) => b.count - a.count),
+                })).sort((a: any, b: any) => b.count - a.count),
                 topProgressors: await resolveLeaderboard(
-                    (resultsBatch3[18] as any[]).map(p => [p.profileId, Math.round(p._avg.completionPercent || 0)] as [string, number]),
+                    (resultsBatch3[17] as any[]).map((p: any) => [p.profileId, Math.round(p._avg.completionPercent || 0)] as [string, number]),
                     internalGuildId,
                     "profileId"
                 ),
-                bottlenecks: (resultsBatch3[16] as any[]).map(q => ({
-                    questName: questTemplates.find(t => t.id === q.questId)?.name || "Quête inconnue",
-                    count: q._count
+                bottlenecks: (resultsBatch3[15] as any[]).map((q: any) => ({
+                    questName: questTemplates.find((t: any) => t.id === q.questId)?.name || "Quête inconnue",
+                    count: q._count?._all || q._count
                 })),
-                guildCompletionRate: (resultsBatch3[18] as any[]).length > 0
-                    ? Math.round((resultsBatch3[18] as any[]).reduce((acc: number, p: any) => acc + (p._avg.completionPercent || 0), 0) / (resultsBatch3[18] as any[]).length)
+                guildCompletionRate: (resultsBatch3[17] as any[]).length > 0
+                    ? Math.round((resultsBatch3[17] as any[]).reduce((acc: number, p: any) => acc + (p._avg.completionPercent || 0), 0) / (resultsBatch3[17] as any[]).length)
                     : 0,
-                recentDofus: (resultsBatch3[17] as any[]).map(rd => ({
+                recentDofus: (resultsBatch3[16] as any[]).map((rd: any) => ({
                     name: rd.dofus.name,
                     username: getName(rd.profile),
                     obtainedAt: rd.obtainedAt

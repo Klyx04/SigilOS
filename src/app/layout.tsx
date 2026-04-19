@@ -99,6 +99,7 @@ export const viewport: Viewport = {
 import { auth } from "@/auth";
 import { SupportOrb } from "@/components/shared/support-orb";
 import { db } from "@/lib/prisma";
+import { headers } from "next/headers";
 
 export default async function RootLayout({
   children,
@@ -109,9 +110,13 @@ export default async function RootLayout({
   const platformConfig = await db.platformConfig.findFirst({ select: { donationsEnabled: true } }).catch(() => null);
   const donationsEnabled = platformConfig?.donationsEnabled ?? true; // default true si pas de config
 
+  // [AUDIT 2026] Retrieve nonce from middleware for CSP-compliant script injection
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') ?? '';
+
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} ${cinzel.variable} ${rajdhani.variable} antialiased`}>
+      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} ${cinzel.variable} ${rajdhani.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

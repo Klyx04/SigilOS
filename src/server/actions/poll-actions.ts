@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -255,7 +255,7 @@ export async function getPolls(
     filters?: { status?: PollStatus; category?: PollCategory }
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.POLLS_VIEW);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -296,7 +296,7 @@ export async function getPoll(
     pollId: string
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.POLLS_VIEW);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -575,7 +575,7 @@ export async function castVote(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.POLLS_VIEW);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -820,7 +820,7 @@ export async function deletePoll(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.ADMIN_FULL);
+    const guard = await checkGuildPermission(session, discordGuildId, PERMISSIONS.SYSTEM_CONFIG);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {

@@ -55,7 +55,7 @@ export default async function GuildSelectorPage() {
                 clientId={clientId}
             />
 
-            <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-24 overflow-y-auto custom-scrollbar">
+            <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 pt-24 pb-24">
 
                 {isEmpty ? (
                     <NoGuildMessage rateLimited={rateLimited} />

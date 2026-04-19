@@ -62,22 +62,35 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     });
 
     // 3. Fetch Kralamoure Events (if user has a server configured)
-    let kralaPromise: Promise<any[]> = Promise.resolve([]);
+    let kralaEvents: any[] = [];
     if (userProfile?.metamobServerId) {
-        // Use User's key first
+        const cacheKey = `krala:events:${userProfile.metamobServerId}`;
         const apiKey = userProfile.metamobApiKey;
-
-        kralaPromise = getKralamoureEvents({
-            serverId: userProfile.metamobServerId,
-            from: now.toISOString(),
-            guildApiKey: apiKey
-        }).catch(err => {
+        
+        try {
+            // Check Redis cache first (short TTL: 60s)
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                kralaEvents = JSON.parse(cached);
+            } else {
+                const results = await getKralamoureEvents({
+                    serverId: userProfile.metamobServerId,
+                    from: now.toISOString(),
+                    guildApiKey: apiKey
+                });
+                
+                if (results) {
+                    kralaEvents = results;
+                    await redis.set(cacheKey, JSON.stringify(kralaEvents), "EX", 60).catch(() => {});
+                }
+            }
+        } catch (err) {
             console.error("[getUpcomingGuildEvents] Failed to fetch Kralamoure events:", err);
-            return [];
-        });
+            kralaEvents = [];
+        }
     }
 
-    const [dbEvents, kralaEvents] = await Promise.all([dbEventsPromise, kralaPromise]);
+    const dbEvents = await dbEventsPromise;
 
     // 4. Normalize & Merge
     const normalizedDbEvents: UpcomingEvent[] = dbEvents.map(e => {
@@ -102,11 +115,10 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     }));
 
     // 6. Fetch Active Game Sessions from Redis
-    const [skribblRooms, garticRooms, geoRooms, skRooms] = await Promise.all([
+    const [skribblRooms, garticRooms, geoRooms] = await Promise.all([
         redis.get(`guild:${guildId}:skribbl:rooms`),
         redis.get(`guild:${guildId}:gartic:rooms`),
         redis.get(`guild:${guildId}:geoguesser:rooms`),
-        redis.get(`guild:${guildId}:sigilking:rooms`)
     ]);
 
     const sessions: UpcomingEvent[] = [];
@@ -118,7 +130,6 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
             case 'SKRIBBL': return `🎨 Skribbl (${hostName})`;
             case 'GARTIC': return `📱 Phone (${hostName})`;
             case 'GEOGUESSER': return `🌍 Guesser (${hostName})`;
-            case 'KING': return `👑 King (${hostName})`;
             default: return `🎮 ${type} (${hostName})`;
         }
     };
@@ -148,10 +159,9 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     parseGameRooms(skribblRooms, 'SKRIBBL');
     parseGameRooms(garticRooms, 'GARTIC');
     parseGameRooms(geoRooms, 'GEOGUESSER');
-    parseGameRooms(skRooms, 'KING');
 
     // 7. Combine, Sort, and Limit (Prioritize live games)
-    const allEvents = [...sessions, ...normalizedDbEvents, ...normalizedKralaEvents].sort((a, b) => {
+    const allEvents = [...sessions, ...normalizedDbEvents].sort((a, b) => {
         // Priority to live games
         const aLive = (a.metadata as any)?.isLive;
         const bLive = (b.metadata as any)?.isLive;

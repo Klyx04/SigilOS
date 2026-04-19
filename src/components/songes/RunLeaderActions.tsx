@@ -18,10 +18,11 @@ import { toast } from "sonner";
 interface RunLeaderActionsProps {
     guildId: string;
     runId: string;
+    isDiscordConfigured?: boolean;
     variant?: "full" | "minimal";
 }
 
-export function RunLeaderActions({ guildId, runId, variant = "full" }: RunLeaderActionsProps) {
+export function RunLeaderActions({ guildId, runId, isDiscordConfigured = false, variant = "full" }: RunLeaderActionsProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("On se prépare pour la run !");
@@ -76,38 +77,15 @@ export function RunLeaderActions({ guildId, runId, variant = "full" }: RunLeader
                     <Bell className="h-4 w-4" />
                 </Button>
 
-                <Dialog open={isModalOpen} onOpenChange={(open) => setIsModalOpen(open)}>
-                    <DialogContent className="sm:max-w-[425px] bg-[#0a0a0c] border-white/10 text-white" onClick={(e) => e.stopPropagation()}>
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2 text-purple-400">
-                                <Bell className="w-5 h-5" />
-                                Rappel rapide
-                            </DialogTitle>
-                            <DialogDescription className="text-muted-foreground text-xs">
-                                Ping Discord + Notif Dashboard (15 min de cooldown).
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="grid gap-4 py-4">
-                            <Textarea
-                                placeholder="Message de rappel..."
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                className="bg-white/5 border-white/10 min-h-[80px]"
-                            />
-                        </div>
-
-                        <DialogFooter>
-                            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Annuler</Button>
-                            <Button onClick={handleSendReminder} disabled={loading} className="bg-purple-600">
-                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Envoyer"}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                {renderModal()}
             </>
         );
     }
+
+    // Only hide if Discord is NOT configured AND we are in full variant (to avoid empty space)? 
+    // Actually, following "Zero Config, Zero Button" policy, but we might want to keep internal notices.
+    // DECISION: Show button but add alert inside modal + disclaimer in text.
+    // if (!isDiscordConfigured) return null;
 
     return (
         <>
@@ -119,7 +97,9 @@ export function RunLeaderActions({ guildId, runId, variant = "full" }: RunLeader
                     </div>
 
                     <p className="text-xs text-muted-foreground mb-1">
-                        Envoyez un ping Discord et une notification dashboard à tous les membres de l'équipe.
+                        {isDiscordConfigured 
+                            ? "Envoyez un ping Discord et une notification dashboard à tous les membres de l'équipe."
+                            : "Envoyez une notification dashboard à tous les membres de l'équipe."}
                     </p>
 
                     <Button
@@ -133,17 +113,35 @@ export function RunLeaderActions({ guildId, runId, variant = "full" }: RunLeader
                 </div>
             </GlassPanel>
 
+            {renderModal()}
+        </>
+    );
+
+    function renderModal() {
+        return (
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="sm:max-w-[425px] bg-[#0a0a0c] border-white/10 text-white">
+                <DialogContent className="sm:max-w-[425px] bg-[#0a0a0c] border-white/10 text-white" onClick={(e) => e.stopPropagation()}>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-purple-400">
                             <Bell className="w-5 h-5" />
                             Planifier un rappel
                         </DialogTitle>
                         <DialogDescription className="text-muted-foreground text-xs">
-                            Ceci enverra un ping Discord à tous les membres et une notification interne SigilOS.
+                            {isDiscordConfigured 
+                                ? "Ceci enverra un ping Discord à tous les membres et une notification interne SigilOS."
+                                : "Ceci enverra une notification interne SigilOS aux membres."}
                         </DialogDescription>
                     </DialogHeader>
+
+                    {!isDiscordConfigured && (
+                        <div className="mx-0 mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
+                            <Bell className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="text-[10px] text-amber-200/80 leading-relaxed font-medium">
+                                <span className="text-amber-500 font-bold block mb-0.5">Configuration Discord absente</span>
+                                Le salon de notification des Songes n&apos;est pas configuré. Seule la notification interne SigilOS sera envoyée.
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
@@ -172,7 +170,7 @@ export function RunLeaderActions({ guildId, runId, variant = "full" }: RunLeader
                                             {date ? format(date, "PPP", { locale: fr }) : <span>Choisir</span>}
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-black border-white/10">
+                                    <PopoverContent className="w-auto p-0 bg-black border-white/10 z-[100]">
                                         <Calendar
                                             mode="single"
                                             selected={date}
@@ -221,6 +219,6 @@ export function RunLeaderActions({ guildId, runId, variant = "full" }: RunLeader
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </>
-    );
+        );
+    }
 }

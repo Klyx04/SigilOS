@@ -6,10 +6,9 @@
   "recommendedLevel": 200,
   "description": "Obtenir le Dofoozbz en rétablissant l'équilibre dans la dimension Osavora.",
   "dofusItemId": 31794,
-  "iconId": 31794,
+  "iconId": 23039,
   "imageUrl": "https://api.dofusdb.fr/img/items/23039.png",
-  "compiledAt": "2026-04-10T15:45:50.006Z",
-  "compilerVersion": "3.0",
+  "compiledAt": "2026-04-13T16:32:47.941Z",
   "chains": [
     {
       "sectionName": "Préréquis - Voyageurs",
@@ -19,14 +18,13 @@
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
           "name": "Voyage, voyage",
           "dofusdbId": 1484,
           "level": 100,
           "zone": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
-          "npcName": "Colonel Oneuil",
+          "npcName": null,
           "npcSubArea": "Tour des Voyageurs Dimensionnels - Hall des Voyageurs",
           "coords": {
             "x": -22,
@@ -34,66 +32,27 @@
             "worldId": 1
           },
           "isDungeon": false,
-          "itemsRequired": [
-            {
-              "id": 31480,
-              "name": "Lait nourricier",
-              "amount": 3,
-              "img": "https://api.dofusdb.fr/img/items/156021.png"
-            },
-            {
-              "id": 31481,
-              "name": "Sang brûlant",
-              "amount": 3,
-              "img": "https://api.dofusdb.fr/img/items/156022.png"
-            },
-            {
-              "id": 31482,
-              "name": "Lymphe régénérante",
-              "amount": 3,
-              "img": "https://api.dofusdb.fr/img/items/156023.png"
-            },
-            {
-              "id": 32075,
-              "name": "Pelage de la Déchireuse",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/54720.png"
-            },
-            {
-              "id": 31988,
-              "name": "Fourrure de Sekismeth",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/54663.png"
-            },
-            {
-              "id": 31989,
-              "name": "Crinière de Lhéoden",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/54712.png"
-            }
-          ],
+          "itemsRequired": [],
           "dungeonsRequired": [],
-          "externalRef": null,
           "objectives": [
             "Découvrir la carte : Hall des Voyageurs",
-            "Aller voir Colonel Oneuil",
-            "Aller voir L'Explorancienne",
-            "Retourner voir Colonel Oneuil",
-            "Aller voir Collecteur Hystik",
+            "Aller voir {npc,2337}",
+            "Aller voir {npc,2335}",
+            "Retourner voir {npc,2337}",
+            "Aller voir {npc,2349}",
             "Découvrir la carte : Salle de localisation",
-            "Aller voir Gladis"
+            "Aller voir {npc,2340}"
           ],
           "stepOrder": 0,
           "isSynergyCandidate": false,
-          "requirements": [],
-          "notes": null
+          "requirements": []
         },
         {
           "name": "Vu du ciel",
           "dofusdbId": 1641,
           "level": 6,
           "zone": "Dimensions",
-          "npcName": "Matu Vuh",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": -1,
@@ -103,13 +62,12 @@
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
-          "externalRef": null,
           "objectives": [
-            "Aller voir Matu Vuh",
+            "Aller voir {npc,2887}",
             "Utiliser la longue-vue de Matu Vuh",
-            "Aller voir Galilea",
+            "Aller voir {npc,2906}",
             "Utiliser la longue-vue de Galilea",
-            "Retourner voir Ternette Nhin"
+            "Retourner voir {npc,2905}"
           ],
           "stepOrder": 1,
           "isSynergyCandidate": false,
@@ -118,8 +76,7 @@
               "type": "QUEST",
               "dofusdbId": 1484
             }
-          ],
-          "notes": null
+          ]
         }
       ]
     },
@@ -128,17 +85,16 @@
       "sectionType": "MAIN_CHAIN",
       "zone": "Osavora",
       "description": "Série principale pour le succès Question d'équilibre.",
-      "isSynergyCandidate": false,
+      "isSynergyCandidate": true,
       "chainOrder": 1,
       "requires": [],
-      "dungeons": [],
       "entries": [
         {
           "name": "Ça barde là-haut",
           "dofusdbId": 2515,
           "level": 170,
           "zone": "Statue d'Osamodas",
-          "npcName": "Prêtresse d'Osamodas",
+          "npcName": null,
           "npcSubArea": "Statue d'Osamodas",
           "coords": {
             "x": 1,
@@ -150,44 +106,42 @@
             {
               "id": 31480,
               "name": "Lait nourricier",
-              "amount": 1,
+              "amount": 3,
               "img": "https://api.dofusdb.fr/img/items/156021.png"
             },
             {
               "id": 31481,
               "name": "Sang brûlant",
-              "amount": 1,
+              "amount": 3,
               "img": "https://api.dofusdb.fr/img/items/156022.png"
             },
             {
               "id": 31482,
               "name": "Lymphe régénérante",
-              "amount": 1,
+              "amount": 3,
               "img": "https://api.dofusdb.fr/img/items/156023.png"
             }
           ],
           "dungeonsRequired": [],
-          "externalRef": null,
           "objectives": [
             "Parler au Capitaine Blair après être entré dans la dimension Osavora",
-            "Aller voir Prêtresse d'Osamodas",
+            "Aller voir {npc,7641}",
             "Rapporter à la prêtresse : x3 {{item,31480::[Lait nourricier]}} avant la fin de la saison de la Naissance",
             "Rapporter à la prêtresse : x3 {{item,31481::[Sang brûlant]}} avant la fin de la saison de la Chasse",
             "Rapporter à la prêtresse : x3 {{item,31482::[Lymphe régénérante]}} avant la fin de la saison du Repos",
             "Écouter la voix du dieu Osamodas",
-            "Retourner voir Prêtresse d'Osamodas"
+            "Retourner voir {npc,7641}"
           ],
           "stepOrder": 0,
-          "isSynergyCandidate": false,
-          "requirements": [],
-          "notes": null
+          "isSynergyCandidate": true,
+          "requirements": []
         },
         {
           "name": "Un problème de taille",
           "dofusdbId": 2520,
           "level": 170,
           "zone": "Osavora",
-          "npcName": "Caporal Gobastol",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": 0,
@@ -197,7 +151,6 @@
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
-          "externalRef": null,
           "objectives": [
             "Tester le réducteur dimensionnel devant Gobastol",
             "Se débarrasser de l'eidolon résiduel et retourner voir Gobastol",
@@ -208,27 +161,25 @@
             "Attraper un Toubibz dans l'Osavane et le ramener à Gobastol",
             "Attraper un Kamikabz dans l'Osavane et le ramener à Gobastol",
             "Attraper un Quadrabz dans l'Osavane et le ramener à Gobastol",
-            "Aller voir Caporal Gobastol",
+            "Aller voir {npc,7659}",
             "Examiner le compilateur défaillant",
-            "Réparer le compilateur à micro-ondes",
-            "Aller voir Caporal Gobastol"
+            "Réparer le compilateur à micro-ondes"
           ],
           "stepOrder": 1,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 2515
             }
-          ],
-          "notes": null
+          ]
         },
         {
           "name": "Des petites bêtes qui font bzzzbz",
           "dofusdbId": 2521,
           "level": 170,
           "zone": "Larvzrzzbz",
-          "npcName": "Quadrabz curieux",
+          "npcName": null,
           "npcSubArea": "Larvzrzzbz",
           "coords": {
             "x": 25,
@@ -238,7 +189,6 @@
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
-          "externalRef": null,
           "objectives": [
             "Découvrir la carte : Larvzrzzbz",
             "Assister à une courte discussion entre deux Toubibz",
@@ -249,104 +199,23 @@
             "Découvrir la carte : Boorzzbz zozzfbz",
             "Parler aux Kabombz pour anticiper le cours de la boorzzbz sans se contredire",
             "Écarter la menace du Krakhbz Boorzzzrbz",
-            "Retourner voir Quadrabz curieux"
+            "Retourner voir {npc,7666}"
           ],
           "stepOrder": 2,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 2520
             }
-          ],
-          "notes": null
-        },
-        {
-          "name": "Têtes de ponte",
-          "dofusdbId": 2522,
-          "level": 170,
-          "zone": "Antzchambrzbz",
-          "npcName": "Gros Balebz",
-          "npcSubArea": "Antzchambrzbz",
-          "coords": {
-            "x": 24,
-            "y": 23,
-            "worldId": 34
-          },
-          "isDungeon": true,
-          "itemsRequired": [],
-          "dungeonsRequired": [
-            {
-              "id": 163,
-              "name": "Poste de contrôle du Supervizœuf",
-              "level": null,
-              "bossName": "Supervizœuf",
-              "img": "https://api.dofusdb.fr/img/monsters/2507.png",
-              "idoleName": null
-            }
-          ],
-          "externalRef": null,
-          "objectives": [
-            "Parler au gros Balebz pour tenter d'obtenir une audience avec les reines",
-            "Vaincre x1 {monster,8052} en un seul combat",
-            "Retourner voir Gros Balebz",
-            "Négocier avec les trois reines des Kabombz"
-          ],
-          "stepOrder": 3,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2521
-            }
-          ],
-          "notes": null
-        },
-        {
-          "name": "Dérive insectaire",
-          "dofusdbId": 2523,
-          "level": 170,
-          "zone": "Statue d'Osamodas",
-          "npcName": "Oktovate sufokien",
-          "npcSubArea": "Statue d'Osamodas",
-          "coords": {
-            "x": 23,
-            "y": 27,
-            "worldId": 34
-          },
-          "isDungeon": false,
-          "itemsRequired": [],
-          "dungeonsRequired": [],
-          "externalRef": null,
-          "objectives": [
-            "Passer inaperçu pour surprendre le propriétaire de la machine",
-            "Interroger la technomage",
-            "Vaincre x1 {monster,8068} en un seul combat",
-            "Montrer le symbole religieux à la prêtresse d'Osamodas",
-            "Aller voir Oktovate sufokien",
-            "Retourner voir Caporal Gobastol",
-            "Observer ce qui se passe dans la toorbz de la Réserve Touffue",
-            "Suivre les Kabombz influencés par la machine",
-            "Disperser les Kabombz agglutinés près du lac",
-            "Plonger dans le lac pour découvrir ce que cache la secte",
-            "Détruire l'idole technomagique de la secte"
-          ],
-          "stepOrder": 4,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2522
-            }
-          ],
-          "notes": null
+          ]
         },
         {
           "name": "Le vol des bourdons",
           "dofusdbId": 2516,
           "level": 170,
           "zone": "Chambrzbz rzznzbz",
-          "npcName": "Quadrabz curieux",
+          "npcName": null,
           "npcSubArea": "Chambrzbz rzznzbz",
           "coords": {
             "x": 23,
@@ -359,13 +228,10 @@
             {
               "id": 163,
               "name": "Poste de contrôle du Supervizœuf",
-              "level": null,
-              "bossName": "Supervizœuf",
-              "img": "https://api.dofusdb.fr/img/monsters/2507.png",
-              "idoleName": null
+              "bossId": 8052,
+              "img": "https://api.dofusdb.fr/img/monsters/2507.png"
             }
           ],
-          "externalRef": null,
           "objectives": [
             "Entrer dans un nid de Kabombz",
             "Explorer le plus grand nid à la recherche d'un élément perturbateur",
@@ -376,72 +242,103 @@
             "Couper le champ protecteur de la thermosonde",
             "Identifier l'origine du bourdonnement",
             "Affronter les gardes Kabombz",
-            "Aller voir Quadrabz curieux",
+            "Aller voir {npc,7666}",
             "Convaincre les reines des Kabombz du danger potentiel représenté par la machine",
             "Neutraliser la machine bourdonnante",
             "Discuter avec le caporal Gobastol par l'intermédiaire de son Krosmoglob",
             "En apprendre plus sur les constructeurs de la machine",
             "Mettre fin aux agissements de la secte dans la dimension",
-            "Retourner voir Prêtresse d'Osamodas"
+            "Retourner voir {npc,7641}"
           ],
-          "stepOrder": 5,
-          "isSynergyCandidate": false,
+          "stepOrder": 3,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 2523
+              "dofusdbId": 2521
             }
-          ],
-          "notes": null
+          ]
         },
         {
-          "name": "Devoir de réserve",
-          "dofusdbId": 2531,
-          "level": 200,
-          "zone": "Breuil du Vénérable - Clairière",
-          "npcName": "Arctalante",
-          "npcSubArea": "Breuil du Vénérable - Clairière",
+          "name": "Têtes de ponte",
+          "dofusdbId": 2522,
+          "level": 170,
+          "zone": "Antzchambrzbz",
+          "npcName": null,
+          "npcSubArea": "Antzchambrzbz",
           "coords": {
-            "x": 6,
-            "y": 9,
+            "x": 24,
+            "y": 23,
             "worldId": 34
           },
           "isDungeon": true,
           "itemsRequired": [],
           "dungeonsRequired": [
             {
-              "id": 164,
-              "name": "Breuil du Vénérable",
-              "level": null,
-              "bossName": "Vénérable Endormi",
-              "img": "https://api.dofusdb.fr/img/monsters/2488.png",
-              "idoleName": null
+              "id": 163,
+              "name": "Poste de contrôle du Supervizœuf",
+              "bossId": 8052,
+              "img": "https://api.dofusdb.fr/img/monsters/2507.png"
             }
           ],
-          "externalRef": null,
           "objectives": [
-            "Aller voir Arctalante",
-            "Vaincre x1 {monster,8047} en un seul combat",
-            "Aller voir Vénérable somnolent",
-            "Se défendre contre l'attaque provoquée par la garde-chasse",
-            "Aller voir Arctalante"
+            "Parler au gros Balebz pour tenter d'obtenir une audience avec les reines",
+            "Vaincre x1 {monster,8052} en un seul combat",
+            "Retourner voir {npc,7669}",
+            "Négocier avec les trois reines des Kabombz"
           ],
-          "stepOrder": 6,
-          "isSynergyCandidate": false,
+          "stepOrder": 4,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 2516
             }
+          ]
+        },
+        {
+          "name": "Dérive insectaire",
+          "dofusdbId": 2523,
+          "level": 170,
+          "zone": "Statue d'Osamodas",
+          "npcName": null,
+          "npcSubArea": "Statue d'Osamodas",
+          "coords": {
+            "x": 23,
+            "y": 27,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Passer inaperçu pour surprendre le propriétaire de la machine",
+            "Interroger la technomage",
+            "Vaincre x1 {monster,8068} en un seul combat",
+            "Montrer le symbole religieux à la prêtresse d'Osamodas",
+            "Aller voir {npc,7675}",
+            "Retourner voir {npc,7659}",
+            "Observer ce qui se passe dans la toorbz de la Réserve Touffue",
+            "Suivre les Kabombz influencés par la machine",
+            "Disperser les Kabombz agglutinés près du lac",
+            "Plonger dans le lac pour découvrir ce que cache la secte",
+            "Détruire l'idole technomagique de la secte"
           ],
-          "notes": null
+          "stepOrder": 5,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2522
+            }
+          ]
         },
         {
           "name": "La proie des vérités",
           "dofusdbId": 2517,
           "level": 200,
           "zone": "Breuil du Vénérable - Sortie",
-          "npcName": "Marlyze Delarange",
+          "npcName": null,
           "npcSubArea": "Breuil du Vénérable - Sortie",
           "coords": {
             "x": 0,
@@ -454,15 +351,12 @@
             {
               "id": 164,
               "name": "Breuil du Vénérable",
-              "level": null,
-              "bossName": "Vénérable Endormi",
-              "img": "https://api.dofusdb.fr/img/monsters/2488.png",
-              "idoleName": null
+              "bossId": 8047,
+              "img": "https://api.dofusdb.fr/img/monsters/2488.png"
             }
           ],
-          "externalRef": null,
           "objectives": [
-            "Aller voir Marlyze Delarange",
+            "Aller voir {npc,7657}",
             "Étudier le comportement des différentes espèces de zarbivores",
             "Continuer à chercher la cause du changement chez les zarbivores",
             "Parler à l'esprit animal",
@@ -471,30 +365,27 @@
             "Montrer le trognon de pomme à l'esprit animal en espérant qu'il pourra en faire quelque chose",
             "Prier pour qu'un miracle se produise",
             "Pousser le Vénérable à croquer dans la pomme bleue",
-            "Aller voir Déesse Crâ",
+            "Aller voir {npc,6743}",
             "Assister à la discussion entre Crâ et l'esprit animal",
-            "Aller voir Kroketh",
+            "Aller voir {npc,7718}",
             "Se soumettre à l'ordalie demandée par le dieu Kroketh",
-            "Aller voir Déesse Crâ",
-            "Aller voir Marlyze Delarange",
-            "Retourner voir Prêtresse d'Osamodas"
+            "Retourner voir {npc,7641}"
           ],
-          "stepOrder": 7,
-          "isSynergyCandidate": false,
+          "stepOrder": 6,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 2531
+              "dofusdbId": 2523
             }
-          ],
-          "notes": null
+          ]
         },
         {
           "name": "Quand on la cherche, on finit par tomber dessus",
           "dofusdbId": 2530,
           "level": 200,
           "zone": "Osavora",
-          "npcName": "Marlyze Delarange",
+          "npcName": null,
           "npcSubArea": null,
           "coords": {
             "x": 0,
@@ -504,28 +395,63 @@
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
-          "externalRef": null,
           "objectives": [
             "Vaincre x3 {monster,8042}",
             "Vaincre x3 {monster,8043}",
             "Vaincre x3 {monster,8044}",
             "Vaincre x3 {monster,8045}",
             "Vaincre x3 {monster,8046}",
-            "Retourner voir Marlyze Delarange",
+            "Retourner voir {npc,7657}",
             "Prélever des crottes de zarbivores",
             "Apporter les prélèvements à Marlyze",
             "Poursuivre la mission confiée par Osamodas en attendant que Marlyze ait terminé ses analyses",
             "Faire le point avec Marlyze sur le comportement des zarbivores"
           ],
-          "stepOrder": 8,
-          "isSynergyCandidate": false,
+          "stepOrder": 7,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 2517
             }
+          ]
+        },
+        {
+          "name": "Devoir de réserve",
+          "dofusdbId": 2531,
+          "level": 200,
+          "zone": "Breuil du Vénérable - Clairière",
+          "npcName": null,
+          "npcSubArea": "Breuil du Vénérable - Clairière",
+          "coords": {
+            "x": 6,
+            "y": 9,
+            "worldId": 34
+          },
+          "isDungeon": true,
+          "itemsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 164,
+              "name": "Breuil du Vénérable",
+              "bossId": 8047,
+              "img": "https://api.dofusdb.fr/img/monsters/2488.png"
+            }
           ],
-          "notes": null
+          "objectives": [
+            "Aller voir {npc,7699}",
+            "Vaincre x1 {monster,8047} en un seul combat",
+            "Aller voir {npc,7700}",
+            "Se défendre contre l'attaque provoquée par la garde-chasse"
+          ],
+          "stepOrder": 8,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2530
+            }
+          ]
         },
         {
           "name": "Un hôte de marque",
@@ -538,7 +464,6 @@
           "isDungeon": true,
           "itemsRequired": [],
           "dungeonsRequired": [],
-          "externalRef": null,
           "objectives": [
             "Découvrir comment les Rhoarims honorent leurs proies",
             "Découvrir la cuisine des Rhoarims",
@@ -548,14 +473,13 @@
             "Découvrir le plus important rituel de chasse des Rhoarims"
           ],
           "stepOrder": 9,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 2530
+              "dofusdbId": 2531
             }
-          ],
-          "notes": null
+          ]
         },
         {
           "name": "L'union sacrée",
@@ -568,7 +492,6 @@
           "isDungeon": false,
           "itemsRequired": [],
           "dungeonsRequired": [],
-          "externalRef": null,
           "objectives": [
             "Renouer le lien avec les Kabombz",
             "Renouer le lien avec les zarbivores",
@@ -577,21 +500,20 @@
             "Renouer le lien avec Gargandyas"
           ],
           "stepOrder": 10,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 2532
             }
-          ],
-          "notes": null
+          ]
         },
         {
           "name": "Trois cœurs, un roi",
           "dofusdbId": 2518,
           "level": 200,
           "zone": "Pointe venteuse - Cercle des querelles",
-          "npcName": "Prêtresse d'Osamodas",
+          "npcName": null,
           "npcSubArea": "Pointe venteuse - Cercle des querelles",
           "coords": {
             "x": 10,
@@ -600,8 +522,14 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
-          "externalRef": null,
+          "dungeonsRequired": [
+            {
+              "id": 165,
+              "name": "Nid de la Déchireuse",
+              "bossId": 8037,
+              "img": "https://api.dofusdb.fr/img/monsters/2514.png"
+            }
+          ],
           "objectives": [
             "Découvrir la carte : Montée des Rhoarims",
             "Gravir la montée puis se présenter officiellement à l'entrée du village",
@@ -616,96 +544,23 @@
             "Relever le défi imposé par Grimaslan",
             "Parler à Grimaslan après l'avoir vaincu",
             "Parler au roi et à la chamane",
-            "Retourner voir Prêtresse d'Osamodas"
+            "Retourner voir {npc,7641}"
           ],
           "stepOrder": 11,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
               "dofusdbId": 2533
             }
-          ],
-          "notes": null
-        },
-        {
-          "name": "Le roi balafré",
-          "dofusdbId": 2535,
-          "level": 200,
-          "zone": "Promontoire du Réprouvé",
-          "npcName": "Garde royal",
-          "npcSubArea": "Promontoire du Réprouvé",
-          "coords": {
-            "x": 13,
-            "y": 1,
-            "worldId": 34
-          },
-          "isDungeon": true,
-          "itemsRequired": [
-            {
-              "id": 32075,
-              "name": "Pelage de la Déchireuse",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/54720.png"
-            },
-            {
-              "id": 31988,
-              "name": "Fourrure de Sekismeth",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/54663.png"
-            },
-            {
-              "id": 31989,
-              "name": "Crinière de Lhéoden",
-              "amount": 1,
-              "img": "https://api.dofusdb.fr/img/items/54712.png"
-            }
-          ],
-          "dungeonsRequired": [
-            {
-              "id": 165,
-              "name": "Autel de la Déchireuse",
-              "level": null,
-              "bossName": "Voracle",
-              "img": "https://api.dofusdb.fr/img/monsters/2510.png",
-              "idoleName": null
-            }
-          ],
-          "externalRef": null,
-          "objectives": [
-            "Chercher le jeune Léodas",
-            "Inspecter la statue brisée avant de reprendre vos recherches",
-            "Discuter avec le fugueur",
-            "Aller voir Garde royal",
-            "Retrouver le père du jeune Léodas",
-            "Tenter d'en savoir plus auprès d'Hemyt l'ermite",
-            "Ramener à Hemyt l'ermite : x1 Pelage de la Déchireuse",
-            "Ramener à Hemyt l'ermite : x1 Fourrure de Sekismeth",
-            "Ramener à Hemyt l'ermite : x1 Crinière de Lhéoden",
-            "Écouter Hemyt vous raconter le mythe du premier roi",
-            "Aller voir Grimaslan",
-            "Retourner au Promontoire du Réprouvé",
-            "Aller voir Ménalion",
-            "Affronter l'esprit du Roi des Rois",
-            "Libérer Ménalion de l'influence de l'esprit",
-            "Aller voir Arctalante"
-          ],
-          "stepOrder": 12,
-          "isSynergyCandidate": false,
-          "requirements": [
-            {
-              "type": "QUEST",
-              "dofusdbId": 2518
-            }
-          ],
-          "notes": null
+          ]
         },
         {
           "name": "Destructeur de mondes",
           "dofusdbId": 2519,
           "level": 200,
           "zone": "Statue d'Osamodas",
-          "npcName": "Prêtresse d'Osamodas",
+          "npcName": null,
           "npcSubArea": "Statue d'Osamodas",
           "coords": {
             "x": 2,
@@ -714,98 +569,62 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
-          "externalRef": null,
+          "dungeonsRequired": [
+            {
+              "id": 2000,
+              "name": "Instance de Gargandyas",
+              "bossId": 8069,
+              "img": "https://api.dofusdb.fr/img/monsters/2517.png"
+            }
+          ],
           "objectives": [
-            "Aller voir Prêtresse d'Osamodas",
+            "Aller voir {npc,7641}",
             "Interroger le Méryde des parasites",
             "Découvrir la carte : Temple de Gargandyas",
-            "Aller voir Félindrama",
+            "Aller voir {npc,7701}",
             "Vaincre ou affaiblir suffisamment Gargandyas",
             "Se confronter au parasite d'Osavora",
-            "Retourner voir Prêtresse d'Osamodas",
+            "Retourner voir {npc,7641}",
             "Faire le bilan avec la voix d'Osamodas"
           ],
-          "stepOrder": 13,
-          "isSynergyCandidate": false,
+          "stepOrder": 12,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
-              "dofusdbId": 2535
+              "dofusdbId": 2518
             }
+          ]
+        },
+        {
+          "name": "Quarante rugissants",
+          "dofusdbId": 2534,
+          "level": 200,
+          "zone": "Osavora",
+          "npcName": null,
+          "npcSubArea": null,
+          "coords": {
+            "x": 1,
+            "y": 17,
+            "worldId": 34
+          },
+          "isDungeon": false,
+          "itemsRequired": [],
+          "dungeonsRequired": [],
+          "objectives": [
+            "Vaincre les vagues de Rhoarims qui attaquent l'avant-poste",
+            "Retourner voir {npc,7640}"
           ],
-          "notes": null
+          "stepOrder": 13,
+          "isSynergyCandidate": true,
+          "requirements": [
+            {
+              "type": "QUEST",
+              "dofusdbId": 2519
+            }
+          ]
         }
       ]
     }
-  ],
-  "globalSummary": {
-    "totalQuests": 16,
-    "totalItems": 6,
-    "totalDungeons": 3,
-    "items": [
-      {
-        "id": 31480,
-        "name": "Lait nourricier",
-        "totalAmount": 4,
-        "img": "https://api.dofusdb.fr/img/items/156021.png"
-      },
-      {
-        "id": 31481,
-        "name": "Sang brûlant",
-        "totalAmount": 4,
-        "img": "https://api.dofusdb.fr/img/items/156022.png"
-      },
-      {
-        "id": 31482,
-        "name": "Lymphe régénérante",
-        "totalAmount": 4,
-        "img": "https://api.dofusdb.fr/img/items/156023.png"
-      },
-      {
-        "id": 32075,
-        "name": "Pelage de la Déchireuse",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/54720.png"
-      },
-      {
-        "id": 31988,
-        "name": "Fourrure de Sekismeth",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/54663.png"
-      },
-      {
-        "id": 31989,
-        "name": "Crinière de Lhéoden",
-        "totalAmount": 2,
-        "img": "https://api.dofusdb.fr/img/items/54712.png"
-      }
-    ],
-    "dungeons": [
-      {
-        "id": 163,
-        "name": "Poste de contrôle du Supervizœuf",
-        "level": null,
-        "bossName": "Supervizœuf",
-        "img": "https://api.dofusdb.fr/img/monsters/2507.png",
-        "idoleName": null
-      },
-      {
-        "id": 164,
-        "name": "Breuil du Vénérable",
-        "level": null,
-        "bossName": "Vénérable Endormi",
-        "img": "https://api.dofusdb.fr/img/monsters/2488.png",
-        "idoleName": null
-      },
-      {
-        "id": 165,
-        "name": "Autel de la Déchireuse",
-        "level": null,
-        "bossName": "Voracle",
-        "img": "https://api.dofusdb.fr/img/monsters/2510.png",
-        "idoleName": null
-      }
-    ]
-  }
+  ]
 }

@@ -67,8 +67,8 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
         <Link href={`/dashboard/${guildId}/members/${profile.id}`}>
             <Card
                 className={cn(
-                    "bg-white/[0.03] hover:bg-white/[0.08] transition-all group overflow-hidden cursor-pointer border-2 shadow-lg",
-                    roleColor ? "" : "border-white/5",
+                    "bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-all group overflow-hidden cursor-pointer border-2 shadow-lg",
+                    roleColor ? "" : "border-border",
                     isOnVacation && "bg-cyan-500/[0.02] border-cyan-500/20 shadow-cyan-500/[0.05]"
                 )}
                 style={roleColor ? { borderColor: roleColor } : undefined}
@@ -85,8 +85,8 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                             <span className="text-[10px] font-semibold uppercase tracking-wide">En vacances</span>
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="bg-zinc-900 border-cyan-500/30 text-cyan-300">
-                                        <p>{vacationTooltip}</p>
+                                    <TooltipContent side="bottom" className="glass-premium border-cyan-500/30 text-cyan-600 dark:text-cyan-300">
+                                        <p className="font-bold">{vacationTooltip}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -102,8 +102,8 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                             <span className="text-[10px] font-semibold uppercase tracking-wide">Bientôt</span>
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="bg-zinc-900 border-orange-500/30 text-orange-300">
-                                        <p>⏳ {vacationTooltip}</p>
+                                    <TooltipContent side="bottom" className="glass-premium border-orange-500/30 text-orange-600 dark:text-orange-300">
+                                        <p className="font-bold">⏳ {vacationTooltip}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -117,7 +117,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             style={roleColor ? { borderColor: roleColor } : { borderColor: "rgba(255,255,255,0.1)" }}
                         >
                             <AvatarImage src={profile.user.image || ""} />
-                            <AvatarFallback className="text-xl font-bold bg-zinc-800 text-zinc-400">
+                            <AvatarFallback className="text-xl font-black bg-foreground/10 text-muted-foreground">
                                 {displayName.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
@@ -126,7 +126,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                     {/* Name & Class */}
                     <div className="text-center space-y-1 w-full">
                         <div className="flex items-center justify-center gap-1.5">
-                            <h3 className="font-bold text-lg truncate text-white">
+                            <h3 className="font-black text-lg truncate text-foreground italic uppercase tracking-tighter">
                                 {displayName}
                             </h3>
                             {profile.isAdmin && (
@@ -135,7 +135,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                         <TooltipTrigger asChild>
                                             <ShieldCheck className="w-4 h-4 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" className="bg-zinc-900 border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-wider">
+                                        <TooltipContent side="top" className="glass-premium border-purple-500/30 text-purple-600 dark:text-purple-200 text-[10px] font-black uppercase tracking-widest">
                                             Administration
                                         </TooltipContent>
                                     </Tooltip>
@@ -160,7 +160,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 {topJobs.map(job => {
                                     const jobData = Object.values(DOFUS_JOBS).flat().find(j => j.id === job);
                                     return (
-                                        <Badge key={job} variant="secondary" className="bg-white/5 hover:bg-white/10 text-[10px] px-2 py-0.5 border-white/5">
+                                        <Badge key={job} variant="secondary" className="bg-foreground/[0.05] hover:bg-foreground/[0.1] text-[10px] px-2 py-0.5 border-border font-black uppercase tracking-tighter text-muted-foreground">
                                             {jobData?.icon ? (
                                                 jobData.icon.startsWith("/") ? (
                                                     <Image src={jobData.icon} alt={jobData.name} width={16} height={16} className="w-4 h-4 mr-1 object-contain" />
@@ -179,7 +179,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 )}
                             </>
                         ) : (
-                            <span className="text-xs text-zinc-600 italic">Aucun métier</span>
+                            <span className="text-xs text-muted-foreground/40 italic font-medium">Aucun métier</span>
                         )}
                     </div>
 
@@ -189,7 +189,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <span className="text-[9px] text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
                                 <Palmtree className="w-3 h-3" /> Période d'absence
                             </span>
-                            <span className="text-[11px] text-zinc-300 font-medium whitespace-nowrap">
+                            <span className="text-[11px] text-muted-foreground font-black italic whitespace-nowrap">
                                 {format(vacationStart!, "d MMMM", { locale: fr })}
                                 {vacationEnd ? ` au ${format(vacationEnd, "d MMMM", { locale: fr })}` : " (indéfini)"}
                             </span>

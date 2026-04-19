@@ -2,7 +2,7 @@
 
 import React from "react";
 import { GamePhase } from "../../types/socket-events";
-import { LogOut } from "lucide-react";
+import { LogOut, Mic, MicOff } from "lucide-react";
 
 export const GarticStarDecorations = () => {
     return (
@@ -15,36 +15,58 @@ export const GarticStarDecorations = () => {
     );
 };
 
-export const GarticLayout = ({ phase, children, onClose, spectators = [], guildId = "" }: { phase: string; children: React.ReactNode; onClose?: () => void; spectators?: any[]; guildId?: string }) => {
+export const GarticLayout = ({ 
+    phase, 
+    children, 
+    onClose, 
+    spectators = [], 
+    guildId = "", 
+    showVoiceOverlay = true, 
+    onToggleVoice 
+}: { 
+    phase: string; 
+    children: React.ReactNode; 
+    onClose?: () => void; 
+    spectators?: any[]; 
+    guildId?: string; 
+    showVoiceOverlay?: boolean; 
+    onToggleVoice?: () => void; 
+}) => {
     return (
-        <div className="h-full w-full min-h-screen relative bg-[#3d8be0] font-sans overflow-y-auto overflow-x-hidden select-none">
-            {/* Base Gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#3d8be0] via-[#5b96ea] to-[#8d69f1]" />
-            
-            {/* Sunburst/Radial rays effect */}
-            <div 
-                className="absolute inset-x-[-50%] inset-y-[-50%] opacity-20"
-                style={{
-                    background: 'conic-gradient(from 0deg, transparent 0deg, transparent 5deg, rgba(255,255,255,0.3) 10deg, transparent 15deg, transparent 20deg)',
-                    backgroundSize: '100% 100%',
-                    animation: 'spin 120s linear infinite'
-                }}
-            />
+        <div className="min-h-screen w-full relative bg-[#3d8be0] font-sans selection:bg-purple-500/30 select-none">
+            {/* STABLE BACKGROUND LAYER (Overflow hidden to prevent scroll loops) */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                {/* Base Gradient background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-[#3d8be0] via-[#5b96ea] to-[#8d69f1]" />
+                
+                {/* Sunburst/Radial rays effect */}
+                <div 
+                    className="absolute inset-x-[-50%] inset-y-[-50%] opacity-20"
+                    style={{
+                        background: 'conic-gradient(from 0deg, transparent 0deg, transparent 5deg, rgba(255,255,255,0.3) 10deg, transparent 15deg, transparent 20deg)',
+                        backgroundSize: '100% 100%',
+                        animation: 'spin 120s linear infinite'
+                    }}
+                />
 
-            {/* Halftone/Dots pattern */}
-            <div 
-                className="absolute inset-0 opacity-[0.15] pointer-events-none"
-                style={{ 
-                    backgroundImage: 'radial-gradient(rgba(0,0,0,0.5) 2px, transparent 2px)', 
-                    backgroundSize: '24px 24px' 
-                }} 
-            />
-            
+                {/* Halftone/Dots pattern */}
+                <div 
+                    className="absolute inset-0 opacity-[0.15]"
+                    style={{ 
+                        backgroundImage: 'radial-gradient(rgba(0,0,0,0.5) 2px, transparent 2px)', 
+                        backgroundSize: '24px 24px' 
+                    }} 
+                />
+                
+                <GarticStarDecorations />
+            </div>
+
             <style jsx global>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
                 }
+                body { overflow-x: hidden; }
             `}</style>
 
             {/* RETOUR SELECTION */}
@@ -63,6 +85,20 @@ export const GarticLayout = ({ phase, children, onClose, spectators = [], guildI
                         </svg>
                     </div>
                 </button>
+
+                {onToggleVoice && (
+                    <button 
+                        onClick={onToggleVoice}
+                        className={`group flex flex-col items-center justify-center w-10 h-10 md:w-16 md:h-16 backdrop-blur-md rounded-xl md:rounded-2xl border shadow-lg transition-all hover:scale-110 active:scale-95 group ${
+                            showVoiceOverlay 
+                                ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" 
+                                : "bg-white/10 border-white/10 text-white/40"
+                        }`}
+                        title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
+                    >
+                        {showVoiceOverlay ? <Mic size={24} className="w-5 h-5 md:w-8 md:h-8" /> : <MicOff size={24} className="w-5 h-5 md:w-8 md:h-8" />}
+                    </button>
+                )}
 
                 {/* Spectators bubbles - Below Home button */}
                 {spectators.length > 0 && (
@@ -95,7 +131,7 @@ export const GarticLayout = ({ phase, children, onClose, spectators = [], guildI
                 </button>
             )}
 
-            <div className="w-full h-full flex flex-col items-center justify-center relative z-10 px-4 pt-2 md:pt-4 pb-20 md:pb-24 min-h-[calc(100vh-80px)]">
+            <div className="w-full relative z-10 px-4 pt-10 md:pt-16 pb-20 md:pb-24 flex flex-col items-center">
                 {children}
             </div>
         </div>

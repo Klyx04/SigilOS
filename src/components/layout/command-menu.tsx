@@ -96,100 +96,134 @@ export function CommandMenu({ guildId }: CommandMenuProps) {
             open={open}
             onOpenChange={setOpen}
             shouldFilter={false}
-            className="bg-zinc-950/90 backdrop-blur-3xl border border-white/10 shadow-2xl sm:max-w-xl md:max-w-2xl rounded-2xl overflow-hidden"
+            className="bg-zinc-950 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] sm:max-w-[550px] rounded-2xl overflow-hidden p-0 gap-0"
         >
-            <div className="flex items-center border-b border-white/5 px-3">
-                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                <CommandInput 
-                    placeholder="Rechercher un membre, une mission, une page... (Ctrl+K)" 
-                    className="h-14 font-medium flex-1 bg-transparent focus:ring-0 border-none outline-none" 
-                    value={query}
-                    onValueChange={setQuery}
-                />
-                {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin text-emerald-500" />}
+            <div className="relative">
+                <div className="flex items-center border-b border-white/5 px-4 bg-white/[0.02]">
+                    <Search className="mr-3 h-4 w-4 shrink-0 text-zinc-500" />
+                    <CommandInput 
+                        placeholder="Recherche globale..." 
+                        className="h-14 font-medium flex-1 bg-transparent focus:ring-0 border-none outline-none text-sm text-zinc-200 placeholder:text-zinc-600" 
+                        value={query}
+                        onValueChange={setQuery}
+                    />
+                    {isLoading && (
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin text-zinc-500" />
+                    )}
+                </div>
+
+                <CommandList className="max-h-[380px] premium-scrollbar p-2">
+                    <CommandEmpty className="py-12 text-center text-xs text-zinc-600">
+                        Aucun résultat pour "{query}"
+                    </CommandEmpty>
+
+                    {/* --- DYNAMIC RESULTS --- */}
+                    {results.length > 0 && (
+                        <>
+                            {memberResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Membres</span>}>
+                                    {memberResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-white/5 bg-white/5 flex items-center justify-center mr-3 shrink-0">
+                                                <Users className="h-4 w-4 text-zinc-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-600 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {missionResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Missions</span>}>
+                                    {missionResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-white/5 bg-white/5 flex items-center justify-center mr-3 shrink-0">
+                                                <ScrollText className="h-4 w-4 text-zinc-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-600 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {pageResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Pages</span>}>
+                                    {pageResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-white/5 bg-white/5 flex items-center justify-center mr-3 shrink-0">
+                                                <Sparkles className="h-4 w-4 text-zinc-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm">{r.title}</span>
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+                            <CommandSeparator className="bg-white/5 my-2" />
+                        </>
+                    )}
+
+                    <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Navigation</span>}>
+                        <CommandItem 
+                            onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}`))}
+                            className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                        >
+                            <Home className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                            <span className="font-semibold text-sm">Tableau de bord</span>
+                        </CommandItem>
+                        <CommandItem 
+                            onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/missions`))}
+                            className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                        >
+                            <ScrollText className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                            <span className="font-semibold text-sm">Missions</span>
+                        </CommandItem>
+                        <CommandItem 
+                            onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/ladder`))}
+                            className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                        >
+                            <Trophy className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                            <span className="font-semibold text-sm">Ladder</span>
+                        </CommandItem>
+                    </CommandGroup>
+
+                    <CommandSeparator className="bg-white/5 my-2" />
+
+                    <CommandGroup>
+                        <CommandItem 
+                            onSelect={() => runCommand(() => router.push("/api/auth/signout"))}
+                            className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-red-500/10 text-red-500/80 transition-all p-2.5"
+                        >
+                            <LogOut className="mr-3 h-3.5 w-3.5" />
+                            <span className="font-bold text-sm">Déconnexion</span>
+                        </CommandItem>
+                    </CommandGroup>
+                </CommandList>
+
+                <div className="p-3 bg-white/[0.02] border-t border-white/5 flex items-center justify-between text-[9px] font-black text-zinc-700 uppercase tracking-widest px-6">
+                    <span>Recherche globale</span>
+                    <span>v3.0</span>
+                </div>
             </div>
-            <CommandList className="max-h-[450px] premium-scrollbar">
-                <CommandEmpty>Aucun résultat trouvé pour "{query}".</CommandEmpty>
-
-                {/* --- DYNAMIC RESULTS --- */}
-                {results.length > 0 && (
-                    <>
-                        {memberResults.length > 0 && (
-                            <CommandGroup heading="Membres">
-                                {memberResults.map((r) => (
-                                    <CommandItem key={r.id} onSelect={() => runCommand(() => router.push(r.href))}>
-                                        <Users className="mr-2 h-4 w-4 text-blue-400" />
-                                        <div className="flex flex-col">
-                                            <span>{r.title}</span>
-                                            {r.subtitle && <span className="text-[10px] text-zinc-500">{r.subtitle}</span>}
-                                        </div>
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        )}
-
-                        {missionResults.length > 0 && (
-                            <CommandGroup heading="Missions">
-                                {missionResults.map((r) => (
-                                    <CommandItem key={r.id} onSelect={() => runCommand(() => router.push(r.href))}>
-                                        <ScrollText className="mr-2 h-4 w-4 text-amber-400" />
-                                        <div className="flex flex-col">
-                                            <span>{r.title}</span>
-                                            {r.subtitle && <span className="text-[10px] text-zinc-500">{r.subtitle}</span>}
-                                        </div>
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        )}
-
-                        {pageResults.length > 0 && (
-                            <CommandGroup heading="Pages & Outils">
-                                {pageResults.map((r) => (
-                                    <CommandItem key={r.id} onSelect={() => runCommand(() => router.push(r.href))}>
-                                        <div className="mr-2 h-4 w-4 flex items-center justify-center">
-                                            <Search className="h-3 w-3 text-zinc-400" />
-                                        </div>
-                                        <span>Aller vers {r.title}</span>
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        )}
-                        <CommandSeparator className="bg-white/5" />
-                    </>
-                )}
-
-                <CommandGroup heading="Navigation Rapide">
-                    <CommandItem onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}`))}>
-                        <Home className="mr-2 h-4 w-4 text-emerald-400" />
-                        <span>Accueil du Tableau de bord</span>
-                        <CommandShortcut>🏠</CommandShortcut>
-                    </CommandItem>
-                    <CommandItem onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/missions`))}>
-                        <ScrollText className="mr-2 h-4 w-4 text-red-400" />
-                        <span>Missions de Guilde</span>
-                        <CommandShortcut>M</CommandShortcut>
-                    </CommandItem>
-                    <CommandItem onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/ladder`))}>
-                        <Trophy className="mr-2 h-4 w-4 text-amber-400" />
-                        <span>Ladder d'Activité</span>
-                        <CommandShortcut>L</CommandShortcut>
-                    </CommandItem>
-                </CommandGroup>
-
-                <CommandSeparator className="bg-white/5" />
-
-                <CommandGroup heading="Autre">
-                    <CommandItem onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/profile`))}>
-                        <User className="mr-2 h-4 w-4 text-zinc-400" />
-                        <span>Mon Profil Personnel</span>
-                        <CommandShortcut>P</CommandShortcut>
-                    </CommandItem>
-                    <CommandItem onSelect={() => runCommand(() => router.push("/api/auth/signout"))}>
-                        <LogOut className="mr-2 h-4 w-4 text-red-500" />
-                        <span>Déconnexion</span>
-                    </CommandItem>
-                </CommandGroup>
-            </CommandList>
         </CommandDialog>
     );
 }

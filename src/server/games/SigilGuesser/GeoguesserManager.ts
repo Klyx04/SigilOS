@@ -178,7 +178,7 @@ export class GeoguesserManager {
             if (data.maxRounds) room.setMaxRounds(data.maxRounds);
             if (data.timePerRound) room.setTimePerRound(data.timePerRound);
             // Difficulty setting removed
-            room.startGame(data.targetMapIds);
+            room.startGame();
         } else {
             console.warn(`[Geoguesser] ⚠️ Le socket ${socket.id} n'est pas l'hôte de la room ${roomId}`);
         }

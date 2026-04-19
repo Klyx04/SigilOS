@@ -127,7 +127,7 @@ export async function markWelcomeAsSeen(guildId: string) {
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateUserContextCache } = await import("./user-actions");
-        invalidateUserContextCache(user.id!, guildConfig.id);
+        await invalidateUserContextCache(user.id!, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}`);
         return { success: true };

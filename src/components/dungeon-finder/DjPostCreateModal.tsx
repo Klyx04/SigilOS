@@ -1,5 +1,8 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
+
 import { useState, useEffect, useTransition, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,12 +10,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Plus, Search, Swords, Map,
-    Users, CheckCircle2, X, Trophy
+    Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check
 } from "lucide-react";
 import { createDjPost } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
+import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { Switch } from "@/components/ui/switch";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 interface Dungeon {
@@ -70,6 +90,10 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
     const [targetDate, setTargetDate] = useState("");
     const [requiredClasses, setRequiredClasses] = useState<string[]>([]);
     const [isDiscordPublished, setIsDiscordPublished] = useState(false);
+    const [mentionRoleId, setMentionRoleId] = useState<string | null>(null);
+    const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
+    const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+    const [roleOpen, setRoleOpen] = useState(false);
 
     const [isPending, startTransition] = useTransition();
 
@@ -94,8 +118,25 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
             setTargetDate("");
             setRequiredClasses([]);
             setIsDiscordPublished(isDiscordConfigured === true);
+            setMentionRoleId(null);
         }
     }, [isOpen, isDiscordConfigured]);
+
+    // Fetch Discord Roles
+    useEffect(() => {
+        if (isOpen && isDiscordPublished && discordRoles.length === 0) {
+            setIsLoadingRoles(true);
+            getDiscordRolesAction(guildId)
+                .then(res => {
+                    if (res.success && res.roles) {
+                        // Filter out @everyone if possible or just keep all
+                        setDiscordRoles(res.roles.filter(r => r.name !== "@everyone") as any);
+                    }
+                })
+                .catch(console.error)
+                .finally(() => setIsLoadingRoles(false));
+        }
+    }, [isOpen, isDiscordPublished, guildId, discordRoles.length]);
 
     // Handle initialDungeonId when dungeons are loaded
     useEffect(() => {
@@ -225,6 +266,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                 targetDate: targetDate ? new Date(targetDate) : null,
                 requiredClasses,
                 isDiscordPublished,
+                mentionRoleId,
             });
 
             if (res.success) {
@@ -621,6 +663,86 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                             )}
                                         </div>
                                     </div>
+
+                                    {isDiscordPublished && discordRoles.length > 0 && (
+                                        <div className="flex flex-col gap-2 min-w-[180px]">
+                                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Mentionner un rôle</span>
+                                            <Popover open={roleOpen} onOpenChange={setRoleOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        role="combobox"
+                                                        aria-expanded={roleOpen}
+                                                        className="h-10 bg-zinc-900 border-white/10 text-xs font-bold rounded-xl justify-between group/role w-full"
+                                                    >
+                                                        <div className="flex items-center gap-2 truncate">
+                                                            {mentionRoleId ? (
+                                                                <>
+                                                                    <div 
+                                                                        className="w-2 h-2 rounded-full shrink-0" 
+                                                                        style={{ backgroundColor: discordRoles.find(r => r.id === mentionRoleId)?.color === "#000000" ? "#9ca3af" : discordRoles.find(r => r.id === mentionRoleId)?.color }} 
+                                                                    />
+                                                                    <span className="truncate">{discordRoles.find(r => r.id === mentionRoleId)?.name}</span>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-zinc-500 italic">Aucun ping</span>
+                                                            )}
+                                                        </div>
+                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border-white/10" align="end">
+                                                    <Command className="bg-transparent text-white">
+                                                        <CommandInput placeholder="Rechercher..." className="h-9 border-none focus:ring-0" />
+                                                        <CommandList className="max-h-[280px] custom-scrollbar">
+                                                            <CommandEmpty>Aucun rôle.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                <CommandItem
+                                                                    onSelect={() => {
+                                                                        setMentionRoleId(null);
+                                                                        setRoleOpen(false);
+                                                                    }}
+                                                                    className="text-zinc-500 italic focus:bg-white/10 cursor-pointer text-xs"
+                                                                >
+                                                                    <Check
+                                                                        className={cn(
+                                                                            "mr-2 h-3 h-3",
+                                                                            !mentionRoleId ? "opacity-100" : "opacity-0"
+                                                                        )}
+                                                                    />
+                                                                    Aucun ping
+                                                                </CommandItem>
+                                                                {discordRoles.map((role) => (
+                                                                    <CommandItem
+                                                                        key={role.id}
+                                                                        onSelect={() => {
+                                                                            setMentionRoleId(role.id);
+                                                                            setRoleOpen(false);
+                                                                        }}
+                                                                        className="text-white focus:bg-white/10 cursor-pointer text-xs"
+                                                                    >
+                                                                        <Check
+                                                                            className={cn(
+                                                                                "mr-2 h-3 w-3",
+                                                                                mentionRoleId === role.id ? "opacity-100" : "opacity-0"
+                                                                            )}
+                                                                        />
+                                                                        <div className="flex items-center gap-2 flex-1 truncate font-bold">
+                                                                            <div 
+                                                                                className="w-2 h-2 rounded-full shrink-0" 
+                                                                                style={{ backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color }} 
+                                                                            />
+                                                                            <span className="truncate">{role.name}</span>
+                                                                        </div>
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                    )}
 
                                     <Button
                                         className={`h-14 px-10 rounded-2xl font-black text-sm tracking-tight transition-all active:scale-95 shadow-2xl relative group overflow-hidden ${

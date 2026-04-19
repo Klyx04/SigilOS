@@ -151,6 +151,14 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         { name: "🔗 Dashboard", value: `[📋 Voir la Run](${dashboardUrl})`, inline: false },
     ];
 
+    // Tier Image mapping for Discord (absolute URL required)
+    const tierImageKey = run.difficulty?.toLowerCase()
+        .replace('_iv', '4')
+        .replace('_iii', '3')
+        .replace('_ii', '2')
+        .replace('_i', '1') || 'reve1';
+    const thumbnailUrl = `${publicUrl}/assets/missions/${tierImageKey}.png`;
+
     const isOpen = run.status === "RECRUITING" || run.status === "IN_PROGRESS";
     const statusText = run.status === "RECRUITING" ? "🟢 Recrutement"
         : run.status === "IN_PROGRESS" ? "🟡 En cours"
@@ -190,6 +198,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         dashboardUrl,
         leaderProfile,
         embedTitle,
+        thumbnailUrl,
     };
 }
 
@@ -216,11 +225,11 @@ export async function publishDiscordRun(guildId: string, runId: string) {
 
         const messageId = await sendChannelMessage(
             guildConfig.songesNotifyChannelId,
-            "",
+            run.mentionRoleId ? `<@&${run.mentionRoleId}>` : "",
             {
                 embedTitle: data.embedTitle,
                 embedColor: diffConfig.color,
-                embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
+                embedThumbnail: data.thumbnailUrl,
                 embedAuthor: {
                     name: `Proposée par ${data.leaderProfile.name}`,
                     iconUrl: data.leaderProfile.avatar || undefined
@@ -269,7 +278,7 @@ export async function updateDiscordRunEmbed(guildId: string, runId: string) {
             {
                 embedTitle: data.embedTitle,
                 embedColor: diffConfig.color,
-                embedThumbnail: "https://plutonio.fr/i/sigil_songes.png",
+                embedThumbnail: data.thumbnailUrl,
                 embedAuthor: {
                     name: `Proposée par ${data.leaderProfile.name}`,
                     iconUrl: data.leaderProfile.avatar || undefined
@@ -402,7 +411,7 @@ export async function notifyRunMembers(guildId: string, runId: string, message: 
                         : []),
                 ],
                 embedFooter: `SigilOS • Songes Infinis`,
-                embedThumbnail: "https://plutonio.fr/i/sigil_songes.png"
+                embedThumbnail: embedData.thumbnailUrl
             }
         );
 

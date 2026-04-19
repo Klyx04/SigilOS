@@ -237,7 +237,7 @@ export class GarticRoom {
 
     private startCountdown(duration: number, phase: string) {
         const key = `timer_${phase}`;
-        console.log(`[Room:${this.state.roomId}] startCountdown for ${phase} with duration: ${duration}`);
+        console.log(`[Room:${this.state.roomId}] startCountdown for ${phase} with duration: ${duration} (maxTimer: ${this.state.maxTimer})`);
         
         // Clean up ALL active timers for this room to prevent memory leaks
         this.timers.forEach((t) => clearInterval(t));

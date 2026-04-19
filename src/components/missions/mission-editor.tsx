@@ -51,7 +51,7 @@ type MissionPool = 'CLASSIQUES' | 'SPECIALES';
 
 // --- Component ---
 
-export function MissionEditor({ guildId }: { guildId: string }) {
+export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: string; isDiscordConfigured?: boolean }) {
     const router = useRouter();
     const { week: weekNumber, year } = getDofusWeek();
 
@@ -258,6 +258,23 @@ export function MissionEditor({ guildId }: { guildId: string }) {
 
     return (
         <div className="space-y-6">
+            {!isDiscordConfigured && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-4 shadow-lg backdrop-blur-sm">
+                    <div className="p-2 bg-amber-500/20 rounded-lg text-amber-500">
+                        <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="text-sm font-black text-amber-500 uppercase tracking-widest mb-1">Configuration Discord Absente</h4>
+                        <p className="text-xs text-amber-200/70 leading-relaxed font-medium">
+                            Le salon de notification des missions n&apos;est pas configuré dans les paramètres de la guilde. 
+                            <span className="text-amber-400 font-bold ml-1 italic text-[10px] sm:text-xs">
+                                Le bouton d&apos;Annonce Discord est masqué pour éviter les pings invalides.
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Toolbar */}
             <div className="flex flex-col md:flex-row items-center justify-between bg-zinc-900 border border-zinc-800 p-4 rounded-xl gap-4">
                 <div className="flex flex-wrap items-center gap-4">
@@ -316,19 +333,21 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                     </Button>
                     <div className="w-full sm:w-px h-px sm:h-8 bg-zinc-800 mx-1 block"></div>
 
-                    <Button
-                        variant="outline"
-                        className="border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-all font-black uppercase tracking-widest text-[10px] h-9 flex-1 sm:flex-none"
-                        disabled={isLoading}
-                        onClick={() => setIsDiscordDialogOpen(true)}
-                    >
-                        <Send className="w-3.5 h-3.5 mr-2" />
-                        Annonce Discord
-                    </Button>
+                    {isDiscordConfigured && (
+                        <Button
+                            variant="sigil-emerald"
+                            className="h-9 flex-1 sm:flex-none px-4"
+                            disabled={isLoading}
+                            onClick={() => setIsDiscordDialogOpen(true)}
+                        >
+                            <Send className="w-4 h-4 mr-2" />
+                            Annonce Discord
+                        </Button>
+                    )}
 
                     <div className="relative group flex-1 sm:flex-none">
-                        <Button onClick={() => setConfirmPublishOpen(true)} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-9 text-[10px] uppercase tracking-widest" size="sm">
-                            <Save className="w-3.5 h-3.5 mr-2" />
+                        <Button onClick={() => setConfirmPublishOpen(true)} variant="sigil" className="w-full h-9" size="sm">
+                            <Save className="w-4 h-4 mr-2" />
                             Tout Publier
                         </Button>
                         <GuidePulse
@@ -656,7 +675,8 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                         <Button
                             onClick={() => currentMission && handleSaveFromDialog(currentMission.slotIndex)}
                             disabled={!!currentMission && !!validateMission(currentMission)}
-                            className="bg-indigo-600 hover:bg-indigo-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                            variant="sigil"
+                            className="h-10 px-8"
                         >
                             Enregistrer
                         </Button>
@@ -682,7 +702,7 @@ export function MissionEditor({ guildId }: { guildId: string }) {
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setConfirmPublishOpen(false)}>Annuler</Button>
-                        <Button onClick={handleGlobalPublish} className="bg-amber-600 hover:bg-amber-500 text-white font-bold">
+                        <Button onClick={handleGlobalPublish} variant="sigil" className="h-10">
                             Publier maintenant
                         </Button>
                     </DialogFooter>

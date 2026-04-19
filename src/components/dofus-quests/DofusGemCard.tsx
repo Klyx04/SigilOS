@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Crown, Gem, Lock } from "lucide-react";
+import { Crown, Gem, Lock, Sparkles } from "lucide-react";
 import { DofusProgressRing } from "./DofusProgressRing";
 import { DofusIcon } from "./DofusIcon";
 import { toggleDofusObtained } from "@/server/actions/dofus-quest-actions";
@@ -22,12 +22,6 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
     const color = dofus.color || "#6366f1";
     const hasChain = dofus.totalQuests > 0;
     const isLocked = !hasChain; // No quest data yet
-
-    const rarityLabel = {
-        PRIMORDIAL: "Primordial",
-        MAJEUR: "Majeur",
-        MINEUR: "Mineur",
-    }[dofus.rarity] || dofus.rarity;
 
     function handleToggleObtained(e: React.MouseEvent) {
         e.preventDefault();
@@ -61,19 +55,38 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                 }}
             />
 
-            {/* Rarity badge */}
-            <div className="absolute top-3 left-3 z-10">
-                <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-                    style={{
-                        background: `${color}22`,
-                        color,
-                        border: `1px solid ${color}44`,
-                    }}
-                >
-                    {dofus.isPrimordial && <Crown className="w-2.5 h-2.5" />}
-                    {rarityLabel}
-                </span>
+            {/* Tags Section */}
+            <div className="absolute top-2 left-2 z-10 flex flex-wrap gap-1 max-w-[85%]">
+                {/* Main Dynamic Tag (The one you edit in God Mode) */}
+                {dofus.rarity && (
+                    <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm border"
+                        style={{
+                            background: `${color}15`,
+                            color,
+                            borderColor: `${color}30`,
+                        }}
+                    >
+                        {dofus.rarity}
+                    </span>
+                )}
+
+                {/* Functional Icons (Discrete indicators) */}
+                {dofus.isPrimordial && (
+                    <div className="w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-sm" title="Dofus Primordial">
+                        <Crown className="w-3 h-3" />
+                    </div>
+                )}
+                {dofus.isMeta && (
+                    <div className="w-5 h-5 rounded-md bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-sm" title="Dofus Méta">
+                        <Sparkles className="w-3 h-3" />
+                    </div>
+                )}
+                {dofus.isSylvestreReq && (
+                    <div className="w-5 h-5 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-sm" title="Requis pour le Sylvestre">
+                        <Gem className="w-3 h-3" />
+                    </div>
+                )}
             </div>
 
             {/* Obtained toggle button */}
@@ -162,8 +175,11 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                                 }}
                             />
                         </div>
-                        <span className="text-[10px] tabular-nums text-white/40 whitespace-nowrap">
-                            {dofus.completedQuests}/{dofus.totalQuests}
+                        <span className="text-[10px] tabular-nums font-black" style={{ color: dofus.progressPercent > 0 ? color : "rgba(255,255,255,0.2)" }}>
+                            {dofus.progressPercent}%
+                        </span>
+                        <span className="text-[10px] tabular-nums text-white/20 whitespace-nowrap">
+                            ({dofus.completedQuests}/{dofus.totalQuests})
                         </span>
                     </div>
                 ) : (

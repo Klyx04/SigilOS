@@ -1,20 +1,20 @@
 {
   "dofus": "ebene",
   "displayName": "Dofus Ébène",
-  "color": "#2D1B00",
+  "color": "#1a1a1a",
   "successName": "Noir d'ébène",
   "recommendedLevel": 200,
-  "description": null,
+  "description": "Obtenir le Dofus Ébène en terminant la série de quêtes épiques du dragon noir Terrakourial. Requiert métiers paysan (niv 80) et mineur (niv 20), accès à Frigost III, Xélorium et Srambad.",
   "dofusItemId": 7114,
-  "iconId": 23007,
-  "imageUrl": "https://static.dofusdb.fr/items/23007.png",
-  "compiledAt": "2026-04-09T11:19:41.928Z",
+  "iconId": null,
+  "imageUrl": "/module-dofus/Dofus_Ebene.png",
+  "compiledAt": "2026-04-11T17:56:38.402Z",
   "chains": [
     {
-      "sectionName": "Prerequis d'Alignement",
+      "sectionName": "Préréquis d'Alignement",
       "sectionType": "PREREQUISITE",
       "zone": "Bonta / Brakmar",
-      "description": "Nécessite l'alignement niveau 100.",
+      "description": "Nécessite l'alignement niveau 100 et les quêtes d'alignement jusqu'à L'épée du rocher.",
       "isSynergyCandidate": false,
       "chainOrder": 0,
       "requires": [],
@@ -43,11 +43,15 @@
           "dungeonsRequired": [
             {
               "id": 46,
-              "name": "Repaire de Skeunk"
+              "name": "Repaire de Skeunk",
+              "bossId": 780,
+              "img": "https://api.dofusdb.fr/img/monsters/431.png"
             },
             {
               "id": 85,
-              "name": "Mégalithe de Fraktale"
+              "name": "Mégalithe de Fraktale",
+              "bossId": 3852,
+              "img": "https://api.dofusdb.fr/img/monsters/1224.png"
             }
           ],
           "objectives": [
@@ -84,8 +88,8 @@
       "sectionName": "Noir d'ébène",
       "sectionType": "MAIN_CHAIN",
       "zone": "Pandala / Monde des Douze",
-      "description": null,
-      "isSynergyCandidate": false,
+      "description": "La série principale du Dofus Ébène.",
+      "isSynergyCandidate": true,
       "chainOrder": 1,
       "requires": [],
       "entries": [
@@ -108,12 +112,44 @@
               "name": "Crocobur",
               "amount": 2,
               "img": "https://api.dofusdb.fr/img/items/6739.png"
+            },
+            {
+              "id": 11110,
+              "name": "Obsidienne",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/51163.png"
+            },
+            {
+              "id": 7033,
+              "name": "Dolomite",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/51151.png"
+            },
+            {
+              "id": 17995,
+              "name": "Écume de mer",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/83151.png"
+            },
+            {
+              "id": 20162,
+              "name": "Métal abyssal",
+              "amount": 10,
+              "img": "https://api.dofusdb.fr/img/items/101019.png"
             }
           ],
           "dungeonsRequired": [
             {
+              "id": 46,
+              "name": "Repaire de Skeunk",
+              "bossId": 780,
+              "img": "https://api.dofusdb.fr/img/monsters/431.png"
+            },
+            {
               "id": 7,
-              "name": "Antre de Crocabulia"
+              "name": "Antre de Crocabulia",
+              "bossId": 854,
+              "img": "https://api.dofusdb.fr/img/monsters/479.png"
             }
           ],
           "objectives": [
@@ -141,7 +177,7 @@
             "Aller voir {npc,4634}"
           ],
           "stepOrder": 0,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": []
         },
         {
@@ -158,7 +194,14 @@
           },
           "isDungeon": true,
           "itemsRequired": [],
-          "dungeonsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 85,
+              "name": "Mégalithe de Fraktale",
+              "bossId": 3852,
+              "img": "https://api.dofusdb.fr/img/monsters/1224.png"
+            }
+          ],
           "objectives": [
             "Entrer dans le Plan Astral",
             "Aller voir {npc,4638}",
@@ -178,7 +221,7 @@
             "Retourner voir {npc,2205}"
           ],
           "stepOrder": 1,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
@@ -203,7 +246,9 @@
           "dungeonsRequired": [
             {
               "id": 108,
-              "name": "Tour de Bethel"
+              "name": "Tour de Bethel",
+              "bossId": 5110,
+              "img": "https://api.dofusdb.fr/img/monsters/1670.png"
             }
           ],
           "objectives": [
@@ -232,7 +277,7 @@
             "Aller voir {npc,2205}"
           ],
           "stepOrder": 2,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
@@ -282,7 +327,15 @@
           "dungeonsRequired": [
             {
               "id": 98,
-              "name": "Temple de Koutoulou"
+              "name": "Temple de Koutoulou",
+              "bossId": 4453,
+              "img": "https://api.dofusdb.fr/img/monsters/1423.png"
+            },
+            {
+              "id": 110,
+              "name": "Brasserie du Roi Dazak",
+              "bossId": 5319,
+              "img": "https://api.dofusdb.fr/img/monsters/1771.png"
             }
           ],
           "objectives": [
@@ -301,7 +354,7 @@
             "Montrer le résultat de la transmutation à Mériana"
           ],
           "stepOrder": 3,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
@@ -323,7 +376,14 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 109,
+              "name": "Tour de Solar",
+              "bossId": 5100,
+              "img": "https://api.dofusdb.fr/img/monsters/1661.png"
+            }
+          ],
           "objectives": [
             "Trouver l'accès aux larmes de Grougalorasalar",
             "Descendre dans la crevasse",
@@ -347,7 +407,7 @@
             "Aller voir {npc,4617}"
           ],
           "stepOrder": 4,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
@@ -384,8 +444,16 @@
           ],
           "dungeonsRequired": [
             {
+              "id": 107,
+              "name": "Belvédère d'Ilyzaelle",
+              "bossId": 4967,
+              "img": "https://api.dofusdb.fr/img/monsters/1628.png"
+            },
+            {
               "id": 110,
-              "name": "Brasserie du roi Dazak"
+              "name": "Brasserie du roi Dazak",
+              "bossId": 5319,
+              "img": "https://api.dofusdb.fr/img/monsters/1771.png"
             }
           ],
           "objectives": [
@@ -410,7 +478,7 @@
             "Aller voir {npc,4621}"
           ],
           "stepOrder": 5,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
@@ -432,7 +500,14 @@
           },
           "isDungeon": false,
           "itemsRequired": [],
-          "dungeonsRequired": [],
+          "dungeonsRequired": [
+            {
+              "id": 83,
+              "name": "Salons Privés de Klime",
+              "bossId": 3726,
+              "img": "https://api.dofusdb.fr/img/monsters/1141.png"
+            }
+          ],
           "objectives": [
             "Trouver d'où vient la voix sépulcrale qui murmure votre nom",
             "Aller voir {npc,4623}",
@@ -456,7 +531,7 @@
             "Retourner voir {npc,2205}"
           ],
           "stepOrder": 6,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
@@ -480,8 +555,16 @@
           "itemsRequired": [],
           "dungeonsRequired": [
             {
+              "id": 89,
+              "name": "Trône de la Cour Sombre",
+              "bossId": 3996,
+              "img": "https://api.dofusdb.fr/img/monsters/1267.png"
+            },
+            {
               "id": 83,
-              "name": "Trône de la Cour Sombre"
+              "name": "Trône de la Cour Sombre",
+              "bossId": 3726,
+              "img": "https://api.dofusdb.fr/img/monsters/1141.png"
             }
           ],
           "objectives": [
@@ -500,7 +583,7 @@
             "Montrer à {npc,2205} : 1 {item,20205}"
           ],
           "stepOrder": 7,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",
@@ -525,7 +608,9 @@
           "dungeonsRequired": [
             {
               "id": 109,
-              "name": "Tour de Solar"
+              "name": "Tour de Solar",
+              "bossId": 5100,
+              "img": "https://api.dofusdb.fr/img/monsters/1661.png"
             }
           ],
           "objectives": [
@@ -545,7 +630,7 @@
             "Devenir le nouveau gardien du Dofus Ébène"
           ],
           "stepOrder": 8,
-          "isSynergyCandidate": false,
+          "isSynergyCandidate": true,
           "requirements": [
             {
               "type": "QUEST",

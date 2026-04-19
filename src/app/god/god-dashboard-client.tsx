@@ -2,7 +2,6 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { GalacticFooter } from "@/components/layout/galactic-footer";
 
 interface GodDashboardClientProps {
     children: React.ReactNode;
@@ -31,7 +30,6 @@ export function GodDashboardClient({
                     {children}
                 </div>
                 
-                <GalacticFooter />
             </main>
         </div>
     );

@@ -139,6 +139,7 @@ export default async function MemberProfilePage({
                     canViewOcre: viewerContext.canViewOcre,
                     canViewSonges: viewerContext.canViewSonges,
                     canViewLadder: viewerContext.canViewLadder,
+                    canManualSyncLadder: viewerContext.canManualSyncLadder,
                     canViewMissions: viewerContext.canViewMissions,
                 }}
             />

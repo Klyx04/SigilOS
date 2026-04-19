@@ -31,7 +31,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     const unreadCount = notifs.success ? notifs.data.filter((n: any) => !n.isRead).length : 0;
 
     return (
-        <div className="flex h-screen bg-[#050505] font-sans text-zinc-100 selection:bg-white/20 overflow-hidden">
+        <div className="flex h-screen bg-[#050505] font-sans text-zinc-100 selection:bg-white/20 overflow-hidden dashboard-layout">
             {/* Sidebar for all God pages */}
             <Suspense fallback={<div className="w-72 bg-black border-r border-white/5 h-full animate-pulse" />}>
                 <GodSidebar 

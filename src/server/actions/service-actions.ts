@@ -170,7 +170,7 @@ async function sendServiceDiscordNotification(
         const components = [{
             type: 1, components: [
                 { type: 2, style: 1, label: "Contacter", emoji: { name: "📩" }, custom_id: `svc:contact:${listingId}` },
-                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${discordGuildId}/passages` },
+                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${discordGuildId}/services` },
             ]
         }];
 
@@ -383,7 +383,7 @@ export async function createServiceListing(
             details: JSON.stringify({ category: listing.category, title: listing.title, price: listing.price }),
         });
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true, data: { id: listing.id } };
     } catch (error) {
         console.error("[createServiceListing]", error);
@@ -427,7 +427,7 @@ export async function updateServiceListing(
             },
         });
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
         console.error("[updateServiceListing]", error);
@@ -473,7 +473,7 @@ export async function toggleServiceStatus(
             });
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
         console.error("[toggleServiceStatus]", error);
@@ -530,7 +530,7 @@ export async function deleteServiceListing(
             });
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
         console.error("[deleteServiceListing]", error);

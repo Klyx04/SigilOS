@@ -1,58 +1,93 @@
 @import "tailwindcss";
 
+:root, .dark {
+  --sigil-bg: #0E1110;
+  --sigil-fg: #FAFBFC;
+  --sigil-card: #13171A;
+  --sigil-card-fg: #FAFBFC;
+  --sigil-popover: #13171A;
+  --sigil-popover-fg: #FAFBFC;
+  --sigil-primary: #10b981;
+  --sigil-primary-fg: #0E1110;
+  --sigil-secondary: #1A1E22;
+  --sigil-secondary-fg: #FAFBFC;
+  --sigil-muted: #1A1E22;
+  --sigil-muted-fg: #B4B8BF;
+  --sigil-accent: #FBBF24;
+  --sigil-accent-fg: #FAFBFC;
+  --sigil-dest: #dc2626;
+  --sigil-dest-fg: #FAFBFC;
+  --sigil-border: rgba(255, 255, 255, 0.08);
+  --sigil-input: rgba(255, 255, 255, 0.08);
+  --sigil-ring: #C8922A;
+  
+  --sigil-gold: #FBBF24;
+  --sigil-teal: #10b981;
+}
+
+.light {
+  --sigil-bg: #f8f3e6;
+  --sigil-fg: #1a1816;
+  --sigil-card: #f2ead3;
+  --sigil-card-fg: #1a1816;
+  --sigil-popover: #f2ead3;
+  --sigil-popover-fg: #1a1816;
+  --sigil-primary: #0d9488;
+  --sigil-primary-fg: #f8f3e6;
+  --sigil-secondary: #e5dec5;
+  --sigil-secondary-fg: #1a1816;
+  --sigil-muted: #ece3ca;
+  --sigil-muted-fg: #4a443b;
+  --sigil-accent: #8b6b3f;
+  --sigil-accent-fg: #f8f3e6;
+  --sigil-dest: #b91c1c;
+  --sigil-dest-fg: #f8f3e6;
+  --sigil-border: #d4c8a8;
+  --sigil-input: #d4c8a8;
+  --sigil-ring: #8b6b3f;
+
+  --sigil-gold: #9a7837;
+  --sigil-teal: #0d9488;
+}
+
 @theme {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-heading: var(--font-playfair);
   --font-mono: var(--font-geist-mono);
 
-  /* Dofus Lore Palette - "Parchemin Moderne" */
-  --background: #0E1110;
-  /* Noir-vert forêt très sombre */
-  --foreground: #FAFBFC;
-  /* Blanc cassé */
+  /* Dofus Lore Palette - Semantic Mapping */
+  --background: var(--sigil-bg);
+  --foreground: var(--sigil-fg);
+  --card: var(--sigil-card);
+  --card-foreground: var(--sigil-card-fg);
+  --popover: var(--sigil-popover);
+  --popover-foreground: var(--sigil-popover-fg);
+  --primary: var(--sigil-primary);
+  --primary-foreground: var(--sigil-primary-fg);
+  --secondary: var(--sigil-secondary);
+  --secondary-foreground: var(--sigil-secondary-fg);
+  --muted: var(--sigil-muted);
+  --muted-foreground: var(--sigil-muted-fg);
+  --accent: var(--sigil-accent);
+  --accent-foreground: var(--sigil-accent-fg);
+  --destructive: var(--sigil-dest);
+  --destructive-foreground: var(--sigil-dest-fg);
+  --border: var(--sigil-border);
+  --input: var(--sigil-input);
+  --ring: var(--sigil-ring);
 
-  --card: #13171A;
-  /* Cartes et zones élevées */
-  --card-foreground: #FAFBFC;
-
-  --popover: #13171A;
-  --popover-foreground: #FAFBFC;
-
-  --primary: #10b981;
-  /* Vert Émeraude — Accents & CTAs */
-  --primary-foreground: #0E1110;
-
-  --secondary: #1A1E22;
-  --secondary-foreground: #FAFBFC;
-
-  --muted: #1A1E22;
-  --muted-foreground: #B4B8BF;
-
-  --accent: #FBBF24;
-  /* Or Divin — Headlines & Borders */
-  --accent-foreground: #FAFBFC;
-
-  --destructive: #dc2626;
-  --destructive-foreground: #FAFBFC;
-
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: #C8922A;
-
-  --accent-gold: #FBBF24;
-  --accent-teal: #10b981;
-  --bg-primary: #0E1110;
-  --bg-secondary: #13171A;
-  --bg-tertiary: #1A1E22;
+  --accent-gold: var(--sigil-gold);
+  --accent-teal: var(--sigil-teal);
+  --bg-primary: var(--sigil-bg);
+  --bg-secondary: var(--sigil-card);
+  --bg-tertiary: var(--sigil-muted);
 }
 
 .landing-theme {
-  --background: var(--bg-primary);
-  --foreground: #FAFBFC;
-  --primary: var(--accent-teal);
-  --accent: var(--accent-gold);
+  --background: var(--sigil-bg);
+  --foreground: var(--sigil-fg);
+  --primary: var(--sigil-teal);
+  --accent: var(--sigil-gold);
 }
 
 
@@ -66,7 +101,7 @@
     content: '';
     position: absolute;
     inset: -1px;
-    background: linear-gradient(to right, #10b981, var(--accent-gold));
+    background: linear-gradient(to right, var(--sigil-teal), var(--sigil-gold));
     border-radius: inherit;
     filter: blur(15px);
     opacity: 0;
@@ -89,17 +124,26 @@
 
   .glass-premium {
     @apply backdrop-blur-[32px] backdrop-saturate-[180%];
-    background: linear-gradient(135deg, rgba(10, 10, 10, 0.8), rgba(0, 0, 0, 0.4));
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: linear-gradient(135deg, 
+      color-mix(in srgb, var(--background) 85%, transparent), 
+      color-mix(in srgb, var(--background) 45%, transparent)
+    );
+    border: 1px solid var(--border);
     position: relative;
     overflow: hidden;
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .glass-premium:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    background: linear-gradient(135deg, rgba(20, 20, 20, 0.9), rgba(10, 10, 10, 0.5));
-    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7);
+    border-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+    background: linear-gradient(135deg, 
+      color-mix(in srgb, var(--background) 95%, transparent), 
+      color-mix(in srgb, var(--background) 55%, transparent)
+    );
+    box-shadow: 0 30px 60px -12px rgba(45, 42, 38, 0.15);
+    .dark & {
+      box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5);
+    }
     transform: translateY(-2px);
   }
 
@@ -190,17 +234,27 @@
   }
 
   html {
-    /* Allow natural scrolling */
     scroll-behavior: smooth;
-    overflow-y: visible !important;
+    height: 100%;
+    overflow: hidden; /* Prevent global scrollbar */
   }
 
   body {
-    min-height: 100vh;
+    height: 100%;
     background-color: var(--background);
     color: var(--foreground);
-    overflow-x: hidden;
+    overflow: hidden; /* Forced for dashboard */
+  }
+
+  /* Allow scrolling for landing pages and public docs */
+  html:not(:has(.dashboard-layout)) {
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+
+  html:not(:has(.dashboard-layout)) body {
     overflow-y: visible !important;
+    height: auto !important;
   }
 }
 
@@ -399,10 +453,10 @@
 /* --- High-End Sonner Toasts --- */
 [data-sonner-toast] {
   --radius: 16px !important;
-  background: rgba(13, 15, 17, 0.95) !important;
+  background: var(--background) !important;
   backdrop-filter: blur(24px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2) !important;
   padding: 16px !important;
   font-family: inherit !important;
 }
@@ -432,13 +486,13 @@
   font-weight: 900 !important;
   font-size: 14px !important;
   letter-spacing: 0.02em !important;
-  color: white !important;
+  color: var(--foreground) !important;
   text-transform: uppercase !important;
   margin-bottom: 4px !important;
 }
 
 [data-sonner-toast] [data-description] {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: var(--muted-foreground) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   line-height: 1.5 !important;

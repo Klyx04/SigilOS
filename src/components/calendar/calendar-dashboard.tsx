@@ -169,9 +169,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
     const fetchEvents = async () => {
         setLoading(true);
 
-        // Auto-close expired events first
-        await autoCloseExpiredEvents(guildId);
-
         // Fetch events for the entire month (works for both week and month views)
         const monthStart = startOfMonth(currentDate);
         const monthEnd = endOfMonth(currentDate);
@@ -362,14 +359,14 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
             {/* ============ VIEW TOGGLE (visible only when not loading) ============ */}
             {!loading && (
                 <div className="flex items-center justify-end">
-                    <div className="flex items-center gap-1 p-1 bg-zinc-900/60 border border-zinc-800/50 rounded-full backdrop-blur-sm">
+                    <div className="flex items-center gap-1 p-1 bg-foreground/[0.03] border border-border rounded-full backdrop-blur-sm">
                         <button
                             onClick={() => setViewMode("grid")}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase italic tracking-widest transition-all",
                                 viewMode === "grid"
-                                    ? "bg-zinc-800 text-amber-400 shadow-inner"
-                                    : "text-zinc-400 hover:text-zinc-300"
+                                    ? "bg-foreground text-background shadow-inner"
+                                    : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             <LayoutGrid className="h-4 w-4" />
@@ -378,10 +375,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                         <button
                             onClick={() => setViewMode("list")}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase italic tracking-widest transition-all",
                                 viewMode === "list"
-                                    ? "bg-zinc-800 text-amber-400 shadow-inner"
-                                    : "text-zinc-400 hover:text-zinc-300"
+                                    ? "bg-foreground text-background shadow-inner"
+                                    : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             <List className="h-4 w-4" />
@@ -419,20 +416,20 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                     {/* Header + Filters */}
                     <div className="space-y-6">
                         {/* Title & Action */}
-                        <div className="relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900/80 via-zinc-900/60 to-zinc-950/80 backdrop-blur-xl p-6">
-                            <div className="absolute inset-0 bg-gradient-to-br from-amber-600/5 via-transparent to-purple-600/5 pointer-events-none" />
+                        <div className="relative overflow-hidden rounded-2xl border border-border bg-foreground/[0.02] backdrop-blur-xl p-6">
+                            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-primary/5 pointer-events-none" />
 
                             <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                                 <div className="flex items-center gap-5">
                                     <div className="relative group shrink-0">
                                         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-xl blur-lg group-hover:blur-xl transition-all opacity-70" />
                                         <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/10 flex items-center justify-center border border-amber-500/20 shrink-0">
-                                            <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-amber-400" />
+                                            <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-amber-600 dark:text-amber-400" />
                                         </div>
                                     </div>
                                     <div className="min-w-0">
-                                        <h2 className="text-2xl md:text-3xl font-bold text-zinc-50 tracking-tight truncate">Agenda</h2>
-                                        <p className="text-zinc-400 text-xs md:text-sm mt-1">
+                                        <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-foreground truncate">Agenda</h2>
+                                        <p className="text-muted-foreground font-bold text-xs md:text-sm mt-1">
                                             {filteredEvents.length} événements programmés
                                         </p>
                                     </div>
@@ -446,10 +443,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                                         variant="outline"
                                         onClick={() => setShowFilters(!showFilters)}
                                         className={cn(
-                                            "h-10 rounded-full px-5 text-sm font-bold transition-all border-2",
+                                            "h-10 rounded-full px-5 text-sm font-black uppercase italic tracking-widest transition-all border-2",
                                             (showFilters || selectedFilter !== "ALL")
-                                                ? "bg-zinc-100 text-zinc-900 border-zinc-100 shadow-md"
-                                                : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                                                ? "bg-foreground text-background border-foreground shadow-md"
+                                                : "bg-foreground/[0.03] text-muted-foreground border-border hover:border-foreground/20 hover:text-foreground"
                                         )}
                                     >
                                         <Filter className={cn("h-4 w-4 mr-2", selectedFilter !== "ALL" && "text-amber-500 animate-pulse")} />
@@ -480,16 +477,16 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                                 <button
                                     onClick={() => setSelectedFilter("ALL")}
                                     className={cn(
-                                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
+                                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase italic tracking-widest transition-all border-2 whitespace-nowrap",
                                         selectedFilter === "ALL"
-                                            ? "bg-zinc-100 text-zinc-900 border-zinc-100 shadow-md shadow-zinc-900/10"
-                                            : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                                            ? "bg-foreground text-background border-foreground shadow-md shadow-foreground/10"
+                                            : "bg-foreground/[0.03] text-muted-foreground border-border hover:border-foreground/20 hover:text-foreground"
                                     )}
                                 >
                                     Tous
                                     <span className={cn(
-                                        "px-2 py-0.5 rounded-md text-xs font-bold",
-                                        selectedFilter === "ALL" ? "bg-zinc-800 text-zinc-100" : "bg-zinc-800 text-zinc-400"
+                                        "px-2 py-0.5 rounded-md text-xs font-black",
+                                        selectedFilter === "ALL" ? "bg-background text-foreground" : "bg-foreground/10 text-muted-foreground"
                                     )}>
                                         {events.length}
                                     </span>
@@ -507,17 +504,17 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                                             key={type}
                                             onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
                                             className={cn(
-                                                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border-2 whitespace-nowrap",
+                                                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase italic tracking-widest transition-all border-2 whitespace-nowrap",
                                                 isActive
                                                     ? cn(config.bg, config.color, config.border, "shadow-md")
-                                                    : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700"
+                                                    : "bg-foreground/[0.03] text-muted-foreground border-border hover:border-foreground/20"
                                             )}
                                         >
                                             <Icon className="h-4 w-4" />
                                             {config.label}
                                             <span className={cn(
-                                                "px-2 py-0.5 rounded-md text-xs font-bold",
-                                                isActive ? "bg-white/10" : "bg-zinc-800"
+                                                "px-2 py-0.5 rounded-md text-xs font-black",
+                                                isActive ? "bg-current/10" : "bg-foreground/10"
                                             )}>
                                                 {count}
                                             </span>
@@ -530,9 +527,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
                     {/* Events List Grouped */}
                     {sortedDates.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800/50 rounded-2xl bg-zinc-900/20 text-center px-4">
-                            <Sparkles className="h-10 w-10 text-zinc-700 mb-4" />
-                            <p className="text-zinc-500">Aucun événement ne correspond à vos filtres.</p>
+                        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border rounded-2xl bg-foreground/[0.02] text-center px-4">
+                            <Sparkles className="h-10 w-10 text-muted-foreground/20 mb-4" />
+                            <p className="text-muted-foreground font-bold">Aucun événement ne correspond à vos filtres.</p>
                             {canManage && selectedFilter === "ALL" && (
                                 <Button variant="link" onClick={() => setIsCreateOpen(true)} className="mt-2 text-amber-500">
                                     Créer un événement
@@ -545,15 +542,15 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                                 <div key={dateKey} className="space-y-4">
                                     <div className="flex items-center gap-4">
                                         <div className="flex flex-col items-end shrink-0 min-w-[60px]">
-                                            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">
                                                 {format(new Date(dateKey), "MMM", { locale: fr }).replace(".", "")}
                                             </span>
-                                            <span className="text-2xl font-black text-zinc-200 leading-none">
+                                            <span className="text-2xl font-black text-foreground leading-none">
                                                 {format(new Date(dateKey), "dd")}
                                             </span>
                                         </div>
-                                        <div className="h-px bg-zinc-800 flex-1" />
-                                        <span className="text-sm font-medium text-zinc-600 capitalize">
+                                        <div className="h-px bg-border flex-1" />
+                                        <span className="text-sm font-black text-muted-foreground uppercase tracking-widest italic">
                                             {format(new Date(dateKey), "EEEE", { locale: fr })}
                                         </span>
                                     </div>
@@ -594,10 +591,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                 }}
             >
                 <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogTitle className="text-xl font-bold text-zinc-100">
+                    <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
                         Créer un événement
                     </DialogTitle>
-                    <DialogDescription className="text-zinc-400">
+                    <DialogDescription className="text-muted-foreground font-bold">
                         Remplissez les informations pour créer un nouvel événement de guilde.
                     </DialogDescription>
                     <EventForm 
@@ -641,11 +638,11 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
-                    <DialogTitle className="text-xl font-bold text-zinc-100">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
                         Modifier l'événement
                     </DialogTitle>
-                    <DialogDescription className="text-zinc-400">
+                    <DialogDescription className="text-muted-foreground font-bold">
                         Modifiez les informations de l'événement.
                     </DialogDescription>
                     {editingEvent && (

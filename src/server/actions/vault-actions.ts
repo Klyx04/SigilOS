@@ -224,7 +224,7 @@ export async function createVaultEntry(
                         const emoji = isDeposit ? "📥" : "📤";
                         const actionLabel = isDeposit ? "Dépôt" : "Retrait";
                         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-                        const dashboardUrl = `${appUrl}/dashboard/${guildId}/passages`;
+                        const dashboardUrl = `${appUrl}/dashboard/${guildId}/services`;
                         // Discord needs an absolute URL with access token
                         const publicProofUrl = getDiscordPublicUrl(proofUrl);
 
@@ -272,7 +272,7 @@ export async function createVaultEntry(
             }
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true, data: { id: entry.id } };
     } catch (error) {
         console.error("[createVaultEntry]", error);
@@ -322,7 +322,7 @@ export async function deleteVaultEntry(
             });
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
         console.error("[deleteVaultEntry]", error);

@@ -12,10 +12,18 @@
     { "id": 472, "name": "Bois de Chêne", "amount": 70 },
     { "id": 425, "name": "Trèfle à 5 feuilles", "amount": 50 },
     { "id": 433, "name": "Belladone", "amount": 45 },
-    { "id": 310, "name": "Eau potable", "amount": 20 },
+    { "id": 651, "name": "Eau calme", "amount": 20 },
+    { "id": 19482, "name": "Bière du Chabrulé", "amount": 10 },
     { "id": 17403, "name": "Salicorne", "amount": 8 },
     { "id": 17995, "name": "Écume de mer", "amount": 8 },
-    { "id": 18193, "name": "Bois d'Aquajou", "amount": 8 }
+    { "id": 18193, "name": "Bois d'Aquajou", "amount": 8 },
+    { "id": 17992, "name": "Patelle", "amount": 8 },
+    { "id": 17390, "name": "Quisnoa", "amount": 8 },
+    { "id": 19514, "name": "Potion Torboyo", "amount": 7 },
+    { "id": 11505, "name": "Saucisse Fumée", "amount": 6 },
+    { "id": 465, "name": "Cristal", "amount": 4 },
+    { "id": 11503, "name": "Ardonite", "amount": 3 },
+    { "id": 11510, "name": "Pierre Angulaire", "amount": 3 }
   ],
   "successes": [
     {
@@ -23,7 +31,7 @@
       "zone": "Tours de la Fratrie",
       "id": 1650,
       "quests": [
-        { "name": "Aventure miniature", "id": 1607 },
+        { "name": "Aventure miniature", "id": 1607, "dungeons": [{ "id": 88, "bossId": 241, "name": "Cache de Kankreblath" }] },
         { "name": "Ne tirez pas sur le messager", "id": 1845 },
         { "name": "À la rescousse des magypus", "id": 1853 },
         { "name": "Dernier contact", "id": 1867 },
@@ -42,10 +50,10 @@
       "quests": [
         { "name": "La colère des dieux", "id": 1938 },
         { "name": "L'arme fatale", "id": 1939 },
-        { "name": "Les coeurs livides", "id": 1954 },
+        { "name": "Les cœurs livides", "id": 1954, "dungeons": [{ "id": 109, "bossId": 5100, "name": "Tour de Solar" }, { "id": 108, "bossId": 5110, "name": "Tour de Bethel" }] },
         { "name": "La guerre des Marches", "id": 1940 },
         { "name": "La quête sous l'eau", "id": 1955 },
-        { "name": "Craquements de coeur", "id": 1956 }
+        { "name": "Craquements de cœur", "id": 1956 }
       ]
     },
     {
@@ -53,12 +61,12 @@
       "zone": "Volcan de Chabrulé",
       "id": 1652,
       "quests": [
-        { "name": "Coeur de pierre", "id": 1941 },
-        { "name": "Les pierres à feu", "id": 1942 },
-        { "name": "Du feu de dieu", "id": 1943 },
-        { "name": "Plantes contre Trépamorts", "id": 1944 },
-        { "name": "Le héros de Plantes contre Trépamorts", "id": 1945 },
-        { "name": "Battre le fer tant qu'il est chaud", "id": 1957, "dungeons": [{ "id": 105, "bossId": 5110, "name": "Tour de Bethel" }] }
+        { "name": "Cœur de pierre", "id": 1948 },
+        { "name": "Les pierres à feu", "id": 1949 },
+        { "name": "Du feu de dieu", "id": 1950 },
+        { "name": "Plantes contre Trépamorts", "id": 1951 },
+        { "name": "Le héros de Plantes contre Trépamorts", "id": 1952 },
+        { "name": "Battre le fer tant qu'il est chaud", "id": 1953, "dungeons": [{ "id": 108, "bossId": 5110, "name": "Tour de Bethel" }] }
       ]
     },
     {
@@ -66,12 +74,12 @@
       "zone": "Zone Krobe",
       "id": 1653,
       "quests": [
-        { "name": "Algue au rythme", "id": 1946 },
-        { "name": "Au-delà de la Côte", "id": 1947 },
-        { "name": "La croisière, ça m'use", "id": 1948 },
-        { "name": "Toucher le fond", "id": 1949 },
-        { "name": "La mort de ma vie", "id": 1950 },
-        { "name": "Krobe en bourg", "id": 1958, "dungeons": [{ "id": 104, "bossId": 5100, "name": "Tour de Solar" }] }
+        { "name": "Algue au rythme", "id": 1942 },
+        { "name": "Au-delà de la Côte", "id": 1943 },
+        { "name": "La croisière, ça m'use", "id": 1944 },
+        { "name": "Toucher le fond", "id": 1945, "dungeons": [{ "id": 108, "bossId": 5110, "name": "Tour de Bethel" }] },
+        { "name": "La mort de ma vie", "id": 1946 },
+        { "name": "Krobe en bourg", "id": 1947, "dungeons": [{ "id": 109, "bossId": 5100, "name": "Tour de Solar" }] }
       ]
     }
   ],

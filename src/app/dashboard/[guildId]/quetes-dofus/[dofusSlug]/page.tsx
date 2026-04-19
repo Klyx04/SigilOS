@@ -8,6 +8,8 @@ import Link from "next/link";
 import {
     getDofusDetailWithChains,
     getGuildHeatmapForDofus,
+    updateDolmanaxProgress,
+    getUserCompletedQuestIds,
 } from "@/server/actions/dofus-quest-actions";
 import { DofusQuestManagerV3 } from "@/components/dofus-quests/DofusQuestManagerV3";
 import { DofusProgressRing } from "@/components/dofus-quests/DofusProgressRing";
@@ -36,9 +38,10 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     const enabled = await isModuleEnabled(guildId, "quests");
     if (!enabled) return <AccessDenied />;
 
-    const [result, heatmapResult] = await Promise.all([
+    const [result, heatmapResult, globalCompletedResult] = await Promise.all([
         getDofusDetailWithChains(guildId, dofusSlug, character),
         getGuildHeatmapForDofus(guildId, dofusSlug),
+        getUserCompletedQuestIds(guildId, character),
     ]);
 
     if (!result.success || !result.data) return notFound();
@@ -47,15 +50,23 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
     const color = dofus.color || "#6366f1";
     const heatmapData = heatmapResult.success ? heatmapResult.data ?? null : null;
 
+    // Extract pages from notes if available (Format: "PAGES:X")
+    let initialPages = 0;
+    if (dofus.notes && dofus.notes.startsWith("PAGES:")) {
+        initialPages = parseInt(dofus.notes.split(":")[1], 10) || 0;
+    } else if (dofusSlug === "dolmanax") {
+        initialPages = Math.round((dofus.progressPercent * 365) / 100);
+    }
+
     return (
         <div className="space-y-6 pb-12">
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
                 <Link
                     href={`/dashboard/${guildId}/quetes-dofus${character !== "PRINCIPAL" ? `?character=${character}` : ""}`}
-                    className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors"
+                    className="inline-flex items-center gap-2 text-base font-bold text-muted-foreground hover:text-foreground transition-all group/back"
                 >
-                    <ArrowLeft className="w-4 h-4" />
-                    Retour aux Dofus
+                    <ArrowLeft className="w-5 h-5 transition-transform group-hover/back:-translate-x-1" />
+                    Retour à la liste des Dofus
                 </Link>
 
                 <div className="flex-shrink-0">
@@ -73,7 +84,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
             <div
                 className="relative overflow-hidden rounded-2xl px-6 py-8 flex flex-col sm:flex-row items-center gap-6"
                 style={{
-                    background: `linear-gradient(135deg, ${color}18 0%, rgba(255,255,255,0.02) 60%, ${color}08 100%)`,
+                    background: `linear-gradient(135deg, ${color}18 0%, var(--foreground)/[0.02] 60%, ${color}08 100%)`,
                     border: `1px solid ${color}33`,
                     boxShadow: `0 8px 32px ${color}18`,
                 }}
@@ -147,38 +158,38 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                                 <Sparkles className="w-2.5 h-2.5" /> Requis Sylvestre
                             </span>
                         )}
-                        <span className="text-xs text-white/30">Niveau {dofus.levelRecommended}+</span>
+                        <span className="text-xs text-muted-foreground/50">Niveau {dofus.levelRecommended}+</span>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">{dofus.name}</h1>
+                    <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-1 uppercase tracking-tight">{dofus.name}</h1>
                     {dofus.successName && (
-                        <p className="text-sm text-white/40">
-                            Succès : <span style={{ color }}>{dofus.successName}</span>
+                        <p className="text-sm text-muted-foreground">
+                            Succès : <span style={{ color }} className="font-bold">{dofus.successName}</span>
                         </p>
                     )}
                     {(dofus as any).bonusSummary && (
-                        <p className="text-xs text-white/30 mt-1 font-medium">
+                        <p className="text-xs text-muted-foreground/60 mt-1 font-medium">
                             ✦ {(dofus as any).bonusSummary}
                         </p>
                     )}
                     {dofus.description && (
-                        <p className="text-sm text-white/50 mt-2 max-w-lg">{dofus.description}</p>
+                        <p className="text-sm text-muted-foreground/80 mt-2 max-w-lg font-medium leading-relaxed">{dofus.description}</p>
                     )}
 
                     {/* Progress bar + stats */}
                     <div className="mt-4 flex flex-col gap-2 max-w-xs mx-auto sm:mx-0">
-                        <div className="flex items-center justify-between text-xs text-white/40">
-                            <span>Progression</span>
-                            <span className="tabular-nums">{dofus.completedQuests}/{dofus.totalQuests} étapes</span>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="font-black uppercase tracking-widest text-[10px]">Progression</span>
+                            <span className="tabular-nums font-bold">{dofus.completedQuests}/{dofus.totalQuests} étapes</span>
                         </div>
-                        <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                        <div className="h-2 rounded-full overflow-hidden bg-foreground/[0.08]">
                             <div
-                                className="h-full rounded-full transition-all duration-700"
+                                className="h-full rounded-full transition-all duration-700 shadow-[0_0_15px_var(--primary)/30]"
                                 style={{
                                     width: `${dofus.progressPercent}%`,
                                     background: dofus.isObtained
                                         ? `linear-gradient(90deg, ${color}, #fbbf24)`
                                         : `linear-gradient(90deg, ${color}cc, ${color})`,
-                                    boxShadow: `0 0 8px ${color}66`,
+                                    boxShadow: `0 0 12px ${color}66`,
                                 }}
                             />
                         </div>
@@ -206,9 +217,9 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
             {/* ── Special slug renderers ── */}
             {dofusSlug === "ocre" && (
                 <div
-                    className="rounded-3xl p-6 border"
+                    className="rounded-3xl p-6 border transition-all duration-500"
                     style={{
-                        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 100%)`,
+                        background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
                         border: `1px solid ${color}25`,
                     }}
                 >
@@ -228,9 +239,9 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
 
             {dofusSlug === "dolmanax" && (
                 <div
-                    className="rounded-3xl p-6 border"
+                    className="rounded-3xl p-6 border transition-all duration-500"
                     style={{
-                        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 100%)`,
+                        background: `linear-gradient(135deg, ${color}10 0%, var(--foreground)/[0.05] 100%)`,
                         border: `1px solid ${color}25`,
                     }}
                 >
@@ -239,7 +250,11 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                     </div>
                     <DofusDolmanaxTracker
                         guildId={guildId}
-                        initialPages={0}
+                        initialPages={initialPages}
+                        onSave={async (pages) => {
+                            "use server";
+                            await updateDolmanaxProgress(guildId, dofus.id, pages, character);
+                        }}
                     />
                 </div>
             )}
@@ -251,6 +266,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 dofusColor={color}
                 heatmapData={heatmapData}
                 selectedCharacter={character}
+                initialGlobalCompletedIds={globalCompletedResult.success ? globalCompletedResult.data : []}
             />
         </div>
     );

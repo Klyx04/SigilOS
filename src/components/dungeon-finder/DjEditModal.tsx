@@ -89,7 +89,7 @@ export function DjEditModal({ isOpen, post, guildId, onClose, onSaved }: DjEditM
                 <div className="p-5 pb-4 border-b border-white/5 bg-slate-900/30">
                     <DialogTitle className="text-base font-black flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-inner">
-                            <Pencil className="w-4 h-4 text-indigo-400" />
+                            <Pencil className="w-4 h-4 text-indigo-400" strokeWidth={2.5} />
                         </div>
                         <div>
                             <span className="text-white">Modifier le groupe</span>

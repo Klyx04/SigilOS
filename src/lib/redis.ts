@@ -52,7 +52,9 @@ redis.on("ready", () => {
     console.log("[Redis] 🚀 Redis is ready");
 });
 
-if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
+// Always persist the connection on globalThis to survive hot-reloads in Turbopack
+// Without this, every module re-execution (dev or serverless) creates a new connection
+globalForRedis.redis = redis;
 
 // GRACEFUL SHUTDOWN
 if (process.env.NODE_ENV === "production") {

@@ -208,17 +208,18 @@ export function GuildDofusHeatmap({ data, dofusColor = "#6366f1", dofusName = "D
                                             >
                                                 <div className="flex items-center justify-center">
                                                     <div
-                                                        className="w-5 h-5 rounded flex items-center justify-center transition-transform group-hover/row:scale-110"
+                                                        className="w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 group-hover/row:scale-110 shadow-lg"
                                                         style={{
                                                             background: status === "COMPLETED"
                                                                 ? `${style.bg}22`
                                                                 : status === "IN_PROGRESS"
                                                                     ? `${style.bg}18`
-                                                                    : "rgba(255,255,255,0.02)",
+                                                                    : "rgba(255,255,255,0.03)",
+                                                            border: `1px solid ${status === "NOT_STARTED" ? "rgba(255,255,255,0.05)" : style.bg + "44"}`,
                                                         }}
                                                     >
                                                         <Icon
-                                                            className="w-3 h-3"
+                                                            className="w-4 h-4"
                                                             style={{ color: status === "NOT_STARTED" ? "rgba(255,255,255,0.08)" : style.bg }}
                                                         />
                                                     </div>

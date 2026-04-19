@@ -120,7 +120,7 @@ export function DungeonFinderClient({
     const canCreate = myActivePosts.length < 3;
 
     const TABS: { id: Tab; label: string; sub: string; icon: React.ElementType; color: string }[] = [
-        { id: "posts", label: "Recherche DJ", sub: "Trouver un groupe", icon: Search, color: "indigo" },
+        { id: "posts", label: "Recherche DJ", sub: "Trouver un groupe", icon: Search, color: "zinc" },
         { id: "tracker", label: "Mes Succès", sub: "Ma progression", icon: Trophy, color: "amber" },
         { id: "directory", label: "Succès Commun", sub: "La guilde", icon: Users, color: "emerald" },
     ];
@@ -128,78 +128,78 @@ export function DungeonFinderClient({
     return (
         <div className="space-y-8">
             {/* Dissociated Professional Tabs */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {TABS.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
                     const colorVariants = {
-                        indigo: {
-                            border: "border-indigo-500/40",
-                            icon: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
-                            sub: "text-indigo-400/80",
-                            glow: "bg-indigo-500",
-                            shadow: "shadow-[0_0_15px_rgba(99,102,241,0.5)]"
+                        zinc: {
+                            border: "border-white/20",
+                            icon: "bg-white/10 border-white/20 text-white",
+                            sub: "text-zinc-400",
+                            glow: "bg-white",
+                            shadow: "shadow-[0_0_20px_rgba(255,255,255,0.1)]"
                         },
                         amber: {
                             border: "border-amber-500/40",
                             icon: "bg-amber-500/10 border-amber-500/20 text-amber-400",
                             sub: "text-amber-400/80",
                             glow: "bg-amber-500",
-                            shadow: "shadow-[0_0_15px_rgba(245,158,11,0.5)]"
+                            shadow: "shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                         },
                         emerald: {
                             border: "border-emerald-500/40",
                             icon: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
                             sub: "text-emerald-400/80",
                             glow: "bg-emerald-500",
-                            shadow: "shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                            shadow: "shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                         }
                     }[tab.color] || {
-                        border: "border-indigo-500/40",
-                        icon: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
-                        sub: "text-indigo-400/80",
-                        glow: "bg-indigo-500",
-                        shadow: "shadow-[0_0_15px_rgba(99,102,241,0.5)]"
+                        border: "border-white/20",
+                        icon: "bg-white/10 border-white/20 text-white",
+                        sub: "text-zinc-400",
+                        glow: "bg-white",
+                        shadow: "shadow-[0_0_20px_rgba(255,255,255,0.1)]"
                     };
 
                     return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`relative group overflow-hidden flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 ${isActive
-                                ? `bg-zinc-900 ${colorVariants.border} shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)]`
-                                : "bg-zinc-950/40 border-white/5 hover:border-white/10 hover:bg-zinc-900/60"
+                            className={`relative group overflow-hidden flex items-center gap-4 p-5 rounded-2xl border transition-all duration-300 ${isActive
+                                ? `bg-zinc-800/80 ${colorVariants.border} shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] scale-[1.02]`
+                                : "bg-zinc-900/20 border-white/5 hover:border-white/10 hover:bg-zinc-900/40"
                                 }`}
                         >
-                            {/* Accent Glow */}
+                            {/* Top Indicator */}
                             {isActive && (
-                                <div className={`absolute -bottom-px inset-x-4 h-px bg-gradient-to-r from-transparent via-${tab.color}-500 to-transparent ${colorVariants.shadow}`} />
+                                <motion.div 
+                                    layoutId="active-pill"
+                                    className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-${tab.color === 'zinc' ? 'white' : tab.color + '-500'} to-transparent`} 
+                                />
                             )}
 
                             {/* Icon Box */}
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-300 ${isActive
                                 ? colorVariants.icon
-                                : "bg-white/5 border-white/5 text-slate-500 group-hover:text-slate-300"
+                                : "bg-white/5 border-white/5 text-zinc-600 group-hover:text-zinc-400"
                                 }`}>
-                                <Icon className="w-6 h-6" />
+                                <Icon className="w-5 h-5" />
                             </div>
 
                             {/* Labels */}
                             <div className="text-left">
-                                <p className={`font-black text-sm uppercase tracking-wider transition-colors ${isActive ? "text-white" : "text-slate-500"}`}>
+                                <p className={`font-black text-xs uppercase tracking-[0.2em] transition-colors ${isActive ? "text-white" : "text-zinc-500"}`}>
                                     {tab.label}
                                 </p>
-                                <p className={`text-[10px] font-medium transition-colors ${isActive ? colorVariants.sub : "text-slate-600"}`}>
+                                <p className={`text-[10px] font-bold mt-0.5 transition-colors ${isActive ? colorVariants.sub : "text-zinc-600"}`}>
                                     {tab.sub}
                                 </p>
                             </div>
 
-                            {/* Active Indicator */}
+                            {/* Accent Glow */}
                             {isActive && (
-                                <motion.div
-                                    layoutId="tab-glow"
-                                    className={`absolute inset-0 ${colorVariants.glow}/5 opacity-20 pointer-events-none`}
-                                />
+                                <div className={`absolute -bottom-2 -right-2 w-16 h-16 ${colorVariants.glow}/10 blur-2xl rounded-full`} />
                             )}
                         </button>
                     );
@@ -236,8 +236,8 @@ export function DungeonFinderClient({
                                     disabled={!canCreate}
                                     title={canCreate ? "Créer un post" : "Tu as atteint la limite de 3 posts actifs"}
                                     className={`font-black h-10 gap-2 shadow-lg ${canCreate
-                                        ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/25"
-                                        : "bg-amber-600/20 text-amber-400 border border-amber-500/30 cursor-not-allowed opacity-70"
+                                        ? "bg-white hover:bg-zinc-200 text-zinc-900 shadow-white/5"
+                                        : "bg-zinc-800/50 text-zinc-500 border border-white/5 cursor-not-allowed opacity-70"
                                         }`}
                                 >
                                     {canCreate ? (
@@ -290,7 +290,7 @@ export function DungeonFinderClient({
                                 </p>
                                 {canCreate && (
                                     <Button
-                                        className="mt-5 bg-indigo-600 hover:bg-indigo-500 font-bold"
+                                        className="mt-5 bg-white hover:bg-zinc-200 text-zinc-900 font-bold"
                                         onClick={() => setIsCreateOpen(true)}
                                     >
                                         <Plus className="w-4 h-4 mr-2" /> Créer un post
@@ -311,6 +311,7 @@ export function DungeonFinderClient({
                                             currentProfileId={currentProfileId}
                                             isAdmin={isAdmin}
                                             onRefresh={handleRefresh}
+                                            isDiscordConfigured={isDiscordConfigured}
                                         />
                                     ))}
                                 </AnimatePresence>

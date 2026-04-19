@@ -44,9 +44,10 @@ interface DjPostCardProps {
     currentProfileId?: string;
     isAdmin?: boolean;
     onRefresh: () => void;
+    isDiscordConfigured?: boolean;
 }
 
-export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh }: DjPostCardProps) {
+export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh, isDiscordConfigured }: DjPostCardProps) {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
@@ -365,15 +366,28 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         )}
 
                         {isOwner && post.status === "OPEN" && (
-                            <Button
-                                size="sm"
-                                onClick={() => setIsCloseModalOpen(true)}
-                                disabled={isPending}
-                                className="flex-1 h-8 text-xs font-bold bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 hover:border-violet-500/50"
-                            >
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                Terminer
-                            </Button>
+                            <div className="flex flex-1 gap-2">
+                                <Button
+                                    size="sm"
+                                    onClick={() => setIsCloseModalOpen(true)}
+                                    disabled={isPending}
+                                    title="Valider et donner des points"
+                                    className="flex-1 h-8 text-[10px] font-black uppercase tracking-tight bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 hover:border-violet-500/50"
+                                >
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    Terminer
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleClose}
+                                    disabled={isPending}
+                                    title="Fermer sans donner de points"
+                                    className="h-8 px-2 text-[10px] font-bold border-rose-900/50 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30"
+                                >
+                                    <XCircle className="w-3 h-3 h-3" />
+                                </Button>
+                            </div>
                         )}
                         {isAdmin && !isOwner && post.status === "OPEN" && (
                             <Button

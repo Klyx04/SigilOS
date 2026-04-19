@@ -408,7 +408,7 @@ export function ProofUploadDialog({
                             </Button>
                             {/* Allow cancelling for simple UX even if validated - user might have made mistake */}
                             <Button
-                                variant="destructive"
+                                variant="sigil-destructive"
                                 disabled={isPending}
                                 onClick={() => {
                                     startTransition(async () => {
@@ -439,7 +439,8 @@ export function ProofUploadDialog({
                             <Button
                                 onClick={handleUpload}
                                 disabled={!file || isProcessing}
-                                className="bg-indigo-600 hover:bg-indigo-500"
+                                variant="sigil-emerald"
+                                className="h-10 px-6"
                             >
                                 {state === "analyzing" ? (
                                     <>

@@ -14,6 +14,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import 'dotenv/config';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -23,7 +24,7 @@ const cleanEnv = (val: string | undefined) => {
 
 // URL construction logic (aligned with prisma.config.js)
 const getConnectionString = () => {
-    if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
+    if (process.env.DATABASE_URL) {
         return cleanEnv(process.env.DATABASE_URL);
     }
 
@@ -31,8 +32,9 @@ const getConnectionString = () => {
     const pwd = cleanEnv(process.env.POSTGRES_PASSWORD);
     const db_name = cleanEnv(process.env.POSTGRES_DB) || 'sigilos';
     const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-beta' : 'localhost');
+    const port = process.env.DB_PORT || '5432';
 
-    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
 };
 
 // Prisma client will be instantiated inside main() for better reliability.

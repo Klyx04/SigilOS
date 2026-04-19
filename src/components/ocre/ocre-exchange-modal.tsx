@@ -479,6 +479,17 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                     Proposer un échange à <strong className="text-emerald-400">{tradeRequest.targetName}</strong> pour <strong className="text-emerald-400">{tradeRequest.monsterName}</strong>.
                                 </DialogDescription>
                             </DialogHeader>
+
+                            {!hasOcreChannel && (
+                                <div className="mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
+                                    <Bell className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                    <div className="text-[10px] text-amber-200/80 leading-relaxed font-medium">
+                                        <span className="text-amber-500 font-bold block mb-0.5">Configuration Discord absente</span>
+                                        Demandez à un officier de configurer le salon Ocre pour activer les notifications Discord.
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="space-y-4 py-2">
                                 <Textarea
                                     placeholder="Message optionnel (ex: Dispo ce soir 20h zaap astrub ? J'ai un Piou Vert en échange)"

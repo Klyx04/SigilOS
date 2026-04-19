@@ -27,7 +27,8 @@ import {
     Loader2,
     Check,
     MessageSquare,
-    Mic
+    Mic,
+    Ban
 } from "lucide-react";
 import { 
     Card, 
@@ -84,6 +85,7 @@ import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { RelanceClient } from "@/components/admin/relance/relance-client";
 import { MemberDiscordCharts } from "@/components/admin/members/member-discord-charts";
 import { GuildatonManagement } from "@/components/admin/members/guildaton-management";
+import { MemberBlacklist } from "@/components/admin/members/member-blacklist";
 
 interface Member {
     id: string;
@@ -92,6 +94,7 @@ interface Member {
     createdAt: string;
     updatedAt: string;
     archivedAt: string | null;
+    scheduledDeletion: string | null;
     archiveReason: string | null;
     pseudoDofus: string | null;
     discordNickname: string | null;
@@ -389,6 +392,7 @@ export default function MemberManagement({
                         { id: "audit", label: "Audit & Sync", icon: ShieldCheck, requiresFull: true },
                         { id: "management", label: "Roster & Historique", icon: UserCircle, requiresFull: true },
                         { id: "guildaton", label: "Analyse Guildaton", icon: ({ className }: { className?: string }) => <img src="/guildaton.png" className={cn("w-4 h-4 object-contain", className)} alt="" />, requiresFull: true },
+                        { id: "blacklist", label: "Blacklist (Jeu)", icon: Ban, requiresFull: true },
                         { id: "relances", label: "Relances Discord", icon: Bell, requiresFull: false },
                     ].map(tab => {
                         const isDisabled = tab.requiresFull && !canManageMembers;
@@ -756,6 +760,11 @@ export default function MemberManagement({
                 {/* --- TAB 4: GUILDATON --- */}
                 <TabsContent value="guildaton" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <GuildatonManagement guildId={guildId} />
+                </TabsContent>
+
+                {/* --- TAB 5: BLACKLIST --- */}
+                <TabsContent value="blacklist" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <MemberBlacklist guildId={guildId} />
                 </TabsContent>
             </Tabs>
         </div>

@@ -69,7 +69,7 @@ export default async function SuperAdminPage(props: {
         getGhostUsers(),
         getUnauthorizedBotConnections()
     ]);
-    
+
     const resolvedData = {
         softDeletedGuilds,
         softDeletedProfiles,
@@ -116,7 +116,7 @@ export default async function SuperAdminPage(props: {
                                 </div>
                             </div>
 
-                            <OverviewTabs 
+                            <OverviewTabs
                                 stats={
                                     <Suspense fallback={<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse"><div className="h-24 bg-zinc-900 rounded-2xl" /></div>}>
                                         <LiveStatsServer />
@@ -150,8 +150,8 @@ export default async function SuperAdminPage(props: {
                             <Suspense fallback={<div className="h-96 bg-zinc-900/10 rounded-[3rem] animate-pulse border border-white/5" />}>
                                 <GuildsServer />
                             </Suspense>
-                            
-                            <LifecyclePanel 
+
+                            <LifecyclePanel
                                 guilds={resolvedData.softDeletedGuilds as any}
                                 profiles={resolvedData.softDeletedProfiles as any}
                                 archivedProfiles={resolvedData.archivedProfiles as any}
@@ -203,17 +203,8 @@ export default async function SuperAdminPage(props: {
                                         <GlobalLogsServer />
                                     </Suspense>
                                 </div>
-                                <div className="space-y-8">
-                                    <div className="bg-rose-500/5 border border-rose-500/10 rounded-3xl p-8 text-center space-y-6">
-                                        <Shield className="w-12 h-12 text-rose-500 mx-auto opacity-50" />
-                                        <h3 className="text-sm font-black text-rose-500 uppercase tracking-widest">Chat Firewall</h3>
-                                        <Link href="/god/chat" className="inline-block px-6 py-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-sm font-black text-rose-400 hover:text-white transition-all uppercase tracking-widest w-full">
-                                            Open Monitor
-                                        </Link>
-                                    </div>
-                                </div>
                             </div>
-                            
+
                             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                                 <div className="lg:col-span-3 bg-zinc-900/10 border border-white/5 rounded-3xl p-1 shadow-2xl">
                                     <Suspense fallback={<div className="animate-pulse bg-zinc-900/10 h-64 rounded-3xl" />}>
@@ -283,6 +274,25 @@ export default async function SuperAdminPage(props: {
                                     <EventZoneManager />
                                 </Suspense>
                             </div>
+
+                            {/* Avis de Recherche Quick Access */}
+                            <div className="border-t border-white/5 pt-12">
+                                <Link
+                                    href="/god/game-data/bounties"
+                                    className="group flex items-center gap-6 p-8 rounded-3xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all shadow-xl shadow-rose-500/5"
+                                >
+                                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 group-hover:bg-rose-500/20 transition-all shrink-0">
+                                        <Flag className="w-8 h-8 text-rose-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-xl font-black text-white uppercase italic tracking-tight mb-1">Avis de Recherche</h3>
+                                        <p className="text-zinc-500 text-sm font-medium">
+                                            Éditez les mécaniques, doplons, zones et résumés tactiques de tous les avis de recherche de la base de données.
+                                        </p>
+                                    </div>
+                                    <div className="shrink-0 text-rose-500/40 group-hover:text-rose-400 group-hover:translate-x-1 transition-all text-2xl font-black">→</div>
+                                </Link>
+                            </div>
                         </div>
                     )}
                 </GodDashboardClient>
@@ -295,13 +305,13 @@ async function GlobalLogsServer() {
     try {
         const { getGlobalAuditLogs } = await import("@/server/actions/audit-actions");
         const { AuditFeedPanel } = await import("./components/audit-feed-panel");
-        
+
         const result = await getGlobalAuditLogs({ limit: 200 });
         const safeLogs = JSON.parse(JSON.stringify(result.data?.logs || []));
-        
+
         return <AuditFeedPanel logs={safeLogs} total={result.data?.total || 0} />;
-    } catch { 
-        return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading global logs</div>; 
+    } catch {
+        return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading global logs</div>;
     }
 }
 
@@ -365,7 +375,7 @@ async function GhostUsersServer() {
         const { getGhostUsers } = await import("@/server/actions/super-admin-actions");
         const { TargetPurgePanel } = await import("./components/target-purge-panel");
         const ghostUsers = await getGhostUsers();
-        
+
         return <TargetPurgePanel ghostUsers={ghostUsers} />;
     } catch { return <div>Error Ghosts</div> }
 }
@@ -420,7 +430,7 @@ async function AnnouncementServer() {
 async function TicketsServer() {
     try {
         const { getSupportTickets, getTicketStats } = await import("@/server/actions/ticket-actions");
-        const [ticketData, stats] = await Promise.all([ getSupportTickets({ perPage: 50 }), getTicketStats() ]);
+        const [ticketData, stats] = await Promise.all([getSupportTickets({ perPage: 50 }), getTicketStats()]);
         return <TicketDashboard initialTickets={JSON.parse(JSON.stringify(ticketData.tickets, (k, v) => typeof v === 'bigint' ? v.toString() : v))} initialTotal={ticketData.total} initialStats={stats} />;
     } catch { return <div>Error tickets</div> }
 }
@@ -430,7 +440,7 @@ async function PlatformConfigServer() {
         const { getPlatformConfig } = await import("@/server/actions/changelog-actions");
         const { fetchBotGuilds, fetchGuildRoles } = await import("@/server/discord");
         const { PlatformConfigPanel } = await import("./components/platform-config-panel");
-        const [configRes, guilds] = await Promise.allSettled([ getPlatformConfig(), fetchBotGuilds() ]);
+        const [configRes, guilds] = await Promise.allSettled([getPlatformConfig(), fetchBotGuilds()]);
         const configResult = configRes.status === "fulfilled" ? configRes.value : { success: false, config: null };
         const guildsList = guilds.status === "fulfilled" ? guilds.value : [];
         let roles: any[] = [];
@@ -459,7 +469,7 @@ async function GameDataStatsServer() {
             db.challenge.count(),
             db.dungeon.count()
         ]);
-        
+
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[

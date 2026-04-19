@@ -274,12 +274,12 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
                 }
             }
         });
-        
+
         if (!zone) return { success: false, error: 'Zone introuvable' };
-        
+
         const normalMonsters: any[] = [];
         const avisDeRecherche: any[] = [];
-        
+
         zone.families.forEach(family => {
             const isAvis = family.name.toLowerCase().includes('avis de recherche');
             family.monsters.forEach(monster => {
@@ -287,14 +287,14 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
                 else normalMonsters.push({ ...monster, familyName: family.name });
             });
         });
-        
-        return { 
-            success: true, 
-            data: { 
-                zoneName: zone.name, 
-                normalMonsters, 
-                avisDeRecherche 
-            } 
+
+        return {
+            success: true,
+            data: {
+                zoneName: zone.name,
+                normalMonsters,
+                avisDeRecherche
+            }
         };
     } catch (error) {
         console.error('[getZoneMonsters] Error:', error);
@@ -305,7 +305,24 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
 /** Fetch bounties (Avis de recherche) for a specific zone from DofusDB */
 export async function getBountiesForZone(zoneName: string): Promise<ActionResponse<any[]>> {
     try {
-        // Broad regions mapping for elusive bounties
+        const normalizedZone = zoneName.toLowerCase().trim();
+        const unaccentedZone = normalizedZone.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const baseZone = unaccentedZone.replace(/^(cité d'|village d'|champs d'|forêt d'|prairies d'|bordure d'|massif d'|routes? d'|forêt |lac )/i, "").trim();
+
+        const localBounties = await db.bounty.findMany({
+            where: {
+                OR: [
+                    { zoneName: { equals: zoneName, mode: 'insensitive' } },
+                    { zoneName: { equals: normalizedZone, mode: 'insensitive' } },
+                    { zoneName: { equals: unaccentedZone, mode: 'insensitive' } },
+                    { zoneName: { equals: baseZone, mode: 'insensitive' } },
+                ]
+            }
+        });
+
+        console.log(`[Bounties] Requested zone: "${zoneName}" -> normalized: "${normalizedZone}" -> base: "${baseZone}". Found local: ${localBounties.length}`);
+
+        // 2. Fallback/Merge with DofusDB for dynamic data or missing entries
         const regionMapping: Record<string, string[]> = {
             'saharach': ['ali grothor', 'ka\'youloud', 'le khepricorne', 'simbadas'],
             'frigost': ['monsieur pingouin', 'mekamouth', 'bouflouth'],
@@ -313,43 +330,70 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
         };
 
         const response = await fetch(`https://api.dofusdb.fr/monsters?typeId=23&$limit=100&lang=fr`);
-        if (!response.ok) throw new Error("Failed to fetch DofusDB");
-        
         const data = await response.json();
         const monsters = data.data || [];
-        
-        const normalizedZone = zoneName.toLowerCase().trim();
-        
-        // Find if our zone belongs to a known region
+
         const regionKey = Object.keys(regionMapping).find(k => normalizedZone.includes(k));
         const regionalBounties = regionKey ? regionMapping[regionKey] : [];
 
-        const filtered = monsters.filter((m: any) => {
-             // 1. Direct subarea match
-             const subAreaMatch = m.subareas && m.subareas.some((sa: any) => 
-                sa.name.fr.toLowerCase().includes(normalizedZone) || 
+        const externalFiltered = monsters.filter((m: any) => {
+            const subAreaMatch = m.subareas && m.subareas.some((sa: any) =>
+                sa.name.fr.toLowerCase().includes(normalizedZone) ||
                 normalizedZone.includes(sa.name.fr.toLowerCase())
-             );
-             if (subAreaMatch) return true;
-
-             // 2. Region keyword match (for Saharach, Frigost, etc)
-             if (regionalBounties.length > 0) {
-                 return regionalBounties.includes(m.name.fr.toLowerCase());
-             }
-
-             return false;
+            );
+            if (subAreaMatch) return true;
+            if (regionalBounties.length > 0) {
+                return regionalBounties.includes(m.name.fr.toLowerCase());
+            }
+            return false;
         });
 
-        return { 
-            success: true, 
-            data: filtered.map((m: any) => ({
-                id: m.id,
-                name: m.name.fr,
-                imageUrl: m.img || `https://static.ankama.com/dofus/www/game/monsters/${m.id}.png`,
-                level: m.grades?.[0]?.level || 0,
-                subarea: m.subareas?.[0]?.name?.fr || "Région"
-            })) 
-        };
+        // 3. Merged result: prioritize localDB info (like guide links), but fix minimap images
+        const merged = [...localBounties.map(b => {
+            const dofusDbMatch = monsters.find((m: any) => m.name.fr.toLowerCase() === b.name.toLowerCase());
+            let finalImage = b.imageUrl;
+
+            if (finalImage && finalImage.startsWith('/images/bounties/') && dofusDbMatch) {
+                finalImage = dofusDbMatch.img || `https://static.ankama.com/dofus/www/game/monsters/${dofusDbMatch.id}.png`;
+            }
+
+            return {
+                id: b.id,
+                name: b.name,
+                imageUrl: finalImage,
+                mapUrl: b.mapUrl || (b.imageUrl?.startsWith('/images/bounties/') ? b.imageUrl : null),
+                level: b.level,
+                subarea: b.zoneName,
+                guideUrl: b.dpnlUrl,
+                doplons: b.doplons,
+                rewardType: b.rewardType,
+                rewards: b.rewards,
+                milice: b.milice,
+                mechanics: b.mechanics
+            };
+        })];
+
+        // Add external bounties that aren't in local DB yet
+        externalFiltered.forEach((m: any) => {
+            if (!merged.find(b => b.name.toLowerCase() === m.name.fr.toLowerCase())) {
+                merged.push({
+                    id: m.id,
+                    name: m.name.fr,
+                    imageUrl: m.img || `https://static.ankama.com/dofus/www/game/monsters/${m.id}.png`,
+                    level: m.grades?.[0]?.level || 0,
+                    subarea: m.subareas?.[0]?.name?.fr || "Région",
+                    guideUrl: null,
+                    doplons: 0,
+                    rewardType: 'Doplon',
+                    rewards: [],
+                    milice: null,
+                    mechanics: null,
+                    mapUrl: null,
+                });
+            }
+        });
+
+        return { success: true, data: merged };
     } catch (error) {
         console.error('[getBountiesForZone] Error:', error);
         return { success: false, error: 'Erreur lors de la récupération des avis' };
@@ -357,32 +401,32 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
 }
 export async function getMonsterStats(monsterName: string, dungeonName?: string): Promise<ActionResponse<any>> {
     let coordinates = null;
-    
+
     // Attempt local coordinate lookup first (very fast and reliable)
     try {
         const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
         if (fs.existsSync(filePath)) {
             const worldMapData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-            
+
             // 1. Try to find the dungeon by name if provided
             let dungeonInfo = null;
             if (dungeonName) {
                 const searchName = dungeonName.toLowerCase().replace("défi du ", "").trim();
-                dungeonInfo = worldMapData.dungeons?.find((d: any) => 
-                    d.name.toLowerCase().includes(searchName) || 
+                dungeonInfo = worldMapData.dungeons?.find((d: any) =>
+                    d.name.toLowerCase().includes(searchName) ||
                     searchName.includes(d.name.toLowerCase())
                 );
             }
-            
+
             // 2. If no dungeon match, try to find monster subarea coordinate from file
             const entranceMapId = dungeonInfo?.entranceMapId || dungeonInfo?.mapId;
             if (entranceMapId) {
                 const mapNode = worldMapData.maps?.find((m: any) => m.id === entranceMapId);
                 if (mapNode) {
-                    coordinates = { 
-                        x: mapNode.x, 
-                        y: mapNode.y, 
-                        worldMapId: mapNode.worldMap === -1 ? 1 : mapNode.worldMap 
+                    coordinates = {
+                        x: mapNode.x,
+                        y: mapNode.y,
+                        worldMapId: mapNode.worldMap === -1 ? 1 : mapNode.worldMap
                     };
                 }
             }
@@ -398,11 +442,11 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
             { cache: 'no-store' }
         );
         if (!searchRes.ok) throw new Error("DofusDB search failed");
-        
+
         const searchData = await searchRes.json();
         // Try to find exact match or take first
         const monsterHeader = searchData.data?.find((m: any) => m.name.fr.toLowerCase() === monsterName.toLowerCase().trim()) || searchData.data?.[0];
-        
+
         if (!monsterHeader) return { success: false, error: 'Monstre non trouvé' };
 
         // Fetch FULL details
@@ -416,18 +460,18 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
         // Get items and spells mappings in parallel
         const rawDropObjectIds = monster.drops?.map((d: any) => d.objectId) || [];
         const dropObjectIds = Array.from(new Set(rawDropObjectIds)); // Deduplicate
-        
+
         const allSpellIds = [...(monster.spells || [])];
         monster.grades?.forEach((g: any) => {
             if (g.startingSpellId) allSpellIds.push(g.startingSpellId);
         });
         const spellIds = Array.from(new Set(allSpellIds));
-        
+
         const itemsMap: Record<number, any> = {};
         let spellsArr: any[] = [];
-        
+
         const fetchPromises = [];
-        
+
         // Chunk items fetch by 40 to prevent any URI length limits or DofusDB $limit=50 truncations
         for (let i = 0; i < dropObjectIds.length; i += 40) {
             const chunk = dropObjectIds.slice(i, i + 40);
@@ -443,15 +487,15 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                     .catch(console.error)
             );
         }
-        
+
         if (spellIds.length > 0) {
             const spellQuery = spellIds.map((id: unknown) => `id[$in][]=${id}`).join('&');
             fetchPromises.push(
                 fetch(`https://api.dofusdb.fr/spells?${spellQuery}&$limit=50&lang=fr`, { cache: 'no-store' })
                     .then(res => res.json())
-                    .then(data => { 
+                    .then(data => {
                         if (data && Array.isArray(data.data)) {
-                            spellsArr = data.data; 
+                            spellsArr = data.data;
                         }
                     })
                     .catch(console.error)
@@ -459,7 +503,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
         }
 
         await Promise.all(fetchPromises);
-        
+
         // Fetch spell levels details AFTER we have spells data
         const spellLevelsMap: Record<number, any> = {};
         if (spellsArr.length > 0) {
@@ -468,14 +512,14 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                 // Use the last level for bosses as they are high level
                 return levels.length > 0 ? levels[levels.length - 1] : null;
             }).filter(Boolean);
-            
+
             if (requestedLevels.length > 0) {
                 const levelQuery = requestedLevels.map((id: unknown) => `id[$in][]=${id}`).join('&');
                 const levelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${levelQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
                 if (levelRes.ok) {
                     const levelData = await levelRes.json();
                     if (levelData && Array.isArray(levelData.data)) {
-                        levelData.data.forEach((l: any) => { 
+                        levelData.data.forEach((l: any) => {
                             spellLevelsMap[l.id] = l;
                         });
                     }
@@ -501,10 +545,10 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                 const min = eff.diceNum || 0;
                 const max = eff.diceSide || 0;
                 let text = "";
-                
+
                 // Helper to scale damage
                 const scale = (val: number, stat: number) => Math.floor(val * (1 + stat / 100));
-                
+
                 // Real Dofus Damage & Utility IDs mapping
                 if (id === 100) {
                     text = `⚪ Dommages Neutre : ${scale(min, monsterStats.neutral)}-${scale(max, monsterStats.neutral)}`;
@@ -561,31 +605,31 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                 } else if (id === 121) {
                     text = `📉 Dommages subis : +${min}%`;
                 }
-                
+
                 return text;
             }).filter(Boolean).join(" | ");
         };
-        
+
         // Fallback to subarea lookup via local file if coordinates is still null
         if (!coordinates && monster.subareas?.length > 0) {
             try {
                 const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
                 if (fs.existsSync(filePath)) {
                     const worldMapData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-                    const firstMapInSubarea = worldMapData.maps?.find((m: any) => 
+                    const firstMapInSubarea = worldMapData.maps?.find((m: any) =>
                         m.subAreaId === monster.subareas[0]
                     );
                     if (firstMapInSubarea) {
-                        coordinates = { 
-                            x: firstMapInSubarea.x, 
-                            y: firstMapInSubarea.y, 
-                            worldMapId: firstMapInSubarea.worldMap === -1 ? 1 : firstMapInSubarea.worldMap 
+                        coordinates = {
+                            x: firstMapInSubarea.x,
+                            y: firstMapInSubarea.y,
+                            worldMapId: firstMapInSubarea.worldMap === -1 ? 1 : firstMapInSubarea.worldMap
                         };
                     }
                 }
             } catch (err) { console.error("Fallback coordinate fetch error:", err); }
         }
-        
+
         return {
             success: true,
             data: {
@@ -622,7 +666,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                     const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
                     const level = spellLevelsMap[levelId] || {};
                     const effectDesc = parseEffects(level.effects);
-                    
+
                     // Priority for images: 
                     // 1. s.img (sometimes relative)
                     // 2. static.ankama.com
@@ -653,5 +697,97 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
     } catch (error) {
         console.error('[getMonsterStats] Error:', error);
         return { success: false, error: 'Erreur DofusDB' };
+    }
+}
+
+/** Update a bounty record — GOD mode only, no guild scope */
+export async function updateGodBountyRecord(bountyId: string, data: {
+    name?: string;
+    level?: number;
+    zoneName?: string;
+    doplons?: number;
+    rewardType?: string;
+    rewards?: any;
+    milice?: string;
+    mechanics?: string;
+    imageUrl?: string;
+    mapUrl?: string;
+}): Promise<ActionResponse> {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Non autorisé — Super Admin uniquement' };
+
+    try {
+        await db.bounty.update({
+            where: { id: bountyId },
+            data: {
+                ...(data.name !== undefined && { name: data.name }),
+                ...(data.level !== undefined && { level: data.level }),
+                ...(data.zoneName !== undefined && { zoneName: data.zoneName }),
+                ...(data.doplons !== undefined && { doplons: data.doplons }),
+                ...(data.rewardType !== undefined && { rewardType: data.rewardType }),
+                ...(data.rewards !== undefined && { rewards: data.rewards }),
+                ...(data.milice !== undefined && { milice: data.milice }),
+                ...(data.mechanics !== undefined && { mechanics: data.mechanics }),
+                ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
+                ...(data.mapUrl !== undefined && { mapUrl: data.mapUrl }),
+            }
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('[updateGodBountyRecord] Error:', error);
+        return { success: false, error: 'Erreur lors de la mise à jour de l\'avis' };
+    }
+}
+
+/** Fetch quests from the Dofus module that are linked to a specific zone/subarea */
+export async function getQuestsByZone(zoneName: string): Promise<ActionResponse<any[]>> {
+    try {
+        const normalized = zoneName.toLowerCase().trim();
+
+        // Fetch quest entries where npcSubArea matches the zone name (fuzzy)
+        const entries = await (db as any).dofusQuestEntry.findMany({
+            where: {
+                OR: [
+                    { npcSubArea: { equals: zoneName, mode: 'insensitive' } },
+                    { zone: { equals: zoneName, mode: 'insensitive' } },
+                    { npcSubArea: { contains: zoneName, mode: 'insensitive' } },
+                    { zone: { contains: zoneName, mode: 'insensitive' } },
+                ]
+            },
+            select: {
+                id: true,
+                name: true,
+                zone: true,
+                npcSubArea: true,
+                questType: true,
+                posX: true,
+                posY: true,
+                isDungeon: true,
+                bossName: true,
+                isOptional: true,
+                chain: {
+                    select: {
+                        sectionName: true,
+                        dofus: {
+                            select: {
+                                id: true,
+                                name: true,
+                                nameShort: true,
+                                imageUrl: true,
+                                color: true,
+                                slug: true,
+                            }
+                        }
+                    }
+                }
+            },
+            take: 50,
+            orderBy: { zone: 'asc' },
+        });
+
+        return { success: true, data: entries };
+    } catch (error) {
+        console.error('[getQuestsByZone] Error:', error);
+        return { success: false, error: 'Erreur lors de la récupération des quêtes' };
     }
 }

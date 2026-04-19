@@ -45,7 +45,6 @@ const UpdateProfileSchema = z.object({
         .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]*$/, "Le pseudo ne doit contenir que des lettres, espaces et tirets (pas de chiffres ni de caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
-    classeSecondaires: z.array(z.string()).max(10, "Maximum 10 classes secondaires").optional(),
     metiers: z.array(z.string()).optional(),
     forgemagieStatus: z.enum(["FREE", "PAID", "UNAVAILABLE"]).optional(),
     fmPriceClassic: z.number().min(0, "Prix invalide").nullable().optional(),
@@ -107,6 +106,16 @@ const SyncSuccessPointsSchema = z.object({
     targetUserId: z.string().optional(),
 });
 
+const TogglePinnedNavItemSchema = z.object({
+    guildId: z.string(),
+    href: z.string(),
+});
+
+const ToggleHiddenNavItemSchema = z.object({
+    guildId: z.string(),
+    href: z.string(),
+});
+
 // ============================================================================
 // PROFILE CRUD
 // ============================================================================
@@ -116,7 +125,10 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const profile = await db.userProfile.findUnique({
@@ -128,6 +140,9 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
             },
             include: {
                 user: true,
+                skins: {
+                    orderBy: { createdAt: "desc" }
+                },
                 roleGrants: {
                     where: {
                         revokedAt: null,
@@ -164,6 +179,8 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 hasSeenWelcome: profile.hasSeenWelcome,
                 introduction: profile.introduction,
                 showPresence: profile.showPresence,
+                pinnedNavItems: profile.pinnedNavItems,
+                hiddenNavItems: profile.hiddenNavItems,
                 sigilRoles: profile.roleGrants.map(rg => ({
                     id: rg.role.id,
                     slug: rg.role.slug,
@@ -186,12 +203,107 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
     }
 }
 
+export async function togglePinnedNavItem(rawData: z.infer<typeof TogglePinnedNavItemSchema>) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = TogglePinnedNavItemSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, href } = validation.data;
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { pinnedNavItems: true }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        let pinned = profile.pinnedNavItems || [];
+        if (pinned.includes(href)) {
+            pinned = pinned.filter(h => h !== href);
+        } else {
+            pinned = [...pinned, href];
+        }
+
+        await db.userProfile.update({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            data: { pinnedNavItems: pinned }
+        });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(session.user.id, guildConfig.id, guildId);
+
+        revalidatePath(`/dashboard/${guildId}`, 'layout');
+        return { success: true, pinned };
+    } catch (error) {
+        logger.error("Toggle Pinned Nav Item Error", { error });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function toggleHiddenNavItem(rawData: z.infer<typeof ToggleHiddenNavItemSchema>) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const validation = ToggleHiddenNavItemSchema.safeParse(rawData);
+    if (!validation.success) return { success: false, error: "Données invalides" };
+    const { guildId, href } = validation.data;
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            select: { hiddenNavItems: true }
+        });
+
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        let hidden = profile.hiddenNavItems || [];
+        if (hidden.includes(href)) {
+            hidden = hidden.filter(h => h !== href);
+        } else {
+            hidden = [...hidden, href];
+        }
+
+        await db.userProfile.update({
+            where: { userId_guildId: { userId: session.user.id, guildId: guildConfig.id } },
+            data: { hiddenNavItems: hidden }
+        });
+
+        // 🛡️ CRITICAL: Invalidate Server-side memory cache
+        const { invalidateUserContextCache } = await import("./user-actions");
+        await invalidateUserContextCache(session.user.id, guildConfig.id, guildId);
+
+        revalidatePath(`/dashboard/${guildId}`, 'layout');
+        return { success: true, hidden };
+    } catch (error) {
+        logger.error("Toggle Hidden Nav Item Error", { error });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 export async function getMemberProfile(guildId: string, profileId: string): Promise<ActionResponse<any>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // Verify caller is member of guild
@@ -258,7 +370,10 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                         }
 
                         // Admin Check
-                        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+                        const guildConfig = await db.guildConfig.findUnique({ 
+                            where: { discordGuildId: guildId },
+                            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+                        });
                         const rolesMapping = (guildConfig?.rolesMapping as Record<string, string[]>) || {};
                         const isAdmin = member.roles.some(rid => {
                             const hasSigilAdmin = rolesMapping[rid]?.includes("admin:access");
@@ -341,7 +456,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, classe, classeSecondaires, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
+    const { guildId, classe, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, targetUserId } = validation.data;
     let { pseudoDofus } = validation.data;
 
     // Formater le pseudo Dofus
@@ -350,7 +465,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
     }
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -392,7 +510,6 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             update: {
                 pseudoDofus: pseudoDofus !== undefined ? (pseudoDofus || null) : undefined,
                 classe,
-                classeSecondaires: classeSecondaires ? (classeSecondaires as any) : undefined,
                 metiers: metiers ? (metiers as any) : undefined,
                 forgemagieStatus,
                 fmPriceClassic: fmPriceClassic !== undefined ? fmPriceClassic : undefined,
@@ -405,7 +522,6 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 guildId: guildConfig.id,
                 pseudoDofus: pseudoDofus || null,
                 classe,
-                classeSecondaires: classeSecondaires ? (classeSecondaires as any) : undefined,
                 metiers: metiers ? (metiers as any) : undefined,
                 forgemagieStatus,
                 fmPriceClassic: fmPriceClassic || null,
@@ -418,7 +534,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateUserContextCache } = await import("./user-actions");
-        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/members`);
@@ -442,7 +558,10 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
     const { guildId, availability, targetUserId } = validation.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -467,7 +586,7 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateUserContextCache } = await import("./user-actions");
-        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         return { success: true };
     } catch (error) {
@@ -485,7 +604,10 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
     const { guildId, vacationStart, vacationEnd, vacationNotify, targetUserId } = validation.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -514,7 +636,7 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateUserContextCache } = await import("./user-actions");
-        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
@@ -533,7 +655,7 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
     const { guildId, prefs, targetUserId } = validation.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -566,7 +688,7 @@ export async function updateNotificationPrefs(rawData: z.infer<typeof UpdateNoti
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateUserContextCache } = await import("./user-actions");
-        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
@@ -585,7 +707,10 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
     const { guildId, status, targetUserId } = validation.data;
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -610,7 +735,7 @@ export async function updateForgemagieStatus(rawData: z.infer<typeof UpdateForge
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateUserContextCache } = await import("./user-actions");
-        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         return { success: true };
     } catch (error) {
@@ -652,7 +777,10 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
     if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const cleanedPseudos = altPseudos.slice(0, 10).map(p => ({
@@ -683,7 +811,7 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateUserContextCache } = await import("./user-actions");
-        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
@@ -728,7 +856,10 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
     if (!user.isMember) return { success: false, error: "Not a member" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
@@ -781,7 +912,7 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateUserContextCache } = await import("./user-actions");
-        await invalidateUserContextCache(effectiveUserId, guildConfig.id);
+        await invalidateUserContextCache(effectiveUserId, guildConfig.id, guildId);
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/galerie-stuff`);
@@ -1230,7 +1361,10 @@ export async function syncMemberSuccessPoints(rawData: z.infer<typeof SyncSucces
 
         const imageHash = await hashImage(buffer);
 
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const existingHash = await db.imageHash.findFirst({
@@ -1534,6 +1668,107 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
     } catch (error) {
         logger.error("[LadderSync] Server Error", { error, guildId, userId: session.user.id });
         return { success: false, error: "Erreur lors de la synchronisation (Serveur)." };
+    }
+}
+
+/**
+ * Fetch a preview of the external ladder data without saving to DB.
+ */
+export async function getLadderPreview(guildId: string): Promise<ActionResponse<{ points: number, level: number, className?: string, rank?: number, guildRank?: number }>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const profile = await db.userProfile.findFirst({
+            where: {
+                userId: session.user.id,
+                guild: { discordGuildId: guildId }
+            },
+            include: { guild: true }
+        });
+
+        if (!profile || !profile.pseudoDofus) return { success: false, error: "Pseudo manquant." };
+
+        const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
+        const workerSecret = process.env.DOFUS_LADDER_WORKER_SECRET;
+
+        if (!workerUrl) return { success: false, error: "Service indisponible." };
+
+        const serverId = profile.guild.dofusServerId || "295";
+        const targetUrl = `${workerUrl}?server_id=${serverId}&name=${encodeURIComponent(profile.pseudoDofus)}`;
+
+        const response = await fetch(targetUrl, {
+            headers: {
+                "Accept": "application/json",
+                ...(workerSecret ? { "X-SigilOS-Key": workerSecret } : {}),
+            },
+            cache: "no-store",
+            signal: AbortSignal.timeout(5000),
+        });
+
+        if (!response.ok) return { success: false, error: "Ankama injoignable." };
+
+        const result = await response.json();
+        if (!result.success || !result.found) return { success: false, error: "Inconnu au bataillon." };
+
+        // 🛡️ FUZZY MAPPING HELPER
+        // Some Workers return character info at the root, others nested in .data or .character
+        const raw = result.character || result.data || result.results?.[0] || result;
+
+        // Helper to find a value regardless of case or common variations
+        const findValue = (obj: any, keys: string[]) => {
+            const lowerKeys = keys.map(k => k.toLowerCase());
+            for (const [key, value] of Object.entries(obj)) {
+                if (lowerKeys.includes(key.toLowerCase())) return value;
+            }
+            return undefined;
+        };
+
+        // Cleaning numbers (removing spaces like "7 682" or thousand separators)
+        const parseNumber = (val: any) => {
+            if (typeof val === "number") return val;
+            if (typeof val !== "string") return 0;
+            return parseInt(val.replace(/\s/g, '').replace(/,/g, ''), 10) || 0;
+        };
+
+        // Determine Points and Level
+        const points = parseNumber(findValue(raw, ["points", "success_points", "points_succès"])) || 0;
+        const level = parseNumber(findValue(raw, ["level", "character_level", "niveau", "niv"])) || 0;
+        
+        // Determine Rank
+        const rankValue = findValue(raw, ["rank", "rank_world", "world_rank", "pos", "position", "rang", "#"]);
+        const rank = parseNumber(rankValue) || undefined;
+        
+        // Determine Class (Fallback to DB if Worker doesn't provide it)
+        const workerClass = findValue(raw, ["className", "class", "character_class", "classe", "class_id"]);
+        const className = workerClass ? workerClass.toString() : (profile.classe || undefined);
+
+        // Calculate Guild Rank (comparing fresh Ankama points with last known guild points)
+        const guildRank = await db.userProfile.count({
+            where: {
+                guildId: profile.guildId,
+                status: "ACTIVE",
+                successPoints: {
+                    gt: points
+                }
+            }
+        }) + 1;
+
+        return {
+            success: true,
+            data: {
+                points,
+                level,
+                className,
+                rank,
+                guildRank
+            }
+        };
+    } catch {
+        return { success: false, error: "Erreur réseau." };
     }
 }
 

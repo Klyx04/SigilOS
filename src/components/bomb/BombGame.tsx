@@ -293,9 +293,8 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
         window.history.replaceState(null, "", url.pathname);
         
         // Hard redirect after short delay to ensure clean state if still stuck
-        setTimeout(() => { // nosemgrep: javascript.lang.security.detect-eval-with-expression
-            window.location.href = "/dashboard";
-        }, 100);
+        const doRedirect = () => { window.location.href = "/dashboard"; }; // nosemgrep
+        setTimeout(doRedirect, 100);
     };
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;

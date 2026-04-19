@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, MicOff, Zap
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
@@ -30,6 +30,8 @@ import { io, Socket } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { cn } from "@/lib/utils";
 import { playSoundEffect } from "@/lib/sounds";
+import { useDiscordVoice } from '@/hooks/use-discord-voice';
+import { DiscordVoiceOverlay } from '@/components/shared/DiscordVoiceOverlay';
 
 const LeafletMapCore = dynamic<any>(() => import('./leaflet-map-core'), {
     ssr: false,
@@ -52,7 +54,6 @@ const MapHelpCard = dynamic<any>(() => import('./MapHelpCard').then(mod => mod.M
 interface InteractiveMapProps {
     worldMap: WorldData;
     initialLadder?: any[];
-    initialKingLadder?: any[];
     initialTab?: 'map' | 'games';
     gameStatuses?: any[];
     initialX?: number;
@@ -68,7 +69,6 @@ interface InteractiveMapProps {
 export default function InteractiveMapV2({ 
     worldMap, 
     initialLadder, 
-    initialKingLadder, 
     initialTab, 
     gameStatuses,
     initialX,
@@ -90,7 +90,7 @@ export default function InteractiveMapV2({
 
     // UI States
     const [search, setSearch] = useState('');
-    const [showDebugGrid, setShowDebugGrid] = useState(true);
+    const [showDebugGrid, setShowDebugGrid] = useState(false);
     const [selectedPosition, setSelectedPosition] = useState<any>(null);
     const [selectedDungeon, setSelectedDungeon] = useState<Dungeon[] | null>(null);
     const [triggerCenterPosition, setTriggerCenterPosition] = useState<{ x: number, y: number } | null>(
@@ -103,6 +103,7 @@ export default function InteractiveMapV2({
     const [minimapRecenterTrigger, setMinimapRecenterTrigger] = useState(0);
     const [showZoneDetail, setShowZoneDetail] = useState(false);
     const [showMapHelp, setShowMapHelp] = useState(!hideUI);
+    const [autoCopyTravel, setAutoCopyTravel] = useState(false);
 
     // Mini-Jeux States
     const [gamePhase, setGamePhase] = useState<'idle' | 'countdown' | 'playing' | 'result' | 'summary'>('idle');
@@ -111,7 +112,6 @@ export default function InteractiveMapV2({
     const [skribblRooms, setSkribblRooms] = useState<any[]>([]);
     const [invaderRooms, setInvaderRooms] = useState<any[]>([]);
     const [garticRooms, setGarticRooms] = useState<any[]>([]);
-    const [sigilKingRooms, setSigilKingRooms] = useState<any[]>([]);
     const [bombRooms, setBombRooms] = useState<any[]>([]);
     const [guessResult, setGuessResult] = useState<any>(null);
     const [timeLeft, setTimeLeft] = useState(30);
@@ -124,15 +124,32 @@ export default function InteractiveMapV2({
 
     // Leaderboard States
     const [ladder, setLadder] = useState<any[]>(initialLadder || []);
-    const [kingLadder, setKingLadder] = useState<any[]>(initialKingLadder || []);
     const [ladderType, setLadderType] = useState<'all_time' | 'month'>('all_time');
-    const [ladderGame, setLadderGame] = useState<'guesser' | 'skribbl' | 'king'>('guesser');
+    const [ladderGame, setLadderGame] = useState<'guesser' | 'skribbl'>('guesser');
     const [isLoadingLadder, setIsLoadingLadder] = useState(false);
+    const [gamesSubTab, setGamesSubTab] = useState<'arena' | 'ladder'>('arena');
 
     const guildId = typeof window !== 'undefined' ? window.location.pathname.split('/')[2] : '';
 
     const [socket, setSocket] = useState<Socket | null>(null);
     const reportedMapsRef = useRef<Set<number>>(new Set());
+
+    // Discord Voice Monitoring
+    const { voiceUsers } = useDiscordVoice(guildId, socket);
+    const [showVoiceOverlay, setShowVoiceOverlay] = useState(true);
+
+    // Filter voice users to only show active participants
+    const gameParticipantIds = useMemo(() => 
+        activeSession?.participants?.map((p: any) => p.userId).filter(Boolean) as string[] || [],
+        [activeSession?.participants]
+    );
+    const filteredVoiceUsers = useMemo(() => 
+        voiceUsers.filter(u => gameParticipantIds.includes(u.userId)),
+        [voiceUsers, gameParticipantIds]
+    );
+
+    const voiceUserIds = filteredVoiceUsers.map(u => u.userId);
+
     
     // Auto-sync state if initial props change (essential for embedded usage like Dungeon Finder)
     useEffect(() => {
@@ -265,6 +282,11 @@ export default function InteractiveMapV2({
         worldMap.dungeons?.forEach(d => {
             const mapId = d.mapId || d.entranceMapId;
             if (!mapId) return;
+
+            // Masquer les "60 dj expéditions" (et autres expéditions) de la WorldMap
+            const name = typeof d.name === 'string' ? d.name : (d.name?.fr || '');
+            if (name.toLowerCase().includes('expédition')) return;
+
             if (!index.has(mapId)) index.set(mapId, []);
             index.get(mapId)!.push(d);
         });
@@ -293,26 +315,47 @@ export default function InteractiveMapV2({
         return results;
     }, [activeMaps.length, mapsById, dungeonsByMapId]);
 
-    const allWorldMapsByCoords = useMemo(() => {
-        const index = new Map<string, any>();
+    // NEW: Comprehensive index of ALL maps at a coordinate (for layer switching)
+    const allLayersByCoords = useMemo(() => {
+        const index = new Map<string, MapNode[]>();
         worldMap.maps?.forEach(m => {
-            // Inclusion condition: same world ID OR -1 (fallback for World 1)
             const isRelevant = m.worldMap === selectedWorldId || (selectedWorldId === 1 && m.worldMap === -1);
-            
             if (isRelevant) {
-                // If multiple maps exist at the same coord (outdoor/indoor), 
-                // we prefer the outdoor one or the first one found.
-                // We also favor maps with the CORRECT worldMap over -1 if both exist.
                 const key = `${m.x},${m.y}`;
-                const existing = index.get(key);
-                
-                if (!existing || (m.outdoor && !existing.outdoor) || (m.worldMap === selectedWorldId && existing.worldMap === -1)) {
-                    index.set(key, m);
-                }
+                if (!index.has(key)) index.set(key, []);
+                index.get(key)!.push(m);
             }
         });
         return index;
     }, [worldMap.maps, selectedWorldId]);
+
+    const allWorldMapsByCoords = useMemo(() => {
+        const index = new Map<string, MapNode>();
+        allLayersByCoords.forEach((layers, key) => {
+            // Priority Sort:
+            // 1. Altitude 0 (Ground)
+            // 2. Outdoor = true
+            // 3. WorldMap matching (not -1)
+            // 4. Lowest ID
+            const sorted = [...layers].sort((a, b) => {
+                // Ground level (altitude 0) always first
+                if (a.altitude === 0 && b.altitude !== 0) return -1;
+                if (b.altitude === 0 && a.altitude !== 0) return 1;
+                
+                // Outdoor maps second
+                if (a.outdoor && !b.outdoor) return -1;
+                if (b.outdoor && !a.outdoor) return 1;
+                
+                // Pure world match
+                if (a.worldMap === selectedWorldId && b.worldMap !== selectedWorldId) return -1;
+                if (b.worldMap === selectedWorldId && a.worldMap !== selectedWorldId) return 1;
+                
+                return a.id - b.id;
+            });
+            index.set(key, sorted[0]);
+        });
+        return index;
+    }, [allLayersByCoords, selectedWorldId]);
 
     const mapsBySubAreaId = useMemo(() => {
         const index = new Map<number, any[]>();
@@ -467,14 +510,12 @@ export default function InteractiveMapV2({
             newSocket.emit("skribbl:room:list");
             newSocket.emit("gartic:room:list");
             newSocket.emit("geoguesser:room:list");
-            newSocket.emit("sigilking:room:list");
             newSocket.emit("bomb:room:list");
         });
 
         newSocket.on("geoguesser:room:list", (rooms) => setAvailableSessions(rooms || []));
         newSocket.on("skribbl:room:list", (rooms) => setSkribblRooms(rooms || []));
         newSocket.on("gartic:room:list", (rooms) => setGarticRooms(rooms || []));
-        newSocket.on("sigilking:room:list", (rooms) => setSigilKingRooms(rooms || []));
         newSocket.on("bomb:room:list", (rooms) => setBombRooms(rooms || []));
 
         newSocket.on("geoguesser:player:joined", (data: any) => {
@@ -611,7 +652,7 @@ export default function InteractiveMapV2({
                     };
                     
                     // Memoize guessResult to avoid canvas flicker
-                    setGuessResult(prev => {
+                    setGuessResult((prev: any) => {
                         if (JSON.stringify(prev) === JSON.stringify(newResult)) return prev;
                         return newResult;
                     });
@@ -660,7 +701,6 @@ export default function InteractiveMapV2({
                 newSocket.emit("skribbl:room:list");
                 newSocket.emit("gartic:room:list");
                 newSocket.emit("geoguesser:room:list");
-                newSocket.emit("sigilking:room:list");
             }
         }, 5000);
 
@@ -840,45 +880,8 @@ export default function InteractiveMapV2({
         }
     };
 
-    const submitPendingGuess = () => {
-        const me = activeSession?.participants?.find((p: any) => p.userId === currentUserId);
-        const isSpectator = activeSession?.isSpectator || me?.isSpectator;
-        if (!selectedPosition || !targetMapId || isSpectator) return;
-        const targetMap = allMapsById.get(targetMapId);
-        if (!targetMap) return;
-
-        let dist = 1000;
-        // La distance n'est calculée que si le joueur est sur le bon monde
-        if (targetMap.worldMap === selectedWorldId) {
-            const dx = selectedPosition.x - targetMap.x;
-            const dy = selectedPosition.y - targetMap.y;
-            dist = Math.abs(dx) + Math.abs(dy); // Manhattan distance for Dofus maps
-        }
-
-        // Quadratic decline (standard GeoGuess feel): 1000 * (1 - dist/100)^2
-        const maxDistPossible = 100;
-        let roundScore = 0;
-        if (dist < maxDistPossible) {
-            roundScore = Math.round(1000 * Math.pow(1 - dist / maxDistPossible, 2));
-        }
-
-        // Difficulty Bonus for exact guesses
-        if (dist === 0) {
-            const diff = activeSession?.difficulty || 'easy';
-            if (diff === 'hard') roundScore += 500;
-            else if (diff === 'medium') roundScore += 250;
-        }
-
-        setScore(prev => prev + roundScore);
-
-        setGuessResult({
-            target: { x: targetMap.x, y: targetMap.y, mapId: targetMapId },
-            guess: { x: selectedPosition.x, y: selectedPosition.y, mapId: selectedPosition.mapId },
-            distance: dist,
-            score: roundScore
-        });
-
-        setGamePhase('result');
+    const handleSubmitGuess = async () => {
+        if (!selectedPosition) return;
         setSelectedPosition(null);
         setIsMinimapExpanded(false);
 
@@ -887,98 +890,31 @@ export default function InteractiveMapV2({
                 x: selectedPosition.x,
                 y: selectedPosition.y,
                 worldId: selectedWorldId,
-                score: roundScore,
-                distance: dist,
                 round: activeSession?.currentRound || 1,
                 mapId: selectedPosition.mapId
             });
-            // playSoundEffect('tick'); // Removed as per user request
         }
     };
 
     const handleStartRoomGame = async () => {
-        console.log("[Geoguesser] Lancement demandé", {
-            activeSession,
-            currentUserId,
-            isSoloMode,
-            socketId: socket?.id
-        });
+        if (!activeSession || !currentUserId || !socket) return;
 
-        if (!activeSession || !currentUserId) {
-            toast.error("Session ou utilisateur manquant");
-            return;
-        }
-
-        // En mode solo, on est forcément l'hôte. En multi, on vérifie.
-        const isHost = activeSession.hostId === currentUserId || isSoloMode;
-        if (!isHost) {
+        // Seul l'hôte effectif peut lancer
+        if (activeSession.hostId !== currentUserId && !isSoloMode) {
             toast.error("Seul l'hôte peut lancer la partie");
             return;
         }
 
-        // Blocage si pas assez de joueurs en multi
         if (!isSoloMode && (activeSession.participants?.length || 0) < 2) {
             toast.error("Un second joueur est requis pour lancer en multi !");
             return;
         }
 
-        // Keywords that indicate a subarea is likely an interior or tactical map
-        const excludedKeywords = [
-            "donjon", "tunnel", "souterrain", "cave", "crypt", "labyrinthe", 
-            "bâtiment", "intérieur", "tactique", "défis", "arène", "mine", 
-            "égout", "cellule", "prison", "temple", "salle", "château", "tour",
-            "laboratoire", "secret", "caché", "étage", "palier", "ascenseur", "sommet"
-        ];
-
-        // On pioche dans les maps selon le mode
-        const mode = activeSession.gameMode || 'NORMAL';
-        const allPlayableMaps = worldMap.maps?.filter(m => {
-            const isOutdoor = m.outdoor === true;
-            const isValidWorld = m.worldMap !== -1;
-            if (!isOutdoor || !isValidWorld) return false;
-
-            // Strict checking for subarea names to avoid "unfindable" maps
-            const subArea = subAreasById.get(m.subAreaId);
-            if (subArea) {
-                const subAreaName = (typeof subArea.name === 'string' ? subArea.name : subArea.name?.fr || "").toLowerCase();
-                if (excludedKeywords.some(key => subAreaName.includes(key))) {
-                    return false;
-                }
-            }
-
-            if (mode === 'NORMAL') {
-                return m.worldMap === 1;
-            } else {
-                // Mode SPECIAL : On exclut le monde 1, mais aussi les Mappemondes (19) et Ecaflip City (29)
-                return m.worldMap !== 1 && m.worldMap !== 19 && m.worldMap !== 29;
-            }
-        }) || [];
-
-        if (allPlayableMaps.length === 0) {
-            toast.error("Erreur : Impossible de charger les cartes !");
-            return;
-        }
-
-        const shuffleArray = (array: any[]) => {
-            const arr = [...array];
-            for (let i = arr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [arr[i], arr[j]] = [arr[j], arr[i]];
-            }
-            return arr;
-        };
-
-        const shuffled = shuffleArray(allPlayableMaps);
-        const selectedIds = shuffled.slice(0, activeSession.maxRounds || 5).map(m => m.id);
-
-        if (socket) {
-            socket.emit('geoguesser:game:start', {
-                targetMapIds: selectedIds,
-                maxRounds: activeSession.maxRounds,
-                difficulty: 'easy'
-            });
-            toast.success("C'est parti !");
-        }
+        socket.emit('geoguesser:game:start', {
+            maxRounds: activeSession.maxRounds,
+            difficulty: 'easy'
+        });
+        toast.success("C'est parti !");
     };
 
     // Move targetMapId here for safety and easier reading
@@ -1097,6 +1033,47 @@ export default function InteractiveMapV2({
                                     <HelpCircle size={14} />
                                 </button>
 
+                                {/* Auto-Copy Toggle */}
+                                <button
+                                    onClick={() => setAutoCopyTravel(!autoCopyTravel)}
+                                    className={cn(
+                                        "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
+                                        autoCopyTravel 
+                                            ? "bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]" 
+                                            : "bg-white/5 border-white/5 text-white/20 hover:text-white/40"
+                                    )}
+                                    title={autoCopyTravel ? "Désactiver la copie automatique" : "Activer la copie automatique"}
+                                >
+                                    <Zap size={14} className={cn(autoCopyTravel && "fill-amber-500")} />
+                                    <span className={cn("text-[9px] font-black uppercase tracking-tighter italic", !autoCopyTravel && "opacity-40")}>Copie Auto</span>
+                                </button>
+
+                                {/* Selection Quick Action */}
+                                <AnimatePresence mode="wait">
+                                    {selectedPosition && (
+                                        <motion.button
+                                            key={`copy-${selectedPosition.x}-${selectedPosition.y}`}
+                                            initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                                            exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => {
+                                                const cmd = `/travel ${selectedPosition.x} ${selectedPosition.y}`;
+                                                navigator.clipboard.writeText(cmd);
+                                                toast.success("Position copiée !", {
+                                                    description: cmd,
+                                                    icon: <Rocket className="w-4 h-4 text-emerald-400" />
+                                                });
+                                            }}
+                                            className="px-5 py-2 rounded-xl bg-emerald-500 text-emerald-950 font-black text-[10px] uppercase italic flex items-center gap-2.5 shadow-[0_15px_30px_rgba(16,185,129,0.3)] border-b-2 border-emerald-700 transition-all origin-right"
+                                        >
+                                            <Rocket size={12} className="fill-emerald-950" />
+                                            <span>Copier [ {selectedPosition.x}, {selectedPosition.y} ]</span>
+                                        </motion.button>
+                                    )}
+                                </AnimatePresence>
+
                                 {/* Zone Search */}
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={12} />
@@ -1198,6 +1175,11 @@ export default function InteractiveMapV2({
                                                         <div className="flex flex-col">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-white text-[11px] font-black uppercase italic tracking-wider">{p.userName}</span>
+                                                                {voiceUserIds.includes(p.userId) && (
+                                                                    <div className="p-0.5 bg-emerald-500/20 rounded border border-emerald-500/30">
+                                                                        <Mic size={8} className="text-emerald-500" />
+                                                                    </div>
+                                                                )}
                                                                 {isMe && <span className="px-1 py-0.5 rounded bg-emerald-500 text-[7px] text-black font-black uppercase italic">Toi</span>}
                                                             </div>
                                                             {!p.hasGuessed ? (
@@ -1278,14 +1260,15 @@ export default function InteractiveMapV2({
                                     currentUserId={currentUserId}
                                     isSpectator={isCurrentUserSpectator}
                                     hideUI={hideUI}
-                                    minZoom={Math.max((true && selectedWorldId !== 1) ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
+                                    minZoom={Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
+                                    autoCopyTravel={autoCopyTravel}
                                 />
 
                                 {/* Floating Validation Overlay inside panel */}
                                 {selectedPosition && gamePhase === 'playing' && !isCurrentUserSpectator && (
                                     <div className="absolute bottom-6 inset-x-6 z-[1000] animate-in slide-in-from-bottom-6 duration-500">
                                         <button
-                                            onClick={submitPendingGuess}
+                                            onClick={handleSubmitGuess}
                                             className="w-full py-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase text-xs italic tracking-widest shadow-[0_20px_40px_rgba(16,185,129,0.3)] border border-emerald-400/50 transition-all active:scale-95 flex items-center justify-center gap-4"
                                         >
                                             Confirmer ma position <Target size={20} />
@@ -1340,7 +1323,7 @@ export default function InteractiveMapV2({
                                     currentUserId={currentUserId}
                                     isSpectator={isCurrentUserSpectator}
                                     hideUI={hideUI}
-                                    minZoom={Math.max((false && selectedWorldId !== 1) ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
+                                    minZoom={Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                         />
                     </div>
                 )}
@@ -1357,6 +1340,7 @@ export default function InteractiveMapV2({
                                     score={score}
                                     gamePhase={gamePhase}
                                     spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
+                                    voiceUsers={filteredVoiceUsers}
                                     onReportMap={handleReportMap}
                                 />,
                                 document.getElementById('sigil-geoguesser-header-hud')!
@@ -1370,6 +1354,7 @@ export default function InteractiveMapV2({
                                     score={score}
                                     gamePhase={gamePhase}
                                     spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
+                                    voiceUsers={filteredVoiceUsers}
                                     onReportMap={handleReportMap}
                                 />
                             </div>
@@ -1386,9 +1371,38 @@ export default function InteractiveMapV2({
                                     <span>Quitter la partie</span>
                                 </button>,
                                 document.getElementById('sigil-geoguesser-header-actions')!
+                            ),
+                            createPortal(
+                                <button 
+                                    onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
+                                    className={cn(
+                                        "px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl border transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] sm:text-xs italic shadow-lg active:scale-95",
+                                        showVoiceOverlay 
+                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white" 
+                                            : "bg-bottom-900/40 border-white/5 text-white/40 hover:text-white"
+                                    )}
+                                    title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
+                                >
+                                    {showVoiceOverlay ? <Mic size={16} /> : <MicOff size={16} />}
+                                    <span className="hidden sm:inline">{showVoiceOverlay ? "Vocal On" : "Vocal Off"}</span>
+                                </button>,
+                                document.getElementById('sigil-geoguesser-header-actions')!
                             )
                         ) : (
-                            <div className="absolute top-4 left-4 sm:top-6 sm:left-8 pointer-events-auto z-[800]">
+                            <div className="absolute top-4 left-4 sm:top-6 sm:left-8 pointer-events-auto z-[800] flex flex-col gap-2">
+                                <button 
+                                    onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
+                                    className={cn(
+                                        "px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl border transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] sm:text-xs italic backdrop-blur-md shadow-lg active:scale-95",
+                                        showVoiceOverlay 
+                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white" 
+                                            : "bg-slate-900/40 border-white/5 text-white/40 hover:text-white"
+                                    )}
+                                    title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
+                                >
+                                    {showVoiceOverlay ? <Mic size={18} /> : <MicOff size={18} />}
+                                    <span className="hidden sm:inline">{showVoiceOverlay ? "Vocal On" : "Vocal Off"}</span>
+                                </button>
                                 <button
                                     onClick={handleLeaveSession}
                                     className="px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl bg-[#ff4757] hover:bg-[#ff6b81] text-white font-black uppercase text-[10px] sm:text-xs italic border-b-[4px] sm:border-b-[8px] border-black/20 transition-all flex items-center gap-3 shadow-[0_20px_40px_rgba(255,71,87,0.3)] active:translate-y-1 active:border-b-0 hover:scale-105"
@@ -1413,7 +1427,7 @@ export default function InteractiveMapV2({
                         <motion.div
                             initial={{ y: 50, opacity: 0, scale: 0.95 }}
                             animate={{ y: 0, opacity: 1, scale: 1 }}
-                            className="w-full h-full max-w-[1600px] bg-[#0d111a]/95 backdrop-blur-[40px] border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-4 sm:p-6 md:p-10 pointer-events-auto relative overflow-hidden flex flex-col"
+                            className="w-full h-full max-h-full max-w-[1600px] bg-[#0d111a]/95 backdrop-blur-[40px] border border-white/10 rounded-[2rem] md:rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-4 sm:p-6 md:p-10 pointer-events-auto relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar"
                         >
                                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/[0.03] rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
 
@@ -1439,6 +1453,15 @@ export default function InteractiveMapV2({
                                             <span className="text-white/20 text-[8px] font-black uppercase tracking-[0.2em] mb-1 italic">Prochain Round dans</span>
                                             <span className="text-white font-black text-2xl italic tracking-tighter leading-none">{timeLeft}s</span>
                                         </div>
+                                        <motion.button
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            onClick={handleLeaveSession}
+                                            className="px-6 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-black uppercase text-[10px] italic transition-all border border-red-500/20 flex items-center gap-2"
+                                        >
+                                            <LogOut size={14} />
+                                            Quitter
+                                        </motion.button>
                                         {(activeSession?.hostId === currentUserId || isSoloMode) && activeSession.state !== 'IN_PROGRESS' && (
                                             <motion.button
                                                 whileHover={{ scale: 1.02, y: -2 }}
@@ -1453,9 +1476,9 @@ export default function InteractiveMapV2({
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col xl:flex-row gap-6 md:gap-10 min-h-0 relative z-10 shrink-0">
+                                <div className="flex flex-col xl:flex-row gap-6 md:gap-10 min-h-min relative z-10">
                                     {/* Left Side: Result Analysis & Comparison */}
-                                    <div className="flex-1 flex flex-col gap-6 shrink-0">
+                                    <div className="flex-1 flex flex-col gap-6">
                                         {guessResult && (
                                             <>
                                                 <div className="p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between overflow-hidden relative group shrink-0">
@@ -1483,7 +1506,7 @@ export default function InteractiveMapV2({
                                                         </div>
                                                         <div className="flex justify-between mt-1 px-1">
                                                             <span className="text-[7px] sm:text-[8px] font-black text-emerald-500 uppercase italic opacity-80">Précision Max</span>
-                                                            <span className="text-[7px] sm:text-[8px] font-black text-white/40 uppercase italic">100+ Maps</span>
+                                                            <span className="text-[7px] sm:text-[8px] font-black text-white/40 uppercase italic">{worldMap.maps?.length || 100}+ Cartes</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1843,67 +1866,217 @@ export default function InteractiveMapV2({
                         </motion.div>
                     )}
                 </AnimatePresence>
-                {selectedPosition && activeTab === 'map' && (
-                    <MapDetailsPanel
-                        position={selectedPosition}
-                        subAreaName={
-                            (subAreasById.get(
-                                (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId
-                            )?.name?.fr) ||
-                            (typeof subAreasById.get(
-                                (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name === 'string'
-                                ? subAreasById.get((selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name
-                                : undefined)
-                        }
-                        onClose={() => setSelectedPosition(null)}
-                        guildId={guildId}
-                        onOpenZoneDetails={() => setShowZoneDetail(true)}
-                    />
-                )}
 
-                {showZoneDetail && selectedPosition && (
-                    <ZoneDetailModal
-                        isOpen={showZoneDetail}
-                        onClose={() => setShowZoneDetail(false)}
-                        guildId={guildId}
-                        position={selectedPosition}
-                        zoneName={
-                            (subAreasById.get(
-                                (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId
-                            )?.name?.fr) ||
-                            (typeof subAreasById.get(
-                                (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name === 'string'
-                                ? subAreasById.get((selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name
-                                : "Zone Inconnue")
-                        }
-                    />
-                )}
+                {/* Global Modals */}
+                <AnimatePresence>
+                    {showZoneDetail && selectedPosition && (
+                        <ZoneDetailModal
+                            isOpen={showZoneDetail}
+                            onClose={() => setShowZoneDetail(false)}
+                            guildId={guildId}
+                            position={selectedPosition}
+                            zoneName={
+                                (subAreasById.get(
+                                    (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId
+                                )?.name?.fr) ||
+                                (typeof subAreasById.get(
+                                    (selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name === 'string'
+                                    ? subAreasById.get((selectedPosition.mapId ? mapsById.get(selectedPosition.mapId) : mapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`))?.subAreaId)?.name
+                                    : "Zone Inconnue")
+                            }
+                            worldId={selectedWorldId}
+                        />
+                    )}
+
+                    {selectedDungeon && (
+                        <DungeonDetailModal
+                            isOpen={!!selectedDungeon}
+                            onClose={() => setSelectedDungeon(null)}
+                            dungeons={selectedDungeon}
+                            guildId={guildId}
+                        />
+                    )}
+                </AnimatePresence>
 
                 {/* --- GAMES TAB --- */}
                 {activeTab === 'games' && !activeSession && gamePhase === 'idle' && (
-                    <div className="absolute inset-0 bg-[#080b12] z-[500] overflow-y-auto pt-24 pb-20 scrollbar-hide">
+                    <div className="absolute inset-0 bg-[#080b12] z-[500] overflow-y-auto pt-8 md:pt-12 pb-20 scrollbar-hide">
                         {/* Background Decorative Elements */}
-                        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
+                        <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
                         <div className="absolute top-1/4 -left-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
                         <div className="absolute top-1/2 -right-20 w-80 h-80 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
 
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto space-y-8 lg:space-y-16 relative"
+                            className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6 lg:space-y-10 relative"
                         >
-                            <div className="flex flex-col gap-2 md:ml-10">
-                                <h2 className="text-white font-black text-2xl md:text-4xl lg:text-5xl uppercase italic tracking-tighter flex items-center gap-3 lg:gap-4 leading-tight">
-                                    <div className="w-8 lg:w-12 h-1 bg-gradient-to-r from-purple-500 to-transparent rounded-full shrink-0" />
-                                    L'Arène des Sigils
-                                </h2>
-                                <p className="text-white/30 text-[10px] md:text-sm font-medium uppercase tracking-widest leading-relaxed max-w-2xl">
-                                    Défiez vos alliés dans des épreuves légendaires.
-                                </p>
+                            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 md:ml-10">
+                                <div className="flex flex-col gap-1.5">
+                                    <h2 className="text-white font-black text-2xl md:text-3xl lg:text-4xl uppercase italic tracking-tighter flex items-center gap-3 lg:gap-4 leading-tight">
+                                        <div className="w-6 lg:w-8 h-1 bg-gradient-to-r from-purple-500 to-transparent rounded-full shrink-0" />
+                                        L'Arène des Sigils
+                                    </h2>
+                                    <p className="text-white/30 text-[9px] md:text-xs font-medium uppercase tracking-widest leading-relaxed max-w-2xl">
+                                        Défiez vos alliés dans des épreuves légendaires.
+                                    </p>
+                                </div>
+
+                                {/* Games Sub-Tabs Selector */}
+                                <div className="flex p-1.5 bg-white/[0.03] border border-white/5 rounded-2xl md:min-w-[340px] shadow-xl backdrop-blur-xl">
+                                    <button
+                                        onClick={() => setGamesSubTab('arena')}
+                                        className={cn(
+                                            "flex-1 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
+                                            gamesSubTab === 'arena' 
+                                                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
+                                                : "text-white/20 hover:text-white/40 hover:bg-white/5"
+                                        )}
+                                    >
+                                        <Rocket size={14} className={cn("transition-transform", gamesSubTab === 'arena' && "animate-bounce-subtle")} />
+                                        Jeux & Salons
+                                    </button>
+                                    <button
+                                        onClick={() => setGamesSubTab('ladder')}
+                                        className={cn(
+                                            "flex-1 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
+                                            gamesSubTab === 'ladder' 
+                                                ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
+                                                : "text-white/20 hover:text-white/40 hover:bg-white/5"
+                                        )}
+                                    >
+                                        <Trophy size={14} className={cn("transition-transform", gamesSubTab === 'ladder' && "animate-bounce-subtle")} />
+                                        Panthéon
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
-                                <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {gamesSubTab === 'arena' ? (
+                                <>
+                                    {/* --- LOBBIES SECTION (MOVED TO TOP FOR UI/UX) --- */}
+                                    <div className="md:ml-10">
+                                <div className="flex items-center gap-4 mb-4 lg:mb-6">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    <h4 className="text-white/30 font-black uppercase text-xs tracking-[0.2em]">Salons en attente de joueurs</h4>
+                                    <div className="flex-1 h-px bg-white/5" />
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {(availableSessions.length === 0 && skribblRooms.length === 0 && garticRooms.length === 0 && bombRooms.length === 0 && invaderRooms.length === 0) ? (
+                                        <div className="col-span-full h-16 lg:h-20 flex items-center justify-center border border-dashed border-white/5 rounded-2xl bg-white/[0.02] text-white/10 italic font-black uppercase text-[10px] tracking-[0.2em] text-center px-4">
+                                            Aucun salon actif • Créez le vôtre pour commencer
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {availableSessions.map(room => (
+                                                <div key={room.id} className="p-4 bg-white/5 border border-emerald-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-emerald-500/5 transition-all">
+                                                    <div className="flex flex-col min-w-0 pr-2">
+                                                        <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName}</span>
+                                                        <span className="text-emerald-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Guesser • {room.playerCount}/8</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {room.state !== 'LOBBY' ? (
+                                                            <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                Lancé
+                                                            </div>
+                                                        ) : (
+                                                            <button 
+                                                                onClick={() => handleJoinRoom(room)} 
+                                                                disabled={joiningId === room.id}
+                                                                className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500 text-white font-black uppercase text-[10px] shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all disabled:opacity-50"
+                                                            >
+                                                                {joiningId === room.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Rejoindre"}
+                                                            </button>
+                                                        )}
+                                                        <button 
+                                                            onClick={() => handleJoinRoom(room, true)} 
+                                                            disabled={joiningId === room.id}
+                                                            className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all disabled:opacity-50"
+                                                        >
+                                                            Regarder
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {skribblRooms.map(room => (
+                                                <div key={room.roomId} className="p-4 bg-white/5 border border-blue-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-blue-500/5 transition-all">
+                                                    <div className="flex flex-col min-w-0 pr-2">
+                                                        <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName}</span>
+                                                        <span className="text-blue-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Draw • {room.playerCount}/8</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {room.state !== 'LOBBY' ? (
+                                                            <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                Lancé
+                                                            </div>
+                                                        ) : (
+                                                            <a href={`/dashboard/${guildId}/mini-jeux/skribbl?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500 text-white font-black uppercase text-[10px] shadow-md shadow-blue-500/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                        )}
+                                                        <a href={`/dashboard/${guildId}/mini-jeux/skribbl?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {garticRooms.map(room => (
+                                                <div key={room.roomId} className="p-4 bg-white/5 border border-amber-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-amber-500/5 transition-all">
+                                                    <div className="flex flex-col min-w-0 pr-2">
+                                                        <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName}</span>
+                                                        <span className="text-amber-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Phone • {room.playerCount}/8</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {room.state !== 'LOBBY' ? (
+                                                            <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                Lancé
+                                                            </div>
+                                                        ) : (
+                                                            <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500 text-white font-black uppercase text-[10px] shadow-md shadow-amber-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                        )}
+                                                        <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {bombRooms.map(room => (
+                                                <div key={room.roomId} className="p-4 bg-white/5 border border-red-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-red-500/5 transition-all">
+                                                    <div className="flex flex-col min-w-0 pr-2">
+                                                        <span className="text-white font-bold text-xs uppercase italic truncate">{room.roomId}</span>
+                                                        <span className="text-red-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Bomb • {room.playerCount}/8</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {room.state !== 'LOBBY' ? (
+                                                            <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                Lancé
+                                                            </div>
+                                                        ) : (
+                                                            <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500 text-white font-black uppercase text-[10px] shadow-md shadow-red-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                        )}
+                                                        <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {invaderRooms.map(room => (
+                                                <div key={room.roomId} className="p-4 bg-white/5 border border-blue-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-blue-500/5 transition-all">
+                                                    <div className="flex flex-col min-w-0 pr-2">
+                                                        <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName || room.roomId}</span>
+                                                        <span className="text-blue-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Invader • {room.playerCount}/4</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {room.state !== 'LOBBY' ? (
+                                                            <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                Lancé
+                                                            </div>
+                                                        ) : (
+                                                            <a href={`/dashboard/${guildId}/mini-jeux/sigil-invader?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500 text-white font-black uppercase text-[10px] shadow-md shadow-blue-500/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
+                                                        )}
+                                                        <a href={`/dashboard/${guildId}/mini-jeux/sigil-invader?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 items-start md:ml-10">
+
                                     {/* Geoguesser Card */}
                                     <motion.div
                                         whileHover={getGameStatus('guesser').isEnabled ? { y: -5 } : {}}
@@ -2062,54 +2235,6 @@ export default function InteractiveMapV2({
                                         </div>
                                     </motion.div>
 
-                                    {/* Sigil King Card */}
-                                    <motion.div
-                                        whileHover={getGameStatus('king').isEnabled ? { y: -5 } : {}}
-                                        className={cn(
-                                            "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[2.5rem] p-8 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
-                                            getGameStatus('king').isEnabled 
-                                                ? "hover:border-amber-600/40 hover:bg-[#0a0f18]/80 border-white/5" 
-                                                : "border-red-500/20 grayscale opacity-70"
-                                        )}
-                                    >
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-600/5 rounded-full blur-[60px] group-hover:bg-amber-600/10 transition-all duration-700" />
-                                        
-                                        <div className="relative z-10 flex flex-col h-full">
-                                            <div className="flex items-start justify-between mb-6">
-                                                <div className="w-16 h-16 rounded-2xl bg-amber-600/10 flex items-center justify-center border border-amber-600/20 group-hover:scale-110 transition-all duration-300 text-2xl">
-                                                    👑
-                                                </div>
-                                                <div className="px-3 py-1 rounded-full bg-amber-600/10 border border-amber-600/20 text-amber-500 text-[8px] font-black uppercase tracking-widest italic">
-                                                    {getGameStatus('king').isEnabled ? 'CARTES' : 'MAINTENANCE'}
-                                                </div>
-                                            </div>
-
-                                            <h3 className="text-white font-black text-2xl uppercase italic mb-1 tracking-tight group-hover:text-amber-500 transition-colors">Sigil King</h3>
-                                            <div className="mb-4">
-                                                <span className="text-amber-600/60 text-[9px] font-black uppercase tracking-[0.2em] italic">"Le Roi des Titans attend son adversaire"</span>
-                                            </div>
-                                            <p className="text-white/40 text-[10px] font-medium leading-relaxed mb-8 h-12 overflow-hidden">
-                                                {getGameStatus('king').isEnabled 
-                                                    ? "Misez sur vos plis, jouez vos Incarnations et capturez Ogrest ! Un jeu de cartes stratégique inspiré de Skull King, dans l'univers du Monde des Douze."
-                                                    : getGameStatus('king').message}
-                                            </p>
-
-                                            <div className="space-y-3 mt-auto">
-                                                {getGameStatus('king').isEnabled ? (
-                                                    <a
-                                                        href={`/dashboard/${guildId}/mini-jeux/sigil-king`}
-                                                        className="w-full py-4 rounded-xl bg-amber-600 text-white font-black uppercase text-[10px] italic shadow-lg shadow-amber-600/20 hover:bg-amber-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <Plus size={14} /> Créer un Salon
-                                                    </a>
-                                                ) : (
-                                                    <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
-                                                        Indisponible
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </motion.div>
 
                                     {/* Sigil-Invader Card (Skeleton) */}
                                     <motion.div
@@ -2218,224 +2343,132 @@ export default function InteractiveMapV2({
                                         </div>
                                     </motion.div>
 
-                                    <div className="md:col-span-2 lg:col-span-2 xl:col-span-3 mt-4 lg:mt-6">
-                                        <div className="flex items-center gap-4 mb-4 lg:mb-6">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                            <h4 className="text-white/30 font-black uppercase text-xs tracking-[0.2em]">Salons en attente de joueurs</h4>
-                                            <div className="flex-1 h-px bg-white/5" />
+                                    </div>
+                                </>
+                            ) : (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.98 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="md:ml-10 bg-[#0a0f18]/80 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-8 flex flex-col shadow-2xl relative overflow-hidden min-h-[600px]"
+                                >
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[150px] pointer-events-none" />
+
+                                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 pb-10 border-b border-white/5">
+                                        <div className="flex flex-col">
+                                            <h3 className="text-white font-black text-3xl md:text-4xl uppercase italic tracking-tighter mb-2">L'Élite des Sigils</h3>
+                                            <div className="px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center gap-2 self-start">
+                                                <Trophy size={14} className="text-amber-400" />
+                                                <span className="text-amber-400 text-[10px] font-black uppercase tracking-widest">Hall of Fame</span>
+                                            </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 max-h-[180px] lg:max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
-                                            {(availableSessions.length === 0 && skribblRooms.length === 0 && garticRooms.length === 0 && sigilKingRooms.length === 0 && bombRooms.length === 0) ? (
-                                                <div className="col-span-full h-20 lg:h-28 flex items-center justify-center border border-dashed border-white/5 rounded-2xl bg-white/[0.02] text-white/10 italic font-black uppercase text-[10px] tracking-[0.2em] text-center px-4">
-                                                    Aucun salon actif • Créez le vôtre pour commencer
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    {sigilKingRooms.map(room => (
-                                                        <div key={room.roomId} className="p-4 bg-white/5 border border-amber-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-amber-500/5 transition-all">
-                                                            <div className="flex flex-col min-w-0 pr-2">
-                                                                <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName}</span>
-                                                                <span className="text-amber-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">King • {room.playerCount}/6</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/sigil-king?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-600 text-white font-black uppercase text-[10px] shadow-md shadow-amber-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/sigil-king?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {availableSessions.map(room => (
-                                                        <div key={room.id} className="p-4 bg-white/5 border border-emerald-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-emerald-500/5 transition-all">
-                                                            <div className="flex flex-col min-w-0 pr-2">
-                                                                <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName}</span>
-                                                                <span className="text-emerald-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Guesser • {room.playerCount}/8</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {room.state !== 'LOBBY' ? (
-                                                                    <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
-                                                                        Lancé
-                                                                    </div>
-                                                                ) : (
-                                                                    <button 
-                                                                        onClick={() => handleJoinRoom(room)} 
-                                                                        disabled={joiningId === room.id}
-                                                                        className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500 text-white font-black uppercase text-[10px] shadow-md shadow-emerald-500/20 opacity-90 hover:opacity-100 transition-all disabled:opacity-50"
-                                                                    >
-                                                                        {joiningId === room.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Rejoindre"}
-                                                                    </button>
-                                                                )}
-                                                                <button 
-                                                                    onClick={() => handleJoinRoom(room, true)} 
-                                                                    disabled={joiningId === room.id}
-                                                                    className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all disabled:opacity-50"
-                                                                >
-                                                                    Regarder
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {skribblRooms.map(room => (
-                                                        <div key={room.roomId} className="p-4 bg-white/5 border border-blue-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-blue-500/5 transition-all">
-                                                            <div className="flex flex-col min-w-0 pr-2">
-                                                                <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName}</span>
-                                                                <span className="text-blue-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Draw • {room.playerCount}/8</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {room.state !== 'LOBBY' ? (
-                                                                    <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
-                                                                        Lancé
-                                                                    </div>
-                                                                ) : (
-                                                                    <a href={`/dashboard/${guildId}/mini-jeux/skribbl?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-blue-500 text-white font-black uppercase text-[10px] shadow-md shadow-blue-500/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
-                                                                )}
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/skribbl?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {garticRooms.map(room => (
-                                                        <div key={room.roomId} className="p-4 bg-white/5 border border-amber-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-amber-500/5 transition-all">
-                                                            <div className="flex flex-col min-w-0 pr-2">
-                                                                <span className="text-white font-bold text-xs uppercase italic truncate">{room.hostName}</span>
-                                                                <span className="text-amber-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Phone • {room.playerCount}/8</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {room.state !== 'LOBBY' ? (
-                                                                    <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
-                                                                        Lancé
-                                                                    </div>
-                                                                ) : (
-                                                                    <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500 text-white font-black uppercase text-[10px] shadow-md shadow-amber-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
-                                                                )}
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/gartic?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {bombRooms.map(room => (
-                                                        <div key={room.roomId} className="p-4 bg-white/5 border border-red-500/10 rounded-xl flex items-center justify-between group/lobby hover:bg-red-500/5 transition-all">
-                                                            <div className="flex flex-col min-w-0 pr-2">
-                                                                <span className="text-white font-bold text-xs uppercase italic truncate">{room.roomId}</span>
-                                                                <span className="text-red-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Bomb • {room.playerCount}/8</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {room.state !== 'LOBBY' ? (
-                                                                    <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
-                                                                        Lancé
-                                                                    </div>
-                                                                ) : (
-                                                                    <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500 text-white font-black uppercase text-[10px] shadow-md shadow-red-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
-                                                                )}
-                                                                <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </>
-                                            )}
+                                        <div className="flex gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5">
+                                            <button
+                                                onClick={() => setLadderGame('guesser')}
+                                                className={cn(
+                                                    "px-6 py-2.5 rounded-xl text-xs font-black uppercase italic transition-all flex items-center gap-2",
+                                                    ladderGame === 'guesser' 
+                                                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
+                                                        : "text-white/20 hover:text-white/40"
+                                                )}
+                                            >
+                                                <Target size={14} />
+                                                Guesser
+                                            </button>
+                                            <button
+                                                onClick={() => setLadderGame('skribbl')}
+                                                className={cn(
+                                                    "px-6 py-2.5 rounded-xl text-xs font-black uppercase italic transition-all flex items-center gap-2",
+                                                    ladderGame === 'skribbl' 
+                                                        ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" 
+                                                        : "text-white/20 hover:text-white/40"
+                                                )}
+                                            >
+                                                <Palette size={14} />
+                                                Dessin
+                                            </button>
+                                        </div>
+
+                                        <div className="flex gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5">
+                                            <button
+                                                onClick={() => setLadderType('all_time')}
+                                                className={cn(
+                                                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all",
+                                                    ladderType === 'all_time' ? 'bg-white/10 text-white' : 'text-white/20 hover:text-white/40'
+                                                )}
+                                            >
+                                                Général
+                                            </button>
+                                            <button
+                                                onClick={() => setLadderType('month')}
+                                                className={cn(
+                                                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all",
+                                                    ladderType === 'month' ? 'bg-white/10 text-white' : 'text-white/20 hover:text-white/40'
+                                                )}
+                                            >
+                                                Mensuel
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Sidebar Leaderboard */}
-                                <div className="flex flex-col space-y-4 lg:space-y-6">
-                                    <motion.div
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        className="order-2 lg:order-1 bg-[#0a0f18]/80 backdrop-blur-3xl border border-white/5 rounded-[2rem] lg:rounded-[2.5rem] p-5 lg:p-8 flex flex-col shadow-2xl relative overflow-hidden h-[300px] lg:h-[600px]"
-                                    >
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-[100px] pointer-events-none" />
-
-                                        <div className="flex flex-col gap-3 lg:gap-4 mb-4 lg:mb-6 pb-4 lg:pb-6 border-b border-white/5 shrink-0">
-                                            <div className="flex items-center justify-between">
-                                                <h3 className="text-white font-black text-xl lg:text-2xl uppercase italic tracking-tighter">Élite</h3>
-                                                <div className="px-2 lg:px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-1 lg:gap-1.5">
-                                                    <Trophy size={10} className="text-amber-400 lg:w-3 lg:h-3" />
-                                                    <span className="text-amber-400 text-[8px] lg:text-[10px] font-black uppercase">Hall of Fame</span>
-                                                </div>
+                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-10">
+                                         {isLoadingLadder ? (
+                                            <div className="col-span-full h-64 flex flex-col items-center justify-center text-white/10 font-black uppercase text-sm animate-pulse gap-4">
+                                                <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                                                Chargement du Panthéon...
                                             </div>
-
-                                            <div className="flex gap-1.5 p-1 bg-black/40 rounded-xl border border-white/5 shrink-0">
-                                                <button
-                                                    onClick={() => setLadderGame('guesser')}
-                                                    className={`flex-1 py-1.5 rounded-lg text-[10px] lg:text-xs font-black uppercase transition-all ${ladderGame === 'guesser' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-white/20 hover:text-white/40'}`}
+                                        ) : ladder.length > 0 ? (
+                                            ladder.map((entry, index) => (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: index * 0.05 }}
+                                                    key={entry.userId || entry.id} 
+                                                    className={cn(
+                                                        "p-6 rounded-[2rem] flex items-center justify-between group transition-all relative overflow-hidden",
+                                                        index === 0 
+                                                            ? "bg-gradient-to-br from-amber-500/20 to-transparent border border-amber-500/30 shadow-[0_20px_40px_-10px_rgba(245,158,11,0.1)]" 
+                                                            : "bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10"
+                                                    )}
                                                 >
-                                                    Guesser
-                                                </button>
-                                                <button
-                                                    onClick={() => setLadderGame('skribbl')}
-                                                    className={`flex-1 py-1.5 rounded-lg text-[10px] lg:text-xs font-black uppercase transition-all ${ladderGame === 'skribbl' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-white/20 hover:text-white/40'}`}
-                                                >
-                                                    DESSIN
-                                                </button>
-                                                <button
-                                                    onClick={() => setLadderGame('king')}
-                                                    className={`flex-1 py-1.5 rounded-lg text-[10px] lg:text-xs font-black uppercase transition-all ${ladderGame === 'king' ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20' : 'text-white/20 hover:text-white/40'}`}
-                                                >
-                                                    King
-                                                </button>
-                                            </div>
-
-                                            <div className="flex gap-1.5 p-1 bg-black/40 rounded-xl border border-white/5 shrink-0">
-                                                <button
-                                                    onClick={() => setLadderType('all_time')}
-                                                    className={`flex-1 py-1 lg:py-1.5 rounded-lg text-[8px] lg:text-[10px] font-black uppercase transition-all ${ladderType === 'all_time' ? 'bg-white/10 text-white' : 'text-white/20 hover:text-white/40'}`}
-                                                >
-                                                    Général
-                                                </button>
-                                                <button
-                                                    onClick={() => setLadderType('month')}
-                                                    className={`flex-1 py-1 lg:py-1.5 rounded-lg text-[8px] lg:text-[10px] font-black uppercase transition-all ${ladderType === 'month' ? 'bg-white/10 text-white' : 'text-white/20 hover:text-white/40'}`}
-                                                >
-                                                    Mensuel
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2 overflow-y-auto pr-1 custom-scrollbar flex-1 min-h-0">
-                                            {isLoadingLadder ? (
-                                                <div className="h-full flex items-center justify-center text-white/10 font-black uppercase text-xs animate-pulse">
-                                                    Chargement...
-                                                </div>
-                                            ) : (ladderGame === 'king' ? kingLadder : ladder).length > 0 ? (
-                                                (ladderGame === 'king' ? kingLadder : ladder).slice(0, 10).map((entry, index) => (
-                                                    <div key={entry.userId || entry.id} className={`p-3 lg:p-4 rounded-xl ${index === 0 ? `bg-gradient-to-r ${ladderGame === 'guesser' ? 'from-emerald-500/10' : ladderGame === 'skribbl' ? 'from-blue-500/10' : 'from-amber-600/10'} to-transparent border ${ladderGame === 'guesser' ? 'border-emerald-500/20' : ladderGame === 'skribbl' ? 'border-blue-500/20' : 'border-amber-600/20'}` : 'bg-white/5 border border-white/5'} flex items-center justify-between group transition-all`}>
-                                                        <div className="flex items-center gap-3 lg:gap-4 min-w-0 pr-2">
-                                                            <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center font-black text-xs italic shrink-0 ${index === 0 ? (ladderGame === 'guesser' ? 'bg-emerald-500' : ladderGame === 'skribbl' ? 'bg-blue-500' : 'bg-amber-600') + ' text-white' :
-                                                                    index === 1 ? 'bg-slate-300 text-slate-900' :
-                                                                        index === 2 ? 'bg-amber-700 text-white' :
-                                                                            'text-white/20 border border-white/5'
-                                                                }`}>
-                                                                {index === 0 ? <Crown size={12} className="lg:w-[14px] lg:h-[14px]" /> : index + 1}
-                                                            </div>
-                                                            <div className="flex flex-col min-w-0">
-                                                                <span className="text-white font-bold text-[10px] lg:text-xs uppercase italic truncate">{entry.userName}</span>
-                                                                <span className="text-white/20 text-[8px] lg:text-[9px] font-black uppercase tracking-wider">{ladderGame === 'guesser' ? 'Explorateur' : ladderGame === 'skribbl' ? 'Artiste' : 'Titan'}</span>
-                                                            </div>
+                                                    <div className="flex items-center gap-5 min-w-0 pr-2">
+                                                        <div className={cn(
+                                                            "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg italic shrink-0",
+                                                            index === 0 ? "bg-amber-500 text-white shadow-xl shadow-amber-500/40" :
+                                                            index === 1 ? "bg-slate-300 text-slate-900 shadow-xl shadow-slate-300/20" :
+                                                            index === 2 ? "bg-amber-700 text-white shadow-xl shadow-amber-700/20" :
+                                                            "text-white/20 bg-white/5 border border-white/5"
+                                                        )}>
+                                                            {index === 0 ? <Crown size={20} /> : index + 1}
                                                         </div>
-                                                        <div className="text-right shrink-0">
-                                                            <div className={`${ladderGame === 'guesser' ? 'text-emerald-500' : ladderGame === 'skribbl' ? 'text-blue-500' : 'text-amber-500'} font-black text-[10px] lg:text-xs uppercase italic whitespace-nowrap`}>{entry.bestScore || 0} pts</div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-white font-black text-sm uppercase italic truncate">{entry.userName}</span>
+                                                                {index < 3 && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />}
+                                                            </div>
+                                                            <span className="text-white/20 text-[10px] font-black uppercase tracking-[0.2em]">{ladderGame === 'guesser' ? 'Explorateur' : 'Artiste'}</span>
                                                         </div>
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <div className="h-full flex items-center justify-center text-white/5 font-black uppercase text-[10px] lg:text-xs italic text-center p-4">
-                                                    Aucun classement pour le moment
-                                                </div>
-                                            )}
-                                        </div>
-                                    </motion.div>
-
-                                    <div className="order-1 lg:order-2 p-5 lg:p-6 bg-white/[0.02] border border-white/5 rounded-[1.5rem] lg:rounded-[2rem] relative overflow-hidden shrink-0">
-                                        <div className="flex items-center gap-2 lg:gap-3 mb-2 lg:mb-3">
-                                            <div className="p-1 lg:p-1.5 rounded-lg bg-purple-500/10 text-purple-400">
-                                                <HelpCircle size={14} className="lg:w-4 lg:h-4" />
+                                                    <div className="text-right shrink-0">
+                                                        <div className={cn(
+                                                            "font-black text-lg italic whitespace-nowrap",
+                                                            index === 0 ? "text-amber-500" : "text-white/60"
+                                                        )}>
+                                                            {entry.bestScore || 0} 
+                                                            <span className="text-[10px] ml-1.5 opacity-40 not-italic">pts</span>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            ))
+                                        ) : (
+                                            <div className="col-span-full h-64 flex flex-col items-center justify-center text-white/5 font-black uppercase text-sm italic text-center p-10 gap-4">
+                                                <Trophy size={48} className="opacity-10" />
+                                                Le Panthéon est encore vide...
                                             </div>
-                                            <span className="text-white/30 font-black uppercase text-[10px] lg:text-xs tracking-widest">Saviez-vous ?</span>
-                                        </div>
-                                        <p className="text-white/40 text-[10px] lg:text-[11px] font-medium leading-relaxed italic pr-2 lg:pr-4">
-                                            En mode Spécial de SigilGuesser, vous n'avez que 10 secondes pour trouver la zone !
-                                        </p>
+                                        )}
                                     </div>
-                                </div>
-                            </div>
+                                </motion.div>
+                            )}
                         </motion.div>
                     </div>
                 )}
@@ -2547,13 +2580,27 @@ export default function InteractiveMapV2({
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={handleLeaveSession}
-                                    className="w-full py-5 mt-6 rounded-2xl bg-red-500/10 text-red-500 font-black uppercase text-[10px] italic hover:bg-red-500 hover:text-white transition-all border border-red-500/10 shadow-lg active:scale-95 flex-shrink-0 flex items-center justify-center gap-2"
-                                >
-                                    <LogOut size={14} />
-                                    <span>{activeSession.hostId === currentUserId ? 'Dissoudre le Salon' : 'Quitter le Salon'}</span>
-                                </button>
+                                <div className="flex items-center gap-2 mt-6">
+                                    <button 
+                                        onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
+                                        className={cn(
+                                            "p-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] italic group shrink-0",
+                                            showVoiceOverlay 
+                                                ? "bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border-emerald-500/20" 
+                                                : "bg-slate-500/10 hover:bg-slate-500 text-slate-500 hover:text-white border-slate-500/20"
+                                        )}
+                                        title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
+                                    >
+                                        {showVoiceOverlay ? <Mic size={18} /> : <MicOff size={18} />}
+                                    </button>
+                                    <button
+                                        onClick={handleLeaveSession}
+                                        className="flex-1 py-5 rounded-2xl bg-red-500/10 text-red-500 font-black uppercase text-[10px] italic hover:bg-red-500 hover:text-white transition-all border border-red-500/10 shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        <LogOut size={14} />
+                                        <span>{activeSession.hostId === currentUserId ? 'Dissoudre' : 'Quitter'}</span>
+                                    </button>
+                                </div>
                             </div>
  
                              {/* Player List */}
@@ -2636,7 +2683,14 @@ export default function InteractiveMapV2({
                                                 )}
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-white font-black text-sm uppercase italic tracking-tight">{p.userName}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-white font-black text-sm uppercase italic tracking-tight">{p.userName}</span>
+                                                    {voiceUserIds.includes(p.userId) && (
+                                                        <div className="p-1 bg-emerald-500 rounded-md border border-zinc-950 shadow-lg">
+                                                            <Mic size={10} className="text-white fill-white/20" />
+                                                        </div>
+                                                    )}
+                                                </div>
                                                 {p.userId === activeSession.hostId && (
                                                     <span className="text-emerald-500 text-[9px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
                                                         <Crown size={10} /> Maitre du Salon
@@ -2757,13 +2811,42 @@ export default function InteractiveMapV2({
                     )}
                 </AnimatePresence>
 
-                {/* Dungeon Detail Modal */}
-                {selectedDungeon && (
-                    <DungeonDetailModal
-                        isOpen={!!selectedDungeon}
-                        onClose={() => setSelectedDungeon(null)}
-                        dungeons={selectedDungeon}
+                {/* Map Detail Panel - Classic Exploration */}
+                {selectedPosition && activeTab === 'map' && (
+                    <MapDetailsPanel
+                        position={(() => {
+                            // If we already have a specialized mapId (e.g. from layer switcher), use it
+                            if (selectedPosition.mapId) return selectedPosition;
+                            // Otherwise find the best map for these coords
+                            const bestMap = allWorldMapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`);
+                            return {
+                                ...selectedPosition,
+                                mapId: bestMap?.id,
+                                subAreaId: bestMap?.subAreaId
+                            };
+                        })()}
+                        allLayers={allLayersByCoords.get(`${selectedPosition.x},${selectedPosition.y}`) || []}
+                        subAreaName={(() => {
+                            // Determine which subAreaId to use
+                            const currentMap = selectedPosition.mapId 
+                                ? allMapsById.get(selectedPosition.mapId) 
+                                : allWorldMapsByCoords.get(`${selectedPosition.x},${selectedPosition.y}`);
+                            
+                            const saId = currentMap?.subAreaId || selectedPosition.subAreaId || 0;
+                            const sa = subAreasById.get(saId);
+                            if (!sa) return undefined;
+                            return typeof sa.name === 'string' ? sa.name : sa.name?.fr;
+                        })()}
                         guildId={guildId}
+                        onClose={() => setSelectedPosition(null)}
+                        onOpenZoneDetails={() => setShowZoneDetail(true)}
+                        onSelectMap={(map: MapNode) => {
+                            setSelectedPosition({
+                                ...selectedPosition,
+                                mapId: map.id,
+                                subAreaId: map.subAreaId
+                            });
+                        }}
                     />
                 )}
                 {/* Perfect Guess Celebration Overlay */}
@@ -2840,6 +2923,14 @@ export default function InteractiveMapV2({
                     )}
                 </AnimatePresence>
             </div>
+            {showVoiceOverlay && (
+                <DiscordVoiceOverlay 
+                    users={voiceUsers} 
+                    guildId={guildId}
+                    gamePlayerIds={gameParticipantIds} 
+                    currentUserId={(sessionData?.user as any)?.discordId}
+                />
+            )}
         </div>
     );
 }

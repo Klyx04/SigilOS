@@ -184,9 +184,9 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                         transition={{ duration: 0.3, ease: "easeInOut" }}
                         className="overflow-hidden bg-white/[0.02] border border-t-0 border-white/10 rounded-b-[2.5rem]"
                     >
-                        <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
+                        <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-12">
                             {/* Resources Column */}
-                            <div className="space-y-6">
+                            <div className="lg:col-span-5 space-y-6">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.4em] flex items-center gap-3">
                                         <Package className="w-4 h-4" /> Ressources à prévoir
@@ -200,35 +200,35 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                         Analyse logistique en cours...
                                     </div>
                                 ) : filteredItems.length > 0 ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                         {filteredItems.map((item) => (
-                                            <div key={item.id} className="flex items-center gap-4 p-3 bg-black/40 border border-white/5 rounded-2xl hover:border-white/20 transition-all">
-                                                <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center p-1.5 relative shrink-0">
+                                            <div key={item.id} className="flex items-center gap-3 p-2 bg-black/40 border border-white/5 rounded-2xl hover:border-white/20 transition-all group">
+                                                <div className="w-9 h-9 bg-zinc-900 rounded-xl flex items-center justify-center p-1.5 relative shrink-0">
                                                     <img 
                                                         src={item.img || `https://static.dofusdb.fr/items/${item.id}.png`} 
                                                         alt="" 
-                                                        className="w-full h-full object-contain icon-glow"
+                                                        className="w-full h-full object-contain icon-glow group-hover:scale-110 transition-transform"
                                                         onError={(e) => (e.currentTarget.style.display = 'none')}
                                                     />
-                                                    <div className="absolute -bottom-1.5 -right-1.5 bg-indigo-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-lg">
+                                                    <div className="absolute -top-1.5 -right-1.5 bg-indigo-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-lg border border-white/10">
                                                         x{item.amount}
                                                     </div>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <ItemInline itemId={item.id} />
+                                                    <span className="text-[11px] font-bold"><ItemInline itemId={item.id} /></span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
                                     <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center text-zinc-600 italic text-[13px]">
-                                        Aucune ressource spécifique listée dans les étapes.
+                                        Aucune ressource spécifique listée.
                                     </div>
                                 )}
                             </div>
 
-                            {/* Dungeons Column */}
-                            <div className="space-y-6">
+                            {/* Dungeons Column - REFACTORED TO GRID */}
+                            <div className="lg:col-span-7 space-y-6">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.4em] flex items-center gap-3">
                                         <Sword className="w-4 h-4" /> Donjons Requis
@@ -237,9 +237,9 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                 </div>
 
                                 {logistics.dungeons.length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar content-start">
                                         {logistics.dungeons.map((d, i) => (
-                                            <div key={i} className="flex items-center gap-4 p-3 bg-rose-500/5 border border-rose-500/10 rounded-2xl group hover:border-rose-500/30 transition-all relative overflow-hidden">
+                                            <div key={i} className="flex flex-col gap-2 p-3 bg-rose-500/5 border border-rose-500/10 rounded-2xl group hover:border-rose-500/30 transition-all relative overflow-hidden h-fit">
                                                 {/* Idol Badge */}
                                                 {d.idoleName && (
                                                     <div className="absolute top-0 right-0 px-2 py-0.5 bg-amber-500/20 border-b border-l border-amber-500/30 rounded-bl-lg text-[7px] font-black text-amber-500 uppercase tracking-widest z-10">
@@ -247,29 +247,31 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                                     </div>
                                                 )}
                                                 
-                                                <div className="w-12 h-12 rounded-xl bg-black/60 border border-white/5 flex items-center justify-center p-1 shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform">
-                                                    {(d.id || d.img) ? (
-                                                        <img 
-                                                            src={d.img || `https://static.dofusdb.fr/monsters/${d.id}.png`} 
-                                                            className="w-full h-full object-contain relative z-10" 
-                                                            onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                            alt={d.name}
-                                                        />
-                                                    ) : (
-                                                        <span className="text-rose-500 text-lg">🏰</span>
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-[13px] font-black text-white italic truncate group-hover:text-rose-400 transition-colors">
-                                                        {d.name}
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-black/60 border border-white/5 flex items-center justify-center p-1 shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform shadow-inner">
+                                                        {(d.id || d.img) ? (
+                                                            <img 
+                                                                src={d.img || `https://static.dofusdb.fr/monsters/${d.id}.png`} 
+                                                                className="w-full h-full object-contain relative z-10" 
+                                                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                                alt={d.name}
+                                                            />
+                                                        ) : (
+                                                            <span className="text-rose-500 text-base">🏰</span>
+                                                        )}
                                                     </div>
-                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                        {d.level && d.level > 0 && (
-                                                            <span className="text-[9px] text-zinc-500 font-bold uppercase">Lvl {d.level}</span>
-                                                        )}
-                                                        {d.bossName && (
-                                                            <span className="text-[9px] text-zinc-600 font-bold italic truncate">— {d.bossName}</span>
-                                                        )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-[11px] font-black text-white italic truncate group-hover:text-rose-400 transition-colors uppercase leading-tight">
+                                                            {d.name}
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 opacity-50">
+                                                            {d.level && d.level > 0 && (
+                                                                <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider whitespace-nowrap">Lvl {d.level}</span>
+                                                            )}
+                                                            {d.bossName && (
+                                                                <span className="text-[8px] text-zinc-600 font-bold italic truncate">— {d.bossName}</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -277,7 +279,7 @@ export function DofusGlobalLogistics({ chains, dofusColor, completedIds }: Dofus
                                     </div>
                                 ) : (
                                     <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center text-zinc-600 italic text-[13px]">
-                                        Aucun donjon détecté dans le parcours.
+                                        Aucun donjon requis.
                                     </div>
                                 )}
                             </div>

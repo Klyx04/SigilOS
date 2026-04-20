@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot, DroppableStateSnapshot } from "@hello-pangea/dnd";
 import { Plus, Trash2, Save, X, GripVertical, Navigation, Info, Database, Sword, Package, Globe, Link as LinkIcon, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { upsertOptimizedGuide, deleteOptimizedGuide } from "@/server/actions/optimized-guide-actions";
@@ -333,7 +333,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, dofusItems }:
                                     <Database className="w-3.5 h-3.5 text-emerald-500" /> Bibliothèque de quêtes
                                 </h4>
                                 <Droppable droppableId="drawer-quests" isDropDisabled={true} type="objective">
-                                    {(provided) => (
+                                    {(provided: DroppableProvided) => (
                                         <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-3">
                                             {dofusItems.map(dof => (
                                                 <div key={dof.id} className="bg-white/[0.02] p-3 rounded-2xl border border-white/5">
@@ -343,7 +343,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, dofusItems }:
                                                     <div className="space-y-1.5">
                                                         {dof.questChains.flatMap((c:any) => c.entries).map((quest: any, index: number) => (
                                                             <Draggable key={`drawer-${quest.id}`} draggableId={`drawer-${quest.id}`} index={index}>
-                                                                {(provided, snapshot) => (
+                                                                {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                                                                     <div 
                                                                         ref={provided.innerRef} 
                                                                         {...provided.draggableProps} 
@@ -367,11 +367,11 @@ export default function OptimizedGuideAdminClient({ initialGuides, dofusItems }:
 
                             {/* Steps Board */}
                             <Droppable droppableId="steps-board" direction="vertical" type="step">
-                                {(provided) => (
+                                {(provided: DroppableProvided) => (
                                     <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-3">
                                         {selectedGuide.steps.map((step, index) => (
                                             <Draggable key={step.id} draggableId={step.id} index={index}>
-                                                {(provided, snapshot) => (
+                                                {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                                                     <div
                                                         ref={provided.innerRef}
                                                         {...provided.draggableProps}
@@ -420,7 +420,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, dofusItems }:
 
                                                         {/* Droppable Zone for Objectives inside this step */}
                                                         <Droppable droppableId={`step-${step.id}`} type="objective">
-                                                            {(provided, snapshot) => (
+                                                            {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
                                                                 <div 
                                                                     ref={provided.innerRef} 
                                                                     {...provided.droppableProps}
@@ -429,7 +429,7 @@ export default function OptimizedGuideAdminClient({ initialGuides, dofusItems }:
                                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                                                         {step.objectives.map((obj, oIdx) => (
                                                                             <Draggable key={`${step.id}-${obj.id}-${oIdx}`} draggableId={`${step.id}-${obj.id}-${oIdx}`} index={oIdx}>
-                                                                                {(provided, snapshot) => (
+                                                                                {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                                                                                     <div
                                                                                         ref={provided.innerRef}
                                                                                         {...provided.draggableProps}

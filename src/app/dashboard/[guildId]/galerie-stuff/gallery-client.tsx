@@ -624,10 +624,10 @@ export function GalleryClient({
 
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-1.5">
-                                                {skin.metadata?.class && DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata!.class))?.icon && (
-                                                    <div className="w-6 h-6 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center" title={DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata!.class))?.name || skin.metadata.class}>
+                                                {skin.metadata?.class && DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.icon && (
+                                                    <div className="w-6 h-6 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center" title={DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.name || skin.metadata.class}>
                                                         <NextImage 
-                                                            src={DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata!.class))?.icon!} 
+                                                            src={DOFUS_CLASSES.find(c => getNumericClassId(c) === Number(skin.metadata?.class))?.icon || ""} 
                                                             alt="" width={14} height={14} 
                                                         />
                                                     </div>

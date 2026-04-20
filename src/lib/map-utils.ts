@@ -51,8 +51,8 @@ export function mergeCellEdges(cells: { x: number, y: number }[]): { x: number, 
     const polygons: { x: number, y: number }[][] = [];
     while (boundaryEdges.length > 0) {
         const polygon: { x: number, y: number }[] = [];
-        let currentEdge = boundaryEdges.shift()!;
-        let [startX, startY, endX, endY] = currentEdge;
+        const currentEdge = boundaryEdges.shift()!;
+        const [startX, startY, endX, endY] = currentEdge;
         polygon.push({ x: startX, y: startY });
         polygon.push({ x: endX, y: endY });
 

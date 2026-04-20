@@ -103,7 +103,7 @@ export function AppSidebar({
         return false;
     };
 
-    // Auto-expand "Progression" if any sub-route is active
+    // Auto-expand sections if any sub-route is active
     const progressionRoutes = [
         `/dashboard/${guildId}/missions`,
         `/dashboard/${guildId}/songes`,
@@ -116,23 +116,36 @@ export function AppSidebar({
     );
 
     const toolsRoutes = [
-        `/dashboard/${guildId}/mini-jeux`,
-        `/dashboard/${guildId}/mini-jeux`,
+        `/dashboard/${guildId}/galerie-stuff`,
         `/dashboard/${guildId}/donjons-et-quetes`,
         `/dashboard/${guildId}/services`,
-        `/dashboard/${guildId}/sondages`,
-        `/dashboard/${guildId}/members`,
-        `/dashboard/${guildId}/galerie-stuff`,
-        `/dashboard/${guildId}/worldmap`,
     ];
-    const [infoOpen, setInfoOpen] = useState(
-        () => pathname.startsWith(`/dashboard/${guildId}/calendar`)
-    );
     const [toolsOpen, setToolsOpen] = useState(
         () => toolsRoutes.some(r => pathname.startsWith(r))
     );
 
-    // Auto-expand "Supervision" if any admin route is active
+    const infoRoutes = [
+        `/dashboard/${guildId}/guild-hub`,
+        `/dashboard/${guildId}/welcome`,
+        `/dashboard/${guildId}/presentation`,
+        `/dashboard/${guildId}/stats`,
+        `/dashboard/${guildId}/members`,
+        `/dashboard/${guildId}/calendar`,
+        `/dashboard/${guildId}/ressources`,
+    ];
+    const [infoOpen, setInfoOpen] = useState(
+        () => infoRoutes.some(r => pathname.startsWith(r))
+    );
+
+    const othersRoutes = [
+        `/dashboard/${guildId}/mini-jeux`,
+        `/dashboard/${guildId}/sondages`,
+        `/dashboard/${guildId}/worldmap`,
+    ];
+    const [othersOpen, setAutresOpen] = useState(
+        () => othersRoutes.some(r => pathname.startsWith(r))
+    );
+
     const adminRoutes = [
         `/dashboard/${guildId}/admin`,
         `/dashboard/${guildId}/missions/manage`,
@@ -140,6 +153,8 @@ export function AppSidebar({
     const [adminOpen, setAdminOpen] = useState(
         () => adminRoutes.some(r => pathname.startsWith(r))
     );
+
+    const [pinnedOpen, setPinnedOpen] = useState(true);
 
     // --- NAVIGATION GROUPS ---
     const hasAnyAdminPermission = user.isAdmin || user.canManageMembers || user.canManageMissions || user.canEditPresentation || user.canViewAuditLogs || user.canViewSettings || user.canManageRBAC || false;
@@ -384,19 +399,32 @@ export function AppSidebar({
                         {/* SECTION: FAVORI / PINNED */}
                         {pinnedItems.length > 0 && (
                                 <div className="space-y-1 relative group/section">
-                                    <SectionTitle label="Favoris" />
-                                    <div className="space-y-1 px-1">
-                                        {pinnedItems.map((item) => (
-                                            <NavItem 
-                                                key={`pin-${item.href}`} 
-                                                item={item} 
-                                                isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
-                                                isPinned={true}
-                                                onPin={handleTogglePin}
-                                                onHide={handleToggleHide}
-                                            />
-                                        ))}
-                                    </div>
+                                    <SectionTitle 
+                                        label="Favoris" 
+                                        collapsible 
+                                        isOpen={pinnedOpen} 
+                                        onToggle={() => setPinnedOpen(!pinnedOpen)} 
+                                    />
+                                    {pinnedOpen && (
+                                        <motion.div 
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                                            className="space-y-1 px-1 overflow-hidden"
+                                        >
+                                            {pinnedItems.map((item) => (
+                                                <NavItem 
+                                                    key={`pin-${item.href}`} 
+                                                    item={item} 
+                                                    isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
+                                                    isPinned={true}
+                                                    onPin={handleTogglePin}
+                                                    onHide={handleToggleHide}
+                                                />
+                                            ))}
+                                        </motion.div>
+                                    )}
                                     <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-amber-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                                 </div>
                         )}
@@ -417,144 +445,209 @@ export function AppSidebar({
                         </div>
 
                         <div className="relative group/section">
-                            <SectionTitle label="Informations" />
-                            <div className="space-y-1 px-1">
-                                {/* La guilde - Hub Link */}
-                                {(user.canViewWelcome || user.canViewPresentation || user.canViewStats) && 
-                                  !localPinnedHrefs.includes(`/dashboard/${guildId}/guild-hub`) && 
-                                  !localHiddenHrefs.includes(`/dashboard/${guildId}/guild-hub`) && (
-                                    <NavItem 
-                                        item={{ 
-                                            name: "La guilde", 
-                                            href: `/dashboard/${guildId}/guild-hub`, 
-                                            icon: Sparkles, 
-                                            color: "emerald",
-                                            aliases: [
+                            <SectionTitle 
+                                label="Informations" 
+                                collapsible 
+                                isOpen={infoOpen} 
+                                onToggle={() => setInfoOpen(!infoOpen)} 
+                            />
+                            {infoOpen && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    className="space-y-1 px-1 overflow-hidden"
+                                >
+                                    {/* La guilde - Hub Link */}
+                                    {(user.canViewWelcome || user.canViewPresentation || user.canViewStats) && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/guild-hub`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/guild-hub`) && (
+                                        <NavItem 
+                                            item={{ 
+                                                name: "La guilde", 
+                                                href: `/dashboard/${guildId}/guild-hub`, 
+                                                icon: Sparkles, 
+                                                color: "emerald",
+                                                aliases: [
+                                                    `/dashboard/${guildId}/welcome`,
+                                                    `/dashboard/${guildId}/presentation`,
+                                                    `/dashboard/${guildId}/stats`,
+                                                ]
+                                            }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/guild-hub`, false, [
                                                 `/dashboard/${guildId}/welcome`,
                                                 `/dashboard/${guildId}/presentation`,
                                                 `/dashboard/${guildId}/stats`,
-                                            ]
-                                        }} 
-                                        isActive={checkIsActive(`/dashboard/${guildId}/guild-hub`, false, [
-                                            `/dashboard/${guildId}/welcome`,
-                                            `/dashboard/${guildId}/presentation`,
-                                            `/dashboard/${guildId}/stats`,
-                                        ])} 
-                                        isPinned={false}
-                                        onPin={handleTogglePin}
-                                        onHide={handleToggleHide}
-                                    />
-                                )}
+                                            ])} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                        />
+                                    )}
 
-                                {/* Annuaire - Direct Link */}
-                                {user.canViewRoster && 
-                                  !localPinnedHrefs.includes(`/dashboard/${guildId}/members`) && 
-                                  !localHiddenHrefs.includes(`/dashboard/${guildId}/members`) && (
-                                    <NavItem 
-                                        item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald" }} 
-                                        isActive={checkIsActive(`/dashboard/${guildId}/members`)} 
-                                        isPinned={false}
-                                        onPin={handleTogglePin}
-                                        onHide={handleToggleHide}
-                                    />
-                                )}
-                                
-                                {/* Calendrier - Direct Link */}
-                                {user.canViewCalendar && 
-                                  !localPinnedHrefs.includes(`/dashboard/${guildId}/calendar`) && 
-                                  !localHiddenHrefs.includes(`/dashboard/${guildId}/calendar`) && (
-                                    <NavItem 
-                                        item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald" }} 
-                                        isActive={checkIsActive(`/dashboard/${guildId}/calendar`)} 
-                                        isPinned={false}
-                                        onPin={handleTogglePin}
-                                        onHide={handleToggleHide}
-                                    />
-                                )}
+                                    {/* Annuaire - Direct Link */}
+                                    {user.canViewRoster && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/members`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/members`) && (
+                                        <NavItem 
+                                            item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald" }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/members`)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                        />
+                                    )}
+                                    
+                                    {/* Calendrier - Direct Link */}
+                                    {user.canViewCalendar && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/calendar`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/calendar`) && (
+                                        <NavItem 
+                                            item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald" }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/calendar`)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                        />
+                                    )}
 
-                                {/* Ressources - Direct Link */}
-                                {user.canViewResources && modules.resources && 
-                                  !localPinnedHrefs.includes(`/dashboard/${guildId}/ressources`) && 
-                                  !localHiddenHrefs.includes(`/dashboard/${guildId}/ressources`) && (
-                                    <NavItem 
-                                        item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald" }} 
-                                        isActive={checkIsActive(`/dashboard/${guildId}/ressources`)} 
-                                        isPinned={false}
-                                        onPin={handleTogglePin}
-                                        onHide={handleToggleHide}
-                                    />
-                                )}
-                            </div>
+                                    {/* Ressources - Direct Link */}
+                                    {user.canViewResources && modules.resources && 
+                                    !localPinnedHrefs.includes(`/dashboard/${guildId}/ressources`) && 
+                                    !localHiddenHrefs.includes(`/dashboard/${guildId}/ressources`) && (
+                                        <NavItem 
+                                            item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald" }} 
+                                            isActive={checkIsActive(`/dashboard/${guildId}/ressources`)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                        />
+                                    )}
+                                </motion.div>
+                            )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-emerald-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                         </div>
 
                         {/* SECTION: PROGRESSION */}
                         {showProgressionGroup && (
                             <div className="relative group/section">
-                                <SectionTitle label="Progression" />
-                                <div className="space-y-1 px-1">
-                                    {NAV_PROGRESSION.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
-                                        <NavItem 
-                                            key={item.href} 
-                                            item={item} 
-                                            isActive={checkIsActive(item.href)} 
-                                            isPinned={false}
-                                            onPin={handleTogglePin}
-                                            onHide={handleToggleHide}
-                                        />
-                                    ))}
-                                </div>
+                                <SectionTitle 
+                                    label="Progression" 
+                                    collapsible 
+                                    isOpen={progressionOpen} 
+                                    onToggle={() => setProgressionOpen(!progressionOpen)} 
+                                />
+                                {progressionOpen && (
+                                    <motion.div 
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                                        className="space-y-1 px-1 overflow-hidden"
+                                    >
+                                        {NAV_PROGRESSION.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
+                                            <NavItem 
+                                                key={item.href} 
+                                                item={item} 
+                                                isActive={checkIsActive(item.href)} 
+                                                isPinned={false}
+                                                onPin={handleTogglePin}
+                                                onHide={handleToggleHide}
+                                            />
+                                        ))}
+                                    </motion.div>
+                                )}
                                 <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-amber-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                             </div>
                         )}
 
                         <div className="relative group/section">
-                            <SectionTitle label="Outils" />
-                            <div className="space-y-1 px-1">
-                                {NAV_TOOLS.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
-                                    <NavItem 
-                                        key={item.href} 
-                                        item={item} 
-                                        isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
-                                        isPinned={false}
-                                        onPin={handleTogglePin}
-                                        onHide={handleToggleHide}
-                                    />
-                                ))}
-                            </div>
+                            <SectionTitle 
+                                label="Outils" 
+                                collapsible 
+                                isOpen={toolsOpen} 
+                                onToggle={() => setToolsOpen(!toolsOpen)} 
+                            />
+                            {toolsOpen && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    className="space-y-1 px-1 overflow-hidden"
+                                >
+                                    {NAV_TOOLS.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
+                                        <NavItem 
+                                            key={item.href} 
+                                            item={item} 
+                                            isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                        />
+                                    ))}
+                                </motion.div>
+                            )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                         </div>
 
                         <div className="relative group/section">
-                            <SectionTitle label="Autres" />
-                            <div className="space-y-1 px-1">
-                                {NAV_OTHERS.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
-                                    <NavItem 
-                                        key={item.href} 
-                                        item={item} 
-                                        isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
-                                        isPinned={false}
-                                        onPin={handleTogglePin}
-                                        onHide={handleToggleHide}
-                                    />
-                                ))}
-                            </div>
+                            <SectionTitle 
+                                label="Autres" 
+                                collapsible 
+                                isOpen={othersOpen} 
+                                onToggle={() => setAutresOpen(!othersOpen)} 
+                            />
+                            {othersOpen && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    className="space-y-1 px-1 overflow-hidden"
+                                >
+                                    {NAV_OTHERS.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
+                                        <NavItem 
+                                            key={item.href} 
+                                            item={item} 
+                                            isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                        />
+                                    ))}
+                                </motion.div>
+                            )}
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-zinc-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                         </div>
 
                         {/* SECTION: SUPERVISION (ADMIN) */}
                         {showAdminGroup && (
                             <div className="relative group/section">
-                                <SectionTitle label="Supervision" />
-                                <div className="space-y-1 px-1">
-                                    <NavItem 
-                                        item={NAV_ADMIN_TOP} 
-                                        isActive={checkIsActive(NAV_ADMIN_TOP.href, NAV_ADMIN_TOP.exact, NAV_ADMIN_TOP.aliases)} 
-                                        isPinned={false}
-                                        onPin={handleTogglePin}
-                                        onHide={handleToggleHide}
-                                    />
-                                </div>
+                                <SectionTitle 
+                                    label="Supervision" 
+                                    collapsible 
+                                    isOpen={adminOpen} 
+                                    onToggle={() => setAdminOpen(!adminOpen)} 
+                                />
+                                {adminOpen && (
+                                    <motion.div 
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                                        className="space-y-1 px-1 overflow-hidden"
+                                    >
+                                        <NavItem 
+                                            item={NAV_ADMIN_TOP} 
+                                            isActive={checkIsActive(NAV_ADMIN_TOP.href, NAV_ADMIN_TOP.exact, NAV_ADMIN_TOP.aliases)} 
+                                            isPinned={false}
+                                            onPin={handleTogglePin}
+                                            onHide={handleToggleHide}
+                                        />
+                                    </motion.div>
+                                )}
                                 <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-rose-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                             </div>
                         )}

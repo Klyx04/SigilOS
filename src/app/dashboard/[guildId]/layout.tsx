@@ -6,7 +6,6 @@ import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
 import { getUserContext, getUserGuilds } from "@/server/actions/user-actions";
 import { getGuildHeaderData } from "@/server/actions/guild-actions";
 
-import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { getGuildModules } from "@/server/actions/module-actions";
 import { Suspense } from "react";
 import { PresenceHeartbeat } from "./_components/presence-heartbeat";
@@ -17,7 +16,6 @@ import { ValidatorInbox } from "./_components/validator-inbox";
 import { PseudoWarningBanner } from "@/components/layout/pseudo-warning-banner";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
-import { ChatWidget } from "@/components/chat/ChatWidget";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
@@ -43,11 +41,12 @@ export default async function DashboardLayout({
         redirect("/auth/signout?reason=token_expired");
     }
 
-    const [user, guildData, userGuilds, events, modules, configRes] = await Promise.all([
+    const eventsPromise = import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId));
+    
+    const [user, guildData, userGuilds, modules, configRes] = await Promise.all([
         getUserContext(guildId),
         getGuildHeaderData(guildId),
         getUserGuilds(),
-        import("@/server/actions/event-actions").then(mod => mod.getUpcomingGuildEvents(guildId)),
         getGuildModules(guildId),
         import("@/server/actions/god-roadmap-actions").then(mod => mod.getPlatformConfig())
     ]);
@@ -133,7 +132,7 @@ export default async function DashboardLayout({
 
     return (
         <NebulaClientWrapper>
-            <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-primary/30 text-zinc-100 fixed inset-0">
+            <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
                 <div className="hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
@@ -143,7 +142,7 @@ export default async function DashboardLayout({
                         guildData={guildData}
                         userGuilds={userGuilds}
                         modules={modules}
-                        className="h-full border-r border-white/5 bg-[#0a0a0b]/95 backdrop-blur-3xl shadow-[20px_0_40px_rgba(0,0,0,0.4)]"
+                        className="h-full border-r border-border bg-muted/40 backdrop-blur-3xl shadow-[5px_0_30px_rgba(0,0,0,0.02)] dark:shadow-[20px_0_40px_rgba(0,0,0,0.4)]"
                     />
                 </div>
 
@@ -153,11 +152,11 @@ export default async function DashboardLayout({
                 {/* 2. MAIN CONTENT AREA */}
                 <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
-                    <div className="flex-shrink-0 z-50 border-b border-white/5 bg-black/40 backdrop-blur-xl">
+                    <div className="flex-shrink-0 z-50 border-b border-border bg-background/40 backdrop-blur-xl">
                         <TopNav
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}
-                            events={events}
+                            eventsPromise={eventsPromise}
                             roadmapEnabled={roadmapEnabled}
                         />
                     </div>
@@ -183,10 +182,6 @@ export default async function DashboardLayout({
                                     </Suspense>
                                 </div>
 
-                                {/* Footer at bottom of content */}
-                                <div className="mt-12 md:mt-24 pb-8">
-                                    <GalacticFooter variant="compact" />
-                                </div>
                             </div>
                         </div>
 
@@ -210,21 +205,6 @@ export default async function DashboardLayout({
                 {/* Changelog Modal (Global Platform Updates) */}
                 <ChangelogModal />
 
-                {/* Live Chat Widget — visible si module activé + permission RBAC */}
-                {modules.chat && user.canViewChat && (
-                    <ChatWidget
-                        guildId={guildId}
-                        userId={user.id || ""}
-                        canModerate={user.canModerateChat}
-                        displayName={user.name || ""}
-                        avatarUrl={user.image}
-                        userRoleName={user.roleName || ""}
-                        userRoleNames={user.roleNames}
-                        userRoleIds={user.roles}
-                        userPseudo={user.pseudo}
-                        hideFloatingBubble={true}
-                    />
-                )}
 
                 {/* Support Orb (Donation system STATE OF ART 2026) */}
                 {donationsEnabled && <SupportOrb />}

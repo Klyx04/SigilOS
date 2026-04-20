@@ -8,7 +8,7 @@ import { Rocket } from "lucide-react";
 
 type Props = {
     params: Promise<{ guildId: string }>;
-    searchParams: Promise<{ room?: string }>;
+    searchParams: Promise<{ room?: string; spectate?: string }>;
 };
 
 export default async function SigilInvaderPage({ params, searchParams }: Props) {
@@ -16,7 +16,7 @@ export default async function SigilInvaderPage({ params, searchParams }: Props) 
     if (!session?.user) redirect("/");
 
     const { guildId } = await params;
-    const { room: roomId } = await searchParams;
+    const { room: roomId, spectate } = await searchParams;
 
     const user = await getUserContext(guildId);
     if (!user.isMember) redirect(`/dashboard/${guildId}`);

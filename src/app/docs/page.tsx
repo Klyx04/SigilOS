@@ -1,7 +1,8 @@
-import Link from "next/link";
-import { Folder, FileText, ArrowRight } from "lucide-react";
-import { Metadata } from "next";
 import { getAppBaseUrl } from "@/lib/utils";
+import { Metadata } from "next";
+import { headers } from "next/headers";
+import Link from "next/link";
+import { ArrowRight, FileText, Folder } from "lucide-react";
 
 export const metadata: Metadata = {
     title: "Centre de Documentation",
@@ -25,10 +26,15 @@ export default async function DocsHubPage() {
 
     const categories = Object.keys(groupedDocs).sort();
 
+    // [AUDIT 2026] Retrieve nonce for inline scripts
+    const headersList = await headers();
+    const nonce = headersList.get('x-nonce') ?? '';
+
     return (
         <>
             <script
                 type="application/ld+json"
+                nonce={nonce}
                 // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
                 dangerouslySetInnerHTML={{
                     __html: JSON.stringify({

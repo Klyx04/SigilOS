@@ -135,8 +135,8 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
             toast.error("Sélectionnez au moins un membre");
             return;
         }
-        if (!message) {
-            toast.error("Le message est vide");
+        if (relanceType === "CHANNEL" && !channelId) {
+            toast.error("Veuillez sélectionner un salon Discord");
             return;
         }
 
@@ -342,7 +342,15 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                              {(relanceType === "CHANNEL") && (
                                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Salon Discord</Label>
-                                    <Popover open={openChannel} onOpenChange={setOpenChannel}>
+                                    
+                                    {channels.length === 0 ? (
+                                        <Alert variant="destructive" className="bg-rose-500/10 border-rose-500/20 text-rose-400 py-2">
+                                            <AlertDescription className="text-[10px] font-bold uppercase tracking-tight">
+                                                Aucun salon textuel accessible. Vérifiez les permissions du bot SigilOS.
+                                            </AlertDescription>
+                                        </Alert>
+                                    ) : (
+                                        <Popover open={openChannel} onOpenChange={setOpenChannel}>
                                         <PopoverTrigger asChild>
                                             <Button
                                                 variant="outline"
@@ -387,7 +395,8 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                                                 </CommandList>
                                             </Command>
                                         </PopoverContent>
-                                    </Popover>
+                                        </Popover>
+                                    )}
                                 </div>
                             )}
 

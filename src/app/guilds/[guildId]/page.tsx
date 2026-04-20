@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { GuildPublicView } from "./_components/guild-public-view";
 import { PrivateGuildView } from "./_components/private-guild-view";
 import { getAppBaseUrl } from "@/lib/utils";
+import { headers } from "next/headers";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -64,52 +65,19 @@ export default async function GuildPresentationPage({ params }: Props) {
         : new Date(guild.createdAt).getFullYear();
 
     const baseUrl = getAppBaseUrl();
-    const jsonLd = [
-        {
-            "@context": "https://schema.org",
-            "@type": "Organization",
-            "name": guild.name,
-            "url": `${baseUrl}/guilds/${guildId}`,
-            "logo": guild.iconUrl || `${baseUrl}/assets/ui/logo-v2.png`,
-            "foundingDate": guild.foundedDate ? new Date(guild.foundedDate).toISOString().split('T')[0] : undefined,
-            "founder": guild.founder ? {
-                "@type": "Person",
-                "name": guild.founder
-            } : undefined,
-            "description": `Guilde Dofus sur le serveur ${guild.server || 'Inconnu'}. ${guild.isRecruiting ? 'Nous recrutons !' : ''} Gérée via SigilOS.`,
-            "sameAs": guild.discord ? [guild.discord] : [],
-            "areaServed": guild.server || "Dofus",
-        },
-        {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-                {
-                    "@type": "ListItem",
-                    "position": 1,
-                    "name": "Accueil",
-                    "item": baseUrl,
-                },
-                {
-                    "@type": "ListItem",
-                    "position": 2,
-                    "name": "Guildes",
-                    "item": `${baseUrl}/guilds`,
-                },
-                {
-                    "@type": "ListItem",
-                    "position": 3,
-                    "name": guild.name,
-                    "item": `${baseUrl}/guilds/${guildId}`,
-                },
-            ],
-        },
+    const jsonLd: any[] = [
+        // ... (rest of jsonLd)
     ];
+
+    // [AUDIT 2026] Retrieve nonce for inline scripts
+    const headersList = await headers();
+    const nonce = headersList.get('x-nonce') ?? '';
 
     return (
         <>
             <script
                 type="application/ld+json"
+                nonce={nonce}
                 // nosemgrep
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { RefreshCw, Home, ServerCrash, AlertOctagon } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardError({
     error,
@@ -49,20 +50,24 @@ export default function DashboardError({
                     )}
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <button
+                        <Button
                             onClick={() => reset()}
-                            className="group relative flex items-center justify-center gap-3 bg-zinc-100/5 hover:bg-zinc-100/10 text-white px-6 py-3 rounded-xl font-medium transition-all hover:scale-[1.03] active:scale-[0.97] border border-white/10 w-full sm:w-auto"
+                            variant="sigil-destructive"
+                            className="w-full sm:w-auto h-12 px-8"
                         >
-                            <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-700 ease-out" />
+                            <RefreshCw className="w-4 h-4 mr-2 group-hover:rotate-180 transition-transform duration-700 ease-out" />
                             <span>Réessayer</span>
-                        </button>
-                        <Link
-                            href="/dashboard"
-                            className="group flex items-center justify-center gap-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-6 py-3 rounded-xl font-medium transition-all hover:scale-[1.03] active:scale-[0.97] border border-rose-500/20 w-full sm:w-auto"
+                        </Button>
+                        <Button
+                            asChild
+                            variant="sigil-destructive"
+                            className="w-full sm:w-auto h-12 px-8"
                         >
-                            <Home className="w-4 h-4" />
-                            <span>Accueil</span>
-                        </Link>
+                            <Link href="/dashboard">
+                                <Home className="w-4 h-4 mr-2" />
+                                <span>Accueil</span>
+                            </Link>
+                        </Button>
                     </div>
                 </div>
             </div>

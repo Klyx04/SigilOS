@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Users, ChevronRight, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 127.14 96.36" fill="currentColor">
@@ -41,7 +42,7 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                 style={{ zIndex: 9999 }}
                 onClick={e => e.target === e.currentTarget && onClose()}
             >
-                <div className="w-full max-w-xl">
+                <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                     <div className="relative bg-zinc-950 border border-white/10 rounded-3xl overflow-hidden shadow-[0_32px_80px_-16px_rgba(0,0,0,0.8)]">
 
                         {/* Top gradient bar */}
@@ -52,7 +53,7 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
 
                         {/* Header */}
-                        <div className="relative flex items-start justify-between p-10 pb-8">
+                        <div className="relative flex items-start justify-between p-6 sm:p-10 pb-6 sm:pb-8">
                             <div>
                                 <div className="flex items-center gap-2.5 mb-4">
                                     <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center">
@@ -60,53 +61,59 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                                     </div>
                                     <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.35em]">Accès Chef de Guilde</span>
                                 </div>
-                                <h2 className="text-3xl font-black text-white tracking-tight leading-tight mb-3">
+                                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight mb-3">
                                     Rejoindre SigilOS,<br />
                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-300">c&apos;est simple.</span>
                                 </h2>
-                                <p className="text-sm text-zinc-500 leading-relaxed max-w-sm">
+                                <p className="text-xs sm:text-sm text-zinc-500 leading-relaxed max-w-sm">
                                     Bêta privée réservée aux chefs de guilde actifs sur Dofus Unity.<br />
                                     Rejoins le Discord et ouvre un ticket — on répond sous 24-48h.
                                 </p>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-all"
+                                className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-all ml-4"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         {/* Divider */}
-                        <div className="mx-10 h-px bg-white/5" />
+                        <div className="mx-6 sm:mx-10 h-px bg-white/5" />
 
                         {/* CTA Zone */}
-                        <div className="relative p-10 pt-8 space-y-4">
+                        <div className="relative p-6 sm:p-10 pt-6 sm:pt-8 space-y-4">
 
                             {/* Main Discord CTA */}
-                            <a
-                                href={discordInvite}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group flex items-center gap-5 p-6 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/18 border border-indigo-500/25 hover:border-indigo-400/60 transition-all duration-200 shadow-[0_8px_32px_-8px_rgba(88,101,242,0.2)] hover:shadow-[0_8px_40px_-6px_rgba(88,101,242,0.35)]"
+                            <Button
+                                asChild
+                                variant="sigil"
+                                className="h-auto p-4 sm:p-6 rounded-2xl bg-indigo-500/10 border-indigo-500/25 justify-start text-left"
                             >
-                                <div className="w-16 h-16 rounded-2xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0 group-hover:scale-105 group-hover:bg-indigo-500/25 transition-all">
-                                    <DiscordIcon className="w-8 h-8 text-indigo-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <span className="font-black text-white text-xl block mb-1">Rejoindre le Discord SigilOS</span>
-                                    <span className="text-sm text-zinc-500">
-                                        Ouvrir un ticket dans <span className="text-indigo-400 font-mono">#OUVRIR-TICKET</span>
-                                        <span className="ml-2 inline-flex items-center gap-1 text-emerald-400/80 font-semibold">
-                                            <Sparkles className="w-3 h-3" /> Réponse 24–48h
-                                        </span>
-                                    </span>
-                                </div>
-                                <ChevronRight className="w-6 h-6 text-zinc-600 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all flex-shrink-0" />
-                            </a>
+                                <a
+                                    href={discordInvite}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-5"
+                                >
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 group-hover:bg-indigo-500/30 transition-all">
+                                        <DiscordIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white/90" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <span className="font-black text-white text-lg sm:text-xl block mb-1 truncate">Rejoindre le Discord</span>
+                                        <div className="text-[10px] sm:text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors flex flex-wrap items-center gap-x-2 gap-y-1">
+                                            <span>Ticket dans <span className="text-indigo-400 font-mono">#OUVRIR-TICKET</span></span>
+                                            <span className="inline-flex items-center gap-1 text-emerald-400/80 font-semibold">
+                                                <Sparkles className="w-3 h-3" /> 24–48h
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="hidden sm:block w-6 h-6 ml-auto text-white/20 group-hover:text-white transition-all" />
+                                </a>
+                            </Button>
 
                             {/* Already have access */}
-                            <p className="text-center text-[11px] text-zinc-700 pt-2">
+                            <p className="text-center text-[10px] sm:text-[11px] text-zinc-700 pt-2">
                                 Déjà membre ?{" "}
                                 <button onClick={onClose} className="text-zinc-500 hover:text-white underline underline-offset-2 transition-colors">
                                     Connecte-toi via Discord en haut ↑

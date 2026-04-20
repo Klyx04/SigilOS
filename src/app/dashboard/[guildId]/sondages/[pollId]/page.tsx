@@ -2,7 +2,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { isModuleEnabled } from "@/server/actions/module-actions";
-import { getPoll, checkUserHasPollRole } from "@/server/actions/poll-actions";
+import { getPoll, checkUserHasPollRole, getPollSettings } from "@/server/actions/poll-actions";
 import { PollDetail } from "@/components/sondages/poll-detail";
 import { auth } from "@/auth";
 
@@ -26,6 +26,9 @@ export default async function PollDetailPage({
     const session = await auth();
     const hasMicro = session?.user?.id ? await checkUserHasPollRole(guildId, session.user.id) : false;
 
+    const settings = await getPollSettings(guildId);
+    const isDiscordConfigured = !!settings.success && !!settings.data?.pollsNotifyChannelId;
+
     if (!result.success || !result.data) {
         redirect(`/dashboard/${guildId}/sondages`);
     }
@@ -38,6 +41,7 @@ export default async function PollDetailPage({
                 isAdmin={user.isAdmin}
                 currentProfileId={user.profileId}
                 hasMicro={hasMicro}
+                isDiscordConfigured={isDiscordConfigured}
             />
         </div>
     );

@@ -33,15 +33,25 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
 
     // Filtering Logic
     const filteredMembers = members.filter(m => {
-        // 1. Search (Name or Pseudo)
-        const nameMatch = (m.pseudoDofus || "").toLowerCase().includes(search.toLowerCase()) ||
-            (m.user.name || "").toLowerCase().includes(search.toLowerCase());
+        // 1. Search (Deep Alias Search)
+        const searchTerm = search.toLowerCase();
+        
+        // Main Pseudos
+        const mainMatch = (m.pseudoDofus || "").toLowerCase().includes(searchTerm) ||
+            (m.dofusPseudo || "").toLowerCase().includes(searchTerm) ||
+            (m.user.name || "").toLowerCase().includes(searchTerm) ||
+            (m.discordNickname || "").toLowerCase().includes(searchTerm);
 
-        if (!nameMatch) return false;
+        // Alt Pseudos (stored as JSON array)
+        let altMatch = false;
+        if (m.altPseudos && Array.isArray(m.altPseudos)) {
+            altMatch = m.altPseudos.some((alt: string) => alt.toLowerCase().includes(searchTerm));
+        }
+
+        if (!mainMatch && !altMatch) return false;
 
         // 2. Class Filter (Case insensitive check)
         if (selectedClass) {
-            // Check against name "Cra" or id "cra"
             const targetClass = DOFUS_CLASSES.find(c => c.id === selectedClass);
             if (!targetClass) return false;
 
@@ -54,7 +64,6 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
         // 3. Job Filter
         if (selectedJob) {
             const jobs = Array.isArray(m.metiers) ? m.metiers : [];
-            // strict check on ID usually, but safe to lowercase
             const hasJob = jobs.some((j: string) => j.toLowerCase() === selectedJob.toLowerCase());
             if (!hasJob) return false;
         }
@@ -92,24 +101,28 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
     return (
         <div className="space-y-6">
 
-            {/* FILTER BAR */}
-            <div className="bg-zinc-900/60 border border-white/5 p-2 rounded-xl flex flex-col md:flex-row gap-2 shadow-sm backdrop-blur-sm">
-
-                {/* Search Input */}
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            {/* FILTER BAR — UI UX 2026 PREMIUM */}
+            <div className="glass-premium relative overflow-hidden p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 shadow-2xl backdrop-blur-3xl group/filterbar border border-white/5">
+                <div className="noise-overlay absolute inset-0 opacity-10" />
+                
+                {/* Search Input — High Fidelity */}
+                <div className="relative flex-1 group/search">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within/search:text-indigo-400 transition-colors duration-500" />
                     <Input
-                        placeholder="Rechercher un membre..."
+                        placeholder="Rechercher par pseudo, alt, discord..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-9 bg-zinc-950/50 border-white/5 hover:border-white/10 focus-visible:ring-primary/20 transition-all h-10"
+                        className="pl-11 bg-white/[0.02] border-white/5 hover:border-white/10 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-500/50 transition-all duration-500 h-11 rounded-xl text-sm font-medium placeholder:text-zinc-600"
                     />
+                    {/* Inner Focus Glint */}
+                    <div className="absolute inset-px rounded-[inherit] border border-white/5 pointer-events-none group-focus-within/search:border-indigo-500/20 transition-all duration-500" />
+                    
                     {search && (
                         <button
                             onClick={() => setSearch("")}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-indigo-400 transition-colors"
                         >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-4 h-4" />
                         </button>
                     )}
                 </div>
@@ -121,32 +134,33 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-10 border-dashed border-white/20 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 gap-2 px-3",
-                                    selectedClass && "border-solid border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
+                                    "h-11 border-indigo-500/10 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-[11px] rounded-xl transition-all duration-500 shadow-xl group/btn",
+                                    selectedClass && "border-indigo-500/40 bg-indigo-500/20 text-indigo-400 shadow-indigo-500/10"
                                 )}
                             >
-                                <Swords className="w-4 h-4" />
+                                <Swords className={cn(
+                                    "w-4 h-4 transition-all duration-500 text-indigo-400/50 group-hover/btn:text-indigo-400 group-hover/btn:scale-110", 
+                                    selectedClass && "rotate-12 scale-110 text-indigo-400 opacity-100"
+                                )} />
                                 {selectedClass ? getSelectedClassName() : "Classe"}
                                 {selectedClass && (
-                                    <span
-                                        className="ml-1 rounded-full bg-primary/20 p-0.5 hover:bg-primary/30 text-primary"
+                                    <X 
+                                        className="ml-1 w-3.5 h-3.5 text-indigo-400/60 hover:text-indigo-400 transition-colors"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedClass(null);
                                         }}
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </span>
+                                    />
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] p-0" align="end">
-                            <Command>
-                                <CommandInput placeholder="Chercher une classe..." />
-                                <CommandList>
+                        <PopoverContent className="w-[340px] p-0 glass-premium border-white/10 shadow-2xl" align="end">
+                            <Command className="bg-transparent">
+                                <CommandInput placeholder="Chercher une classe..." className="h-11 border-none bg-transparent" />
+                                <CommandList className="max-h-[400px]">
                                     <CommandEmpty>Aucune classe trouvée.</CommandEmpty>
-                                    <CommandGroup heading="Classes">
-                                        <div className="grid grid-cols-4 gap-1 p-2">
+                                    <CommandGroup heading="Classes" className="text-zinc-500 font-black uppercase text-[10px] tracking-widest p-2">
+                                        <div className="grid grid-cols-4 gap-2">
                                             {DOFUS_CLASSES.map((c) => (
                                                 <CommandItem
                                                     key={c.id}
@@ -155,15 +169,15 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                                                         setSelectedClass(selectedClass === c.id ? null : c.id);
                                                         setIsOpenClass(false);
                                                     }}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all gap-1 border h-auto",
+                                                     className={cn(
+                                                        "flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all gap-1.5 border h-auto",
                                                         selectedClass === c.id
-                                                            ? "bg-primary/20 border-primary/50 text-white aria-selected:bg-primary/30"
-                                                            : "bg-zinc-900/50 border-transparent hover:bg-zinc-800 hover:border-white/10 text-zinc-400 hover:text-zinc-200 aria-selected:bg-zinc-800"
+                                                            ? "bg-indigo-500/20 border-indigo-500/40 text-foreground aria-selected:bg-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                                            : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 text-muted-foreground hover:text-foreground aria-selected:bg-white/[0.05]"
                                                     )}
                                                 >
-                                                    <ClassIcon classId={c.id} size={32} className="filter drop-shadow-lg" />
-                                                    <span className="text-[10px] font-medium truncate w-full text-center mt-1">{c.name}</span>
+                                                    <ClassIcon classId={c.id} size={36} className="filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]" />
+                                                    <span className="text-[10px] font-black truncate w-full text-center uppercase tracking-tighter opacity-80">{c.name}</span>
                                                 </CommandItem>
                                             ))}
                                         </div>
@@ -179,37 +193,38 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                             <Button
                                 variant="outline"
                                 className={cn(
-                                    "h-10 border-dashed border-white/20 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 gap-2 px-3",
-                                    selectedJob && "border-solid border-amber-500/50 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+                                    "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-[11px] rounded-xl transition-all duration-500 shadow-xl group/btn",
+                                    selectedJob && "border-amber-500/40 bg-amber-500/20 text-amber-500 shadow-amber-500/10"
                                 )}
                             >
-                                <Briefcase className="w-4 h-4" />
+                                <Briefcase className={cn(
+                                    "w-4 h-4 transition-all duration-500 text-amber-500/50 group-hover/btn:text-amber-500 group-hover/btn:scale-110", 
+                                    selectedJob && "scale-110 -rotate-6 text-amber-500 opacity-100"
+                                )} />
                                 {selectedJob ? getSelectedJobName() : "Métier (200)"}
                                 {selectedJob && (
-                                    <span
-                                        className="ml-1 rounded-full bg-amber-500/20 p-0.5 hover:bg-amber-500/30 text-amber-500"
+                                    <X 
+                                        className="ml-1 w-3.5 h-3.5 text-amber-500/60 hover:text-amber-400 transition-colors"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedJob(null);
                                         }}
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </span>
+                                    />
                                 )}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[340px] p-0" align="end">
-                            <Command>
-                                <CommandInput placeholder="Chercher un métier..." />
-                                <CommandList>
+                        <PopoverContent className="w-[340px] p-0 glass-premium border-white/10 shadow-2xl" align="end">
+                            <Command className="bg-transparent">
+                                <CommandInput placeholder="Chercher un métier..." className="h-11 border-none bg-transparent" />
+                                <CommandList className="max-h-[400px]">
                                     <CommandEmpty>Aucun métier trouvé.</CommandEmpty>
                                     <CommandGroup className="p-0">
                                         {Object.entries(DOFUS_JOBS).map(([category, jobs]) => (
                                             <div key={category} className="mb-2">
-                                                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-zinc-950/30 border-y border-white/5 sticky top-0 z-10 backdrop-blur-md">
+                                                <div className="px-4 py-2 text-[10px] font-black text-zinc-500 bg-white/[0.03] border-y border-white/5 sticky top-0 z-10 backdrop-blur-md uppercase tracking-widest">
                                                     {category}
                                                 </div>
-                                                <div className="grid grid-cols-4 gap-1 p-2">
+                                                <div className="grid grid-cols-4 gap-2 p-3">
                                                     {jobs.map(job => (
                                                         <CommandItem
                                                             key={job.id}
@@ -219,26 +234,26 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                                                                 setIsOpenJob(false);
                                                             }}
                                                             className={cn(
-                                                                "flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all gap-1 border h-auto",
+                                                                "flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all gap-1.5 border h-auto",
                                                                 selectedJob === job.id
-                                                                    ? "bg-amber-500/20 border-amber-500/50 text-white aria-selected:bg-amber-500/30"
-                                                                    : "bg-zinc-900/50 border-transparent hover:bg-zinc-800 hover:border-white/10 text-zinc-400 hover:text-zinc-200 aria-selected:bg-zinc-800"
+                                                                    ? "bg-amber-500/20 border-amber-500/40 text-foreground aria-selected:bg-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                                                    : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 text-muted-foreground hover:text-foreground aria-selected:bg-white/[0.05]"
                                                             )}
                                                         >
-                                                            <div className="relative w-8 h-8 flex items-center justify-center filter drop-shadow-lg">
+                                                            <div className="relative w-9 h-9 flex items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
                                                                 {job.icon.startsWith("/") ? (
                                                                     <Image
                                                                         src={job.icon}
                                                                         alt={job.name}
                                                                         fill
                                                                         className="object-contain"
-                                                                        sizes="32px"
+                                                                        sizes="36px"
                                                                     />
                                                                 ) : (
                                                                     <span className="text-2xl">{job.icon}</span>
                                                                 )}
                                                             </div>
-                                                            <span className="text-[10px] font-medium truncate w-full text-center mt-1">{job.name}</span>
+                                                            <span className="text-[10px] font-black truncate w-full text-center uppercase tracking-tighter opacity-80">{job.name}</span>
                                                         </CommandItem>
                                                     ))}
                                                 </div>
@@ -250,29 +265,32 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                         </PopoverContent>
                     </Popover>
 
-                    {/* Absence Filter Toggle */}
+                    {/* Absence Filter Toggle — Cyan Glow */}
                     <Button
                         variant="outline"
                         onClick={() => setShowAbsent(!showAbsent)}
                         className={cn(
-                            "h-10 border-dashed border-white/20 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 gap-2 px-3 shrink-0",
-                            showAbsent && "border-solid border-cyan-500/50 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 shadow-[0_0_15px_-5px_rgba(6,182,212,0.5)]"
+                            "h-11 border-cyan-500/10 bg-cyan-500/5 hover:bg-cyan-500/10 hover:border-cyan-500/20 text-muted-foreground gap-2.5 px-4 shrink-0 font-black uppercase italic tracking-widest text-[11px] rounded-xl transition-all duration-500 shadow-xl group/btn",
+                            showAbsent && "border-cyan-500/40 bg-cyan-500/20 text-cyan-400 shadow-[0_0_25px_-5px_rgba(6,182,212,0.3)]"
                         )}
                     >
-                        <Palmtree className={cn("w-4 h-4", showAbsent && "animate-bounce-subtle")} />
+                        <Palmtree className={cn(
+                            "w-4 h-4 transition-all duration-500 text-cyan-400/50 group-hover/btn:text-cyan-400 group-hover/btn:scale-110", 
+                            showAbsent && "animate-bounce-subtle text-cyan-400 scale-110 opacity-100"
+                        )} />
                         <span className="hidden sm:inline">Absents</span>
                     </Button>
 
-                    {/* Reset Button */}
+                    {/* Reset Button — High Visibility */}
                     {activeFiltersCount > 0 && (
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={resetFilters}
-                            className="h-10 w-10 text-zinc-500 hover:text-red-400 hover:bg-red-400/10"
+                            className="h-11 w-11 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/5 transition-all duration-500 group/reset"
                             title="Réinitialiser les filtres"
                         >
-                            <X className="w-5 h-5" />
+                            <X className="w-5 h-5 transition-transform group-hover:rotate-90 group-active:scale-90" />
                         </Button>
                     )}
                 </div>
@@ -280,8 +298,8 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
 
             {/* RESULT STATS */}
             <div className="flex items-center justify-between px-1">
-                <p className="text-sm text-zinc-500">
-                    <span className="font-medium text-zinc-300">{filteredMembers.length}</span> membre{filteredMembers.length > 1 ? "s" : ""} trouvé{filteredMembers.length > 1 ? "s" : ""}
+                <p className="text-xs font-black text-muted-foreground uppercase tracking-widest italic">
+                    <span className="text-foreground">{filteredMembers.length}</span> membre{filteredMembers.length > 1 ? "s" : ""} trouvé{filteredMembers.length > 1 ? "s" : ""}
                 </p>
             </div>
 

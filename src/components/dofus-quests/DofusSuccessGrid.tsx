@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { NpcName, ParsedObjective, copyWithToast, detectRealDungeons, extractObjectiveText, ItemInline } from "./dofus-resolvers";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Package, Target, Navigation, Users, Sword } from "lucide-react";
+import { QuestGuildStatus } from "./QuestGuildStatus";
 
 
 
@@ -69,7 +70,7 @@ export function DofusSuccessGrid({
 
     const getChainStats = (chain: any) => {
         const entries = chain.entries ?? [];
-        const done = entries.filter((e: any) => e.status === "COMPLETED").length;
+        const done = entries.filter((e: any) => completedIds.has(e.id) || (e.dofusdbId && completedIds.has(String(e.dofusdbId)))).length;
         return { done, total: entries.length, pct: entries.length ? Math.round((done / entries.length) * 100) : 0 };
     };
 
@@ -200,7 +201,7 @@ export function DofusSuccessGrid({
                     <ScrollArea className="flex-1 w-full overflow-y-auto">
                         <div className="p-8 space-y-6">
                             {selectedChain?.entries?.map((entry: any, i: number) => {
-                                    const done = entry.status === "COMPLETED";
+                                    const done = completedIds.has(entry.id) || (entry.dofusdbId && completedIds.has(String(entry.dofusdbId)));
                                     const lock = isLocked(entry);
                                     const expanded = selectedQuestId === entry.id;
 
@@ -375,43 +376,42 @@ export function DofusSuccessGrid({
                                                                     </div>
                                                                 )}
 
-                                                                {/* Guild Synergy */}
-                                                                {synergy && synergy[entry.id] && synergy[entry.id].length > 0 && (
-                                                                    <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-3xl">
-                                                                        <div className="flex items-center gap-3 mb-4">
-                                                                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                                                                                <Users className="w-4 h-4" />
-                                                                            </div>
-                                                                            <div>
-                                                                                <div className="text-[10px] font-black text-emerald-400/70 uppercase tracking-widest">
-                                                                                    Synergie de Guilde
-                                                                                </div>
-                                                                                <div className="text-sm font-bold text-emerald-400 italic">
-                                                                                    Membres à cette étape
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {synergy[entry.id].map(m => (
-                                                                                <div key={m.profileId} className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-[1rem] border border-emerald-500/20" title={m.status === "COMPLETED" ? "Déjà terminé (peut aider)" : "En cours"}>
-                                                                                    {m.image ? (
-                                                                                        <img src={m.image} alt={m.pseudo} className="w-5 h-5 rounded-full" />
-                                                                                    ) : (
-                                                                                        <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] text-emerald-400 font-black">
-                                                                                            {m.pseudo[0]}
-                                                                                        </div>
-                                                                                    )}
-                                                                                    <span className={`text-[12px] font-bold ${m.status === "COMPLETED" ? "text-emerald-400/60" : "text-emerald-400"}`}>
-                                                                                        {m.pseudo} {m.status === "COMPLETED" && <Check className="w-3 h-3 inline-block ml-1 opacity-50" />}
-                                                                                    </span>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
                                                                 {/* Action Terminal */}
                                                                 <div className="flex flex-col gap-4">
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <a 
+                                                                            href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`} 
+                                                                            target="_blank" 
+                                                                            className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/15 hover:border-indigo-500/30 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-all shadow-lg shadow-indigo-900/10"
+                                                                        >
+                                                                            <Target className="w-5 h-5" /> DofusDB
+                                                                        </a>
+                                                                        
+                                                                        <a 
+                                                                            href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`} 
+                                                                            target="_blank" 
+                                                                            className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-amber-500/5 border border-amber-500/10 hover:bg-amber-500/15 hover:border-amber-500/30 text-[10px] font-black text-amber-400 uppercase tracking-widest transition-all shadow-lg shadow-amber-900/10"
+                                                                        >
+                                                                            <BookOpen className="w-5 h-5" /> Noobs
+                                                                        </a>
+
+                                                                        {entry.coords && (
+                                                                            <button 
+                                                                                onClick={() => copyWithToast(`/travel ${entry.coords.x} ${entry.coords.y}`)}
+                                                                                className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/15 hover:border-emerald-500/30 text-[10px] font-black text-emerald-400 uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/10"
+                                                                            >
+                                                                                <Navigation className="w-5 h-5" /> Travel
+                                                                            </button>
+                                                                        )}
+
+                                                                        <QuestGuildStatus 
+                                                                            guildId={guildId} 
+                                                                            questId={entry.id} 
+                                                                            dofusColor={dofusColor} 
+                                                                            variant="action"
+                                                                        />
+                                                                    </div>
+
                                                                     <Button 
                                                                         disabled={lock && !done}
                                                                         onClick={(e) => { 

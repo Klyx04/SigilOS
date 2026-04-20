@@ -6,12 +6,14 @@
 // New features: Native matching, zones, quest templates, Kralamoure events
 
 import { z } from "zod";
+import { redis } from "./redis";
 
 // -----------------------------------------------------------------------------
 // CONFIGURATION
 // -----------------------------------------------------------------------------
 
 const METAMOB_API_BASE = "https://www.metamob.fr/api";
+const CACHE_TTL = 86400; // 24 hours fallback cache
 
 // -----------------------------------------------------------------------------
 // ZOD SCHEMAS - API V2 Response Formats
@@ -286,6 +288,7 @@ export interface FetchOptions {
     tags?: string[];
     revalidate?: number;
     offset?: number;
+    cacheFirst?: boolean; // If true, return from Redis immediately if available
 }
 
 export class MetamobApiError extends Error {
@@ -310,6 +313,24 @@ async function fetchApi<T>(
         headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
+    const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+    const cacheKey = `metamob:cache:${endpoint}`;
+
+    // 1. [PERF] Cache-First Strategy
+    // For non-user resources (public), we prioritize speed.
+    if (!isUserResource && options.cacheFirst !== false) {
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                // Return cached data immediately to unblock layout
+                // We don't verify JSON here for speed, trust the setter or handle parse errors
+                return JSON.parse(cached);
+            }
+        } catch (e) {
+            console.error("[Metamob] Cache-First lookup failed:", e);
+        }
+    }
+
     const fetchOptions: RequestInit = {
         headers,
         next: {
@@ -326,17 +347,14 @@ async function fetchApi<T>(
 
         // [Robustness] Handle 401/403 gracefully
         if (response.status === 401 || response.status === 403) {
+            // ... (keep logic same)
             const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
 
             if (apiKey) {
-                // If it's a user resource, DO NOT fallback to anonymous.
-                // Anonymous requests to private quests return success:true but [] monsters, which is misleading.
                 if (isUserResource) {
                     throw new MetamobApiError("UNAUTHORIZED", "Accès refusé : Ce compte Metamob est privé ou la clé API est invalide.");
                 }
 
-                // For global resources (templates, etc), try once more WITHOUT the key
-                // in case a bad Guild/Global key is blocking public data.
                 console.warn(`[Metamob] ${response.status} with key on global resource. Retrying without Authorization...`);
                 const pHeaders = { ...headers };
                 delete pHeaders["Authorization"];
@@ -346,7 +364,12 @@ async function fetchApi<T>(
                 if (retryResponse.ok) {
                     const json = await retryResponse.json();
                     const data = json.data !== undefined ? json.data : json;
-                    return schema.parse(data);
+                    const parsed = schema.parse(data);
+                    // Cache successful public result
+                    if (!isUserResource) {
+                        await redis.set(`metamob:cache:${endpoint}`, JSON.stringify(parsed), "EX", CACHE_TTL).catch(() => {});
+                    }
+                    return parsed;
                 }
 
                 if (retryResponse.status === 401 || retryResponse.status === 403) {
@@ -364,16 +387,46 @@ async function fetchApi<T>(
 
         const json = await response.json();
         const data = json.data !== undefined ? json.data : json;
-        return schema.parse(data);
+        const result = schema.parse(data);
+
+        // Cache successful public result
+        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        if (!isUserResource) {
+            await redis.set(`metamob:cache:${endpoint}`, JSON.stringify(result), "EX", CACHE_TTL).catch(() => {});
+        }
+
+        return result;
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
+        
+        // --- FALLBACK CACHE LOGIC ---
+        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        if (!isUserResource) {
+            try {
+                const cached = await redis.get(`metamob:cache:${endpoint}`);
+                if (cached) {
+                    console.warn(`[Metamob] API Timeout/Error. Using Redis cache for ${endpoint}`);
+                    return JSON.parse(cached);
+                }
+            } catch (cacheErr) {
+                console.error("[Metamob] Redis fallback failed:", cacheErr);
+            }
+        }
+
         if (error instanceof z.ZodError) {
             console.error("[Metamob] Schema validation failed:", error.errors);
             throw new MetamobApiError("API_ERROR", "Format de réponse API invalide");
         }
-        // FAIL-02: Network errors (timeout, DNS, ECONNREFUSED) → user-friendly message
+        
         console.error("[Metamob] Network error:", error);
-        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible. Vos données en cache restent accessibles.");
+        
+        // Final fallback: If not a user resource, return null instead of throwing to avoid blocking UI
+        if (!isUserResource) {
+            console.warn(`[Metamob] Silent fail for public resource: ${endpoint}`);
+            return null as any;
+        }
+        
+        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible.");
     }
 }
 
@@ -394,6 +447,19 @@ async function fetchPaginatedApi<T>(
     const headers: Record<string, string> = { "Accept": "application/json" };
     if (apiKey) {
         headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
+    const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+    const cacheKey = `metamob:cache:${fullEndpoint}`;
+
+    // 1. [PERF] Cache-First Strategy
+    if (!isUserResource && options.cacheFirst !== false) {
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) return JSON.parse(cached);
+        } catch (e) {
+            console.error("[Metamob] Cache-First paginated lookup failed:", e);
+        }
     }
 
     const fetchOptions: RequestInit = {
@@ -426,11 +492,12 @@ async function fetchPaginatedApi<T>(
                     const json = await retryResponse.json();
                     const items = z.array(itemSchema).parse(json.data || []);
                     const pagination = PaginationSchema.parse(json.pagination || { total: items.length, limit: 50, offset: 0 });
-                    return { data: items, pagination };
+                    const result = { data: items, pagination };
+                    await redis.set(`metamob:cache:${fullEndpoint}`, JSON.stringify(result), "EX", CACHE_TTL).catch(() => {});
+                    return result;
                 }
             }
 
-            // If we reach here, either retry failed or it's a private user resource
             const message = isUserResource
                 ? "Accès refusé : Ce compte Metamob est privé."
                 : "Accès refusé : Clé API invalide ou accès restreint.";
@@ -451,13 +518,44 @@ async function fetchPaginatedApi<T>(
         const json = await response.json();
         const items = z.array(itemSchema).parse(json.data || []);
         const pagination = PaginationSchema.parse(json.pagination || { total: items.length, limit: 50, offset: 0 });
+        const result = { data: items, pagination };
 
-        return { data: items, pagination };
+        // Cache successful public result
+        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        if (!isUserResource) {
+            await redis.set(`metamob:cache:${fullEndpoint}`, JSON.stringify(result), "EX", CACHE_TTL).catch(() => {});
+        }
+
+        return result;
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
-        // FAIL-02: Network errors (timeout, DNS, ECONNREFUSED) → user-friendly message
+
+        // --- FALLBACK CACHE LOGIC ---
+        const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
+        if (!isUserResource) {
+            try {
+                const cached = await redis.get(`metamob:cache:${fullEndpoint}`);
+                if (cached) {
+                    console.warn(`[Metamob] API Timeout/Error (paginated). Using Redis cache for ${fullEndpoint}`);
+                    return JSON.parse(cached);
+                }
+            } catch (cacheErr) {
+                console.error("[Metamob] Redis fallback failed (paginated):", cacheErr);
+            }
+        }
+
         console.error("[Metamob] Network error (paginated):", error);
-        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible. Vos données en cache restent accessibles.");
+
+        // Final fallback for public resources: Return empty items instead of throwing
+        if (!isUserResource) {
+            console.warn(`[Metamob] Silent fail for public paginated resource: ${fullEndpoint}`);
+            return { 
+                data: [], 
+                pagination: { total: 0, limit: 50, offset: 0 } 
+            };
+        }
+
+        throw new MetamobApiError("API_UNAVAILABLE", "Metamob.fr est temporairement indisponible.");
     }
 }
 

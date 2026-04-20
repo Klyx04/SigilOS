@@ -93,6 +93,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         successPoints: profile.successPoints,
                         lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
                         roleGrants: profile.roleGrants || [],
+                        skins: profile.skins || [],
                     }}
                     user={{
                         name: profile.user.name,
@@ -109,6 +110,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         canViewSonges: userContext.canViewSonges,
                         canViewLadder: userContext.canViewLadder,
                         canSyncLadder: userContext.canSyncLadder,
+                        canManualSyncLadder: userContext.canManualSyncLadder,
                         canViewMissions: userContext.canViewMissions,
                     }}
                     roleName={userContext.roleName}

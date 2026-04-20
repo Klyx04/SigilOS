@@ -26,9 +26,9 @@ export type ModuleKey =
     | "worldmap"
     | "resources"
     // Nouveau
-    | "chat"
     | "gallery"
     | "ladderSync"
+    | "manualLadderSync"
     | "minigames";
 
 export type GuildModulesState = {
@@ -57,8 +57,8 @@ export type GuildModulesState = {
     worldmap: boolean;
     resources: boolean;
     // Nouveau
-    chat: boolean;
     ladderSync: boolean;
+    manualLadderSync: boolean;
     minigames: boolean;
 };
 
@@ -82,7 +82,7 @@ export const DEFAULT_MODULES: GuildModulesState = {
     quests: false,
     worldmap: false,
     resources: false,
-    chat: false,
     ladderSync: false,
+    manualLadderSync: true,
     minigames: true,
 };

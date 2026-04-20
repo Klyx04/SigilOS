@@ -7,6 +7,7 @@ export interface MapData {
     y: number;
     worldMap: number;
     outdoor: boolean;
+    subAreaId: number;
 }
 
 export class WorldMapService {
@@ -38,6 +39,8 @@ export class WorldMapService {
                 "bâtiment", "intérieur", "tactique", "défis", "arène", "mine", 
                 "égout", "cellule", "prison", "temple", "salle", "château",
                 "laboratoire", "secret", "caché", "salle du trône", "boss",
+                "technique", "combat", "kolizéum", "kolyzéum", "tutoriel", "test", "base",
+                "map de combat", "salle de boss", "salle du boss",
                 
                 // Divine Dimensions (Usually hard to guess/find)
                 "dimension", "ecaflipus", "enutrosor", "srambad", "xelorium", 
@@ -72,13 +75,18 @@ export class WorldMapService {
                     // Tunnels (World 3) and small labyrinths (World 4, 5, 6...) are excluded.
                     const isMainWorld = m.worldMap === 1 || m.worldMap === 2;
                     
-                    if (m.outdoor && m.worldMap !== -1 && isMainWorld && !isExcluded) {
+                    // HEURISTIC: Tactical maps often have IDs in specific extreme ranges or are marked technical.
+                    // If we imported Dofus 2.x data, IDs >= 200,000,000 are often technical/tactical maps.
+                    const isTechnicalMap = m.id >= 200000000;
+                    
+                    if (m.outdoor && m.worldMap !== -1 && isMainWorld && !isExcluded && !isTechnicalMap) {
                         this.playableMaps.push({
                             id: m.id,
                             x: m.x,
                             y: m.y,
                             worldMap: m.worldMap,
-                            outdoor: m.outdoor
+                            outdoor: m.outdoor,
+                            subAreaId: m.subAreaId
                         });
                     }
                     
@@ -87,7 +95,8 @@ export class WorldMapService {
                         x: m.x,
                         y: m.y,
                         worldMap: m.worldMap,
-                        outdoor: m.outdoor
+                        outdoor: m.outdoor,
+                        subAreaId: m.subAreaId
                     });
                 });
             }
@@ -128,13 +137,37 @@ export class WorldMapService {
         if (filtered.length === 0) return [];
 
         const result: number[] = [];
+        const usedSubAreas = new Set<number>();
         const copy = [...filtered];
-        for (let i = 0; i < count; i++) {
-            if (copy.length === 0) break;
+        
+        while (result.length < count && copy.length > 0) {
             const idx = Math.floor(Math.random() * copy.length);
-            result.push(copy[idx].id);
+            const selectedMap = copy[idx];
             copy.splice(idx, 1); // Avoid duplicates
+            
+            // In NORMAL mode, ensure unique subArea per party
+            if (mode === 'NORMAL' && selectedMap.subAreaId) {
+                if (usedSubAreas.has(selectedMap.subAreaId)) {
+                    continue; // Skip because we already have a map from this zone
+                }
+                usedSubAreas.add(selectedMap.subAreaId);
+            }
+            
+            result.push(selectedMap.id);
         }
+        
+        // Fallback if we couldn't find enough unique zones (highly unlikely)
+        if (result.length < count) {
+            const remaining = count - result.length;
+            const fallbackFiltered = filtered.filter(m => !result.includes(m.id));
+            for (let i = 0; i < remaining; i++) {
+                if (fallbackFiltered.length === 0) break;
+                const idx = Math.floor(Math.random() * fallbackFiltered.length);
+                result.push(fallbackFiltered[idx].id);
+                fallbackFiltered.splice(idx, 1);
+            }
+        }
+        
         return result;
     }
 

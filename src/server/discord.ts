@@ -32,6 +32,17 @@ export function invalidateDiscordCache(pattern?: string): void {
     }
 }
 
+/**
+ * SECURITY: Sanitize user input to prevent unwanted @everyone or @here pings
+ * Inserts a zero-width space (U+200B) between the '@' and the word.
+ */
+export function sanitizeMentions(text: string | null | undefined): string {
+    if (!text) return "";
+    return text
+        .replace(/@everyone/gi, "@\u200beveryone")
+        .replace(/@here/gi, "@\u200bhere");
+}
+
 
 async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
     let lastError: Error | null = null;
@@ -375,6 +386,7 @@ export async function sendChannelMessage(
     content: string,
     options?: SendChannelMessageOptions
 ): Promise<string | null> {
+    const sanitizedContent = sanitizeMentions(content);
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
         console.error("[Discord] Missing DISCORD_BOT_TOKEN");
@@ -384,10 +396,10 @@ export async function sendChannelMessage(
     const body: Record<string, unknown> = {};
 
     // Extract all mentions from BOTH content and mentionContent to force notifications
-    const fullTextForMentions = `${content || ""} ${options?.mentionContent || ""}`;
+    const fullTextForMentions = `${sanitizedContent || ""} ${options?.mentionContent || ""}`;
     const roleMentions = [...fullTextForMentions.matchAll(/<@&(\d+)>/g)].map(m => m[1]);
     const userMentions = [...fullTextForMentions.matchAll(/<@!?(\d+)>/g)].map(m => m[1]);
-    const hasEveryone = /(@everyone|@here)/.test(fullTextForMentions);
+    const hasEveryone = /(@everyone|@here)/.test(fullTextForMentions); // This will now only match if in mentionContent
 
     // Build the allowed_mentions object.
     // Discord rule: `parse: ["roles"]` and `roles: [ids]` are MUTUALLY EXCLUSIVE.
@@ -413,15 +425,15 @@ export async function sendChannelMessage(
 
         // Add description: only if no explicit description AND content doesn't contain a ping
         if (options.embedDescription) {
-            embed.description = options.embedDescription;
-        } else if (content && !hasEveryone && roleMentions.length === 0 && userMentions.length === 0) {
-            embed.description = content;
+            embed.description = sanitizeMentions(options.embedDescription);
+        } else if (sanitizedContent && !hasEveryone && roleMentions.length === 0 && userMentions.length === 0) {
+            embed.description = sanitizedContent;
         }
 
         // Add mention content to trigger pings (must be in body.content)
         // If content has mentions, or mentionContent is provided, it goes to body.content
-        if (content && (hasEveryone || roleMentions.length > 0 || userMentions.length > 0)) {
-            body.content = content;
+        if (sanitizedContent && (hasEveryone || roleMentions.length > 0 || userMentions.length > 0)) {
+            body.content = sanitizedContent;
         }
 
         // Clickable title URL
@@ -470,7 +482,7 @@ export async function sendChannelMessage(
         // Allow mentions to actually ping users/roles
         body.allowed_mentions = allowedMentions;
     } else {
-        body.content = content;
+        body.content = sanitizedContent;
         // Allow mentions in plain messages too
         body.allowed_mentions = allowedMentions;
     }
@@ -564,6 +576,7 @@ export async function updateChannelMessage(
     content: string,
     options?: SendChannelMessageOptions
 ): Promise<boolean> {
+    const sanitizedContent = sanitizeMentions(content);
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return false;
 
@@ -581,9 +594,9 @@ export async function updateChannelMessage(
         const isMention = content.startsWith("@") || content.startsWith("<@");
 
         if (options.embedDescription) {
-            embed.description = options.embedDescription;
-        } else if (content && !isMention) {
-            embed.description = content;
+            embed.description = sanitizeMentions(options.embedDescription);
+        } else if (sanitizedContent && !isMention) {
+            embed.description = sanitizedContent;
         }
 
         if (options.embedUrl) embed.url = options.embedUrl;
@@ -608,7 +621,7 @@ export async function updateChannelMessage(
         if (content && isMention) body.content = content;
         if (options.mentionContent) body.content = options.mentionContent;
     } else {
-        body.content = content;
+        body.content = sanitizedContent;
     }
 
     if (options?.components) {
@@ -726,6 +739,73 @@ export async function createPrivateThread(
         return (await res.json()) as { id: string; name: string };
     } catch (error) {
         console.error("[Discord] Error creating private thread:", error);
+        return null;
+    }
+}
+
+/**
+ * Create a public thread (post) in a Forum channel (type 15)
+ */
+export async function createForumPost(
+    channelId: string,
+    name: string,
+    content: string,
+    options?: SendChannelMessageOptions
+): Promise<{ id: string; messageId: string } | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
+
+    // Use common embed building logic but wrapped for Forum creation
+    const sanitizedName = name.substring(0, 100);
+    const sanitizedContent = sanitizeMentions(content);
+    
+    const body: Record<string, any> = {
+        name: sanitizedName,
+        message: {
+            content: sanitizedContent
+        }
+    };
+
+    if (options?.embedTitle) {
+        const embed: any = {
+            title: options.embedTitle,
+            color: options.embedColor ?? 0x9333ea,
+            timestamp: new Date().toISOString(),
+            footer: { text: options.embedFooter ?? "SigilOS · sigilos.fr" }
+        };
+
+        if (options.embedDescription) embed.description = sanitizeMentions(options.embedDescription);
+        if (options.embedUrl) embed.url = options.embedUrl;
+        if (options.embedThumbnail) embed.thumbnail = { url: options.embedThumbnail };
+        if (options.embedImage) embed.image = { url: options.embedImage };
+        if (options.fields) embed.fields = options.fields;
+
+        body.message.embeds = [embed];
+    }
+
+    try {
+        const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            const error = await res.text();
+            console.error(`[Discord] Forum creation failed: ${res.status} ${error}`);
+            return null;
+        }
+
+        const data = await res.json();
+        return {
+            id: data.id, // Thread ID
+            messageId: data.message.id // First message ID
+        };
+    } catch (error) {
+        console.error("[Discord] Error creating forum post:", error);
         return null;
     }
 }

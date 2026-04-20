@@ -37,9 +37,12 @@ export default function CanvasPanel({ socket, gameState, isDrawer, isSpectator }
             if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
                 canvas.width = w;
                 canvas.height = h;
+                // Redraw after resize
+                if (gameState.canvasData && Array.isArray(gameState.canvasData)) {
+                    redrawCanvas(gameState.canvasData);
+                }
             }
         };
-        setCanvasSize();
         const ro = new ResizeObserver(setCanvasSize);
         ro.observe(container);
 
@@ -120,6 +123,7 @@ export default function CanvasPanel({ socket, gameState, isDrawer, isSpectator }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         });
 
+        // ── Move redrawCanvas UP so setCanvasSize can use it ──
         const redrawCanvas = (actions: any[]) => {
             if (!canvas) return;
             const ctx2 = canvas.getContext("2d");
@@ -142,6 +146,8 @@ export default function CanvasPanel({ socket, gameState, isDrawer, isSpectator }
                 });
             });
         };
+
+        setCanvasSize(); // Initial call
 
         // Redraw on mount or when gameState changes
         if (gameState.canvasData && Array.isArray(gameState.canvasData)) {

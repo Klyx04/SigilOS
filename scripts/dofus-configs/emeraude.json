@@ -1,38 +1,45 @@
 {
   "slug": "emeraude",
   "displayName": "Dofus Émeraude",
-  "color": "#50C878",
+  "color": "#1DE9B6",
   "dofusItemId": 7041,
   "successName": "Vert Émeraude",
   "recommendedLevel": 100,
   "successDescription": "Obtenir le Dofus Émeraude en terminant la série de quêtes de Mériana et du Dark Vlad dans les marécages de Cania.",
   "successes": [
     {
-      "name": "Prérequis",
+      "name": "Préliminaires et Préréquis",
       "zone": "Forêt Maléfique / Cania",
-      "description": "Avoir accès à la Forêt Maléfique et avoir progressé dans les quêtes de Mériana.",
       "isPrerequisite": true,
       "quests": [
-        { "name": "Voir le Dark Vlad et mourir... ou pas" },
-        { "name": "Qui botte le cul des Culs Bottés ?" }
+        { "name": "L'habit ne fait pas le Lome", "id": 1460 },
+        { "name": "Voir le Dark Vlad et mourir... ou pas", "id": 1294 },
+        { "name": "Retourner voir le Dark Vlad, toujours sans mourir", "id": 1463 },
+        { "name": "Qui botte le cul des Culs Bottés ?", "id": 1464 }
       ]
     },
     {
       "name": "Vert Émeraude",
       "zone": "Marécages de Cania / Forêt Maléfique",
-      "description": "La série principale des quêtes pour obtenir le Dofus Émeraude, initiée par Mériana.",
+      "description": "La série principale du Dofus Émeraude.",
       "isPrerequisite": false,
       "isSynergyCandidate": true,
+      "globalItemsRequired": [
+        { "id": 416, "name": "Plume du Kwak de Vent", "amount": 10, "img": "https://api.dofusdb.fr/img/items/53113.png" },
+        { "id": 13730, "name": "Graine de la Discorde", "amount": 8, "img": "https://api.dofusdb.fr/img/items/58472.png" },
+        { "id": 1456, "name": "Ailes de Scarafeuille Blanc", "amount": 6, "img": "https://api.dofusdb.fr/img/items/104213.png" },
+        { "id": 1985, "name": "Résine", "amount": 4, "img": "https://api.dofusdb.fr/img/items/15382.png" },
+        { "id": 544, "name": "Pierre d'Émeraude", "amount": 2, "img": "https://api.dofusdb.fr/img/items/51145.png" }
+      ],
       "quests": [
-        { "name": "Le voleur d'âme" },
-        { "name": "L'amour perdu de Nabur" },
-        { "name": "Naissance d'une vocation" },
-        { "name": "Les bandits de Cania" },
-        { "name": "Draconanthropie" },
-        { "name": "Ultime réminiscence" }
+        { "name": "Le voleur d'âmes", "id": 1465 },
+        { "name": "L'amour perdu de Nabur", "id": 1466 },
+        { "name": "Naissance d'une vocation", "id": 1467, "dungeons": [{ "id": 23, "bossId": 232, "name": "Donjon des Canidés" }] },
+        { "name": "Les bandits de Cania", "id": 1469 },
+        { "name": "Draconanthropie", "id": 1470 },
+        { "name": "Ultime réminiscence", "id": 1471 }
       ]
     }
   ],
-  "imageUrl": "https://static.dofusdb.fr/items/7041.png",
-  "iconId": 7041
+  "imageUrl": "/module-dofus/Dofus_Emeraude.png"
 }

@@ -1,5 +1,4 @@
-"use client";
-
+import { useState, useEffect } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface MissionsStatsProps {
@@ -13,13 +12,15 @@ const CATEGORY_LABELS: Record<string, string> = {
     REGULATION: "Régulation",
     ANOMALIE: "Anomalie",
     SONGES: "Songes",
-    EXPEDITION: "Expédition",
+    EXPEDITION: "Expedition",
     EVENT: "Événement",
 };
 
 const COLORS = ["#8b5cf6", "#14b8a6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
 
 export default function MissionsStats({ categories, topValidators, topDonors }: MissionsStatsProps) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
     const pieData = categories.map(c => ({
         name: CATEGORY_LABELS[c.category] || c.category,
         value: c.count,
@@ -60,13 +61,13 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
                         <span className="w-1 h-1 rounded-full bg-emerald-500" />
                         Répartition par catégorie
                     </h4>
-                    {pieData.length === 0 ? (
+                    {!mounted || pieData.length === 0 ? (
                         <div className="flex-1 flex items-center justify-center text-zinc-600 text-xs italic bg-white/[0.01] rounded-2xl border border-dashed border-white/5 min-h-[200px]">
-                            Aucune donnée
+                            {!mounted ? "Chargement..." : "Aucune donnée"}
                         </div>
                     ) : (
                         <div className="h-[220px] relative">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                 <PieChart>
                                     <Pie
                                         data={pieData}
@@ -111,8 +112,11 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
                         Efficacité du Staff
                     </h4>
                     <div className="h-[220px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={barDataValidators} layout="vertical" margin={{ left: -10, right: 30, top: 0, bottom: 0 }}>
+                        {!mounted ? (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs italic">Chargement...</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                                <BarChart data={barDataValidators} layout="vertical" margin={{ left: -10, right: 30, top: 0, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
                                         <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.8} />
@@ -138,9 +142,10 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
                                 />
                             </BarChart>
                         </ResponsiveContainer>
-                    </div>
+                    )}
                 </div>
             </div>
+        </div>
 
             {/* Top Donors */}
             <div className="pt-8 border-t border-white/5">
@@ -149,8 +154,11 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
                     Grands Philanthropes (Kamas)
                 </h4>
                 <div className="h-[180px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={barDataDonors} layout="vertical" margin={{ left: -10, right: 40, top: 0, bottom: 0 }}>
+                    {!mounted ? (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs italic">Chargement...</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                            <BarChart data={barDataDonors} layout="vertical" margin={{ left: -10, right: 40, top: 0, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="kamaGradient" x1="0" y1="0" x2="1" y2="0">
                                     <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8} />
@@ -176,7 +184,8 @@ export default function MissionsStats({ categories, topValidators, topDonors }: 
                             />
                         </BarChart>
                     </ResponsiveContainer>
-                </div>
+                )}
+            </div>
             </div>
         </div>
     );

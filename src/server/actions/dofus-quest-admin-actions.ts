@@ -131,6 +131,61 @@ export async function updateDofusCategory(id: string, filterCategory: string, fi
     }
 }
 
+export async function getDofusItemsForTagging(): Promise<ActionResponse<any[]>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const items = await (db as any).dofusItem.findMany({
+            orderBy: { displayOrder: "asc" },
+            select: {
+                id: true,
+                name: true,
+                nameShort: true,
+                slug: true,
+                imageUrl: true,
+                localImageUrl: true,
+                color: true,
+                isPrimordial: true,
+                isMeta: true,
+                isSylvestreReq: true,
+                displayOrder: true,
+                rarity: true,
+                filterCategory: true,
+            }
+        });
+        return { success: true, data: items };
+    } catch (error) {
+        console.error("[getDofusItemsForTagging] Error:", error);
+        return { success: false, error: "Erreur lors du chargement" };
+    }
+}
+
+export async function updateDofusTags(
+    id: string,
+    tags: { 
+        isPrimordial?: boolean; 
+        isMeta?: boolean; 
+        isSylvestreReq?: boolean; 
+        displayOrder?: number;
+        rarity?: string;
+        filterCategory?: string;
+    }
+): Promise<ActionResponse> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        await (db as any).dofusItem.update({ where: { id }, data: tags });
+        revalidatePath("/god/game-data");
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("[updateDofusTags] Error:", error);
+        return { success: false, error: "Erreur lors de la mise à jour des tags" };
+    }
+}
+
 export async function deleteDofusItem(id: string): Promise<ActionResponse> {
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };

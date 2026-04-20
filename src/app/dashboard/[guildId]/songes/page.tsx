@@ -69,6 +69,7 @@ export default async function SongesPage({
                     currentUserId={currentUserId}
                     canJoinSonges={userContext.canJoinSonges}
                     isAdmin={userContext.isAdmin}
+                    isDiscordConfigured={isDiscordConfigured}
                 />
             </Suspense>
         </div>

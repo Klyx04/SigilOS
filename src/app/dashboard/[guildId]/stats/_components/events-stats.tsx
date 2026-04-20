@@ -1,5 +1,4 @@
-"use client";
-
+import { useState, useEffect } from "react";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { CalendarDays, Users, Medal } from "lucide-react";
 
@@ -30,6 +29,9 @@ const EVENT_LABELS: Record<string, string> = {
 const COLORS = ["#06b6d4", "#8b5cf6", "#f59e0b", "#22c55e", "#ef4444", "#ec4899", "#71717a"];
 
 export default function EventsStats({ events }: EventsStatsProps) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    
     const pieData = events.byType.map(e => ({
         name: EVENT_LABELS[e.type] || e.type,
         value: e.count,
@@ -59,41 +61,49 @@ export default function EventsStats({ events }: EventsStatsProps) {
             {/* Donut */}
             {pieData.length > 0 && (
                 <div className="h-44">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart style={{ background: "transparent" }}>
-                            <Pie
-                                data={pieData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={40}
-                                outerRadius={65}
-                                paddingAngle={3}
-                                dataKey="value"
-                                stroke="none"
-                            >
-                                {pieData.map((_, i) => (
-                                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: "rgba(24,24,27,0.95)",
-                                    border: "1px solid rgba(255,255,255,0.1)",
-                                    borderRadius: "8px",
-                                    color: "#fff",
-                                    fontSize: "13px",
-                                }}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex flex-wrap gap-3 justify-center">
-                        {pieData.map((d, i) => (
-                            <div key={d.name} className="flex items-center gap-1.5 text-xs text-zinc-400">
-                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                {d.name}
-                            </div>
-                        ))}
-                    </div>
+                    {!mounted ? (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-600 text-[10px] italic bg-white/[0.02] rounded-xl border border-dashed border-white/5">
+                            Chargement du graphique...
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                            <PieChart style={{ background: "transparent" }}>
+                                <Pie
+                                    data={pieData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={40}
+                                    outerRadius={65}
+                                    paddingAngle={3}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                    {pieData.map((_, i) => (
+                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: "rgba(24,24,27,0.95)",
+                                        border: "1px solid rgba(255,255,255,0.1)",
+                                        borderRadius: "8px",
+                                        color: "#fff",
+                                        fontSize: "13px",
+                                    }}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
+                    {mounted && (
+                        <div className="flex flex-wrap gap-3 justify-center">
+                            {pieData.map((d, i) => (
+                                <div key={d.name} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                    {d.name}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 

@@ -1,4 +1,5 @@
 import { NebulaClientWrapper } from "@/components/layout/nebula-client-wrapper";
+import Script from "next/script";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { HeroSection } from "@/components/landing/hero-section";
 import { SaasFeatures } from "@/components/landing/saas-features";
@@ -10,6 +11,7 @@ import { getPublicGuilds } from "@/server/actions/presentation-actions";
 import { GuildDirectorySection } from "@/components/landing/guild-directory-section";
 import { PublicHeader } from "@/components/layout/public-header";
 import { Check, Minus } from "lucide-react";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,10 @@ export default async function Home({
     redirect(`/auth/error?error=${info.error}`);
   }
 
+  // [AUDIT 2026] Retrieve nonce for inline scripts
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') ?? '';
+
   const COMPARISON_DATA = [
     { feature: "Dashboard de guilde complet", sigilos: true, others: false },
     { feature: "Bot Discord intelligent", sigilos: true, others: false },
@@ -66,8 +72,10 @@ export default async function Home({
 
   return (
     <NebulaClientWrapper>
-      <script
+      <Script
+        id="json-ld"
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="min-h-screen landing-theme bg-background text-foreground selection:bg-emerald-500/30 font-sans flex flex-col overflow-x-hidden">
@@ -84,8 +92,8 @@ export default async function Home({
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-5 font-mono text-[10px] text-zinc-500 uppercase tracking-widest">
                 Aperçu de l&apos;interface
               </div>
-              <h2 className="text-3xl md:text-5xl font-heading text-white mb-4">
-                L&apos;ergonomie d&apos;un <span className="text-emerald-400 italic font-medium">triple A.</span>
+              <h2 className="text-3xl md:text-5xl font-heading text-foreground mb-4">
+                L&apos;ergonomie d&apos;un <span className="text-emerald-600 dark:text-emerald-400 italic font-black">triple A.</span>
               </h2>
               <p className="text-zinc-500 text-base font-medium max-w-lg mx-auto">
                 SigilOS redéfinit les standards de l&apos;interface utilisateur pour le gaming web.
@@ -106,8 +114,8 @@ export default async function Home({
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 mb-6 font-mono text-[10px] text-amber-500 uppercase tracking-widest">
                     Performance Comparée
                   </div>
-                  <h2 className="text-4xl md:text-5xl font-heading text-white mb-6 leading-tight">
-                    Plus qu&apos;un outil, <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-amber-200">votre avantage compétitif.</span>
+                  <h2 className="text-4xl md:text-5xl font-heading text-foreground mb-6 leading-tight">
+                    Plus qu&apos;un outil, <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-amber-600 dark:from-emerald-400 dark:to-amber-200 font-black italic">votre avantage compétitif.</span>
                   </h2>
                 </div>
 
@@ -122,9 +130,9 @@ export default async function Home({
                   {COMPARISON_DATA.map((row, i) => (
                     <div
                       key={i}
-                      className="group flex flex-col md:flex-row items-center gap-4 p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-emerald-500/20 transition-all duration-300 hover:bg-zinc-900/60"
+                      className="group flex flex-col md:flex-row items-center gap-4 p-6 rounded-2xl bg-foreground/[0.03] border border-border hover:border-emerald-500/20 transition-all duration-300 hover:bg-foreground/[0.05]"
                     >
-                      <div className="flex-1 text-zinc-300 font-bold text-base md:text-lg">{row.feature}</div>
+                      <div className="flex-1 text-foreground font-black text-base md:text-lg italic uppercase tracking-tighter">{row.feature}</div>
 
                       <div className="flex items-center gap-8 w-full md:w-auto">
                         {/* Others Column */}
@@ -164,7 +172,7 @@ export default async function Home({
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6 font-mono text-[10px] text-emerald-400 uppercase tracking-widest">
                   Annuaire SigilOS
                 </div>
-                <h2 className="text-4xl md:text-6xl font-heading text-white mb-6">L&apos;élite des guildes <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 italic">réunie.</span></h2>
+                <h2 className="text-4xl md:text-6xl font-heading text-foreground mb-6">L&apos;élite des guildes <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-amber-400 dark:from-amber-200 dark:to-amber-500 italic font-black">réunie.</span></h2>
                 <p className="text-zinc-500 font-medium text-lg max-w-2xl mx-auto leading-relaxed">
                   L&apos;annuaire SigilOS n&apos;est pas qu&apos;une liste. C&apos;est la vitrine premium des organisations les plus sérieuses de Dofus Unity.
                 </p>

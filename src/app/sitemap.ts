@@ -1,72 +1,39 @@
-import { MetadataRoute } from 'next'
-import { getPublicGuilds } from '@/server/actions/presentation-actions'
-
-import { getAppBaseUrl } from '@/lib/utils'
+import { MetadataRoute } from "next";
+import { db } from "@/lib/prisma";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const baseUrl = getAppBaseUrl()
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
-    // Static routes with differentiated priorities
-    const staticRoutes: MetadataRoute.Sitemap = [
-        {
-            url: baseUrl,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 1,
-        },
-        {
-            url: `${baseUrl}/guilds`,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 0.9,
-        },
-        {
-            url: `${baseUrl}/docs`,
-            lastModified: new Date(),
-            changeFrequency: 'weekly',
-            priority: 0.8,
-        },
-        {
-            url: `${baseUrl}/changelog`,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 0.7,
-        },
-        {
-            url: `${baseUrl}/status`,
-            lastModified: new Date(),
-            changeFrequency: 'always',
-            priority: 0.3,
-        },
-        // Legal pages (low priority but should be indexed)
-        {
-            url: `${baseUrl}/legal/cgu`,
-            lastModified: new Date('2026-02-19'),
-            changeFrequency: 'yearly',
-            priority: 0.2,
-        },
-        {
-            url: `${baseUrl}/legal/privacy`,
-            lastModified: new Date('2026-02-19'),
-            changeFrequency: 'yearly',
-            priority: 0.2,
-        },
-        {
-            url: `${baseUrl}/legal/mentions`,
-            lastModified: new Date('2026-02-19'),
-            changeFrequency: 'yearly',
-            priority: 0.2,
-        },
-    ]
-
-    // Dynamic guild routes
-    const guilds = await getPublicGuilds()
-    const guildRoutes: MetadataRoute.Sitemap = guilds.map((guild) => ({
-        url: `${baseUrl}/guilds/${guild.id}`,
+    // 1. Static Routes
+    const staticRoutes = [
+        "",
+        "/auth/signin",
+        "/about",
+        "/terms",
+    ].map((route) => ({
+        url: `${baseUrl}${route}`,
         lastModified: new Date(),
-        changeFrequency: 'weekly' as const,
-        priority: 0.8,
-    }))
+        changeFrequency: "monthly" as const,
+        priority: route === "" ? 1 : 0.8,
+    }));
 
-    return [...staticRoutes, ...guildRoutes]
+    // 2. Dynamic Guild Routes
+    try {
+        const activeGuilds = await db.guildConfig.findMany({
+            where: { isActive: true },
+            select: { discordGuildId: true, updatedAt: true },
+        });
+
+        const guildRoutes = activeGuilds.map((guild) => ({
+            url: `${baseUrl}/dashboard/${guild.discordGuildId}`,
+            lastModified: guild.updatedAt || new Date(),
+            changeFrequency: "weekly" as const,
+            priority: 0.6,
+        }));
+
+        return [...staticRoutes, ...guildRoutes];
+    } catch (error) {
+        console.error("[Sitemap] Error fetching guilds:", error);
+        return staticRoutes;
+    }
 }

@@ -11,6 +11,8 @@ import { GalacticFooter } from '@/components/layout/galactic-footer';
 import { auth } from '@/auth';
 import { AuroraBackground } from '@/components/ui/aurora-background';
 import { DocContent } from '@/components/doc/doc-content';
+import { headers } from 'next/headers';
+import Script from 'next/script';
 
 const categoryConfig: Record<ChangelogCategory, { label: string; color: string }> = {
     FEATURE: { label: 'Nouvelle fonctionnalité', color: 'bg-blue-500/20 text-blue-400 border-blue-500/50' },
@@ -40,6 +42,10 @@ export default async function ChangelogPage() {
     // Non-logged-in users only see public entries
     const allEntries = await getChangelogEntries(undefined, !session);
 
+    // [AUDIT 2026] Retrieve nonce for inline scripts
+    const headersList = await headers();
+    const nonce = headersList.get('x-nonce') ?? '';
+
     return (
         <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-accent-teal/30 landing-theme">
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
@@ -54,9 +60,10 @@ export default async function ChangelogPage() {
             <main className="flex-1 pt-24 pb-12 relative z-10">
                 <div className="max-w-4xl mx-auto px-6">
                     {/* Breadcrumb + BlogPosting JSON-LD */}
-                    <script
+                    <Script
+                        id="json-ld-changelog"
                         type="application/ld+json"
-                        // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
+                        nonce={nonce}
                         dangerouslySetInnerHTML={{
                             __html: JSON.stringify([
                                 {

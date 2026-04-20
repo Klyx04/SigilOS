@@ -66,16 +66,16 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
     const [collapsed, setCollapsed] = useState<Record<PermissionModule, boolean>>({} as Record<PermissionModule, boolean>);
 
     // Roles that currently have DASHBOARD_ACCESS assigned
-    const rolesWithDashboardAccess = new Set(permState[PERMISSIONS.DASHBOARD_ACCESS] || []);
+    const rolesWithDashboardAccess = new Set(permState[PERMISSIONS.DASHBOARD_LOGIN] || []);
 
     const handlePermChange = (permId: PermissionId, newRoleIds: string[]) => {
         setPermState(prev => {
             const next = { ...prev, [permId]: newRoleIds };
             // Auto-add DASHBOARD_ACCESS when any permission is granted to a role
-            if (permId !== PERMISSIONS.DASHBOARD_ACCESS && newRoleIds.length > 0) {
-                const currentAccess = new Set(prev[PERMISSIONS.DASHBOARD_ACCESS] || []);
+            if (permId !== PERMISSIONS.DASHBOARD_LOGIN && newRoleIds.length > 0) {
+                const currentAccess = new Set(prev[PERMISSIONS.DASHBOARD_LOGIN] || []);
                 newRoleIds.forEach(roleId => currentAccess.add(roleId));
-                next[PERMISSIONS.DASHBOARD_ACCESS] = Array.from(currentAccess);
+                next[PERMISSIONS.DASHBOARD_LOGIN] = Array.from(currentAccess);
             }
             return next;
         });
@@ -187,11 +187,11 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
     const rolesNeedingMigration = useMemo(() => {
         const allMappedRoles = new Set<string>();
         Object.entries(permState).forEach(([permId, roleIds]) => {
-            if (permId !== PERMISSIONS.DASHBOARD_ACCESS && roleIds.length > 0) {
+            if (permId !== PERMISSIONS.DASHBOARD_LOGIN && roleIds.length > 0) {
                 roleIds.forEach(id => allMappedRoles.add(id));
             }
         });
-        const withAccess = new Set(permState[PERMISSIONS.DASHBOARD_ACCESS] || []);
+        const withAccess = new Set(permState[PERMISSIONS.DASHBOARD_LOGIN] || []);
         return [...allMappedRoles].filter(rId => !withAccess.has(rId));
     }, [permState]);
 
@@ -329,8 +329,8 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                 onUsersChange={(ids) => handleUserChange(permId, ids)}
                                 onSave={handleSave}
                                 moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
-                                locked={permId !== PERMISSIONS.DASHBOARD_ACCESS && rolesWithDashboardAccess.size === 0}
-                                hideUsers={permId === PERMISSIONS.DASHBOARD_ACCESS}
+                                locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
+                                hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN}
                             />
                         ))
                     )}
@@ -399,8 +399,8 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                                             onUsersChange={(ids) => handleUserChange(permId, ids)}
                                             onSave={handleSave}
                                             moduleColor={module.color}
-                                            locked={permId !== PERMISSIONS.DASHBOARD_ACCESS && rolesWithDashboardAccess.size === 0}
-                                            hideUsers={permId === PERMISSIONS.DASHBOARD_ACCESS}
+                                            locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
+                                            hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN}
                                         />
                                     ))}
                                 </div>
@@ -426,8 +426,8 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
                             onUsersChange={(ids) => handleUserChange(permId, ids)}
                             onSave={handleSave}
                             moduleColor={PERMISSION_MODULES[PERMISSION_DETAILS[permId].module].color}
-                            locked={permId !== PERMISSIONS.DASHBOARD_ACCESS && rolesWithDashboardAccess.size === 0}
-                            hideUsers={permId === PERMISSIONS.DASHBOARD_ACCESS}
+                            locked={permId !== PERMISSIONS.DASHBOARD_LOGIN && rolesWithDashboardAccess.size === 0}
+                            hideUsers={permId === PERMISSIONS.DASHBOARD_LOGIN}
                         />
                     ))}
                 </div>

@@ -7,10 +7,19 @@ export function ThemeProvider({
     children,
     ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
+    const [mounted, setMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return <>{children}</>;
+    }
+
     return (
         <NextThemesProvider
             {...props}
-            forcedTheme="dark"
             defaultTheme="dark"
             enableSystem={false}
         >
@@ -18,4 +27,3 @@ export function ThemeProvider({
         </NextThemesProvider>
     );
 }
-

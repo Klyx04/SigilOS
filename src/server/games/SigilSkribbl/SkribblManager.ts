@@ -10,6 +10,7 @@ function generateShortId() {
 
 export class SkribblManager {
     private rooms = new Map<string, SkribblRoom>();
+    private userToRoom = new Map<string, string>(); // userId -> roomId
 
     constructor(private io: Server) { }
 
@@ -92,12 +93,28 @@ export class SkribblManager {
         }
         
         if (userId) {
-            const activeRoomId = await redis.get(`user:${userId}:skribbl:room`);
+            const activeRoomId = this.userToRoom.get(userId);
             if (activeRoomId === roomId) {
+                this.userToRoom.delete(userId);
                 await redis.del(`user:${userId}:skribbl:room`);
             }
         }
         await this.delSocketData(socket.id);
+    }
+
+    private deleteRoomInternal(roomId: string) {
+        const room = this.rooms.get(roomId);
+        if (room) {
+            const hostId = room.getHostId();
+            const guildId = room.getGuildId();
+            room.destroy();
+            this.rooms.delete(roomId);
+            if (hostId) {
+                this.userToRoom.delete(hostId);
+                redis.del(`user:${hostId}:skribbl:room`).catch(() => {});
+            }
+            this.broadcastRoomList(guildId);
+        }
     }
 
     private async handleDeleteRoom(socket: Socket) {
@@ -106,13 +123,8 @@ export class SkribblManager {
             if (!roomId) return;
             const room = this.rooms.get(roomId);
             if (room && room.isHost(socket.id)) {
-                const hostId = room.getHostId();
-                const guildId = room.getGuildId();
                 this.io.to(roomId).emit("skribbl:error", { message: "Le salon a été fermé par l'hôte." });
-                room.destroy();
-                this.rooms.delete(roomId);
-                if (hostId) await redis.del(`user:${hostId}:skribbl:room`);
-                this.broadcastRoomList(guildId);
+                this.deleteRoomInternal(roomId);
             }
         } catch (e) {
             console.error("[SkribblManager] handleDeleteRoom error:", e);
@@ -139,18 +151,18 @@ export class SkribblManager {
             let guildId = (socket.handshake.query.guildId as string);
             if (!guildId || guildId === "undefined" || guildId === "null") guildId = "global";
 
-            const existingRoomId = await redis.get(`user:${userId}:skribbl:room`);
+            // 1. One room max per user
+            const existingRoomId = this.userToRoom.get(userId);
             if (existingRoomId && this.rooms.has(existingRoomId)) {
-                // If the user already has a room, maybe they just need to rejoin it?
-                // For now, we allow them to proceed if they are trying to create.
-                // Or we can just join the existing one.
-                socket.emit("skribbl:room:created", { roomId: existingRoomId });
-                return;
+                // If the user already has a room, destroy it to avoid "infinites salons"
+                console.log(`[SkribblManager] 🧹 Cleaning up old room ${existingRoomId} for user ${userId}`);
+                this.deleteRoomInternal(existingRoomId);
             }
 
             const roomId = generateShortId();
             const room = new SkribblRoom(this.io, this, { ...config, id: roomId, guildId });
             this.rooms.set(roomId, room);
+            this.userToRoom.set(userId, roomId);
 
             await redis.set(`user:${userId}:skribbl:room`, roomId, "EX", 7200);
             socket.emit("skribbl:room:created", { roomId });

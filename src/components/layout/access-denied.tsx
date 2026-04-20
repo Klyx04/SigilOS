@@ -10,6 +10,7 @@ import { RefreshCcw } from "lucide-react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { revalidateUserContext } from "@/server/actions/user-actions";
+import { requestProfileReactivation } from "@/server/actions/lifecycle-actions";
 import { toast } from "sonner";
 
 interface AccessDeniedProps {
@@ -77,6 +78,8 @@ export function AccessDenied({
 }: AccessDeniedProps) {
     const { data: session } = useSession();
     const [isPending, startTransition] = useTransition();
+    const [isRequesting, setIsRequesting] = useState(false);
+    const [hasRequested, setHasRequested] = useState(false);
     const router = useRouter();
 
     const handleSync = () => {
@@ -90,6 +93,24 @@ export function AccessDenied({
                 toast.error(res.error || "Échec de la synchronisation");
             }
         });
+    };
+
+    const handleRequestReactivation = async () => {
+        if (!guildId) return;
+        setIsRequesting(true);
+        try {
+            const res = await requestProfileReactivation(guildId);
+            if (res.success) {
+                toast.success("Demande envoyée au Staff ! Vous recevrez une notification sur le Dashboard dès validation.");
+                setHasRequested(true);
+            } else {
+                toast.error(res.error || "Erreur lors de la demande");
+            }
+        } catch (error) {
+            toast.error("Échec de l'envoi de la demande");
+        } finally {
+            setIsRequesting(false);
+        }
     };
 
     return (
@@ -145,6 +166,23 @@ export function AccessDenied({
                         </Button>
                         {action}
                     </div>
+
+                    {variant === "archive" && !hasRequested && (
+                        <Button 
+                            onClick={handleRequestReactivation}
+                            disabled={isRequesting}
+                            className="h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-600/20 animate-in fade-in zoom-in"
+                        >
+                            <RefreshCcw className={`w-4 h-4 mr-2 ${isRequesting ? 'animate-spin' : ''}`} />
+                            {isRequesting ? "Envoi en cours..." : "Demander ma réintégration"}
+                        </Button>
+                    )}
+
+                    {variant === "archive" && hasRequested && (
+                        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-sm animate-in fade-in slide-in-from-bottom-4">
+                            ✅ Demande envoyée ! Le Staff va l'étudier.
+                        </div>
+                    )}
 
                     <p className="text-xs text-zinc-600 font-medium">Besoin d'aide ?</p>
 

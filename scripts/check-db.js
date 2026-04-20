@@ -1,41 +1,60 @@
-require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
+const { Pool } = require('pg');
+const { PrismaPg } = require('@prisma/adapter-pg');
+require('dotenv').config();
 
-const user = process.env.POSTGRES_USER || 'sigiluser';
-const pwd = process.env.POSTGRES_PASSWORD;
-const dbName = process.env.POSTGRES_DB || 'sigilos';
+const cleanEnv = (val) => val ? val.replace(/^['"]|['"]$/g, '').trim() : '';
+const getConnectionString = () => {
+    if (process.env.DATABASE_URL) return cleanEnv(process.env.DATABASE_URL);
+    const user = cleanEnv(process.env.POSTGRES_USER) || 'user';
+    const pwd = cleanEnv(process.env.POSTGRES_PASSWORD);
+    const db_name = cleanEnv(process.env.POSTGRES_DB) || 'sigilos';
+    const host = process.env.DB_HOST || '127.0.0.1';
+    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5433/${db_name}?schema=public`;
+};
 
-// Force localhost for this test script since we are running on host
-const url = `postgresql://${user}:${pwd}@localhost:5432/${dbName}?schema=public`;
+async function check() {
+  const connectionString = getConnectionString();
+  const pool = new Pool({ connectionString });
+  const adapter = new PrismaPg(pool);
+  const prisma = new PrismaClient({ adapter });
 
-console.log(`Connecting to: postgresql://${user}:***@localhost:5432/${dbName}`);
+  try {
+    const allCount = await prisma.bounty.count();
+    console.log('Total bounties:', allCount);
+    
+    const sample = await prisma.bounty.findMany({ take: 5 });
+    console.log('Sample data:', JSON.stringify(sample, null, 2));
 
-const prisma = new PrismaClient({
-    datasources: {
-        db: {
-            url: url
+    const query = "Cité d'Astrub";
+    const normalized = query.toLowerCase().trim();
+    
+    const matches = await prisma.bounty.findMany({
+      where: {
+        zoneName: {
+          contains: normalized,
+          mode: 'insensitive'
         }
-    },
-    log: ['error', 'warn'],
-});
+      }
+    });
 
-async function main() {
-    const start = Date.now();
-    try {
-        console.log('Connecting...');
-        await prisma.$connect();
-        console.log(`✅ Connected in ${Date.now() - start}ms`);
-
-        console.log('Running query...');
-        const count = await prisma.user.count();
-        console.log(`✅ User count: ${count}`);
-
-    } catch (e) {
-        console.error('❌ Connection FAILED:', e);
-    } finally {
-        await prisma.$disconnect();
-        console.log('Disconnected');
+    console.log(`Matches for "${query}":`, matches.length);
+    if (matches.length > 0) {
+      console.log('Match names:', matches.map(m => m.name));
+    } else {
+      console.log('Trying broader search "Astrub"...');
+      const broad = await prisma.bounty.findMany({
+        where: { zoneName: { contains: 'Astrub', mode: 'insensitive' } }
+      });
+      console.log('Broad matches:', broad.length, broad.map(b => `${b.name} (${b.zoneName})` || 'SANS ZONE'));
     }
+
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await prisma.$disconnect();
+    await pool.end();
+  }
 }
 
-main();
+check();

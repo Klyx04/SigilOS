@@ -26,8 +26,12 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
         const res = await getAggregatedFeed(guildId, force);
         if (res.success && res.data) {
             setFeed(res.data as any);
-            // For now, simplify or use actual unread check
-            setUnreadCount(res.unreadCount || 0);
+            // If the popover is currently open, we consider everything seen
+            if (!isOpen) {
+                setUnreadCount(res.unreadCount || 0);
+            } else {
+                setUnreadCount(0);
+            }
         }
         setIsLoading(false);
     };
@@ -81,7 +85,14 @@ export function FeedBell({ guildId, className }: { guildId: string, className?: 
                         variant="ghost"
                         size="sm"
                         className="h-7 px-2 text-[8px] font-black uppercase tracking-widest text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 gap-1.5 transition-all"
-                        onClick={(e) => { e.stopPropagation(); fetchFeed(true); }}
+                        onClick={async (e) => { 
+                            e.stopPropagation(); 
+                            await fetchFeed(true); 
+                            // After a manual refresh while looking at it, mark all as read again 
+                            // to ensure the badge doesn't pop back up due to fresh timestamps
+                            await markFeedAsRead(guildId);
+                            setUnreadCount(0);
+                        }}
                         disabled={isLoading}
                     >
                         <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />

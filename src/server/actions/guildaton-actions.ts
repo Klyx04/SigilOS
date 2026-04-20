@@ -611,7 +611,7 @@ export async function sendManualGuildatonReport(guildId: string): Promise<Action
         const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const url = `${baseUrl}/api/cron/guildaton-report?token=${process.env.CRON_SECRET}&forceGuild=${guildId}`;
         
-        console.log(`[Guildaton] Triggering manual report: ${url.replace(process.env.CRON_SECRET || "", "SECRET")}`);
+        console.log(`[Guildaton] Triggering manual report for guild: ${guildId}`);
         
         const response = await fetch(url, { cache: 'no-store' });
         

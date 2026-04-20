@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, Clock, ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -18,9 +18,18 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createDreamRun } from "@/server/actions/songes/dream-run-actions";
+import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, type DifficultyKey, type ObjectiveKey, type EpreuveCode } from "@/lib/songes/types";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -60,6 +69,10 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     const [error, setError] = useState<string | null>(null);
     const [rateLimitReset, setRateLimitReset] = useState<number | null>(null); // timestamp ms
     const [countdown, setCountdown] = useState<string | null>(null);
+    const [mentionRoleId, setMentionRoleId] = useState<string | null>(null);
+    const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
+    const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+    const [roleOpen, setRoleOpen] = useState(false);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
@@ -78,6 +91,21 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
         return () => clearInterval(id);
     }, [rateLimitReset]);
 
+    // Fetch Discord Roles
+    useEffect(() => {
+        if (open && publishToDiscord && discordRoles.length === 0) {
+            setIsLoadingRoles(true);
+            getDiscordRolesAction(guildId)
+                .then(res => {
+                    if (res.success && res.roles) {
+                        setDiscordRoles(res.roles.filter(r => r.name !== "@everyone") as any);
+                    }
+                })
+                .catch(console.error)
+                .finally(() => setIsLoadingRoles(false));
+        }
+    }, [open, publishToDiscord, guildId, discordRoles.length]);
+
     const handleCreate = () => {
         if (mode === "standard") {
             if (objectives.length === 0) {
@@ -93,11 +121,12 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     scheduledAt.setHours(hours, minutes, 0, 0);
                 }
 
-                const result = await createDreamRun(guildId, { 
-                    difficulty, 
+                const result = await createDreamRun(guildId, {
+                    difficulty,
                     objectives, 
                     publishToDiscord,
-                    scheduledAt
+                    scheduledAt,
+                    mentionRoleId
                 });
                 if (result.success) {
                     toast.success("Run créée avec succès !");
@@ -132,7 +161,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     objectives: ["SUCCES_NO_ACHAT"],
                     publishToDiscord,
                     epreuveCode: epreuve.code,
-                    scheduledAt
+                    scheduledAt,
+                    mentionRoleId
                 });
                 if (result.success) {
                     toast.success(`Épreuve ${epreuve.code} lancée !`);
@@ -348,6 +378,87 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         </p>
                     )}
                 </div>
+
+                {/* ─── ROLE MENTION ─── */}
+                {publishToDiscord && discordRoles.length > 0 && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <Label className="text-white/60 text-[10px] uppercase tracking-widest font-bold ml-1">Rôle Discord à notifier</Label>
+                        <Popover open={roleOpen} onOpenChange={setRoleOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={roleOpen}
+                                    className="w-full justify-between bg-white/5 border-white/10 text-white hover:bg-white/8 transition-colors font-medium h-10"
+                                >
+                                    <div className="flex items-center gap-2 truncate">
+                                        {mentionRoleId ? (
+                                            <>
+                                                <div 
+                                                    className="w-2 h-2 rounded-full shrink-0" 
+                                                    style={{ backgroundColor: discordRoles.find(r => r.id === mentionRoleId)?.color === "#000000" ? "#9ca3af" : discordRoles.find(r => r.id === mentionRoleId)?.color }} 
+                                                />
+                                                <span className="truncate">{discordRoles.find(r => r.id === mentionRoleId)?.name}</span>
+                                            </>
+                                        ) : (
+                                            <span className="text-white/40 italic">Aucun ping</span>
+                                        )}
+                                    </div>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-[#0c0514] border-white/10" align="start">
+                                <Command className="bg-transparent text-white">
+                                    <CommandInput placeholder="Rechercher un rôle..." className="h-9 border-none focus:ring-0" />
+                                    <CommandList className="max-h-[280px] custom-scrollbar">
+                                        <CommandEmpty>Aucun rôle trouvé.</CommandEmpty>
+                                        <CommandGroup>
+                                            <CommandItem
+                                                onSelect={() => {
+                                                    setMentionRoleId(null);
+                                                    setRoleOpen(false);
+                                                }}
+                                                className="text-white/50 italic focus:bg-white/10 cursor-pointer"
+                                            >
+                                                <Check
+                                                    className={cn(
+                                                        "mr-2 h-4 w-4",
+                                                        !mentionRoleId ? "opacity-100" : "opacity-0"
+                                                    )}
+                                                />
+                                                Aucun ping
+                                            </CommandItem>
+                                            {discordRoles.map((role) => (
+                                                <CommandItem
+                                                    key={role.id}
+                                                    onSelect={() => {
+                                                        setMentionRoleId(role.id);
+                                                        setRoleOpen(false);
+                                                    }}
+                                                    className="text-white focus:bg-white/10 cursor-pointer"
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            mentionRoleId === role.id ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    <div className="flex items-center gap-2 flex-1 truncate">
+                                                        <div 
+                                                            className="w-2 h-2 rounded-full shrink-0" 
+                                                            style={{ backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color }} 
+                                                        />
+                                                        <span className="truncate">{role.name}</span>
+                                                    </div>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                )}
 
                 {/* ─── SCHEDULE TOGGLE ─── */}
                 <div className="space-y-3">

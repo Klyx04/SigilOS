@@ -33,7 +33,7 @@ export function NoGuildMessage({ rateLimited }: NoGuildMessageProps) {
     }, [rateLimited]);
 
     return (
-        <div className="relative w-full flex flex-col items-center justify-center p-4 min-h-screen landing-theme bg-background overflow-hidden">
+        <div className="relative w-full flex-1 flex flex-col items-center justify-center p-4">
 
             {/* Background glow effects — same as landing */}
             <div className="absolute inset-0 z-0 pointer-events-none">

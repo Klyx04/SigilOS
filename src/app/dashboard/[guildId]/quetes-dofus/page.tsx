@@ -5,9 +5,13 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Gem } from "lucide-react";
-import { getDofusListWithProgress, getGuildDofusStats, getDofusWarRoomData } from "@/server/actions/dofus-quest-actions";
+import { getDofusListWithProgress, getGuildDofusStats } from "@/server/actions/dofus-quest-actions";
+import { getOptimizedGuides } from "@/server/actions/optimized-guide-actions";
 import { DofusQuestHub } from "@/components/dofus-quests/DofusQuestHub";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
+
+import { ActivitiesNav } from "@/components/layout/activities-nav";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -15,16 +19,11 @@ type Props = {
 };
 
 export default async function QuetesDofusPage({ params, searchParams }: Props) {
-    console.log("[DEBUG] Entering QuetesDofusPage");
     const session = await auth();
-    if (!session?.user) {
-        console.log("[DEBUG] No session found, redirecting to /");
-        redirect("/");
-    }
+    if (!session?.user) redirect("/");
 
     const { guildId } = await params;
     const character = (await searchParams)?.character as string || "PRINCIPAL";
-    console.log(`[DEBUG] Guild: ${guildId}, Character: ${character}`);
 
     const user = await getUserContext(guildId);
     if (!user.canViewQuests) return <AccessDenied />;
@@ -33,49 +32,54 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
     if (!enabled) return <AccessDenied />;
 
     // Fetch data in parallel
-    const [dofusResult, guildStatsResult, warRoomResult] = await Promise.all([
+    const [dofusResult, guildStatsResult, guidesResult] = await Promise.all([
         getDofusListWithProgress(guildId, character),
         getGuildDofusStats(guildId),
-        getDofusWarRoomData(guildId),
+        getOptimizedGuides(guildId),
     ]);
 
     const dofusList = dofusResult.success ? (dofusResult.data ?? []) : [];
     const guildStats = guildStatsResult.success ? guildStatsResult.data ?? null : null;
-    const warRoomData = warRoomResult.success ? (warRoomResult.data ?? null) : null;
+    const guides = guidesResult.success ? guidesResult.guides ?? [] : [];
 
     return (
-        <div className="space-y-6 pb-12">
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                <UnifiedModuleHeader
-                    title="Quêtes Dofus"
-                    description="Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde"
-                    icon={Gem}
-                    backHref={`/dashboard/${guildId}`}
-                />
-                
-                <div className="flex-shrink-0 lg:mb-1">
-                    <CharacterQuestSelector 
-                        mainCharacter={{ 
-                            pseudo: user.pseudoDofus || session.user.name || "Principal", 
-                            classe: user.classe 
-                        }}
-                        mules={user.altPseudos as any || []}
+        <div className="relative min-h-[calc(100vh-4rem)] pb-12">
+            <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
+
+            <div className="relative z-10 max-w-7xl mx-auto space-y-8">
+                <ActivitiesNav guildId={guildId} />
+
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                    <UnifiedModuleHeader
+                        title="Quêtes Dofus"
+                        description="Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde"
+                        icon={Gem}
+                        backHref={`/dashboard/${guildId}`}
                     />
+                    
+                    <div className="flex-shrink-0 lg:mb-1">
+                        <CharacterQuestSelector 
+                            mainCharacter={{ 
+                                pseudo: user.pseudoDofus || session.user.name || "Principal", 
+                                classe: user.classe 
+                             }}
+                            mules={user.altPseudos as any || []}
+                        />
+                    </div>
                 </div>
+
+                {dofusList.length === 0 ? (
+                    <EmptyState guildId={guildId} isAdmin={user.isAdmin} />
+                ) : (
+                    <DofusQuestHub
+                        dofusList={dofusList}
+                        guildStats={guildStats}
+                        guides={guides}
+                        guildId={guildId}
+                        selectedCharacter={character}
+                    />
+                )}
             </div>
-
-
-            {dofusList.length === 0 ? (
-                <EmptyState guildId={guildId} isAdmin={user.isAdmin} />
-            ) : (
-                <DofusQuestHub
-                    dofusList={dofusList}
-                    guildStats={guildStats}
-                    warRoomData={warRoomData}
-                    guildId={guildId}
-                    selectedCharacter={character}
-                />
-            )}
         </div>
     );
 }

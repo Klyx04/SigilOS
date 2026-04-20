@@ -43,7 +43,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
     const isDiscordConfigured = !!guildConfig?.calendarNotifyChannelId;
 
     return (
-        <div className="flex flex-col h-full bg-black/40 pb-12">
+        <div className="flex flex-col h-full bg-foreground/[0.02] pb-12">
             <main className="flex-1 overflow-auto">
                 <div className="max-w-[1600px] mx-auto space-y-8">
                     <UnifiedModuleHeader

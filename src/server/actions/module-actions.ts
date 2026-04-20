@@ -33,9 +33,9 @@ const UpdateModulesSchema = z.object({
     worldmap: z.boolean(),
     resources: z.boolean(),
     // Nouveau
-    chat: z.boolean(),
     gallery: z.boolean(),
     ladderSync: z.boolean(),
+    manualLadderSync: z.boolean(),
     minigames: z.boolean(),
 });
 
@@ -92,9 +92,9 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             quests: modules.quests,
             worldmap: modules.worldmap,
             resources: modules.resources,
-            chat: modules.chat,
             gallery: modules.gallery,
             ladderSync: modules.ladderSync,
+            manualLadderSync: modules.manualLadderSync ?? true,
             minigames: modules.minigames ?? true,
         };
 

@@ -21,9 +21,11 @@ export type InvaderRoom = {
         score: number;
         ready: boolean;
         lives: number;
+        isSpectator?: boolean;
     }[];
     difficulty: number;
     wave: number;
+    withBot?: boolean;
 };
 
 const ROOM_PREFIX = "sigil_invader:room:";
@@ -34,6 +36,16 @@ export async function createInvaderRoom(guildId: string) {
 
     const user = await getUserContext(guildId);
     if (!user.isMember) throw new Error("Membre requis");
+
+    // 1. One room max per user - Check for existing room
+    const existingRoomId = await redis.get(`user:${session.user.id}:invader:room`);
+    if (existingRoomId) {
+        const existingData = await redis.get(`${ROOM_PREFIX}${existingRoomId}`);
+        if (existingData) {
+            // Room still exists, return it instead of creating a new one
+            return { success: true, roomId: existingRoomId };
+        }
+    }
 
     const roomId = Math.random().toString(36).substring(2, 9).toUpperCase();
     const room: InvaderRoom = {
@@ -56,7 +68,11 @@ export async function createInvaderRoom(guildId: string) {
         wave: 1
     };
 
-    await redis.set(`${ROOM_PREFIX}${roomId}`, JSON.stringify(room), "EX", 3600); // 1 hour TTL
+    // Use a multi-transaction to set both the room data and the user-to-room mapping
+    await redis.multi()
+        .set(`${ROOM_PREFIX}${roomId}`, JSON.stringify(room), "EX", 3600)
+        .set(`user:${session.user.id}:invader:room`, roomId, "EX", 3600)
+        .exec();
     
     // Broadcast for dashboard
     await redis.publish(`guild:${guildId}:activity`, JSON.stringify({
@@ -84,21 +100,30 @@ export async function joinInvaderRoom(roomId: string, guildId: string) {
 
     const room = await getInvaderRoom(roomId);
     if (!room) throw new Error("Salon introuvable");
-    if (room.state !== 'LOBBY') throw new Error("Partie déjà commencée");
-    if (room.playerCount >= room.maxPlayers) throw new Error("Salon plein");
-
+    
     // Check if player already in
     if (room.players.find(p => p.userId === session.user?.id)) return { success: true };
 
+    // Determine if joining as spectator
+    const isFull = room.playerCount >= room.maxPlayers;
+    const isPlaying = room.state !== 'LOBBY';
+    const isSpectator = isFull || isPlaying;
+
+    if (!isSpectator && isFull) throw new Error("Salon plein"); // Should not happen with current logic but stay safe
+    
     room.players.push({
         userId: session.user.id,
         name: session.user.name || "Inconnu",
         avatar: session.user.image || undefined,
         score: 0,
-        ready: false,
-        lives: 3
+        ready: isSpectator, // Spectators are always ready
+        lives: 3,
+        isSpectator
     });
-    room.playerCount = room.players.length;
+
+    if (!isSpectator) {
+        room.playerCount = room.players.filter(p => !p.isSpectator).length;
+    }
 
     await redis.set(`${ROOM_PREFIX}${roomId}`, JSON.stringify(room), "EX", 3600);
     
@@ -157,6 +182,26 @@ export async function startInvaderGame(roomId: string) {
     return { success: true };
 }
 
+export async function updateInvaderRoomConfig(roomId: string, config: Partial<{ withBot: boolean, difficulty: number }>) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    const room = await getInvaderRoom(roomId);
+    if (!room) throw new Error("Salon introuvable");
+    if (room.hostId !== session.user?.id) throw new Error("Seul l'hôte peut configurer");
+
+    Object.assign(room, config);
+
+    await redis.set(`${ROOM_PREFIX}${roomId}`, JSON.stringify(room), "EX", 3600);
+    
+    await redis.publish(`invader:room:${roomId}`, JSON.stringify({
+        type: "CONFIG_UPDATED",
+        config
+    }));
+
+    return { success: true };
+}
+
 export async function updatePlayerScore(roomId: string, score: number) {
     const session = await auth();
     if (!session?.user?.id) return;
@@ -182,4 +227,49 @@ export async function getActiveInvaderRooms(guildId: string): Promise<InvaderRoo
         .filter(r => r.guildId === guildId && r.state === 'LOBBY');
 
     return rooms;
+}
+
+export async function leaveInvaderRoom(roomId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false };
+
+    const room = await getInvaderRoom(roomId);
+    if (!room) return { success: false };
+
+    // Remove player
+    const playerIndex = room.players.findIndex(p => p.userId === session.user?.id);
+    if (playerIndex === -1) return { success: false };
+
+    room.players.splice(playerIndex, 1);
+    room.playerCount = room.players.length;
+
+    // Remove user mapping
+    await redis.del(`user:${session.user.id}:invader:room`);
+
+    if (room.playerCount === 0) {
+        // Destroy room
+        await redis.del(`${ROOM_PREFIX}${roomId}`);
+    } else {
+        // Host transfer logic
+        if (room.hostId === session.user.id) {
+            const nextHost = room.players[0]; // First available player
+            room.hostId = nextHost.userId;
+            room.hostName = nextHost.name;
+            
+            await redis.publish(`invader:room:${roomId}`, JSON.stringify({
+                type: "HOST_TRANSFERRED",
+                hostId: room.hostId,
+                hostName: room.hostName
+            }));
+        }
+
+        await redis.set(`${ROOM_PREFIX}${roomId}`, JSON.stringify(room), "EX", 3600);
+        
+        await redis.publish(`invader:room:${roomId}`, JSON.stringify({
+            type: "PLAYER_LEFT",
+            userId: session.user.id
+        }));
+    }
+
+    return { success: true };
 }

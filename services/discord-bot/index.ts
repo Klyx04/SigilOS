@@ -515,6 +515,8 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     await updateDiscordActivity(user.id, reaction.message.guild.id, { 
         lastDiscordReactionAt: new Date() 
     }, 'Reaction');
+});
+
 // 4. TRACK TYPING
 client.on(Events.TypingStart, async (typing) => {
     if (typing.user.bot || !typing.guild) return;

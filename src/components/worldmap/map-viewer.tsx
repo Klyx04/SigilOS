@@ -18,7 +18,6 @@ const MapWithNoSSR = dynamic<any>(
 );
 export function MapViewer({ 
     initialLadder, 
-    initialKingLadder, 
     initialTab, 
     gameStatuses,
     initialX,
@@ -31,7 +30,6 @@ export function MapViewer({
     isAdmin
 }: { 
     initialLadder?: any[], 
-    initialKingLadder?: any[], 
     initialTab?: 'map' | 'games', 
     gameStatuses?: any[],
     initialX?: number,
@@ -94,7 +92,6 @@ export function MapViewer({
         <MapWithNoSSR 
             worldMap={data} 
             initialLadder={initialLadder} 
-            initialKingLadder={initialKingLadder}
             initialTab={initialTab} 
             gameStatuses={gameStatuses} 
             initialX={initialX}

@@ -25,11 +25,15 @@ import {
     Trophy,
     LogOut,
     Crown,
-    ChevronDown
+    ChevronDown,
+    Mic,
+    MicOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { playSoundEffect, unlockAudio } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
+import { useDiscordVoice } from "@/hooks/use-discord-voice";
+import { DiscordVoiceOverlay } from "@/components/shared/DiscordVoiceOverlay";
 
 const SKRIBBL_CATEGORIES = [
     { id: "Classe", label: "Classes", icon: "👥" },
@@ -66,6 +70,14 @@ export default function SkribblGame({ roomId: initialRoomId, guildId, userName, 
     const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
+
+    // Discord Voice Monitoring
+    const { voiceUsers } = useDiscordVoice(guildId, socket);
+    const [showVoiceOverlay, setShowVoiceOverlay] = useState(true);
+
+    const gamePlayerIds = gameState?.players?.map((p: any) => p.userId).filter(Boolean) as string[] || [];
+    const voiceUserIds = voiceUsers.map(u => u.userId);
+
 
     const sessionRef = useRef(session);
     useEffect(() => { sessionRef.current = session; }, [session]);
@@ -389,11 +401,19 @@ export default function SkribblGame({ roomId: initialRoomId, guildId, userName, 
                 <div className="flex gap-4 items-stretch justify-center w-full grow min-h-0 overflow-hidden">
                     {/* Main Game Area - Fluid */}
                     <div className="flex flex-col flex-1 gap-4 min-w-0 h-full max-w-full">
+                        {showVoiceOverlay && (
+                            <DiscordVoiceOverlay 
+                                users={voiceUsers} 
+                                guildId={guildId}
+                                gamePlayerIds={gamePlayerIds} 
+                                currentUserId={(session?.user as any)?.discordId}
+                            />
+                        )}
                         <div className="bg-white/10 backdrop-blur-xl rounded-[2rem] md:rounded-[2.5rem] p-2 flex flex-col border-2 border-white/20 flex-1 shadow-2xl relative overflow-hidden">
                             <div className="flex flex-col lg:flex-row gap-3 md:gap-4 h-full min-h-0 overflow-hidden">
                                 {/* LEFT SIDEBAR: Players - Collapsible on mobile */}
                                 <div className="w-full lg:w-[200px] xl:w-[260px] h-[100px] sm:h-[130px] lg:h-full shrink-0 bg-black/20 backdrop-blur-md rounded-[1.5rem] lg:rounded-[2.5rem] border border-white/10 shadow-inner overflow-hidden">
-                                    {socket && <SkribblLobby gameState={gameState} socket={socket} />}
+                                    {socket && <SkribblLobby gameState={gameState} socket={socket} voiceUsers={voiceUsers} />}
                                 </div>
 
                                 {/* CENTER: Main Game Area */}
@@ -405,14 +425,29 @@ export default function SkribblGame({ roomId: initialRoomId, guildId, userName, 
                                                 {socket && <TopBarInfo gameState={gameState} socket={socket} isDrawer={isDrawer} />}
                                                 
                                                 {/* IN-GAME EXIT BUTTON (Small/Mobile friendly) */}
-                                                <button 
-                                                    onClick={handleExitToMenu}
-                                                    className="ml-2 p-2 md:px-4 md:py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all flex items-center gap-2 font-black uppercase text-[8px] md:text-[10px] italic group"
-                                                    title="Quitter la partie"
-                                                >
-                                                    <LogOut size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                                                    <span className="hidden md:inline">Quitter</span>
-                                                </button>
+                                                <div className="flex items-center gap-2 ml-2">
+                                                    <button 
+                                                        onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
+                                                        className={cn(
+                                                            "p-2 md:px-4 md:py-2 rounded-xl border transition-all flex items-center gap-2 font-black uppercase text-[8px] md:text-[10px] italic group",
+                                                            showVoiceOverlay 
+                                                                ? "bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border-emerald-500/20" 
+                                                                : "bg-slate-500/10 hover:bg-slate-500 text-slate-500 hover:text-white border-slate-500/20"
+                                                        )}
+                                                        title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
+                                                    >
+                                                        {showVoiceOverlay ? <Mic size={14} /> : <MicOff size={14} />}
+                                                        <span className="hidden md:inline">{showVoiceOverlay ? "Vocal On" : "Vocal Off"}</span>
+                                                    </button>
+                                                    <button 
+                                                        onClick={handleExitToMenu}
+                                                        className="p-2 md:px-4 md:py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all flex items-center gap-2 font-black uppercase text-[8px] md:text-[10px] italic group"
+                                                        title="Quitter la partie"
+                                                    >
+                                                        <LogOut size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                                                        <span className="hidden md:inline">Quitter</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="w-full flex justify-between items-center text-[#5d3fd3] font-black uppercase text-[10px] md:text-xs tracking-[0.2em] italic">
@@ -421,6 +456,19 @@ export default function SkribblGame({ roomId: initialRoomId, guildId, userName, 
                                                     <span>En attente...</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
+                                                        className={cn(
+                                                            "p-1.5 md:p-2 rounded-xl border transition-all flex items-center gap-2 font-black uppercase text-[8px] md:text-[10px] italic group",
+                                                            showVoiceOverlay 
+                                                                ? "bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border-emerald-500/20" 
+                                                                : "bg-slate-500/10 hover:bg-slate-500 text-slate-500 hover:text-white border-slate-500/20"
+                                                        )}
+                                                        title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
+                                                    >
+                                                        {showVoiceOverlay ? <Mic size={14} /> : <MicOff size={14} />}
+                                                        <span className="hidden md:inline">{showVoiceOverlay ? "Vocal On" : "Vocal Off"}</span>
+                                                    </button>
                                                     <div className="hidden sm:flex items-center gap-2 bg-[#5d3fd3]/10 px-3 md:px-4 py-1.5 rounded-full border border-[#5d3fd3]/20 shrink-0">
                                                         <Users size={12} /> 
                                                         <span>{gameState.players?.length || 0} JOUEURS</span>

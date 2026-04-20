@@ -272,7 +272,7 @@ export async function createLoan(
                     const valid = await validateChannelBelongsToGuild(channelId, guildId);
                     if (valid) {
                         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-                        const dashboardUrl = `${appUrl}/dashboard/${guildId}/passages`;
+                        const dashboardUrl = `${appUrl}/dashboard/${guildId}/services`;
                         // Discord needs an absolute URL with access token
                         const publicProofUrl = getDiscordPublicUrl(proofUrl);
 
@@ -318,7 +318,7 @@ export async function createLoan(
             }
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true, data: { id: loan.id } };
     } catch (error) {
         console.error("[createLoan]", error);
@@ -426,7 +426,7 @@ export async function markLoanReturned(
             });
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
         console.error("[markLoanReturned]", error);
@@ -488,7 +488,7 @@ export async function cancelLoan(
             });
         }
 
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
         console.error("[cancelLoan]", error);

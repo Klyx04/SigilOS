@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
-import { type ChatMessage } from "@/lib/chat-helpers";
+type ChatMessage = any;
 
 type OnlineUser = { id: string; name: string; image?: string };
 

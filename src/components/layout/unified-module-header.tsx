@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { ChevronLeft, LucideIcon } from "lucide-react";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 
@@ -36,15 +37,18 @@ export function UnifiedModuleHeader({
         <div className={cn("relative space-y-4 mb-8 md:mb-12 animate-in fade-in slide-in-from-top-4 duration-700", className)}>
             {/* 1. BACK BUTTON & BREADCRUMBS */}
             {backHref && (
-                <Link
-                    href={backHref}
-                    className="inline-flex items-center gap-2.5 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 hover:text-white transition-all group mb-2"
+                <Button
+                    asChild
+                    variant="ghost"
+                    className="inline-flex h-auto items-center gap-2.5 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition-all group mb-2 p-0 bg-transparent hover:bg-transparent"
                 >
-                    <div className="h-8 w-8 rounded-xl border border-white/5 bg-white/[0.03] backdrop-blur-xl flex items-center justify-center group-hover:border-white/20 group-hover:bg-white/10 transition-all group-hover:scale-105 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-                        <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
-                    </div>
-                    <span className="opacity-70 group-hover:opacity-100 transition-opacity">{backLabel}</span>
-                </Link>
+                    <Link href={backHref}>
+                        <div className="h-8 w-8 rounded-xl border border-foreground/5 bg-foreground/[0.03] backdrop-blur-xl flex items-center justify-center group-hover:border-foreground/20 group-hover:bg-foreground/10 transition-all group-hover:scale-105 group-hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.05)]">
+                            <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                        </div>
+                        <span className="opacity-70 group-hover:opacity-100 transition-opacity">{backLabel}</span>
+                    </Link>
+                </Button>
             )}
 
             {/* 2. MAIN CONTENT LAYER */}
@@ -54,17 +58,17 @@ export function UnifiedModuleHeader({
                         {/* ICON / IMAGE SECTION */}
                         {imageSrc ? (
                             <div className="relative h-14 w-14 md:h-18 md:w-18 shrink-0">
-                                <div className="absolute -inset-4 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
+                                <div className="absolute -inset-4 bg-primary/10 rounded-full blur-3xl animate-pulse" />
                                 <Image
                                     src={imageSrc}
                                     alt={title}
                                     fill
-                                    className="object-contain brightness-110 drop-shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-transform duration-500 hover:scale-110"
+                                    className="object-contain brightness-110 drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] transition-transform duration-500 hover:scale-110"
                                     priority
                                 />
                             </div>
                         ) : Icon ? (
-                            <div className="relative shrink-0 flex items-center justify-center h-14 w-14 md:h-16 md:w-16 bg-white/[0.03] backdrop-blur-2xl rounded-2xl border border-white/5 shadow-2xl group transition-all">
+                            <div className="relative shrink-0 flex items-center justify-center h-14 w-14 md:h-16 md:w-16 bg-foreground/[0.03] backdrop-blur-2xl rounded-2xl border border-foreground/5 shadow-2xl group transition-all">
                                 <Icon
                                     className="h-7 w-7 md:h-8 md:w-8 transition-all duration-500 group-hover:scale-110"
                                     style={{
@@ -73,17 +77,14 @@ export function UnifiedModuleHeader({
                                     }}
                                     strokeWidth={2.5}
                                 />
-                                <div className="absolute inset-0 bg-white/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="absolute inset-0 bg-foreground/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                         ) : null}
 
                         {/* TITLE SECTION - Fluid Typography 2026 */}
                         <div className="min-w-0">
                             <h1 className={cn(
-                                "text-[clamp(1.75rem,8vw,3.5rem)] font-black tracking-tighter leading-[0.9] uppercase py-1",
-                                gradient 
-                                    ? "bg-clip-text text-transparent bg-gradient-to-br from-white via-white to-white/40 drop-shadow-sm" 
-                                    : "text-white"
+                                "text-[clamp(1.75rem,8vw,3.5rem)] font-black tracking-tighter leading-[0.9] uppercase py-1 text-foreground"
                             )}>
                                 {title}
                             </h1>
@@ -91,7 +92,7 @@ export function UnifiedModuleHeader({
                     </div>
 
                     {description && (
-                        <p className="text-zinc-500 text-sm md:text-base font-medium max-w-3xl leading-relaxed opacity-70 border-l-2 border-white/5 pl-4 ml-1">
+                        <p className="text-muted-foreground text-sm md:text-base font-medium max-w-3xl leading-relaxed opacity-70 border-l-2 border-foreground/5 pl-4 ml-1">
                             {description}
                         </p>
                     )}
@@ -112,8 +113,8 @@ export function UnifiedModuleHeader({
 
             {/* 3. PREMIUM DIVIDER - Modern subtle aesthetic */}
             <div className="relative h-px w-full overflow-hidden mt-2">
-                <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-white/10 via-white/5 to-transparent" />
-                <div className="absolute inset-y-0 left-0 w-24 h-[1px] bg-gradient-to-r from-purple-500 to-transparent blur-[1px]" />
+                <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-border/40 via-border/20 to-transparent" />
+                <div className="absolute inset-y-0 left-0 w-24 h-[1px] bg-gradient-to-r from-primary to-transparent blur-[1px]" />
             </div>
         </div>
     );

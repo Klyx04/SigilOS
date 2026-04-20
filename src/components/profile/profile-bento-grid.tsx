@@ -14,11 +14,13 @@ import { SuccessSync } from "./success-sync";
 import { UserSettings } from "./user-settings";
 import { IntroductionCard } from "./introduction-card";
 import { MemberStats } from "./member-stats";
+import { SkinLibrary } from "./skin-library";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { UserCircle, LayoutDashboard, Shield, Users, Calendar, Trophy, BarChart3, Settings } from "lucide-react";
+import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, BarChart3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
 
 interface ProfileBentoGridProps {
@@ -61,6 +63,7 @@ interface ProfileBentoGridProps {
         roleGrants?: any[];
         introduction?: string | null;
         showPresence?: boolean;
+        skins?: any[];
     };
     user: {
         name?: string | null;
@@ -89,6 +92,7 @@ interface ProfileBentoGridProps {
         canViewSonges?: boolean;
         canViewLadder?: boolean;
         canSyncLadder?: boolean;
+        canManualSyncLadder?: boolean;
         canViewMissions?: boolean;
     };
     guildName?: string;
@@ -123,10 +127,11 @@ export function ProfileBentoGrid({
     // Default permissions to true if not provided (internal consistency)
     const { 
         canViewOcre = true, 
-        canViewSonges: canViewStats = true, 
+        canViewSonges = true, 
         canViewLadder = true, 
         canViewMissions = true,
-        canSyncLadder = false
+        canSyncLadder = false,
+        canManualSyncLadder = true
     } = permissions;
 
     // Sync state if URL param changes (optional but good for UX)
@@ -159,18 +164,17 @@ export function ProfileBentoGrid({
     const targetUserId = isSuperAdmin ? profile.userId : undefined;
 
     // Handlers
-    const handleClassSave = async (mainClass: string, secondaryClasses: string[], pseudo: string) => {
+    const handleClassSave = async (mainClass: string, pseudo: string) => {
         setLocalProfile(prev => ({
             ...prev,
             classe: mainClass,
-            classeSecondaires: secondaryClasses,
             pseudoDofus: pseudo
         }));
 
         const res = await updateUserProfile({
             guildId,
             classe: mainClass,
-            classeSecondaires: secondaryClasses,
+            // classeSecondaires: [], // Reset/Clear secondary classes
             pseudoDofus: pseudo,
             targetUserId
         });
@@ -323,45 +327,58 @@ export function ProfileBentoGrid({
                 <aside className="lg:sticky lg:top-24 z-20 min-w-0 w-full">
                     <TabsList className="bg-transparent flex lg:flex-col flex-row flex-nowrap overflow-x-auto lg:overflow-visible gap-2 p-1 h-auto justify-start border-none w-full scrollbar-width-none [&::-webkit-scrollbar]:hidden">
                         {[
-                            { id: "overview", label: "Général", icon: UserCircle, color: "emerald" },
-                            { id: "intro", label: "Présentation", icon: LayoutDashboard, color: "emerald" },
-                            { id: "combat", label: "Stuffs", icon: Shield, color: "indigo" },
-                            { id: "mules", icon: Users, label: "Mules", color: "indigo" },
-                            { id: "planning", label: "Planning", icon: Calendar, color: "amber" },
-                            ...(canViewLadder ? [{ id: "achievements", label: "Succès", icon: Trophy, color: "amber" }] : []),
-                            ...(canViewStats ? [{ id: "stats", label: "Statistiques", icon: BarChart3, color: "cyan" }] : []),
-                            ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, color: "zinc" }] : []),
+                            { id: "overview", label: "Général", icon: UserCircle, color: "emerald text-emerald-500" },
+                            { id: "intro", label: "Présentation", icon: LayoutDashboard, color: "emerald text-emerald-500" },
+                            { id: "combat", label: "Stuffs", icon: Shield, color: "indigo text-indigo-500" },
+                            { id: "skins", label: "Skins", icon: Sparkles, color: "pink text-pink-500" },
+                            { id: "mules", icon: Users, label: "Mules", color: "indigo text-indigo-500" },
+                            { id: "planning", label: "Planning", icon: Calendar, color: "amber text-amber-500" },
+                            { id: "achievements", label: "Succès", icon: Trophy, color: "amber text-amber-500" },
+                            { id: "stats", label: "Statistiques", icon: BarChart3, color: "cyan text-cyan-500" },
+                            ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, color: "zinc text-zinc-400" }] : []),
                         ].map((tab) => (
                             <TabsTrigger
                                 key={tab.id}
                                 value={tab.id}
                                 className={cn(
-                                    "relative flex items-center justify-start gap-3 min-w-[max-content] lg:w-full px-4 py-3 rounded-2xl transition-all duration-300 group shrink-0",
+                                    "relative flex items-center justify-start gap-3 min-w-[max-content] lg:w-full px-4 py-3 rounded-2xl transition-all duration-300 group shrink-0 overflow-hidden",
                                     "bg-zinc-900/40 backdrop-blur-md border border-white/5",
-                                    "data-[state=active]:bg-white/5 data-[state=active]:border-white/10",
-                                    "hover:bg-white/10"
+                                    "data-[state=active]:border-white/10 data-[state=active]:shadow-[0_0_20px_rgba(0,0,0,0.3)]",
+                                    "hover:bg-white/[0.07] hover:border-white/10 active:scale-[0.98]"
                                 )}
                             >
+                                {/* Active Background Slide */}
+                                {activeTab === tab.id && (
+                                    <motion.div 
+                                        layoutId="profile-tab-active"
+                                        className="absolute inset-0 bg-white/5 z-0"
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    />
+                                )}
+
+                                {/* Hover Glow (Pre-click highlight) */}
+                                <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
                                 <div className={cn(
-                                    "p-2 rounded-xl transition-all duration-300",
-                                    "bg-zinc-800/50 group-data-[state=active]:scale-110",
-                                    activeTab === tab.id ? `text-${tab.color}-400 shadow-[0_0_15px_rgba(0,0,0,0.5)]` : "text-zinc-500"
+                                    "p-2 rounded-xl transition-all duration-500 z-10",
+                                    "bg-zinc-800/50 group-data-[state=active]:scale-110 group-data-[state=active]:translate-x-1",
+                                    activeTab === tab.id ? `text-${tab.color.split(' ')[0]}-400 shadow-[0_0_15px_rgba(0,0,0,0.3)]` : "text-zinc-500 group-hover:text-zinc-300"
                                 )}>
                                     <tab.icon className="w-5 h-5" />
                                 </div>
                                 
                                 <span className={cn(
-                                    "text-sm font-medium transition-colors",
-                                    activeTab === tab.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-200"
+                                    "text-sm font-black uppercase tracking-widest transition-all duration-300 z-10",
+                                    activeTab === tab.id ? "text-white translate-x-1" : "text-zinc-400 group-hover:text-zinc-200 group-hover:translate-x-0.5"
                                 )}>
                                     {tab.label}
                                 </span>
-
+...
                                 {/* Neon Indicator (Sigma 2026 Core) */}
                                 {activeTab === tab.id && (
                                     <div className={cn(
-                                        "absolute left-0 w-1 h-6 rounded-full",
-                                        `bg-${tab.color}-500 shadow-[0_0_10px_rgba(0,0,0,0.5)] shadow-${tab.color}-500/50`
+                                        "absolute left-0 w-1 h-6 rounded-full z-10",
+                                        `bg-${tab.color.split(' ')[0]}-500 shadow-[0_0_10px_rgba(0,0,0,0.5)] shadow-${tab.color.split(' ')[0]}-500/50`
                                     )} />
                                 )}
                             </TabsTrigger>
@@ -380,7 +397,6 @@ export function ProfileBentoGrid({
                             <ClassDisplay
                                 pseudoDofus={localProfile.pseudoDofus}
                                 mainClass={localProfile.classe}
-                                secondaryClasses={localProfile.classeSecondaires || []}
                                 onSave={handleClassSave}
                                 readOnly={!canEdit}
                             />
@@ -438,6 +454,20 @@ export function ProfileBentoGrid({
                                 readOnly={!canEdit}
                                 guildId={guildId}
                                 targetUserId={targetUserId}
+                            />
+                        </div>
+                    )}
+                </TabsContent>
+
+                {/* SKINS TAB */}
+                <TabsContent value="skins" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {visitedTabs.has("skins") && (
+                        <div className="w-full">
+                            <SkinLibrary 
+                                initialSkins={localProfile.skins || []}
+                                guildId={guildId}
+                                readOnly={!canEdit}
+                                profileId={localProfile.id}
                             />
                         </div>
                     )}
@@ -513,6 +543,7 @@ export function ProfileBentoGrid({
                             }}
                             targetUserId={targetUserId}
                             canSyncLadder={canSyncLadder}
+                            canManualSync={canManualSyncLadder}
                             isSuperAdmin={isSuperAdmin}
                             isAdmin={isAdmin}
                         />

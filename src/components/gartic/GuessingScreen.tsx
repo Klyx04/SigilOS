@@ -22,6 +22,7 @@ interface GuessingScreenProps {
     totalRounds?: number;
     onClose?: () => void;
     isSpectator?: boolean;
+    voiceUsers?: any[];
 }
 
 export const GuessingScreen = ({ 
@@ -38,7 +39,8 @@ export const GuessingScreen = ({
     round = 1,
     totalRounds = 1,
     onClose,
-    isSpectator
+    isSpectator,
+    voiceUsers = []
 }: GuessingScreenProps) => {
     const [guess, setGuess] = useState("");
     const [submitted, setSubmitted] = useState(false);

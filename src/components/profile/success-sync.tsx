@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, Upload, Loader2, CheckCircle2, AlertCircle, Sparkles, Clock } from "lucide-react";
-import { syncMemberSuccessPoints, refreshUserSuccessPoints } from "@/server/actions/profile-actions";
+import { syncMemberSuccessPoints, refreshUserSuccessPoints, getLadderPreview } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -28,12 +28,14 @@ interface SuccessSyncProps {
     onCancel?: () => void;
     targetUserId?: string;
     canSyncLadder?: boolean;
+    canManualSync?: boolean;
     isSuperAdmin?: boolean;
     isAdmin?: boolean;
 }
 
 import { ALL_DOFUS_SERVERS, DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
-import { ExternalLink, Info, MapPin, MousePointer2, UserSearch, RefreshCw } from "lucide-react";
+import { getClass } from "@/lib/dofus-assets";
+import { ExternalLink, Info, MapPin, MousePointer2, UserSearch, RefreshCw, Edit2 } from "lucide-react";
 
 export function SuccessSync({
     guildId,
@@ -48,6 +50,7 @@ export function SuccessSync({
     onCancel,
     targetUserId,
     canSyncLadder = false,
+    canManualSync = true,
     isSuperAdmin = false,
     isAdmin = false
 }: SuccessSyncProps) {
@@ -56,6 +59,36 @@ export function SuccessSync({
     const [lastScanResult, setLastScanResult] = useState<{ points?: number, error?: string, pending?: boolean, confidence?: number, debugImage?: string } | null>(
         pendingSubmission ? { points: pendingSubmission.points, pending: true, confidence: pendingSubmission.ocrScore } : null
     );
+
+    const [previewData, setPreviewData] = useState<{ 
+        points: number, 
+        level: number, 
+        className?: string, 
+        rank?: number,
+        guildRank?: number
+    } | null>(null);
+    const [loadingPreview, setLoadingPreview] = useState(false);
+    const [previewFetched, setPreviewFetched] = useState(false);
+
+    useEffect(() => {
+        if (!pseudoDofus || previewFetched || readOnly) return;
+        let isMounted = true;
+        
+        const fetchPreview = async () => {
+            setLoadingPreview(true);
+            const res = await getLadderPreview(guildId);
+            if (isMounted) {
+                if (res.success && res.data) {
+                    setPreviewData(res.data);
+                }
+                setPreviewFetched(true);
+                setLoadingPreview(false);
+            }
+        };
+
+        fetchPreview();
+        return () => { isMounted = false; };
+    }, [pseudoDofus, previewFetched, readOnly, guildId]);
 
     // Use provided server ID from guild config or fallback to Draconiros (295)
     const serverId = dofusServerId || "295";
@@ -231,8 +264,8 @@ export function SuccessSync({
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                {!readOnly && (
-                    <div className="space-y-4">
+                {!readOnly && canManualSync && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
                         <div
                             onDragOver={onDragOver}
                             onDragLeave={onDragLeave}
@@ -343,6 +376,29 @@ export function SuccessSync({
                     </div>
                 )}
 
+                {/* Ladder Sync Button (if enabled) */}
+                {!readOnly && canSyncLadder && (
+                    <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                        <Button
+                            onClick={handleLadderSync}
+                            disabled={isUploading || !pseudoDofus || (lastScanResult?.pending ?? false)}
+                            className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all active:scale-95 disabled:opacity-50 group gap-3"
+                        >
+                            {isUploading ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                                <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+                            )}
+                            <span>Synchroniser via Ladder</span>
+                        </Button>
+                        {!pseudoDofus && (
+                            <p className="text-[10px] text-zinc-500 text-center mt-2 italic font-medium">
+                                Le pseudo Dofus est requis pour la synchronisation automatique.
+                            </p>
+                        )}
+                    </div>
+                )}
+
                 {lastScanResult?.pending && (
                     <div className="relative overflow-hidden p-5 rounded-2xl bg-blue-500/10 text-blue-300 border border-blue-500/20 animate-in fade-in zoom-in-95 duration-500">
                         {/* Status bar background */}
@@ -431,12 +487,132 @@ export function SuccessSync({
                                     </p>
                                 </div>
                             )}
+
+                            {pseudoDofus && (
+                                <div className="mt-2 p-3 rounded-xl border border-white/5 bg-zinc-950/50 flex flex-col gap-2">
+                                    <div className="flex justify-between items-center text-xs font-semibold uppercase text-zinc-500 tracking-wider">
+                                        <div className="flex items-center gap-2">
+                                            <span>Aperçu en Direct</span>
+                                            {loadingPreview && <Loader2 className="w-3 h-3 animate-spin" />}
+                                        </div>
+                                        
+                                        {!readOnly && (
+                                            <button
+                                                onClick={() => onTabChange?.('overview')}
+                                                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-amber-400 transition-all bg-white/5 hover:bg-amber-500/10 px-3 py-1.5 rounded-xl border border-white/5 hover:border-amber-500/30 shadow-lg"
+                                                title="Modifier l'identité de combat"
+                                            >
+                                                <Edit2 className="w-3 h-3" strokeWidth={2.5} />
+                                                <span>Éditer</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                    {loadingPreview && !previewData && (
+                                        <div className="h-10 flex items-center justify-center">
+                                            <span className="text-xs text-zinc-500 font-medium">Recherche du personnage...</span>
+                                        </div>
+                                    )}
+                                    {!loadingPreview && !previewData && previewFetched && (
+                                        <div className="h-10 flex flex-col items-center justify-center text-zinc-500">
+                                            <span className="text-xs font-medium">Personnage introuvable ou erreur.</span>
+                                            <span className="text-[10px] italic">Vérifiez les majuscules et le serveur.</span>
+                                        </div>
+                                    )}
+                                    {previewData && (() => {
+                                        const dofusClass = previewData.className ? getClass(previewData.className.trim()) : null;
+                                        return (
+                                        <div className="flex items-center justify-between mt-1 px-1">
+                                            <div className="flex items-center gap-3">
+                                                {/* Class Icon */}
+                                                <div className="relative group/icon">
+                                                    <div className="absolute inset-0 bg-white/10 blur-md rounded-full scale-0 group-hover/icon:scale-110 transition-transform duration-500" />
+                                                    {dofusClass?.icon ? (
+                                                        <img 
+                                                            src={dofusClass.icon} 
+                                                            alt={previewData.className} 
+                                                            className="w-10 h-10 object-contain relative z-10 drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]" 
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border border-white/5 relative z-10">
+                                                            <UserSearch className="w-5 h-5 text-zinc-600" />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-black text-amber-50">{pseudoDofus}</span>
+                                                    </div>
+                                                    <span className={cn(
+                                                        "text-[10px] font-medium transition-colors flex items-center gap-1",
+                                                        dofusClass ? "text-amber-400/80" : "text-zinc-500"
+                                                    )}>
+                                                        {dofusClass?.name || previewData.className || "Classe Inconnue"} • {previewData.level > 200 ? (
+                                                            <span className="font-bold text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]">
+                                                                Ω {previewData.level - 200}
+                                                            </span>
+                                                        ) : (
+                                                            `Niveau ${previewData.level}`
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Visual Connector with Centered Server */}
+                                            <div className="flex-1 mx-6 flex items-center justify-center gap-3">
+                                                <div className="border-b border-dashed border-white/10 flex-1" />
+                                                <span className="font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-widest text-center">
+                                                    SERVEUR {serverName}
+                                                </span>
+                                                <div className="border-b border-dashed border-white/10 flex-1" />
+                                            </div>
+
+                                            <div className="flex items-center gap-6 text-right shrink-0">
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-[10px] uppercase font-bold text-zinc-500 leading-none mb-1">Points</span>
+                                                    <span className="text-sm font-black text-amber-500 tabular-nums">{previewData.points.toLocaleString()}</span>
+                                                </div>
+                                                
+                                                <div className="flex gap-3">
+                                                    <div className="flex flex-col items-end border-l border-white/5 pl-3">
+                                                        <span className="text-[9px] uppercase font-bold text-zinc-600 leading-none mb-1">Monde</span>
+                                                        <span className="text-[11px] font-black text-white/90 tabular-nums">
+                                                            {previewData.rank ? `#${previewData.rank.toLocaleString()}` : '—'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col items-end border-l border-white/5 pl-3">
+                                                        <span className="text-[9px] uppercase font-bold text-zinc-600 leading-none mb-1">Guilde</span>
+                                                        <span className={cn(
+                                                            "text-sm font-black tabular-nums",
+                                                            previewData.guildRank === 1 ? "text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" : "text-white/90"
+                                                        )}>
+                                                            #{previewData.guildRank || '—'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
                         </div>
 
                         {!pseudoDofus && (
-                            <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/5 text-amber-400/70 text-[10px]">
-                                <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                <p>Renseignez votre pseudo Dofus pour activer le lien.</p>
+                            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div className="flex items-center gap-3 text-amber-400">
+                                    <Info className="w-5 h-5 shrink-0" />
+                                    <div className="space-y-0.5">
+                                        <p className="text-sm font-bold">Pseudo Dofus requis</p>
+                                        <p className="text-xs text-amber-400/80">Configurez votre identité pour débloquer le lien officiel.</p>
+                                    </div>
+                                </div>
+                                <Button 
+                                    onClick={() => onTabChange?.('overview')}
+                                    className="bg-amber-500 hover:bg-amber-600 text-black font-black uppercase text-xs w-full sm:w-auto shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                >
+                                    Configurer
+                                </Button>
                             </div>
                         )}
                     </div>
@@ -446,11 +622,11 @@ export function SuccessSync({
                 <div className="pt-4 mt-2 border-t border-white/5">
                     <Button
                         asChild
-                        variant="secondary"
-                        className="w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 gap-2 h-11 font-bold"
+                        variant="sigil"
+                        className="w-full h-11"
                     >
                         <Link href={`/dashboard/${guildId}/ladder`}>
-                            <Trophy className="w-5 h-5 text-amber-500" />
+                            <Trophy className="w-5 h-5" />
                             <span>VOIR LE CLASSEMENT DE GUILDE</span>
                         </Link>
                     </Button>

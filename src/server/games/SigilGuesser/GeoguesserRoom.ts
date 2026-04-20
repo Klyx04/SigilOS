@@ -1,6 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { db } from "@/lib/prisma";
 import { WorldMapService } from "./WorldMapService";
+import { logger } from "@/lib/logger";
 
 type GameState = "LOBBY" | "COUNTDOWN" | "IN_PROGRESS" | "RESULT" | "FINISHED";
 type GameMode = "NORMAL" | "SPECIAL";
@@ -61,9 +62,23 @@ export class GeoguesserRoom {
         this.io.to(socketId).emit(event, data);
     }
 
+    public getEffectiveHostId(): string | null {
+        // Trouve le joueur actif le plus ancien si l'hôte est déco
+        const activePlayers = this.players.filter(p => p.isConnected && !p.isSpectator);
+        if (activePlayers.length === 0) return null;
+
+        const currentHost = activePlayers.find(p => p.userId === this.hostId);
+        if (currentHost) return this.hostId;
+
+        return activePlayers[0].userId;
+    }
+
     public isHost(socketId: string) {
         const player = this.players.find(p => p.id === socketId);
-        return player ? this.hostId === player.userId : false;
+        if (!player) return false;
+        
+        const effectiveHostId = this.getEffectiveHostId();
+        return player.userId === effectiveHostId;
     }
 
     public getCurrentMapId() {
@@ -97,14 +112,14 @@ export class GeoguesserRoom {
 
     public addPlayer(socket: Socket, playerObj: { userName: string, userId: string, userAvatar?: string, isSpectator?: boolean }) {
         if (!playerObj.userId) {
-            console.error(`[GeoRoom:${this.id}] ❌ Tentative d'ajout de joueur sans userId ! Socket: ${socket.id}`);
+            logger.error(`[GeoRoom:${this.id}] ❌ Tentative d'ajout de joueur sans userId !`, { socketId: socket.id });
             return;
         }
 
         const existing = this.players.find(p => p.userId === playerObj.userId);
 
         if (existing) {
-            console.log(`[GeoRoom:${this.id}] 🔄 Reconnexion de ${playerObj.userName} (${playerObj.userId})`);
+            logger.info(`[GeoRoom:${this.id}] 🔄 Reconnexion de ${playerObj.userName} (${playerObj.userId})`);
             existing.isConnected = true;
             existing.id = socket.id;
         } else {
@@ -142,7 +157,7 @@ export class GeoguesserRoom {
         const index = this.players.findIndex(p => p.id === socketId);
         if (index !== -1) {
             const player = this.players[index];
-            console.log(`[GeoRoom:${this.id}] ➖ Déconnexion de ${player.userName}`);
+            logger.info(`[GeoRoom:${this.id}] ➖ Déconnexion de ${player.userName}`);
             
             this.emitToAll("geoguesser:player:left", {
                 userName: player.userName,
@@ -158,7 +173,7 @@ export class GeoguesserRoom {
             if (this.hostId === player.userId) {
                 const nextHost = this.players.find(p => p.isConnected && !p.isSpectator);
                 this.hostId = nextHost ? nextHost.userId : null;
-                console.log(`[GeoRoom:${this.id}] 👑 Nouvel hôte: ${this.hostId}`);
+                logger.info(`[GeoRoom:${this.id}] 👑 Nouvel hôte: ${this.hostId}`);
             }
 
             if (this.state === "IN_PROGRESS") {
@@ -175,7 +190,7 @@ export class GeoguesserRoom {
             id: this.id,
             guildId: this.guildId,
             state: this.state,
-            hostId: this.hostId,
+            hostId: this.getEffectiveHostId(), // Utiliser l'hôte effectif pour le sync
             currentRound: this.currentRound,
             maxRounds: this.maxRounds,
             difficulty: this.difficulty,
@@ -219,17 +234,11 @@ export class GeoguesserRoom {
         });
     }
 
-    public async startGame(targetMapIds?: number[]) {
-        console.log(`[GeoRoom:${this.id}] 🎬 Démarrage/Relance du jeu.`);
+    public async startGame() {
+        logger.info(`[GeoRoom:${this.id}] 🎬 Démarrage/Relance du jeu.`);
         
-        // SECURITY: Server selects the maps to prevent client-side target manipulation
-        if (!targetMapIds || targetMapIds.length === 0) {
-            this.targetMapIds = WorldMapService.getInstance().getRandomMaps(this.maxRounds, this.gameMode);
-        } else {
-            // Even if provided, we should probably ignore it and use server-side random 
-            // but for now we trust it only if it matches our expected count.
-            this.targetMapIds = targetMapIds;
-        }
+        // SECURITY: Server ALWAYS selects the maps to prevent client-side target manipulation
+        this.targetMapIds = WorldMapService.getInstance().getRandomMaps(this.maxRounds, this.gameMode);
         
         this.currentRound = 0;
         this.players.forEach(p => {
@@ -245,7 +254,7 @@ export class GeoguesserRoom {
                 data: { status: 'IN_PROGRESS', targetMapIds: this.targetMapIds }
             });
         } catch (e) {
-            console.error(`[GeoRoom:${this.id}] ❌ Erreur DB status START:`, e);
+            logger.error(`[GeoRoom:${this.id}] ❌ Erreur DB status START:`, { error: e });
         }
 
         // START COUNTDOWN instead of round 1
@@ -254,14 +263,14 @@ export class GeoguesserRoom {
         this.syncState();
 
         this.startTimer(() => {
-            console.log(`[GeoRoom:${this.id}] 🚀 Countdown fini, lancement du Round 1`);
+            logger.info(`[GeoRoom:${this.id}] 🚀 Countdown fini, lancement du Round 1`);
             this.startNextRound();
         });
     }
 
     public startNextRound() {
         this.currentRound++;
-        console.log(`[GeoRoom:${this.id}] 🚩 Round ${this.currentRound} démarré.`);
+        logger.info(`[GeoRoom:${this.id}] 🚩 Round ${this.currentRound} démarré.`);
         if (this.currentRound > this.maxRounds || this.currentRound > this.targetMapIds.length) {
             this.endGame();
             return;
@@ -277,7 +286,7 @@ export class GeoguesserRoom {
         this.syncState();
 
         this.startTimer(() => {
-            console.error(`[GeoRoom:${this.id}] 🕒 Timeout reached for round ${this.currentRound}`);
+            logger.warn(`[GeoRoom:${this.id}] 🕒 Timeout reached for round ${this.currentRound}`);
             this.handleRoundFinish();
         });
         
@@ -291,20 +300,20 @@ export class GeoguesserRoom {
         }
     }
 
-    public handleGuess(socket: Socket, data: { x: number, y: number, score: number, distance: number, mapId?: number, worldId?: number }) {
+    public handleGuess(socket: Socket, data: { x: number, y: number, worldId?: number }) {
         const player = this.players.find(p => p.id === socket.id);
         if (!player || player.isSpectator) {
-            console.error(`[GeoRoom:${this.id}] ❌ Tentative de guess par un joueur inconnu ou spectateur socket: ${socket.id}`);
+            logger.error(`[GeoRoom:${this.id}] ❌ Tentative de guess par un joueur inconnu ou spectateur`, { socketId: socket.id });
             return;
         }
 
         if (player.hasGuessed) {
-            console.warn(`[GeoRoom:${this.id}] ⚠️ Guess ignoré : ${player.userName} a déjà joué ce round.`);
+            logger.warn(`[GeoRoom:${this.id}] ⚠️ Guess ignoré : ${player.userName} a déjà joué ce round.`);
             return;
         }
 
         if (this.state !== "IN_PROGRESS") {
-            console.warn(`[GeoRoom:${this.id}] ⚠️ Guess ignoré : le round n'est pas en cours (State: ${this.state})`);
+            logger.warn(`[GeoRoom:${this.id}] ⚠️ Guess ignoré : le round n'est pas en cours`, { state: this.state });
             return;
         }
 
@@ -323,12 +332,12 @@ export class GeoguesserRoom {
             x: Number(data.x),
             y: Number(data.y),
             worldId: data.worldId ? Number(data.worldId) : undefined,
-            mapId: data.mapId ? Number(data.mapId) : undefined,
+            mapId: (data as any).mapId ? Number((data as any).mapId) : undefined,
             score: calculatedScore,
             distance: calculatedDist
         };
 
-        console.log(`[GeoRoom:${this.id}] 🎯 Guess de ${player.userName}: ${data.score} pts (reste ${this.timeLeft}s)`);
+        logger.info(`[GeoRoom:${this.id}] 🎯 Guess de ${player.userName}: ${calculatedScore} pts (reste ${this.timeLeft}s)`);
 
         this.syncState();
         this.checkRoundEndConditions();
@@ -339,7 +348,7 @@ export class GeoguesserRoom {
         const allGuessed = activeGuessers.every(p => p.hasGuessed);
 
         if (allGuessed && activeGuessers.length > 0) {
-            console.log(`[GeoRoom:${this.id}] ✅ Tous les joueurs ont joué.`);
+            logger.info(`[GeoRoom:${this.id}] ✅ Tous les joueurs ont joué.`);
             this.stopTimer();
             this.handleRoundFinish();
         }
@@ -360,7 +369,7 @@ export class GeoguesserRoom {
     }
 
     private async endGame() {
-        console.log(`[GeoRoom:${this.id}] 🏆 Fin du jeu.`);
+        logger.info(`[GeoRoom:${this.id}] 🏆 Fin du jeu.`);
         this.state = "FINISHED";
         this.stopTimer();
         this.timeLeft = 0;
@@ -385,13 +394,13 @@ export class GeoguesserRoom {
                 // --- UPDATE HALL OF FAME ---
                 // Only count players that are not spectators.
                 const validPlayers = this.players.filter(p => !p.isSpectator && p.userId);
-                console.log(`[GeoRoom:${this.id}] 🏆 Fin de partie. Joueurs valides pour le Hall of Fame: ${validPlayers.length} (Total: ${this.players.length})`);
+                logger.info(`[GeoRoom:${this.id}] 🏆 Fin de partie. Joueurs valides pour le Hall of Fame: ${validPlayers.length} (Total: ${this.players.length})`);
                 
                 // Exclude solo games (must have > 1 valid players)
                 if (validPlayers.length > 1) {
                     for (const p of validPlayers) {
                         try {
-                            console.log(`[GeoRoom:${this.id}] 💾 Persistance du score pour ${p.userName} (${p.userId}): ${p.score} pts`);
+                            logger.info(`[GeoRoom:${this.id}] 💾 Persistance du score pour ${p.userName} (${p.userId}): ${p.score} pts`);
                             // 1. Sauvegarder le score de cette partie (Historique)
                             await db.geoguesserScore.create({
                                 data: {
@@ -435,17 +444,17 @@ export class GeoguesserRoom {
                                 });
                             }
                         } catch (err) {
-                            console.error(`[GeoRoom:${this.id}] ❌ Erreur mise à jour Hall of Fame pour ${p.userName}:`, err);
+                            logger.error(`[GeoRoom:${this.id}] ❌ Erreur mise à jour Hall of Fame pour ${p.userName}:`, { error: err });
                         }
                     }
                 } else {
-                    console.log(`[GeoRoom:${this.id}] ℹ️ Partie ignorée par le Hall of Fame (Mode Solo ou moins de 2 joueurs).`);
+                    logger.info(`[GeoRoom:${this.id}] ℹ️ Partie ignorée par le Hall of Fame (Mode Solo ou moins de 2 joueurs).`);
                 }
             } else {
-                console.warn(`[GeoRoom:${this.id}] ⚠️ Session DB introuvable lors de endGame (déjà supprimée?). Scores non persistés.`);
+                logger.warn(`[GeoRoom:${this.id}] ⚠️ Session DB introuvable lors de endGame (déjà supprimée?). Scores non persistés.`);
             }
         } catch (e) {
-            console.error(`[GeoRoom:${this.id}] ❌ Erreur DB status END:`, e);
+            logger.error(`[GeoRoom:${this.id}] ❌ Erreur DB status END:`, { error: e });
         }
 
         setTimeout(() => {
@@ -465,7 +474,7 @@ export class GeoguesserRoom {
             this.syncState();
             
             if (this.timeLeft <= 0) {
-                console.error(`[GeoRoom:${this.id}] 🕒 Timer auto-timeout.`);
+                logger.debug(`[GeoRoom:${this.id}] 🕒 Timer auto-timeout.`);
                 this.stopTimer();
                 onTimeout();
             }
@@ -485,7 +494,7 @@ export class GeoguesserRoom {
 
     public async destroy() {
         this.stopTimer();
-        console.log(`[GeoRoom:${this.id}] 🔥 Salle détruite.`);
+        logger.info(`[GeoRoom:${this.id}] 🔥 Salle détruite.`);
         try {
             // SECURITY: Delete session data instead of leaving finished records
             await db.geoguesserSession.deleteMany({

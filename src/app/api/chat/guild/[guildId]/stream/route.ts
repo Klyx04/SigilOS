@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { NextRequest } from "next/server";
-import { isModuleEnabled } from "@/server/actions/module-actions";
 import { chatKey, chatPubSubChannel, CHAT_TTL_SECONDS, chatOnlineUsersKey, CHAT_HISTORY_LIMIT } from "@/lib/chat-helpers";
 
 export const dynamic = "force-dynamic";
@@ -37,9 +36,7 @@ export async function GET(
     });
     if (!profile) return new Response("Forbidden", { status: 403 });
 
-    // Module check
-    const enabled = await isModuleEnabled(discordGuildId, "chat");
-    if (!enabled) return new Response("Chat module disabled", { status: 403 });
+    // Module chat supprimé — accès libre si membre authentifié
 
     const encoder = new TextEncoder();
     let closed = false;

@@ -97,6 +97,7 @@ const createPostSchema = z.object({
     targetDate: z.date().nullable(),
     requiredClasses: z.array(z.string()).default([]),
     isDiscordPublished: z.boolean().default(true),
+    mentionRoleId: z.string().nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -130,7 +131,8 @@ async function expireOldPosts(guildId: string) {
 async function sendDiscordNotification(
     guildId: string,
     postId: string,
-    embed: any
+    embed: any,
+    mentionRoleId?: string | null
 ) {
     try {
         const guildConfig = await (db as any).guildConfig.findUnique({
@@ -194,7 +196,11 @@ async function sendDiscordNotification(
             const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
                 method: "POST",
                 headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ embeds: [embed], components }),
+                body: JSON.stringify({ 
+                    content: mentionRoleId ? `<@&${mentionRoleId}>` : undefined,
+                    embeds: [embed], 
+                    components 
+                }),
             });
             if (res.ok) { const m = await res.json(); discordChannelId = channelId; discordMessageId = m.id; }
             else { console.error("[DJ Embed] Text channel error:", await res.json()); }
@@ -430,6 +436,7 @@ export async function createDjPost(
                 targetDate: data.targetDate,
                 requiredClasses: data.requiredClasses,
                 isDiscordPublished: data.isDiscordPublished,
+                mentionRoleId: data.mentionRoleId,
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                 // Note: creator is NOT added as a participant — they occupy 1 slot implicitly
             },
@@ -450,22 +457,9 @@ export async function createDjPost(
         if (data.isDiscordPublished) {
             const authorName = user.name || "Membre";
             const embed = await buildPostEmbed(post, authorName, guildId);
-            await sendDiscordNotification(guildId, post.id, embed);
+            await sendDiscordNotification(guildId, post.id, embed, data.mentionRoleId);
         }
 
-        try {
-            const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
-            const authorName = user.name || "Membre";
-            const typeLabel = data.mode === "DONJON" ? "un donjon" : "une quête";
-            const postTitle = data.mode === "DONJON" && post.dungeon ? post.dungeon.name : (data.questName || "inconnue");
-            await pushSystemChatMessage(
-                guildId,
-                `⚔️ **${authorName}** cherche un groupe pour ${typeLabel} : **${postTitle}**`,
-                { type: "dj_post_created", postId: post.id }
-            );
-        } catch (chatErr) {
-            console.error("Failed to push system chat message for dj post", chatErr);
-        }
 
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         await notifyDjUpdate(guildId);
@@ -752,6 +746,8 @@ export async function joinDjPost(
         if (post.status !== "OPEN") return { success: false, error: "Ce post n'est plus ouvert" };
 
         // Already joined?
+        if (post.profileId === user.profileId) return { success: false, error: "Tu es le créateur de ce post" };
+
         const existing = await (db as any).djSearchParticipant.findFirst({
             where: { postId, profileId: user.profileId },
         });
@@ -890,6 +886,8 @@ export async function internalJoinDjPost(
 
         if (!post) return { success: false, error: "Post introuvable" };
         if (post.status !== "OPEN" && post.status !== "FULL") return { success: false, error: "Ce post n'est plus ouvert" };
+
+        if (post.profileId === profileId) return { success: false, error: "Tu es le créateur de ce post" };
 
         const existing = await (db as any).djSearchParticipant.findFirst({
             where: { postId, profileId },

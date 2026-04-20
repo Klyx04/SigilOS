@@ -185,13 +185,13 @@ export function AltPseudos({
                             size="sm"
                             onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
                             className={cn(
-                                "h-8 px-3 text-xs transition-colors border shadow-sm rounded-lg",
+                                "h-8 px-3 text-[10px] font-black uppercase tracking-widest transition-all border shadow-lg rounded-xl",
                                 isEditing
                                     ? "bg-zinc-800 text-zinc-200 border-white/10 hover:bg-zinc-700"
-                                    : "bg-indigo-500/10 text-indigo-300 border-indigo-500/20 hover:bg-indigo-500/20"
+                                    : "bg-indigo-500/5 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500 hover:text-white"
                             )}
                         >
-                            {isEditing ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Edit2 className="w-3.5 h-3.5 mr-1.5" />}
+                            {isEditing ? <X className="w-3 h-3 mr-2" /> : <Edit2 className="w-3 h-3 mr-2" strokeWidth={2.5} />}
                             {isEditing ? "Annuler" : "Gérer les Mules"}
                         </Button>
                     )}
@@ -355,10 +355,10 @@ export function AltPseudos({
                                     </div>
 
                                     <Button
-                                        variant="secondary"
+                                        variant="sigil-emerald"
                                         onClick={handleAddPseudo}
                                         disabled={!newPseudo.trim()}
-                                        className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto shadow-lg shadow-emerald-500/20"
+                                        className="h-10 px-6 w-full sm:w-auto"
                                     >
                                         <Plus className="w-4 h-4 mr-2" /> Ajouter
                                     </Button>
@@ -375,7 +375,8 @@ export function AltPseudos({
                             <Button
                                 onClick={handleSave}
                                 disabled={isSubmitting}
-                                className="h-10 px-6 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto shadow-lg shadow-indigo-500/20"
+                                variant="sigil"
+                                className="h-10 px-8 w-full sm:w-auto"
                             >
                                 {isSubmitting ? (
                                     <Save className="w-4 h-4 mr-2 animate-spin" />

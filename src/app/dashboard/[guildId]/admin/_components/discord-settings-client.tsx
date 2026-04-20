@@ -37,8 +37,8 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                 setNewsEnabled(configRes.data.newsBroadcastEnabled || false);
             }
 
-            if (rolesRes.success && rolesRes.data) {
-                setRoles(rolesRes.data);
+            if (rolesRes.success && rolesRes.roles) {
+                setRoles(rolesRes.roles);
             }
 
             setIsLoading(false);

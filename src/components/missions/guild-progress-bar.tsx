@@ -100,10 +100,10 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
     };
 
     return (
-        <div className="w-full relative overflow-hidden rounded-3xl bg-zinc-950 border border-white/5 shadow-2xl">
+        <div className="w-full relative overflow-hidden rounded-3xl bg-background border border-border shadow-2xl">
             {/* Background Effects */}
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
+            <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
 
             <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-fuchsia-500/5 rounded-full blur-[120px] pointer-events-none" />
@@ -116,15 +116,15 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
 
                     {/* LEFT: Guild Identity */}
                     <div className="flex items-center gap-4 relative z-30 shrink-0">
-                        <div className="p-3 rounded-2xl bg-zinc-900/80 border border-white/10 shadow-inner backdrop-blur-sm relative">
+                        <div className="p-3 rounded-2xl bg-foreground/[0.03] border border-border shadow-inner backdrop-blur-sm relative">
                             <div className="absolute inset-0 bg-yellow-500/10 rounded-2xl blur-lg animate-pulse" />
-                            <Crown className="w-7 h-7 text-yellow-500 relative z-10" />
+                            <Crown className="w-7 h-7 text-yellow-600 dark:text-yellow-500 relative z-10" />
                         </div>
                         <div className="space-y-0.5">
-                            <h3 className="font-black text-white text-2xl tracking-tighter leading-none">
+                            <h3 className="font-black text-foreground text-2xl tracking-tighter leading-none">
                                 Activité Guilde
                             </h3>
-                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
                                 <span>Objectif : Palier {targetTier}</span>
                             </div>
                         </div>
@@ -143,14 +143,14 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                     {/* RIGHT: XP Stats (with explicit min-width to prevent squeeze) */}
                     <div className="text-left md:text-right relative z-30 self-end md:self-start shrink-0 min-w-[120px]">
                         <div className="flex items-baseline justify-start md:justify-end gap-2">
-                            <span className="text-4xl font-black text-white tracking-tighter drop-shadow-lg">
+                            <span className="text-4xl font-black text-foreground tracking-tighter drop-shadow-lg">
                                 {currentXP.toLocaleString()}
                             </span>
-                            <span className="text-lg font-bold text-zinc-600 tracking-tight">
+                            <span className="text-lg font-black text-muted-foreground tracking-tight italic">
                                 / {maxXP.toLocaleString()}
                             </span>
                         </div>
-                        <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] whitespace-nowrap">
+                        <div className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] whitespace-nowrap">
                             XP de la semaine
                         </div>
                     </div>
@@ -166,18 +166,18 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                     <div className="relative h-6 w-full">
 
                         {/* THE TRACK (Background & Fill) */}
-                        <div className="absolute inset-0 bg-zinc-900/50 rounded-full border border-white/5 overflow-visible shadow-inner">
+                        <div className="absolute inset-0 bg-foreground/10 rounded-full border border-border overflow-visible shadow-inner">
                             <TooltipProvider delayDuration={0}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div
-                                            className="h-full rounded-full bg-gradient-to-r from-indigo-600 via-purple-500 to-fuchsia-500 transition-all duration-1000 ease-out relative shadow-[0_0_30px_rgba(168,85,247,0.3)] cursor-help"
+                                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 transition-all duration-1000 ease-out relative shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)] cursor-help"
                                             style={{ width: `${progress}%` }}
                                         >
                                             <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/50 blur-[2px]" />
                                         </div>
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" className="bg-zinc-800 border-white/10 text-white font-mono font-bold">
+                                    <TooltipContent side="bottom" className="glass-premium border-border text-foreground font-mono font-bold">
                                         {currentXP.toLocaleString()} / {maxXP.toLocaleString()} XP ({Math.floor(percentage)}%)
                                     </TooltipContent>
                                 </Tooltip>
@@ -221,7 +221,7 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                                 style.color,
                                                 style.borderColor,
                                                 // More vibrant "unreached" state: less opacity reduction, keep saturation
-                                                isReached ? style.glow : "opacity-100 grayscale-[0.3] border-zinc-600 bg-zinc-800"
+                                                isReached ? style.glow : "opacity-100 grayscale-[0.3] border-border bg-background"
                                             )}>
                                                 <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/20 to-transparent opacity-50" />
                                                 <Icon className="w-5 h-5 relative z-10 drop-shadow-md" />
@@ -230,12 +230,12 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                                             {/* Labels */}
                                             <div className="flex flex-col items-center gap-0.5">
                                                 <span className={cn(
-                                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-zinc-950/90 border border-white/10 whitespace-nowrap shadow-lg",
+                                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-background border border-border whitespace-nowrap shadow-lg",
                                                     style.color
                                                 )}>
                                                     {style.label}
                                                 </span>
-                                                <span className="text-[9px] font-bold font-mono text-zinc-500">
+                                                <span className="text-[9px] font-black italic text-muted-foreground/60">
                                                     {xpDisplay}
                                                 </span>
                                             </div>
@@ -248,21 +248,21 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                 </div>
 
                 {/* 3. FOOTER */}
-                <div className="flex flex-col md:flex-row items-start justify-between gap-4 pt-3 border-t border-white/5 relative z-40">
+                <div className="flex flex-col md:flex-row items-start justify-between gap-4 pt-4 border-t border-border/10 relative z-40 mt-4 w-full">
                     {/* LEFT: Kama widget + legend */}
                     <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[280px] md:max-w-[340px]">
                         {/* Kama contribution widget */}
                         <KamaContributionWidget guildId={guildId} initialStatus={kamaStatus ?? null} />
 
                         {/* Legend */}
-                        <div className="flex items-center gap-6 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                        <div className="flex items-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-widest italic">
                             <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-zinc-800 ring-2 ring-zinc-800/50" />
+                                <div className="w-2.5 h-2.5 rounded-full bg-foreground/10 ring-2 ring-foreground/5" />
                                 <span> À faire</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
-                                <span className="text-zinc-300">Complété</span>
+                                <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]" />
+                                <span className="text-foreground">Complété</span>
                             </div>
                         </div>
                     </div>
@@ -287,14 +287,14 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                             const xpLeft = nextStep.xp - currentXP;
                             const xpDisplay = nextStep.xp >= 1000 ? `${nextStep.xp / 1000}k` : nextStep.xp;
                             return (
-                                <div className="bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-white/5 flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
-                                    <Target className="w-3.5 h-3.5 text-zinc-400" />
-                                    <span className="text-zinc-400">
+                                <div className="bg-foreground/[0.03] px-3 py-1.5 rounded-lg border border-border flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
+                                    <Target className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span className="text-muted-foreground font-black uppercase italic text-[10px] tracking-widest">
                                         Prochain jalon
-                                        <span className="text-zinc-200 font-bold ml-1">{nextStep.label}</span>
-                                        <span className="text-[9px] text-zinc-600 ml-1">({xpDisplay} XP)</span>
+                                        <span className="text-primary font-black ml-1">{nextStep.label}</span>
+                                        <span className="text-[9px] opacity-60 ml-1">({xpDisplay} XP)</span>
                                         {" · "}
-                                        <span className="text-white font-mono text-sm">{xpLeft.toLocaleString()}</span> XP restants
+                                        <span className="text-foreground font-black text-sm">{xpLeft.toLocaleString()}</span> XP restants
                                     </span>
                                 </div>
                             );

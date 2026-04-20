@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -115,11 +115,11 @@ export async function POST(request: NextRequest) {
             const { PERMISSIONS } = await import("@/lib/permissions");
 
             const DISCORD_PERM_MAP: Record<string, string> = {
-                calendar: PERMISSIONS.CALENDAR_VIEW,
-                songes: PERMISSIONS.SONGES_JOIN,
-                dj: PERMISSIONS.DJ_QUESTS_VIEW,
-                poll: PERMISSIONS.POLLS_VIEW,
-                svc: PERMISSIONS.SERVICES_VIEW,
+                calendar: PERMISSIONS.COMMUNITY_ACCESS,   // Calendrier = participation sociale
+                songes: PERMISSIONS.GAME_OPERATIONS,      // Songes = organisation d'activités
+                dj: PERMISSIONS.GAME_OPERATIONS,          // Donjons = organisation d'activités
+                poll: PERMISSIONS.COMMUNITY_ACCESS,       // Sondages = participation sociale
+                svc: PERMISSIONS.GAME_OPERATIONS,         // Services = organisation d'activités
             };
 
             const requiredPerm = DISCORD_PERM_MAP[prefix];
@@ -141,10 +141,10 @@ export async function POST(request: NextRequest) {
             if (prefix === "calendar") {
                 if (action === "join") {
                     const { processRegistration } = await import("@/server/calendar-service");
-                    result = await processRegistration(guild_id, entityId, account.userId);
+                    result = await processRegistration(guild_id, entityId, account!.userId);
                 } else if (action === "leave") {
                     const { processUnregistration } = await import("@/server/calendar-service");
-                    result = await processUnregistration(guild_id, entityId, account.userId);
+                    result = await processUnregistration(guild_id, entityId, account!.userId);
                 }
             } else if (prefix === "songes") {
                 if (action === "join") {
@@ -189,15 +189,15 @@ export async function POST(request: NextRequest) {
                     });
                 } else if (action === "leave") {
                     const { processRunLeave } = await import("@/server/songes-service");
-                    result = await processRunLeave(guild_id, entityId, account.userId);
+                    result = await processRunLeave(guild_id, entityId, account!.userId);
                 }
             } else if (prefix === "poll") {
                 if (action === "vote") {
                     const { processPollVote } = await import("@/server/actions/poll-actions");
 
-                    // RBAC already checked by centralized gate above (PERMISSIONS.POLLS_VIEW)
+                    // RBAC already checked by centralized gate above (PERMISSIONS.COMMUNITY_ACCESS)
                     const profile = await db.userProfile.findUnique({
-                        where: { userId_guildId: { userId: account.userId, guildId: guild_id } }
+                        where: { userId_guildId: { userId: account!.userId, guildId: guild_id } }
                     });
 
                     if (!profile) {
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
 
                     // Chercher le profil via post.guildId (CUID Prisma), PAS via guild_id (Discord snowflake)
                     const profile = await db.userProfile.findFirst({
-                        where: { userId: account.userId, guildId: post.guildId },
+                        where: { userId: account!.userId, guildId: post.guildId },
                     });
 
                     if (!profile) {
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
 
                     if (action === "join") {
                         const { internalJoinDjPost } = await import("@/server/actions/dungeon-finder-actions");
-                        result = await internalJoinDjPost(entityId, profile.id, account.userId);
+                        result = await internalJoinDjPost(entityId, profile.id, account!.userId);
 
                         if (result?.success) {
                             return NextResponse.json({
@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
             } else if (prefix === "svc") {
                 if (action === "contact") {
                     const { internalContactService } = await import("@/server/actions/service-actions");
-                    result = await internalContactService(entityId, "", account.userId);
+                    result = await internalContactService(entityId, "", account!.userId);
 
                     if (result?.success && result.data) {
                         const lines = [`📩 **Prestataire :** ${result.data.pseudo}`];
@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
                 // Permission check (MISSIONS_VALIDATE required)
                 const { internalCheckPermission } = await import("@/server/actions/user-actions");
                 const { PERMISSIONS } = await import("@/lib/permissions");
-                const isValidator = await internalCheckPermission(targetGuildId, member.user.id, PERMISSIONS.MISSIONS_VALIDATE);
+                const isValidator = await internalCheckPermission(targetGuildId, member.user.id, PERMISSIONS.MISSIONS_OFFICER);
                 if (!isValidator) {
                     return NextResponse.json({
                         type: 4,
@@ -361,6 +361,18 @@ export async function POST(request: NextRequest) {
                             : `✅ Don **validé** par ${adminTag} — Membre: **${res.memberName}** — ${amountStr} kamas`;
                     } else {
                         return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
+                    }
+                } else if (entityType === "reactivation") {
+                    const status = isReject ? "ARCHIVED" : "ACTIVE";
+                    const { updateMemberProfileStatus } = await import("@/server/actions/user-actions");
+                    
+                    try {
+                        await updateMemberProfileStatus(entityId, status, isReject ? "REACTIVATION_REJECTED" : "REACTIVATION_APPROVED");
+                        resultMsg = isReject
+                            ? `❌ Demande de **réintégration refusée** par ${adminTag}`
+                            : `✅ Demande de **réintégration validée** par ${adminTag}`;
+                    } catch (err: any) {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${err.message}`, flags: 64 } });
                     }
                 } else {
                     return NextResponse.json({ type: 4, data: { content: "Type de validation inconnu.", flags: 64 } });
@@ -685,7 +697,7 @@ export async function POST(request: NextRequest) {
                 // RBAC check for modal submits (same gate as button clicks)
                 const { internalCheckPermission } = await import("@/server/actions/user-actions");
                 const { PERMISSIONS } = await import("@/lib/permissions");
-                const canJoinSonges = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.SONGES_JOIN);
+                const canJoinSonges = await internalCheckPermission(guild_id, member.user.id, PERMISSIONS.GAME_OPERATIONS);
                 if (!canJoinSonges) {
                     return NextResponse.json({
                         type: 4,

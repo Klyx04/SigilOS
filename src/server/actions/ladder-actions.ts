@@ -59,7 +59,10 @@ export async function getPresenceLadder(
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId } });
+        const guildConfig = await db.guildConfig.findUnique({ 
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true }
+        });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
         const currentProfile = await db.userProfile.findUnique({
@@ -73,7 +76,7 @@ export async function getPresenceLadder(
             .map(([rid, _]) => rid));
 
         const cacheKey = `ladder:presence:${guildId}:${metric}:${view}`;
-        const allRankedData = await withCache(cacheKey, 60, async () => {
+        const allRankedData = await withCache(cacheKey, 300, async () => {
             // Determine field name based on metric and view
             let field: string;
             if (metric === "messages") {
@@ -111,14 +114,14 @@ export async function getPresenceLadder(
             });
 
             const now = new Date();
-            return activeProfiles.map((p, idx) => {
-                const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
+            return activeProfiles.map((p: any, idx) => {
+                const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= (p.vacationStart as any) && now <= (p.vacationEnd as any));
                 return {
                     rank: idx + 1,
                     profileId: p.id,
                     discordNickname: p.discordNickname,
                     discordRoleColor: p.discordRoleColor,
-                    discordImage: p.user.image,
+                    discordImage: (p as any).user?.image,
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
                     value: (p as any)[field] || 0,
@@ -263,7 +266,7 @@ export async function getActivityLadder(
 
                 // Sort ALL profiles
                 const ranked = activeProfiles
-                    .map(p => {
+                    .map((p: any) => {
                         const now = new Date();
                         const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
                         return {
@@ -277,12 +280,12 @@ export async function getActivityLadder(
                         return (a.discordJoinedAt?.getTime() || Infinity) - (b.discordJoinedAt?.getTime() || Infinity);
                     });
 
-                return ranked.map((p, idx) => ({
+                return ranked.map((p: any, idx) => ({
                     rank: idx + 1,
                     profileId: p.id,
                     discordNickname: p.discordNickname,
                     discordRoleColor: p.discordRoleColor,
-                    discordImage: p.user.image,
+                    discordImage: (p as any).user?.image,
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
                     value: p.pXp,
@@ -327,7 +330,7 @@ export async function getActivityLadder(
                     orderBy: [{ xp: "desc" }, { discordJoinedAt: "asc" }]
                 });
 
-                return profiles.map((p, idx) => {
+                return profiles.map((p: any, idx) => {
                     const now = new Date();
                     const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
                     return {
@@ -335,7 +338,7 @@ export async function getActivityLadder(
                         profileId: p.id,
                         discordNickname: p.discordNickname,
                         discordRoleColor: p.discordRoleColor,
-                        discordImage: p.user.image,
+                        discordImage: (p as any).user?.image,
                         pseudoDofus: p.pseudoDofus,
                         classe: p.classe,
                         value: p.xp,
@@ -394,61 +397,64 @@ export async function getSeniorityLadder(
             where: { userId: session.user.id, guildId: guildConfig.id }
         });
 
-        const totalCount = await db.userProfile.count({
-            where: { guildId: guildConfig.id, status: "ACTIVE" }
+        const skip = (page - 1) * pageSize;
+        const cacheKey = `ladder:seniority:${guildId}`;
+        const allRankedData = await withCache(cacheKey, 600, async () => {
+            const profiles = await db.userProfile.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    status: "ACTIVE"
+                },
+                select: {
+                    id: true,
+                    discordNickname: true,
+                    discordRoleColor: true,
+                    discordRoleName: true,
+                    discordJoinedAt: true,
+                    pseudoDofus: true,
+                    classe: true,
+                    createdAt: true,
+                    vacationStart: true,
+                    vacationEnd: true,
+                    user: {
+                        select: { image: true }
+                    }
+                },
+                orderBy: { discordJoinedAt: "asc" }
+            });
+
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+            const adminRoleNames = new Set<string>();
+            for (const [roleId, perms] of Object.entries(rolesMapping)) {
+                if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+            }
+
+            const now = new Date();
+            return profiles.map((p: any, idx) => {
+                const joinedAt = p.discordJoinedAt || p.createdAt || now;
+                const daysInGuild = Math.floor((now.getTime() - joinedAt.getTime()) / (1000 * 60 * 60 * 24));
+                const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
+
+                return {
+                    rank: idx + 1,
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: p.classe,
+                    value: daysInGuild,
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
+                    isInVacation
+                };
+            });
         });
 
-        const profiles = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE"
-            },
-            select: {
-                id: true,
-                discordNickname: true,
-                discordRoleColor: true,
-                discordRoleName: true,
-                discordJoinedAt: true,
-                pseudoDofus: true,
-                classe: true,
-                createdAt: true,
-                vacationStart: true,
-                vacationEnd: true,
-                user: {
-                    select: { image: true }
-                }
-            },
-            orderBy: { discordJoinedAt: "asc" },
-            skip: (page - 1) * pageSize,
-            take: pageSize
-        });
-
-        const now = new Date();
-        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
-        const adminRoleNames = new Set<string>();
-        for (const [roleId, perms] of Object.entries(rolesMapping)) {
-            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
-        }
-
-        const entries: LadderEntry[] = profiles.map((p, idx) => {
-            const joinedAt = p.discordJoinedAt || p.createdAt || now;
-            const daysInGuild = Math.floor((now.getTime() - joinedAt.getTime()) / (1000 * 60 * 60 * 24));
-            const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
-
-            return {
-                rank: ((page - 1) * pageSize) + idx + 1,
-                profileId: p.id,
-                discordNickname: p.discordNickname,
-                discordRoleColor: p.discordRoleColor,
-                discordImage: p.user.image,
-                pseudoDofus: p.pseudoDofus,
-                classe: p.classe,
-                value: daysInGuild,
-                isCurrentUser: p.id === currentProfile?.id,
-                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
-                isInVacation
-            };
-        });
+        const totalCount = allRankedData.length;
+        const entries = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            ...item,
+            isCurrentUser: item.profileId === currentProfile?.id
+        }));
 
         return {
             success: true,
@@ -492,61 +498,64 @@ export async function getSuccessLadder(
             where: { userId: session.user.id, guildId: guildConfig.id }
         });
 
-        const totalCount = await db.userProfile.count({
-            where: { guildId: guildConfig.id, status: "ACTIVE" }
+        const skip = (page - 1) * pageSize;
+        const cacheKey = `ladder:success:${guildId}`;
+        const allRankedData = await withCache(cacheKey, 600, async () => {
+            const profiles = await db.userProfile.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    status: "ACTIVE"
+                },
+                select: {
+                    id: true,
+                    discordNickname: true,
+                    discordRoleColor: true,
+                    discordRoleName: true,
+                    discordJoinedAt: true,
+                    pseudoDofus: true,
+                    classe: true,
+                    successPoints: true,
+                    vacationStart: true,
+                    vacationEnd: true,
+                    user: {
+                        select: { image: true }
+                    }
+                },
+                orderBy: [
+                    { successPoints: "desc" },
+                    { discordJoinedAt: "asc" }
+                ]
+            });
+
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+            const adminRoleNames = new Set<string>();
+            for (const [roleId, perms] of Object.entries(rolesMapping)) {
+                if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+            }
+
+            return profiles.map((p: any, idx) => {
+                const now = new Date();
+                const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
+                return {
+                    rank: idx + 1,
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: p.classe,
+                    value: p.successPoints || 0,
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
+                    isInVacation
+                };
+            });
         });
 
-        const profiles = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE"
-            },
-            select: {
-                id: true,
-                discordNickname: true,
-                discordRoleColor: true,
-                discordRoleName: true,
-                discordJoinedAt: true,
-                pseudoDofus: true,
-                classe: true,
-                successPoints: true,
-                vacationStart: true,
-                vacationEnd: true,
-                user: {
-                    select: { image: true }
-                }
-            },
-            orderBy: [
-                { successPoints: "desc" },
-                { discordJoinedAt: "asc" }
-            ],
-            skip: (page - 1) * pageSize,
-            take: pageSize
-        });
-
-        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
-        const adminRoleNames = new Set<string>();
-        for (const [roleId, perms] of Object.entries(rolesMapping)) {
-            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
-        }
-
-        const entries: LadderEntry[] = profiles.map((p, idx) => {
-            const now = new Date();
-            const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
-            return {
-                rank: ((page - 1) * pageSize) + idx + 1,
-                profileId: p.id,
-                discordNickname: p.discordNickname,
-                discordRoleColor: p.discordRoleColor,
-                discordImage: p.user.image,
-                pseudoDofus: p.pseudoDofus,
-                classe: p.classe,
-                value: p.successPoints || 0,
-                isCurrentUser: p.id === currentProfile?.id,
-                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
-                isInVacation
-            };
-        });
+        const totalCount = allRankedData.length;
+        const entries = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            ...item,
+            isCurrentUser: item.profileId === currentProfile?.id
+        }));
 
         return {
             success: true,
@@ -590,64 +599,67 @@ export async function getGeneralLadder(
             where: { userId: session.user.id, guildId: guildConfig.id }
         });
 
-        const totalCount = await db.userProfile.count({
-            where: { guildId: guildConfig.id, status: "ACTIVE" }
+        const skip = (page - 1) * pageSize;
+        const cacheKey = `ladder:general:${guildId}`;
+        const allRankedData = await withCache(cacheKey, 600, async () => {
+            const profiles = await db.userProfile.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    status: "ACTIVE"
+                },
+                select: {
+                    id: true,
+                    discordNickname: true,
+                    discordRoleColor: true,
+                    discordRoleName: true,
+                    discordJoinedAt: true,
+                    pseudoDofus: true,
+                    classe: true,
+                    dofusLevel: true,
+                    totalXp: true,
+                    vacationStart: true,
+                    vacationEnd: true,
+                    user: {
+                        select: { image: true }
+                    }
+                },
+                orderBy: [
+                    { totalXp: "desc" },
+                    { discordJoinedAt: "asc" }
+                ]
+            });
+
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+            const adminRoleNames = new Set<string>();
+            for (const [roleId, perms] of Object.entries(rolesMapping)) {
+                if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+            }
+
+            return profiles.map((p: any, idx) => {
+                const now = new Date();
+                const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
+                return {
+                    rank: idx + 1,
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: p.classe,
+                    dofusLevel: p.dofusLevel || undefined,
+                    totalXpBigInt: p.totalXp?.toString() || "0",
+                    value: 0,
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
+                    isInVacation
+                };
+            });
         });
 
-        const profiles = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE"
-            },
-            select: {
-                id: true,
-                discordNickname: true,
-                discordRoleColor: true,
-                discordRoleName: true,
-                discordJoinedAt: true,
-                pseudoDofus: true,
-                classe: true,
-                dofusLevel: true,
-                totalXp: true,
-                vacationStart: true,
-                vacationEnd: true,
-                user: {
-                    select: { image: true }
-                }
-            },
-            orderBy: [
-                { totalXp: "desc" },
-                { discordJoinedAt: "asc" }
-            ],
-            skip: (page - 1) * pageSize,
-            take: pageSize
-        });
-
-        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
-        const adminRoleNames = new Set<string>();
-        for (const [roleId, perms] of Object.entries(rolesMapping)) {
-            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
-        }
-
-        const entries: LadderEntry[] = profiles.map((p, idx) => {
-            const now = new Date();
-            const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
-            return {
-                rank: ((page - 1) * pageSize) + idx + 1,
-                profileId: p.id,
-                discordNickname: p.discordNickname,
-                discordRoleColor: p.discordRoleColor,
-                discordImage: p.user.image,
-                pseudoDofus: p.pseudoDofus,
-                classe: p.classe,
-                dofusLevel: p.dofusLevel || undefined,
-                totalXpBigInt: p.totalXp?.toString() || "0",
-                value: 0,
-                isCurrentUser: p.id === currentProfile?.id,
-                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
-                isInVacation
-            };
-        });
+        const totalCount = allRankedData.length;
+        const entries = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            ...item,
+            isCurrentUser: item.profileId === currentProfile?.id
+        }));
 
         return {
             success: true,
@@ -691,61 +703,64 @@ export async function getContributionLadder(
             where: { userId: session.user.id, guildId: guildConfig.id }
         });
 
-        const totalCount = await db.userProfile.count({
-            where: { guildId: guildConfig.id, status: "ACTIVE" }
+        const skip = (page - 1) * pageSize;
+        const cacheKey = `ladder:contribution:${guildId}`;
+        const allRankedData = await withCache(cacheKey, 600, async () => {
+            const profiles = await db.userProfile.findMany({
+                where: {
+                    guildId: guildConfig.id,
+                    status: "ACTIVE"
+                },
+                select: {
+                    id: true,
+                    discordNickname: true,
+                    discordRoleColor: true,
+                    discordRoleName: true,
+                    discordJoinedAt: true,
+                    pseudoDofus: true,
+                    classe: true,
+                    contributionPoints: true,
+                    vacationStart: true,
+                    vacationEnd: true,
+                    user: {
+                        select: { image: true }
+                    }
+                },
+                orderBy: [
+                    { contributionPoints: "desc" },
+                    { discordJoinedAt: "asc" }
+                ]
+            });
+
+            const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+            const adminRoleNames = new Set<string>();
+            for (const [roleId, perms] of Object.entries(rolesMapping)) {
+                if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+            }
+
+            return profiles.map((p: any, idx) => {
+                const now = new Date();
+                const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
+                return {
+                    rank: idx + 1,
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: p.classe,
+                    value: p.contributionPoints || 0,
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
+                    isInVacation
+                };
+            });
         });
 
-        const profiles = await db.userProfile.findMany({
-            where: {
-                guildId: guildConfig.id,
-                status: "ACTIVE"
-            },
-            select: {
-                id: true,
-                discordNickname: true,
-                discordRoleColor: true,
-                discordRoleName: true,
-                discordJoinedAt: true,
-                pseudoDofus: true,
-                classe: true,
-                contributionPoints: true,
-                vacationStart: true,
-                vacationEnd: true,
-                user: {
-                    select: { image: true }
-                }
-            },
-            orderBy: [
-                { contributionPoints: "desc" },
-                { discordJoinedAt: "asc" }
-            ],
-            skip: (page - 1) * pageSize,
-            take: pageSize
-        });
-
-        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
-        const adminRoleNames = new Set<string>();
-        for (const [roleId, perms] of Object.entries(rolesMapping)) {
-            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
-        }
-
-        const entries: LadderEntry[] = profiles.map((p, idx) => {
-            const now = new Date();
-            const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
-            return {
-                rank: ((page - 1) * pageSize) + idx + 1,
-                profileId: p.id,
-                discordNickname: p.discordNickname,
-                discordRoleColor: p.discordRoleColor,
-                discordImage: p.user.image,
-                pseudoDofus: p.pseudoDofus,
-                classe: p.classe,
-                value: p.contributionPoints || 0,
-                isCurrentUser: p.id === currentProfile?.id,
-                isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
-                isInVacation
-            };
-        });
+        const totalCount = allRankedData.length;
+        const entries = allRankedData.slice(skip, skip + pageSize).map((item: any) => ({
+            ...item,
+            isCurrentUser: item.profileId === currentProfile?.id
+        }));
 
         return {
             success: true,
@@ -834,9 +849,9 @@ export async function getGuildatonsLadder(
                     }
                 });
 
-                const dotsByProfile = await db.$queryRaw<{ profileId: string; totalDots: number }[]>`
-                    WITH MissionDots AS (
-                        SELECT s."profileId", COALESCE(SUM(m."guildatonsReward"), 0)::int AS dots
+                const guildatonsByProfile = await db.$queryRaw<{ profileId: string; total: number }[]>`
+                    WITH MissionG AS (
+                        SELECT s."profileId", COALESCE(SUM(m."guildatonReward"), 0)::int AS g
                         FROM "Submission" s
                         JOIN "Mission" m ON s."missionId" = m."id"
                         JOIN "UserProfile" up ON s."profileId" = up."id"
@@ -845,8 +860,8 @@ export async function getGuildatonsLadder(
                           AND up."guildId" = ${guildConfig.id}
                         GROUP BY s."profileId"
                     ),
-                    KamaDots AS (
-                        SELECT k."profileId", COALESCE(SUM(FLOOR(k."amount" / ${KAMA_TRANCHE}) * ${REWARDS_PER_TRANCHE.guildatons || 0}), 0)::int AS dots
+                    KamaG AS (
+                        SELECT k."profileId", COALESCE(SUM(FLOOR(k."amount" / ${KAMA_TRANCHE}) * ${REWARDS_PER_TRANCHE.guildatons || 0}), 0)::int AS g
                         FROM "KamaDonation" k
                         JOIN "UserProfile" up ON k."profileId" = up."id"
                         WHERE k."status" = 'VALIDATED'
@@ -854,42 +869,42 @@ export async function getGuildatonsLadder(
                           AND up."guildId" = ${guildConfig.id}
                         GROUP BY k."profileId"
                     ),
-                    CombinedDots AS (
-                        SELECT "profileId", dots FROM MissionDots
+                    CombinedG AS (
+                        SELECT "profileId", g FROM MissionG
                         UNION ALL
-                        SELECT "profileId", dots FROM KamaDots
+                        SELECT "profileId", g FROM KamaG
                     )
-                    SELECT "profileId", COALESCE(SUM(dots), 0)::int AS "totalDots"
-                    FROM CombinedDots
+                    SELECT "profileId", COALESCE(SUM(g), 0)::int AS "total"
+                    FROM CombinedG
                     GROUP BY "profileId"
                 `;
 
-                const dotsMap = new Map(dotsByProfile.map(x => [x.profileId, x.totalDots]));
+                const guildatonsMap = new Map(guildatonsByProfile.map(g => [g.profileId, g.total]));
 
                 const ranked = activeProfiles
-                    .map(p => {
+                    .map((p: any) => {
                         const now = new Date();
                         const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
                         return {
                             ...p,
-                            pDots: dotsMap.get(p.id) || 0,
+                            val: guildatonsMap.get(p.id) || 0,
                             isInVacation
                         };
                     })
                     .sort((a, b) => {
-                        if (b.pDots !== a.pDots) return b.pDots - a.pDots;
+                        if (b.val !== a.val) return b.val - a.val;
                         return (a.discordJoinedAt?.getTime() || Infinity) - (b.discordJoinedAt?.getTime() || Infinity);
                     });
 
-                return ranked.map((p, idx) => ({
+                return ranked.map((p: any, idx) => ({
                     rank: idx + 1,
                     profileId: p.id,
                     discordNickname: p.discordNickname,
                     discordRoleColor: p.discordRoleColor,
-                    discordImage: p.user.image,
+                    discordImage: (p as any).user?.image,
                     pseudoDofus: p.pseudoDofus,
                     classe: p.classe,
-                    value: p.pDots,
+                    value: p.val,
                     isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
                     isInVacation: p.isInVacation
                 }));
@@ -932,7 +947,7 @@ export async function getGuildatonsLadder(
                     orderBy: [{ guildatons: "desc" }, { discordJoinedAt: "asc" }]
                 });
 
-                return profiles.map((p, idx) => {
+                return profiles.map((p: any, idx) => {
                     const now = new Date();
                     const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
                     return {

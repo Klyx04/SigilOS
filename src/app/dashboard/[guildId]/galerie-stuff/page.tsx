@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
-import { getStuffGalleryPage } from "@/server/actions/gallery-actions";
+import { getStuffGalleryPage, getSkinGalleryPage } from "@/server/actions/gallery-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { GalleryClient } from "./gallery-client";
 
@@ -16,12 +16,16 @@ export default async function GalleryStuffPage({ params }: { params: Promise<{ g
         redirect(`/dashboard/${guildId}`);
     }
 
-    const res = await getStuffGalleryPage(guildId, 1);
-    if (!res.success || !res.data) {
+    const [stuffRes, skinRes] = await Promise.all([
+        getStuffGalleryPage(guildId, 1),
+        getSkinGalleryPage(guildId, 1) // Just to get the total and first batch (not used yet but total is)
+    ]);
+
+    if (!stuffRes.success || !stuffRes.data || !skinRes.success || !skinRes.data) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500">
-                    Erreur: {res.error}
+                    Erreur lors du chargement de la galerie.
                 </div>
             </div>
         );
@@ -30,10 +34,13 @@ export default async function GalleryStuffPage({ params }: { params: Promise<{ g
     return (
         <div className="container mx-auto px-4 py-8">
             <GalleryClient
-                initialBuilds={res.data.builds}
-                initialTotal={res.data.total}
-                initialHasMore={res.data.hasMore}
+                initialBuilds={stuffRes.data.builds}
+                initialTotal={stuffRes.data.total}
+                initialHasMore={stuffRes.data.hasMore}
+                initialStuffShareConfigured={stuffRes.data.isDiscordShareConfigured}
+                initialSkinTotal={skinRes.data.total}
                 guildId={guildId}
+                currentProfileId={user.profileId}
             />
         </div>
     );

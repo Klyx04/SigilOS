@@ -191,14 +191,19 @@ export const useGarticCanvas = ({ isDrawer, socket, roomId }: UseGarticCanvasOpt
 
         ctx.putImageData(imageData, 0, 0);
     };
-
     const saveToHistory = useCallback(() => {
-        const canvas = canvasRef.current;
         const ctx = ctxRef.current;
-        if (!canvas || !ctx) return;
+        const canvas = canvasRef.current;
+        if (!ctx || !canvas) return;
 
         historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
         historyRef.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        
+        // CAP HISTORY: Prevent memory leak/OOM by limiting to 20 states
+        if (historyRef.current.length > 20) {
+            historyRef.current.shift();
+        }
+        
         historyIndexRef.current = historyRef.current.length - 1;
 
         setCanUndo(historyIndexRef.current > 0);

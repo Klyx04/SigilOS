@@ -92,6 +92,7 @@ const CreateRunSchema = z.object({
     publishToDiscord: z.boolean().optional(),
     epreuveCode: z.string().optional(), // Code épreuve (FONSOCAC, REVERSED, etc.) — null = run standard
     scheduledAt: z.date().optional().nullable(),
+    mentionRoleId: z.string().nullable().optional(),
 }).refine((data) => {
     if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
@@ -183,6 +184,10 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
             objective: validated.data.objectives[0], // Init legacy field
             epreuveCode: validated.data.epreuveCode ?? null,
             scheduledAt: validated.data.scheduledAt ?? null,
+            mentionRoleId: validated.data.mentionRoleId ?? null,
+            status: "IN_PROGRESS",
+            currentFloor: 1,
+            startedAt: new Date(),
             members: {
                 create: {
                     userId: ctx.userId,
@@ -192,25 +197,13 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         },
     });
 
-    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
-
-    // Publish to Discord if requested
+    // Auto-publish to Discord if requested
     if (validated.data.publishToDiscord) {
         const { publishDiscordRun } = await import("@/server/songes-service");
         await publishDiscordRun(ctx.guildId, run.id);
     }
 
-    try {
-        const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
-        const leaderName = ctx.name || "Un explorateur";
-        await pushSystemChatMessage(
-            ctx.guildId,
-            `🌌 **${leaderName}** a lancé une expédition Songes Infinis (${run.difficulty.replace("_", " ")}) !`,
-            { type: "songes_run_created", runId: run.id }
-        );
-    } catch (chatErr) {
-        console.error("Failed to push system chat message for songes run", chatErr);
-    }
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
 
     return { success: true, runId: run.id };
 }
@@ -239,7 +232,7 @@ export async function getDreamRuns(guildId: string, statusFilter?: string[]) {
             },
             joinRequests: {
                 where: { status: "PENDING" },
-                select: { id: true, userId: true },
+                select: { id: true, userId: true, message: true, classe: true },
             },
             _count: {
                 select: { floors: true, bonuses: true },
@@ -258,32 +251,42 @@ export async function getDreamRunById(guildId: string, runId: string) {
 
     // Cleanup is now handled by the BullMQ worker (daily job)
 
-    const run = await db.dreamRun.findFirst({
-        where: {
-            id: runId,
-            guildId: ctx.guildId,
-        },
-        include: {
-            members: {
-                orderBy: { slot: "asc" },
+    const [run, guildConfig] = await Promise.all([
+        db.dreamRun.findFirst({
+            where: {
+                id: runId,
+                guildId: ctx.guildId,
             },
-            waitlist: {
-                orderBy: { position: "asc" },
+            include: {
+                members: {
+                    orderBy: { slot: "asc" },
+                },
+                waitlist: {
+                    orderBy: { position: "asc" },
+                },
+                floors: {
+                    orderBy: { floorNumber: "asc" },
+                },
+                bonuses: {
+                    orderBy: { acquiredAt: "asc" },
+                },
             },
-            floors: {
-                orderBy: { floorNumber: "asc" },
-            },
-            bonuses: {
-                orderBy: { acquiredAt: "asc" },
-            },
-        },
-    });
+        }),
+        db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { songesNotifyChannelId: true }
+        })
+    ]);
 
     if (!run) {
         return { success: false, error: "Run non trouvée", run: null };
     }
 
-    return { success: true, run };
+    return { 
+        success: true, 
+        run, 
+        songesNotifyChannelId: guildConfig?.songesNotifyChannelId || null 
+    };
 }
 
 // ============================================
@@ -1621,13 +1624,9 @@ export async function closeRunWithContributions(
         (pid) => pid !== leaderProfileId
     );
 
-    // Mark run as COMPLETED
-    await db.dreamRun.update({
+    // Delete the run (Ménage Time)
+    await db.dreamRun.delete({
         where: { id: runId },
-        data: {
-            status: "COMPLETED",
-            completedAt: new Date(),
-        },
     });
 
     // Award contribution points

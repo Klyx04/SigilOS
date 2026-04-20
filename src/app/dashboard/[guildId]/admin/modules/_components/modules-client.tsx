@@ -27,6 +27,8 @@ import {
     MessageCircle,
     Palette,
     Search,
+    Gamepad2,
+    Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
@@ -133,15 +135,6 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 borderColor: "border-yellow-500/30",
             },
             {
-                key: "chat",
-                label: "Chat Live",
-                description: "Taverne virtuelle de la guilde. Chat temps réel éphémère (24h), isolé par guilde, avec chat dédié dans chaque run Songes.",
-                icon: MessageCircle,
-                color: "text-indigo-400",
-                bgColor: "bg-indigo-500/10",
-                borderColor: "border-indigo-500/30",
-            },
-            {
                 key: "minigames",
                 label: "Mini-Jeux & Carte",
                 description: "Défiez vos amis sur SigilGuesser (Geo), Sigil-Gartic (Dessin) et explorez la carte du monde.",
@@ -152,7 +145,7 @@ const MODULE_GROUPS: ModuleGroup[] = [
             },
             {
                 key: "gallery",
-                label: "Galerie Stuff",
+                label: "Galerie Guilde",
                 description: "Partagez et consultez les builds de stuff Dofusbook des membres. Intégration API Dofusbook.",
                 icon: Palette,
                 color: "text-pink-400",
@@ -167,6 +160,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 color: "text-amber-400",
                 bgColor: "bg-amber-500/10",
                 borderColor: "border-amber-500/30",
+            },
+            {
+                key: "manualLadderSync",
+                label: "Sync Manuelle",
+                description: "Permet aux membres de synchroniser leurs points via capture d'écran (Backup OCR).",
+                icon: Camera,
+                color: "text-zinc-400",
+                bgColor: "bg-white/5",
+                borderColor: "border-white/10",
             },
         ],
     },
@@ -202,6 +204,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 borderColor: "border-cyan-500/30",
             },
             {
+                key: "minigames",
+                label: "Mini-Jeux",
+                description: "Jeux arcade en ligne (Invader, etc). Gagnez des points pour le ladder et défiez les membres.",
+                icon: Gamepad2,
+                color: "text-cyan-400",
+                bgColor: "bg-cyan-500/10",
+                borderColor: "border-cyan-500/30",
+            },
+            {
                 key: "quests",
                 label: "Quêtes Dofus",
                 description: "Optimisation des quêtes de Dofus. Suivi de progression, quêtes en commun et matchmaking entre membres.",
@@ -215,6 +226,15 @@ const MODULE_GROUPS: ModuleGroup[] = [
                 label: "Carte du Monde",
                 description: "Carte interactive de Dofus avec zones, ressources et points d'intérêt. Navigation géographique avancée.",
                 icon: Map,
+                color: "text-cyan-400",
+                bgColor: "bg-cyan-500/10",
+                borderColor: "border-cyan-500/30",
+            },
+            {
+                key: "resources",
+                label: "Ressources",
+                description: "Hub d'informations Dofus: Almanax, actualités Ankama, encyclopédie et outils communautaires.",
+                icon: Library,
                 color: "text-cyan-400",
                 bgColor: "bg-cyan-500/10",
                 borderColor: "border-cyan-500/30",

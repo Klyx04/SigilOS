@@ -123,7 +123,8 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
                             }
                         }
                     },
-                    orderBy: { position: "asc" }
+                    orderBy: { position: "asc" },
+                    take: 10
                 },
                 _count: {
                     select: { participants: true }
@@ -432,17 +433,6 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
             if (result.success) discordSent = true;
         }
 
-        try {
-            const { pushSystemChatMessage } = await import("@/server/actions/chat-actions");
-            const creatorName = ctx.name || "Un membre";
-            await pushSystemChatMessage(
-                guildId,
-                `📅 **${creatorName}** a planifié un événement : **${event.title}**`,
-                { type: "event_created", eventId: event.id }
-            );
-        } catch (chatErr) {
-            console.error("Failed to push system chat message for event", chatErr);
-        }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         revalidatePath(`/dashboard/${guildId}/calendar`);

@@ -45,12 +45,3 @@ export const GeoguesserGuessSchema = z.object({
     worldId: z.number().optional(),
     mapId: z.number().optional(),
 });
-
-export const SigilKingBidSchema = z.object({
-    amount: z.number().int().min(0).max(10),
-});
-
-export const SigilKingPlaySchema = z.object({
-    cardId: z.string().min(1).max(80),
-    sramChoice: z.enum(["incarnation", "pandawa"]).optional(),
-});

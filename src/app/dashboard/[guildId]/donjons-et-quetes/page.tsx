@@ -51,7 +51,7 @@ export default async function FinderPage({
                 title="Donjons & Quêtes"
                 description="Cherchez des coéquipiers, ciblez des succès, et suivez votre progression."
                 icon={Swords}
-                iconColor="#818cf8"
+                iconColor="#ffffff"
                 backHref={`/dashboard/${guildId}`}
             />
 

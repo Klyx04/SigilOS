@@ -25,9 +25,10 @@ interface DofusQuestManagerV3Props {
     dofusColor: string;
     heatmapData?: GuildHeatmapData | null;
     selectedCharacter?: string;
+    initialGlobalCompletedIds?: string[];
 }
 
-type ViewMode = "successes" | "list" | "tree" | "heatmap";
+type ViewMode = "tree" | "successes" | "heatmap";
 
 export function DofusQuestManagerV3({ 
     guildId, 
@@ -35,55 +36,56 @@ export function DofusQuestManagerV3({
     chains, 
     dofusColor, 
     heatmapData,
-    selectedCharacter = "PRINCIPAL"
+    selectedCharacter = "PRINCIPAL",
+    initialGlobalCompletedIds = []
 }: DofusQuestManagerV3Props) {
-    const [viewMode, setViewMode] = useState<ViewMode>("successes");
+    const [viewMode, setViewMode] = useState<ViewMode>("tree");
     const [synergy, setSynergy] = useState<Record<string, MemberOnQuest[]>>({});
     const [loadingSynergy, setLoadingSynergy] = useState(false);
     
-    // ── Optimistic State ───────────────────────────────────────────────────
+    // ... existing local overrides logic
     const [localOverrides, setLocalOverrides] = useState<Map<string, DofusQuestStatus>>(new Map());
     const router = useRouter();
     const [, startTransition] = useTransition();
 
-    // Re-sync local overrides if chains prop changes from server (refresh)
     useEffect(() => {
         setLocalOverrides(new Map());
     }, [chains]);
 
-    // Computed shared completed IDs
     const completedIds = useMemo(() => {
-        const ids = new Set<string>();
+        // Start with ALL completed IDs from the platform
+        const ids = new Set<string>(initialGlobalCompletedIds);
+        
+        // Apply current Dofus chains and local overrides
         chains.forEach(c => {
             (c?.entries || []).forEach((e: any) => {
                 const override = localOverrides.get(e.id);
-                const status = override ?? e.status;
-                if (status === "COMPLETED") {
-                    ids.add(e.id); // Internal UUID
-                    if (e.dofusdbId) ids.add(String(e.dofusdbId)); // Official ID
+                // If override is NOT_STARTED, we must remove it if it was in the global list
+                if (override === "NOT_STARTED") {
+                    ids.delete(e.id);
+                    if (e.dofusdbId) ids.delete(String(e.dofusdbId));
+                } else if (override === "COMPLETED" || e.status === "COMPLETED") {
+                    ids.add(e.id);
+                    if (e.dofusdbId) ids.add(String(e.dofusdbId));
                 }
             });
         });
         return ids;
-    }, [chains, localOverrides]);
+    }, [chains, localOverrides, initialGlobalCompletedIds]);
 
     async function handleToggleStatus(questId: string, newStatus: DofusQuestStatus) {
-        // 1. Optimistic Update
         setLocalOverrides(prev => {
             const next = new Map(prev);
             next.set(questId, newStatus);
             return next;
         });
 
-        // 2. Server Action
         startTransition(async () => {
             const res = await toggleQuestStatus(guildId, questId, newStatus, selectedCharacter);
             if (res.success) {
-                toast.success("Progression mise à jour");
-                router.refresh(); // This will eventually trigger useEffect above to clear overrides
+                router.refresh();
             } else {
-                toast.error(res.error || "Erreur lors de la mise à jour");
-                // Rollback
+                toast.error(res.error || "Erreur de mise à jour");
                 setLocalOverrides(prev => {
                     const next = new Map(prev);
                     next.delete(questId);
@@ -104,7 +106,6 @@ export function DofusQuestManagerV3({
         loadSynergy();
         const interval = setInterval(loadSynergy, 120000);
         return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dofus.id, guildId]);
 
     const totalMembers = Object.values(synergy).reduce((acc, members) => {
@@ -113,67 +114,68 @@ export function DofusQuestManagerV3({
     }, new Set()).size;
 
     const views: { id: ViewMode; label: string; Icon: any }[] = [
-        { id: "successes", label: "Succès",       Icon: LayoutGrid },
-        { id: "list",      label: "Liste",         Icon: LayoutList },
         { id: "tree",      label: "Parcours",     Icon: Route },
+        { id: "successes", label: "Succès",       Icon: LayoutGrid },
         { id: "heatmap",   label: "Guilde",        Icon: Flame },
     ];
 
     return (
         <div className="space-y-4">
-            {/* Global Logistics Summary — reactive to completedIds if we want, but for now prop-based */}
             <DofusGlobalLogistics chains={chains} dofusColor={dofus.color} completedIds={completedIds} />
 
-            {/* ── Toolbar ─────────────────────────────────────────────── */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3 bg-zinc-900/40 border border-white/5 rounded-2xl backdrop-blur-sm mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="flex p-1 bg-zinc-950/60 rounded-xl border border-white/5">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-zinc-950/40 border border-white/5 rounded-[2rem] backdrop-blur-xl mb-8">
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                    <div className="flex p-1.5 bg-black/40 rounded-2xl border border-white/5 w-full sm:w-auto overflow-x-auto no-scrollbar">
                         {views.map(({ id, label, Icon }) => (
-                            <Button
+                            <button
                                 key={id}
-                                variant="ghost"
-                                size="sm"
                                 onClick={() => setViewMode(id)}
-                                className={`h-8 px-3 text-[10px] font-black uppercase tracking-widest italic rounded-lg transition-all ${
-                                    viewMode === id
-                                        ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                                        : "text-zinc-500 hover:text-white"
-                                }`}
+                                className={`
+                                    flex-1 sm:flex-none flex items-center justify-center gap-2 h-10 px-5 text-[11px] font-black uppercase tracking-widset rounded-xl transition-all duration-300 whitespace-nowrap
+                                    ${viewMode === id
+                                        ? "bg-white text-black shadow-2xl scale-[1.02]"
+                                        : "text-zinc-500 hover:text-white hover:bg-white/5"
+                                    }
+                                `}
                             >
-                                <Icon className="w-3.5 h-3.5 mr-1.5" />{label}
+                                <Icon className="w-4 h-4" />
+                                <span>{label}</span>
                                 {id === "heatmap" && heatmapData && heatmapData.members.length > 0 && (
-                                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-indigo-500/20 text-indigo-300">
+                                    <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[8px] font-black ${viewMode === id ? "bg-black/10 text-black" : "bg-indigo-500/20 text-indigo-400"}`}>
                                         {heatmapData.members.length}
                                     </span>
                                 )}
-                            </Button>
+                            </button>
                         ))}
                     </div>
-
-                    {totalMembers > 0 && (
-                        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-indigo-500/5 border border-indigo-500/10 rounded-xl">
-                            <Users className="w-3.5 h-3.5 text-indigo-400" />
-                            <span className="text-[10px] font-black text-indigo-400/80 uppercase italic">
-                                {totalMembers} membre{totalMembers > 1 ? "s" : ""} actif{totalMembers > 1 ? "s" : ""}
-                            </span>
-                        </div>
-                    )}
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost" size="sm"
-                        onClick={loadSynergy} disabled={loadingSynergy}
-                        className="h-8 px-3 bg-zinc-950/40 border border-white/5 text-zinc-500 hover:text-white rounded-xl"
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${loadingSynergy ? "animate-spin" : ""}`} />
-                    </Button>
-                    <div className="h-8 px-3 bg-zinc-950/40 border border-emerald-500/20 rounded-xl flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-black text-emerald-500/80 uppercase italic">Sigil-IA</span>
+                <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-white/5 pt-4 md:pt-0">
+                    <div className="flex items-center gap-3">
+                        {totalMembers > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
+                                <Users className="w-3.5 h-3.5 text-indigo-400" />
+                                <span className="text-[9px] font-black text-indigo-400 uppercase italic">
+                                    {totalMembers} ACTIF{totalMembers > 1 ? "S" : ""}
+                                </span>
+                            </div>
+                        )}
+                        <button
+                            onClick={loadSynergy}
+                            disabled={loadingSynergy}
+                            className="p-2.5 bg-white/5 border border-white/10 text-zinc-500 hover:text-white rounded-xl transition-all hover:bg-white/10"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${loadingSynergy ? "animate-spin" : ""}`} />
+                        </button>
+                    </div>
+                    
+                    <div className="h-10 px-4 bg-zinc-900/60 border border-emerald-500/20 rounded-2xl flex items-center gap-2.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest italic">Analyseur IA</span>
                     </div>
                 </div>
             </div>
+
 
             {/* ── Content ──────────────────────────────────────────────── */}
             <div className="relative">
@@ -199,25 +201,8 @@ export function DofusQuestManagerV3({
                         completedIds={completedIds}
                     />
                 )}
-                {viewMode === "list" && (
-                    <div className="bg-zinc-950/40 border border-white/5 rounded-3xl p-6">
-                        <QuestChecklist 
-                            chains={chains} 
-                            guildId={guildId} 
-                            dofusColor={dofusColor} 
-                            completedIds={completedIds}
-                            onToggle={handleToggleStatus}
-                        />
-                    </div>
-                )}
                 {viewMode === "heatmap" && (
-                    <div
-                        className="rounded-2xl p-5"
-                        style={{
-                            background: "rgba(0,0,0,0.2)",
-                            border: "1px solid rgba(255,255,255,0.06)",
-                        }}
-                    >
+                    <div className="glass-premium border border-border rounded-2xl p-5">
                         {heatmapData ? (
                             <GuildDofusHeatmap
                                 data={heatmapData}
@@ -226,9 +211,9 @@ export function DofusQuestManagerV3({
                             />
                         ) : (
                             <div className="flex flex-col items-center justify-center py-16 gap-3">
-                                <Flame className="w-10 h-10 text-white/10" />
-                                <p className="text-white/25 text-sm font-bold uppercase tracking-widest">Données indisponibles</p>
-                                <p className="text-white/15 text-xs text-center max-w-xs">
+                                <Flame className="w-10 h-10 text-foreground/10" />
+                                <p className="text-muted-foreground/40 text-sm font-bold uppercase tracking-widest">Données indisponibles</p>
+                                <p className="text-muted-foreground/20 text-xs text-center max-w-xs">
                                     Lance le seed depuis l&apos;admin panel pour charger les étapes, puis reviens ici.
                                 </p>
                             </div>

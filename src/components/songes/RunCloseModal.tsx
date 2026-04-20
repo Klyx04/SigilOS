@@ -1,5 +1,8 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
+
 import { useState, useTransition, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -336,40 +339,46 @@ export function RunCloseModal({
                                                     <button
                                                         key={m.id}
                                                         onClick={() => toggle(m.id)}
-                                                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                                                            isVal
-                                                                ? "bg-emerald-500/10 border-emerald-500/30 shadow-inner"
-                                                                : "bg-slate-900/40 border-white/5 hover:bg-slate-900/60"
-                                                        }`}
+                                                        className={cn(
+                                                            "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                                                            isVal 
+                                                                ? "bg-black/40 border-white/10 shadow-inner" 
+                                                                : "bg-slate-900/20 border-white/5 hover:bg-slate-900/40"
+                                                        )}
+                                                        style={{ 
+                                                            borderColor: isVal ? `${accentColor}20` : undefined,
+                                                            boxShadow: isVal ? `inset 0 0 15px ${accentColor}05` : undefined
+                                                        }}
                                                     >
                                                         <Avatar className="w-8 h-8 shrink-0">
                                                             <AvatarImage src={m.image ?? undefined} />
-                                                            <AvatarFallback className="bg-slate-700 text-white text-xs font-bold">
+                                                            <AvatarFallback className="bg-slate-800 text-white/50 text-[10px] font-black">
                                                                 {m.name.charAt(0).toUpperCase()}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-bold text-white truncate">
+                                                            <p className="text-sm font-bold text-white/90 truncate">
                                                                 {m.name}
                                                             </p>
                                                         </div>
                                                         {isVal && (
                                                             <span
-                                                                className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md border"
+                                                                className="flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md border"
                                                                 style={{
-                                                                    color: "#34d399",
-                                                                    backgroundColor: "rgba(52,211,153,0.15)",
-                                                                    borderColor: "rgba(52,211,153,0.3)",
+                                                                    color: `${accentColor}cc`,
+                                                                    backgroundColor: `${accentColor}10`,
+                                                                    borderColor: `${accentColor}20`,
                                                                 }}
                                                             >
-                                                                <Star className="w-2.5 h-2.5" />
                                                                 +{pts} pt{pts > 1 ? "s" : ""}
                                                             </span>
                                                         )}
                                                         {isVal ? (
-                                                            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                                                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-white/5 border border-white/10">
+                                                                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: accentColor }} />
+                                                            </div>
                                                         ) : (
-                                                            <Circle className="w-5 h-5 text-slate-600 shrink-0" />
+                                                            <Circle className="w-5 h-5 text-white/5 shrink-0" />
                                                         )}
                                                     </button>
                                                 );
@@ -526,27 +535,28 @@ export function RunCloseModal({
                                 variant="ghost"
                                 onClick={onClose}
                                 disabled={isPending}
-                                className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold max-h-12 h-12 transition-all"
+                                className="flex-1 h-12 border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 font-bold rounded-xl transition-all"
                             >
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleConfirm}
                                 disabled={isPending || isLoading}
-                                className="flex-1 text-white font-black max-h-12 h-12 shadow-md transition-all"
-                                style={{
-                                    backgroundColor: accentColor,
-                                    boxShadow: `0 4px 20px ${accentColor}30`,
+                                className="flex-1 h-12 text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border shadow-xl"
+                                style={{ 
+                                    backgroundColor: "#0d0d12",
+                                    borderColor: `${accentColor}30`,
+                                    boxShadow: `0 0 25px ${accentColor}10, inset 0 0 8px ${accentColor}05`
                                 }}
                             >
                                 {isPending ? (
                                     <>
-                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                         Clôture…
                                     </>
                                 ) : (
                                     <>
-                                        <Sparkles className="w-5 h-5 mr-2" />
+                                        <Sparkles className="w-4 h-4 mr-2" style={{ color: accentColor }} />
                                         Confirmer & Distribuer
                                     </>
                                 )}

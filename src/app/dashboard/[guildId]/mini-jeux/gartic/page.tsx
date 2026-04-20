@@ -10,13 +10,13 @@ export default async function SigilGarticPage({
     searchParams
 }: {
     params: Promise<{ guildId: string }>;
-    searchParams: Promise<{ room?: string }>
+    searchParams: Promise<{ room?: string; spectate?: string }>
 }) {
     const session = await auth();
     if (!session?.user) redirect("/");
 
     const { guildId } = await params;
-    const { room: roomId } = await searchParams;
+    const { room: roomId, spectate } = await searchParams;
 
     const user = await getUserContext(guildId);
     if (!user.canViewMiniGames) return <AccessDenied />;

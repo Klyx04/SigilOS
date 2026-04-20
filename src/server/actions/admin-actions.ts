@@ -104,7 +104,7 @@ export async function updateRBACMapping(
         // Get current mapping for audit log
         const currentConfig = await (db.guildConfig as any).findUnique({
             where: { discordGuildId: guildId },
-            select: { rolesMapping: true, usersMapping: true }
+            select: { rolesMapping: true, usersMapping: true, id: true }
         });
 
         const oldRolesMapping = (currentConfig?.rolesMapping || {}) as Record<string, PermissionId[]>;
@@ -143,10 +143,10 @@ export async function updateRBACMapping(
 
         const { invalidateGuildCache, invalidateUserContextCache } = await import("./user-actions");
         await invalidateGuildCache(guildId);
-        
+
         const userId = session.user.id;
-        if (userId) {
-            await invalidateUserContextCache(userId, guildId);
+        if (userId && currentConfig?.id) {
+            await invalidateUserContextCache(userId, currentConfig.id, guildId);
         }
 
         // Create audit log entry
@@ -236,15 +236,15 @@ export async function lazyCleanupExpiredSubmissions(discordGuildId: string): Pro
         // Physical deletion
         for (const item of allExpired) {
             if (item.proofUrl) {
-                await deleteProofFile(item.proofUrl).catch(() => {});
+                await deleteProofFile(item.proofUrl).catch(() => { });
             }
         }
 
         // DB Clean (Hard delete as they are expired/rejected equivalent)
         await Promise.all([
             db.submission.deleteMany({ where: { id: { in: expiredMissions.map((m: any) => m.id) } } }),
-            kamaDb.kamaDonation?.deleteMany({ where: { id: { in: expiredKamas.map((k: any) => k.id) } } }).catch(() => {}),
-            kamaDb.achievementSubmission?.deleteMany({ where: { id: { in: expiredAchievements.map((a: any) => a.id) } } }).catch(() => {})
+            kamaDb.kamaDonation?.deleteMany({ where: { id: { in: expiredKamas.map((k: any) => k.id) } } }).catch(() => { }),
+            kamaDb.achievementSubmission?.deleteMany({ where: { id: { in: expiredAchievements.map((a: any) => a.id) } } }).catch(() => { })
         ]);
 
         logger.info(`[LazyCleanup] Purged ${allExpired.length} expired items for guild ${discordGuildId}`);
@@ -795,9 +795,9 @@ export async function updateMissionNotifySettings(
     try {
         // SECURITY: Validate channels (if provided)
         const channelsToValidate = [
-            data.channelId, 
-            data.validationChannelId, 
-            data.kamaNotifyChannelId, 
+            data.channelId,
+            data.validationChannelId,
+            data.kamaNotifyChannelId,
             data.achievementNotifyChannelId,
             data.missionManagementNotifyChannelId
         ].filter(Boolean) as string[];
@@ -959,16 +959,17 @@ export async function updateLoansChannel(
 }
 
 export async function getPendingValidationsCount(guildId: string) {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    // PERF: Use getUserContext which is already cached in Redis (~0ms on cache hit)
+    // instead of checkGuildPermission which triggers 8 Discord API calls (~3.5s)
+    const { getUserContext } = await import("./user-actions");
+    const ctx = await getUserContext(guildId);
 
-    const { checkGuildPermission } = await import("./user-actions");
-    const [missionGuard, adminGuard] = await Promise.all([
-        checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VALIDATE),
-        checkGuildPermission(session, guildId, PERMISSIONS.ADMIN_FULL),
-    ]);
+    if (!ctx.isAuthenticated) return { success: false, error: "Unauthorized" };
 
-    if (!missionGuard.allowed && !adminGuard.allowed) {
+    const canValidate = ctx.canValidateMissions;
+    const isAdmin = ctx.isAdmin;
+
+    if (!canValidate && !isAdmin) {
         return { success: false, error: "Forbidden" };
     }
 
@@ -981,13 +982,13 @@ export async function getPendingValidationsCount(guildId: string) {
         if (!guild) return { success: false, error: "Guild not found" };
 
         const [pendingMissions, pendingAchievements, pendingKamas] = await Promise.all([
-            missionGuard.allowed
+            canValidate
                 ? db.submission.count({ where: { mission: { guildId: guild.id }, status: "PENDING" } })
                 : 0,
-            adminGuard.allowed
+            isAdmin
                 ? (db as any).achievementSubmission.count({ where: { guildId: guild.id, status: "PENDING" } })
                 : 0,
-            adminGuard.allowed || missionGuard.allowed
+            (isAdmin || canValidate)
                 ? (db as any).kamaDonation
                     ? (db as any).kamaDonation.count({ where: { guildId: guild.id, status: "PENDING" } }).catch(() => 0)
                     : Promise.resolve(0)
@@ -1087,7 +1088,7 @@ export async function updateServicesStatusConfig(
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
-        revalidatePath(`/dashboard/${guildId}/passages`);
+        revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
         console.error("Update Services Status Error:", error);
@@ -1095,3 +1096,176 @@ export async function updateServicesStatusConfig(
     }
 }
 
+// ============================================================================
+// GALLERY NOTIFICATION CONFIGURATION
+// ============================================================================
+
+export async function getGalleryConfig(guildId: string): Promise<{
+    success: boolean;
+    error?: string;
+    data?: {
+        skinGalleryChannelId: string | null;
+        stuffGalleryChannelId: string | null;
+    }
+}> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                skinGalleryChannelId: true,
+                stuffGalleryChannelId: true,
+            }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return {
+            success: true,
+            data: {
+                skinGalleryChannelId: config.skinGalleryChannelId,
+                stuffGalleryChannelId: config.stuffGalleryChannelId,
+            }
+        };
+    } catch (error) {
+        console.error("Get Gallery Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateGallerySettings(
+    guildId: string,
+    data: {
+        skinGalleryChannelId: string | null;
+        stuffGalleryChannelId: string | null;
+    }
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "updateGallerySettings");
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        // SECURITY: Validate channels (if provided)
+        const channelsToValidate = [data.skinGalleryChannelId, data.stuffGalleryChannelId].filter(Boolean) as string[];
+
+        if (channelsToValidate.length > 0) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            for (const channelId of channelsToValidate) {
+                const isValid = await validateChannelBelongsToGuild(channelId, guildId);
+                if (!isValid) {
+                    return { success: false, error: `Le salon #${channelId} n'appartient pas à votre serveur Discord` };
+                }
+            }
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: {
+                skinGalleryChannelId: data.skinGalleryChannelId,
+                stuffGalleryChannelId: data.stuffGalleryChannelId,
+            }
+        });
+
+        // 📝 LOG ACTION
+        await logAction({
+            guildId,
+            action: "CHANNEL_CONFIGURED",
+            targetType: "CONFIG",
+            targetId: "GALLERY_CHANNELS",
+            metadata: {
+                operation: "UPDATE_GALLERY_SETTINGS",
+                skinChannel: data.skinGalleryChannelId,
+                stuffChannel: data.stuffGalleryChannelId
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("[Admin Actions] Update Error:", error);
+        return { success: false, error: "Erreur serveur lors de la mise à jour" };
+    }
+}
+
+export async function getGuildChannels(guildId: string): Promise<{
+    success: boolean;
+    error?: string;
+    data?: { id: string; name: string; type: number }[];
+}> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const { fetchGuildChannels } = await import("@/server/discord");
+        const channels = await fetchGuildChannels(guildId);
+
+        // Filter for Text channels (0) and Forum channels (15)
+        const filtered = channels.filter(c => c.type === 0 || c.type === 15);
+
+        return { success: true, data: filtered };
+    } catch (error) {
+        console.error("Get Guild Channels Error:", error);
+        return { success: false, error: "Erreur lors de la récupération des salons" };
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// BOUNTY ADMIN ACTIONS
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** Returns ALL bounties in the database (GOD mode — no guild scope) */
+export async function getAllBounties(): Promise<any[]> {
+    try {
+        const bounties = await db.bounty.findMany({
+            orderBy: [{ zoneName: 'asc' }, { name: 'asc' }]
+        });
+        return bounties;
+    } catch (error) {
+        console.error("[getAllBounties] Error:", error);
+        return [];
+    }
+}
+
+/** Update a bounty record scoped to a specific guild (legacy guild admin path) */
+export async function updateBountyRecord(guildId: string, bountyId: string, data: any): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "Gestion des Avis");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Insufficient permissions" };
+
+    try {
+        await db.bounty.update({
+            where: { id: bountyId },
+            data: {
+                name: data.name,
+                level: data.level,
+                zoneName: data.zoneName,
+                doplons: data.doplons,
+                rewardType: data.rewardType,
+                milice: data.milice,
+                mechanics: data.mechanics,
+                imageUrl: data.imageUrl,
+            }
+        });
+        revalidatePath(`/dashboard/${guildId}/admin/bounties`);
+        return { success: true };
+    } catch (error) {
+        console.error("[updateBountyRecord] Error:", error);
+        return { success: false, error: "Erreur lors de la mise à jour" };
+    }
+}

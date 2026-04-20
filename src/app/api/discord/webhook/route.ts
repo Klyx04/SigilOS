@@ -7,6 +7,9 @@
  * - GUILD_DELETE: Bot removed from server → Soft-delete guild
  * - GUILD_MEMBER_REMOVE: User left or was kicked → Archive profile
  * - GUILD_BAN_ADD: User was banned → Anonymize profile
+ * - MESSAGE_CREATE: New message in blacklist channel → Add blacklist entry
+ * - MESSAGE_UPDATE: Message edited in blacklist channel → Update blacklist entry
+ * - MESSAGE_DELETE: Message deleted in blacklist channel → Remove blacklist entry
  * 
  * Security:
  * - Ed25519 signature verification required
@@ -192,7 +195,8 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
         data: {
             status: "ARCHIVED",
             archivedAt: new Date(),
-            archiveReason: reason
+            archiveReason: reason,
+            scheduledDeletion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
         }
     });
 
@@ -272,6 +276,7 @@ async function handleBan(guildId: string, userId: string, userMeta?: { username:
             status: "BANNED",
             archivedAt: new Date(),
             archiveReason: "BANNED",
+            scheduledDeletion: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
             // Anonymize personal data
             pseudoDofus: "[Membre Banni]",
             discordNickname: null,
@@ -381,6 +386,27 @@ export async function POST(request: NextRequest) {
 
                 case "GUILD_BAN_ADD":
                     await handleBan(data.guild_id, data.user.id, data.user);
+                    break;
+
+                case "MESSAGE_CREATE":
+                    if (!data.author?.bot) {
+                        const { handleDiscordBlacklistCreate } = await import("@/server/actions/blacklist-actions");
+                        await handleDiscordBlacklistCreate(data.guild_id, data);
+                    }
+                    break;
+
+                case "MESSAGE_UPDATE":
+                    if (!data.author?.bot) {
+                        const { handleDiscordBlacklistUpdate } = await import("@/server/actions/blacklist-actions");
+                        await handleDiscordBlacklistUpdate(data.guild_id, data);
+                    }
+                    break;
+
+                case "MESSAGE_DELETE":
+                    const { handleDiscordBlacklistDelete } = await import("@/server/actions/blacklist-actions");
+                    await handleDiscordBlacklistDelete(data.guild_id, data.id);
+                    const { handleDiscordGalleryDelete } = await import("@/server/actions/gallery-actions");
+                    await handleDiscordGalleryDelete(data.guild_id, data.id);
                     break;
 
                 default:

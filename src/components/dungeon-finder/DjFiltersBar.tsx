@@ -69,7 +69,7 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                         value={filters.search}
                         onChange={(e) => onChange({ ...filters, search: e.target.value })}
                         placeholder="Rechercher un donjon, boss, quête…"
-                        className="w-full bg-slate-900/50 border border-white/5 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 shadow-inner transition-all h-11 backdrop-blur-md"
+                        className="w-full bg-slate-900/50 border border-white/5 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-white/20 focus:ring-4 focus:ring-white/5 shadow-inner transition-all h-11 backdrop-blur-md"
                     />
                 </div>
 
@@ -86,13 +86,13 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                                 <button
                                     key={value}
                                     onClick={() => onChange({ ...filters, mode: value })}
-                                    className={`relative z-10 flex items-center justify-center gap-1.5 px-3 h-full rounded-lg text-[11px] font-black transition-all ${isActive ? "text-white" : "text-slate-500 hover:text-slate-300"
+                                    className={`relative z-10 flex items-center justify-center gap-1.5 px-3 h-full rounded-lg text-[11px] font-black transition-all ${isActive ? "text-zinc-900" : "text-slate-500 hover:text-slate-300"
                                         }`}
                                 >
                                     {isActive && (
                                         <motion.div
                                             layoutId="active-mode-pill"
-                                            className="absolute inset-0 rounded-lg -z-10 bg-indigo-600 border border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+                                            className="absolute inset-0 rounded-lg -z-10 bg-white border border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]"
                                             transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                                         />
                                     )}
@@ -107,14 +107,14 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
                     <button
                         onClick={() => setShowAdvanced(!showAdvanced)}
                         className={`relative flex items-center gap-2 px-4 rounded-xl text-[11px] font-black h-11 transition-all border ${showAdvanced || hasActiveAdvancedFilters
-                            ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                            ? "bg-white/10 border-white/20 text-white"
                             : "bg-slate-900/50 border-white/5 text-slate-500 hover:text-slate-300 hover:bg-slate-900"
                             }`}
                     >
                         <Users className="w-3.5 h-3.5" />
                         Filtres
                         {hasActiveAdvancedFilters && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                         )}
                     </button>
 

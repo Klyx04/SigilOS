@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
     BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, ArrowLeft,
-    Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send
+    Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send, Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -67,9 +67,10 @@ interface PollDetailProps {
     isAdmin: boolean;
     currentProfileId?: string;
     hasMicro?: boolean;
+    isDiscordConfigured?: boolean;
 }
 
-export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro }: PollDetailProps) {
+export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro, isDiscordConfigured }: PollDetailProps) {
     const [isPending, startTransition] = useTransition();
     const [votedOptionIds, setVotedOptionIds] = useState<string[]>(poll.userVotedOptionIds);
     const [localOptions, setLocalOptions] = useState(poll.options);
@@ -128,7 +129,7 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro 
     }, [guildId, isActive, poll.allowMultipleVotes, votedOptionIds, router]);
 
     const [outcomeText, setOutcomeText] = useState("");
-    const [notifyDiscord, setNotifyDiscord] = useState(true);
+    const [notifyDiscord, setNotifyDiscord] = useState(!!isDiscordConfigured);
     const [showOutcomeModal, setShowOutcomeModal] = useState(false);
 
     const handleClose = (outcome?: string) => {
@@ -505,11 +506,21 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro 
                                                 </div>
                                             </div>
                                             <Switch
+                                                disabled={!isDiscordConfigured}
                                                 checked={notifyDiscord}
                                                 onCheckedChange={setNotifyDiscord}
                                                 className="data-[state=checked]:bg-[#5865F2]"
                                             />
                                         </div>
+
+                                        {!isDiscordConfigured && (
+                                            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 animate-in fade-in slide-in-from-top-2">
+                                                <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                                <p className="text-[10px] font-bold text-amber-500/80 uppercase tracking-tight leading-relaxed">
+                                                    Le salon Discord pour les sondages n&apos;est pas configuré. L&apos;annonce ne sera pas envoyée.
+                                                </p>
+                                            </div>
+                                        )}
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <Button

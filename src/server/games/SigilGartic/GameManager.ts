@@ -9,6 +9,7 @@ function generateShortId() {
 
 export class GameManager {
     private rooms = new Map<string, GarticRoom>();
+    private userToRoom = new Map<string, string>(); // userId -> roomId
 
     constructor(private io: Server) { }
 
@@ -67,20 +68,38 @@ export class GameManager {
         }
     }
 
+    private deleteRoomInternal(roomId: string) {
+        const room = this.rooms.get(roomId);
+        if (room) {
+            const hostId = room.getHostId();
+            const guildId = room.getGuildId();
+            room.destroy();
+            this.rooms.delete(roomId);
+            if (hostId) {
+                this.userToRoom.delete(hostId);
+                redis.del(`user:${hostId}:gartic:room`).catch(() => {});
+            }
+            this.broadcastRoomList(guildId);
+        }
+    }
+
     private async createRoom(socket: Socket, config: any) {
         try {
             const userId = config.userId || socket.id;
             const guildId = socket.handshake.query.guildId as string;
             
-            const existingRoomId = await redis.get(`user:${userId}:gartic:room`);
+            // 1. One room max per user
+            const existingRoomId = this.userToRoom.get(userId);
             if (existingRoomId && this.rooms.has(existingRoomId)) {
-                socket.emit("gartic:error", { message: "Vous avez déjà un salon actif." });
-                return;
+                // If the user already has a room, destroy it to avoid "infinites salons"
+                console.log(`[GarticManager] 🧹 Cleaning up old room ${existingRoomId} for user ${userId}`);
+                this.deleteRoomInternal(existingRoomId);
             }
 
             const roomId = generateShortId();
             const room = new GarticRoom(this.io, { ...config, id: roomId, guildId });
             this.rooms.set(roomId, room);
+            this.userToRoom.set(userId, roomId);
 
             await redis.set(`user:${userId}:gartic:room`, roomId, "EX", 7200);
             socket.emit("gartic:room:created", { roomId });
@@ -140,8 +159,9 @@ export class GameManager {
         }
         
         if (userId) {
-            const activeRoomId = await redis.get(`user:${userId}:gartic:room`);
+            const activeRoomId = this.userToRoom.get(userId);
             if (activeRoomId === roomId) {
+                this.userToRoom.delete(userId);
                 await redis.del(`user:${userId}:gartic:room`);
             }
         }

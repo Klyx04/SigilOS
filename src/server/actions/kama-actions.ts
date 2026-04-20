@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, checkGuildPermission, type ActionResponse } from "./user-actions";
@@ -118,7 +118,7 @@ export async function getMyWeeklyKamaStatus(
     guildId: string
 ): Promise<ActionResponse<KamaWeeklyStatus>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -181,7 +181,7 @@ export async function submitKamaDonation(
     proofFormData: FormData
 ): Promise<ActionResponse<{ id: string }>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, input.guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, input.guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const parsed = submitDonationSchema.safeParse(input);
@@ -333,7 +333,7 @@ export async function getKamaDonations(
     filters?: { status?: KamaDonationStatus; profileId?: string; week?: number; year?: number; limit?: number }
 ): Promise<ActionResponse<KamaDonationEntry[]>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -376,7 +376,7 @@ export async function reviewKamaDonation(
     input: z.infer<typeof reviewDonationSchema>
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, input.guildId, PERMISSIONS.MISSIONS_VALIDATE);
+    const guard = await checkGuildPermission(session, input.guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     const parsed = reviewDonationSchema.safeParse(input);
@@ -461,7 +461,7 @@ export async function getKamaLadder(
     period: "week" | "month" | "alltime" = "alltime"
 ): Promise<ActionResponse<KamaLadderEntry[]>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -526,7 +526,7 @@ export async function getKamaLadder(
 
 export async function getKamaStats(guildId: string): Promise<ActionResponse<KamaStats>> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {
@@ -576,7 +576,7 @@ export async function deleteKamaDonation(
     donationId: string
 ): Promise<ActionResponse> {
     const session = await auth();
-    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_VIEW);
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
     if (!guard.allowed) return { success: false, error: guard.error };
 
     try {

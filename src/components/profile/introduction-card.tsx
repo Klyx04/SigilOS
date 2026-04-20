@@ -69,7 +69,8 @@ export function IntroductionCard({
                 </div>
                 <Button
                     onClick={() => setIsEditing(true)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-8 py-6 h-auto rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                    variant="sigil-emerald"
+                    size="xl"
                 >
                     Commencer ma présentation
                 </Button>
@@ -147,10 +148,10 @@ export function IntroductionCard({
                                         Annuler
                                     </Button>
                                     <Button
-                                        size="sm"
                                         onClick={handleSave}
                                         disabled={isSaving || text.length > MAX_CHARS}
-                                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs h-9 px-5 rounded-xl gap-2 shadow-lg shadow-emerald-900/20"
+                                        variant="sigil-emerald"
+                                        className="h-9 px-5"
                                     >
                                         {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                                         Enregistrer

@@ -5,6 +5,7 @@ import { Socket } from "socket.io-client";
 import { useGarticCanvas } from "../../hooks/useGarticCanvas";
 import { cn } from "@/lib/utils";
 import { CircularTimer } from "./CircularTimer";
+import { Mic } from "lucide-react";
 
 interface Player {
     id: string;
@@ -27,6 +28,7 @@ interface DrawingScreenProps {
     totalRounds?: number;
     onClose?: () => void;
     isSpectator?: boolean;
+    voiceUsers?: any[];
 }
 
 export const DrawingScreen = ({ 
@@ -42,8 +44,10 @@ export const DrawingScreen = ({
     round = 1,
     totalRounds = 1,
     onClose,
-    isSpectator
+    isSpectator,
+    voiceUsers = []
 }: DrawingScreenProps) => {
+    const voiceUserIds = voiceUsers.map(u => u.userId);
     const { canvasRef, overlayRef, tool, setTool, color, setColor, brushSize, setBrushSize, canUndo, canRedo, undo, redo, clear, handlers } = useGarticCanvas({ isDrawer: isDrawer && !isSpectator, socket, roomId });
     const [submitted, setSubmitted] = React.useState(false);
 
@@ -247,6 +251,9 @@ export const DrawingScreen = ({
                                             "font-black text-sm truncate",
                                             p.hasSubmitted ? "text-white" : "text-white/40"
                                         )}>{p.username}</span>
+                                        {voiceUserIds.includes((p as any).userId) && (
+                                            <Mic size={12} className="text-emerald-400 ml-auto shrink-0" />
+                                        )}
                                     </div>
                                 ))}
                             </div>

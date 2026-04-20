@@ -13,6 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { ValidationQueue as MissionValidationQueue } from "@/components/missions/validation-queue";
 import { AchievementValidationQueue } from "@/components/ladder/achievement-validation-queue";
 import { KamaValidationQueue } from "@/components/kamas/kama-validation-queue";
+import { ReactivationValidationQueue } from "@/components/admin/reactivation-validation-queue";
+import { getPendingReactivations } from "@/server/actions/lifecycle-actions";
+import { UserCheck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -41,19 +44,21 @@ export default async function UnifiedValidationPage({
     await lazyCleanupExpiredSubmissions(guildId).catch(() => {});
 
     // Parallel fetch all pending items
-    const [missionRes, achievementRes, kamaRes] = await Promise.all([
+    const [missionRes, achievementRes, kamaRes, reactivationRes] = await Promise.all([
         getPendingSubmissions(guildId),
         getPendingAchievements(guildId),
         getKamaDonations(guildId, { status: "PENDING", limit: 100 }),
+        getPendingReactivations(guildId),
     ]);
 
     const missions = missionRes.success ? missionRes.data : [];
     const achievements = achievementRes.success ? achievementRes.data : [];
     const kamaDonations = kamaRes.success ? kamaRes.data ?? [] : [];
+    const reactivations = reactivationRes.success ? reactivationRes.data ?? [] : [];
 
-    const defaultTab = tab === "achievements" ? "achievements" : tab === "kamas" ? "kamas" : "missions";
+    const defaultTab = tab === "achievements" ? "achievements" : tab === "kamas" ? "kamas" : tab === "retours" ? "retours" : "missions";
 
-    const totalPending = (missions?.length ?? 0) + (achievements?.length ?? 0) + kamaDonations.length;
+    const totalPending = (missions?.length ?? 0) + (achievements?.length ?? 0) + kamaDonations.length + reactivations.length;
 
     return (
         <div className="space-y-6 pb-12">
@@ -106,6 +111,19 @@ export default async function UnifiedValidationPage({
                                 </Badge>
                             )}
                         </TabsTrigger>
+
+                        <TabsTrigger
+                            value="retours"
+                            className="rounded-lg px-6 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 gap-2"
+                        >
+                            <UserCheck className="w-4 h-4" />
+                            Retours
+                            {reactivations.length > 0 && (
+                                <Badge variant="secondary" className="ml-1 bg-emerald-500/20 text-emerald-400 border-emerald-500/20 h-5 px-1.5 min-w-[20px] justify-center">
+                                    {reactivations.length}
+                                </Badge>
+                            )}
+                        </TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -119,6 +137,10 @@ export default async function UnifiedValidationPage({
 
                 <TabsContent value="kamas" className="outline-none">
                     <KamaValidationQueue donations={kamaDonations} guildId={guildId} />
+                </TabsContent>
+
+                <TabsContent value="retours" className="outline-none">
+                    <ReactivationValidationQueue requests={reactivations} guildId={guildId} />
                 </TabsContent>
             </Tabs>
         </div>

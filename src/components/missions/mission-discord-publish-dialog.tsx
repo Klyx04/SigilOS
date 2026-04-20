@@ -38,7 +38,7 @@ export function MissionDiscordPublishDialog({
         if (isOpen) {
             setIsLoadingRoles(true);
             getDiscordRolesAction(guildId).then(res => {
-                if (res.success && res.data) setRoles(res.data);
+                if (res.success && res.roles) setRoles(res.roles);
                 setIsLoadingRoles(false);
             });
         }

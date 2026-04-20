@@ -67,6 +67,7 @@ import { fr } from "date-fns/locale";
 import { ProbationGrantDialog } from "../../app/dashboard/[guildId]/admin/_components/probation-grant-dialog";
 import { sendWelcomeMessage } from "@/server/actions/onboarding-admin-actions";
 import { VacationEditDialog } from "./members/vacation-edit-dialog";
+import { ArchiveDurationDialog } from "./archive-duration-dialog";
 
 interface Member {
     id: string;
@@ -116,6 +117,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     const [digitsPart, setDigitsPart] = useState("");
     
     const [vacationTarget, setVacationTarget] = useState<Member | null>(null);
+    const [archiveTarget, setArchiveTarget] = useState<{ id: string, name: string } | null>(null);
 
     const filteredMembers = members
         .filter((member: Member) =>
@@ -149,6 +151,15 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     const uniqueRoles = [...new Set(members.map(m => m.discordRoleName).filter(Boolean))];
 
     const handleStatusUpdate = async (profileId: string, status: "ACTIVE" | "ARCHIVED" | "BANNED") => {
+        if (status === "ARCHIVED") {
+            const member = members.find(m => m.id === profileId);
+            setArchiveTarget({ 
+                id: profileId, 
+                name: member?.pseudoDofus || member?.user.name || "Membre" 
+            });
+            return;
+        }
+
         setIsUpdating(profileId);
         try {
             await updateMemberProfileStatus(profileId, status);
@@ -717,6 +728,26 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     onSuccess={(start, end) => {
                         setMembers(prev => prev.map(m => 
                             m.id === vacationTarget.id ? { ...m, vacationStart: start, vacationEnd: end } : m
+                        ));
+                    }}
+                />
+            )}
+
+            {archiveTarget && (
+                <ArchiveDurationDialog 
+                    open={!!archiveTarget}
+                    onOpenChange={(open) => !open && setArchiveTarget(null)}
+                    memberId={archiveTarget.id}
+                    memberName={archiveTarget.name}
+                    onSuccess={() => {
+                        // After success, we need to refresh the local member list or 
+                        // manually update the state if we want to avoid full refresh.
+                        // updateMemberProfileStatus revalidates the path, but since this is a client 
+                        // state list, we should update it manually for responsiveness.
+                        // However, since we don't know the exact deletion date calculated on server
+                        // precisely without doing the math here too, a simple status update is fine.
+                        setMembers(prev => prev.map(m =>
+                            m.id === archiveTarget.id ? { ...m, status: "ARCHIVED", updatedAt: new Date().toISOString() } : m
                         ));
                     }}
                 />

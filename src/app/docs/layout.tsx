@@ -108,7 +108,7 @@ export default async function DocsLayout({
     const categories = Object.keys(groupedDocs).sort();
 
     return (
-        <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-teal-500/30 text-zinc-100 fixed inset-0 landing-theme">
+        <div className="flex h-screen h-[100dvh] overflow-hidden bg-zinc-950 font-sans selection:bg-teal-500/30 text-zinc-100 fixed inset-0 landing-theme dashboard-layout">
             {/* 1. DESKTOP SIDEBAR */}
             <div className="hidden md:flex w-[280px] flex-col fixed inset-y-0 z-50">
                 <AppSidebar

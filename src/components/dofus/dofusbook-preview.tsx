@@ -44,7 +44,7 @@ function ClothBadge({ cloth }: { cloth: ClothData }) {
                             >
                                 <div className="w-8 h-8 bg-zinc-900 rounded-lg border border-white/5 flex-shrink-0 overflow-hidden">
                                     <NextImage
-                                        src={item.picture ? `https://static.dofusdb.fr/items/${item.picture}.png` : `/assets/dofus/placeholder.png`}
+                                        src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
                                         alt={item.name}
                                         width={32}
                                         height={32}
@@ -253,7 +253,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         {item && (
                                             <>
                                                 <NextImage
-                                                    src={item.picture ? `https://static.dofusdb.fr/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
+                                                    src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
                                                     alt={item.name}
                                                     width={32}
                                                     height={32}
@@ -343,7 +343,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 {item && (
                                                     <>
                                                         <NextImage
-                                                            src={item.picture ? `https://static.dofusdb.fr/items/${item.picture}.png` : `https://www.dofusbook.net/static/dist/items/105-70.webp`}
+                                                            src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
                                                             alt={item.name}
                                                             width={44}
                                                             height={44}
@@ -472,10 +472,10 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 { val: data.stats.invo, icon: "🦊", label: "Invo.", color: "text-[#f59f0f]" },
                                                 { val: data.stats.so, icon: "➕", label: "Soin", color: "text-[#ef3f3f]" },
                                             ].map((s, i) => (
-                                                <div key={i} className="flex items-center justify-between bg-black/30 px-2.5 py-2.5 rounded-xl border border-white/[0.05] gap-1">
-                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                <div key={i} className="flex items-center justify-between bg-black/30 px-2 py-2 rounded-xl border border-white/[0.05] gap-1">
+                                                    <div className="flex items-center gap-0.5">
                                                         <span className="text-[12px] opacity-60 shrink-0">{s.icon}</span>
-                                                        <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-tight hidden lg:inline truncate">{s.label}</span>
+                                                        <span className="text-zinc-500 text-[9px] font-bold uppercase tracking-tighter whitespace-nowrap">{s.label}</span>
                                                     </div>
                                                     <span className={cn("font-black text-[13px] shrink-0", s.color)}>{s.val}</span>
                                                 </div>

@@ -180,8 +180,8 @@ export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
         // Fallback image strategy: find the first non-null image in the list to use as a default for patch notes
         let commonImage = items.find(i => i.image_url)?.image_url || null;
         if (!commonImage) {
-            // Very last fallback: generic dofus news image
-            commonImage = "https://static.ankama.com/ankama/cms/images/282/2026/01/21/1765851.jpg"; 
+            // Very last fallback: generic dofus update/patch image (Stable Ankama URL)
+            commonImage = "https://static.ankama.com/ankama/cms/images/282/2024/10/24/1763133.jpg"; 
         }
 
         return items.slice(0, 10).map((item, idx) => {
@@ -194,6 +194,14 @@ export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
                     if (thumbnail.startsWith('//')) thumbnail = 'https:' + thumbnail;
                     else if (thumbnail.startsWith('/')) thumbnail = 'https://static.ankama.com' + thumbnail;
                     else thumbnail = 'https://static.ankama.com/' + thumbnail;
+                }
+
+                // Cleanup potential double slashes (except after protocol)
+                const parts = thumbnail.split('://');
+                if (parts.length > 1) {
+                    thumbnail = parts[0] + '://' + parts[1].replace(/\/+/g, '/');
+                } else {
+                    thumbnail = thumbnail.replace(/\/+/g, '/');
                 }
             }
 

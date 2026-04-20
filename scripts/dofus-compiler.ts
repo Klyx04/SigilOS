@@ -49,7 +49,7 @@ async function apiFetch(path_: string, params: Record<string, string> = {}): Pro
 // ─── Cache systems ──────────────────────────────────────────────────────────
 const itemCache = new Map<number, { name: string; img: string | null; level: number | null }>();
 const npcCache  = new Map<number, { name: string; img: string | null; subarea?: string }>();
-const dungeonCache = new Map<number, { name: string; bossIds?: number[] }>();
+const dungeonCache = new Map<number, { name: string; bossIds?: number[]; bossImg?: string }>();
 
 async function resolveNpcById(id: number): Promise<{ name: string; img: string | null; subarea?: string }> {
     if (npcCache.has(id)) return npcCache.get(id)!;
@@ -164,24 +164,50 @@ async function resolveDungeonsBatch(ids: number[]): Promise<void> {
     const unique = [...new Set(ids)].filter(id => id > 0 && !dungeonCache.has(id));
     if (unique.length === 0) return;
     console.log(`\n🏰 Résolution de ${unique.length} donjons uniques...`);
+    
     for (let i = 0; i < unique.length; i += 20) {
         const chunk = unique.slice(i, i + 20);
         try {
-            const params = new URLSearchParams({ lang: "fr", "$limit": "20" });
-            chunk.forEach(id => params.append("id[$in][]", id.toString()));
-            const url = `${API_BASE}/dungeons?${params}`;
-            const res = await fetch(url, { headers: { Accept: "application/json" } });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = await res.json();
-            for (const dj of (json.data ?? [])) {
+            // 1. Fetch basic dungeon names
+            const djUrl = `${API_BASE}/dungeons?lang=fr&id[$in][]=${chunk.join("&id[$in][]=")}`;
+            const djRes = await fetch(djUrl, { headers: { Accept: "application/json" } });
+            const djJson = await djRes.json();
+            const djData = (djJson.data ?? (Array.isArray(djJson) ? djJson : [djJson]));
+            
+            for (const dj of djData) {
                 dungeonCache.set(dj.id, {
                     name: dj.name?.fr ?? `Donjon #${dj.id}`,
-                    bossIds: dj.bossIds ?? []
+                    bossIds: []
                 });
+            }
+
+            // 2. Fetch specific bosses for these dungeons
+            const djDetailsUrl = `${API_BASE}/dungeons?id[$in][]=${chunk.join("&id[$in][]=")}`;
+            const detailsRes = await fetch(djDetailsUrl, { headers: { Accept: "application/json" } });
+            const detailsJson = await detailsRes.json();
+            const detailsData = detailsJson.data || detailsJson;
+            
+            for (const djItem of detailsData) {
+                const monsterIds = djItem.monsters || [];
+                if (monsterIds.length > 0) {
+                    // Try to find which one is the real boss
+                    const bossesUrl = `${API_BASE}/monsters?isBoss=true&id[$in][]=${monsterIds.join("&id[$in][]=")}`;
+                    const bossesRes = await fetch(bossesUrl, { headers: { Accept: "application/json" } });
+                    const bossesJson = await bossesRes.json();
+                    const bossesData = bossesJson.data || bossesJson;
+                    const boss = bossesData[0] || (await apiFetch(`monsters/${monsterIds[0]}`));
+                    const cached = dungeonCache.get(djItem.id);
+                    if (cached && boss) {
+                        cached.bossIds = [boss.id];
+                        // Use the 'img' field from DofusDB which points to the correct visual ID
+                        cached.bossImg = boss.img || `https://api.dofusdb.fr/img/monsters/${boss.id}.png`;
+                        console.log(`  🎯 Boss résolu pour [${djItem.id}]: ${boss.name?.fr} (ID: ${boss.id}, IMG: ${cached.bossImg})`);
+                    }
+                }
             }
             await sleep(300);
         } catch (e: any) {
-            console.warn(`  ⚠ Batch fetch failed for dungeons: ${e.message}`);
+            console.warn(`  ⚠ Dungeon resolution fail: ${e.message}`);
         }
     }
     console.log(`  ✅ ${dungeonCache.size} donjons en cache`);
@@ -218,7 +244,7 @@ function collectItemIds(quest: any): number[] {
 }
 
 /** Build enriched items list with resolved names and quantities from text parsing */
-function extractItems(quest: any): Array<{ id: number; name: string; amount: number; img: string | null }> {
+function extractItems(quest: any, manualItems?: any[]): Array<{ id: number; name: string; amount: number; img: string | null }> {
     const seenMap = new Map<number, number>(); // id -> total amount
 
     for (const step of quest.steps ?? []) {
@@ -232,22 +258,36 @@ function extractItems(quest: any): Array<{ id: number; name: string; amount: num
                 seenMap.set(id, (seenMap.get(id) || 0) + amount);
             });
 
-            // From text: extract amount if possible "x10 [Item]" or "10x [Item]"
+            // From text: extract amount if possible "x10 [Item]", "10x [Item]", "10 [Item]", "Ramener 10 [Item]"
             if (obj.text?.fr) {
                 const text = obj.text.fr;
+                // Match {{item,ID::[Name]}} pattern
                 const regex = /{{item,(\d+)::\[(.*?)\]}}/g;
                 let match;
                 while ((match = regex.exec(text)) !== null) {
                     const id = parseInt(match[1]);
-                    // Try to find quantity prefix in text like "x3 {{item...}}"
+                    
+                    // Look back in the text before the match for a quantity
                     const prefix = text.substring(0, match.index).trim();
-                    const qtyMatch = prefix.match(/x\s*(\d+)\s*$/i) || prefix.match(/(\d+)\s*x\s*$/i);
-                    const amount = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+                    // Match "10 ", "10x ", "x10 ", "ramener 10 " (case insensitive)
+                    const qtyMatch = prefix.match(/(?:(?:ramener|livrer|donner|posséder|avoir)\s+)?(\d+)\s*x?\s*$/i) 
+                                 || prefix.match(/x\s*(\d+)\s*$/i);
+                    
+                    const amount = qtyMatch ? parseInt(qtyMatch[1] || qtyMatch[2]) : 1;
                     
                     if (!obj.need?.generated?.items?.some((i: any) => (typeof i === "object" ? i.id : i) === id)) {
                         seenMap.set(id, (seenMap.get(id) || 0) + (amount || 1));
                     }
                 }
+            }
+        }
+    }
+
+    if (manualItems && Array.isArray(manualItems)) {
+        for (const mi of manualItems) {
+            const id = mi.id || mi.dofusdbId;
+            if (id) {
+                seenMap.set(id, (seenMap.get(id) || 0) + (mi.amount || 1));
             }
         }
     }
@@ -265,22 +305,62 @@ function extractItems(quest: any): Array<{ id: number; name: string; amount: num
     return results;
 }
 
-/** Extract dungeon names from the quest */
-function extractDungeons(quest: any): Array<{ id: number; name: string; bossId?: number }> {
-    const results: Array<{ id: number; name: string; bossId?: number }> = [];
+/** Extract dungeon names from the quest, with optional manual overrides */
+function extractDungeons(quest: any, manualDungeons?: any[]): Array<{ id: number; name: string; bossId?: number; img?: string }> {
+    const results: Array<{ id: number; name: string; bossId?: number; img?: string }> = [];
     const seen = new Set<number>();
 
-    for (const step of quest.steps ?? []) {
-        for (const obj of step.objectives ?? []) {
-            for (const djId of obj.need?.generated?.dungeons ?? []) {
-                if (seen.has(djId)) continue;
-                seen.add(djId);
-                const cached = dungeonCache.get(djId);
-                results.push({ 
-                    id: djId, 
-                    name: cached?.name ?? "Donjon", 
-                    bossId: cached?.bossIds?.[0] 
-                });
+    // 1. Process manual dungeons from config (priority)
+    if (manualDungeons && Array.isArray(manualDungeons)) {
+        for (const md of manualDungeons) {
+            const id = md.id || md.dofusdbId;
+            if (id) seen.add(id);
+            const bossId = md.bossId;
+            // Support for manual img override, else try to use cached
+            let img = md.img;
+            if (!img && bossId) {
+                 const mCached = [...itemCache.values()].find(ic => ic.name === md.name); // very rough fallback
+                 // We don't want to fetch here because extractDungeons is sync
+                 img = `https://api.dofusdb.fr/img/monsters/${bossId}.png`;
+            }
+            
+            // Try to find cached bossImg if possible
+            if (!img || img.includes(String(bossId))) {
+                const cachedDj = dungeonCache.get(id);
+                if (cachedDj?.bossImg) img = cachedDj.bossImg;
+            }
+            
+            results.push({
+                id: id,
+                name: md.name || "Donjon",
+                bossId,
+                img: img || undefined
+            });
+        }
+    }
+
+    // 2. Process detected dungeons from quest metadata
+    if (quest && quest.steps) {
+        for (const step of quest.steps ?? []) {
+            for (const obj of step.objectives ?? []) {
+                for (const djId of obj.need?.generated?.dungeons ?? []) {
+                    if (seen.has(djId)) continue;
+                    seen.add(djId);
+                    const cached = dungeonCache.get(djId);
+                    const bossId = cached?.bossIds?.[0];
+                    let img = cached?.bossImg;
+                    if (!img && bossId) {
+                         // Fallback structure
+                         img = `https://api.dofusdb.fr/img/monsters/${bossId}.png`;
+                    }
+
+                    results.push({ 
+                        id: djId, 
+                        name: cached?.name ?? "Donjon", 
+                        bossId,
+                        img: img || undefined
+                    });
+                }
             }
         }
     }
@@ -311,29 +391,63 @@ function detectDungeon(quest: any): boolean {
     return false;
 }
 
-/** Extract first objective map coords + worldId */
-function extractCoords(quest: any, success: any): { x: number; y: number; worldId: number } | null {
+/** Extract first objective map coords + worldId with NPC fallback */
+async function extractCoords(quest: any, success: any): Promise<{ x: number; y: number; worldId: number } | null> {
     let worldId = 1;
     const zoneName = success.zone?.toLowerCase() || "";
-    if (zoneName === "incarnam") {
-        worldId = 2;
-    }
+    if (zoneName === "incarnam") worldId = 2;
 
     for (const step of quest.steps ?? []) {
         for (const obj of step.objectives ?? []) {
+            // Check map format (posX/posY)
+            if (obj.mapId && obj.mapId > 0) {
+                try {
+                    const mapData = await apiFetch(`maps/${obj.mapId}`);
+                    if (mapData?.posX != null) {
+                        return { x: mapData.posX, y: mapData.posY, worldId: mapData.worldMap ?? 1 };
+                    }
+                } catch (e) {}
+            }
+
             if (obj.map?.posX != null && obj.map?.posY != null) {
                 const mapWorld = obj.map.worldMap;
-                // If map has a valid world (not -1/interior), use it. Else fallback to success zone default.
                 const finalWorld = (mapWorld != null && mapWorld > 0) ? mapWorld : worldId;
                 return { x: obj.map.posX, y: obj.map.posY, worldId: finalWorld };
             }
-            if (obj.coords?.posX != null) {
-                const coordWorld = obj.coords.worldMap;
-                const finalWorld = (coordWorld != null && coordWorld > 0) ? coordWorld : worldId;
-                return { x: obj.coords.posX, y: obj.coords.posY, worldId: finalWorld };
+            // Check coords format (posX OR x)
+            if (obj.coords) {
+                const x = obj.coords.posX ?? obj.coords.x;
+                const y = obj.coords.posY ?? obj.coords.y;
+                if (x != null && y != null) {
+                    const coordWorld = obj.coords.worldMap;
+                    const finalWorld = (coordWorld != null && coordWorld > 0) ? coordWorld : worldId;
+                    return { x, y, worldId: finalWorld };
+                }
             }
         }
     }
+
+    // --- SECOND PASS: Fallback to NPC default position ---
+    const firstStep = quest.steps?.[0];
+    if (firstStep?.objectives?.length > 0) {
+        for (const obj of firstStep.objectives) {
+            const npcId = obj.parameters?.parameter0;
+            if (npcId && typeof npcId === 'number' && npcId > 0) {
+                try {
+                    const npcData = await apiFetch(`npcs/${npcId}`);
+                    // DofusDB NPCs have a mapId link often, or an association with a subarea
+                    const bestMapId = npcData.mapId ?? npcData.subArea?.mapIds?.[0];
+                    if (bestMapId) {
+                        const map = await apiFetch(`maps/${bestMapId}`);
+                        if (map?.posX != null) {
+                            return { x: map.posX, y: map.posY, worldId: map.worldMap ?? 1 };
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
     return null;
 }
 
@@ -388,9 +502,11 @@ async function run() {
             try {
                 let quest: any = null;
 
-                if (manualId) {
+                if (manualId && manualId > 0) {
                     const detail = await apiFetch(`quests/${manualId}`);
                     quest = Array.isArray(detail) ? (detail[0] ?? null) : (detail ?? null);
+                } else if (manualId === 0) {
+                    quest = null; // Forces manual processing
                 } else {
                     const searchRes = await apiFetch("quests", { "name.fr": questName, "$limit": "5" });
                     const searchData: any[] = searchRes.data ?? searchRes;
@@ -419,8 +535,15 @@ async function run() {
                         allDungeonIds.push(...(obj.need?.generated?.dungeons ?? []));
                     }
                 }
+                
+                // Also collect from manual config
+                if (typeof questEntry === "object" && (questEntry as any).dungeons) {
+                    (questEntry as any).dungeons.forEach((dj: any) => {
+                        if (dj.id) allDungeonIds.push(dj.id);
+                    });
+                }
 
-                const coords = extractCoords(quest, success);
+                const coords = await extractCoords(quest, success);
                 const isDungeon = detectDungeon(quest);
                 const flags = [
                     isDungeon ? "🏰" : "",
@@ -438,7 +561,15 @@ async function run() {
             }
         }
 
-        passOneData.push({ success, questResults });
+        // Collect global items for resolution
+        if (success.globalItemsRequired) {
+            success.globalItemsRequired.forEach((i: any) => {
+                const id = i.id || i.dofusdbId;
+                if (id) allItemIds.push(id);
+            });
+        }
+
+        passOneData.push({ success, questResults: questResults.map((qr, idx) => ({ ...qr, config: success.quests[idx] })) });
     }
 
     // PASS 2 — Batch resolve all item, NPC & Dungeon names
@@ -481,7 +612,7 @@ async function run() {
         let lastQuestDbId: number | null = null;
         let isFirstQuest = true;
 
-        for (let { name, quest } of questResults) {
+        for (let { name, quest, config: questConfig } of (questResults as any[])) {
             const originalName = typeof name === "string" ? name : (name as any)?.name ?? String(name);
             name = originalName;
             if (!quest) {
@@ -504,28 +635,28 @@ async function run() {
                 continue;
             }
 
-            const items = extractItems(quest);
+            const items = extractItems(quest, (questConfig as any).items);
             const objectives = extractObjectives(quest);
-            const dungeonsRequired = extractDungeons(quest);
+            const dungeonsRequired = extractDungeons(quest, (questConfig as any)?.dungeons);
 
             // Inject Human Guide Manual Requirements
             if (isFirstQuest && success.globalItemsRequired) {
-                const resolvedGlobals = success.globalItemsRequired.map((i: any, idx: number) => {
-                    let id = i.id || (-999 - idx);
-                    // V3: Try to extract ID from DofusDB image URL if provided
-                    if (id < 0 && i.img && i.img.includes("/items/")) {
-                        const match = i.img.match(/\/items\/(\d+)\.png/);
-                        if (match) id = parseInt(match[1], 10);
-                    }
-                    return { ...i, id };
-                });
-                items.push(...resolvedGlobals);
+                for (const gi of success.globalItemsRequired) {
+                    const id = gi.id || gi.dofusdbId;
+                    const cached = itemCache.get(id);
+                    items.push({
+                        id,
+                        name: cached?.name ?? gi.name ?? `Item #${id}`,
+                        amount: gi.amount || 1,
+                        img: cached?.img ?? gi.img ?? null
+                    });
+                }
             }
             if (isFirstQuest && success.globalDungeonsRequired) {
                 success.globalDungeonsRequired.forEach((dName: string) => objectives.push(`Vaincre : ${dName}`));
             }
             isFirstQuest = false;
-            const coords = extractCoords(quest, success);
+            const coords = await extractCoords(quest, success);
             const rawZone = extractZone(quest);
             const isDungeon = detectDungeon(quest);
             const npcId = extractNpcId(quest);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { io, Socket } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { useSession } from "next-auth/react";
@@ -10,11 +10,13 @@ import { DrawingScreen } from "./DrawingScreen";
 import { GuessingScreen } from "./GuessingScreen";
 import { RevealScreen } from "./RevealScreen";
 import { AtmosphericParticles } from "../ui/AtmosphericParticles";
-import { Loader2, Plus, Users, ArrowRight, RefreshCw, Phone, Sparkles, X, ArrowRightCircle, Trophy, Crown, Home, LogOut } from "lucide-react";
+import { Loader2, Plus, Users, ArrowRight, RefreshCw, Phone, Sparkles, X, ArrowRightCircle, Trophy, Crown, Home, LogOut, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 import { playSoundEffect } from "@/lib/sounds";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useDiscordVoice } from "@/hooks/use-discord-voice";
+import { DiscordVoiceOverlay } from "@/components/shared/DiscordVoiceOverlay";
 
 interface AvailableRoom {
     roomId: string;
@@ -38,9 +40,26 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
     const [joiningId, setJoiningId] = useState<string | null>(null);
     const [isViewingGallery, setIsViewingGallery] = useState(false);
 
+    // Discord Voice Monitoring
+    const { voiceUsers } = useDiscordVoice(guildId, socket);
+    const [showVoiceOverlay, setShowVoiceOverlay] = useState(true);
+
+    // Active participants in game
+    const gamePlayerIds = useMemo(() => 
+        gameState?.players?.map((p: any) => p.userId).filter(Boolean) as string[] || [],
+        [gameState?.players]
+    );
+
+
     // Stable refs
     const sessionRef = useRef(session);
     useEffect(() => { sessionRef.current = session; }, [session]);
+
+    const userNameRef = useRef(userName);
+    useEffect(() => { userNameRef.current = userName; }, [userName]);
+
+    const userAvatarRef = useRef(userAvatar);
+    useEffect(() => { userAvatarRef.current = userAvatar; }, [userAvatar]);
 
     const currentRoomIdRef = useRef(currentRoomId);
     useEffect(() => { currentRoomIdRef.current = currentRoomId; }, [currentRoomId]);
@@ -121,12 +140,18 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
             lastHostId.current = state.hostId;
 
             setGameState((prev: any) => {
-                if (prev?.phase !== state.phase) {
+                const phaseChanged = prev?.phase !== state.phase;
+                if (phaseChanged) {
                     if (state.phase === "REVEAL") playSoundEffect("success");
+                    else if (state.phase === "WRITING") playSoundEffect("ding");
                     else if (state.phase !== "LOBBY" && state.phase !== "STARTING") playSoundEffect("ding");
                 }
-                if (state.phase === "STARTING" && prev?.timer !== state.timer && state.timer > 0 && state.timer <= 5) {
-                    playSoundEffect("tick");
+                
+                // Countdown sounds (3, 2, 1)
+                if (state.phase === "STARTING" && state.timer !== prev?.timer) {
+                    if (state.timer >= 1 && state.timer <= 3) {
+                        playSoundEffect("count");
+                    }
                 }
                 return state;
             });
@@ -153,7 +178,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
         setIsCreating(true);
         socket.emit("gartic:room:create", {
             maxPlayers: 14, drawTime: 60, mode: "NORMAL",
-            userName: userName || user.name, userId: user.id, userAvatar: userAvatar || user.image,
+            userName: userNameRef.current || user.name, userId: user.id, userAvatar: userAvatarRef.current || user.image,
         });
     }, [socket, isCreating]);
 
@@ -166,9 +191,9 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
         socket.emit("gartic:room:join", { 
             roomId, 
             playerObj: { 
-                userName: userName || user.name, 
+                userName: userNameRef.current || user.name, 
                 userId: user.id, 
-                userAvatar: userAvatar || user.image,
+                userAvatar: userAvatarRef.current || user.image,
                 isSpectator: asSpectator 
             } 
         });
@@ -195,7 +220,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
     if (phase === "browse" || !gameState) {
         return (
             <GarticLayout phase="BROWSE" onClose={handleExitToMenu}>
-                <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-4xl mx-auto md:gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0 overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-4xl mx-auto md:gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0">
                     {/* Header */}
                     <div className="text-center px-4">
                         <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full mb-8 shadow-xl">
@@ -319,6 +344,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
                         }}
                         onClose={handleExitToMenu}
                         isHost={isHost}
+                        voiceUsers={voiceUsers}
                     />
                 );
             case "STARTING":
@@ -347,6 +373,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
                         totalRounds={gameState.players?.length || 1}
                         onClose={handleExitToMenu}
                         isSpectator={isSpectatorMode}
+                        voiceUsers={voiceUsers}
                     />
                 );
             case "DRAWING":
@@ -366,6 +393,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
                         totalRounds={gameState.players?.length || 1}
                         onClose={handleExitToMenu}
                         isSpectator={isSpectatorMode}
+                        voiceUsers={voiceUsers}
                     />
                 );
             case "GUESSING":
@@ -384,6 +412,7 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
                         totalRounds={gameState.players?.length || 1}
                         onClose={handleExitToMenu}
                         isSpectator={isSpectatorMode}
+                        voiceUsers={voiceUsers}
                     />
                 );
             case "REVEAL":
@@ -399,7 +428,10 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
                 );
             case "SCORES":
                 return (
-                    <div className="flex flex-col items-center justify-start h-full min-h-full w-full max-w-5xl mx-auto md:gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0 overflow-y-auto custom-scrollbar">
+                    <div className={cn(
+                        "flex flex-col items-center justify-start h-full min-h-full w-full max-w-5xl mx-auto md:gap-12 animate-in fade-in zoom-in duration-700 p-4 md:p-10 shrink-0 custom-scrollbar",
+                        !isViewingGallery && "overflow-y-auto"
+                    )}>
                         <div className="text-center px-4">
                             <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full mb-8 shadow-xl">
                                 <Sparkles size={18} className="text-yellow-400 animate-pulse" />
@@ -502,7 +534,17 @@ export default function GarticGameWrapper({ roomId: initialRoomId, guildId, user
                 onClose={handleExitToMenu}
                 spectators={gameState?.players?.filter((p: any) => p.isSpectator) || []}
                 guildId={guildId}
+                showVoiceOverlay={showVoiceOverlay}
+                onToggleVoice={() => setShowVoiceOverlay(!showVoiceOverlay)}
             >
+                {showVoiceOverlay && (
+                    <DiscordVoiceOverlay 
+                        users={voiceUsers} 
+                        guildId={guildId}
+                        gamePlayerIds={gamePlayerIds} 
+                        currentUserId={(session?.user as any)?.discordId}
+                    />
+                )}
                 {renderPhase()}
             </GarticLayout>
             <AtmosphericParticles />

@@ -48,4 +48,5 @@ export interface MapNode {
     subAreaId: number;
     worldMap: number;
     outdoor: boolean;
+    altitude?: number;
 }

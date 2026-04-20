@@ -19,7 +19,8 @@ import {
     Database,
     Ban,
     Sparkles,
-    ShieldAlert
+    ShieldAlert,
+    Navigation
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,7 +41,9 @@ const CONSOLE_PAGES = [
     { name: "Alertes Système", id: "notifications", icon: Bell, color: "text-rose-400" },
     { name: "Tickets Support", id: "tickets", icon: Ticket, color: "text-indigo-400" },
     { name: "Données de Jeu", id: "game-data", icon: Database, color: "text-cyan-400" },
+    { name: "Avis de Recherche", id: "bounties", href: "/god/game-data/bounties", icon: ShieldAlert, color: "text-rose-500" },
     { name: "Quêtes Dofus", id: "quetes-dofus", href: "/god/quetes-dofus", icon: Sparkles, color: "text-purple-400" },
+    { name: "Guides Optim.", id: "dofus-guides", href: "/god/dofus-guides", icon: Navigation, color: "text-emerald-400" },
     { name: "Sécurité & Logs", id: "security", icon: ShieldAlert, color: "text-zinc-400" },
 ];
 
@@ -55,7 +58,7 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
     };
 
     return (
-        <div className={cn("flex flex-col h-full bg-[#050505] border-r border-white/5", className)}>
+        <div className={cn("flex flex-col h-full bg-zinc-950 border-r border-white/10", className)}>
 
             {/* 1. HEADER: BRAND */}
             <div className="p-6 lg:p-8 pb-4">
@@ -70,7 +73,7 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                             className="object-contain drop-shadow-[0_0_20px_rgba(168,85,247,0.6)] brightness-110"
                         />
                     </div>
-                    <span className="text-lg md:text-2xl font-black tracking-tight text-white leading-none font-heading truncate">
+                    <span className="text-lg md:text-2xl font-black tracking-tight text-white leading-none font-heading truncate drop-shadow-md">
                         SIGIL<span className="text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">GOD</span>
                     </span>
                 </Link>
@@ -82,8 +85,8 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                     {/* CONSOLE SECTION */}
                     <div>
                         <div className="flex items-center gap-3 px-3 mb-6">
-                            <Terminal className="h-4 w-4 text-zinc-600" />
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600">
+                            <Terminal className="h-4 w-4 text-zinc-400" />
+                            <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400">
                                 Console Centrale
                             </h4>
                         </div>
@@ -103,8 +106,8 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                                             className={cn(
                                                 "flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
                                                 active
-                                                    ? "bg-white/5 text-white shadow-[0_0_40px_rgba(255,255,255,0.03)] border border-white/10"
-                                                    : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] border border-transparent"
+                                                    ? "bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20"
+                                                    : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                             )}
                                         >
                                             {active && (
@@ -112,12 +115,12 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                                             )}
                                             <page.icon className={cn(
                                                 "h-5 w-5 transition-all duration-500 group-hover:scale-110",
-                                                active ? page.color : "text-zinc-700/80 group-hover:text-zinc-400"
+                                                active ? page.color : "text-zinc-500 group-hover:text-zinc-300"
                                             )} />
-                                            <span className="text-[11px] font-bold tracking-widest uppercase truncate flex-1">{page.name}</span>
+                                            <span className="text-[12px] font-bold tracking-widest uppercase truncate flex-1">{page.name}</span>
                                             
                                             {hasBadge && (
-                                                <span className="flex items-center justify-center bg-rose-500 text-white text-[9px] font-black h-4 px-1.5 rounded-lg shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-pulse">
+                                                <span className="flex items-center justify-center bg-rose-500 text-white text-[10px] font-black h-5 px-2 rounded-lg shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-pulse">
                                                     {unreadCount}
                                                 </span>
                                             )}
@@ -125,34 +128,34 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
 
                                         {/* Sub-tabs for specific sections */}
                                         {active && page.id === "infrastructure" && (
-                                            <div className="ml-8 space-y-1 border-l border-white/10 pl-4 py-1">
-                                                <Link href="/god?tab=infrastructure&sub=STATUS" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "STATUS" || sub === "NONE" ? "text-emerald-400 bg-emerald-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-                                                    <Activity className="h-3.5 w-3.5" /> Status
+                                            <div className="ml-8 space-y-1 border-l-2 border-white/10 pl-4 py-2 mt-2">
+                                                <Link href="/god?tab=infrastructure&sub=STATUS" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "STATUS" || sub === "NONE" ? "text-emerald-400 bg-emerald-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                    <Activity className="h-4 w-4" /> Status
                                                 </Link>
-                                                <Link href="/god?tab=infrastructure&sub=STORAGE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "STORAGE" ? "text-blue-400 bg-blue-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-                                                    <HardDrive className="h-3.5 w-3.5" /> Stockage
+                                                <Link href="/god?tab=infrastructure&sub=STORAGE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "STORAGE" ? "text-blue-400 bg-blue-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                    <HardDrive className="h-4 w-4" /> Stockage
                                                 </Link>
                                             </div>
                                         )}
 
                                         {active && page.id === "security" && (
-                                            <div className="ml-8 space-y-1 border-l border-white/10 pl-4 py-1">
-                                                <Link href="/god?tab=security&sub=AUDIT" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "AUDIT" || sub === "NONE" ? "text-zinc-300 bg-white/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-                                                    <ShieldAlert className="h-3.5 w-3.5" /> Audit Logs
+                                            <div className="ml-8 space-y-1 border-l-2 border-white/10 pl-4 py-2 mt-2">
+                                                <Link href="/god?tab=security&sub=AUDIT" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "AUDIT" || sub === "NONE" ? "text-white bg-white/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                    <ShieldAlert className="h-4 w-4" /> Audit Logs
                                                 </Link>
-                                                <Link href="/god?tab=security&sub=FIREWALL" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "FIREWALL" ? "text-rose-400 bg-rose-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-                                                    <Bell className="h-3.5 w-3.5" /> Firewall
+                                                <Link href="/god?tab=security&sub=FIREWALL" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "FIREWALL" ? "text-rose-400 bg-rose-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                    <Bell className="h-4 w-4" /> Firewall
                                                 </Link>
                                             </div>
                                         )}
 
                                         {active && page.id === "tickets" && (
-                                            <div className="ml-8 space-y-1 border-l border-white/10 pl-4 py-1">
-                                                <Link href="/god?tab=tickets&sub=OPEN" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "OPEN" || sub === "NONE" ? "text-indigo-400 bg-indigo-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-                                                    <Ticket className="h-3.5 w-3.5" /> Ouverts
+                                            <div className="ml-8 space-y-1 border-l-2 border-white/10 pl-4 py-2 mt-2">
+                                                <Link href="/god?tab=tickets&sub=OPEN" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "OPEN" || sub === "NONE" ? "text-indigo-400 bg-indigo-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                    <Ticket className="h-4 w-4" /> Ouverts
                                                 </Link>
-                                                <Link href="/god?tab=tickets&sub=CLOSED" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", sub === "CLOSED" ? "text-zinc-400 bg-white/5" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-                                                    <Database className="h-3.5 w-3.5" /> Archives
+                                                <Link href="/god?tab=tickets&sub=CLOSED" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "CLOSED" ? "text-zinc-300 bg-white/10" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                    <Database className="h-4 w-4" /> Archives
                                                 </Link>
                                             </div>
                                         )}
@@ -164,8 +167,8 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                     </div>
 
                     {/* OTHER ACCESSS */}
-                    <div>
-                        <h4 className="px-3 text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-6 block">
+                    <div className="pt-4">
+                        <h4 className="px-3 text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-6 block">
                             Platform Access
                         </h4>
                         
@@ -181,8 +184,8 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                                         className={cn(
                                             "flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
                                             item.active
-                                                ? "bg-white/5 text-white shadow-[0_0_40px_rgba(255,255,255,0.03)] border border-white/10"
-                                                : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] border border-transparent"
+                                                ? "bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20"
+                                                : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         )}
                                     >
                                         {item.active && (
@@ -190,18 +193,18 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                                         )}
                                         <item.icon className={cn(
                                             "h-5 w-5 transition-transform duration-300 group-hover:scale-110",
-                                            item.active ? item.color : "text-zinc-700/80 group-hover:text-zinc-400"
+                                            item.active ? item.color : "text-zinc-500 group-hover:text-zinc-300"
                                         )} />
-                                        <span className="text-[11px] font-bold tracking-widest uppercase truncate">{item.name}</span>
+                                        <span className="text-[12px] font-bold tracking-widest uppercase truncate">{item.name}</span>
                                     </Link>
 
                                     {item.active && item.name === "Gestion Mini-Jeux" && (
-                                        <div className="ml-8 space-y-1 border-l border-white/10 pl-4 py-1">
-                                            <Link href="/god/mini-games?sub=MAINTENANCE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", (searchParams.get("sub") || "MAINTENANCE") === "MAINTENANCE" ? "text-amber-400 bg-amber-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-                                                <ShieldAlert className="h-3.5 w-3.5" /> Maintenance
+                                        <div className="ml-8 space-y-1 border-l-2 border-white/10 pl-4 py-2 mt-2">
+                                            <Link href="/god/mini-games?sub=MAINTENANCE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", (searchParams.get("sub") || "MAINTENANCE") === "MAINTENANCE" ? "text-amber-400 bg-amber-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                <ShieldAlert className="h-4 w-4" /> Maintenance
                                             </Link>
-                                            <Link href="/god/mini-games?sub=GUESSER" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all", searchParams.get("sub") === "GUESSER" ? "text-rose-400 bg-rose-500/10" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-                                                <Ban className="h-3.5 w-3.5" /> Blacklist
+                                            <Link href="/god/mini-games?sub=GUESSER" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", searchParams.get("sub") === "GUESSER" ? "text-rose-400 bg-rose-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                <Ban className="h-4 w-4" /> Blacklist
                                             </Link>
                                         </div>
                                     )}
@@ -213,25 +216,25 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
             </ScrollArea>
 
             {/* 3. USER FOOTER */}
-            <div className="p-4 border-t border-white/5 bg-black/50 backdrop-blur-md">
+            <div className="p-4 border-t border-white/10 bg-zinc-950/80 backdrop-blur-md">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-white/5 group">
+                        <Button variant="ghost" className="w-full justify-start h-auto p-2 hover:bg-white/10 group rounded-xl transition-all">
                             <div className="flex items-center gap-3 w-full">
-                                <Avatar className="h-8 w-8 rounded-lg border border-zinc-800">
+                                <Avatar className="h-10 w-10 rounded-lg border-2 border-zinc-800 shadow-md">
                                     <AvatarImage src={user.image} />
                                     <AvatarFallback className="bg-zinc-800 text-xs font-bold text-amber-500">SU</AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col items-start min-w-0 flex-1 text-left">
-                                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest truncate w-full">
+                                    <span className="text-[11px] font-black text-amber-500 uppercase tracking-widest truncate w-full drop-shadow-sm">
                                         Super Admin
                                     </span>
                                 </div>
                             </div>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-zinc-950 border-zinc-900 text-zinc-200" align="end">
-                        <DropdownMenuItem onClick={() => signOut()} className="text-red-400 focus:text-red-400 focus:bg-red-950/20 cursor-pointer">
+                    <DropdownMenuContent className="w-56 bg-zinc-900 border-zinc-800 text-zinc-200" align="end">
+                        <DropdownMenuItem onClick={() => signOut()} className="text-red-400 focus:text-red-300 focus:bg-red-500/20 cursor-pointer rounded-lg font-bold">
                             <LogOut className="mr-2 h-4 w-4" />
                             Déconnexion
                         </DropdownMenuItem>

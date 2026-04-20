@@ -14,7 +14,6 @@ import { JoinRequestsPanel } from "@/components/songes/JoinRequestsPanel";
 import { RunTree } from "@/components/songes/RunTree";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
 import { RunCandidacyBox } from "@/components/songes/RunCandidacyBox";
-import { RunChatPanel } from "@/components/chat/RunChatPanel";
 import type { DreamRun, DreamRunMember, DreamWaitlist, DreamFloor, DreamRunBonus, DreamJoinRequest } from "@prisma/client";
 
 type RunWithRelations = DreamRun & {
@@ -41,6 +40,7 @@ export default function RunDetailPage() {
     const [bossGuideOpen, setBossGuideOpen] = useState(false);
     const [canJoinSonges, setCanJoinSonges] = useState<boolean>(true);
     const [currentUserContext, setCurrentUserContext] = useState<any>(null);
+    const [isDiscordConfigured, setIsDiscordConfigured] = useState<boolean>(false);
 
     const loadData = useCallback(async () => {
         if (!guildId) return;
@@ -63,6 +63,7 @@ export default function RunDetailPage() {
                     setProfiles(profilesResult.profiles || []);
                 }
             }
+            setIsDiscordConfigured(!!(runResult as any).songesNotifyChannelId);
 
         } else {
             setError(runResult.error || "Run non trouvée");
@@ -168,7 +169,11 @@ export default function RunDetailPage() {
                 <div className="space-y-4">
                     {/* Leader Actions */}
                     {isLeader && (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
-                        <RunLeaderActions guildId={guildId} runId={run.id} />
+                        <RunLeaderActions 
+                            guildId={guildId} 
+                            runId={run.id} 
+                            isDiscordConfigured={isDiscordConfigured}
+                        />
                     )}
 
                     {/* Candidacy Box */}
@@ -194,21 +199,6 @@ export default function RunDetailPage() {
                     <BonusInventory guildId={guildId} bonuses={run.bonuses} runId={run.id} isLeader={isLeader} onUpdate={loadData} />
                 </div>
             </div>
-            {/* Chat Run — pleine largeur, visible uniquement pour les membres actifs */}
-            {currentUserId && (run.members.some((m: DreamRunMember) => m.userId === currentUserId) || isLeader) &&
-                (run.status === "RECRUITING" || run.status === "IN_PROGRESS") && (
-                    <div className="w-full">
-                        <RunChatPanel
-                            runId={run.id}
-                            guildId={guildId}
-                            userId={currentUserId}
-                            userRoleName={currentUserContext?.roleName}
-                            userRoleNames={currentUserContext?.roleNames}
-                            userPseudo={currentUserContext?.pseudo}
-                        />
-                    </div>
-                )}
-
             {/* Boss Guide Drawer */}
             <BossGuide isOpen={bossGuideOpen} onClose={() => setBossGuideOpen(false)} />
         </div>

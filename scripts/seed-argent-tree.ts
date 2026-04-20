@@ -80,6 +80,8 @@ async function seedDofus() {
                 description,
                 successName: compiled.successName ?? null,
                 levelRecommended: compiled.recommendedLevel ?? 20,
+                filterCategory: compiled.filterCategory ?? "Autres",
+                displayOrder: compiled.displayOrder ?? 999,
             },
             create: {
                 slug: dofusSlug,
@@ -92,6 +94,8 @@ async function seedDofus() {
                 imageUrl,
                 successName: compiled.successName ?? null,
                 description,
+                filterCategory: compiled.filterCategory ?? "Autres",
+                displayOrder: compiled.displayOrder ?? 999,
             },
         });
         console.log(`✅ DofusItem synced: ${dofus.name} (id: ${dofus.id})\n`);

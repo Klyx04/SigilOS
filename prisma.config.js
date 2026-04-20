@@ -31,5 +31,6 @@ module.exports = {
     schema: "prisma/schema.prisma",
     datasource: {
         url,
+        shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
     },
 };

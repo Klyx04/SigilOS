@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-04-07)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-04-12)
 
-**Branche Active** : `feat/dofus-v3-schema-ui` (Sync Songes Unity & Cleanup Repo)
-**Status** : Data Songes Unity validée (147 boss officiels, trolls supprimés). Support du champ "Mécaniques" dans l'UI. Nettoyage massif du dépôt (-180Mo de fichiers de cache et traces de synchro). Hardening Sécurité : Session maxAge réduite à 24h.
+**Branche Active** : `feat/bomb-juice-stability` (Juice Update & Theme Overhaul)
+**Status** : Sigil-Bomb transformé en expérience compétitive (Ghost Typing, History, Bump Timer). Mode Sombre nativement par défaut (Zero Flash). Serveur WebSocket stabilisé.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -60,14 +60,10 @@ SigilOS/
 │   │   └── metamob-worker.ts   # Worker BullMQ indépendant (npm run worker)
 │   └── server/
 │       ├── actions/            # Server Actions (logique métier)
-│       │   ├── dungeon-finder-actions.ts  # DJ complet : CRUD, internalJoin/Leave, updateDiscordEmbed
-│       │   ├── module-actions.ts  # Toggle modules par guilde
-│       │   ├── ocre-actions.ts    # Ocre exchange + trade requests
-│       │   ├── songes/         # Gestion des runs Songes
-│       │   ├── changelog-actions.ts  # NEW — CRUD Changelog + Visibility Check
-│       │   ├── user-actions.ts       # RBAC, Guards & Context Management
-│       │   └── ...
-│       ├── songes-service.ts   # Service embeds Discord Songes
+│       ├── games/              # NEW — Moteurs de mini-jeux WebSocket
+│       │   ├── SigilBomb/      # Logique Bomb : JKLM mechanics
+│       │   └── SigilInvader/   # Logique Invader : Multi-boss scaling
+│       ├── websocket/          # NEW — Serveur Socket.io indépendant (npm run ws)
 │       └── discord.ts          # Discord API integration
 ```
 
@@ -552,13 +548,31 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - ✅ **Refonte Sondages Intégrés** : Calcul formel de `msg.pollData.voters` côté client sans `.some()` ou `.length` hasardeux qui engendraient des crashs d'hydration. Les pourcentages progressent en direct sans erreur Type.
 - ✅ **Hygiène Git & CI** : Audit TypeScript `npx tsc --noEmit` ramené à Zéro (0) sur tout le dépôt. Suppression post-commit de dump JSON titanesque (173 Mo de DofusDB) qui bloquait les pré-hooks GitHub. L'architecture est stable et saine.
 
+
 ---
 
-### Session — Songes Boss Data, Cleanup & Mechanics (2026-04-07)
+### Session — Sigil-Bomb "Juice" & Stabilisation Theme (2026-04-12)
 
-- ✅ **Songes Boss Data (v3 Unity)** : Mise à jour complète du répertoire de boss (144 → 147 boss officiels) via synchro YAML Volcasaurus.
-- ✅ **Troll Filtering** : Exclusion automatique des boss communautaires (Crocus, Diddy, Epstein) par filtrage d'ID (>= 1,000,000).
-- ✅ **Mechanics UI Field** : Support du nouveau champ `Mechanic` / `MechanicShort` dans `BossGuide.tsx`. Affichage d'un bloc orange tiers pour les boss complexes.
-- ✅ **Major Repo Cleanup (-180MB)** : Purge radicale des artefacts de synchro (`dofusdb_all_achievements.json`, `tmp/`, `scripts/argent-ids.json`, etc.) pour un dépôt propre et rapide.
-- ✅ **Hygiène Doc & Reference** : Mise à jour de `.antigravity` et conservation de `Songes_Pour_Les_Noobs/` root (purged) pour diff futurs.
-- ✅ **Prisma Hygiene** : `scripts/convert-bosses-yaml.mjs` durci (numeric parsing, UTF-8 mapping pour Unity).
+- ✅ **Ghost Typing (Real-time)** : Implémentation du broadcast WebSocket `bomb:typing` pour voir la saisie des autres (avec highlight syllabe live).
+- ✅ **Safety Bump (JKLM Style)** : Ajout du paramètre `minTurnDuration` garantissant un temps de jeu minimal au prochain joueur pour éviter les explosions injustes.
+- ✅ **Words History (Combat Log)** : Panneau latéral affichant les 5 derniers mots validés en temps réel pour tous les participants.
+- ✅ **Directional Arrow** : Ajout d'une flèche animée au centre de l'arène pointant vers le joueur actif.
+- ✅ **Zero-Flash Dark Mode** : Inversion de la polarité CSS (`:root` est désormais sombre) pour éliminer le flash blanc au chargement des pages.
+- ✅ **Dofus Category Normalization** : Nettoyage du dictionnaire pour identifier correctement les boss de donjons.
+- ✅ **WebSocket Stability** : Correction des crashs de syntaxe et synchronisation robuste de l'état des rooms.
+
+---
+
+### Session — Discord Voice & Multi-games (2026-04-10)
+
+- ✅ **Discord Voice Overlay** : Standardisation de l'overlay voix sur tous les mini-jeux.
+- ✅ **Speaking Indicators** : Ajout d'icônes micro (mic-on/speaker) à côté des pseudos pour un feedback live des participants en vocal.
+- ✅ **Filtering Multi** : Filtrage automatique pour n'afficher que les membres présents dans la même instance de jeu.
+
+---
+
+### Session — Dom de Pin & Data Quêtes (2026-04-09)
+
+- ✅ **Dom de Pin Integration** : Data integrity 100% sur la suite quêtes Dom de Pin. Mapping des images boss haute résolution.
+- ✅ **Dofus Forgelave** : Intégration complète du répertoire de ressources et mapping des récompenses.
+- ✅ **Standardisation Dashboard** : Grille 2x2 harmonisée sur tous les trackers de succès et quêtes.

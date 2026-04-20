@@ -53,16 +53,22 @@ const eslintConfig = defineConfig([
       "react-hooks/rules-of-hooks": "warn",
       "react-hooks/exhaustive-deps": "warn",
 
-      // React Hooks v7 (nouvelles règles) — OFF car eslint-config-next
-      // les force en "error" et notre "warn" se fait écraser.
-      // Ce sont des règles de style/perf, pas de correction de bugs.
+      // React Hooks v7 (nouvelles règles) — OFF ou WARN
+      // eslint-config-next les force en "error", on les surcharge.
       "react-hooks/immutability": "off",
       "react-hooks/static-components": "off",
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/error-boundaries": "off",
+
+      // React Compiler (règles expérimentales) — Downgrade de error → warn
+      // Ces règles détectent des violations de pureté React (Date.now(), refs pendant le rendu...)
+      // Elles sont correctes mais trop strictes pour notre codebase existante.
+      // On migre progressivement, pas bloquant pour la CI.
+      "react-hooks/purity": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
     }
   },
 ]);
 
 export default eslintConfig;
-

@@ -7,7 +7,7 @@
 set -e
 
 ENVIRONMENT=${1:-local}
-OUTPUT_DIR="prisma/seeds"
+OUTPUT_DIR="prisma/seed-data"
 OUTPUT_FILE="$OUTPUT_DIR/game-data.json"
 
 echo "🌱 Exporting Game Data seeds from $ENVIRONMENT..."
@@ -54,66 +54,80 @@ async function exportSeeds() {
   ]);
 
   const data = {
-    _meta: {
-      exportedAt: new Date().toISOString(),
-      environment: '$ENVIRONMENT',
-      version: '1.0',
-      counts: {
-        zones: zones.length,
-        monsterFamilies: monsterFamilies.length,
-        challenges: challenges.length,
-        dungeons: dungeons.length,
-        bounties: bounties.length
-      }
-    },
-    zones: zones.map(z => ({ slug: z.slug, name: z.name, description: z.description })),
-    monsterFamilies: monsterFamilies.map(mf => ({
-      slug: mf.slug,
-      name: mf.name,
-      description: mf.description,
-      imageUrl: mf.imageUrl,
-      zoneIds: mf.zones.map(z => z.zoneId)
-    })),
-    challenges: challenges.map(c => ({
-      slug: c.slug,
-      name: c.name,
-      description: c.description,
-      iconUrl: c.iconUrl
-    })),
-    dungeons: dungeons.map(d => ({
-      slug: d.slug,
-      name: d.name,
-      bossName: d.bossName,
-      level: d.level,
-      dpnlUrl: d.dpnlUrl,
-      imageUrl: d.imageUrl,
-      isExpedition: d.isExpedition,
-      expeditionModes: d.expeditionModes,
-      expeditionMechanics: d.expeditionMechanics,
-      challengeSlugs: d.achievements.map(a => a.challenge.slug)
-    })),
-    bounties: bounties.map(b => ({
-        name: b.name,
-        level: b.level,
-        zoneName: b.zoneName,
-        imageUrl: b.imageUrl,
-        reward: b.reward,
-        levelMin: b.levelMin,
-        levelMax: b.levelMax,
-        dpnlUrl: b.dpnlUrl,
-        doplons: b.doplons,
-        rewardType: b.rewardType,
-        milice: b.milice,
-        mechanics: b.mechanics,
-        mapUrl: b.mapUrl,
-        rewards: b.rewards
-    }))
+    version: '2.0',
+    exportedAt: new Date().toISOString(),
+    environment: '$ENVIRONMENT',
+    data: {
+        zones: zones.map(z => ({ 
+            id: z.id,
+            name: z.name, 
+            level: z.level,
+            dpnlUrl: z.dpnlUrl,
+            createdAt: z.createdAt,
+            updatedAt: z.updatedAt
+        })),
+        families: monsterFamilies.map(mf => ({
+            id: mf.id,
+            name: mf.name,
+            description: mf.description,
+            imageUrl: mf.imageUrl,
+            createdAt: mf.createdAt,
+            updatedAt: mf.updatedAt,
+            zoneIds: mf.zones.map(z => z.zoneId)
+        })),
+        challenges: challenges.map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            iconUrl: c.iconUrl,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt
+        })),
+        dungeons: dungeons.map(d => ({
+            id: d.id,
+            name: d.name,
+            bossName: d.bossName,
+            level: d.level,
+            dpnlUrl: d.dpnlUrl,
+            imageUrl: d.imageUrl,
+            isExpedition: d.isExpedition,
+            expeditionModes: d.expeditionModes,
+            expeditionMechanics: d.expeditionMechanics,
+            createdAt: d.createdAt,
+            updatedAt: d.updatedAt,
+            challengeSlugs: d.achievements.map(a => a.challenge.slug)
+        })),
+        bounties: bounties.map(b => ({
+            id: b.id,
+            name: b.name,
+            level: b.level,
+            zoneName: b.zoneName,
+            imageUrl: b.imageUrl,
+            reward: b.reward,
+            levelMin: b.levelMin,
+            levelMax: b.levelMax,
+            dpnlUrl: b.dpnlUrl,
+            doplons: b.doplons,
+            rewardType: b.rewardType,
+            milice: b.milice,
+            mechanics: b.mechanics,
+            mapUrl: b.mapUrl,
+            rewards: b.rewards,
+            createdAt: b.createdAt,
+            updatedAt: b.updatedAt
+        }))
+    }
   };
 
   fs.writeFileSync('$OUTPUT_FILE', JSON.stringify(data, null, 2));
   console.log('✅ Seeds exported successfully!');
-  console.log('📁 File:', '$OUTPUT_FILE');
-  console.log('📊 Stats:', JSON.stringify(data._meta.counts, null, 2));
+  console.log('📊 Counts:', {
+      zones: data.data.zones.length,
+      families: data.data.families.length,
+      challenges: data.data.challenges.length,
+      dungeons: data.data.dungeons.length,
+      bounties: data.data.bounties.length
+  });
   
   await prisma.\$disconnect();
 }

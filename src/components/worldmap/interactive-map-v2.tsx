@@ -175,28 +175,25 @@ export default function InteractiveMapV2({
 
     const activeMaps = useMemo(() => {
         if (!worldMap.maps) return [];
-        const dungeonMapIds = new Set(worldMap.dungeons?.map(d => d.mapId || d.entranceMapId) || []);
-        return worldMap.maps?.filter(m => {
+        const dungeonMapIds = new Set(worldMap.dungeons?.map(d => d.mapId || d.entranceMapId).filter(Boolean) || []);
+        return worldMap.maps.filter(m => {
             const isTargetWorld = m.worldMap === selectedWorldId;
             const isDungeon = dungeonMapIds.has(m.id);
             const isEntryToDungeonFromMain = (selectedWorldId === 1 && m.worldMap === -1 && isDungeon);
 
-            // On affiche si c'est le monde sélectionné ou un donjon lié
             if (isTargetWorld || isEntryToDungeonFromMain) {
-                // Pour le monde principal (ID 1), on masque les intérieurs de maisons (outdoor: false)
-                // MAIS on garde les sombres profondeurs et les donjons enterrés
                 if (selectedWorldId === 1 && m.outdoor === false && !isDungeon) {
                     return false;
                 }
                 return true;
             }
             return false;
-        }) || [];
+        });
     }, [worldMap.maps, selectedWorldId, worldMap.dungeons]);
 
     const visibleWorlds = useMemo(() =>
         worldMap.worlds?.filter(w => worldMap.maps?.some(m => m.worldMap === w.id)) || [],
-        [worldMap]);
+        [worldMap.worlds, worldMap.maps]);
 
     const searchResults = useMemo(() => {
         if (!search) return [];
@@ -519,7 +516,7 @@ export default function InteractiveMapV2({
         newSocket.on("bomb:room:list", (rooms) => setBombRooms(rooms || []));
 
         newSocket.on("geoguesser:player:joined", (data: any) => {
-            if (data.userId !== currentUserIdRef.current) {
+            if (data.userId !== currentUserId) {
                 if (data.isSpectator) {
                     toast.info(`${data.userName} regarde la partie`, {
                         icon: "👀",
@@ -551,8 +548,8 @@ export default function InteractiveMapV2({
             if (!state || isLeavingSession) return;
 
             // Host migration notification
-            if (activeSessionRef.current && state.hostId !== activeSessionRef.current.hostId) {
-                const currentUserId = currentUserIdRef.current;
+            if (activeSession && state.hostId !== activeSession.hostId) {
+                // Use local variable currentUserId from state
                 if (state.hostId === currentUserId) {
                     toast.success("Vous êtes maintenant l'hôte du salon !", {
                         icon: <Crown className="text-yellow-400" />,
@@ -639,10 +636,10 @@ export default function InteractiveMapV2({
 
             // 2. Sync results ALWAYS if in RESULT or FINISHED, 
             // OR if we already have a guess synced on server but we are locally in 'playing' (recovery)
-            const me = state.participants?.find((p: any) => p.userId === currentUserIdRef.current);
+            const me = state.participants?.find((p: any) => p.userId === currentUserId);
             if ((state.state === 'RESULT' || state.state === 'FINISHED' || (me?.hasGuessed && gamePhase === 'playing')) && (state.currentMapId || state.targetMapIds) && state.currentRound > 0) {
                 const targetId = state.currentMapId || (state.targetMapIds && state.targetMapIds[state.currentRound - 1]);
-                const tMap = allMapsByIdRef.current.get(targetId);
+                const tMap = allMapsById.get(targetId);
                 if (tMap) {
                     const newResult = {
                         target: { x: tMap.x, y: tMap.y, worldMap: tMap.worldMap, mapId: targetId },
@@ -2859,7 +2856,7 @@ export default function InteractiveMapV2({
                             className="fixed inset-0 z-[2000] pointer-events-none flex items-center justify-center overflow-hidden"
                         >
                             {/* Particles/Confetti */}
-                            {[...Array(20)].map((_, i) => (
+                            {Array.from({ length: 20 }).map((_, i) => (
                                 <motion.div
                                     key={i}
                                     initial={{ 
@@ -2869,11 +2866,11 @@ export default function InteractiveMapV2({
                                         scale: 0 
                                     }}
                                     animate={{ 
-                                        x: (Math.random() - 0.5) * 1200, 
-                                        y: (Math.random() - 0.5) * 1200, 
+                                        x: ((i % 5) - 2) * 240, 
+                                        y: ((i % 4) - 2) * 300, 
                                         opacity: 0, 
-                                        scale: Math.random() * 2 + 1,
-                                        rotate: Math.random() * 360
+                                        scale: (i % 3) + 1,
+                                        rotate: i * 18
                                     }}
                                     transition={{ duration: 3, ease: "easeOut" }}
                                     className="absolute w-4 h-4 rounded-sm bg-emerald-500 shadow-[0_0_25px_#10b981]"

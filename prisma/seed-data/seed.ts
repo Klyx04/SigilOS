@@ -49,6 +49,7 @@ interface SeedData {
         families?: any[];
         challenges?: any[];
         dungeons?: any[];
+        bounties?: any[];
     };
 }
 
@@ -338,6 +339,72 @@ async function main() {
                     totalProcessed++;
                 } catch (error) {
                     console.error(`  ❌ Error processing dungeon "${dungeon.name}":`, error);
+                    throw error;
+                }
+            }
+        }
+
+        // === BOUNTIES ===
+        if (seedData.data.bounties && Array.isArray(seedData.data.bounties)) {
+            console.log(`\n🎯 [BOUNTIES] Processing ${seedData.data.bounties.length} bounties...`);
+
+            for (const bounty of seedData.data.bounties) {
+                if (!bounty.name) {
+                    console.warn('⚠️  [BOUNTIES] Skipping bounty without name:', bounty);
+                    totalSkipped++;
+                    continue;
+                }
+
+                try {
+                    const existing = await tx.bounty.findUnique({
+                        where: { name: bounty.name }
+                    });
+
+                    await tx.bounty.upsert({
+                        where: { name: bounty.name },
+                        update: {
+                            level: bounty.level,
+                            zoneName: bounty.zoneName,
+                            imageUrl: bounty.imageUrl,
+                            reward: bounty.reward,
+                            levelMin: bounty.levelMin,
+                            levelMax: bounty.levelMax,
+                            dpnlUrl: bounty.dpnlUrl,
+                            doplons: bounty.doplons || 0,
+                            rewardType: bounty.rewardType || "Doplon",
+                            milice: bounty.milice,
+                            mechanics: bounty.mechanics,
+                            mapUrl: bounty.mapUrl,
+                            rewards: bounty.rewards || [],
+                        },
+                        create: {
+                            name: bounty.name,
+                            level: bounty.level,
+                            zoneName: bounty.zoneName,
+                            imageUrl: bounty.imageUrl,
+                            reward: bounty.reward,
+                            levelMin: bounty.levelMin,
+                            levelMax: bounty.levelMax,
+                            dpnlUrl: bounty.dpnlUrl,
+                            doplons: bounty.doplons || 0,
+                            rewardType: bounty.rewardType || "Doplon",
+                            milice: bounty.milice,
+                            mechanics: bounty.mechanics,
+                            mapUrl: bounty.mapUrl,
+                            rewards: bounty.rewards || [],
+                        }
+                    });
+
+                    if (existing) {
+                        console.log(`  ✏️  Updated: ${bounty.name}`);
+                        totalUpdated++;
+                    } else {
+                        console.log(`  ➕ Created: ${bounty.name}`);
+                        totalCreated++;
+                    }
+                    totalProcessed++;
+                } catch (error) {
+                    console.error(`  ❌ Error processing bounty "${bounty.name}":`, error);
                     throw error;
                 }
             }

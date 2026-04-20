@@ -39,7 +39,7 @@ const prisma = new PrismaClient({
 async function exportSeeds() {
   console.log('📊 Fetching data from database...');
   
-  const [zones, monsterFamilies, challenges, dungeons] = await Promise.all([
+  const [zones, monsterFamilies, challenges, dungeons, bounties] = await Promise.all([
     prisma.zone.findMany({ orderBy: { name: 'asc' } }),
     prisma.monsterFamily.findMany({ 
       orderBy: { name: 'asc' },
@@ -49,7 +49,8 @@ async function exportSeeds() {
     prisma.dungeon.findMany({ 
       orderBy: { level: 'asc' },
       include: { achievements: { include: { challenge: true } } }
-    })
+    }),
+    prisma.bounty.findMany({ orderBy: { level: 'asc' } })
   ]);
 
   const data = {
@@ -61,7 +62,8 @@ async function exportSeeds() {
         zones: zones.length,
         monsterFamilies: monsterFamilies.length,
         challenges: challenges.length,
-        dungeons: dungeons.length
+        dungeons: dungeons.length,
+        bounties: bounties.length
       }
     },
     zones: zones.map(z => ({ slug: z.slug, name: z.name, description: z.description })),
@@ -89,6 +91,22 @@ async function exportSeeds() {
       expeditionModes: d.expeditionModes,
       expeditionMechanics: d.expeditionMechanics,
       challengeSlugs: d.achievements.map(a => a.challenge.slug)
+    })),
+    bounties: bounties.map(b => ({
+        name: b.name,
+        level: b.level,
+        zoneName: b.zoneName,
+        imageUrl: b.imageUrl,
+        reward: b.reward,
+        levelMin: b.levelMin,
+        levelMax: b.levelMax,
+        dpnlUrl: b.dpnlUrl,
+        doplons: b.doplons,
+        rewardType: b.rewardType,
+        milice: b.milice,
+        mechanics: b.mechanics,
+        mapUrl: b.mapUrl,
+        rewards: b.rewards
     }))
   };
 

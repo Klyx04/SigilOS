@@ -79,11 +79,11 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
         const pseudoRegex = /([a-zA-Z0-9_-]+)(#\d{4})/g;
         const guildRegex = /(Guilde\s+)(\[.*?\])/g;
 
-        let parts: (string | JSX.Element)[] = [text];
+        const parts: (string | React.ReactNode)[] = [text];
 
-        parts = parts.flatMap(part => {
+        const mappedParts = parts.flatMap(part => {
             if (typeof part !== 'string') return part;
-            const subParts: (string | JSX.Element)[] = [];
+            const subParts: (string | React.ReactNode)[] = [];
             let lastIndex = 0;
             let match;
             const regex = new RegExp(pseudoRegex);
@@ -97,9 +97,9 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
             return subParts;
         });
 
-        parts = parts.flatMap(part => {
+        const finalParts = mappedParts.flatMap(part => {
             if (typeof part !== 'string') return part;
-            const subParts: (string | JSX.Element)[] = [];
+            const subParts: (string | React.ReactNode)[] = [];
             let lastIndex = 0;
             let match;
             const regex = new RegExp(guildRegex);
@@ -113,7 +113,7 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
             return subParts;
         });
 
-        return parts;
+        return finalParts;
     };
 
     const fetchEntries = async (query?: string) => {

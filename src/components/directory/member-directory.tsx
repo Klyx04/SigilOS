@@ -36,16 +36,19 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
         // 1. Search (Deep Alias Search)
         const searchTerm = search.toLowerCase();
         
-        // Main Pseudos
-        const mainMatch = (m.pseudoDofus || "").toLowerCase().includes(searchTerm) ||
-            (m.dofusPseudo || "").toLowerCase().includes(searchTerm) ||
-            (m.user.name || "").toLowerCase().includes(searchTerm) ||
-            (m.discordNickname || "").toLowerCase().includes(searchTerm);
+        // Main Pseudos - Safe check
+        const mainMatch = 
+            (typeof m.pseudoDofus === 'string' ? m.pseudoDofus : "").toLowerCase().includes(searchTerm) ||
+            (typeof m.dofusPseudo === 'string' ? m.dofusPseudo : "").toLowerCase().includes(searchTerm) ||
+            (typeof m.user?.name === 'string' ? m.user.name : "").toLowerCase().includes(searchTerm) ||
+            (typeof m.discordNickname === 'string' ? m.discordNickname : "").toLowerCase().includes(searchTerm);
 
-        // Alt Pseudos (stored as JSON array)
+        // Alt Pseudos (stored as JSON array) - Safe check
         let altMatch = false;
         if (m.altPseudos && Array.isArray(m.altPseudos)) {
-            altMatch = m.altPseudos.some((alt: string) => alt.toLowerCase().includes(searchTerm));
+            altMatch = m.altPseudos.some((alt: any) => 
+                typeof alt === 'string' && alt.toLowerCase().includes(searchTerm)
+            );
         }
 
         if (!mainMatch && !altMatch) return false;
@@ -55,7 +58,7 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
             const targetClass = DOFUS_CLASSES.find(c => c.id === selectedClass);
             if (!targetClass) return false;
 
-            const memberClass = m.classe?.toLowerCase();
+            const memberClass = typeof m.classe === 'string' ? m.classe.toLowerCase() : null;
             if (memberClass !== targetClass.name.toLowerCase() && memberClass !== targetClass.id) {
                 return false;
             }
@@ -64,7 +67,9 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
         // 3. Job Filter
         if (selectedJob) {
             const jobs = Array.isArray(m.metiers) ? m.metiers : [];
-            const hasJob = jobs.some((j: string) => j.toLowerCase() === selectedJob.toLowerCase());
+            const hasJob = jobs.some((j: any) => 
+                typeof j === 'string' && j.toLowerCase() === selectedJob.toLowerCase()
+            );
             if (!hasJob) return false;
         }
 

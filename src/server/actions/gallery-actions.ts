@@ -507,7 +507,7 @@ export async function shareGalleryItemOnDiscord(
         let embedDescription = "";
         let embedThumbnail = "";
         let embedUrl = "";
-        let fields: any[] = [];
+        const fields: any[] = [];
         let itemName = "";
         let authorName = "Un membre";
 

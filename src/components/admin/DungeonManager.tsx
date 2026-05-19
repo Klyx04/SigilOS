@@ -23,6 +23,13 @@ import {
     getChallenges,
 } from "@/server/actions/game-data-admin-actions";
 import { ImageDownloader } from "./ImageDownloader";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select";
 import { Search, Plus, MapPin, Trophy, ShieldAlert, Swords, Skull, MoreHorizontal, Edit2, Trash2, ImageIcon } from "lucide-react";
 import {
     DropdownMenu,
@@ -38,6 +45,8 @@ interface Dungeon {
     bossName: string;
     level: number;
     dpnlUrl?: string | null;
+    dofuspourlesnoobsUrl?: string | null;
+    dofensiveUrl?: string | null;
     imageUrl?: string | null;
     isExpedition: boolean;
     expeditionModes?: string[] | null;
@@ -65,6 +74,8 @@ export default function DungeonManager() {
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [challengeSearch, setChallengeSearch] = useState("");
+    const [selectedLevel, setSelectedLevel] = useState<string>("all");
 
     // Form State
     const [formData, setFormData] = useState({
@@ -72,6 +83,8 @@ export default function DungeonManager() {
         bossName: "",
         level: 100,
         dpnlUrl: "",
+        dofuspourlesnoobsUrl: "",
+        dofensiveUrl: "",
         imageUrl: "",
         isExpedition: false,
         expeditionModes: [] as string[],
@@ -81,17 +94,33 @@ export default function DungeonManager() {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [selectedLevel]);
 
     async function loadData() {
         setLoading(true);
+        
+        const filters: any = {};
+        if (selectedLevel !== "all") {
+            if (selectedLevel === "200") {
+                filters.minLevel = 200;
+                filters.maxLevel = 1000;
+            } else {
+                const [min, max] = selectedLevel.split("-").map(Number);
+                if (!isNaN(min)) filters.minLevel = min;
+                if (!isNaN(max)) filters.maxLevel = max;
+            }
+        }
+
         const [dungeonsRes, challengesRes] = await Promise.all([
-            getDungeonsWithAchievements(),
+            getDungeonsWithAchievements(filters),
             getChallenges()
         ]);
 
         if (dungeonsRes.success && dungeonsRes.data) {
             setDungeons(dungeonsRes.data);
+            if (selectedLevel !== "all") {
+                toast.info(`${dungeonsRes.data.length} donjons trouvés`);
+            }
         } else {
             toast.error(dungeonsRes.error || "Erreur chargement donjons");
         }
@@ -147,11 +176,14 @@ export default function DungeonManager() {
 
     function resetForm() {
         setEditing(null);
+        setChallengeSearch("");
         setFormData({
             name: "",
             bossName: "",
             level: 100,
             dpnlUrl: "",
+            dofuspourlesnoobsUrl: "",
+            dofensiveUrl: "",
             imageUrl: "",
             isExpedition: false,
             expeditionModes: [],
@@ -162,11 +194,14 @@ export default function DungeonManager() {
 
     function startEdit(dungeon: Dungeon) {
         setEditing(dungeon.id);
+        setChallengeSearch("");
         setFormData({
             name: dungeon.name,
             bossName: dungeon.bossName,
             level: dungeon.level,
             dpnlUrl: dungeon.dpnlUrl || "",
+            dofuspourlesnoobsUrl: dungeon.dofuspourlesnoobsUrl || "",
+            dofensiveUrl: dungeon.dofensiveUrl || "",
             imageUrl: dungeon.imageUrl || "",
             isExpedition: dungeon.isExpedition,
             expeditionModes: dungeon.expeditionModes || [],
@@ -195,6 +230,23 @@ export default function DungeonManager() {
                         onChange={e => setSearchQuery(e.target.value)}
                         className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-indigo-500/50"
                     />
+                </div>
+
+                {/* Level Filter */}
+                <div className="w-full md:w-48">
+                    <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-200">
+                            <SelectValue placeholder="Filtrer par niveau" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700">
+                            <SelectItem value="all">Tous les niveaux</SelectItem>
+                            <SelectItem value="1-50">Niveau 1 - 50</SelectItem>
+                            <SelectItem value="51-100">Niveau 51 - 100</SelectItem>
+                            <SelectItem value="101-150">Niveau 101 - 150</SelectItem>
+                            <SelectItem value="151-199">Niveau 151 - 199</SelectItem>
+                            <SelectItem value="200">Niveau 200</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 <Button
                     onClick={() => { resetForm(); setIsDialogOpen(true); }}
@@ -388,6 +440,27 @@ export default function DungeonManager() {
                                                 className="h-16 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
                                             />
                                         </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Lien DofusPourLesNoobs</label>
+                                                <Input
+                                                    value={formData.dofuspourlesnoobsUrl}
+                                                    onChange={(e) => setFormData({ ...formData, dofuspourlesnoobsUrl: e.target.value })}
+                                                    placeholder="https://www.dofuspourlesnoobs.com/..."
+                                                    className="h-14 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-sm transition-all rounded-xl"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Lien Dofensive</label>
+                                                <Input
+                                                    value={formData.dofensiveUrl}
+                                                    onChange={(e) => setFormData({ ...formData, dofensiveUrl: e.target.value })}
+                                                    placeholder="https://dofensive.com/fr/monster/..."
+                                                    className="h-14 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-sm transition-all rounded-xl"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Expedition Settings */}
@@ -434,25 +507,38 @@ export default function DungeonManager() {
                                 {/* Right Column: Success & Challenges */}
                                 <div className="lg:col-span-5 h-full">
                                     <div className="h-full space-y-4 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50 flex flex-col">
-                                        <div className="border-b border-slate-800 pb-4">
-                                            <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em]">Succès & Challenges</h3>
+                                         <div className="border-b border-slate-800 pb-4">
+                                            <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em]">Succès du Boss</h3>
                                             <p className="text-xs text-slate-500 mt-2 font-medium">
                                                 Assurez-vous qu'ils correspondent aux mécaniques du donjon.
                                             </p>
                                         </div>
 
                                         <div className="flex-1 flex flex-col min-h-[500px]">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">
-                                                    Challenges Associés
-                                                </label>
-                                                <Badge variant="outline" className="bg-indigo-500/10 border-indigo-500/20 text-indigo-400">
-                                                    {formData.challengeIds.length} sélectionné(s)
-                                                </Badge>
+                                            <div className="space-y-4 mb-4">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">
+                                                        Succès Associés
+                                                    </label>
+                                                    <Badge variant="outline" className="bg-indigo-500/10 border-indigo-500/20 text-indigo-400">
+                                                        {formData.challengeIds.length} sélectionné(s)
+                                                    </Badge>
+                                                </div>
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                                                    <Input
+                                                        placeholder="Filtrer les succès..."
+                                                        value={challengeSearch}
+                                                        onChange={e => setChallengeSearch(e.target.value)}
+                                                        className="h-10 pl-9 bg-slate-950 border-slate-800 text-xs text-slate-300 placeholder:text-zinc-700"
+                                                    />
+                                                </div>
                                             </div>
 
                                             <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[500px]">
-                                                {challenges.map((challenge) => {
+                                                {challenges
+                                                    .filter(c => c.name.toLowerCase().includes(challengeSearch.toLowerCase()))
+                                                    .map((challenge) => {
                                                     const isSelected = formData.challengeIds.includes(challenge.id);
                                                     return (
                                                         <button

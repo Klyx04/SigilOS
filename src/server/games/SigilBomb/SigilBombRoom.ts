@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import * as fs from "fs";
 import * as path from "path";
 
-type GameState = "LOBBY" | "PLAYING" | "GAME_END";
+type GameState = "LOBBY" | "STARTING" | "PLAYING" | "GAME_END";
 
 interface Player {
     id: string; // Socket ID
@@ -75,6 +75,8 @@ export class SigilBombRoom {
     private static deconstructedWords: Map<string, string[]> = new Map();
     private currentSyllablePartCount = 1;
     private currentSyllableHintParts: string[] = [];
+    private suddenDeathExchanges = 0;
+    private isSuddenDeath = false;
 
     constructor(private io: Server, config: { id: string; guildId: string }) {
         this.id = config.id;
@@ -258,19 +260,50 @@ export class SigilBombRoom {
                 this.players = this.players.filter((p) => p.id !== socketId);
             }
         }
-        // Transfer host if current host socket leaves and no reconnection for a while?
-        // For now, only transfer if really necessary
+        // Transfer host if current host socket leaves
         if (this.hostId === socketId) {
-            const next = this.players.find((p) => p.isConnected && !p.isSpectator && !p.isBot);
-            if (next) {
-                this.hostId = next.id;
-                this.hostUserId = next.userId || null;
-                next.isReady = true;
+            // First try to find a player with the same userId (permanent host recovery)
+            const permanentHost = this.players.find(p => p.userId === this.hostUserId && p.isConnected);
+            if (permanentHost) {
+                this.hostId = permanentHost.id;
+                permanentHost.isReady = true;
             } else {
-                this.hostId = null;
-                this.hostUserId = null;
+                // Otherwise find the next human player
+                const next = this.players.find((p) => p.isConnected && !p.isSpectator && !p.isBot);
+                if (next) {
+                    this.hostId = next.id;
+                    this.hostUserId = next.userId || null;
+                    next.isReady = true;
+                } else {
+                    this.hostId = null;
+                    this.hostUserId = null;
+                }
             }
         }
+        
+        // If we are playing, check if enough players remain
+        if (this.state === "PLAYING" || this.state === "STARTING") {
+            const participants = this.players.filter((p) => !p.isSpectator);
+            const connectedSurvivors = participants.filter((p) => p.lives > 0 && p.isConnected);
+            
+            // If it's a multiplayer game and 1 or 0 connected survivors remain
+            if (participants.length > 1 && connectedSurvivors.length <= 1) {
+                logger.info(`[SigilBomb:${this.id}] Game Ending due to disconnect. Survivors: ${connectedSurvivors.length}`);
+                this.endGame();
+                return; // endGame handles syncState
+            }
+            
+            // If it was their turn, we need to skip them immediately so the timer doesn't stall
+            if (this.state === "PLAYING" && this.currentTurnIndex >= 0) {
+                const current = this.players[this.currentTurnIndex];
+                if (current && current.id === socketId) {
+                    this.stopTimer();
+                    this.nextTurn();
+                    return; // nextTurn handles syncState
+                }
+            }
+        }
+
         this.syncState();
     }
 
@@ -332,7 +365,7 @@ export class SigilBombRoom {
             return;
         }
 
-        this.state = "PLAYING";
+        this.state = "STARTING";
         this.usedWordsInSession.clear();
         participants.forEach((p) => {
             p.lives = this.config.startingLives;
@@ -340,9 +373,25 @@ export class SigilBombRoom {
             p.alphabet = [];
         });
         this.lastFoundWords = [];
+        this.suddenDeathExchanges = 0;
+        this.isSuddenDeath = false;
 
-        this.currentTurnIndex = this.players.findIndex((p) => !p.isSpectator && p.lives > 0);
-        this.startNewTurn();
+        // Pre-game countdown (3s)
+        this.timeLeft = 3;
+        this.syncState();
+        
+        this.stopTimer();
+        this.tickInterval = setInterval(() => {
+            this.timeLeft--;
+            if (this.timeLeft <= 0) {
+                this.stopTimer();
+                this.state = "PLAYING";
+                this.currentTurnIndex = this.players.findIndex((p) => !p.isSpectator && p.lives > 0);
+                this.startNewTurn();
+            } else {
+                this.io.to(this.id).emit("bomb:tick", { timeLeft: this.timeLeft });
+            }
+        }, 1000);
     }
 
     // ── Turn Logic ────────────────────────────────────────────────
@@ -357,7 +406,12 @@ export class SigilBombRoom {
         // JKLM Logic: If it was a success, we might want to carry over time OR reset to max.
         // For now, we reset to max, but respect the minTurnDuration "bump" if we were to implement carry-over.
         // Standard behavior: Reset to turnTime.
-        this.timeLeft = this.config.turnTime;
+        // Sudden Death Logic: If active, reduce time by 30%
+        if (this.isSuddenDeath) {
+            this.timeLeft = Math.max(3, Math.round(this.config.turnTime * 0.7));
+        } else {
+            this.timeLeft = this.config.turnTime;
+        }
         
         // Clean typing for everyone on new turn
         this.io.to(this.id).emit("bomb:typing-reset");
@@ -600,6 +654,20 @@ export class SigilBombRoom {
             playerId: current.id,
         });
 
+        // ── SUDDEN DEATH TRACKING ──
+        const survivors = this.players.filter(p => !p.isSpectator && p.lives > 0);
+        if (survivors.length === 2) {
+            this.suddenDeathExchanges++;
+            if (this.suddenDeathExchanges >= 20 && !this.isSuddenDeath) {
+                this.isSuddenDeath = true;
+                this.io.to(this.id).emit("bomb:sudden-death", {
+                    reductionPercent: 30,
+                    newTime: Math.max(3, Math.round(this.config.turnTime * 0.7))
+                });
+                logger.info(`[SigilBomb:${this.id}] SUDDEN DEATH ACTIVATED`);
+            }
+        }
+
         // Safety bump: If we had a carry-over system, we'd use minTurnDuration here.
         // Since we reset to full, we just go to next turn.
         this.stopTimer();
@@ -613,10 +681,13 @@ export class SigilBombRoom {
             this.stopTimer();
 
             const participants = this.players.filter((p) => !p.isSpectator);
-            const survivors = participants.filter((p) => p.lives > 0);
+            const connectedSurvivors = participants.filter((p) => p.lives > 0 && p.isConnected);
             
-            // Winner is the last survivor, or the person with most words if everyone died
-            const winner = survivors[0] || [...participants].sort((a, b) => b.wordsFound - a.wordsFound)[0];
+            // Winner is the last connected survivor, or the person with most words if everyone died/disconnected
+            const winner = connectedSurvivors[0] || [...participants].sort((a, b) => {
+                if (a.isConnected !== b.isConnected) return a.isConnected ? -1 : 1;
+                return b.wordsFound - a.wordsFound;
+            })[0];
 
             // Full leaderboard sorted by rank (wordsFound desc)
             const leaderboard = [...participants]
@@ -637,6 +708,7 @@ export class SigilBombRoom {
             this.io.to(this.id).emit("bomb:game-end", {
                 winnerId: winner?.id,
                 winnerName: winner?.userName,
+                winnerAvatar: winner?.userAvatar,
                 wordsFound: winner?.wordsFound,
                 leaderboard,
             });
@@ -692,6 +764,7 @@ export class SigilBombRoom {
             currentTurnIndex: this.currentTurnIndex,
             timeLeft: this.timeLeft,
             lastFoundWords: this.lastFoundWords,
+            isSuddenDeath: this.isSuddenDeath,
         });
     }
 

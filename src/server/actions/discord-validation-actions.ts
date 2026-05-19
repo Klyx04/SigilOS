@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Discord Interaction Validation Actions
  *
  * Fonctions "internal" appelées UNIQUEMENT depuis /api/discord/interactions.
@@ -160,98 +160,6 @@ export async function internalValidateMissionSubmission(
 }
 
 // ============================================================================
-// 2. ACHIEVEMENT SUBMISSION
-// ============================================================================
-
-export async function internalValidateAchievementSubmission(
-    submissionId: string,
-    status: "VALIDATED" | "REJECTED",
-    discordGuildId: string,
-    discordAdminId: string
-): Promise<{ success: boolean; error?: string; memberName?: string; points?: number }> {
-    const guard = await requireDiscordAdmin(discordGuildId, discordAdminId);
-    if (!guard.allowed) return { success: false, error: guard.error };
-
-    try {
-        const submission = await (db as any).achievementSubmission.findUnique({
-            where: { id: submissionId },
-            include: { guild: true, profile: { include: { user: true } } },
-        });
-        if (!submission) return { success: false, error: "Demande introuvable." };
-        if (submission.status !== "PENDING") return { success: false, error: "Cette demande a déjà été traitée." };
-        if (submission.guild.discordGuildId !== discordGuildId) return { success: false, error: "Guilde invalide." };
-
-        // 1. Update points (if validated)
-        if (status === "VALIDATED") {
-            await db.userProfile.update({
-                where: { id: submission.profileId },
-                data: { successPoints: submission.points, lastLadderUpdate: new Date() },
-            });
-        }
-
-        // 2. Notify submitter
-        const title = status === "VALIDATED" ? "[Ladder] Points validés ✅" : "[Ladder] Points refusés ❌";
-        const body = status === "VALIDATED"
-            ? `Vos ${submission.points} points de succès ont été validés par le staff.`
-            : `Votre demande de mise à jour des points de succès a été refusée par le staff.`;
-        await createNotification(submission.profile.userId, "SYSTEM_INFO" as NotificationType, title, body, undefined, discordGuildId);
-
-        // 3. Cleanup file
-        if (submission.proofUrl) await deleteProofFile(submission.proofUrl);
-
-        // 3.5. Delete Discord embed (validation ET rejet)
-        if (submission.discordMessageId && submission.discordMessageId.includes(":")) {
-            const [channelId, msgId] = submission.discordMessageId.split(":");
-            if (channelId && msgId) {
-                try {
-                    const { deleteChannelMessage } = await import("@/server/discord");
-                    await deleteChannelMessage(channelId, msgId);
-                } catch (e) {
-                    console.error("[internalValidateAchievementSubmission] Failed to delete Discord embed", e);
-                }
-            }
-        }
-
-        // 4. Update submission status
-        await (db as any).achievementSubmission.update({
-            where: { id: submissionId },
-            data: { status, validatorId: guard.internalUserId, validatedAt: new Date(), proofUrl: "", discordMessageId: null },
-        });
-
-        // 5. Delete image hash
-        await (db as any).imageHash.deleteMany({
-            where: { guildId: submission.guildId, sourceType: "ACHIEVEMENT", sourceId: submissionId },
-        });
-        
-        // Audit Log
-        await createAuditLog({
-            guildId: discordGuildId,
-            actorUserId: guard.internalUserId,
-            actorName: guard.adminName,
-            action: (status === "VALIDATED" ? "SUCCESS_SYNC" : "MISSION_REJECTED") as any,
-            targetType: "PROFILE" as any,
-            targetId: submission.profileId,
-            metadata: {
-                points: submission.points,
-                submitterName: submission.profile.discordNickname || submission.profile.pseudoDofus || submission.profile.user?.name || "Membre",
-                status,
-                source: "discord_button",
-                description: `Mise à jour Ladder (${submission.points} pts)`
-            }
-        });
-
-        revalidatePath(`/dashboard/${discordGuildId}/ladder`);
-        revalidatePath(`/dashboard/${discordGuildId}/admin/validation`);
-
-        const memberName = submission.profile.discordNickname || submission.profile.pseudoDofus || submission.profile.user?.name || "Membre";
-        return { success: true, memberName, points: submission.points };
-    } catch (error) {
-        console.error("[internalValidateAchievementSubmission]", error);
-        return { success: false, error: "Erreur serveur." };
-    }
-}
-
-// ============================================================================
 // 3. KAMA DONATION
 // ============================================================================
 
@@ -341,6 +249,85 @@ export async function internalReviewKamaDonation(
         return { success: true, memberName, amount: donation.amount };
     } catch (error) {
         console.error("[internalReviewKamaDonation]", error);
+        return { success: false, error: "Erreur serveur." };
+    }
+}
+
+// ============================================================================
+// 4. ACHIEVEMENT SUBMISSION
+// ============================================================================
+
+export async function internalReviewAchievementSubmission(
+    submissionId: string,
+    action: "VALIDATE" | "REJECT",
+    discordGuildId: string,
+    discordAdminId: string
+): Promise<{ success: boolean; error?: string; memberName?: string; points?: number }> {
+    const guard = await requireDiscordAdmin(discordGuildId, discordAdminId);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable." };
+
+        const submission = await (db as any).achievementSubmission.findUnique({
+            where: { id: submissionId },
+            include: { profile: { include: { user: true } } },
+        });
+
+        if (!submission) return { success: false, error: "Soumission introuvable." };
+        if (submission.status !== "PENDING") return { success: false, error: "Déjà traitée." };
+
+        const newStatus = action === "VALIDATE" ? "VALIDATED" : "REJECTED";
+
+        await (db as any).achievementSubmission.update({
+            where: { id: submissionId },
+            data: {
+                status: newStatus,
+                validatedAt: new Date(),
+                discordMessageId: null,
+            },
+        });
+
+        if (newStatus === "VALIDATED") {
+            await db.userProfile.update({
+                where: { id: submission.profileId },
+                data: { successPoints: submission.points }
+            });
+        }
+
+        // Cleanup proof file + image hash
+        if (submission.proofUrl) {
+            await deleteProofFile(submission.proofUrl);
+            await (db as any).imageHash.deleteMany({
+                where: { guildId: guildConfig.id, sourceType: "ACHIEVEMENT", sourceId: submissionId },
+            });
+        }
+
+        // Delete Discord embed
+        if (submission.discordMessageId && submission.discordMessageId.includes(":")) {
+            const [channelId, msgId] = submission.discordMessageId.split(":");
+            if (channelId && msgId) {
+                try {
+                    const { deleteChannelMessage } = await import("@/server/discord");
+                    await deleteChannelMessage(channelId, msgId);
+                } catch (e) {
+                    console.error("[internalReviewAchievementSubmission] Failed to delete Discord embed", e);
+                }
+            }
+        }
+
+        revalidatePath(`/dashboard/${discordGuildId}/ladder`);
+        revalidatePath(`/dashboard/${discordGuildId}/profile`);
+        revalidatePath(`/dashboard/${discordGuildId}/admin/validation`);
+
+        const memberName = submission.profile?.discordNickname || submission.profile?.pseudoDofus || submission.profile?.user?.name || "Membre";
+        return { success: true, memberName, points: submission.points };
+    } catch (error) {
+        console.error("[internalReviewAchievementSubmission]", error);
         return { success: false, error: "Erreur serveur." };
     }
 }

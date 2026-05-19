@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         const type = searchParams.get("type") || "achievement";
 
         // Validate type
-        const validTypes = ["achievement", "monster", "dungeon", "item"];
+        const validTypes = ["achievement", "monster", "dungeon", "item", "legendary"];
         if (!validTypes.includes(type)) {
             return NextResponse.json(
                 { success: false, error: "Invalid type" },
@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
             case "monster": subPath = "game-data/monsters"; break;
             case "dungeon": subPath = "game-data/dungeons"; break;
             case "item": subPath = "game-data/items"; break;
+            case "legendary": subPath = "game-data/legendary"; break;
         }
         const dirPath = normalize(root + "/public/" + subPath);
 
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
             })
             .map(file => ({
                 filename: file.name,
-                path: `/game-data/${type}s/${file.name}`,
+                path: type === "legendary" ? `/game-data/legendary/${file.name}` : `/game-data/${type}s/${file.name}`,
                 name: file.name.replace(/\.[^.]+$/, "") // Remove extension for display
             }));
 

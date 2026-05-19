@@ -79,9 +79,9 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                             return (
                                 <div
                                     key={item.itemName}
-                                    className={`rounded-xl border p-4 flex items-start gap-3 ${isPositive
-                                        ? "border-emerald-500/25 bg-emerald-500/5"
-                                        : "border-red-500/25 bg-red-500/5"
+                                    className={`rounded-2xl border p-5 flex items-start gap-4 transition-all duration-300 hover:scale-[1.02] shadow-sm hover:shadow-md ${isPositive
+                                        ? "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15"
+                                        : "border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/15"
                                         }`}
                                 >
                                     {item.iconUrl ? (
@@ -95,14 +95,14 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                                             />
                                         </div>
                                     ) : (
-                                        <div className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center border ${isPositive ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-red-500/20 bg-red-500/10 text-red-400"
+                                        <div className={`h-12 w-12 shrink-0 rounded-xl flex items-center justify-center border shadow-inner ${isPositive ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400" : "border-rose-500/30 bg-rose-500/20 text-rose-400"
                                             }`}>
-                                            <Package className="h-5 w-5" />
+                                            <Package className="h-6 w-6" />
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-black text-white truncate capitalize">{item.itemName}</p>
-                                        <p className={`text-2xl font-black mt-1 ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                                        <p className="text-base font-black text-white truncate capitalize group-hover:text-cyan-400 transition-colors">{item.itemName}</p>
+                                        <p className={`text-3xl font-black mt-1 tracking-tight ${isPositive ? "text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "text-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.5)]"}`}>
                                             {isPositive ? "+" : ""}{formatQty(item.balance)}
                                         </p>
                                         <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-500">
@@ -134,16 +134,16 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                             <button
                                 key={f}
                                 onClick={() => setActionFilter(f)}
-                                className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border transition-all ${actionFilter === f
+                                className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all duration-300 ${actionFilter === f
                                     ? f === "ALL"
-                                        ? "border-zinc-500/60 bg-zinc-500/15 text-zinc-300"
+                                        ? "border-zinc-500/60 bg-zinc-500/20 text-zinc-300 shadow-[0_0_15px_rgba(113,113,122,0.2)]"
                                         : f === "DEPOSIT"
-                                            ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                                            : "border-orange-500/50 bg-orange-500/10 text-orange-400"
-                                    : "border-white/8 bg-white/3 text-zinc-600 hover:text-zinc-400 hover:border-white/15"
+                                            ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                                            : "border-orange-500/50 bg-orange-500/20 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.2)]"
+                                    : "border-white/10 bg-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                                     }`}
                             >
-                                {f === "ALL" ? <><Package className="h-3 w-3" /> Tout</> : f === "DEPOSIT" ? <><ArrowDownCircle className="h-3 w-3" /> Dépôts</> : <><ArrowUpCircle className="h-3 w-3" /> Retraits</>}
+                                {f === "ALL" ? <><Package className="h-3.5 w-3.5" /> Tout</> : f === "DEPOSIT" ? <><ArrowDownCircle className="h-3.5 w-3.5" /> Dépôts</> : <><ArrowUpCircle className="h-3.5 w-3.5" /> Retraits</>}
                             </button>
                         ))}
 
@@ -153,9 +153,9 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                         {/* Tri date */}
                         <button
                             onClick={() => setSortOrder(o => o === "desc" ? "asc" : "desc")}
-                            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border border-white/8 bg-white/3 text-zinc-400 hover:text-zinc-200 hover:border-white/20 transition-all"
+                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-white/10 bg-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-300"
                         >
-                            {sortOrder === "desc" ? <ArrowDown className="h-3 w-3 text-cyan-400" /> : <ArrowUp className="h-3 w-3 text-cyan-400" />}
+                            {sortOrder === "desc" ? <ArrowDown className="h-3.5 w-3.5 text-cyan-400" /> : <ArrowUp className="h-3.5 w-3.5 text-cyan-400" />}
                             {sortOrder === "desc" ? "Plus récent" : "Plus ancien"}
                         </button>
                     </div>
@@ -177,16 +177,16 @@ export function VaultTable({ entries, summary, guildId, currentProfileId, isAdmi
                             return (
                                 <div
                                     key={entry.id}
-                                    className="group flex items-start gap-4 rounded-xl border border-white/8 bg-zinc-900/60 px-4 py-3 hover:bg-zinc-800/60 transition-colors"
+                                    className="group flex items-start gap-5 rounded-2xl border border-white/10 bg-zinc-900/40 px-5 py-4 hover:bg-zinc-900/60 hover:border-white/20 transition-all duration-300 shadow-sm hover:shadow-lg"
                                 >
                                     {/* Indicateur action */}
-                                    <div className={`shrink-0 p-2 rounded-lg border ${isDeposit
-                                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                                        : "border-orange-500/20 bg-orange-500/10 text-orange-400"
+                                    <div className={`shrink-0 p-2.5 rounded-xl border shadow-inner ${isDeposit
+                                        ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
+                                        : "border-orange-500/30 bg-orange-500/20 text-orange-400"
                                         }`}>
                                         {isDeposit
-                                            ? <ArrowDownCircle className="h-4 w-4" />
-                                            : <ArrowUpCircle className="h-4 w-4" />
+                                            ? <ArrowDownCircle className="h-5 w-5 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                                            : <ArrowUpCircle className="h-5 w-5 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
                                         }
                                     </div>
 

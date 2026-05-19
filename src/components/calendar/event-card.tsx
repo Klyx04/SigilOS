@@ -135,7 +135,7 @@ export function EventCard({
                             <span>{format(startDate, "HH:mm")} - {format(validEndDate, "HH:mm")}</span>
                         </div>
                     </div>
-                    <h3 className="truncate text-base font-bold text-zinc-100 group-hover:text-amber-400 transition-colors">
+                    <h3 className="text-base font-bold text-zinc-100 group-hover:text-amber-400 transition-colors line-clamp-2 leading-tight">
                         {event.title}
                     </h3>
                     <div className="flex items-center gap-4 text-xs text-zinc-400">
@@ -237,7 +237,7 @@ export function EventCard({
                 </div>
 
                 <div className="space-y-1">
-                    <CardTitle className="text-xl font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors line-clamp-2 min-h-[1.75rem] break-all">
+                    <CardTitle className="text-xl font-bold text-zinc-100 leading-tight group-hover:text-white transition-colors line-clamp-2 min-h-[1.75rem] break-words">
                         {event.title}
                     </CardTitle>
                 </div>

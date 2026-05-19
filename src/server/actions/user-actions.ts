@@ -25,14 +25,13 @@ const CACHE_TTL = 60; // 60 seconds — must stay short so role revocations prop
  * and the Redis context cache (uses Discord Guild ID).
  */
 export async function invalidateUserContextCache(userId: string, guildId: string, discordGuildId?: string) {
-    // 1. Clear In-memory profile cache (uses internal DB UUID)
-    const profileCacheKey = `profile:${userId}:${guildId}`;
-    profileCache.delete(profileCacheKey);
+    // 1. Clear In-memory profile cache (covers both internal UUID and Discord ID mapping)
+    profileCache.delete(`profile:${userId}:${guildId}`);
+    if (discordGuildId) profileCache.delete(`profile:${userId}:${discordGuildId}`);
     
-    // 2. Clear Redis context cache (uses Discord Guild ID)
-    // Ensure we clear using the Discord ID if provided, fallback to guildId
-    const redisKey = `user:ctx:${userId}:${discordGuildId || guildId}`;
-    await redis.del(redisKey).catch(() => {});
+    // 2. Clear Redis context cache (covers both potential key types)
+    await redis.del(`user:ctx:${userId}:${guildId}`).catch(() => {});
+    if (discordGuildId) await redis.del(`user:ctx:${userId}:${discordGuildId}`).catch(() => {});
 }
 
 /**
@@ -53,9 +52,8 @@ export async function revalidateUserContext(guildId?: string) {
 
     const userId = session.user.id;
 
-    // 1. Clear In-memory caches
-    const profileCacheKey = `profile:${userId}:${guildId || ""}`;
-    profileCache.delete(profileCacheKey);
+    // 1. Clear In-memory and Redis context caches
+    await invalidateUserContextCache(userId, guildId || "");
 
     // 2. Clear Discord cache (pattern based)
     const { invalidateDiscordCache } = await import("@/server/discord");
@@ -112,6 +110,8 @@ export type UserContext = {
     canViewPolls: boolean;
     canViewCalendar: boolean;
     canManageCalendar: boolean;
+    canManageRaid: boolean;
+    canJoinRaid: boolean;
     canEditVacation: boolean;
     // Admin Tools
     canEditPresentation: boolean;
@@ -144,6 +144,7 @@ export type UserContext = {
     pinnedNavItems?: string[];
     hiddenNavItems?: string[];
     newsBroadcastEnabled?: boolean;
+    hasPendingReactivation?: boolean;
 };
 
 export type ActionResponse<T = any> = {
@@ -241,6 +242,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewPolls: false,
         canViewCalendar: false,
         canManageCalendar: false,
+        canManageRaid: false,
+        canJoinRaid: false,
         canEditVacation: false,
         canEditPresentation: false,
         canManageRelance: false,
@@ -381,8 +384,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         if (profile) profileCache.set(profileCacheKey, { data: profile, expiresAt: Date.now() + CACHE_TTL });
     }
 
+    let memberFetchFailed = false;
     const [member, guildInfo, allRoles] = await Promise.all([
-        fetchGuildMember(actualDiscordGuildId, discordUserId),
+        fetchGuildMember(actualDiscordGuildId, discordUserId).catch((err) => {
+            // Discord API error (rate-limit, network, 5xx) — NOT a "member not found" case.
+            // We must NOT block the user: they are likely still a valid member.
+            console.error("[UserContext] fetchGuildMember failed (Discord API error):", err?.message || err);
+            memberFetchFailed = true;
+            return null; // Treated as unknown, NOT as "absent"
+        }),
         fetchGuild(actualDiscordGuildId).catch(() => null),
         fetchGuildRoles(actualDiscordGuildId, { excludeManaged: false }).catch(() => [])
     ]);
@@ -429,7 +439,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             isMember: false,
             guildName: guildConfig?.name || "Serveur Inconnu",
             isArchived: true,
-            scheduledDeletion: profile.scheduledDeletion?.toISOString() || null
+            scheduledDeletion: profile.scheduledDeletion?.toISOString() || null,
+            hasPendingReactivation: !!profile.reactivationRequestedAt
         } as any;
     }
 
@@ -450,7 +461,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // --- AUTO-ARCHIVE DETECTION (Legacy) ---
     // Note: We don't perform DB mutation here anymore to avoid "Mutation during render" errors.
     // The UI handles !member by blocking access. Actual DB archival happens via admin sync.
-    if (guildConfig && !member && profile && profile.status === "ACTIVE") {
+    // IMPORTANT: If memberFetchFailed (Discord API error, rate-limit, etc.) we skip this block
+    // entirely to avoid false positives that would block legitimate admins/members.
+    if (!memberFetchFailed && guildConfig && !member && profile && profile.status === "ACTIVE") {
         if (!isGod) return {
             ...baseContext,
             isAuthenticated: true,
@@ -495,6 +508,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 canViewAdminDocs: true,
                 canViewCalendar: true,
                 canManageCalendar: true,
+                canManageRaid: true,
+                canJoinRaid: true,
                 canEditVacation: true,
                 canViewRoster: true,
                 canViewQuests: true,
@@ -542,8 +557,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // MASTER ADMIN: Must be checked against the USER'S OWN roles, not all guild roles
     const userHasAdminPermission = memberRoles.some(rId => {
         const perms = rolesMapping[rId];
-        return perms && (perms.includes(PERMISSIONS.SYSTEM_GOD) || perms.includes(PERMISSIONS.SYSTEM_GOD));
-    });
+        return perms && perms.includes(PERMISSIONS.SYSTEM_GOD);
+    }) || individualMapping[discordUserId]?.includes(PERMISSIONS.SYSTEM_GOD);
+
     const isAdmin = userHasAdminPermission || hasDiscordAdmin || isGod;
     const isAdminFinal = isAdmin;
 
@@ -553,10 +569,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         const perms = rolesMapping[rId];
         if (!perms || perms.length === 0) return false;
         return perms.includes(PERMISSIONS.DASHBOARD_LOGIN) || perms.includes(PERMISSIONS.COMMUNITY_ACCESS);
-    });
-    const isAuthorizedMember = hasAuthorizedRole || isAdminFinal;
+    }) || individualMapping[discordUserId]?.some(p => p === PERMISSIONS.DASHBOARD_LOGIN || p === PERMISSIONS.COMMUNITY_ACCESS);
 
-    if (!member || !isAuthorizedMember) {
+    // If the Discord API failed to fetch the member (rate-limit / network error) but the user
+    // has a valid active profile, we trust the DB and grant access conservatively.
+    // In this fallback path, `memberRoles` is empty so permission granularity is lost,
+    // but isAdmin/isAdminFinal will still be computed from rolesMapping + profile.
+    const isAuthorizedMember = hasAuthorizedRole || isAdminFinal || memberFetchFailed;
+
+    if (!member && !memberFetchFailed || !isAuthorizedMember) {
         return {
             ...baseContext,
             isAuthenticated: true,
@@ -622,6 +643,18 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 }
             }
         } else {
+            // SYNC DISCORD IDENTITY TO DB (Avoid stale nicknames in other modules like Polls)
+            if (profile.discordNickname !== displayName) {
+                try {
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: { discordNickname: displayName }
+                    });
+                } catch (e) {
+                    console.error("[getUserContext] Failed to sync discordNickname:", e);
+                }
+            }
+            
             try { await PresenceManager.updatePresence(guildConfig.id, session.user.id); } catch { }
         }
     }
@@ -703,6 +736,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewMiniGames = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewCalendar = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     const canManageCalendar = permissionSet.has(PERMISSIONS.COMMUNITY_MOD) || isAdminFinal;
+    const canManageRaid = permissionSet.has(PERMISSIONS.RAID_OFFICER) || isAdminFinal;
+    const canJoinRaid = permissionSet.has(PERMISSIONS.RAID_MEMBER) || isAdminFinal;
     const canEditVacation = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
     const canViewPolls = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     const canManageRelance = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
@@ -758,6 +793,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewPolls: !!applyModule(!!mod?.polls, !!canViewPolls),
         canViewCalendar: !!applyModule(!!mod?.calendar, !!canViewCalendar),
         canManageCalendar: !!applyModule(!!mod?.calendar, !!canManageCalendar),
+        canManageRaid: !!applyModule(!!mod?.calendar, !!canManageRaid),
+        canJoinRaid: !!applyModule(!!mod?.calendar, !!canJoinRaid),
         canEditVacation: !!canEditVacation,
         canViewDJQuests: !!applyModule(!!mod?.donjons, !!canViewDJQuests),
         canEditPresentation: !!applyModule(!!mod?.presentation, !!canEditPresentation),
@@ -839,23 +876,19 @@ export async function getUserGuilds() {
 
 import { unstable_cache } from "next/cache";
 
-const getCachedDiscordGuilds = unstable_cache(
-    async (accessToken: string) => {
-        try {
-            const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
-                headers: { Authorization: `Bearer ${accessToken}` },
-                next: { revalidate: 300 }
-            });
-            if (!res.ok) return { error: true, status: res.status, data: [] };
-            const data = await res.json();
-            return { error: false, status: 200, data };
-        } catch (e) {
-            return { error: true, status: 500, data: [] };
-        }
-    },
-    ['discord-user-guilds-v1'],
-    { revalidate: 30 } // 30 seconds (reduced from 300s to avoid Ctrl+F5 issues when joining/creating guilds)
-);
+const getCachedDiscordGuilds = async (accessToken: string) => {
+    try {
+        const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            next: { revalidate: 30 }
+        });
+        if (!res.ok) return { error: true, status: res.status, data: [] };
+        const data = await res.json();
+        return { error: false, status: 200, data };
+    } catch (e) {
+        return { error: true, status: 500, data: [] };
+    }
+};
 
 export async function getGuildsSeparated() {
     const session = await auth();
@@ -934,8 +967,20 @@ export async function getGuildsSeparated() {
     }));
 
     const userGuildIds = new Set(userGuilds.map(ug => ug.id));
+    
+    // Get statuses from DB to filter out BANNED/ARCHIVED
+    const userProfiles = await db.userProfile.findMany({
+        where: { userId },
+        select: { status: true, guild: { select: { discordGuildId: true } } }
+    });
+    const statusMap = new Map(userProfiles.map(p => [p.guild.discordGuildId, p.status]));
+
     const active = validatedActive
-        .filter(g => userGuildIds.has(g.discordGuildId) && allowedIdsWhitelist.has(g.discordGuildId))
+        .filter(g => {
+            const inDiscord = userGuildIds.has(g.discordGuildId);
+            const status = statusMap.get(g.discordGuildId);
+            return inDiscord && allowedIdsWhitelist.has(g.discordGuildId) && status === "ACTIVE";
+        })
         .map(g => {
             const userGuild = userGuilds.find(ug => ug.id === g.discordGuildId);
             const perms = userGuild ? BigInt(userGuild.permissions) : 0n;
@@ -1224,36 +1269,58 @@ export async function updateMemberProfileStatus(
     profileId: string,
     status: "ACTIVE" | "ARCHIVED" | "BANNED",
     reason?: string,
-    durationMonths?: number
+    durationMonths?: number,
+    adminMessage?: string
 ) {
     const session = await auth();
     if (!session?.user) throw new Error("Unauthorized");
 
+    return internalUpdateMemberProfileStatus(profileId, status, reason, durationMonths, adminMessage, session.user.id);
+}
+
+/**
+ * Internal version of status update (for Discord hooks or system actions)
+ * Bypasses auth() but requires profileId and actorUserId
+ */
+export async function internalUpdateMemberProfileStatus(
+    profileId: string,
+    status: "ACTIVE" | "ARCHIVED" | "BANNED",
+    reason?: string,
+    durationMonths?: number,
+    adminMessage?: string,
+    actorUserId?: string
+) {
     // 1. Get profile to find guildId
     const profile = await db.userProfile.findUnique({
         where: { id: profileId },
-        include: { guild: { select: { discordGuildId: true } } }
+        include: { 
+            guild: { select: { discordGuildId: true, name: true } },
+            user: { include: { accounts: { where: { provider: "discord" } } } }
+        }
     });
 
     if (!profile) throw new Error("Profile not found");
 
-    // 2. SECURITY: Must be guild admin (or God) to manually change member status
-    const actor = await getUserContext(profile.guild.discordGuildId);
-    if (!actor.isAdmin) throw new Error("Forbidden: Admin access required for manual status override");
+    // 2. SECURITY: Check if called from a session or internally
+    // If actorUserId is provided, we assume the caller handled security
+    if (!actorUserId) {
+        const session = await auth();
+        if (!session?.user?.id) throw new Error("Unauthorized");
+        actorUserId = session.user.id;
+    }
 
-    // 3. Prevent self-archiving if last admin (optional check, better stay safe)
-    if (status !== "ACTIVE" && profile.userId === session.user.id) {
+    // 3. Prevent self-archiving (if we have an actor ID)
+    if (status !== "ACTIVE" && profile.userId === actorUserId) {
         throw new Error("Vous ne pouvez pas modifier votre propre statut (Protection anti-lockout)");
     }
 
     // 4. Update with retention policy
     let scheduledDeletion = null;
     if (status === "ARCHIVED") {
-        // Duration logic: 30 days default if no months provided
-        const days = durationMonths ? durationMonths * 30.5 : 30; // Use 30.5 for a more accurate month
+        const days = durationMonths ? durationMonths * 30.5 : 30;
         scheduledDeletion = new Date(Date.now() + Math.floor(days * 24 * 60 * 60 * 1000));
     } else if (status === "BANNED") {
-        scheduledDeletion = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h for BANNED
+        scheduledDeletion = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
 
     const updated = await db.userProfile.update({
@@ -1264,16 +1331,13 @@ export async function updateMemberProfileStatus(
             archiveReason: status !== "ACTIVE" ? (reason || "MANUAL_ADMIN_ACTION") : null,
             archiveDuration: durationMonths || (status === "ARCHIVED" ? 1 : null),
             scheduledDeletion,
-            reactivationRequestedAt: null, // Reset any pending request
+            reactivationRequestedAt: null,
             reactivationRequestReason: null
         }
     });
 
-    // Invalidate Redis cache to prevent stale access states
-    await invalidateUserContextCache(
-        updated.userId, 
-        profile.guild.discordGuildId,
-    );
+    // Invalidate Redis cache
+    await invalidateUserContextCache(updated.userId, profile.guild.discordGuildId);
 
     // 5. Audit & Activity
     const targetProfile = await db.userProfile.findUnique({
@@ -1296,9 +1360,43 @@ export async function updateMemberProfileStatus(
         metadata: { 
             operation: "MEMBER_STATUS_UPDATE",
             description: targetName, 
-            reason: reason || "Manual Action" 
+            reason: reason || "Manual Action",
+            adminMessage
         }
     });
+
+    // 6. Send Discord DM for reactivation decisions
+    if (reason === "REACTIVATION_APPROVED" || reason === "REACTIVATION_REJECTED") {
+        const discordId = profile.user?.accounts?.[0]?.providerAccountId;
+        if (discordId) {
+            const { sendDirectMessage } = await import("@/server/discord");
+            
+            const dmTitle = status === "ACTIVE" 
+                ? `✅ Réintégration Acceptée — ${profile.guild.name}` 
+                : `❌ Réintégration Refusée — ${profile.guild.name}`;
+            
+            const dmColor = status === "ACTIVE" ? 0x10b981 : 0xef4444;
+            
+            let dmDesc = status === "ACTIVE" 
+                ? `Bonne nouvelle ! Ta demande de réintégration a été **acceptée** par le staff.\nTu as de nouveau accès à toutes les fonctionnalités du dashboard SigilOS.`
+                : `Ta demande de réintégration a malheureusement été **refusée** par le staff.`;
+                
+            if (adminMessage) {
+                dmDesc += `\n\n**📝 Message du staff :**\n> *${adminMessage}*`;
+            }
+
+            if (status === "ACTIVE") {
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+                dmDesc += `\n\n**🔗 [Accéder au Dashboard](${appUrl}/dashboard/${profile.guild.discordGuildId})**`;
+            }
+
+            await sendDirectMessage(discordId, "", {
+                embedTitle: dmTitle,
+                embedColor: dmColor,
+                embedDescription: dmDesc
+            }).catch(err => console.error("Failed to send DM", err));
+        }
+    }
 
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
 
@@ -1398,7 +1496,7 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     return { success: true, data: updated };
 }
 
-export async function getDiscordRolesAction(guildId: string) {
+export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "legacy" }) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -1407,10 +1505,32 @@ export async function getDiscordRolesAction(guildId: string) {
     if (!user.isMember) return { success: false, error: "Forbidden: Member access required" };
 
     try {
-        const roles = await fetchGuildRoles(guildId, { excludeManaged: true });
+        const [roles, guildConfig] = await Promise.all([
+            fetchGuildRoles(guildId, { excludeManaged: true }),
+            db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true }
+            })
+        ]);
+
+        let filteredRoles = roles;
+        
+        // Apply whitelist filtering (strict-whitelist-by-default for everyone)
+        // Admins can bypass ONLY if explicitly configured (like in settings panels)
+        const shouldIgnoreWhitelist = options?.ignoreWhitelist && user.isAdmin;
+        if (!shouldIgnoreWhitelist) {
+            let allowedIds: string[] = [];
+            if (options?.context === "calendar") allowedIds = guildConfig?.calendarPingRoleIds || [];
+            else if (options?.context === "dj") allowedIds = guildConfig?.djPingRoleIds || [];
+            else if (options?.context === "songes") allowedIds = guildConfig?.songesPingRoleIds || [];
+            else allowedIds = guildConfig?.allowedPingRoleIds || [];
+            
+            filteredRoles = roles.filter(r => allowedIds.includes(r.id));
+        }
+
         return {
             success: true,
-            roles: roles.map(r => ({
+            roles: filteredRoles.map(r => ({
                 id: r.id,
                 name: r.name,
                 color: r.color
@@ -1419,5 +1539,44 @@ export async function getDiscordRolesAction(guildId: string) {
     } catch (error) {
         console.error("Get Discord Roles Error:", error);
         return { success: false, error: "Erreur lors de la récupération des rôles" };
+    }
+}
+
+/**
+ * Update the whitelist of allowed Discord roles for pings (Admin only)
+ */
+export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "legacy" = "legacy") {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "Unauthorized" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAdmin) return { success: false, error: "Forbidden: Admin access required" };
+
+    try {
+        const data: any = {};
+        if (context === "calendar") data.calendarPingRoleIds = roleIds;
+        else if (context === "dj") data.djPingRoleIds = roleIds;
+        else if (context === "songes") data.songesPingRoleIds = roleIds;
+        else data.allowedPingRoleIds = roleIds;
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data
+        });
+
+        await logAction({
+            guildId,
+            action: "SETTINGS_UPDATED",
+            targetType: "CONFIG",
+            targetId: guildId,
+            newValue: { roleIds },
+            metadata: { description: `Mise à jour de la liste blanche des pings (${roleIds.length} rôles)` }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Allowed Ping Roles Error:", error);
+        return { success: false, error: "Erreur lors de la mise à jour des rôles autorisés" };
     }
 }

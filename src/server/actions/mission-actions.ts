@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -19,6 +19,7 @@ import { hashImage } from "@/lib/llm-ocr";
 import { logAction } from "@/server/actions/audit-actions";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDofusWeek } from "@/lib/date-utils";
+import { getKamaStats } from "./kama-actions";
 
 
 // --- Types & Schemas ---
@@ -175,12 +176,51 @@ export async function createWeekMissions(
     const limiter = await rateLimit(`create_missions:${session.user.id}:${data.guildId}`, 5, 60 * 1000);
     if (!limiter.success) return { success: false, error: "Trop d'actions. Veuillez patienter un instant." };
 
+    // 4. UNIQUENESS CHECK: Ensure no two missions are strictly identical
+    const seen = new Set<string>();
+    for (const m of data.missions) {
+        // Create a signature based on key fields. We use JSON.stringify for the payload to be precise.
+        const signature = `${m.category}-${m.tier}-${m.rank}-${m.title || ''}-${JSON.stringify(m.payload)}`;
+        if (seen.has(signature)) {
+            return { 
+                success: false, 
+                error: `Doublon détecté : La mission "${m.title || m.category}" est présente plusieurs fois. Chaque mission de la semaine doit être unique.` 
+            };
+        }
+        seen.add(signature);
+    }
+
     try {
         await db.$transaction(async (tx) => {
             // DEEP ISOLATION: Ensure we only touch the specific discordGuildId provided
             const guild = await tx.guildConfig.findUniqueOrThrow({
                 where: { discordGuildId: data.guildId }
             });
+
+            // 5. DATABASE UNIQUENESS CHECK: Check against existing missions in DB
+            const existingMissions = await tx.mission.findMany({
+                where: {
+                    guildId: guild.id,
+                    weekNumber: data.weekNumber,
+                    year: data.year,
+                }
+            });
+
+            for (const m of data.missions) {
+                const currentSig = `${m.category}-${m.tier}-${m.rank}-${m.title || ''}-${JSON.stringify(m.payload)}`;
+                
+                const duplicate = existingMissions.find(em => {
+                    // Ignore the exact same slot we are currently updating
+                    if (em.slotIndex === m.slotIndex) return false;
+                    
+                    const emSig = `${em.category}-${em.tier}-${em.rank}-${em.title || ''}-${JSON.stringify(em.payload)}`;
+                    return emSig === currentSig;
+                });
+
+                if (duplicate) {
+                    throw new Error(`La mission "${m.title || m.category}" existe déjà dans un autre slot de cette semaine.`);
+                }
+            }
 
             // Double check that this guild is actually the one intended (Secondary check)
             if (guild.discordGuildId !== data.guildId) {
@@ -425,7 +465,7 @@ export async function resetWeek(
         const endOfWeek = new Date(year, 0, 1 + weekNumber * 7);
 
         // 2. Fetch all items to be deleted to cleanup physical files
-        const [missions, kamas, achievements] = await Promise.all([
+        const [missions, kamas] = await Promise.all([
             db.mission.findMany({
                 where: { guildId: guildConfig.id, weekNumber, year },
                 include: { submissions: { select: { id: true, proofUrl: true } } }
@@ -433,22 +473,14 @@ export async function resetWeek(
             (db as any).kamaDonation.findMany({
                 where: { guildId: guildConfig.id, weekNumber, yearNumber: year },
                 select: { id: true, proofUrl: true }
-            }),
-            (db as any).achievementSubmission.findMany({
-                where: {
-                    guildId: guildConfig.id,
-                    createdAt: { gte: startOfWeek, lte: endOfWeek }
-                },
-                select: { id: true, proofUrl: true }
             })
         ]);
 
         // 3. Extract and delete physical proofs + ImageHashes
         const submissionProofs = missions.flatMap(m => m.submissions.map(s => ({ id: s.id, url: s.proofUrl, type: "MISSION" })));
         const kamaProofs = kamas.map((k: any) => ({ id: k.id, url: k.proofUrl, type: "KAMA_DONATION" }));
-        const achievementProofs = achievements.map((a: any) => ({ id: a.id, url: a.proofUrl, type: "ACHIEVEMENT" }));
         
-        const allProofs = [...submissionProofs, ...kamaProofs, ...achievementProofs];
+        const allProofs = [...submissionProofs, ...kamaProofs];
 
         for (const proof of allProofs) {
             if (proof.url) {
@@ -470,12 +502,6 @@ export async function resetWeek(
             }),
             (db as any).kamaDonation.deleteMany({
                 where: { guildId: guildConfig.id, weekNumber, yearNumber: year }
-            }),
-            (db as any).achievementSubmission.deleteMany({
-                where: {
-                    guildId: guildConfig.id,
-                    createdAt: { gte: startOfWeek, lte: endOfWeek }
-                }
             })
         ]);
 
@@ -571,23 +597,48 @@ export async function getWeekMissions(
             });
         }
 
-        // Merge submissions into cached missions and ensure plain objects
-        const enrichedMissions = missions.map(m => ({
-            ...m,
-            // Spread relations to break Prisma prototype chain (which causes "not a plain object" error)
-            interests: m.interests.map(i => ({
-                ...i,
-                profile: {
-                    ...i.profile,
-                    user: i.profile.user ? { ...i.profile.user } : null
-                }
-            })),
-            submissions: userSubmissions.filter(s => s.missionId === m.id).slice(0, 1).map(s => ({ ...s }))
-        }));
+        // Fetch linked events for these missions
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
 
-        // FINAL SAFEGUARD: Force pure JSON object to strip any remaining hidden properties/symbols
-        // This is necessary because Prisma JSON fields or hidden symbols can cause "Not a plain object" errors in Client Components
-        // We use a custom replacer to handle BigInt serialization securely
+        const linkedEvents = guildConfig ? await db.guildEvent.findMany({
+            where: {
+                guildId: guildConfig.id,
+                type: "SESSION_MISSIONS",
+                status: { in: ["DRAFT", "PUBLISHED"] },
+                startDate: {
+                    gte: new Date(year, 0, 1 + (weekNumber - 1) * 7),
+                    lte: new Date(year, 0, 1 + weekNumber * 7 + 7)
+                }
+            },
+            select: { id: true, title: true, startDate: true, metadata: true }
+        }) : [];
+
+        // Merge submissions and events into cached missions and ensure plain objects
+        const enrichedMissions = missions.map(m => {
+            const event = linkedEvents.find(e => {
+                const meta = e.metadata as any;
+                return meta?.missionIds?.includes(m.id);
+            });
+
+            return {
+                ...m,
+                linkedEvent: event ? { id: event.id, title: event.title, startDate: event.startDate } : null,
+                // Spread relations to break Prisma prototype chain
+                interests: m.interests.map(i => ({
+                    ...i,
+                    profile: {
+                        ...i.profile,
+                        user: i.profile.user ? { ...i.profile.user } : null
+                    }
+                })),
+                submissions: userSubmissions.filter(s => s.missionId === m.id).slice(0, 1).map(s => ({ ...s }))
+            };
+        });
+
+        // FINAL SAFEGUARD
         const safeData = JSON.parse(JSON.stringify(enrichedMissions, (key, value) =>
             typeof value === 'bigint' ? value.toString() : value
         ));
@@ -665,6 +716,49 @@ export async function toggleMissionInterest(
     } catch (error) {
         logger.error("Toggle Interest Error", { error, missionId, userId: session?.user?.id });
         return { success: false, error: "Database error" };
+    }
+}
+
+/**
+ * Récupère les missions de la semaine pour le sélecteur du calendrier.
+ */
+export async function getMissionsForCalendar(guildId: string): Promise<ActionResponse<any[]>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const { week, year } = getDofusWeek();
+        
+        const guildConfig = await db.guildConfig.findUniqueOrThrow({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+
+        const missions = await db.mission.findMany({
+            where: {
+                guildId: guildConfig.id,
+                weekNumber: week,
+                year: year,
+                status: "ACTIVE"
+            },
+            select: {
+                id: true,
+                title: true,
+                category: true,
+                payload: true,
+                slotIndex: true,
+                rank: true
+            },
+            orderBy: { slotIndex: "asc" }
+        });
+
+        // Ensure safe JSON serialization
+        const safeData = JSON.parse(JSON.stringify(missions));
+        return { success: true, data: safeData };
+    } catch (error) {
+        logger.error("getMissionsForCalendar Error", { error, guildId });
+        return { success: false, error: "Erreur lors de la récupération des missions de la semaine." };
     }
 }
 
@@ -878,7 +972,7 @@ export async function submitMissionProof(
     } catch (error: any) {
         // AUDIT-FUNC-07: Handle race-condition duplicate submission gracefully
         if (error?.code === "P2002") {
-            return { success: false, error: "Vous avez déjÃ  une soumission pour cette mission." };
+            return { success: false, error: "Vous avez déjà une soumission pour cette mission." };
         }
         logger.error("Submit Mission Proof Error", { error, missionId });
         return { success: false, error: "Erreur serveur lors de la soumission" };
@@ -957,7 +1051,7 @@ export async function validateSubmission(
         // 3. If validated, award rewards (XP & Guildatons)
         if (status === "VALIDATED") {
             const xpReward = submission.mission.xpReward || 0;
-            const guildatonsReward = submission.mission.guildatonsReward || 0;
+            const guildatonsReward = (submission.mission as any).guildatonsReward || 0;
             await grantRewards(updatedSubmission.profileId, xpReward, guildatonsReward);
 
             // AWARD CONTRIBUTION POINTS TO HELPERS
@@ -1011,10 +1105,13 @@ export async function validateSubmission(
                 status,
                 source: "dashboard",
                 xpReward: status === "VALIDATED" ? (submission.mission.xpReward || 0) : 0,
-                guildatonsReward: status === "VALIDATED" ? (submission.mission.guildatonsReward || 0) : 0,
+                guildatonsReward: status === "VALIDATED" ? ((submission.mission as any).guildatonsReward || 0) : 0,
                 helpersCount: updatedSubmission.helpers?.length || 0
             }
         });
+
+        // 🔥 Real-time Discord Update
+        await refreshMissionDiscordEmbed(discordGuildId);
 
         return { success: true };
     } catch (error) {
@@ -1024,6 +1121,7 @@ export async function validateSubmission(
 }
 
 // --- Helpers ---
+
 
 /**
  * Calculate the sum of guildatons earned this week by a profile (missions + kamas)
@@ -1079,7 +1177,6 @@ export async function grantRewards(profileId: string, xp: number, guildatons: nu
                 finalGuildatons = GUILDATONS_MAX_PER_WEEK - currentWeekly;
             }
         }
-
         // 🛡️ CRITICAL UPDATE: Apply the rewards to the database profile
         // Without this, the ladder and profile stats remain stale.
         await db.userProfile.update({
@@ -1135,7 +1232,7 @@ export async function cancelMySubmission(
 
         // 2. Can only cancel PENDING submissions
         if (submission.status !== "PENDING") {
-            return { success: false, error: "Seules les soumissions en attente peuvent Ãªtre annulées" };
+            return { success: false, error: "Seules les soumissions en attente peuvent être annulées" };
         }
 
         // 3. Delete the proof file
@@ -1443,7 +1540,6 @@ export async function publishMissionsToDiscord(
     specificRoleId?: string | null
 ): Promise<ActionResponse> {
     const session = await auth();
-    // Security check: Must have permission to manage missions
     const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
     if (!guard.allowed) return { success: false, error: guard.error };
 
@@ -1454,6 +1550,7 @@ export async function publishMissionsToDiscord(
                 id: true,
                 missionNotifyChannelId: true,
                 missionNotifyRoleId: true,
+                missionTier: true,
                 name: true
             }
         });
@@ -1464,6 +1561,25 @@ export async function publishMissionsToDiscord(
                 error: "Salon de notification non configuré. Allez dans Paramètres > Missions."
             };
         }
+
+        const { week, year } = getDofusWeek();
+        const missions = await db.mission.findMany({
+            where: { guildId: guild.id, weekNumber: week, year }
+        });
+
+        if (missions.length === 0) {
+            return { success: false, error: "Aucune mission n'est publiée pour cette semaine." };
+        }
+
+        const hasEvents = missions.some(m => m.category === "EVENT");
+        const missionLabel = hasEvents ? "Missions Classiques et Événements" : "Missions Classiques";
+
+        const currentXP = (await getGuildMissionXpOverride(guildId)).data?.xpOverride || (await calculateDynamicXP(guild.id, guildId));
+        const targetTier = guild.missionTier || 3;
+
+        const { formatDiscordTierProgress, formatDiscordMilestones } = await import("@/lib/discord-utils");
+        const progressDisplay = formatDiscordTierProgress(currentXP, targetTier);
+        const milestonesDisplay = formatDiscordMilestones(currentXP, targetTier);
 
         // Build mention content
         let mentionContent = "Bonjour à tous !";
@@ -1477,24 +1593,28 @@ export async function publishMissionsToDiscord(
         const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/missions`;
 
         const { sendChannelMessage } = await import("@/server/discord");
-
         const { formatDofusRange } = await import("@/lib/date-utils");
 
         const messageId = await sendChannelMessage(guild.missionNotifyChannelId, mentionContent, {
             embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
-            embedDescription: "Les missions de la semaine sont disponibles sur le Dashboard.",
-            embedColor: 0x7c3aed, // Violet SigilOS
+            embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.\n\u200B`,
+            embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
             embedFooter: `SigilOS • Système de Gestion de Guilde`,
             fields: [
                 {
-                    name: "📋 Missions",
-                    value: "Missions Classiques et Événements.",
-                    inline: true
+                    name: "📊 Progression du Palier",
+                    value: `${progressDisplay}\n\u200B`,
+                    inline: false
                 },
                 {
-                    name: "🔗 Dashboard",
-                    value: `[Lien direct](${dashboardUrl})`,
+                    name: "📍 Jalons de la Semaine",
+                    value: `${milestonesDisplay}\n\u200B`,
+                    inline: false
+                },
+                {
+                    name: "🔗 Liens Rapides",
+                    value: `[Accéder au Dashboard](${dashboardUrl})`,
                     inline: true
                 }
             ]
@@ -1503,6 +1623,12 @@ export async function publishMissionsToDiscord(
         if (!messageId) {
             return { success: false, error: "L'API Discord n'a pas pu envoyer le message." };
         }
+
+        // Store the message ID for real-time updates
+        await db.guildConfig.update({
+            where: { id: guild.id },
+            data: { missionDiscordMessageId: `${guild.missionNotifyChannelId}:${messageId}` }
+        });
 
         // Audit log
         await logAction({
@@ -1518,7 +1644,6 @@ export async function publishMissionsToDiscord(
         });
 
         return { success: true };
-
     } catch (error) {
         console.error("Publish to Discord error:", error);
         return { success: false, error: "Erreur serveur lors de la publication." };
@@ -1529,9 +1654,90 @@ export async function publishMissionsToDiscord(
 // [MIS-1] XP PROGRESS BAR OVERRIDE (Admin Manual Adjustment)  
 // =============================================================================
 
-import { getKamaStats } from "./kama-actions";
 
-async function calculateDynamicXP(guildInternalId: string, discordGuildId: string): Promise<number> {
+/**
+ * Shared utility to update the active mission announcement embed on Discord.
+ * Called whenever XP changes (validation, kama donation, manual adjustment).
+ */
+export async function refreshMissionDiscordEmbed(discordGuildId: string) {
+    try {
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { 
+                id: true, 
+                missionDiscordMessageId: true,
+                missionTier: true,
+                missionNotifyChannelId: true
+            }
+        });
+
+        if (!guild?.missionDiscordMessageId) return;
+
+        const [channelId, messageId] = guild.missionDiscordMessageId.split(":");
+        if (!channelId || !messageId) return;
+
+        const { week, year } = getDofusWeek();
+        
+        // Fetch missions to determine labels
+        const missions = await db.mission.findMany({
+            where: { guildId: guild.id, weekNumber: week, year }
+        });
+        
+        const hasEvents = missions.some(m => m.category === "EVENT");
+        const missionLabel = hasEvents ? "Missions Classiques et Événements" : "Missions Classiques";
+
+        // Calculate XP (Direct DB access to avoid session/auth dependency in background refresh)
+        const xpData = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { missionWeekXpOverride: true, id: true }
+        });
+        
+        const dynamicXP = await calculateDynamicXP(guild.id, discordGuildId);
+        const currentXP = xpData?.missionWeekXpOverride !== null 
+            ? (xpData?.missionWeekXpOverride || 0) + dynamicXP 
+            : dynamicXP;
+            
+        const targetTier = guild.missionTier || 3;
+
+        const { formatDiscordTierProgress, formatDiscordMilestones } = await import("@/lib/discord-utils");
+        const progressDisplay = formatDiscordTierProgress(currentXP, targetTier);
+        const milestonesDisplay = formatDiscordMilestones(currentXP, targetTier);
+
+        const { getAppBaseUrl } = await import("@/lib/utils");
+        const dashboardUrl = `${getAppBaseUrl()}/dashboard/${discordGuildId}/missions`;
+        const { updateChannelMessage } = await import("@/server/discord");
+        const { formatDofusRange } = await import("@/lib/date-utils");
+
+        await updateChannelMessage(channelId, messageId, "", {
+            embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
+            embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.\n\u200B`,
+            embedColor: 0x00f2ff, // Neon Cyan
+            embedUrl: dashboardUrl,
+            embedFooter: `SigilOS • Système de Gestion de Guilde`,
+            fields: [
+                {
+                    name: "📊 Progression du Palier",
+                    value: `${progressDisplay}\n\u200B`,
+                    inline: false
+                },
+                {
+                    name: "📍 Jalons de la Semaine",
+                    value: `${milestonesDisplay}\n\u200B`,
+                    inline: false
+                },
+                {
+                    name: "🔗 Liens Rapides",
+                    value: `[Accéder au Dashboard](${dashboardUrl})`,
+                    inline: true
+                }
+            ]
+        });
+    } catch (e) {
+        console.error("[Discord] refreshMissionDiscordEmbed failed:", e);
+    }
+}
+
+export async function calculateDynamicXP(guildInternalId: string, discordGuildId: string): Promise<number> {
     const { week, year } = getDofusWeek();
     
     // 1. Mission XP
@@ -1600,8 +1806,10 @@ export async function setGuildMissionXpOverride(
             metadata: { operation: "SET_MISSION_XP_OVERRIDE", targetTotalXp: xpOverride, baseOverrideComputed: finalBaseOverride, cleared: xpOverride === null }
         });
 
-        revalidatePath(`/dashboard/${guildId}/missions`);
         revalidatePath(`/dashboard/${guildId}/missions/manage`);
+
+        // 🔥 Real-time Discord Update
+        await refreshMissionDiscordEmbed(guildId);
 
         return {
             success: true,
@@ -1644,3 +1852,16 @@ export async function getGuildMissionXpOverride(
         return { success: false, error: "Erreur serveur" };
     }
 }
+
+export async function getMissionsByIds(ids: string[]) {
+    try {
+        const missions = await db.mission.findMany({
+            where: { id: { in: ids } }
+        });
+        // Ensure safe JSON serialization
+        return JSON.parse(JSON.stringify(missions));
+    } catch (error) {
+        console.error("getMissionsByIds Error:", error);
+        return [];
+    }
+}

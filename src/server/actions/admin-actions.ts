@@ -222,13 +222,7 @@ export async function lazyCleanupExpiredSubmissions(discordGuildId: string): Pro
             select: { id: true, proofUrl: true }
         }) || Promise.resolve([]));
 
-        // 3. Achievements
-        const expiredAchievements = await (kamaDb.achievementSubmission?.findMany({
-            where: { guildId: guild.id, status: "PENDING", createdAt: { lt: cutoff } },
-            select: { id: true, proofUrl: true }
-        }) || Promise.resolve([]));
-
-        const allExpired = [...expiredMissions, ...expiredKamas, ...expiredAchievements];
+        const allExpired = [...expiredMissions, ...expiredKamas];
         if (allExpired.length === 0) return;
 
         const { deleteProofFile } = await import("@/lib/storage-utils");
@@ -244,7 +238,6 @@ export async function lazyCleanupExpiredSubmissions(discordGuildId: string): Pro
         await Promise.all([
             db.submission.deleteMany({ where: { id: { in: expiredMissions.map((m: any) => m.id) } } }),
             kamaDb.kamaDonation?.deleteMany({ where: { id: { in: expiredKamas.map((k: any) => k.id) } } }).catch(() => { }),
-            kamaDb.achievementSubmission?.deleteMany({ where: { id: { in: expiredAchievements.map((a: any) => a.id) } } }).catch(() => { })
         ]);
 
         logger.info(`[LazyCleanup] Purged ${allExpired.length} expired items for guild ${discordGuildId}`);
@@ -392,7 +385,7 @@ export async function updateOcreChannel(
 // SONGES NOTIFICATION CONFIGURATION
 // ============================================================================
 
-export async function getSongesConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { songesChannelId: string | null } }> {
+export async function getSongesConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { songesChannelId: string | null; songesPingRoleIds: string[] } }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -404,12 +397,12 @@ export async function getSongesConfig(guildId: string): Promise<{ success: boole
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { songesNotifyChannelId: true }
+            select: { songesNotifyChannelId: true, songesPingRoleIds: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
 
-        return { success: true, data: { songesChannelId: config.songesNotifyChannelId } };
+        return { success: true, data: { songesChannelId: config.songesNotifyChannelId, songesPingRoleIds: config.songesPingRoleIds || [] } };
     } catch (error) {
         console.error("Get Songes Config Error:", error);
         return { success: false, error: "Erreur serveur" };
@@ -460,7 +453,7 @@ export async function updateSongesChannel(
 // CALENDAR NOTIFICATION CONFIGURATION
 // ============================================================================
 
-export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null } }> {
+export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[] } }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -472,12 +465,12 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { calendarNotifyChannelId: true }
+            select: { calendarNotifyChannelId: true, calendarPingRoleIds: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
 
-        return { success: true, data: { calendarChannelId: config.calendarNotifyChannelId } };
+        return { success: true, data: { calendarChannelId: config.calendarNotifyChannelId, calendarPingRoleIds: config.calendarPingRoleIds || [] } };
     } catch (error) {
         console.error("Get Calendar Config Error:", error);
         return { success: false, error: "Erreur serveur" };
@@ -545,6 +538,9 @@ export async function getDofusConfig(guildId: string): Promise<{
         missionRanks: number[];
         missionTier: number;
         missionWeekXpOverride: number | null;
+        guildHallPosX: number | null;
+        guildHallPosY: number | null;
+        guildHallWorldId: number | null;
     }
 }> {
     const session = await auth();
@@ -562,13 +558,19 @@ export async function getDofusConfig(guildId: string): Promise<{
                 dofusServerId: true,
                 missionRanks: true,
                 missionTier: true,
-                missionWeekXpOverride: true
+                missionWeekXpOverride: true,
+                guildHallPosX: true,
+                guildHallPosY: true,
+                guildHallWorldId: true,
             } as Record<string, true>
         }) as unknown as {
             dofusServerId: string | null;
             missionRanks: unknown;
             missionTier: number | null;
             missionWeekXpOverride: number | null;
+            guildHallPosX: number | null;
+            guildHallPosY: number | null;
+            guildHallWorldId: number | null;
         } | null;
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
@@ -590,7 +592,10 @@ export async function getDofusConfig(guildId: string): Promise<{
                 dofusServerId: guildConfig.dofusServerId,
                 missionRanks: parsedRanks,
                 missionTier: guildConfig.missionTier || 3,
-                missionWeekXpOverride: guildConfig.missionWeekXpOverride ?? null
+                missionWeekXpOverride: guildConfig.missionWeekXpOverride ?? null,
+                guildHallPosX: guildConfig.guildHallPosX,
+                guildHallPosY: guildConfig.guildHallPosY,
+                guildHallWorldId: guildConfig.guildHallWorldId,
             }
         };
     } catch (error) {
@@ -659,6 +664,9 @@ export async function updateGuildGameConfig(
         serverId?: string | null;
         missionRanks?: number[];
         missionTier?: number;
+        guildHallPosX?: number | null;
+        guildHallPosY?: number | null;
+        guildHallWorldId?: number | null;
     }
 ): Promise<ActionResponse> {
     const session = await auth();
@@ -675,14 +683,95 @@ export async function updateGuildGameConfig(
             data: {
                 dofusServerId: data.serverId,
                 missionRanks: data.missionRanks ? JSON.stringify(data.missionRanks) : undefined,
-                missionTier: data.missionTier
+                missionTier: data.missionTier,
+                guildHallPosX: data.guildHallPosX,
+                guildHallPosY: data.guildHallPosY,
+                guildHallWorldId: data.guildHallWorldId,
             }
         });
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        revalidatePath(`/dashboard/${guildId}/missions`);
         return { success: true };
     } catch (error) {
         console.error("Update Guild Game Config Error:", error);
+        return { success: false, error: "Erreur lors de la mise à jour" };
+    }
+}
+
+// ============================================================================
+// GUILD HALL CONFIGURATION
+// ============================================================================
+
+export async function getGuildHallConfig(guildId: string): Promise<{
+    success: boolean;
+    error?: string;
+    data?: {
+        guildHallPosX: number | null;
+        guildHallPosY: number | null;
+        guildHallWorldId: number | null;
+    }
+}> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                guildHallPosX: true,
+                guildHallPosY: true,
+                guildHallWorldId: true,
+            }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return {
+            success: true,
+            data: {
+                guildHallPosX: config.guildHallPosX,
+                guildHallPosY: config.guildHallPosY,
+                guildHallWorldId: config.guildHallWorldId,
+            }
+        };
+    } catch (error) {
+        console.error("Get Guild Hall Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateGuildHallConfig(
+    guildId: string,
+    data: {
+        posX: number | null;
+        posY: number | null;
+        worldId: number | null;
+    }
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // SECURITY: Verify user is admin of this guild
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: {
+                guildHallPosX: data.posX,
+                guildHallPosY: data.posY,
+                guildHallWorldId: data.worldId ?? 1,
+            }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        revalidatePath(`/dashboard/${guildId}/missions`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Guild Hall Config Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -701,11 +790,10 @@ export async function getMissionConfig(guildId: string): Promise<{
         missionValidationNotifyRoleId: string | null;
         kamaNotifyChannelId: string | null;
         kamaNotifyRoleId: string | null;
-        achievementNotifyChannelId: string | null;
-        achievementNotifyRoleId: string | null;
         missionManagementNotifyChannelId: string | null;
         missionManagementNotifyRoleId: string | null;
         newsBroadcastEnabled: boolean;
+        lifecycleNotifyChannelId: string | null;
     }
 }> {
     const session = await auth();
@@ -725,25 +813,12 @@ export async function getMissionConfig(guildId: string): Promise<{
                 missionValidationNotifyRoleId: true,
                 kamaNotifyChannelId: true,
                 kamaNotifyRoleId: true,
-                achievementNotifyChannelId: true,
-                achievementNotifyRoleId: true,
                 missionManagementNotifyChannelId: true,
                 missionManagementNotifyRoleId: true,
                 newsBroadcastEnabled: true,
+                lifecycleNotifyChannelId: true,
             }
-        }) as {
-            missionNotifyChannelId: string | null;
-            missionNotifyRoleId: string | null;
-            missionValidationChannelId: string | null;
-            missionValidationNotifyRoleId: string | null;
-            kamaNotifyChannelId: string | null;
-            kamaNotifyRoleId: string | null;
-            achievementNotifyChannelId: string | null;
-            achievementNotifyRoleId: string | null;
-            missionManagementNotifyChannelId: string | null;
-            missionManagementNotifyRoleId: string | null;
-            newsBroadcastEnabled: boolean;
-        } | null;
+        });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
 
@@ -755,12 +830,11 @@ export async function getMissionConfig(guildId: string): Promise<{
                 missionValidationChannelId: config.missionValidationChannelId,
                 missionValidationNotifyRoleId: config.missionValidationNotifyRoleId,
                 kamaNotifyChannelId: config.kamaNotifyChannelId,
-                kamaNotifyRoleId: config.kamaNotifyRoleId ?? null,
-                achievementNotifyChannelId: config.achievementNotifyChannelId,
-                achievementNotifyRoleId: config.achievementNotifyRoleId ?? null,
-                missionManagementNotifyChannelId: config.missionManagementNotifyChannelId ?? null,
-                missionManagementNotifyRoleId: config.missionManagementNotifyRoleId ?? null,
+                kamaNotifyRoleId: config.kamaNotifyRoleId,
+                missionManagementNotifyChannelId: config.missionManagementNotifyChannelId,
+                missionManagementNotifyRoleId: config.missionManagementNotifyRoleId,
                 newsBroadcastEnabled: config.newsBroadcastEnabled,
+                lifecycleNotifyChannelId: config.lifecycleNotifyChannelId,
             }
         };
     } catch (error) {
@@ -778,11 +852,10 @@ export async function updateMissionNotifySettings(
         validationRoleId?: string | null;
         kamaNotifyChannelId?: string | null;
         kamaNotifyRoleId?: string | null;
-        achievementNotifyChannelId?: string | null;
-        achievementNotifyRoleId?: string | null;
         missionManagementNotifyChannelId?: string | null;
         missionManagementNotifyRoleId?: string | null;
         newsBroadcastEnabled?: boolean;
+        lifecycleNotifyChannelId?: string | null;
     }
 ): Promise<ActionResponse> {
     const session = await auth();
@@ -793,47 +866,62 @@ export async function updateMissionNotifySettings(
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
-        // SECURITY: Validate channels (if provided)
+        const { validateChannelBelongsToGuild } = await import("@/server/discord");
+        const { invalidateGuildCache, invalidateUserContextCache } = await import("./user-actions");
+
+        // 1. Prepare dynamic update data (Only update fields that are provided)
+        const updateData: any = {};
+        
+        // Channels validation
         const channelsToValidate = [
             data.channelId,
             data.validationChannelId,
             data.kamaNotifyChannelId,
-            data.achievementNotifyChannelId,
-            data.missionManagementNotifyChannelId
+            data.missionManagementNotifyChannelId,
+            data.lifecycleNotifyChannelId
         ].filter(Boolean) as string[];
 
-        if (channelsToValidate.length > 0) {
-            const { validateChannelBelongsToGuild } = await import("@/server/discord");
-            for (const cId of channelsToValidate) {
-                const isValidChannel = await validateChannelBelongsToGuild(cId, guildId);
-                if (!isValidChannel) {
-                    return { success: false, error: `Le salon ${cId} n'appartient pas à votre serveur Discord` };
-                }
-            }
+        for (const cId of channelsToValidate) {
+            const isValid = await validateChannelBelongsToGuild(cId, guildId);
+            if (!isValid) return { success: false, error: `Le salon ${cId} n'appartient pas à votre serveur Discord` };
         }
 
+        // Map client fields to DB fields
+        if (data.channelId !== undefined) updateData.missionNotifyChannelId = data.channelId;
+        if (data.roleId !== undefined) updateData.missionNotifyRoleId = data.roleId;
+        if (data.validationChannelId !== undefined) updateData.missionValidationChannelId = data.validationChannelId;
+        if (data.validationRoleId !== undefined) updateData.missionValidationNotifyRoleId = data.validationRoleId;
+        if (data.kamaNotifyChannelId !== undefined) updateData.kamaNotifyChannelId = data.kamaNotifyChannelId;
+        if (data.kamaNotifyRoleId !== undefined) updateData.kamaNotifyRoleId = data.kamaNotifyRoleId;
+        if (data.missionManagementNotifyChannelId !== undefined) updateData.missionManagementNotifyChannelId = data.missionManagementNotifyChannelId;
+        if (data.missionManagementNotifyRoleId !== undefined) updateData.missionManagementNotifyRoleId = data.missionManagementNotifyRoleId;
+        if (data.newsBroadcastEnabled !== undefined) updateData.newsBroadcastEnabled = data.newsBroadcastEnabled;
+        if (data.lifecycleNotifyChannelId !== undefined) updateData.lifecycleNotifyChannelId = data.lifecycleNotifyChannelId;
+
+        // 2. Perform DB update
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
-            data: {
-                missionNotifyChannelId: data.channelId,
-                missionNotifyRoleId: data.roleId,
-                missionValidationChannelId: data.validationChannelId,
-                missionValidationNotifyRoleId: data.validationRoleId,
-                kamaNotifyChannelId: data.kamaNotifyChannelId,
-                kamaNotifyRoleId: data.kamaNotifyRoleId,
-                achievementNotifyChannelId: data.achievementNotifyChannelId,
-                achievementNotifyRoleId: data.achievementNotifyRoleId,
-                missionManagementNotifyChannelId: data.missionManagementNotifyChannelId,
-                missionManagementNotifyRoleId: data.missionManagementNotifyRoleId,
-                newsBroadcastEnabled: data.newsBroadcastEnabled,
-            } as Record<string, string | null | undefined | boolean>
+            data: updateData
         });
+
+        // 3. 📝 AUDIT LOG
+        await logAction({
+            guildId,
+            action: "SETTINGS_UPDATED",
+            targetType: "CONFIG",
+            targetId: guildId,
+            metadata: { description: "Mise à jour des paramètres de notifications missions" }
+        });
+
+        // 4. Invalidate caches
+        await invalidateGuildCache(guildId);
+        await invalidateUserContextCache(session.user.id, guildId, guildId);
 
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
-    } catch (error) {
-        console.error("Update Mission Settings Error:", error);
-        return { success: false, error: "Erreur serveur" };
+    } catch (error: any) {
+        console.error("[AdminAction] updateMissionNotifySettings failed:", error);
+        return { success: false, error: error.message || "Erreur lors de la mise à jour" };
     }
 }
 
@@ -981,17 +1069,20 @@ export async function getPendingValidationsCount(guildId: string) {
 
         if (!guild) return { success: false, error: "Guild not found" };
 
-        const [pendingMissions, pendingAchievements, pendingKamas] = await Promise.all([
+        const [pendingMissions, pendingAchievements, pendingKamas, pendingReactivations] = await Promise.all([
             canValidate
                 ? db.submission.count({ where: { mission: { guildId: guild.id }, status: "PENDING" } })
                 : 0,
-            isAdmin
-                ? (db as any).achievementSubmission.count({ where: { guildId: guild.id, status: "PENDING" } })
-                : 0,
+            (isAdmin || canValidate)
+                ? (db as any).achievementSubmission.count({ where: { guildId: guild.id, status: "PENDING" } }).catch(() => 0)
+                : Promise.resolve(0),
             (isAdmin || canValidate)
                 ? (db as any).kamaDonation
                     ? (db as any).kamaDonation.count({ where: { guildId: guild.id, status: "PENDING" } }).catch(() => 0)
                     : Promise.resolve(0)
+                : 0,
+            isAdmin
+                ? db.userProfile.count({ where: { guildId: guild.id, reactivationRequestedAt: { not: null } } })
                 : 0,
         ]);
 
@@ -1001,7 +1092,8 @@ export async function getPendingValidationsCount(guildId: string) {
                 pendingMissions,
                 pendingAchievements,
                 pendingKamas,
-                total: pendingMissions + pendingAchievements + pendingKamas
+                pendingReactivations,
+                total: pendingMissions + pendingAchievements + pendingKamas + pendingReactivations
             }
         };
     } catch (error) {

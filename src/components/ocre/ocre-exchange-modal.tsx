@@ -51,6 +51,25 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
     const [tradeMessage, setTradeMessage] = useState("");
     const [sendDiscordPing, setSendDiscordPing] = useState(hasOcreChannel ?? false);
     const [isSubmittingTrade, setIsSubmittingTrade] = useState(false);
+    const [targetChannelName, setTargetChannelName] = useState<string>("commerce");
+
+    useEffect(() => {
+        if (hasOcreChannel && guildId) {
+            import("@/server/actions/ocre-actions").then(m => {
+                m.getOcrePublicConfig(guildId).then(res => {
+                    if (res.success && res.data?.ocreNotifyChannelId) {
+                        import("@/server/actions/discord-actions").then(d => {
+                            d.getDiscordChannelInfo(guildId, res.data!.ocreNotifyChannelId!).then(chanRes => {
+                                if (chanRes.success && chanRes.data) {
+                                    setTargetChannelName(chanRes.data.name);
+                                }
+                            });
+                        });
+                    }
+                });
+            });
+        }
+    }, [hasOcreChannel, guildId]);
 
     const fetchExchanges = async () => {
         setLoading(true);
@@ -506,9 +525,16 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                         </Label>
                                         <p className="text-xs text-zinc-500">
                                             {hasOcreChannel
-                                                ? "Envoie une notification dans le salon Ocre de la guilde."
+                                                ? "Envoie l'annonce sur le serveur."
                                                 : "Configuration manquante. Demandez à un officier de configurer le salon Ocre."}
                                         </p>
+                                        {hasOcreChannel && sendDiscordPing && (
+                                            <div className="flex items-center gap-1 mt-2 animate-in fade-in">
+                                                <span className="text-[10px] text-emerald-400/90 font-bold uppercase tracking-widest">
+                                                    Sera posté dans #{targetChannelName}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                     <Switch
                                         checked={sendDiscordPing}

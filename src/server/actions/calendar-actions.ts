@@ -9,6 +9,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
+import { deleteChannelMessage } from "@/server/discord";
 
 // ============================================
 // LOCAL ENUM DEFINITIONS (mirrors Prisma schema)
@@ -47,7 +48,9 @@ const GuildEventSchema = z.object({
     maxParticipants: z.number().int().min(1).nullable().optional(),
     notifyBefore: z.number().int().min(0).nullable().optional(),
     metadata: z.any().optional(), // Dynamic per type
+    missionIds: z.array(z.string()).optional(), // For SESSION_MISSIONS
     publishOnDiscord: z.boolean().optional().default(false),
+    mentionRoleIds: z.array(z.string()).optional().default([]),
 }).refine(data => data.endDate > data.startDate, {
     message: "La date de fin doit être après la date de début",
     path: ["endDate"]
@@ -134,11 +137,48 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
             take: 500 // Limit max events per request
         });
 
-        // Patch: Override type for Kralamoure events stored in DB
+        // Patch: Override type and SYNC COUNTS for Kralamoure events
+        const hasKrala = events.some(e => (e.metadata as any)?.isKralamoure);
+        let liveKralaEvents: any[] = [];
+        
+        if (hasKrala) {
+            try {
+                const { getKralamoureEvents } = await import("@/lib/metamob-client");
+                // Fetch live events for the same range (or slightly wider to be safe)
+                // Note: We need a server ID. We'll try to get it from the user's profile.
+                const userProfile = await db.userProfile.findFirst({
+                    where: { userId: ctx.id!, guild: { discordGuildId: guildId } },
+                    select: { metamobServerId: true, metamobApiKey: true }
+                });
+                
+                if (userProfile?.metamobServerId) {
+                    const results = await getKralamoureEvents({
+                        serverId: userProfile.metamobServerId,
+                        from: start.toISOString(),
+                        guildApiKey: userProfile.metamobApiKey,
+                        revalidate: 60 // 1 minute cache
+                    });
+                    if (results) liveKralaEvents = results;
+                }
+            } catch (err) {
+                console.error("[Calendar] Failed to sync Krala counts in list:", err);
+            }
+        }
+
         const patchedEvents = events.map(event => {
             const meta = event.metadata as any;
             if (meta?.isKralamoure) {
-                return { ...event, type: "KRALAMOURE" as any };
+                let liveCount = meta.metamobParticipantsCount || 0;
+                if (meta.metamobId && liveKralaEvents.length > 0) {
+                    const match = liveKralaEvents.find(k => k.id === meta.metamobId);
+                    if (match) liveCount = match.participants_count || 0;
+                }
+                
+                return { 
+                    ...event, 
+                    type: "KRALAMOURE" as any,
+                    _count: { participants: liveCount } // Override count for display
+                };
             }
             return event;
         });
@@ -164,13 +204,16 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
         if (isNaN(kralaId)) return { success: false, error: "ID invalide" };
 
         const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
-        const details = await getExternalKralamoureDetails(kralaId, guildId);
+        const details = await getExternalKralamoureDetails(kralaId, guildId, 0); // Force fresh fetch for modal
 
         if (!details) return { success: false, error: "Événement Metamob introuvable" };
 
-        // Check if current user has a Metamob API key
+        // Check if current user has a Metamob API key (fallback to any of their profiles)
         const userProfile = await db.userProfile.findFirst({
-            where: { userId: ctx.id!, guild: { discordGuildId: guildId } },
+            where: { 
+                userId: ctx.id!, 
+                metamobApiKey: { not: null } 
+            },
             select: { metamobApiKey: true }
         });
 
@@ -251,7 +294,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
             // Try to fetch live participants from Metamob
             try {
                 const { getExternalKralamoureDetails } = await import("@/server/actions/event-actions");
-                const details = await getExternalKralamoureDetails(meta.metamobId, guildId);
+                const details = await getExternalKralamoureDetails(meta.metamobId, guildId, 0); // Force fresh fetch for modal
 
                 if (details && details.participants) {
                     // Replace participants with live data
@@ -298,7 +341,10 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
         let hasMetamobKey = false;
         if (isKrala) {
             const userProfile = await db.userProfile.findFirst({
-                where: { userId: ctx.id!, guildId: guildConfig.id },
+                where: { 
+                    userId: ctx.id!, 
+                    metamobApiKey: { not: null }
+                },
                 select: { metamobApiKey: true }
             });
             hasMetamobKey = !!userProfile?.metamobApiKey;
@@ -379,11 +425,34 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true }
+            select: { id: true, rolesMapping: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        const { publishOnDiscord, ...eventData } = validated.data;
+        const { publishOnDiscord, missionIds, mentionRoleIds, ...eventData } = validated.data;
+
+        // RBAC: Raids require RAID_OFFICER permission
+        if (eventData.type === "RAID_OFFICIAL") {
+            const { PERMISSIONS } = await import("@/lib/permissions");
+            if (!ctx.isAdmin && !ctx.roles.some(r => {
+                const perms = (guildConfig.rolesMapping as any)?.[r];
+                return perms && perms.includes(PERMISSIONS.RAID_OFFICER);
+            })) {
+                return { success: false, error: "Permission requise: Gestion des Raids" };
+            }
+        }
+
+        // Merge missionIds into metadata if present
+        const finalMetadata = {
+            ...(eventData.metadata || {}),
+            missionIds: missionIds || [],
+            mentionRoleIds: mentionRoleIds || []
+        };
+
+        // If Raid, auto-set captain if missing
+        if (eventData.type === "RAID_OFFICIAL" && !finalMetadata.raidCaptain) {
+            finalMetadata.raidCaptain = ctx.pseudoDofus || ctx.name || "Inconnu";
+        }
 
         // ANTI-DUPLICATE: Check if an event of the SAME TYPE already exists within a +/- 15 min window
         const fifteenMins = 15 * 60 * 1000;
@@ -420,6 +489,7 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
                 title: sanitizeInput(eventData.title),
                 description: sanitizeInput(eventData.description || ""),
                 location: sanitizeInput(eventData.location || ""),
+                metadata: finalMetadata,
                 guildId: guildConfig.id,
                 creatorId: ctx.id!
             }
@@ -600,7 +670,16 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
         // Exclude virtual fields
-        const { publishOnDiscord, ...updateData } = validated.data;
+        const { publishOnDiscord, missionIds, mentionRoleIds, ...updateData } = validated.data;
+
+        // Merge missionIds into metadata
+        const existingEvent = await db.guildEvent.findUnique({ where: { id: eventId }, select: { metadata: true } });
+        const finalMetadata = {
+            ...(existingEvent?.metadata as any || {}),
+            ...(updateData.metadata || {}),
+            missionIds: missionIds || [],
+            mentionRoleIds: mentionRoleIds || []
+        };
 
         await db.guildEvent.update({
             where: { id: eventId, guildId: guildConfig.id },
@@ -608,7 +687,8 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
                 ...updateData,
                 title: sanitizeInput(updateData.title),
                 description: sanitizeInput(updateData.description || ""),
-                location: sanitizeInput(updateData.location || "")
+                location: sanitizeInput(updateData.location || ""),
+                metadata: finalMetadata
             }
         });
 
@@ -634,6 +714,15 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
             select: { id: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { discordChannelId: true, discordMessageId: true }
+        });
+
+        if (event?.discordChannelId && event?.discordMessageId) {
+            deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
+        }
 
         await db.guildEvent.delete({
             where: { id: eventId, guildId: guildConfig.id }
@@ -687,7 +776,7 @@ export async function publishEvent(guildId: string, eventId: string) {
 }
 
 /**
- * Complete an event (PUBLISHED -> COMPLETED) and distribute points
+ * Complete an event (PUBLISHED -> COMPLETED) and distribute XP to registered participants
  */
 export async function completeEvent(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
@@ -703,31 +792,124 @@ export async function completeEvent(guildId: string, eventId: string) {
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            include: { participants: { where: { status: "REGISTERED" } } }
+            include: {
+                participants: {
+                    where: { status: "REGISTERED" },
+                    select: { userId: true, position: true }
+                }
+            }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
 
-        // Distribute XP based on event type
         const xpReward = event.type === "RAID_OFFICIAL" ? 50 : 20;
-        const captainBonus = 10;
 
-        // Update event status
+        // Mark event as completed
         await db.guildEvent.update({
             where: { id: eventId },
             data: { status: "COMPLETED" }
         });
 
-        // TODO: Distribute XP to participants via UserProfile update
+        // Close Discord message
+        if (event.discordChannelId && event.discordMessageId) {
+            deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
+        }
+
+        // Distribute XP to all registered participants
+        if (event.participants.length > 0) {
+            const userIds = event.participants.map(p => p.userId);
+            await db.userProfile.updateMany({
+                where: {
+                    userId: { in: userIds },
+                    guildId: guildConfig.id
+                },
+                data: {
+                    xp: { increment: xpReward }
+                }
+            });
+        }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, participantsReward: event.participants.length, xpReward };
+        return { success: true, participantsRewarded: event.participants.length, xpReward };
     } catch (error) {
         console.error("[Calendar] completeEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture" };
     }
 }
+
+/**
+ * Complete a RAID event with score and selective XP distribution (captain-driven)
+ */
+export async function completeRaidEvent(
+    guildId: string,
+    eventId: string,
+    data: { score: string; presentUserIds: string[] }
+) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
+
+    const score = data.score?.trim() || null;
+    const presentUserIds = data.presentUserIds || [];
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { id: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
+        });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.status === "COMPLETED") return { success: false, error: "Déjà terminé" };
+
+        // Save score + completion data in metadata
+        const existingMeta = (event.metadata as any) || {};
+        await db.guildEvent.update({
+            where: { id: eventId },
+            data: {
+                status: "COMPLETED",
+                metadata: {
+                    ...existingMeta,
+                    raidScore: score,
+                    raidPresentUserIds: presentUserIds,
+                    completedAt: new Date().toISOString(),
+                    completedBy: ctx.id
+                }
+            }
+        });
+
+        // Close Discord message
+        if (event.discordChannelId && event.discordMessageId) {
+            deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
+        }
+
+        // Distribute XP only to present members
+        if (presentUserIds.length > 0) {
+            await db.userProfile.updateMany({
+                where: {
+                    userId: { in: presentUserIds },
+                    guildId: guildConfig.id
+                },
+                data: {
+                    xp: { increment: 50 }
+                }
+            });
+        }
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, rewarded: presentUserIds.length, score };
+    } catch (error) {
+        console.error("[Calendar] completeRaidEvent Error:", error);
+        return { success: false, error: "Erreur lors de la clôture du raid" };
+    }
+}
+
 
 // ============================================
 // REGISTRATION ACTIONS
@@ -1104,32 +1286,46 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
             return { success: false, error: `Veuillez attendre ${minutesLeft} minute(s) avant de renvoyer une notification.` };
         }
 
-        // Format date
-        const { format } = await import("date-fns");
-        const { fr } = await import("date-fns/locale");
-        const dateStr = format(event.startDate, "EEEE d MMMM", { locale: fr });
-        const timeStr = `${format(event.startDate, "HH:mm")} - ${format(event.endDate ? event.endDate : event.startDate, "HH:mm")}`;
+        // Fixed Timezone Handling via Discord Dynamic Timestamps
+        const startTs = Math.floor(new Date(event.startDate).getTime() / 1000);
+        const endTs = Math.floor(new Date(event.endDate || event.startDate).getTime() / 1000);
+        
+        const { getAppBaseUrl } = await import("@/lib/utils");
+        const publicUrl = getAppBaseUrl();
 
-        // Event type config
-        const typeLabels: Record<string, { emoji: string; color: number }> = {
-            RAID_OFFICIAL: { emoji: "⚔️", color: 0xef4444 },
-            EVENT_GUILD: { emoji: "🎉", color: 0xa855f7 },
-            SESSION_MISSIONS: { emoji: "🎯", color: 0xf59e0b },
-            SORTIE_FARM: { emoji: "🌾", color: 0x22c55e },
-        };
-        const typeConfig = typeLabels[event.type] || { emoji: "📅", color: 0xf59e0b };
+        // Build Participant Lists (simplified for repost)
+        const registeredCount = event.participants.length;
 
-        // Build embed fields
-        const participantCount = event.participants.length;
-        const maxStr = event.maxParticipants ? `${participantCount}/${event.maxParticipants}` : `${participantCount}`;
+        // Resolve Type Config
+        const typeConfig = { emoji: "📅", color: 0x5865F2 };
 
-        // Build mention content
+        // Resolve Mentions
         let mentionContent = "";
+        const meta = event.metadata as any;
+        
         if (pingRoleId) {
-            if (pingRoleId === "everyone") {
-                mentionContent = "@everyone";
-            } else {
-                mentionContent = `<@&${pingRoleId}>`;
+            if (pingRoleId === "everyone") mentionContent = "@everyone";
+            else mentionContent = `<@&${pingRoleId}>`;
+        } else if (meta?.mentionRoleIds && Array.isArray(meta.mentionRoleIds)) {
+            mentionContent = meta.mentionRoleIds.map((id: string) => `<@&${id}>`).join(" ");
+        } else if (meta?.mentionType === "EVERYONE") {
+            mentionContent = "@everyone";
+        } else if (meta?.mentionType === "ROLE" && meta?.mentionRoleId) {
+            mentionContent = `<@&${meta.mentionRoleId}>`;
+        }
+
+        // Raid Specifics
+        let embedImage = undefined;
+        let embedThumb = undefined;
+        const raidTitle = event.title;
+
+        if (event.type === "RAID_OFFICIAL" && meta) {
+            if (meta.raidType === "gigalodon") {
+                embedImage = "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop"; 
+                embedThumb = "https://static.ankama.com/dofus/www/game/monsters/200/5129.png";
+            } else if (meta.raidType === "jardin") {
+                embedImage = "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=1000&auto=format&fit=crop";
+                embedThumb = "https://static.ankama.com/dofus/www/game/monsters/200/5131.png";
             }
         }
 
@@ -1137,16 +1333,29 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
         const { sendChannelMessage } = await import("@/server/discord");
         const messageId = await sendChannelMessage(
             guildConfig.calendarNotifyChannelId,
-            mentionContent, // Role mention if specified
+            mentionContent,
             {
-                embedTitle: `${typeConfig.emoji} ${event.title}`,
+                embedTitle: `${typeConfig.emoji} ${raidTitle}`,
                 embedColor: typeConfig.color,
+                embedImage,
+                embedThumbnail: embedThumb,
                 embedFooter: `SigilOS • Calendrier ${guildConfig.name}`,
                 fields: [
-                    { name: "📆 Date", value: dateStr.charAt(0).toUpperCase() + dateStr.slice(1), inline: true },
-                    { name: "⏰ Horaire", value: timeStr, inline: true },
-                    { name: "👥 Places", value: maxStr, inline: true },
-                    ...(event.description ? [{ name: "📝 Description", value: event.description.slice(0, 200) + (event.description.length > 200 ? "..." : "") }] : []),
+                    { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
+                    { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
+                    { name: "👥 Places", value: `${registeredCount}/${event.maxParticipants || "∞"}`, inline: true },
+                    { name: "👑 Capitaine", value: meta?.raidCaptain || "À déterminer", inline: true },
+                    { name: "🔗 Lien", value: `[Voir sur le Dashboard](${publicUrl}/dashboard/${guildId}/calendar?event=${event.id})`, inline: true },
+                    { name: "📝 Description", value: event.description || "*Pas de description*", inline: false },
+                ],
+                components: [
+                    {
+                        type: 1,
+                        components: [
+                            { type: 2, style: 3, label: "S'inscrire", emoji: { name: "✅" }, custom_id: `calendar:join:${event.id}` },
+                            { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` }
+                        ]
+                    }
                 ]
             }
         );
@@ -1192,5 +1401,26 @@ export async function getDiscordRolesForCalendar(guildId: string) {
     } catch (error) {
         console.error("[Calendar] getDiscordRolesForCalendar Error:", error);
         return [];
+    }
+}
+
+/**
+ * Get public config for calendar (e.g., notify channel id) for UI components
+ */
+export async function getCalendarPublicConfig(guildId: string) {
+    try {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
+
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { calendarNotifyChannelId: true }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+        
+        return { success: true, data: config };
+    } catch (e: any) {
+        return { success: false, error: e.message };
     }
 }

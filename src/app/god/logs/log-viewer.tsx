@@ -64,7 +64,7 @@ const ACTION_OPTIONS = [
     { value: "SECURITY_ALERT", label: "🚨 Alertes de Sécurité" },
     { value: "RBAC_UPDATE,RBAC_ROLE_ADD,RBAC_ROLE_REMOVE", label: "Permissions" },
     { value: "GOD_GUILD_WHITELIST,GOD_USER_PLATFORM_BAN,GOD_CONFIG_OVERRIDE,GOD_DATABASE_SYNC", label: "🛡️ Actions God" },
-    { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
+    { value: "WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,WEBHOOK_MEMBER_UPDATE", label: "🔄 Mouvements" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
     { value: "CONFIG_UPDATED", label: "Configuration" },
     { value: "ADMIN_FULL_DENIED", label: "Accès refusé" },
@@ -149,6 +149,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
         if (action.startsWith("GOD_")) return "bg-violet-500/10 text-violet-400 border-violet-500/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]";
         if (action === "WEBHOOK_MEMBER_ADD") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
         if (action === "WEBHOOK_MEMBER_REMOVE") return "bg-zinc-500/10 text-zinc-400 border-white/10";
+        if (action === "WEBHOOK_MEMBER_UPDATE") return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
         if (action === "USER_GDPR_DELETE") return "bg-red-500/10 text-red-400 border-red-500/50 hover:bg-red-500/20";
         return "bg-zinc-500/10 text-zinc-400 border-white/5";
     };
@@ -167,6 +168,7 @@ export function LogViewer({ initialLogs, initialTotal }: LogViewerProps) {
     const formatActionLabel = (action: string) => {
         if (action === "WEBHOOK_MEMBER_ADD") return "Arrivée Membre";
         if (action === "WEBHOOK_MEMBER_REMOVE") return "Départ Membre";
+        if (action === "WEBHOOK_MEMBER_UPDATE") return "MàJ Membre";
         return action.replace(/_/g, " ");
     };
 

@@ -3,6 +3,9 @@
 import { useState, useTransition } from "react";
 import { MemberCard } from "./member-card";
 import Image from "next/image";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { motion, AnimatePresence } from "framer-motion";
+import { GuildAbsenceCalendar } from "./guild-absence-calendar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,16 +13,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { DOFUS_CLASSES, DOFUS_JOBS, JOB_CATEGORIES } from "@/lib/dofus-assets";
 import { ClassIcon } from "@/components/shared/class-icon";
-import { Search, Filter, X, Briefcase, Swords, Check, Palmtree } from "lucide-react";
+import { Search, Filter, X, Briefcase, Swords, Check, Palmtree, Shield, Sparkles } from "lucide-react";
+import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
 interface MemberDirectoryProps {
     initialMembers: any[];
+    legendaryItems: any[];
     guildId: string;
 }
 
-export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProps) {
+export function MemberDirectory({ initialMembers, legendaryItems, guildId }: MemberDirectoryProps) {
     const [members] = useState(initialMembers);
     const [isPending, startTransition] = useTransition();
 
@@ -27,9 +32,14 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
     const [search, setSearch] = useState("");
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
     const [selectedJob, setSelectedJob] = useState<string | null>(null);
-    const [showAbsent, setShowAbsent] = useState(false);
+    const [selectedAlignment, setSelectedAlignment] = useState<string | null>(null);
+    const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
+    const [selectedLegendary, setSelectedLegendary] = useState<string | null>(null);
     const [isOpenClass, setIsOpenClass] = useState(false);
     const [isOpenJob, setIsOpenJob] = useState(false);
+    const [isOpenAlignment, setIsOpenAlignment] = useState(false);
+    const [isOpenOrder, setIsOpenOrder] = useState(false);
+    const [isOpenLegendary, setIsOpenLegendary] = useState(false);
 
     // Filtering Logic
     const filteredMembers = members.filter(m => {
@@ -73,13 +83,20 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
             if (!hasJob) return false;
         }
 
-        // 4. Absence Filter
-        if (showAbsent) {
-            const now = new Date();
-            const vacationStart = m.vacationStart ? new Date(m.vacationStart) : null;
-            const vacationEnd = m.vacationEnd ? new Date(m.vacationEnd) : null;
-            const isOnVacation = vacationStart && vacationStart <= now && (!vacationEnd || vacationEnd >= now);
-            if (!isOnVacation) return false;
+        // 4. Alignment Filter
+        if (selectedAlignment) {
+            if (m.alignment !== selectedAlignment) return false;
+        }
+
+        // 5. Order Filter
+        if (selectedOrder) {
+            if (m.alignmentOrder !== selectedOrder) return false;
+        }
+
+        // 6. Legendary Filter
+        if (selectedLegendary) {
+            const hasLegendary = Array.isArray(m.legendaryCrafts) && m.legendaryCrafts.some((lc: any) => lc.id === selectedLegendary);
+            if (!hasLegendary) return false;
         }
 
         return true;
@@ -89,10 +106,12 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
         setSearch("");
         setSelectedClass(null);
         setSelectedJob(null);
-        setShowAbsent(false);
+        setSelectedAlignment(null);
+        setSelectedOrder(null);
+        setSelectedLegendary(null);
     };
 
-    const activeFiltersCount = (selectedClass ? 1 : 0) + (selectedJob ? 1 : 0) + (showAbsent ? 1 : 0);
+    const activeFiltersCount = (selectedClass ? 1 : 0) + (selectedJob ? 1 : 0) + (selectedAlignment ? 1 : 0) + (selectedOrder ? 1 : 0) + (selectedLegendary ? 1 : 0);
 
     const getSelectedClassName = () => DOFUS_CLASSES.find(c => c.id === selectedClass)?.name;
     const getSelectedJobName = () => {
@@ -102,12 +121,152 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
         }
         return selectedJob;
     };
+    const getSelectedLegendaryName = () => legendaryItems.find(i => i.id === selectedLegendary)?.name;
+
+    const [activeTab, setActiveTab] = useState("roster");
 
     return (
-        <div className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                {/* --- Roster Card --- */}
+                <button
+                    onClick={() => setActiveTab("roster")}
+                    className={cn(
+                        "relative group flex items-center gap-6 p-8 rounded-[2.5rem] transition-all duration-700 outline-none select-none text-left overflow-hidden",
+                        activeTab === "roster"
+                            ? "glass-premium bg-white/[0.03] border-white/10 scale-[1.02] shadow-2xl"
+                            : "bg-white/[0.04] border-white/10 hover:bg-white/[0.06] hover:border-white/20 hover:-translate-y-1"
+                    )}
+                >
+                    <AnimatePresence>
+                        {activeTab === "roster" ? (
+                            <motion.div 
+                                layoutId="dir-glow-roster"
+                                className="absolute inset-0 rounded-[inherit] -z-10"
+                                style={{ background: `radial-gradient(circle at center, rgba(79, 70, 229, 0.35), transparent 70%)` }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                            />
+                        ) : (
+                            <div 
+                                className="absolute inset-0 rounded-[inherit] -z-10 opacity-5 group-hover:opacity-15 transition-opacity duration-700 bg-indigo-500"
+                                style={{ background: `radial-gradient(circle at center, rgba(79, 70, 229, 0.4), transparent 80%)` }}
+                            />
+                        )}
+                    </AnimatePresence>
+
+                    <div className={cn(
+                        "w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-700 relative z-10",
+                        activeTab === "roster"
+                            ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-[0_0_30px_rgba(79,70,229,0.3)]"
+                            : "bg-zinc-900/50 border-white/5 text-indigo-400 opacity-40 group-hover:opacity-100 group-hover:border-white/10"
+                    )}>
+                        {activeTab === "roster" && (
+                            <div className="absolute inset-0 blur-lg opacity-40 -z-10 bg-indigo-500" />
+                        )}
+                        <Swords className={cn(
+                            "w-7 h-7 transition-transform duration-700",
+                            activeTab === "roster" ? "scale-110 rotate-[5deg]" : "group-hover:scale-110"
+                        )} />
+                    </div>
+
+                    <div className="relative z-10">
+                        <p className={cn(
+                            "font-black text-sm uppercase tracking-[0.3em] transition-all duration-500",
+                            activeTab === "roster" ? "text-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "text-zinc-300 group-hover:text-white"
+                        )}>
+                            Effectifs de Guilde
+                        </p>
+                        <p className={cn(
+                            "text-[11px] font-bold mt-1 tracking-wider transition-colors duration-500",
+                            activeTab === "roster" ? "text-zinc-400" : "text-zinc-500 group-hover:text-zinc-400"
+                        )}>
+                            Artisans, combattants et membres
+                        </p>
+                    </div>
+
+                    {activeTab === "roster" && (
+                        <motion.div 
+                            layoutId="dir-active-pill"
+                            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/4 h-1.5 rounded-full blur-sm bg-indigo-500"
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        />
+                    )}
+                </button>
+
+                {/* --- Absences Card --- */}
+                <button
+                    onClick={() => setActiveTab("absences")}
+                    className={cn(
+                        "relative group flex items-center gap-6 p-8 rounded-[2.5rem] transition-all duration-700 outline-none select-none text-left overflow-hidden",
+                        activeTab === "absences"
+                            ? "glass-premium bg-white/[0.03] border-white/10 scale-[1.02] shadow-2xl"
+                            : "bg-white/[0.04] border-white/10 hover:bg-white/[0.06] hover:border-white/20 hover:-translate-y-1"
+                    )}
+                >
+                    <AnimatePresence>
+                        {activeTab === "absences" ? (
+                            <motion.div 
+                                layoutId="dir-glow-absences"
+                                className="absolute inset-0 rounded-[inherit] -z-10"
+                                style={{ background: `radial-gradient(circle at center, rgba(8, 145, 178, 0.35), transparent 70%)` }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                            />
+                        ) : (
+                            <div 
+                                className="absolute inset-0 rounded-[inherit] -z-10 opacity-5 group-hover:opacity-15 transition-opacity duration-700 bg-cyan-500"
+                                style={{ background: `radial-gradient(circle at center, rgba(8, 145, 178, 0.4), transparent 80%)` }}
+                            />
+                        )}
+                    </AnimatePresence>
+
+                    <div className={cn(
+                        "w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-700 relative z-10",
+                        activeTab === "absences"
+                            ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400 shadow-[0_0_30px_rgba(8,145,178,0.3)]"
+                            : "bg-zinc-900/50 border-white/5 text-cyan-400 opacity-40 group-hover:opacity-100 group-hover:border-white/10"
+                    )}>
+                        {activeTab === "absences" && (
+                            <div className="absolute inset-0 blur-lg opacity-40 -z-10 bg-cyan-500" />
+                        )}
+                        <Palmtree className={cn(
+                            "w-7 h-7 transition-transform duration-700",
+                            activeTab === "absences" ? "scale-110 rotate-[5deg]" : "group-hover:scale-110"
+                        )} />
+                    </div>
+
+                    <div className="relative z-10">
+                        <p className={cn(
+                            "font-black text-sm uppercase tracking-[0.3em] transition-all duration-500",
+                            activeTab === "absences" ? "text-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "text-zinc-300 group-hover:text-white"
+                        )}>
+                            Disponibilités
+                        </p>
+                        <p className={cn(
+                            "text-[11px] font-bold mt-1 tracking-wider transition-colors duration-500",
+                            activeTab === "absences" ? "text-zinc-400" : "text-zinc-500 group-hover:text-zinc-400"
+                        )}>
+                            Calendrier et absences
+                        </p>
+                    </div>
+
+                    {activeTab === "absences" && (
+                        <motion.div 
+                            layoutId="dir-active-pill"
+                            className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/4 h-1.5 rounded-full blur-sm bg-cyan-500"
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        />
+                    )}
+                </button>
+            </div>
+
+            <TabsContent value="roster" className="mt-0 border-0 p-0 animate-in fade-in zoom-in-95 duration-500">
 
             {/* FILTER BAR — UI UX 2026 PREMIUM */}
-            <div className="glass-premium relative overflow-hidden p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 shadow-2xl backdrop-blur-3xl group/filterbar border border-white/5">
+            <div className="relative overflow-hidden p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 shadow-2xl bg-zinc-950 group/filterbar border border-white/5 mb-6">
                 <div className="noise-overlay absolute inset-0 opacity-10" />
                 
                 {/* Search Input — High Fidelity */}
@@ -270,21 +429,228 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                         </PopoverContent>
                     </Popover>
 
-                    {/* Absence Filter Toggle — Cyan Glow */}
-                    <Button
-                        variant="outline"
-                        onClick={() => setShowAbsent(!showAbsent)}
-                        className={cn(
-                            "h-11 border-cyan-500/10 bg-cyan-500/5 hover:bg-cyan-500/10 hover:border-cyan-500/20 text-muted-foreground gap-2.5 px-4 shrink-0 font-black uppercase italic tracking-widest text-[11px] rounded-xl transition-all duration-500 shadow-xl group/btn",
-                            showAbsent && "border-cyan-500/40 bg-cyan-500/20 text-cyan-400 shadow-[0_0_25px_-5px_rgba(6,182,212,0.3)]"
-                        )}
-                    >
-                        <Palmtree className={cn(
-                            "w-4 h-4 transition-all duration-500 text-cyan-400/50 group-hover/btn:text-cyan-400 group-hover/btn:scale-110", 
-                            showAbsent && "animate-bounce-subtle text-cyan-400 scale-110 opacity-100"
-                        )} />
-                        <span className="hidden sm:inline">Absents</span>
-                    </Button>
+                    {/* Alignment Filter Popover */}
+                    <Popover open={isOpenAlignment} onOpenChange={setIsOpenAlignment}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className={cn(
+                                    "h-11 border-indigo-500/10 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-[11px] rounded-xl transition-all duration-500 shadow-xl group/btn",
+                                    selectedAlignment && "border-indigo-500/40 bg-indigo-500/20 text-indigo-400 shadow-indigo-500/10"
+                                )}
+                            >
+                                <Shield className={cn(
+                                    "w-4 h-4 transition-all duration-500 text-indigo-400/50 group-hover/btn:text-indigo-400 group-hover/btn:scale-110", 
+                                    selectedAlignment && "rotate-12 scale-110 text-indigo-400 opacity-100"
+                                )} />
+                                {selectedAlignment ? selectedAlignment : "Alignement"}
+                                {selectedAlignment && (
+                                    <X 
+                                        className="ml-1 w-3.5 h-3.5 text-indigo-400/60 hover:text-indigo-400 transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedAlignment(null);
+                                            setSelectedOrder(null);
+                                        }}
+                                    />
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[320px] p-4 glass-premium border-white/10 shadow-2xl" align="end">
+                            <div className="space-y-3">
+                                <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-2 flex items-center gap-2">
+                                    <Shield className="w-3 h-3" /> Factions
+                                </h4>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {ALIGNMENTS.map((a) => {
+                                        const isSelected = selectedAlignment === a.id;
+                                        return (
+                                            <button
+                                                key={a.id}
+                                                onClick={() => {
+                                                    setSelectedAlignment(isSelected ? null : a.id);
+                                                    setSelectedOrder(null);
+                                                    setIsOpenAlignment(false);
+                                                }}
+                                                className={cn(
+                                                    "relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-300",
+                                                    isSelected 
+                                                        ? "border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]" 
+                                                        : "border-white/5 bg-black/20 hover:border-white/20 hover:bg-white/5"
+                                                )}
+                                            >
+                                                <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                                                    <Image 
+                                                        src={a.icon} 
+                                                        alt={a.name} 
+                                                        fill 
+                                                        className="object-cover scale-[1.35]" 
+                                                    />
+                                                </div>
+                                                <span className={cn(
+                                                    "text-[9px] font-black uppercase tracking-widest",
+                                                    isSelected ? "text-indigo-400" : "text-zinc-400"
+                                                )}>
+                                                    {a.name}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    {/* Order Filter Popover */}
+                    {selectedAlignment && selectedAlignment !== "neutre" && (
+                        <Popover open={isOpenOrder} onOpenChange={setIsOpenOrder}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className={cn(
+                                        "h-11 border-amber-500/10 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-[11px] rounded-xl transition-all duration-500 shadow-xl group/btn",
+                                        selectedOrder && "border-amber-500/40 bg-amber-500/20 text-amber-500 shadow-amber-500/10"
+                                    )}
+                                >
+                                    <Sparkles className={cn(
+                                        "w-4 h-4 transition-all duration-500 text-amber-500/50 group-hover/btn:text-amber-500 group-hover/btn:scale-110", 
+                                        selectedOrder && "scale-110 -rotate-6 text-amber-500 opacity-100"
+                                    )} />
+                                    {selectedOrder ? (ORDERS as any)[selectedAlignment].find((o: any) => o.id === selectedOrder)?.name || "Ordre" : "Ordre"}
+                                    {selectedOrder && (
+                                        <X 
+                                            className="ml-1 w-3.5 h-3.5 text-amber-500/60 hover:text-amber-400 transition-colors"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedOrder(null);
+                                            }}
+                                        />
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[360px] p-4 glass-premium border-white/10 shadow-2xl" align="end">
+                                <div className="space-y-3">
+                                    <h4 className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-2 flex items-center gap-2">
+                                        <Sparkles className="w-3 h-3" /> Ordres ({selectedAlignment})
+                                    </h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                        {(ORDERS as any)[selectedAlignment].map((o: any) => {
+                                            const isSelected = selectedOrder === o.id;
+                                            return (
+                                                <button
+                                                    key={o.id}
+                                                    onClick={() => {
+                                                        setSelectedOrder(isSelected ? null : o.id);
+                                                        setIsOpenOrder(false);
+                                                    }}
+                                                    className={cn(
+                                                        "relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-300 text-center h-24",
+                                                        isSelected 
+                                                            ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]" 
+                                                            : "border-white/5 bg-black/20 hover:border-white/20 hover:bg-white/5"
+                                                    )}
+                                                >
+                                                    <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0">
+                                                        <Image 
+                                                            src={o.icon} 
+                                                            alt={o.name} 
+                                                            fill 
+                                                            className="object-contain" 
+                                                        />
+                                                    </div>
+                                                    <span className={cn(
+                                                        "text-[9px] font-black uppercase leading-tight line-clamp-2 px-1",
+                                                        isSelected ? "text-amber-400" : "text-zinc-400"
+                                                    )}>
+                                                        {o.name}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    )}
+
+
+
+                    {/* Legendary Filter Popover */}
+                    <Popover open={isOpenLegendary} onOpenChange={setIsOpenLegendary}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className={cn(
+                                    "h-11 border-purple-500/10 bg-purple-500/5 hover:bg-purple-500/10 hover:border-purple-500/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-[11px] rounded-xl transition-all duration-500 shadow-xl group/btn",
+                                    selectedLegendary && "border-purple-500/40 bg-purple-500/20 text-purple-400 shadow-purple-500/10"
+                                )}
+                            >
+                                <Sparkles className={cn(
+                                    "w-4 h-4 transition-all duration-500 text-purple-400/50 group-hover/btn:text-purple-400 group-hover/btn:scale-110", 
+                                    selectedLegendary && "scale-110 -rotate-6 text-purple-400 opacity-100"
+                                )} />
+                                {selectedLegendary ? getSelectedLegendaryName() : "Légendaire"}
+                                {selectedLegendary && (
+                                    <X 
+                                        className="ml-1 w-3.5 h-3.5 text-purple-400/60 hover:text-purple-400 transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedLegendary(null);
+                                        }}
+                                    />
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0 glass-premium border-white/10 shadow-2xl" align="end">
+                            <Command className="bg-transparent">
+                                <CommandInput placeholder="Chercher un objet..." className="h-11 border-none bg-transparent" />
+                                <CommandList className="max-h-[300px]">
+                                    <CommandEmpty>Aucun objet trouvé.</CommandEmpty>
+                                    <CommandGroup heading="Objets Légendaires" className="text-zinc-500 font-black uppercase text-[10px] tracking-widest p-2">
+                                        <div className="grid grid-cols-2 gap-2 p-2">
+                                            {legendaryItems.map((item) => (
+                                                <CommandItem
+                                                    key={item.id}
+                                                    value={item.name}
+                                                    onSelect={() => {
+                                                        setSelectedLegendary(selectedLegendary === item.id ? null : item.id);
+                                                        setIsOpenLegendary(false);
+                                                    }}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center gap-2 p-3 rounded-xl cursor-pointer transition-all border border-transparent text-center h-28",
+                                                        selectedLegendary === item.id 
+                                                            ? "bg-purple-500/20 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.2)] text-white" 
+                                                            : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <div className="relative w-10 h-10 flex items-center justify-center bg-black/40 rounded-xl border border-white/10 overflow-hidden shadow-inner shrink-0">
+                                                        {item.imageUrl ? (
+                                                            <Image src={item.imageUrl} alt={item.name} width={32} height={32} className="object-contain" />
+                                                        ) : (
+                                                            <Sparkles className="w-5 h-5 text-purple-500/50" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col items-center px-1">
+                                                        <span className="text-[10px] font-black uppercase leading-tight line-clamp-2 text-center">
+                                                            {item.name}
+                                                        </span>
+                                                        <span className="text-[8px] text-zinc-500 uppercase mt-1 tracking-widest">
+                                                            {item.jobRequired}
+                                                        </span>
+                                                    </div>
+                                                    {selectedLegendary === item.id && (
+                                                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center shadow-[0_0_10px_rgba(168,85,247,0.5)]">
+                                                            <Check className="w-2.5 h-2.5 text-white" />
+                                                        </div>
+                                                    )}
+                                                </CommandItem>
+                                            ))}
+                                        </div>
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
 
                     {/* Reset Button — High Visibility */}
                     {activeFiltersCount > 0 && (
@@ -302,7 +668,7 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
             </div>
 
             {/* RESULT STATS */}
-            <div className="flex items-center justify-between px-1">
+            <div className="flex items-center justify-between px-1 mb-6">
                 <p className="text-xs font-black text-muted-foreground uppercase tracking-widest italic">
                     <span className="text-foreground">{filteredMembers.length}</span> membre{filteredMembers.length > 1 ? "s" : ""} trouvé{filteredMembers.length > 1 ? "s" : ""}
                 </p>
@@ -330,6 +696,11 @@ export function MemberDirectory({ initialMembers, guildId }: MemberDirectoryProp
                     />
                 </div>
             )}
-        </div>
+            </TabsContent>
+
+            <TabsContent value="absences" className="mt-0 border-0 p-0 animate-in fade-in zoom-in-95 duration-500">
+                <GuildAbsenceCalendar members={members} guildId={guildId} />
+            </TabsContent>
+        </Tabs>
     );
 }

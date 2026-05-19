@@ -65,6 +65,31 @@ const client = new Client({
 client.once(Events.ClientReady, (readyClient) => {
     console.log(`[Discord Bot] ✅ Logged in as ${readyClient.user.tag}`);
     console.log(`[Discord Bot] 🌐 Serving ${readyClient.guilds.cache.size} guilds`);
+
+    // Scan all channels to populate voiceSessions and streamSessions for currently connected users
+    const now = Date.now();
+    let prePopulatedCount = 0;
+    let prePopulatedStreamCount = 0;
+    readyClient.guilds.cache.forEach(guild => {
+        guild.channels.cache.forEach(channel => {
+            if (channel.isVoiceBased()) {
+                channel.members.forEach(member => {
+                    if (!member.user.bot) {
+                        voiceSessions.set(member.id, now);
+                        prePopulatedCount++;
+
+                        if (member.voice.streaming) {
+                            streamSessions.set(member.id, now);
+                            prePopulatedStreamCount++;
+                        }
+                    }
+                });
+            }
+        });
+    });
+    if (prePopulatedCount > 0) {
+        console.log(`[Discord Bot] 🎙️ Pre-populated voice session for ${prePopulatedCount} members active in voice channels (${prePopulatedStreamCount} streaming)`);
+    }
 });
 
 // ========================
@@ -425,8 +450,9 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 });
 
 
-// Cache for voice sessions: userId -> startTime
+// Cache for voice and stream sessions: userId -> startTime
 const voiceSessions = new Map<string, number>();
+const streamSessions = new Map<string, number>();
 
 // Helper to update DB by Discord ID with better performance and logging
 async function updateDiscordActivity(discordId: string, guildId: string | null, data: any, activityType: string) {
@@ -471,11 +497,31 @@ async function updateDiscordActivity(discordId: string, guildId: string | null, 
 // 1. TRACK MESSAGES
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
-    await updateDiscordActivity(message.author.id, message.guild.id, {
-        lastDiscordMessageAt: new Date(),
+
+    const charCount = message.content ? message.content.length : 0;
+    const isReply = message.reference && message.reference.messageId ? 1 : 0;
+
+    const incrementData: any = {
         discordMessageCountWeekly: { increment: 1 },
         discordMessageCountMonthly: { increment: 1 },
         discordMessageCountTotal: { increment: 1 }
+    };
+
+    if (charCount > 0) {
+        incrementData.discordCharactersWeekly = { increment: charCount };
+        incrementData.discordCharactersMonthly = { increment: charCount };
+        incrementData.discordCharactersTotal = { increment: charCount };
+    }
+
+    if (isReply) {
+        incrementData.discordRepliesWeekly = { increment: 1 };
+        incrementData.discordRepliesMonthly = { increment: 1 };
+        incrementData.discordRepliesTotal = { increment: 1 };
+    }
+
+    await updateDiscordActivity(message.author.id, message.guild.id, {
+        lastDiscordMessageAt: new Date(),
+        ...incrementData
     }, 'Message');
 });
 
@@ -487,16 +533,42 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
     const guildId = newState.guild.id;
     const now = Date.now();
 
-    // User joined
+    // --- STREAM TIME TRACKING ---
+    const wasStreaming = !!oldState.streaming;
+    const isStreaming = !!newState.streaming;
+
+    // Start streaming
+    if (!wasStreaming && isStreaming && newState.channelId) {
+        streamSessions.set(userId, now);
+        console.log(`[Discord Bot] 📺 Stream started by ${newState.member?.user.tag}`);
+    }
+    // Stop streaming (either stopped stream or disconnected voice completely)
+    else if (wasStreaming && (!isStreaming || !newState.channelId)) {
+        const streamStart = streamSessions.get(userId);
+        if (streamStart) {
+            const streamDurationMin = Math.round((now - streamStart) / 60000);
+            if (streamDurationMin > 0) {
+                await updateDiscordActivity(userId, guildId, {
+                    discordVoiceStreamTimeWeekly: { increment: streamDurationMin },
+                    discordVoiceStreamTimeMonthly: { increment: streamDurationMin },
+                    discordVoiceStreamTimeTotal: { increment: streamDurationMin }
+                }, `Stream Session (${streamDurationMin}m)`);
+            }
+            streamSessions.delete(userId);
+        }
+    }
+
+    // --- VOICE TIME TRACKING ---
+    // User joined voice completely
     if (!oldState.channelId && newState.channelId) {
         voiceSessions.set(userId, now);
         await updateDiscordActivity(userId, guildId, { lastDiscordVoiceAt: new Date() }, 'Voice Start');
     }
-    // User left
+    // User left voice completely
     else if (oldState.channelId && !newState.channelId) {
         const startTime = voiceSessions.get(userId);
         if (startTime) {
-            const durationMin = Math.floor((now - startTime) / 60000);
+            const durationMin = Math.round((now - startTime) / 60000);
             if (durationMin > 0) {
                 await updateDiscordActivity(userId, guildId, { 
                     discordVoiceTimeWeekly: { increment: durationMin },
@@ -507,14 +579,52 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
             voiceSessions.delete(userId);
         }
     }
+    // User switched channels within Discord voice
+    else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+        const startTime = voiceSessions.get(userId);
+        if (startTime) {
+            const durationMin = Math.round((now - startTime) / 60000);
+            if (durationMin > 0) {
+                await updateDiscordActivity(userId, guildId, { 
+                    discordVoiceTimeWeekly: { increment: durationMin },
+                    discordVoiceTimeMonthly: { increment: durationMin },
+                    discordVoiceTimeTotal: { increment: durationMin }
+                }, `Voice Switch (${durationMin}m)`);
+            }
+        }
+        // Restart session time for the new channel
+        voiceSessions.set(userId, now);
+    }
 });
 
 // 3. TRACK REACTIONS
 client.on(Events.MessageReactionAdd, async (reaction, user) => {
-    if (user.bot || !reaction.message.guild) return;
-    await updateDiscordActivity(user.id, reaction.message.guild.id, { 
-        lastDiscordReactionAt: new Date() 
-    }, 'Reaction');
+    if (reaction.message.guild) {
+        if (reaction.partial) {
+            try {
+                await reaction.fetch();
+            } catch (error) {
+                console.error('[Discord Bot] Failed to fetch partial reaction:', error);
+            }
+        }
+
+        // 1. Update last reaction date for the sender
+        if (!user.bot) {
+            await updateDiscordActivity(user.id, reaction.message.guild.id, { 
+                lastDiscordReactionAt: new Date() 
+            }, 'Reaction Sent');
+        }
+
+        // 2. Increment reactions received for the message author
+        const author = reaction.message.author;
+        if (author && !author.bot && author.id !== user.id) { // Only count if not reacting to own message
+            await updateDiscordActivity(author.id, reaction.message.guild.id, {
+                discordReactionsReceivedWeekly: { increment: 1 },
+                discordReactionsReceivedMonthly: { increment: 1 },
+                discordReactionsReceivedTotal: { increment: 1 }
+            }, 'Reaction Received');
+        }
+    }
 });
 
 // 4. TRACK TYPING
@@ -549,7 +659,11 @@ setInterval(async () => {
             await db.userProfile.updateMany({
                 data: {
                     discordVoiceTimeWeekly: 0,
-                    discordMessageCountWeekly: 0
+                    discordMessageCountWeekly: 0,
+                    discordCharactersWeekly: 0,
+                    discordReactionsReceivedWeekly: 0,
+                    discordVoiceStreamTimeWeekly: 0,
+                    discordRepliesWeekly: 0
                 }
             });
             console.log("[Discord Bot] Weekly Reset of Discord stats completed.");
@@ -567,7 +681,11 @@ setInterval(async () => {
             await db.userProfile.updateMany({
                 data: {
                     discordVoiceTimeMonthly: 0,
-                    discordMessageCountMonthly: 0
+                    discordMessageCountMonthly: 0,
+                    discordCharactersMonthly: 0,
+                    discordReactionsReceivedMonthly: 0,
+                    discordVoiceStreamTimeMonthly: 0,
+                    discordRepliesMonthly: 0
                 }
             });
             console.log("[Discord Bot] Monthly Reset of Discord stats completed.");

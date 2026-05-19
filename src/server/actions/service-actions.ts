@@ -603,3 +603,142 @@ export async function getServiceSettings(guildId: string): Promise<ActionRespons
     }
 }
 
+export async function updateServiceSettings(
+    guildId: string,
+    servicesNotifyChannelId: string | null
+): Promise<ActionResponse> {
+    try {
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated || !user.isAdmin) {
+            return { success: false, error: "Admin requis" };
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { servicesNotifyChannelId: servicesNotifyChannelId ? servicesNotifyChannelId.trim() : null },
+        });
+
+        revalidatePath(`/dashboard/${guildId}/services`);
+        return { success: true };
+    } catch (error) {
+        console.error("[updateServiceSettings]", error);
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
+export async function contactPasseurAction(
+    guildId: string,
+    listingId: string,
+    options: string[],
+    customMessage: string | null
+): Promise<ActionResponse> {
+    try {
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated || !user.isMember) {
+            return { success: false, error: "Accès refusé" };
+        }
+        if (!user.profileId) return { success: false, error: "Profil introuvable" };
+
+        const listing = await db.serviceListing.findUnique({
+            where: { id: listingId },
+            include: {
+                profile: {
+                    select: {
+                        userId: true,
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { name: true } },
+                    },
+                },
+            },
+        });
+
+        if (!listing) return { success: false, error: "Annonce introuvable" };
+        if (listing.status !== "ACTIVE") return { success: false, error: "Cette annonce n'est pas active" };
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { servicesNotifyChannelId: true, id: true },
+        });
+
+        if (!guildConfig?.servicesNotifyChannelId) {
+            return {
+                success: false,
+                error: "Le salon de notification des services n'est pas configuré par l'administrateur.",
+            };
+        }
+
+        // Fetch Discord IDs for provider and requester
+        const [providerAccount, requesterAccount] = await Promise.all([
+            db.account.findFirst({
+                where: { userId: listing.profile.userId, provider: "discord" },
+                select: { providerAccountId: true },
+            }),
+            db.account.findFirst({
+                where: { userId: user.id, provider: "discord" },
+                select: { providerAccountId: true },
+            }),
+        ]);
+
+        const providerMention = providerAccount?.providerAccountId ? `<@${providerAccount.providerAccountId}>` : listing.profile.pseudoDofus || "Passeur";
+        const requesterMention = requesterAccount?.providerAccountId ? `<@${requesterAccount.providerAccountId}>` : user.name || "Membre";
+
+        // Call Discord Bot API to send mention message
+        const token = process.env.DISCORD_BOT_TOKEN;
+        if (!token) return { success: false, error: "Configuration Discord manquante" };
+
+        const channelId = guildConfig.servicesNotifyChannelId;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+
+        const emoji = CATEGORY_EMOJIS[listing.category];
+        const categoryLabel = CATEGORY_LABELS[listing.category];
+
+        const embed = {
+            title: `📩 Nouvelle demande de service`,
+            description: [
+                `**Service :** [${listing.title}](${appUrl}/dashboard/${guildId}/services)`,
+                `**Catégorie :** ${emoji} ${categoryLabel}`,
+                `**Client :** ${requesterMention}`,
+                `**Passeur/Vendeur :** ${providerMention}`,
+                `\n**Options sélectionnées :**`,
+                options.map(opt => `• ${opt}`).join("\n") || "• Passage classique",
+                customMessage ? `\n**Message du client :**\n*${customMessage}*` : "",
+            ].filter(Boolean).join("\n"),
+            color: CATEGORY_COLORS_HEX[listing.category as keyof typeof CATEGORY_COLORS_HEX] || 0x8b5cf6,
+            timestamp: new Date().toISOString(),
+            footer: { text: "SigilOS Services" },
+        };
+
+        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                content: `🔔 ${providerMention}, tu as une nouvelle demande de service de la part de ${requesterMention} !`,
+                embeds: [embed],
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            console.error("[contactPasseurAction] Discord API error:", JSON.stringify(err));
+            return { success: false, error: "Impossible d'envoyer la notification Discord" };
+        }
+
+        // Log activity
+        await logServiceActivity({
+            guildId: guildConfig.id,
+            actorId: user.profileId,
+            module: "SERVICE",
+            action: "STATUS_CHANGE",
+            entityId: listing.id,
+            summary: `Demande de service envoyée à ${listing.profile.pseudoDofus || "Passeur"}`,
+            details: JSON.stringify({ options, hasMessage: !!customMessage }),
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("[contactPasseurAction]", error);
+        return { success: false, error: "Erreur interne" };
+    }
+}
+

@@ -20,10 +20,11 @@ import {
     Ban,
     Sparkles,
     ShieldAlert,
-    Navigation
+    Navigation,
+    Bug,
+    Map
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSearchParams } from "next/navigation";
 import {
     DropdownMenu,
@@ -41,13 +42,16 @@ const CONSOLE_PAGES = [
     { name: "Alertes Système", id: "notifications", icon: Bell, color: "text-rose-400" },
     { name: "Tickets Support", id: "tickets", icon: Ticket, color: "text-indigo-400" },
     { name: "Données de Jeu", id: "game-data", icon: Database, color: "text-cyan-400" },
+    { name: "Mini-Jeux", id: "mini-games", href: "/god/mini-games", icon: Gamepad2, color: "text-amber-500" },
     { name: "Avis de Recherche", id: "bounties", href: "/god/game-data/bounties", icon: ShieldAlert, color: "text-rose-500" },
     { name: "Quêtes Dofus", id: "quetes-dofus", href: "/god/quetes-dofus", icon: Sparkles, color: "text-purple-400" },
     { name: "Guides Optim.", id: "dofus-guides", href: "/god/dofus-guides", icon: Navigation, color: "text-emerald-400" },
+    { name: "Bugs & Suggs", id: "bugs", href: "/god/bugs", icon: Bug, color: "text-rose-400" },
+    { name: "Roadmap Pro", id: "roadmap", href: "/god/roadmap", icon: Map, color: "text-amber-400" },
     { name: "Sécurité & Logs", id: "security", icon: ShieldAlert, color: "text-zinc-400" },
 ];
 
-export function GodSidebar({ className, user, unreadCount = 0 }: { className?: string, user: any, unreadCount?: number }) {
+export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0 }: { className?: string, user: any, unreadCount?: number, ticketCount?: number }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const activeTab = searchParams.get("tab") || "overview";
@@ -80,7 +84,7 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
             </div>
 
             {/* 2. NAVIGATION */}
-            <ScrollArea className="flex-1 px-4 py-4 lg:py-8">
+            <div className="flex-1 overflow-y-auto px-4 py-4 lg:py-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 <nav className="space-y-8">
                     {/* CONSOLE SECTION */}
                     <div>
@@ -95,8 +99,15 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                             {CONSOLE_PAGES.map((page) => {
                                 const isDirectRoute = !!(page as any).href;
                                 const linkHref = isDirectRoute ? (page as any).href : `/god?tab=${page.id}`;
-                                const active = isDirectRoute ? pathname.startsWith((page as any).href) : (pathname === "/god" && activeTab === page.id);
-                                const hasBadge = page.id === "notifications" && unreadCount > 0;
+                                const active = isDirectRoute 
+                                    ? pathname.startsWith((page as any).href.split('?')[0]) 
+                                    : (pathname === "/god" && activeTab === page.id);
+                                
+                                // Badge logic
+                                const hasBadge = (page.id === "notifications" && unreadCount > 0) || 
+                                               (page.id === "tickets" && ticketCount > 0);
+                                const currentBadgeCount = page.id === "notifications" ? unreadCount : ticketCount;
+
                                 const sub = searchParams.get("sub") || "NONE";
 
                                 return (
@@ -115,13 +126,17 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                                             )}
                                             <page.icon className={cn(
                                                 "h-5 w-5 transition-all duration-500 group-hover:scale-110",
-                                                active ? page.color : "text-zinc-500 group-hover:text-zinc-300"
+                                                page.color,
+                                                !active && "opacity-60 group-hover:opacity-100"
                                             )} />
                                             <span className="text-[12px] font-bold tracking-widest uppercase truncate flex-1">{page.name}</span>
                                             
                                             {hasBadge && (
-                                                <span className="flex items-center justify-center bg-rose-500 text-white text-[10px] font-black h-5 px-2 rounded-lg shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-pulse">
-                                                    {unreadCount}
+                                                <span className={cn(
+                                                    "flex items-center justify-center text-white text-[10px] font-black h-5 px-2 rounded-lg animate-pulse shadow-lg",
+                                                    page.id === "tickets" ? "bg-rose-500 shadow-rose-500/40" : "bg-indigo-500 shadow-indigo-500/40"
+                                                )}>
+                                                    {currentBadgeCount}
                                                 </span>
                                             )}
                                         </Link>
@@ -159,61 +174,25 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                                                 </Link>
                                             </div>
                                         )}
+                                        {active && page.id === "mini-games" && (
+                                            <div className="ml-8 space-y-1 border-l-2 border-white/10 pl-4 py-2 mt-2">
+                                                <Link href="/god/mini-games?sub=MAINTENANCE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", (searchParams.get("sub") || "MAINTENANCE") === "MAINTENANCE" ? "text-amber-400 bg-amber-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                    <ShieldAlert className="h-4 w-4" /> Maintenance
+                                                </Link>
+                                                <Link href="/god/mini-games?sub=GUESSER" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", searchParams.get("sub") === "GUESSER" ? "text-rose-400 bg-rose-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                    <Ban className="h-4 w-4" /> Blacklist
+                                                </Link>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
                         </div>
-
-                    </div>
-
-                    {/* OTHER ACCESSS */}
-                    <div className="pt-4">
-                        <h4 className="px-3 text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-6 block">
-                            Platform Access
-                        </h4>
-                        
-                        <div className="space-y-1.5">
-                            {[
-                                { name: "Gestion Mini-Jeux", href: "/god/mini-games?sub=MAINTENANCE", icon: Gamepad2, active: pathname.startsWith("/god/mini-games"), color: "text-amber-500" },
-                                { name: "Back to Member", href: "/dashboard", icon: LayoutDashboard, active: false, color: "text-emerald-500" },
-                                { name: "Landing Page", href: "/", icon: Home, active: false, color: "text-blue-500" },
-                            ].map((item) => (
-                                <div key={item.name} className="space-y-1">
-                                    <Link
-                                        href={item.href}
-                                        className={cn(
-                                            "flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
-                                            item.active
-                                                ? "bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20"
-                                                : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
-                                        )}
-                                    >
-                                        {item.active && (
-                                            <div className="absolute left-0 top-3 bottom-3 w-1 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
-                                        )}
-                                        <item.icon className={cn(
-                                            "h-5 w-5 transition-transform duration-300 group-hover:scale-110",
-                                            item.active ? item.color : "text-zinc-500 group-hover:text-zinc-300"
-                                        )} />
-                                        <span className="text-[12px] font-bold tracking-widest uppercase truncate">{item.name}</span>
-                                    </Link>
-
-                                    {item.active && item.name === "Gestion Mini-Jeux" && (
-                                        <div className="ml-8 space-y-1 border-l-2 border-white/10 pl-4 py-2 mt-2">
-                                            <Link href="/god/mini-games?sub=MAINTENANCE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", (searchParams.get("sub") || "MAINTENANCE") === "MAINTENANCE" ? "text-amber-400 bg-amber-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
-                                                <ShieldAlert className="h-4 w-4" /> Maintenance
-                                            </Link>
-                                            <Link href="/god/mini-games?sub=GUESSER" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", searchParams.get("sub") === "GUESSER" ? "text-rose-400 bg-rose-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
-                                                <Ban className="h-4 w-4" /> Blacklist
-                                            </Link>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 </nav>
-            </ScrollArea>
+            </div>
+
+
 
             {/* 3. USER FOOTER */}
             <div className="p-4 border-t border-white/10 bg-zinc-950/80 backdrop-blur-md">
@@ -234,6 +213,21 @@ export function GodSidebar({ className, user, unreadCount = 0 }: { className?: s
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56 bg-zinc-900 border-zinc-800 text-zinc-200" align="end">
+                        <DropdownMenuItem asChild className="focus:text-emerald-400 focus:bg-emerald-500/10 cursor-pointer rounded-lg font-bold">
+                            <Link href="/dashboard" className="flex items-center w-full">
+                                <LayoutDashboard className="mr-2 h-4 w-4" />
+                                Tableau de bord Membre
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="focus:text-blue-400 focus:bg-blue-500/10 cursor-pointer rounded-lg font-bold">
+                            <Link href="/" className="flex items-center w-full">
+                                <Home className="mr-2 h-4 w-4" />
+                                Page d'accueil publique
+                            </Link>
+                        </DropdownMenuItem>
+                        
+                        <div className="h-px bg-zinc-800 my-1 mx-2" />
+                        
                         <DropdownMenuItem onClick={() => signOut()} className="text-red-400 focus:text-red-300 focus:bg-red-500/20 cursor-pointer rounded-lg font-bold">
                             <LogOut className="mr-2 h-4 w-4" />
                             Déconnexion

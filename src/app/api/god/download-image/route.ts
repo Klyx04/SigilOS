@@ -6,7 +6,7 @@ import { join, normalize } from "path";
 
 const schema = z.object({
     url: z.string().url(),
-    type: z.enum(["monster", "achievement", "dungeon", "item"]),
+    type: z.enum(["monster", "achievement", "dungeon", "item", "legendary"]),
     identifier: z.string()
         .min(1, "Identifier required")
         .max(100, "Identifier too long")
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
             case "monster": folder = "monsters"; break;
             case "dungeon": folder = "dungeons"; break;
             case "item": folder = "items"; break;
+            case "legendary": folder = "legendary"; break;
         }
         const destination = normalize(root + "/public/game-data/" + folder + "/" + identifier + ".webp");
 

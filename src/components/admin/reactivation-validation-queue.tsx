@@ -35,14 +35,20 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
     const [requests, setRequests] = useState(initialRequests);
     const [searchTerm, setSearchTerm] = useState("");
     const [processingId, setProcessingId] = useState<string | null>(null);
+    const [adminMessages, setAdminMessages] = useState<Record<string, string>>({});
 
     const handleDecision = (profileId: string, status: "ACTIVE" | "ARCHIVED") => {
+        const message = adminMessages[profileId];
         setProcessingId(profileId);
         startTransition(async () => {
             try {
-                // If status is ACTIVE, we use updateMemberProfileStatus to reactivate
-                // If rejection, we just reset the request flag by calling status update with status ARCHIVED (which resets the fields in our updated server action)
-                const res = await updateMemberProfileStatus(profileId, status, status === "ACTIVE" ? "REACTIVATION_APPROVED" : "REACTIVATION_REJECTED");
+                const res = await updateMemberProfileStatus(
+                    profileId, 
+                    status, 
+                    status === "ACTIVE" ? "REACTIVATION_APPROVED" : "REACTIVATION_REJECTED",
+                    undefined,
+                    message
+                );
                 
                 if (res) {
                     toast.success(status === "ACTIVE" ? "Membre réintégré !" : "Demande refusée");
@@ -146,6 +152,19 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                             {req.scheduledDeletion ? `J-${Math.ceil((new Date(req.scheduledDeletion).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}` : "Jamais"}
                                         </span>
                                     </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                                        <MessageSquare className="w-3 h-3" />
+                                        Message au membre (optionnel)
+                                    </div>
+                                    <textarea
+                                        placeholder="Ex: Bon retour parmi nous ! ou Précise ton pseudo..."
+                                        value={adminMessages[req.id] || ""}
+                                        onChange={(e) => setAdminMessages(prev => ({ ...prev, [req.id]: e.target.value }))}
+                                        className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500/50 transition-colors placeholder:text-zinc-600 resize-none h-20"
+                                    />
                                 </div>
 
                                 <div className="flex gap-2 pt-2">

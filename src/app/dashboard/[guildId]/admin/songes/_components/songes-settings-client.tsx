@@ -9,6 +9,8 @@ import { Loader2, Save, AlertTriangle, Hash, ArrowLeft, Moon } from "lucide-reac
 import { toast } from "sonner";
 import Link from "next/link";
 import { getSongesConfig, updateSongesChannel } from "@/server/actions/admin-actions";
+import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
+import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 
 interface SongesSettingsClientProps {
     guildId: string;
@@ -19,13 +21,23 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
+    
+    const [songesPingRoleIds, setSongesPingRoleIds] = useState<string[]>([]);
+    const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
 
     useEffect(() => {
         async function loadConfig() {
-            const result = await getSongesConfig(guildId);
+            const [result, rolesRes] = await Promise.all([
+                getSongesConfig(guildId),
+                getDiscordRolesAction(guildId, { ignoreWhitelist: true })
+            ]);
             if (result.success && result.data) {
                 setChannelId(result.data.songesChannelId || "");
                 setIsConfigured(!!result.data.songesChannelId);
+                setSongesPingRoleIds(result.data.songesPingRoleIds || []);
+            }
+            if (rolesRes.success && rolesRes.roles) {
+                setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
             }
             setIsLoading(false);
         }
@@ -35,11 +47,13 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
     const handleSave = () => {
         startTransition(async () => {
             const result = await updateSongesChannel(guildId, channelId.trim() || null);
-            if (result.success) {
+            const pingRolesResult = await updateAllowedPingRolesAction(guildId, songesPingRoleIds, "songes");
+
+            if (result.success && pingRolesResult.success) {
                 toast.success("Configuration sauvegardée !");
                 setIsConfigured(!!channelId.trim());
             } else {
-                toast.error(result.error || "Erreur lors de la sauvegarde");
+                toast.error(result.error || pingRolesResult.error || "Erreur lors de la sauvegarde");
             }
         });
     };
@@ -133,6 +147,24 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                                 )}
                             </div>
                         </div>
+
+
+                        {/* Step 3 - Pings */}
+                        <div className="relative pl-6 border-l-2 border-transparent">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                            </div>
+                            <h3 className="text-sm font-medium text-white mb-2">3. Rôles de Ping Autorisés (Whitelist)</h3>
+                            <p className="text-xs text-zinc-500 mb-4">
+                                Définissez quels rôles Discord les membres peuvent mentionner lors de la création d'événements Songes Infinis.
+                            </p>
+                            <PingRolesSelector 
+                                value={songesPingRoleIds} 
+                                onChange={setSongesPingRoleIds} 
+                                roles={discordRoles} 
+                                description="Si la liste est vide, aucun rôle Discord ne sera disponible pour le ping/sélection dans les modales de création (seuls les administrateurs verront toujours tous les rôles)." 
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -148,7 +180,7 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                                 <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
                                     <Moon className="w-5 h-5 text-white" />
                                 </div>
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 text-left">
                                     <div className="flex items-baseline gap-2 mb-1">
                                         <span className="font-medium text-purple-400">SigilOS</span>
                                         <span className="bg-purple-500/20 text-purple-300 text-[10px] px-1 rounded">BOT</span>
@@ -162,24 +194,24 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                                             <h4 className="font-semibold text-white text-sm">Nouvelle candidature</h4>
                                         </div>
 
-                                        <p className="text-zinc-300 text-sm mb-4">
+                                        <p className="text-zinc-300 text-xs mb-3 leading-relaxed">
                                             <span className="text-purple-400 font-medium hover:underline cursor-pointer">Wylan</span> veut rejoindre votre run <span className="text-amber-400">Rêve III</span>.
                                         </p>
 
-                                        <div className="flex gap-6">
+                                        <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                                             <div>
-                                                <div className="text-[#b5bac1] text-xs font-bold uppercase tracking-wider mb-1">Classe</div>
-                                                <div className="text-zinc-200 text-sm">Cra</div>
+                                                <div className="text-[#b5bac1] text-[9px] font-bold uppercase tracking-wider mb-0.5">Classe</div>
+                                                <div className="text-zinc-200 text-xs">Cra</div>
                                             </div>
                                             <div>
-                                                <div className="text-[#b5bac1] text-xs font-bold uppercase tracking-wider mb-1">Message</div>
-                                                <div className="text-zinc-200 text-sm">Opti dispo 21h</div>
+                                                <div className="text-[#b5bac1] text-[9px] font-bold uppercase tracking-wider mb-0.5">Message</div>
+                                                <div className="text-zinc-200 text-xs">Opti dispo 21h</div>
                                             </div>
                                         </div>
 
                                         <div className="mt-3 pt-3 border-t border-[#3f4147] flex items-center gap-2">
                                             <div className="w-4 h-4 rounded-full bg-zinc-700" />
-                                            <span className="text-[#949ba4] text-xs">SigilOS • Songes Infinis</span>
+                                            <span className="text-[#949ba4] text-[10px]">SigilOS • Songes Infinis</span>
                                         </div>
                                     </div>
                                 </div>
@@ -188,7 +220,7 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                     </Card>
 
                     <Card className="bg-blue-500/5 border-blue-500/10">
-                        <CardContent className="p-4 flex gap-3">
+                        <CardContent className="p-4 flex gap-3 text-left">
                             <div className="p-2 bg-blue-500/20 rounded-lg shrink-0 h-fit">
                                 <AlertTriangle className="w-4 h-4 text-blue-400" />
                             </div>

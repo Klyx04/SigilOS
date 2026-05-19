@@ -146,8 +146,9 @@ export function UserSettings({
         try {
             const res = await archiveProfile(guildId, undefined, archiveDuration);
             if (res.success) {
-                toast.success(`Vous avez archivé votre profil sur ${guildName} pour ${archiveDuration} mois.`);
-                router.push("/dashboard");
+                toast.success(`Profil archivé. Redirection...`);
+                // Use hard redirect to clear all client-side state/caches
+                window.location.href = "/dashboard";
             } else {
                 toast.error(res.error || "Une erreur est survenue");
             }
@@ -164,7 +165,9 @@ export function UserSettings({
             const res = await handleGdprDeletionRequest();
             if (res.success) {
                 toast.success("Compte supprimé définitivement. Déconnexion...");
-                await signOut({ callbackUrl: "/" });
+                // Clear cookies and force hard redirect to home
+                await signOut({ redirect: false });
+                window.location.href = "/";
             } else {
                 const isOwnershipError = res.error?.toLowerCase().includes("proprié");
                 if (isOwnershipError) {

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -325,7 +325,7 @@ export async function POST(request: NextRequest) {
                 // ACK immediately (defer update) — gives us 15 min to respond
                 // We'll use type 7 (update message) after processing
 
-                const { internalValidateMissionSubmission, internalValidateAchievementSubmission, internalReviewKamaDonation } =
+                const { internalValidateMissionSubmission, internalReviewKamaDonation } =
                     await import("@/server/actions/discord-validation-actions");
 
                 let resultMsg = "";
@@ -338,16 +338,6 @@ export async function POST(request: NextRequest) {
                         resultMsg = isReject
                             ? `❌ Mission **refusée** par ${adminTag} — Membre: **${res.memberName}** — **${res.missionTitle}**`
                             : `✅ Mission **validée** par ${adminTag} — Membre: **${res.memberName}** — **${res.missionTitle}**`;
-                    } else {
-                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
-                    }
-                } else if (entityType === "achievement") {
-                    const status = isReject ? "REJECTED" : "VALIDATED";
-                    const res = await internalValidateAchievementSubmission(entityId, status, targetGuildId, member.user.id);
-                    if (res.success) {
-                        resultMsg = isReject
-                            ? `❌ Succès **refusé** par ${adminTag} — Membre: **${res.memberName}**`
-                            : `✅ **${res.points} pts succès** validés par ${adminTag} — Membre: **${res.memberName}**`;
                     } else {
                         return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
                     }
@@ -364,15 +354,34 @@ export async function POST(request: NextRequest) {
                     }
                 } else if (entityType === "reactivation") {
                     const status = isReject ? "ARCHIVED" : "ACTIVE";
-                    const { updateMemberProfileStatus } = await import("@/server/actions/user-actions");
+                    const { internalUpdateMemberProfileStatus } = await import("@/server/actions/user-actions");
                     
                     try {
-                        await updateMemberProfileStatus(entityId, status, isReject ? "REACTIVATION_REJECTED" : "REACTIVATION_APPROVED");
+                        await internalUpdateMemberProfileStatus(
+                            entityId, 
+                            status, 
+                            isReject ? "REACTIVATION_REJECTED" : "REACTIVATION_APPROVED",
+                            undefined,
+                            undefined,
+                            member.user.id
+                        );
                         resultMsg = isReject
                             ? `❌ Demande de **réintégration refusée** par ${adminTag}`
                             : `✅ Demande de **réintégration validée** par ${adminTag}`;
                     } catch (err: any) {
                         return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${err.message}`, flags: 64 } });
+                    }
+                } else if (entityType === "achievement") {
+                    const action_ach = isReject ? "REJECT" : "VALIDATE";
+                    const { internalReviewAchievementSubmission } = await import("@/server/actions/discord-validation-actions");
+                    const res = await internalReviewAchievementSubmission(entityId, action_ach, targetGuildId, member.user.id);
+                    if (res.success) {
+                        const pointsStr = res.points?.toLocaleString("fr-FR") ?? "?";
+                        resultMsg = isReject
+                            ? `❌ Succès **refusé** par ${adminTag} — Membre: **${res.memberName}** — ${pointsStr} pts`
+                            : `✅ Succès **validé** par ${adminTag} — Membre: **${res.memberName}** — ${pointsStr} pts`;
+                    } else {
+                        return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
                     }
                 } else {
                     return NextResponse.json({ type: 4, data: { content: "Type de validation inconnu.", flags: 64 } });
@@ -623,18 +632,6 @@ export async function POST(request: NextRequest) {
                         },
                     });
                 } else if (action === "close") {
-                    // SECURE: Check if caller is dev/admin synchronously 
-                    // before acknowledging to give proper feedback if rejected.
-                    const { isDiscordSuperAdmin } = await import("@/server/actions/super-admin-actions");
-                    const isDev = await isDiscordSuperAdmin(member.user.id);
-                    
-                    if (!isDev) {
-                        return NextResponse.json({
-                            type: 4,
-                            data: { content: "🔒 Seule l'équipe technique SigilOS peut fermer ce ticket.", flags: 64 },
-                        });
-                    }
-
                     // ACK immediately (Deferred update)
                     const response = NextResponse.json({ type: 6 }); 
 

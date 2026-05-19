@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { NotificationType, NotificationCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
 
 // --- Types ---
 
@@ -37,11 +38,25 @@ function inferCategory(type: NotificationType, title: string): NotificationCateg
 
 // --- Actions ---
 
+import { redis } from "@/lib/redis";
+
 export async function getUnreadNotifications(): Promise<{ success: boolean; data?: Notification[]; error?: string }> {
+    const start = Date.now();
     const session = await auth();
+    const authDone = Date.now();
+    
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
+    const cacheKey = `notifs:unread:${session.user.id}`;
+
     try {
+        // 1. Check Redis Cache first (Short TTL: 5s to allow fast polling without DB load)
+        const cached = await redis.get(cacheKey).catch(() => null);
+        if (cached) {
+            logger.debug(`[PERF] getUnreadNotifications: Returned from CACHE (${Date.now() - start}ms)`);
+            return { success: true, data: JSON.parse(cached) as Notification[] };
+        }
+
         const notifications = await db.notification.findMany({
             where: {
                 userId: session.user.id,
@@ -51,6 +66,10 @@ export async function getUnreadNotifications(): Promise<{ success: boolean; data
             take: 50, // PERF: limit results to prevent unbounded accumulation
         });
 
+        // 2. Store in Redis for 5 seconds
+        await redis.set(cacheKey, JSON.stringify(notifications), "EX", 5).catch(() => {});
+
+        logger.debug(`[PERF] getUnreadNotifications: DB Fetch ${Date.now() - start}ms (Auth: ${authDone - start}ms, DB: ${Date.now() - authDone}ms)`);
         return { success: true, data: notifications as Notification[] };
     } catch (error) {
         console.error("Get Notifications Error:", error);

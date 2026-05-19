@@ -20,6 +20,8 @@ import {
     Wheat,
     Eye,
     Filter,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -36,6 +38,7 @@ import {
     unregisterFromEvent,
     publishEvent,
     completeEvent,
+    completeRaidEvent,
     sendEventReminder,
     autoCloseExpiredEvents,
     sendCalendarDiscordNotification,
@@ -52,6 +55,8 @@ interface CalendarDashboardProps {
     guildId: string;
     currentUserId: string;
     canManage: boolean;
+    canManageRaid?: boolean;
+    userPseudo?: string;
     isDiscordConfigured?: boolean;
 }
 
@@ -108,15 +113,16 @@ const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg
     },
 };
 
-export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscordConfigured }: CalendarDashboardProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>("grid");
+export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, isDiscordConfigured }: CalendarDashboardProps) {
+    const [displayMode, setDisplayMode] = useState<ViewMode>("grid");
+    const [gridType, setGridType] = useState<"week" | "month">("week");
     const [currentDate, setCurrentDate] = useState(new Date());
 
     // Auto-switch to list mode on small screens
     useEffect(() => {
         const handleResize = () => {
             if (window.innerWidth < 1024) {
-                setViewMode("list");
+                setDisplayMode("list");
             }
         };
         handleResize(); // Initial check
@@ -324,13 +330,30 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
     const handleComplete = async () => {
         if (!selectedEventId) return;
-        const result = await completeEvent(guildId, selectedEventId);
-        if (result.success) {
-            toast.success("Événement terminé !");
-            fetchEventDetails(selectedEventId);
-            fetchEvents();
+
+        // Check if this is a raid with completion data from the modal
+        const isRaid = selectedEvent?.type === "RAID_OFFICIAL";
+        const raidData = (window as any).__raidCompletionData;
+
+        if (isRaid && raidData) {
+            delete (window as any).__raidCompletionData;
+            const result = await completeRaidEvent(guildId, selectedEventId, raidData);
+            if (result.success) {
+                toast.success(`Raid clôturé ! ${result.rewarded} joueur(s) récompensé(s)${result.score ? ` — Score : ${result.score}` : ""}`);
+                fetchEventDetails(selectedEventId);
+                fetchEvents();
+            } else {
+                toast.error(result.error);
+            }
         } else {
-            toast.error(result.error);
+            const result = await completeEvent(guildId, selectedEventId);
+            if (result.success) {
+                toast.success("Événement terminé !");
+                fetchEventDetails(selectedEventId);
+                fetchEvents();
+            } else {
+                toast.error(result.error);
+            }
         }
     };
 
@@ -356,40 +379,191 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
     return (
         <div className="space-y-6">
-            {/* ============ VIEW TOGGLE (visible only when not loading) ============ */}
-            {!loading && (
-                <div className="flex items-center justify-end">
-                    <div className="flex items-center gap-1 p-1 bg-foreground/[0.03] border border-border rounded-full backdrop-blur-sm">
-                        <button
-                            onClick={() => setViewMode("grid")}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase italic tracking-widest transition-all",
-                                viewMode === "grid"
-                                    ? "bg-foreground text-background shadow-inner"
-                                    : "text-muted-foreground hover:text-foreground"
+            {/* ============ STABLE HEADER ============ */}
+            <div className="space-y-6 mb-8">
+                <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/50 backdrop-blur-xl p-6 shadow-2xl">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-primary/5 pointer-events-none" />
+
+                    <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div className="flex items-center gap-5">
+                            <div className="relative group shrink-0">
+                                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-xl blur-lg group-hover:blur-xl transition-all opacity-70" />
+                                <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/10 flex items-center justify-center border border-amber-500/20 shrink-0">
+                                    <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-amber-500" />
+                                </div>
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-zinc-100 truncate">Agenda</h2>
+                                <p className="text-zinc-500 font-bold text-xs md:text-sm mt-1">
+                                    {filteredEvents.length} événements programmés
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            {/* Display Mode Toggle */}
+                            <div className="flex bg-zinc-900/80 p-1 rounded-full border border-zinc-800 shadow-inner">
+                                <button
+                                    onClick={() => setDisplayMode("grid")}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                        displayMode === "grid" ? "bg-zinc-100 text-zinc-950 shadow-lg" : "text-zinc-500 hover:text-zinc-300"
+                                    )}
+                                >
+                                    <LayoutGrid className="h-3.5 w-3.5" />
+                                    Grille
+                                </button>
+                                <button
+                                    onClick={() => setDisplayMode("list")}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                        displayMode === "list" ? "bg-zinc-100 text-zinc-950 shadow-lg" : "text-zinc-500 hover:text-zinc-300"
+                                    )}
+                                >
+                                    <List className="h-3.5 w-3.5" />
+                                    Liste
+                                </button>
+                            </div>
+
+                            {/* Grid-Specific Navigation */}
+                            {displayMode === "grid" && (
+                                <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
+                                    {/* Week/Month Toggle */}
+                                    <div className="flex bg-zinc-950/50 border border-zinc-800 rounded-full p-1">
+                                        <button
+                                            onClick={() => setGridType("week")}
+                                            className={cn(
+                                                "px-3 py-1 rounded-full text-[9px] font-bold uppercase transition-all",
+                                                gridType === "week" ? "bg-amber-500 text-zinc-950" : "text-zinc-500"
+                                            )}
+                                        >
+                                            Semaine
+                                        </button>
+                                        <button
+                                            onClick={() => setGridType("month")}
+                                            className={cn(
+                                                "px-3 py-1 rounded-full text-[9px] font-bold uppercase transition-all",
+                                                gridType === "month" ? "bg-amber-500 text-zinc-950" : "text-zinc-500"
+                                            )}
+                                        >
+                                            Mois
+                                        </button>
+                                    </div>
+
+                                    {/* Prev/Auj/Next */}
+                                    <div className="flex items-center bg-zinc-950/50 border border-zinc-800 rounded-full">
+                                        <button
+                                            onClick={() => {
+                                                const date = gridType === "week" ? subWeeks(currentDate, 1) : subMonths(currentDate, 1);
+                                                setCurrentDate(date);
+                                            }}
+                                            className="p-2 hover:bg-zinc-800 rounded-l-full"
+                                        >
+                                            <ChevronLeft className="h-4 w-4 text-zinc-400" />
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentDate(new Date())}
+                                            className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 hover:text-zinc-100"
+                                        >
+                                            Auj.
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const date = gridType === "week" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
+                                                setCurrentDate(date);
+                                            }}
+                                            className="p-2 hover:bg-zinc-800 rounded-r-full"
+                                        >
+                                            <ChevronRight className="h-4 w-4 text-zinc-400" />
+                                        </button>
+                                    </div>
+                                </div>
                             )}
-                        >
-                            <LayoutGrid className="h-4 w-4" />
-                            <span className="hidden sm:inline">Grille</span>
-                        </button>
-                        <button
-                            onClick={() => setViewMode("list")}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase italic tracking-widest transition-all",
-                                viewMode === "list"
-                                    ? "bg-foreground text-background shadow-inner"
-                                    : "text-muted-foreground hover:text-foreground"
+
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={cn(
+                                    "h-10 rounded-full px-4 md:px-5 text-[10px] md:text-sm font-black uppercase italic tracking-widest transition-all border-2",
+                                    (showFilters || selectedFilter !== "ALL")
+                                        ? "bg-zinc-100 text-zinc-950 border-white shadow-xl scale-105"
+                                        : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200"
+                                )}
+                            >
+                                <Filter className={cn("h-4 w-4 mr-2", selectedFilter !== "ALL" && "text-amber-500")} />
+                                Filtres
+                            </Button>
+
+                            {canManage && (
+                                <Button
+                                    onClick={() => setIsCreateOpen(true)}
+                                    className="h-10 px-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40 hover:scale-105"
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Nouvel évent
+                                </Button>
                             )}
-                        >
-                            <List className="h-4 w-4" />
-                            <span className="hidden sm:inline">Liste</span>
-                        </button>
+                        </div>
                     </div>
                 </div>
-            )}
 
-            {/* ============ MAIN CONTENT ============ */}
-            {loading ? (
+                {/* Filters Bar (Improved Aesthetics) */}
+                {showFilters && (
+                    <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide animate-in slide-in-from-top-2 duration-300">
+                        <button
+                            onClick={() => setSelectedFilter("ALL")}
+                            className={cn(
+                                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase italic tracking-widest transition-all border-2 whitespace-nowrap",
+                                selectedFilter === "ALL"
+                                    ? "bg-zinc-100 text-zinc-950 border-white shadow-xl"
+                                    : "bg-zinc-900 text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                            )}
+                        >
+                            Tous
+                            <span className={cn(
+                                "px-2 py-0.5 rounded-md text-[10px] font-black",
+                                selectedFilter === "ALL" ? "bg-zinc-900 text-zinc-100" : "bg-zinc-800 text-zinc-500"
+                            )}>
+                                {events.length}
+                            </span>
+                        </button>
+
+                        <div className="h-6 w-px bg-zinc-800 mx-1 shrink-0" />
+
+                        {Object.entries(FILTER_TYPES).map(([type, config]) => {
+                            const count = typeCounts[type] || 0;
+                            const Icon = config.icon;
+                            const isActive = selectedFilter === type;
+
+                            return (
+                                <button
+                                    key={type}
+                                    onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
+                                    className={cn(
+                                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase italic tracking-widest transition-all border-2 whitespace-nowrap",
+                                        isActive
+                                            ? cn(config.bg, config.color, config.border, "shadow-lg scale-105 z-10")
+                                            : "bg-zinc-900 text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                                    )}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    {config.label}
+                                    <span className={cn(
+                                        "px-2 py-0.5 rounded-md text-[10px] font-black",
+                                        isActive ? "bg-current/20" : "bg-zinc-800 text-zinc-500"
+                                    )}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* ============ MAIN CONTENT AREA (Stable) ============ */}
+            <div className="min-h-[500px]">
+                {loading ? (
                 <div className="flex flex-col items-center justify-center py-24 space-y-4">
                     <div className="relative">
                         <div className="h-16 w-16 rounded-full bg-amber-500/10 flex items-center justify-center animate-pulse">
@@ -399,131 +573,21 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                     </div>
                     <p className="text-zinc-400 text-sm animate-pulse">Chargement de l'agenda...</p>
                 </div>
-            ) : viewMode === "grid" ? (
+            ) : displayMode === "grid" ? (
                 // ============ GRID VIEW ============
                 <CalendarGrid
-                    events={events}
+                    events={filteredEvents}
                     currentDate={currentDate}
                     onDateChange={setCurrentDate}
                     onEventClick={handleEventClick}
                     onDayClick={handleDayClick}
                     canManage={canManage}
-                    onCreateClick={() => setIsCreateOpen(true)}
+                    viewMode={gridType}
+                    onViewModeChange={setGridType}
                 />
             ) : (
                 // ============ LIST VIEW ============
                 <div className="space-y-8">
-                    {/* Header + Filters */}
-                    <div className="space-y-6">
-                        {/* Title & Action */}
-                        <div className="relative overflow-hidden rounded-2xl border border-border bg-foreground/[0.02] backdrop-blur-xl p-6">
-                            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-primary/5 pointer-events-none" />
-
-                            <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                                <div className="flex items-center gap-5">
-                                    <div className="relative group shrink-0">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-xl blur-lg group-hover:blur-xl transition-all opacity-70" />
-                                        <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/10 flex items-center justify-center border border-amber-500/20 shrink-0">
-                                            <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-amber-600 dark:text-amber-400" />
-                                        </div>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-foreground truncate">Agenda</h2>
-                                        <p className="text-muted-foreground font-bold text-xs md:text-sm mt-1">
-                                            {filteredEvents.length} événements programmés
-                                        </p>
-                                    </div>
-                                </div>
-
-
-
-                                <div className="flex items-center gap-3">
-                                    {/* Action Options */}
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setShowFilters(!showFilters)}
-                                        className={cn(
-                                            "h-10 rounded-full px-5 text-sm font-black uppercase italic tracking-widest transition-all border-2",
-                                            (showFilters || selectedFilter !== "ALL")
-                                                ? "bg-foreground text-background border-foreground shadow-md"
-                                                : "bg-foreground/[0.03] text-muted-foreground border-border hover:border-foreground/20 hover:text-foreground"
-                                        )}
-                                    >
-                                        <Filter className={cn("h-4 w-4 mr-2", selectedFilter !== "ALL" && "text-amber-500 animate-pulse")} />
-                                        Filtres
-                                        {selectedFilter !== "ALL" && (
-                                            <span className="ml-2 px-2 py-0.5 rounded-md text-xs font-bold bg-amber-500/20 text-amber-700">
-                                                1
-                                            </span>
-                                        )}
-                                    </Button>
-
-                                    {canManage && (
-                                        <Button
-                                            onClick={() => setIsCreateOpen(true)}
-                                            className="h-10 px-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40 hover:scale-105"
-                                        >
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Nouvel évent
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Filters Bar (Collapsible) */}
-                        {showFilters && (
-                            <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide animate-in slide-in-from-top-2 duration-300">
-                                <button
-                                    onClick={() => setSelectedFilter("ALL")}
-                                    className={cn(
-                                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase italic tracking-widest transition-all border-2 whitespace-nowrap",
-                                        selectedFilter === "ALL"
-                                            ? "bg-foreground text-background border-foreground shadow-md shadow-foreground/10"
-                                            : "bg-foreground/[0.03] text-muted-foreground border-border hover:border-foreground/20 hover:text-foreground"
-                                    )}
-                                >
-                                    Tous
-                                    <span className={cn(
-                                        "px-2 py-0.5 rounded-md text-xs font-black",
-                                        selectedFilter === "ALL" ? "bg-background text-foreground" : "bg-foreground/10 text-muted-foreground"
-                                    )}>
-                                        {events.length}
-                                    </span>
-                                </button>
-
-                                <div className="h-6 w-px bg-zinc-800/50 mx-1 shrink-0" />
-
-                                {Object.entries(FILTER_TYPES).map(([type, config]) => {
-                                    const count = typeCounts[type] || 0;
-                                    const Icon = config.icon;
-                                    const isActive = selectedFilter === type;
-
-                                    return (
-                                        <button
-                                            key={type}
-                                            onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
-                                            className={cn(
-                                                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase italic tracking-widest transition-all border-2 whitespace-nowrap",
-                                                isActive
-                                                    ? cn(config.bg, config.color, config.border, "shadow-md")
-                                                    : "bg-foreground/[0.03] text-muted-foreground border-border hover:border-foreground/20"
-                                            )}
-                                        >
-                                            <Icon className="h-4 w-4" />
-                                            {config.label}
-                                            <span className={cn(
-                                                "px-2 py-0.5 rounded-md text-xs font-black",
-                                                isActive ? "bg-current/10" : "bg-foreground/10"
-                                            )}>
-                                                {count}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
 
                     {/* Events List Grouped */}
                     {sortedDates.length === 0 ? (
@@ -582,15 +646,16 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                     )}
                 </div>
             )}
+        </div>
 
-            <Dialog 
+        <Dialog 
                 open={isCreateOpen} 
                 onOpenChange={(open) => {
                     setIsCreateOpen(open);
                     if (!open) setPrefilledDate(null);
                 }}
             >
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800 shadow-2xl">
                     <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
                         Créer un événement
                     </DialogTitle>
@@ -598,9 +663,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                         Remplissez les informations pour créer un nouvel événement de guilde.
                     </DialogDescription>
                     <EventForm 
+                        guildId={guildId}
                         onSubmit={handleCreate} 
                         isDiscordConfigured={isDiscordConfigured}
+                        canManageRaid={canManageRaid}
+                        userPseudo={userPseudo}
                         initialData={prefilledDate ? { startDate: prefilledDate } : undefined}
+                        discordRoles={discordRoles}
                     />
                 </DialogContent>
             </Dialog>
@@ -621,6 +690,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                 currentUserId={currentUserId}
                 guildId={guildId}
                 canManage={canManage}
+                isDiscordConfigured={isDiscordConfigured}
                 discordRoles={discordRoles}
                 hasMetamobKey={hasMetamobKey}
                 onRegister={handleRegister}
@@ -638,7 +708,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
 
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800 shadow-2xl">
                     <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
                         Modifier l'événement
                     </DialogTitle>
@@ -647,9 +717,13 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, isDiscord
                     </DialogDescription>
                     {editingEvent && (
                         <EventForm
+                            guildId={guildId}
                             initialData={editingEvent}
                             onSubmit={handleUpdate}
                             isDiscordConfigured={isDiscordConfigured}
+                            canManageRaid={canManageRaid}
+                            userPseudo={userPseudo}
+                            discordRoles={discordRoles}
                         />
                     )}
                 </DialogContent>

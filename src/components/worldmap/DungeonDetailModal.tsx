@@ -76,7 +76,10 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent showCloseButton={false} className="w-[95vw] max-w-2xl bg-[#0a0f18]/95 backdrop-blur-3xl border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.8)] rounded-[2.5rem] text-white overflow-hidden p-0 gap-0 custom-scrollbar">
+            <DialogContent 
+                showCloseButton={false} 
+                className="w-[95vw] max-w-2xl bg-[#0a0f18] border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.8)] rounded-[2rem] md:rounded-[2.5rem] text-white overflow-hidden p-0 gap-0 flex flex-col h-[min(750px,85vh)]"
+            >
                 
                 {/* Header with Background Image */}
                 <div className="relative h-48 bg-slate-950 border-b border-white/5 overflow-hidden shrink-0">
@@ -98,9 +101,9 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                         <X size={20} />
                     </button>
 
-                    <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between gap-4 z-10">
-                        <div className="flex items-center gap-6">
-                            <div className="w-20 h-20 rounded-2xl bg-slate-900/80 border border-white/10 shadow-2xl overflow-hidden flex items-center justify-center shrink-0">
+                    <div className="absolute bottom-6 left-6 right-6 md:left-8 md:right-8 flex items-end justify-between gap-4 z-10">
+                        <div className="flex items-center gap-4 md:gap-6">
+                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-slate-900/80 border border-white/10 shadow-2xl overflow-hidden flex items-center justify-center shrink-0">
                                 {(resolvedDj?.imageUrl || dungeon.imageUrl) ? (
                                     <img src={resolvedDj?.imageUrl || dungeon.imageUrl} alt="" className="w-full h-full object-cover" />
                                 ) : (
@@ -109,15 +112,15 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                             </div>
                             <div className="min-w-0">
                                 <div className="flex items-center gap-3 mb-1">
-                                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-500 text-[10px] font-black uppercase tracking-widest italic">
-                                        Donjon Niveau {resolvedDj?.level || dungeon.level}
+                                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest italic">
+                                        Lvl {resolvedDj?.level || dungeon.level}
                                     </span>
                                 </div>
-                                <h2 className="text-3xl font-black text-white truncate drop-shadow-2xl uppercase italic tracking-tighter">
+                                <h2 className="text-xl md:text-3xl font-black text-white truncate drop-shadow-2xl uppercase italic tracking-tighter">
                                     {resolvedDj?.name || (typeof dungeon.name === 'string' ? dungeon.name : dungeon.name?.fr || "Donjon")}
                                 </h2>
-                                <p className="text-sm font-bold text-white/40 flex items-center gap-2 uppercase tracking-[0.2em]">
-                                    <Sword size={14} className="text-amber-500" /> {resolvedDj?.bossName || "Boss Inconnu"}
+                                <p className="text-[10px] md:text-sm font-bold text-white/40 flex items-center gap-2 uppercase tracking-[0.2em]">
+                                    <Sword size={12} className="text-amber-500" /> {resolvedDj?.bossName || "Boss Inconnu"}
                                 </p>
                             </div>
                         </div>
@@ -144,7 +147,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                 )}
 
                 {/* Content */}
-                <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] custom-scrollbar bg-[#0a0f18]/20">
+                <div className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto custom-scrollbar bg-[#0a0f18]/20">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
                             <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
@@ -190,13 +193,13 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <h4 className="text-sm font-black text-white uppercase italic tracking-tight">{achv.achievementName}</h4>
-                                                    <div className="flex items-center gap-3 mt-1">
-                                                        <span className="text-[9px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                                                    <h4 className="text-xs md:text-sm font-black text-white uppercase italic tracking-tight truncate">{achv.achievementName}</h4>
+                                                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1">
+                                                        <span className="text-[8px] md:text-[9px] font-black text-amber-500 bg-amber-500/10 px-1.5 md:px-2 py-0.5 rounded-lg border border-amber-500/20">
                                                             {achv.points} PTS
                                                         </span>
-                                                        <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
-                                                            Taux de complétion : {completionRate}%
+                                                        <span className="text-[8px] md:text-[9px] font-bold text-white/30 uppercase tracking-widest">
+                                                            Complétion : {completionRate}%
                                                         </span>
                                                     </div>
                                                 </div>

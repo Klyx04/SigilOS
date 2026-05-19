@@ -60,14 +60,14 @@ export default async function Home({
   const nonce = headersList.get('x-nonce') ?? '';
 
   const COMPARISON_DATA = [
-    { feature: "Dashboard de guilde complet", sigilos: true, others: false },
-    { feature: "Bot Discord intelligent", sigilos: true, others: false },
-    { feature: "Missions & OCR Automatique", sigilos: true, others: false },
-    { feature: "Suivi Quête Ocre (Metamob)", sigilos: true, others: "Partiel" },
-    { feature: "Planificateur de Songes", sigilos: true, others: false },
-    { feature: "Dungeon Finder (LFG)", sigilos: true, others: "Limité" },
-    { feature: "Annuaire public premium", sigilos: true, others: false },
-    { feature: "Ladder & Statistiques XP", sigilos: true, others: "Basique" },
+    { feature: "Cockpit de Guilde Unifié", sigilos: true, others: "Fragmenté" },
+    { feature: "Intégration Discord Native", sigilos: true, others: "Basique" },
+    { feature: "Missions & Suivi Hebdo", sigilos: true, others: "Manuel" },
+    { feature: "Sync. Metamob (Ocre)", sigilos: true, others: "Externe" },
+    { feature: "Tracking Avis & Archis", sigilos: true, others: "Discord" },
+    { feature: "Dungeon Finder (LFG)", sigilos: true, others: "In-game" },
+    { feature: "Annuaire Public Premium", sigilos: true, others: "Basique" },
+    { feature: "Stats & Ladder Temps Réel", sigilos: true, others: "Officiel (Lent)" },
   ];
 
   return (
@@ -139,7 +139,7 @@ export default async function Home({
                         <div className="flex-1 md:w-32 flex flex-col items-center gap-1">
                           <span className="text-[9px] font-black text-zinc-600 uppercase tracking-wider md:hidden mb-2">Autres</span>
                           <div className="flex items-center gap-2 text-zinc-600">
-                            {row.others === false ? (
+                            {row.others === ("false" as any) ? (
                               <Minus className="w-5 h-5 opacity-40" />
                             ) : (
                               <span className="text-xs font-black opacity-60 uppercase tracking-tighter">{row.others}</span>

@@ -24,6 +24,8 @@ export default async function SigilBombPage({ params, searchParams }: Props) {
             <BombGame 
                 roomId={roomId} 
                 guildId={guildId} 
+                userName={user.name}
+                userAvatar={user.image}
             />
         </div>
     );

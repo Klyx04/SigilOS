@@ -1,7 +1,7 @@
 "use server";
 
 // =============================================================================
-// QUÃŠTE OCRE SERVER ACTIONS
+// QUÊTE OCRE SERVER ACTIONS
 // =============================================================================
 // Refactored from metamob-actions.ts to use API v2 with native matching
 
@@ -27,6 +27,9 @@ import {
     normalizeQuestMonster,
     clearCache,
     MetamobApiError,
+    updateQuestSettings,
+    updateMonsterTradeParams,
+    bulkUpdateMonsters,
     type UserProfile,
     type UserQuest,
     type QuestDetails,
@@ -35,6 +38,7 @@ import {
     type OcreMonster,
     type Zone,
     type KralamoureEvent,
+    type QuestSettings,
 } from "@/lib/metamob-client";
 import { decrypt } from "@/lib/encryption";
 import { metamobQueue } from "@/lib/queue/metamob-queue";
@@ -71,6 +75,11 @@ export interface OcreProgressData {
         totalSteps: number;
         parallelQuests: number;
         serverName: string;
+        // Expert Settings
+        trade_mode?: number;
+        trade_offer_threshold?: number | null;
+        trade_want_threshold?: number | null;
+        show_trades?: boolean;
     };
     lastSync: Date | null;
     isOffline?: boolean;
@@ -114,12 +123,12 @@ export interface ExchangePartner {
 const LinkAccountSchema = z.object({
     guildId: z.string().min(1),
     pseudo: z.string()
-        .min(2, "Le pseudo doit contenir au moins 2 caractÃ¨res")
-        .max(30, "Le pseudo ne peut pas dÃ©passer 30 caractÃ¨res")
+        .min(2, "Le pseudo doit contenir au moins 2 caractères")
+        .max(30, "Le pseudo ne peut pas dépasser 30 caractères")
         .regex(/^[a-zA-Z0-9_-]+$/, "Le pseudo ne peut contenir que des lettres, chiffres, tirets et underscores"),
     apiKey: z.string()
-        .length(64, "La clÃ© API V2 doit contenir exactement 64 caractÃ¨res")
-        .regex(/^[a-f0-9]+$/, "La clÃ© API doit Ãªtre une chaÃ®ne hexadÃ©cimale (chiffres et lettres de a Ã  f)")
+        .length(64, "La clé API V2 doit contenir exactement 64 caractères")
+        .regex(/^[a-f0-9]+$/, "La clé API doit être une chaîne hexadécimale (chiffres et lettres de a à f)")
         .optional(),
     force: z.boolean().optional(),
     targetUserId: z.string().optional(),
@@ -149,6 +158,28 @@ const FindMonsterOwnersSchema = z.object({
     monsterId: z.number().int().positive(),
 });
 
+const UpdateSettingsSchema = z.object({
+    guildId: z.string().min(1),
+    settings: z.any(),
+});
+
+const UpdateTradeParamsSchema = z.object({
+    guildId: z.string().min(1),
+    monsterId: z.number().int().positive(),
+    params: z.object({
+        trade_offer: z.number().int().min(0).nullable().optional(),
+        trade_want: z.number().int().min(0).nullable().optional(),
+    }),
+});
+
+const BulkUpdateQuantitiesSchema = z.object({
+    guildId: z.string().min(1),
+    monsters: z.array(z.object({
+        monster_id: z.number().int().positive(),
+        quantity: z.number().int().min(0).max(30),
+    })).max(200),
+});
+
 // -----------------------------------------------------------------------------
 // LINK / UNLINK METAMOB ACCOUNT
 // -----------------------------------------------------------------------------
@@ -169,19 +200,19 @@ export async function linkOcreAccount(
         // Auth check
         const session = await auth();
         if (!session?.user?.id) {
-            return { success: false, error: "Non authentifiÃ©" };
+            return { success: false, error: "Non authentifié" };
         }
 
         // Rate limit
         const rateCheck = await rateLimit(`ocre:link:${session.user.id}`, 5, 60);
         if (!rateCheck.success) {
-            return { success: false, error: "Trop de tentatives. RÃ©essayez dans quelques minutes." };
+            return { success: false, error: "Trop de tentatives. Réessayez dans quelques minutes." };
         }
 
         // Validation
         const parsed = LinkAccountSchema.safeParse(rawData);
         if (!parsed.success) {
-            return { success: false, error: parsed.error.errors[0]?.message || "DonnÃ©es invalides" };
+            return { success: false, error: parsed.error.errors[0]?.message || "Données invalides" };
         }
         const { guildId } = parsed.data;
         const pseudo = parsed.data.pseudo.trim();
@@ -218,8 +249,8 @@ export async function linkOcreAccount(
             return {
                 success: false,
                 error: (apiKey)
-                    ? "ClÃ© API invalide."
-                    : "Votre compte Metamob semble privÃ© ou vous n'avez pas renseignÃ© de clÃ© API. Liez votre compte avec votre clÃ© personnelle."
+                    ? "Clé API invalide."
+                    : "Votre compte Metamob semble privé ou vous n'avez pas renseigné de clé API. Liez votre compte avec votre clé personnelle."
             };
         }
 
@@ -236,12 +267,12 @@ export async function linkOcreAccount(
                     return {
                         success: false,
                         error: apiKey
-                            ? "ClÃ© API invalide ou compte privÃ©. VÃ©rifiez votre clÃ© sur Metamob.fr."
-                            : "Ce compte Metamob est privÃ©. Entrez votre clÃ© API personnelle ou passez votre profil en PUBLIC."
+                            ? "Clé API invalide ou compte privé. Vérifiez votre clé sur Metamob.fr."
+                            : "Ce compte Metamob est privé. Entrez votre clé API personnelle ou passez votre profil en PUBLIC."
                     };
                 }
                 if (error.code === "NOT_FOUND") {
-                    return { success: false, error: "Compte Metamob introuvable. VÃ©rifiez l'orthographe du pseudo." };
+                    return { success: false, error: "Compte Metamob introuvable. Vérifiez l'orthographe du pseudo." };
                 }
             }
             throw error;
@@ -250,7 +281,7 @@ export async function linkOcreAccount(
         if (!metamobData) {
             return {
                 success: false,
-                error: "Impossible de rÃ©cupÃ©rer les informations du compte Metamob."
+                error: "Impossible de récupérer les informations du compte Metamob."
             };
         }
 
@@ -282,7 +313,7 @@ export async function linkOcreAccount(
                 // TODO: Allow force here too? For now, keep it strict as keys are sensitive.
                 return {
                     success: false,
-                    error: `Cette clÃ© API est dÃ©jÃ  utilisÃ©e par ${existingKeyUser.user.name || "un autre membre"} dans une autre guilde.`
+                    error: `Cette clé API est déjà utilisée par ${existingKeyUser.user.name || "un autre membre"} dans une autre guilde.`
                 };
             }
         }
@@ -326,7 +357,7 @@ export async function linkOcreAccount(
             if (!canOverwrite) {
                 return {
                     success: false,
-                    error: `Le compte Metamob "${metamobPseudo}" est dÃ©jÃ  liÃ© Ã  ${existingPseudoUser.user.name || "un autre membre"} dans cette guilde.`
+                    error: `Le compte Metamob "${metamobPseudo}" est déjà lié à ${existingPseudoUser.user.name || "un autre membre"} dans cette guilde.`
                 };
             }
         }
@@ -350,7 +381,7 @@ export async function linkOcreAccount(
                 } else {
                     return {
                         success: false,
-                        error: `Le personnage Metamob "${metamobCharName}" ne correspond pas Ã  votre pseudo Dofus "${profile.pseudoDofus}". Utilisez votre clÃ© API personnelle pour valider l'identitÃ©.`
+                        error: `Le personnage Metamob "${metamobCharName}" ne correspond pas à votre pseudo Dofus "${profile.pseudoDofus}". Utilisez votre clé API personnelle pour valider l'identité.`
                     };
                 }
             }
@@ -391,13 +422,13 @@ export async function linkOcreAccount(
         if (error instanceof MetamobApiError) {
             switch (error.code) {
                 case "RATE_LIMIT":
-                    return { success: false, error: "Limite Metamob atteinte. RÃ©essayez plus tard." };
+                    return { success: false, error: "Limite Metamob atteinte. Réessayez plus tard." };
                 case "API_KEY_MISSING":
-                    return { success: false, error: "Module QuÃªte Ocre non configurÃ©. Contactez un administrateur." };
+                    return { success: false, error: "Module Quête Ocre non configuré. Contactez un administrateur." };
                 case "API_KEY_INVALID":
-                    return { success: false, error: "ClÃ© API Metamob expirÃ©e. Contactez un administrateur." };
+                    return { success: false, error: "Clé API Metamob expirée. Contactez un administrateur." };
                 case "NOT_FOUND":
-                    return { success: false, error: "Compte Metamob introuvable ou profil privÃ©." };
+                    return { success: false, error: "Compte Metamob introuvable ou profil privé." };
             }
         }
 
@@ -414,12 +445,12 @@ export async function unlinkOcreAccount(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return { success: false, error: "Non authentifiÃ©" };
+            return { success: false, error: "Non authentifié" };
         }
 
         const parsed = UnlinkAccountSchema.safeParse(rawData);
         if (!parsed.success) {
-            return { success: false, error: "DonnÃ©es invalides" };
+            return { success: false, error: "Données invalides" };
         }
         const { guildId, targetUserId } = parsed.data;
 
@@ -475,16 +506,16 @@ export async function getMyOcreProgress(
     guildId: string
 ): Promise<ActionResponse<OcreProgressData>> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
     const userId = session.user.id;
 
     try {
         // [RateLimit]
         const rateCheck = await rateLimit(`ocre:progress:${userId}`, 30, 60);
-        if (!rateCheck.success) return { success: false, error: "Trop de requÃªtes." };
+        if (!rateCheck.success) return { success: false, error: "Trop de requêtes." };
 
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
-        if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
+        if (!guard.allowed) return { success: false, error: "Accès non autorisé" };
 
         // Use Prisma ORM — $queryRawUnsafe is forbidden by project rules
         const profile = await db.userProfile.findFirst({
@@ -616,18 +647,31 @@ export async function getMyOcreProgress(
                 const resData: OcreProgressData = {
                     monsters: finalMonsters,
                     stats: { total: cT, manquants: cM, possedes: cP, doublons: cD, progressPercent: cT > 0 ? Math.round((gathered / cT) * 100) : 0, monsters: statsByType.monstre, bosses: statsByType.boss, archis: statsByType.archimonstre, acquired: gathered, remaining: cT - gathered },
-                    questInfo: { slug: questSlug!, characterName: firstPage.character_name || "Dofusien", currentStep: firstPage.current_step || 0, totalSteps: 34, parallelQuests: PQ, serverName: firstPage.server?.name || "Serveur" },
+                    questInfo: { 
+                        slug: questSlug!, 
+                        characterName: firstPage.character_name || "Dofusien", 
+                        currentStep: firstPage.current_step || 0, 
+                        totalSteps: 34, 
+                        parallelQuests: PQ, 
+                        serverName: firstPage.server?.name || "Serveur",
+                        trade_mode: firstPage.trade_mode,
+                        trade_offer_threshold: firstPage.trade_offer_threshold,
+                        trade_want_threshold: firstPage.trade_want_threshold,
+                        show_trades: firstPage.show_trades
+                    },
                     lastSync: new Date()
                 };
 
                 // PUMP: Offline Save (Async - don't block response)
                 Promise.resolve().then(async () => {
                     try {
-                        await db.$executeRawUnsafe(`
-                            UPDATE "UserProfile"
-                            SET "metamobLastSync" = $1, "ocreProgressSnapshot" = $2
-                            WHERE id = $3
-                        `, new Date(), JSON.stringify(resData), profile.id);
+                        await db.userProfile.update({
+                            where: { id: profile.id },
+                            data: {
+                                metamobLastSync: new Date(),
+                                ocreProgressSnapshot: resData as any
+                            }
+                        });
                     } catch (pe) { console.error("[PUMP ERROR]", pe); }
                 });
 
@@ -684,25 +728,25 @@ export async function findOcreExchangePartners(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return { success: false, error: "Non authentifiÃ©" };
+            return { success: false, error: "Non authentifié" };
         }
 
         const parsed = FindPartnersSchema.safeParse(rawData);
         if (!parsed.success) {
-            return { success: false, error: "DonnÃ©es invalides" };
+            return { success: false, error: "Données invalides" };
         }
         const { guildId } = parsed.data;
 
         // Rate limit
         const rateCheck = await rateLimit(`ocre:match:${session.user.id}`, 20, 60);
         if (!rateCheck.success) {
-            return { success: false, error: "Trop de requÃªtes. RÃ©essayez plus tard." };
+            return { success: false, error: "Trop de requêtes. Réessayez plus tard." };
         }
 
         // Permission check
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
         if (!guard.allowed) {
-            return { success: false, error: "AccÃ¨s non autorisÃ©" };
+            return { success: false, error: "Accès non autorisé" };
         }
 
         const jobId = `ocre-match-${session.user.id}-${Date.now()}`;
@@ -720,7 +764,7 @@ export async function findOcreExchangePartners(
 
         if (error instanceof MetamobApiError) {
             if (error.code === "RATE_LIMIT") {
-                return { success: false, error: "Limite Metamob atteinte. RÃ©essayez plus tard." };
+                return { success: false, error: "Limite Metamob atteinte. Réessayez plus tard." };
             }
         }
 
@@ -736,17 +780,17 @@ export async function getOcreExchangeJobStatus(
 ): Promise<ActionResponse<{ state: string; progress: any; result?: ExchangePartner[] }>> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         // Security: Ensure user can only check their own started jobs
         if (!jobId.startsWith(`ocre-match-${session.user.id}-`)) {
-            return { success: false, error: "AccÃ¨s refusÃ© Ã  ce Job" };
+            return { success: false, error: "Accès refusé à ce Job" };
         }
 
         const job = await metamobQueue.getJob(jobId);
 
         if (!job) {
-            return { success: false, error: "TÃ¢che introuvable ou expirÃ©e" };
+            return { success: false, error: "Tâche introuvable ou expirée" };
         }
 
         const state = await job.getState();
@@ -764,7 +808,7 @@ export async function getOcreExchangeJobStatus(
 
     } catch (error) {
         console.error("[getOcreExchangeJobStatus] Error:", error);
-        return { success: false, error: "Erreur lors de la vÃ©rification du statut du Job" };
+        return { success: false, error: "Erreur lors de la vérification du statut du Job" };
     }
 }
 
@@ -780,14 +824,14 @@ export async function findMonsterOwnersAction(
 ): Promise<ActionResponse<ExchangePartner[]>> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         const parsed = FindMonsterOwnersSchema.safeParse(rawData);
-        if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
+        if (!parsed.success) return { success: false, error: "Données invalides" };
         const { guildId, monsterId } = parsed.data;
 
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
-        if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
+        if (!guard.allowed) return { success: false, error: "Accès non autorisé" };
 
         const guildApiKey = undefined; // Deprecated guild key
 
@@ -894,14 +938,14 @@ export async function getProfileMatchingArchis(
 ): Promise<ActionResponse<ProfileMatchData>> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         const parsed = GetProfileMatchingSchema.safeParse(rawData);
-        if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
+        if (!parsed.success) return { success: false, error: "Données invalides" };
         const { guildId, targetProfileId } = parsed.data;
 
         const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
-        if (!guard.allowed) return { success: false, error: "AccÃ¨s non autorisÃ©" };
+        if (!guard.allowed) return { success: false, error: "Accès non autorisé" };
 
         // 1. Get Me and Target (scoped to this guild to prevent cross-guild probing)
         const [me, target] = await Promise.all([
@@ -917,8 +961,8 @@ export async function getProfileMatchingArchis(
             })
         ]);
 
-        if (!me?.metamobPseudo || !me.metamobVerified) return { success: false, error: "Votre compte Metamob n'est pas liÃ©" };
-        if (!target?.metamobPseudo || !target.metamobVerified) return { success: false, error: "Le membre n'a pas liÃ© Metamob" };
+        if (!me?.metamobPseudo || !me.metamobVerified) return { success: false, error: "Votre compte Metamob n'est pas lié" };
+        if (!target?.metamobPseudo || !target.metamobVerified) return { success: false, error: "Le membre n'a pas lié Metamob" };
 
         const guildApiKey = undefined;
 
@@ -991,7 +1035,7 @@ export async function getProfileMatchingArchis(
 
     } catch (error) {
         console.error("[getProfileMatchingArchis] Error:", error);
-        return { success: false, error: "Erreur lors du calcul des Ã©changes" };
+        return { success: false, error: "Erreur lors du calcul des échanges" };
     }
 }
 
@@ -1009,7 +1053,7 @@ export async function getGuildExchangeMap(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return { success: false, error: "Non authentifiÃ©" };
+            return { success: false, error: "Non authentifié" };
         }
 
         // Permission check
@@ -1209,7 +1253,7 @@ export async function getOcreZones(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return { success: false, error: "Non authentifiÃ©" };
+            return { success: false, error: "Non authentifié" };
         }
 
         // Permission check
@@ -1240,7 +1284,7 @@ export async function refreshOcreCache(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return { success: false, error: "Non authentifiÃ©" };
+            return { success: false, error: "Non authentifié" };
         }
 
         // Rate limit refresh
@@ -1683,7 +1727,7 @@ export async function createTradeRequest(
 
         const requesterProfile = await db.userProfile.findFirst({
             where: { userId: session.user.id, guildId: guildConfig.id },
-            include: { user: true }
+            include: { user: { include: { accounts: true } } }
         });
 
         if (!requesterProfile) return { success: false, error: "Profil introuvable" };
@@ -1700,7 +1744,7 @@ export async function createTradeRequest(
 
 
         if (requesterProfile.id === targetProfile.id) {
-            return { success: false, error: "Vous ne pouvez pas Ã©changer avec vous-mÃªme" };
+            return { success: false, error: "Vous ne pouvez pas échanger avec vous-même" };
         }
 
 
@@ -1717,7 +1761,7 @@ export async function createTradeRequest(
             return { success: false, error: "Tu as déjà une demande en attente pour ce monstre" };
         }
 
-        // Anti-spam: max 3 demandes en attente simultanÃ©es (monstres diffÃ©rents)
+        // Anti-spam: max 3 demandes en attente simultanées (monstres différents)
         const pendingCount = await (db as any).ocreTradeRequest.count({
             where: {
                 requesterId: requesterProfile.id,
@@ -1763,6 +1807,8 @@ export async function createTradeRequest(
 
         // Discord Ping if requested
         const targetDiscordAccount = targetProfile.user.accounts.find((a: any) => a.provider === "discord");
+        const requesterDiscordAccount = requesterProfile.user.accounts?.find((a: any) => a.provider === "discord");
+        
         if (sendDiscordPing && guildConfig.ocreNotifyChannelId && targetDiscordAccount) {
             try {
                 // Use name/image passed from client (already known in the modal)
@@ -1772,10 +1818,14 @@ export async function createTradeRequest(
                 const { sendChannelMessage } = await import("@/server/discord");
                 const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
                 const requesterName = requesterProfile.discordNickname || requesterProfile.pseudoDofus || requesterProfile.user.name || "Un membre";
+                
+                const targetMention = `<@${targetDiscordAccount.providerAccountId}>`;
+                const requesterMention = requesterDiscordAccount ? `<@${requesterDiscordAccount.providerAccountId}>` : "";
+                const mentions = [requesterMention, targetMention].filter(Boolean).join(" ");
 
                 await sendChannelMessage(
                     guildConfig.ocreNotifyChannelId,
-                    `<@${targetDiscordAccount.providerAccountId}>`,
+                    mentions,
                     {
                         embedTitle: `🤝 Demande d'échange — ${monsterName}`,
                         embedColor: 0x10b981,
@@ -1821,10 +1871,10 @@ const ActionTradeSchema = z.object({
 export async function rejectTradeRequest(rawData: z.infer<typeof ActionTradeSchema>): Promise<ActionResponse> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         const parsed = ActionTradeSchema.safeParse(rawData);
-        if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
+        if (!parsed.success) return { success: false, error: "Données invalides" };
         const { guildId, requestId } = parsed.data;
 
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
@@ -1836,7 +1886,7 @@ export async function rejectTradeRequest(rawData: z.infer<typeof ActionTradeSche
         });
 
         if (!tradeRequest || tradeRequest.guildId !== guildConfig.id) return { success: false, error: "Demande introuvable" };
-        if (tradeRequest.target.userId !== session.user.id) return { success: false, error: "Non autorisÃ©" };
+        if (tradeRequest.target.userId !== session.user.id) return { success: false, error: "Non autorisé" };
 
         await (db as any).ocreTradeRequest.update({
             where: { id: requestId },
@@ -1861,10 +1911,10 @@ export async function rejectTradeRequest(rawData: z.infer<typeof ActionTradeSche
 export async function cancelTradeRequest(rawData: z.infer<typeof ActionTradeSchema>): Promise<ActionResponse> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         const parsed = ActionTradeSchema.safeParse(rawData);
-        if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
+        if (!parsed.success) return { success: false, error: "Données invalides" };
         const { guildId, requestId } = parsed.data;
 
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
@@ -1876,7 +1926,7 @@ export async function cancelTradeRequest(rawData: z.infer<typeof ActionTradeSche
         });
 
         if (!tradeRequest || tradeRequest.guildId !== guildConfig.id) return { success: false, error: "Demande introuvable" };
-        if (tradeRequest.requester.userId !== session.user.id) return { success: false, error: "Non autorisÃ©" };
+        if (tradeRequest.requester.userId !== session.user.id) return { success: false, error: "Non autorisé" };
 
         await (db as any).ocreTradeRequest.update({
             where: { id: requestId },
@@ -1901,10 +1951,10 @@ export async function cancelTradeRequest(rawData: z.infer<typeof ActionTradeSche
 export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSchema>): Promise<ActionResponse> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         const parsed = ActionTradeSchema.safeParse(rawData);
-        if (!parsed.success) return { success: false, error: "DonnÃ©es invalides" };
+        if (!parsed.success) return { success: false, error: "Données invalides" };
         const { guildId, requestId } = parsed.data;
 
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
@@ -1916,8 +1966,8 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
         });
 
         if (!tradeRequest || tradeRequest.guildId !== guildConfig.id) return { success: false, error: "Demande introuvable" };
-        if (tradeRequest.target.userId !== session.user.id) return { success: false, error: "Non autorisÃ©" };
-        if (tradeRequest.status !== "PENDING") return { success: false, error: "Demande dÃ©jÃ  traitÃ©e" };
+        if (tradeRequest.target.userId !== session.user.id) return { success: false, error: "Non autorisé" };
+        if (tradeRequest.status !== "PENDING") return { success: false, error: "Demande déjà traitée" };
 
         // Mark as Accepted
         await (db as any).ocreTradeRequest.update({
@@ -1930,8 +1980,8 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
             data: {
                 userId: tradeRequest.requester.userId,
                 type: "OCRE_TRADE_ACCEPTED",
-                title: "Ã‰change AcceptÃ©",
-                message: `${tradeRequest.target.discordNickname || tradeRequest.target.metamobPseudo || "Un membre"} a acceptÃ© votre Ã©change !`,
+                title: "Échange Accepté",
+                message: `${tradeRequest.target.discordNickname || tradeRequest.target.metamobPseudo || "Un membre"} a accepté votre échange !`,
                 link: `/dashboard/${guildId}/quete-ocre`,
             }
         });
@@ -1992,7 +2042,7 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
 export async function getPendingTradeRequests(guildId: string): Promise<ActionResponse<any>> {
     try {
         const session = await auth();
-        if (!session?.user?.id) return { success: false, error: "Non authentifiÃ©" };
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
         const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
@@ -2101,5 +2151,140 @@ export async function getZoneArchmonsters(guildId: string, zoneName: string): Pr
     } catch (error) {
         console.error("[getZoneArchmonsters] Error:", error);
         return { success: false, error: "Erreur lors du filtrage des archimonstres" };
+    }
+}
+
+// -----------------------------------------------------------------------------
+// EXPERT ACTIONS: SETTINGS & BULK UPDATES
+// -----------------------------------------------------------------------------
+
+/**
+ * Update global quest settings (parallel quests, trade mode, thresholds, filters).
+ */
+export async function updateOcreSettingsAction(
+    rawData: z.infer<typeof UpdateSettingsSchema>
+): Promise<ActionResponse<QuestSettings>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const parsed = UpdateSettingsSchema.safeParse(rawData);
+        if (!parsed.success) return { success: false, error: "Données invalides" };
+        const { guildId, settings } = parsed.data;
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guild: { discordGuildId: guildId }, status: "ACTIVE" },
+            select: { id: true, metamobApiKey: true, metamobQuestSlug: true }
+        });
+
+        if (!profile?.metamobApiKey || !profile.metamobQuestSlug) {
+            return { success: false, error: "Compte Metamob non lié ou clé API manquante" };
+        }
+
+        const effectiveApiKey = decrypt(profile.metamobApiKey as string) || "";
+        const result = await updateQuestSettings(profile.metamobQuestSlug as string, settings, { guildApiKey: effectiveApiKey });
+
+        // Invalidate local caches to reflect changes (especially parallel_quests)
+        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
+        revalidatePath(`/dashboard/${guildId}/quete-ocre`);
+
+        return { success: true, data: result };
+    } catch (error: any) {
+        console.error("[updateOcreSettingsAction] Error:", error);
+        return { success: false, error: error.message || "Erreur lors de la mise à jour des paramètres" };
+    }
+}
+
+/**
+ * Update specific trade parameters for a monster (manual override).
+ */
+export async function updateMonsterTradeParamsAction(
+    rawData: z.infer<typeof UpdateTradeParamsSchema>
+): Promise<ActionResponse> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const parsed = UpdateTradeParamsSchema.safeParse(rawData);
+        if (!parsed.success) return { success: false, error: "Données invalides" };
+        const { guildId, monsterId, params } = parsed.data;
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guild: { discordGuildId: guildId }, status: "ACTIVE" },
+            select: { metamobApiKey: true, metamobQuestSlug: true }
+        });
+
+        if (!profile?.metamobApiKey || !profile.metamobQuestSlug) {
+            return { success: false, error: "Compte non lié" };
+        }
+
+        const effectiveApiKey = decrypt(profile.metamobApiKey as string) || "";
+        await updateMonsterTradeParams(profile.metamobQuestSlug as string, monsterId, params, { guildApiKey: effectiveApiKey });
+
+        // Partial cache invalidation is hard, so we just clear progress
+        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("[updateMonsterTradeParamsAction] Error:", error);
+        return { success: false, error: error.message || "Erreur lors de la mise à jour du trade" };
+    }
+}
+
+/**
+ * Bulk update quantities for multiple monsters.
+ */
+export async function bulkUpdateMonsterQuantitiesAction(
+    rawData: z.infer<typeof BulkUpdateQuantitiesSchema>
+): Promise<ActionResponse> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const parsed = BulkUpdateQuantitiesSchema.safeParse(rawData);
+        if (!parsed.success) return { success: false, error: "Données invalides" };
+        const { guildId, monsters } = parsed.data;
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guild: { discordGuildId: guildId }, status: "ACTIVE" },
+            select: { metamobApiKey: true, metamobQuestSlug: true }
+        });
+
+        if (!profile?.metamobApiKey || !profile.metamobQuestSlug) {
+            return { success: false, error: "Compte non lié" };
+        }
+
+        const effectiveApiKey = decrypt(profile.metamobApiKey as string) || "";
+        await bulkUpdateMonsters(profile.metamobQuestSlug as string, monsters, { guildApiKey: effectiveApiKey });
+
+        // Clear progress cache
+        await invalidateCache(`ocre:progress:${guildId}:${session.user.id}`);
+        revalidatePath(`/dashboard/${guildId}/quete-ocre`);
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("[bulkUpdateMonsterQuantitiesAction] Error:", error);
+        return { success: false, error: error.message || "Erreur lors de la mise à jour groupée" };
+    }
+}
+
+/**
+ * Get public config for Ocre (e.g., trade channel id) for UI components
+ */
+export async function getOcrePublicConfig(guildId: string) {
+    try {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isAuthenticated) return { success: false, error: "Non autorisé" };
+
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { ocreNotifyChannelId: true }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+        
+        return { success: true, data: config };
+    } catch (e: any) {
+        return { success: false, error: e.message };
     }
 }

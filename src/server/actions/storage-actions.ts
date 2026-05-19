@@ -52,10 +52,6 @@ export type StorageGuildEntry = {
     kamaCount: number;
     kamaBytes: number;
     kamaFiles: DiskFile[];
-    achievementDir: string;
-    achievementCount: number;
-    achievementBytes: number;
-    achievementFiles: DiskFile[];
     // preuves prêts & coffre
     loansProofsDir: string;
     loansProofsCount: number;
@@ -72,6 +68,11 @@ export type StorageGuildEntry = {
     pendingFiles: PendingFile[];
     // guild assets
     assets: GuildAsset[];
+    // achievement stats
+    achievementDir: string;
+    achievementCount: number;
+    achievementBytes: number;
+    achievementFiles: DiskFile[];
 };
 
 export type StorageOverview = {
@@ -173,31 +174,6 @@ async function getPendingFilesForGuild(
         }
     } catch { }
 
-    try {
-        const achSubs = await (db as any).achievementSubmission.findMany({
-            where: { guildId, status: "PENDING", proofUrl: { not: "" } },
-            select: {
-                id: true, proofUrl: true, createdAt: true,
-                profile: { select: { discordNickname: true, pseudoDofus: true } },
-            },
-            orderBy: { createdAt: "asc" },
-        });
-        for (const sub of achSubs) {
-            if (!sub.proofUrl) continue;
-            try {
-                const physicalPath = sub.proofUrl.replace(/^\/uploads\//, "").replace(/^\/api\/storage\//, "");
-                const s = await stat(join(cwd, "private_uploads", physicalPath));
-                pendingFiles.push({
-                    filename: sub.proofUrl.split(/[/\\]/).pop() || sub.id,
-                    url: sub.proofUrl, sizeBytes: s.size,
-                    createdAt: sub.createdAt,
-                    expiresAt: new Date(sub.createdAt.getTime() + EXPIRY_MS),
-                    submissionId: sub.id, type: "ACHIEVEMENT",
-                    memberName: sub.profile?.discordNickname || sub.profile?.pseudoDofus || "Membre",
-                });
-            } catch { }
-        }
-    } catch { }
 
     return pendingFiles;
 }
@@ -225,19 +201,20 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
             guilds.map(async (g: any) => {
                 const missionsDir = join(cwd, "private_uploads", "proofs", g.discordGuildId);
                 const kamaDir = join(cwd, "private_uploads", "guilds", g.id, "proofs");
+                const presentationDir = join(cwd, "private_uploads", "guilds", g.id, "presentation");
+
                 const achievementDir = join(cwd, "private_uploads", "guilds", g.id, "achievements");
-                const presentationDir = join(cwd, "private_uploads", "guilds", g.id); // Root of guild folder for presentation assets
 
-                const missionsUrlBase = `/uploads/proofs/${g.discordGuildId}`;
-                const kamaUrlBase = `/uploads/guilds/${g.id}/proofs`;
-                const achievementUrlBase = `/uploads/guilds/${g.id}/achievements`;
-                const presentationUrlBase = `/uploads/guilds/${g.id}`;
+                const missionsUrlBase = `/api/storage/proofs/${g.discordGuildId}`;
+                const kamaUrlBase = `/api/storage/guilds/${g.id}/proofs`;
+                const presentationUrlBase = `/api/storage/guilds/${g.id}/presentation`;
+                const achievementUrlBase = `/api/storage/guilds/${g.id}/achievements`;
 
-                const [missionsList, kamaList, achievementList, presentationList, pendingFiles] = await Promise.all([
+                const [missionsList, kamaList, presentationList, achievementList, pendingFiles] = await Promise.all([
                     dirList(missionsDir, missionsUrlBase),
                     dirList(kamaDir, kamaUrlBase),
-                    dirList(achievementDir, achievementUrlBase),
                     dirList(presentationDir, presentationUrlBase),
+                    dirList(achievementDir, achievementUrlBase),
                     getPendingFilesForGuild(g.id, g.discordGuildId, cwd),
                 ]);
 
@@ -293,26 +270,26 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
                     missionsCount: missionsList.count,
                     missionsBytes: missionsList.bytes,
                     missionsFiles: enrich(missionsList.files),
-                    kamaDir: `${kamaUrlBase}/`,
+                    kamaDir: normalize(kamaDir).replace(cwd, "").replace(/\\/g, "/"),
                     kamaCount: kamaList.count,
                     kamaBytes: kamaList.bytes,
                     kamaFiles: enrich(kamaList.files),
-                    achievementDir: `${achievementUrlBase}/`,
+                    achievementDir: normalize(achievementDir).replace(cwd, "").replace(/\\/g, "/"),
                     achievementCount: achievementList.count,
                     achievementBytes: achievementList.bytes,
                     achievementFiles: enrich(achievementList.files),
-                    loansProofsDir: `${kamaUrlBase}/`, // share same dir as kama proofs
-                    loansProofsCount: kamaList.count,
-                    loansProofsBytes: kamaList.bytes,
-                    loansProofsFiles: enrich(kamaList.files),
-                    presentationDir: `${presentationUrlBase}/`,
+                    presentationDir: normalize(presentationDir).replace(cwd, "").replace(/\\/g, "/"),
                     presentationCount: presentationList.count,
                     presentationBytes: presentationList.bytes,
                     presentationFiles: enrich(presentationList.files),
+                    loansProofsDir: normalize(kamaDir).replace(cwd, "").replace(/\\/g, "/"),
+                    loansProofsCount: kamaList.count,
+                    loansProofsBytes: kamaList.bytes,
+                    loansProofsFiles: enrich(kamaList.files),
                     activeLoanProofs,
                     pendingMissions,
                     pendingKamas,
-                    pendingFiles,
+                    pendingFiles: pendingFiles || [],
                     assets,
                 };
             })
@@ -323,7 +300,6 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
         // First get all valid DB references
         const dbProofsArray = await Promise.all([
             db.submission.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }),
-            (db as any).achievementSubmission.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }),
             (kamaDb as any).kamaDonation ? (kamaDb as any).kamaDonation.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }).catch(() => []) : Promise.resolve([]),
             db.guildLoan.findMany({ where: { proofUrl: { not: null } }, select: { proofUrl: true } }),
             db.vaultEntry.findMany({ where: { proofUrl: { not: null } }, select: { proofUrl: true } })
@@ -338,15 +314,15 @@ export async function getStorageOverview(): Promise<{ success: boolean; data?: S
             }
         });
 
-        const totalBytes = entries.reduce((s, e) => s + e.missionsBytes + e.kamaBytes + e.achievementBytes, 0);
-        const totalFiles = entries.reduce((s, e) => s + e.missionsCount + e.kamaCount + e.achievementCount, 0);
+        const totalBytes = entries.reduce((s, e) => s + e.missionsBytes + e.kamaBytes, 0);
+        const totalFiles = entries.reduce((s, e) => s + e.missionsCount + e.kamaCount, 0);
         
         const orphanFiles: DiskFile[] = [];
         const now = Date.now();
         const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 
         entries.forEach(e => {
-            const diskFiles = [...e.missionsFiles, ...e.kamaFiles, ...e.achievementFiles];
+            const diskFiles = [...e.missionsFiles, ...e.kamaFiles];
             diskFiles.forEach(df => {
                 const isPending = e.pendingFiles.some(pf => pf.filename === df.filename);
                 // ONLY count as orphans if no DB reference, not pending, AND older than 4 hours (safety margin)
@@ -384,7 +360,6 @@ export async function cleanOrphanStorage(): Promise<{ success: boolean; deletedC
         // Fetch valid DB references again to be 100% sure before deletion
         const dbProofsArray = await Promise.all([
             db.submission.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }),
-            (db as any).achievementSubmission.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }),
             (kamaDb as any).kamaDonation ? (kamaDb as any).kamaDonation.findMany({ where: { proofUrl: { not: "" } }, select: { proofUrl: true } }).catch(() => []) : Promise.resolve([]),
             db.guildLoan.findMany({ where: { proofUrl: { not: null } }, select: { proofUrl: true } }),
             db.vaultEntry.findMany({ where: { proofUrl: { not: null } }, select: { proofUrl: true } })
@@ -401,7 +376,7 @@ export async function cleanOrphanStorage(): Promise<{ success: boolean; deletedC
         const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 
         for (const guild of data.guilds) {
-            const allDiskFiles = [...guild.missionsFiles, ...guild.kamaFiles, ...guild.achievementFiles];
+            const allDiskFiles = [...guild.missionsFiles, ...guild.kamaFiles];
             const pendingFilenames = new Set(guild.pendingFiles.map(f => f.filename));
 
             for (const file of allDiskFiles) {

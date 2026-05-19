@@ -35,7 +35,8 @@
     - Peut se téléporter au contact du Goule le plus proche (relance 2)
     - Taper Anerice attire les autres mobs vers l'attaquant de 1 case (1x par tour)
   Advice: |
-    - La garder loin au début et <u>**finir en 4v1**</u> facilite drastiquement le combat
+    - La garder loin au début et <u>**finir en 4v1**</u> facilite drastiquement le combat. Elle lance son sort à 3 PO que sur les alliés pas déjà goulifiés. Une fois la team en goule, elle est donc inoffensive seule
+    - Son bonus 50% dommages finaux est rentable à débuff sur d'autres boss dangéreux
     - Taper sous <u>**érosion**</u> permet de la descendre sans devoir la tanker du tout
     - Dans des rares cas, se laisser goulifier tour 1 est rentable pour un énorme burst tour 2
   InformationShort: |
@@ -61,6 +62,7 @@
   Advice: |
     - Elle est inoffensive sans avoir tapé pour 2 tours. C'est une bonne occasion de la tuer tôt
     - L'état <u>**Pesanteur**</u> est la clé pour l'esquiver très facilement (son bond et sa coop)
+    - Pour contrer sa coop, un Pandawa peut simplement porter l'allié Clochecuivre quand l'état Pesanteur n'est pas disponible
   InformationShort: |
     - Se boost des états en tapant, max 2 par tour
     - À 3 états, peut vous <u>**oneshot**</u> au contact
@@ -191,13 +193,20 @@
   Evasion: 3
   Tanking: 7
   Information: |
+    - Les 4 Blops Royaux apparaissent toujours ensemble  
     - Tapent à 4 PO en volant 1 PM
     - Invoquent un Blop aléatoire à 2 PO (1 max)
     - Peuvent booster 100% rés de leur élément à un allié à 4 PO (3 tours, relance 3)
   Advice: |
-    - Le retrait de 3 PO fera qu'ils ne tapent qu'à 1 PO
+    - Vous allez subir <u>**une avalanche de dégâts et d'entités**</u>!
+    - Pour une gestion à l'arrache, prévoyez un tanking confortable (Feca / Zobal / Prytek / Dofus des Veilleurs / ...)
+    - Sur une grande map, un Sadida air Infection est extrêment efficace, les Blops posant 8 cibles à infecter avec eux-même et leurs invocations
+    - Si le placement le permet, un Blop peut être bloqué sous -1 PO. Il ne pourra invoquer
   InformationShort: |
     - Invoquent un Blop aléatoire et boost un mob 100% rés dans leur élément
+  AdviceShort: |
+    - Vous allez subir <u>**une avalanche de dégâts et d'entités**</u>!
+    - Prévoyez un tanking confortable (Feca / Zobal / Prytek / Dofus des Veilleurs / ...) ou une Infection Sadida air
 
 - Id: 2975
   Name: Boostache
@@ -212,7 +221,7 @@
     - Invoque un Ashi-Magari à 3 PO qui met -100 PM et Pesanteur au contact (relance 3)
     - <u>**Reinvoque un allié mort chaque tour avec 100% de ses PV**</u>
   Advice: |
-    - L'érosion et le -100 PM de son invocation sont débuffables. Vous pouvez également tuez l'invocation pour se débarasser du malus, ses PV étant faibles
+    - L'érosion et le -100 PM de son invocation sont débuffables. Vous pouvez également tuer l'invocation pour se débarasser du malus, ses PV étant faibles
     - L'élément air est déconseillé vu ses énormes rés air. Vous voulez le focus en premier
   InformationShort: |
     - Tape au contact  
@@ -557,7 +566,7 @@
     - Stratégie 1: Délock les monstres 1 par 1 (<u>**délock infini**</u>) et laisser Corruption en dernier
     - Stratégie 2: Délock Corruption en premier <u>**ce qui va délock toute la map (et lui-même) pour 3 tours**</u>. Pratique surtout contre 8 mobs
     - L'état <u>**Pesanteur**</u> empêche la coop lors du délock du boss. L'état est très fortement conseillé pour la stratégie 2
-    - Si Corruption est vivant 3 tours après son délock, <u>**toute la map va récupérer le poison**</u>, mêmes les invocations ennemis. Il faudra refaire le délock
+    - Si Corruption est vivant 3 tours après son délock, <u>**toute la map va récupérer le poison**</u>, même les invocations ennemis. Il faudra refaire le délock
     - Les soins déclenchés (Soif de Moskito, Proie etc) sont extrêment utiles, tout comme les vols de vie multi-ligne
     - Un Panda peut 1v1 Corruption en spammant Souffle Alcoolisé sur un Bambou. C'est le Bambou qui prendra le poison, le délock ne sera pas nécessaire
   InformationShort: |
@@ -589,7 +598,7 @@
   Advice: |
     - Vous voulez absolument éviter de se prendre un -100 PA!
     - <u>**Solution 1**</u>: Gardez le boss dans votre mêlée, il va très souvent préférer de taper en zone x2 plutôt que de lancer le sort boost PA
-    - <u>**Solution 2**</u>: Débuff de 4 tours quand il lance le boost PA (extrêment contraignant)
+    - <u>**Solution 2**</u>: Débuff de 5 tours quand il lance le boost PA (extrêment contraignant)
     - <u>**Solution 3**</u>: Jouer un perso qui débuff juste après le Craqueleur, et porté par un Pandawa. Le perso sera immune au -100 PA, et pourra debuff la team en descendant
   InformationShort: |
     - Tape en zone jusq'à 3 PO. <u>**Avec 12 PA il peut retirer 100 PA à votre team**</u>
@@ -599,7 +608,7 @@
   AdviceShort: |
     - Vous voulez absolument éviter de se prendre un -100 PA!
     - <u>**Solution 1**</u>: Gardez le boss dans votre mêlée, il va très souvent préférer de taper en zone x2 plutôt que de lancer le sort boost PA
-    - <u>**Solution 2**</u>: Débuff de 4 tours quand il lance le boost PA (extrêment contraignant)
+    - <u>**Solution 2**</u>: Débuff de 5 tours quand il lance le boost PA (extrêment contraignant)
     - <u>**Solution 3**</u>: Jouer un perso qui débuff juste après le Craqueleur, et porté par un Pandawa. Le perso sera immune au -100 PA, et pourra debuff la team en descendant
  
 - Id: 854
@@ -642,6 +651,37 @@
   Advice: |
     - Crocus a un stuff 600 do pou et vous oneshot facilement contre un mur. Esquivez le à tout prix ou équipez des lourds re pou, servez vous des états Indéplaçable, Inébranlable ou des pièges
     - Pour rapidement délock les Chênes, servez vous des do pou de Crocus. Vous pouvez utilisez vos invocations pour pas se faire do pou vous-même
+
+- Id: 5664
+  Name: Croqueleur
+  Image: 5664_Croqueleur.png
+  Difficulty: 6
+  ImmediateFocus: 0
+  Evasion: 7
+  Tanking: 3
+  Information: |
+    - Tape à 3-9 PO en croix diagonal de 1 (cible nécessaire), à 2 PO en cône et peut attirer à 8 PO de 1-3 cases selon son état
+    - Ses 3 sorts ont des nombreux effets kisscool qui changent en fonction de son état. Les plus notables sont un -50% dommages mêlée et une Poisse. Tout dure 1 tour, débuffable
+    - <u>**Délock**</u>: Le délock est impossible! À la place, il faut faire invoquer 4 pépites consécutivement et les tuer pour tuer le Croqueleur
+    - <u>**Pour invoquer une pépite, il faut 2 actions: 1) Le taper dans un élément lui appliquera un état pour 1 tour 2) Le déplacer pendant qu'il a cet état**</u>
+    - L'ordre des éléments pour chaque pépite est <u>**stricte: 1) feu, 2) air, 3) eau, 4) terre**</u>
+    - Vous avez 1 tour entier pour tuer la première pépite, et deux tours entiers pour les pépites 2, 3 et 4. Sinon, il faudra recommencer la pépite
+    - La première pépite est Invulnérable à distance. Les pépites suivantes ont 70%, 40% et 10% résistances distance mais ont progressivement plus de vitalité
+    - À chaque pépite morte, le Croqueleur perd de la Puissance mais gagne 1 PA et 1 PM
+  Advice: |
+    - Ce boss est très chiant à tuer. Tuez-le en dernier
+    - Il fait mal mais n'a que 3 PM, gardez-le à l'autre bout de la map le temps de clean le reste de la salle
+    - Si vous le tankez, ne placez pas vos perso à 1 PO en diago ou sinon il pourra démultiplier ses actions
+  InformationShort: |
+    - Tape à 3-9 PO, à 2 PO et peut attirer à 8 PO. Il applique des effets kisscool selon son état
+    - <u>**Délock**</u>: Le délock est impossible! À la place, il faut faire invoquer 4 pépites et les tuer pour tuer le Croqueleur
+    - Pour invoquer une pépite, il faut 2 actions: 1) Le taper dans un élément lui appliquera un état (1 tour) 2) Le déplacer pendant qu'il a cet état
+    - L'ordre des éléments pour chaque pépite est <u>**stricte: feu, air, eau, terre**</u>
+    - Vous avez 1 tour entier pour tuer la première pépite, et deux tours entiers pour les pépites 2, 3 et 4. Sinon, il faudra recommencer la pépite
+    - La première pépite est Invulnérable à distance. Les pépites suivantes ont 70%, 40% et 10% résistances distance mais ont progressivement plus de vitalité
+  AdviceShort: |
+    - Ce boss est très chiant à tuer. Tuez-le en dernier
+    - Il fait mal mais n'a que 3 PM, gardez-le à l'autre bout de la map le temps de clean le reste de la salle
 
 - Id: 3000000
   Name: Diddy
@@ -973,6 +1013,7 @@
   Evasion: 3
   Tanking: 7
   Information: |
+    - Les 4 Gélées Royales apparaissent toujours ensemble  
     - Chaque Gélée applique des bonus / malus négligeables qui varient selon la friandise (PA, PM, puissance, soin, réduction)
     - Tapent à 7 PO avec 2 PO minimale, bondissent à 2 PO en tapant en zone (relance 3)
     - Invoquent une Gélée au contact (1 max par boss, relance 5)
@@ -1237,14 +1278,14 @@
     - Kabahal sera Invulnérable tant qu'un bras est en vie, sauf contre les dégâts du glyphe du bras
   Advice: |
     - Ne collez pas tout le monde proche de Kabahal pour éviter des lourds dégâts de zone
-    - Il suffit d'occupuer sa rune avec un perso pour bloquer l'invocation du bras
+    - Il suffit d'occuper sa rune avec un perso pour bloquer l'invocation du bras
     - Jouer sur le bras est inutile, tuez-le tout simplement
   InformationShort: |
     - Tape à 12 PO, à 6 PO et au contact
     - Peut mettre une rune au tour 2 qui invoquera un bras statique sur la rune tour 3
     - Kabahal sera Invulnérable tant qu'un bras est en vie, sauf contre les dégâts du glyphe du bras
   AdviceShort: |
-    - Il suffit d'occupuer sa rune avec un perso pour bloquer l'invocation du bras
+    - Il suffit d'occuper sa rune avec un perso pour bloquer l'invocation du bras
     - Jouer sur le bras est inutile, tuez-le tout simplement
 
 - Id: 3556
@@ -1691,6 +1732,30 @@
     - Profiter du malus 50% rés est très conseillé. Bambouseraie ou Pavois peuvent aider pour entourer
     - L'état <u>**Pesanteur**</u> déclenche le -50% également, sans devoir entourer
 
+- Id: 5653
+  Name: Mawabouaino
+  Image: 5653_Mawabouaino.png
+  Difficulty: 1
+  ImmediateFocus: 1
+  Evasion: 3
+  Tanking: 7
+  Information: |
+    - Tape à 8 PO en retirant un PM (1 tour), tape à 10 PO en ligne sans ligne de vue en retirant 20% rés terre (1 tour). À partir du tour 4 (relance 2), peut taper en cercle 2 en repoussant de 2 cases (non-esquivable)
+    - *Aux tours 1, 4, 7 etc:* Invoque un Twakeuf qui tape au contact, en cône de 2 et qui peut voler de la vitalité à 3 PO
+  Mechanic: |
+    - Tant que le Mawabouaino est vivant, chaque mob qui meurt pose un glyphe sur sa case de mort (1 tour)
+    - <u>**Une entité qui passe sur le glyphe gagne 3 PA et énormément de Puissance**</u> (2 tours, non-cumulable)
+  Advice: |
+    - Le glyphe peut boost 1000-2000 Puissance à toute votre team selon le palier. Ramenez un mob dans votre camp, tuez-le et annilihez la salle avec le boost
+  InformationShort: |
+    - Tape à 8 PO ou à 10 PO en ligne sans ligne de vue
+    - Invoque des Twakeufs qui tapent à courte PO
+  MechanicShort: |
+    - Tant que le Mawabouaino est vivant, chaque mob qui meurt pose un glyphe sur sa case de mort (1 tour)
+    - <u>**Une entité qui passe sur le glyphe gagne 3 PA et énormément de Puissance**</u> (2 tours, non-cumulable)
+  AdviceShort: |
+    - Le glyphe peut boost 1000-2000 Puissance à toute votre team selon le palier. Ramenez un mob dans votre camp, tuez-le et annilihez la salle avec le boost
+
 - Id: 3534
   Name: Merkator
   Image: 3534_Merkator.png
@@ -2034,7 +2099,7 @@
 - Id: 4726
   Name: Père Ver
   Image: 4726_Pere Ver.png
-  Difficulty: 7
+  Difficulty: 8
   ImmediateFocus: 2
   Evasion: 0
   Tanking: 10
@@ -2115,6 +2180,38 @@
     - <u>**Délock**</u>: Rendre les 3 puces au même état via un coup au contact désactive le renvoi jusqu'au prochain tour du Pounicheur
   AdviceShort: |
     - Le boss tape une seule fois, il peut presque totalement être ignoré
+
+- Id: 5666
+  Name: Prêtresse de Kao
+  Image: 5666_Pretresse de Kao.png
+  Difficulty: 7
+  ImmediateFocus: 0
+  Evasion: 1
+  Tanking: 9
+  Information: |
+    - Tape à 8 PO en volant 1 PM, tape en zone de 4 en ligne jusqu'à 7 PO
+    - *Aux tours 1, 3, 5 etc:* Tape tous les alliés sur la map
+    - *Aux tours 1, 4, 7 etc:* Soigne tous les mobs 10% et boost leurs dommages fixes (1 tour)
+    - Aux tours 1, 3, 5 etc, elle invoque un <u>**Éclat**</u> statique qui augmente sa vita (1 tour) pour chaque perso en vie. Un nouvel Éclat remplace le précédent. Taper l'Éclat vous inflige l'état <u>**Chocolathé**</u> (3 tours)
+    - <u>**Délock**</u>: Tuer un Éclat par un allié ou par sa perte de vita file un état au boss (infini). À 3 états ET tant que l'Éclat est mort, la Prêtresse est vulnérable
+    - Chaque état augmente ses dégâts: les états 1 / 2 / 3 donnent 50% / 75% / 100% dommages finaux (non-cumulatif)
+    - <u>**Son sort sur toute la map est violemment boosté pour chaque état Chocolathé sur vos alliés. Rien qu'un seul état ira plus que doubler les dégâts du sort!**</u>
+  Advice: |
+    - Les résistances neutre sont très utiles  
+    - Sans mob de sa zone, il est impossible de délock la Prêtresse avant le tour 5
+    - Pour simplifier le combat, laissez la Prêtresse en dernier et ne tapez jamais l'Éclat avant
+    - Tapez l'Éclat avec un seul allié maximum pour minimiser les états Chocolathé
+    - Plusieurs <u>**bypass**</u> de l'état Chocolathé sont possibles: Tuer l'Éclat en une seule grosse ligne de dégâts (surtout après la perte de son bonus vita!), taper aux poisons, taper aux invocations pour les tuer derrière, porter le perso qui a l'état avec un Pandawa (ainsi, elle ne pourra pas se boost dessus!)
+  InformationShort: |
+    - Tape à 8 PO max, sinon elle tape tout le monde aux tours impairs
+    - Aux tours 1, 3, 5 etc, elle invoque un <u>**Éclat**</u> statique qui augmente sa vita (1 tour) pour chaque perso en vie. Un nouvel Éclat remplace le précédent. Taper l'Éclat vous inflige l'état <u>**Chocolathé**</u> (3 tours)
+    - <u>**Délock**</u>: Tuer un Éclat par un allié ou par sa perte de vita file un état au boss (infini). À 3 états ET tant que l'Éclat est mort, la Prêtresse est vulnérable
+    - Chaque état augmente ses dommages finaux
+    - <u>**Son sort sur toute la map est violemment boosté pour chaque état Chocolathé sur vos alliés. Rien qu'un seul état ira plus que doubler les dégâts du sort!**</u>
+  AdviceShort: |
+    - Pour simplifier le combat, laissez la Prêtresse en dernier et ne tapez jamais l'Éclat avant
+    - Tapez l'Éclat avec un seul allié maximum pour minimiser les états Chocolathé
+    - Plusieurs <u>**bypass**</u> de l'état Chocolathé sont possibles: Tuer l'Éclat en une seule grosse ligne de dégâts (surtout après la perte de son bonus vita!), taper aux poisons, taper aux invocations pour les tuer derrière, porter le perso qui a l'état avec un Pandawa (ainsi, elle ne pourra pas se boost dessus!)
 
 - Id: 2992
   Name: Professeur Xa
@@ -2488,11 +2585,11 @@
     - Le boss a des sorts très variés selon la phase. Il a 4 phases dont chacune dure 3 tours, le cycle recommence donc à priori tour 13
     - Sur ses phases matin / midi / soir / nuit, vos PA sont modifiés: +1 / +2 / -1 / -2
     - *Phase 1:* Tape en ligne à 6 PO max. Les mobs se soignent en début de tour
-    - *Phase 2:* Tape violemmemnt toute la map, bondit à 6 PO et tape fort au contact. Les mobs gagnent en Puissance
+    - *Phase 2:* Tape violemment toute la map, bondit à 6 PO et tape fort au contact. Les mobs gagnent en Puissance
     - *Phase 3:* N'est pas très dangéreux, peut -4 PM et Pesanteur un perso. Les mobs renvoient des dégâts
     - *Phase 4:* Tape très peu mais applique des poisons PA / PM en zone. Les mobs gagnent 2 PM
     - Il est <u>**délock**</u> uniquement en Phase 4. <u>**Il doit mourrir sous Necronyx ou vous allez perdre le combat!**</u>
-    - Necronyx fera que Solar avance sa phase au prochain tour, prématurément
+    - Necronyx fera que Solar avance sa phase au prochain tour, prématurément. Il enlèvera aussi l'état Necronyx
     - Quand il finit son tour, il pousse les alliés qui sont à 7 PO ou plus jusqu'à l'autre bout de la map (sans do pou)
     - Il renvoie 50% des dégâts en carré de 1 autour de lui sauf sous Necronyx
     - Il reinvoque tous les mobs morts. Un mob reinvoqué qui était Necronyx ne rejoue pas
@@ -2626,9 +2723,10 @@
     - Débloque un sort de bond et un sort de poussée sur ses prochaines phases
     - *Au lancement du combat et à la fin de chaque tour:* <u>**pose un glyphe autour qui rend Invulnérable les mobs dedans**</u>
     - Quand il est dans son glyphe: taper à distance l'attire de 2 et taper en mêlée le repousse de 2
+    - Il a des "demi-seuils" (icône état Affaibli!). Si vous le laissez dans cet état avant son tour, il va fortement se soigner
   Advice: |
     - Si le Tanukoui San n'est pas votre premier focus, isolez le des autres mobs pour pouvoir ignorer son glyphe
-    - Il ne tape pas très fort, vous pouvez l'ignorez facilement
+    - Il ne tape pas très fort, vous pouvez l'ignorer facilement
   InformationShort: |
     - *Au lancement du combat et à la fin de chaque tour:* <u>**pose un glyphe autour qui rend Invulnérable les mobs dedans**</u>
   AdviceShort: |
@@ -2687,7 +2785,7 @@
   Tanking: 8
   Information: |
     - Tape à 8 PO en ligne ou diagonale, tape en ligne ou diagonale infinie selon le tour, tape à 10 PO avec les dégâts qui rebondissent à 5 PO (3 rebonds max)
-    - Lancé quand des PV étaient perdus: réduction de dégâts sur soit de 25% (2 tours, relance 3)
+    - Réduction de dégâts sur soit de 25% (2 tours, relance 3)
   Mechanic: |
     - Les mobs profitent d'un boost cyclique chaque tour et appliquent ce même boost (infini) sur les autres mobs en mourrant
     - <u>**Les 8 boosts du Cycle sont dans l'ordre: 1) renvoie de dégâts à 2 PO autour de vous, 2) 20% réduction, 3) 10% rés, 4) 2 PM, 5) renvoi de dégâts classique, 6) 2 PA, 7) bouclier, 8) 20% dommages finaux**</u>
@@ -2698,6 +2796,7 @@
     - Si vous voulez absolument achever un ennemi vite, essayez de tuer au tour 1 pour éviter les bonus de tank
     - Sinon il est préférable de baisser les PV de toute le monde et tout tuer au tour 4 (bonus PM), surtout contre un groupe de 8
     - <u>**Ne tuez jamais au tour 5**</u> si possible, ou vous allez taper sur un gros renvoi pour le reste du combat
+    - Tuer Torkélonia <u>**avec une invocation**</u> esquive le oneshot de l'attaquant
   InformationShort: |
     - Tape à 8 PO en ligne ou diagonale en zone, a un sort qui rebondit à 10 PO
   MechanicShort: |
@@ -2806,6 +2905,7 @@
     - <u>**Délock**</u>: *Aux tours 2, 4, 6 etc:* Le Vénérable se soigne, s'endort, passe donc son tour et devient Vulnérable et Indéplaçable
   Advice: |
     - Le Vénérable est extrêment violent quand il joue dans votre camp. Profitez du tour Invu pour le dégager loin, sinon il sera Indéplaçable au tour pair
+    - S'il joue premier sur une petite map, une Prygen ou Prymune est très intéressante
     - Si vous êtes assez loin, il s'avance juste avec ses PM et passe tour, sans utiliser le bond. 1 tour sur 4, il lancera son sort terre sur toute la map
     - Tous ses sorts sont sensibles au retrait PO
     - Pour accélérer le kill, vous pouvez le mettre Insoignable aux tours impairs, donc avant le sommeil
@@ -2926,6 +3026,130 @@
   AdviceShort: |
     - Avec peu de PM et 3 PO, il est très simple à éviter. En cas de déplacement, l'état Pesanteur peut bloquer sa coop
     - <u>**Le sommet de dégâts (auroraire) sera au tour 3 avec votre troisième perso dans l'initiative**</u>
+
+- Id: 681
+  Name: Diamantine
+  Image: 681_Diamantine.png
+  Difficulty: 5
+  ImmediateFocus: 9
+  Evasion: 10
+  Tanking: 0
+  Information: |
+    - Les 4 Poupées du Skeunk apparaissent toujours ensemble  
+    - Chaque poupée tape à 3-9 PO en ligne et peut débuff intégralement au contact (relance 10)
+    - <u>**Diamantine**</u>: Met tous les alliés Pesanteur (4 tours) en se boostant en vita, bondit à 6 PO (relance 2). Aux tours 2, 6, 10 etc: Invoque une poupée à 4 PO <u>**qui oneshot au contact**</u>
+    - <u>**Rubise**</u>: Invoque des Totems négligeables, bondit à 5 PO. Au contact, elle met <u>**-100 PA et -100 PM (1 tour)**</u> en tapant et en repoussant de 10 cases
+    - <u>**Emeraude**</u>: Coop à PO infinie sans ligne de vue. Elle peut coop 1 allié et 1 ennemi chaque tour
+    - <u>**Saphira**</u>: Se met invisible (2 tours, relance 5)
+  Advice: |
+    - Tuez Diamantine immédiatement pour éviter sa poupée tour 2, elle a des faiblesses hors terre et neutre. Ou alors soyez très loin à ses tours 2, 6, 10 etc
+    - Évitez le contact avec Rubise. L'état Pesanteur la rend très peu mobile. Sinon son malus se débuff
+    - Emeraude joue après Diamantine et son état Pesanteur sur les alliés (qui reste à sa mort!). Elle ne pourra donc pas vous coop, uniquement un mob
+    - Saphira est anecdotique
+  InformationShort: |
+    - Chaque poupée tape à 3-9 PO en ligne et peut débuff intégralement au contact (relance 10)
+    - <u>**Diamantine**</u>: Elle vous met Pesanteur en permanence. Aux tours 2, 6, 10 etc: Invoque une poupée à 4 PO <u>**qui oneshot au contact**</u>
+    - <u>**Rubise**</u>: Bondit à 5 PO. Au contact, elle met <u>**-100 PA et -100 PM (1 tour)**</u>
+    - <u>**Emeraude**</u>: Coop à PO infinie sans ligne de vue. Elle peut coop 1 allié et 1 ennemi chaque tour
+    - <u>**Saphira**</u>: Se met invisible (2 tours, relance 5)
+  AdviceShort: |
+    - Tuez Diamantine immédiatement pour éviter sa poupée tour 2, elle a des faiblesses hors terre et neutre. Ou alors soyez très loin à ses tours 2, 6, 10 etc
+    - Évitez le contact avec Rubise. L'état Pesanteur la rend très peu mobile. Sinon son malus se débuff
+    - Emeraude joue après Diamantine et son état Pesanteur sur les alliés (qui reste à sa mort!). Elle ne pourra donc pas vous coop, uniquement un mob
+    - Saphira est anecdotique
+
+- Id: 677
+  Name: Rubise
+  Image: 677_Rubise.png
+  Difficulty: 3
+  ImmediateFocus: 6
+  Evasion: 10
+  Tanking: 0
+  Information: |
+    - Les 4 Poupées du Skeunk apparaissent toujours ensemble  
+    - Chaque poupée tape à 3-9 PO en ligne et peut débuff intégralement au contact (relance 10)
+    - <u>**Diamantine**</u>: Met tous les alliés Pesanteur (4 tours) en se boostant en vita, bondit à 6 PO (relance 2). Aux tours 2, 6, 10 etc: Invoque une poupée à 4 PO <u>**qui oneshot au contact**</u>
+    - <u>**Rubise**</u>: Invoque des Totems négligeables, bondit à 5 PO. Au contact, elle met <u>**-100 PA et -100 PM (1 tour)**</u> en tapant et en repoussant de 10 cases
+    - <u>**Emeraude**</u>: Coop à PO infinie sans ligne de vue. Elle peut coop 1 allié et 1 ennemi chaque tour
+    - <u>**Saphira**</u>: Se met invisible (2 tours, relance 5)
+  Advice: |
+    - Tuez Diamantine immédiatement pour éviter sa poupée tour 2, elle a des faiblesses hors terre et neutre. Ou alors soyez très loin à ses tours 2, 6, 10 etc
+    - Évitez le contact avec Rubise. L'état Pesanteur la rend très peu mobile. Sinon son malus se débuff
+    - Emeraude joue après Diamantine et son état Pesanteur sur les alliés (qui reste à sa mort!). Elle ne pourra donc pas vous coop, uniquement un mob
+    - Saphira est anecdotique
+  InformationShort: |
+    - Chaque poupée tape à 3-9 PO en ligne et peut débuff intégralement au contact (relance 10)
+    - <u>**Diamantine**</u>: Elle vous met Pesanteur en permanence. Aux tours 2, 6, 10 etc: Invoque une poupée à 4 PO <u>**qui oneshot au contact**</u>
+    - <u>**Rubise**</u>: Bondit à 5 PO. Au contact, elle met <u>**-100 PA et -100 PM (1 tour)**</u>
+    - <u>**Emeraude**</u>: Coop à PO infinie sans ligne de vue. Elle peut coop 1 allié et 1 ennemi chaque tour
+    - <u>**Saphira**</u>: Se met invisible (2 tours, relance 5)
+  AdviceShort: |
+    - Tuez Diamantine immédiatement pour éviter sa poupée tour 2, elle a des faiblesses hors terre et neutre. Ou alors soyez très loin à ses tours 2, 6, 10 etc
+    - Évitez le contact avec Rubise. L'état Pesanteur la rend très peu mobile. Sinon son malus se débuff
+    - Emeraude joue après Diamantine et son état Pesanteur sur les alliés (qui reste à sa mort!). Elle ne pourra donc pas vous coop, uniquement un mob
+    - Saphira est anecdotique
+
+- Id: 673
+  Name: Emeraude
+  Image: 673_Emeraude.png
+  Difficulty: 2
+  ImmediateFocus: 3
+  Evasion: 1
+  Tanking: 9
+  Information: |
+    - Les 4 Poupées du Skeunk apparaissent toujours ensemble  
+    - Chaque poupée tape à 3-9 PO en ligne et peut débuff intégralement au contact (relance 10)
+    - <u>**Diamantine**</u>: Met tous les alliés Pesanteur (4 tours) en se boostant en vita, bondit à 6 PO (relance 2). Aux tours 2, 6, 10 etc: Invoque une poupée à 4 PO <u>**qui oneshot au contact**</u>
+    - <u>**Rubise**</u>: Invoque des Totems négligeables, bondit à 5 PO. Au contact, elle met <u>**-100 PA et -100 PM (1 tour)**</u> en tapant et en repoussant de 10 cases
+    - <u>**Emeraude**</u>: Coop à PO infinie sans ligne de vue. Elle peut coop 1 allié et 1 ennemi chaque tour
+    - <u>**Saphira**</u>: Se met invisible (2 tours, relance 5)
+  Advice: |
+    - Tuez Diamantine immédiatement pour éviter sa poupée tour 2, elle a des faiblesses hors terre et neutre. Ou alors soyez très loin à ses tours 2, 6, 10 etc
+    - Évitez le contact avec Rubise. L'état Pesanteur la rend très peu mobile. Sinon son malus se débuff
+    - Emeraude joue après Diamantine et son état Pesanteur sur les alliés (qui reste à sa mort!). Elle ne pourra donc pas vous coop, uniquement un mob
+    - Saphira est anecdotique
+  InformationShort: |
+    - Chaque poupée tape à 3-9 PO en ligne et peut débuff intégralement au contact (relance 10)
+    - <u>**Diamantine**</u>: Elle vous met Pesanteur en permanence. Aux tours 2, 6, 10 etc: Invoque une poupée à 4 PO <u>**qui oneshot au contact**</u>
+    - <u>**Rubise**</u>: Bondit à 5 PO. Au contact, elle met <u>**-100 PA et -100 PM (1 tour)**</u>
+    - <u>**Emeraude**</u>: Coop à PO infinie sans ligne de vue. Elle peut coop 1 allié et 1 ennemi chaque tour
+    - <u>**Saphira**</u>: Se met invisible (2 tours, relance 5)
+  AdviceShort: |
+    - Tuez Diamantine immédiatement pour éviter sa poupée tour 2, elle a des faiblesses hors terre et neutre. Ou alors soyez très loin à ses tours 2, 6, 10 etc
+    - Évitez le contact avec Rubise. L'état Pesanteur la rend très peu mobile. Sinon son malus se débuff
+    - Emeraude joue après Diamantine et son état Pesanteur sur les alliés (qui reste à sa mort!). Elle ne pourra donc pas vous coop, uniquement un mob
+    - Saphira est anecdotique
+
+- Id: 675
+  Name: Saphira
+  Image: 675_Saphira.png
+  Difficulty: 2
+  ImmediateFocus: 2
+  Evasion: 0
+  Tanking: 10
+  Information: |
+    - Les 4 Poupées du Skeunk apparaissent toujours ensemble  
+    - Chaque poupée tape à 3-9 PO en ligne et peut débuff intégralement au contact (relance 10)
+    - <u>**Diamantine**</u>: Met tous les alliés Pesanteur (4 tours) en se boostant en vita, bondit à 6 PO (relance 2). Aux tours 2, 6, 10 etc: Invoque une poupée à 4 PO <u>**qui oneshot au contact**</u>
+    - <u>**Rubise**</u>: Invoque des Totems négligeables, bondit à 5 PO. Au contact, elle met <u>**-100 PA et -100 PM (1 tour)**</u> en tapant et en repoussant de 10 cases
+    - <u>**Emeraude**</u>: Coop à PO infinie sans ligne de vue. Elle peut coop 1 allié et 1 ennemi chaque tour
+    - <u>**Saphira**</u>: Se met invisible (2 tours, relance 5)
+  Advice: |
+    - Tuez Diamantine immédiatement pour éviter sa poupée tour 2, elle a des faiblesses hors terre et neutre. Ou alors soyez très loin à ses tours 2, 6, 10 etc
+    - Évitez le contact avec Rubise. L'état Pesanteur la rend très peu mobile. Sinon son malus se débuff
+    - Emeraude joue après Diamantine et son état Pesanteur sur les alliés (qui reste à sa mort!). Elle ne pourra donc pas vous coop, uniquement un mob
+    - Saphira est anecdotique
+  InformationShort: |
+    - Chaque poupée tape à 3-9 PO en ligne et peut débuff intégralement au contact (relance 10)
+    - <u>**Diamantine**</u>: Elle vous met Pesanteur en permanence. Aux tours 2, 6, 10 etc: Invoque une poupée à 4 PO <u>**qui oneshot au contact**</u>
+    - <u>**Rubise**</u>: Bondit à 5 PO. Au contact, elle met <u>**-100 PA et -100 PM (1 tour)**</u>
+    - <u>**Emeraude**</u>: Coop à PO infinie sans ligne de vue. Elle peut coop 1 allié et 1 ennemi chaque tour
+    - <u>**Saphira**</u>: Se met invisible (2 tours, relance 5)
+  AdviceShort: |
+    - Tuez Diamantine immédiatement pour éviter sa poupée tour 2, elle a des faiblesses hors terre et neutre. Ou alors soyez très loin à ses tours 2, 6, 10 etc
+    - Évitez le contact avec Rubise. L'état Pesanteur la rend très peu mobile. Sinon son malus se débuff
+    - Emeraude joue après Diamantine et son état Pesanteur sur les alliés (qui reste à sa mort!). Elle ne pourra donc pas vous coop, uniquement un mob
+    - Saphira est anecdotique
 
 - Id: 686
   Name: Aermyne 'Braco' Scalptaras
@@ -3130,7 +3354,7 @@
   Advice: |
     - C'est un poutch qui vous tape une seule fois
     - Sa reinvocation est remplacée donc ne joue jamais
-    - Il reinvoque sur une case totalement aléatoire, rarement dans votre camp
+    - Il reinvoque dans votre camp, aléatoirement
     - Restez hors ligne et ligne de vue des Germes qui n'ont que 1 PM
     - Ses malus PM et l'état Pesanteur sont débuffables
   InformationShort: |
@@ -3289,12 +3513,12 @@
   Information: |
     - Il met des glyphes divers pour 2 tours qui sont tous à 10-12 PO en ligne sans ligne de vue et avec des bonus / malus selon ennemi / allié
     - *Les glyphes de cette liste:* dégâts / soin (proc début de tour), -20% rés / +20% rés et Pesanteur (proc fin de tour, relance 2), 25% érosion / 25% vita (proc début de tour, relance 4), -3 PA / +3 PA (proc fin de tour, relance 3)
-    - Le glyphe ret PA est <u>**infini**</u> et <u>**délock**</u> le Mekamouth quand il fini dedans (1 tour)
-    - A un glyphe de fin de tour en carré inversé de 4 qui retire / boost des dommages (2 tours, le glyphe dure 1 tour, relance 3)
+    - Le glyphe ret PA "Surtension" est <u>**infini**</u> et <u>**délock**</u> le Mekamouth quand il fini dedans (1 tour)
+    - A un glyphe de fin de tour en carré inversé de 4 qui retire / boost 100 dommages (2 tours, le glyphe dure 1 tour, relance 3)
     - Pour 15 PA, peut infliger des dégâts directs en ligne infinie (relance 6)
   Mechanic: |
     - Vous perdez 2 PA pour tout le combat
-    - <u>**Tant que le Mekamouth reste en vie, vous avez un poison PM**</u>
+    - <u>**Vous avez un poison PM tout le combat**</u>
   Advice: |
     - Si possible, restez en diagonale de lui avec votre team pour pas se faire défoncer
     - Il a presque aucun dégât direct. <u>**Bloquez le derrière 2 invocations statiques (hors timeline) et restez hors de sa ligne pour ne subir aucun glyphe**</u>. S'il sort, il n'aura aucune autre action de son tour et vous pourrez replacer
@@ -3306,7 +3530,7 @@
     - Parmi ces glyphes, y'en a un qui le <u>**délock**</u> en fin de tour
   MechanicShort: |
     - Vous perdez 2 PA pour tout le combat
-    - <u>**Tant que le Mekamouth reste en vie, vous avez un poison PM**</u>
+    - <u>**Vous avez un poison PM tout le combat**</u>
   AdviceShort: |
     - Si possible, restez en diagonale de lui avec votre team pour pas se faire défoncer
     - Il a presque aucun dégât direct. <u>**Bloquez le derrière 2 invocations statiques (hors timeline) et restez hors de sa ligne pour ne subir aucun glyphe**</u>. S'il sort, il n'aura aucune autre action de son tour et vous pourrez replacer
@@ -3453,13 +3677,13 @@
 - Id: 2905
   Name: Vengeuse Masquée
   Image: 2905_Vengeuse Masquee.png
-  Difficulty: 7
+  Difficulty: 8
   ImmediateFocus: 9
   Evasion: 1
   Tanking: 9
   Information: |
     - Tape à 15 PO en retirant 2-3 PM et à 1 PO (modifiable). Dommages doublés en Crit
-    - *Aux tours 1, 5, 9 etc:* boosts tous les mobs dommages fixes, 2 PM, 10% CC et 4 PO (4 tours)
+    - *Aux tours 1, 5, 9 etc:* boost tous les mobs dommages fixes, 2 PM, 10% CC et 4 PO (4 tours)
     - <u>**Quand elle subit un retrait PO, elle gagne 50% résistances (2 tours)**</u>
     - A des valeurs de tacle et fuite virtuellement infinies
   Advice: |
@@ -3481,10 +3705,12 @@
   Information: |
     - Tape à PO infinie sans ligne de vue, inflige un poison à 12 PO et 20% érosion, tape fort en zone jusqu'à 4 PO
     - Quand vous tapez Voldelor, il vous applique un état (1 tour) qui améliore ses sorts sur les persos qui ont l'état: <u>**Le sort à PO infinie coop et le sort en zone jusqu'à 4 PO oneshot!**</u>
+    - Il applique l'état sur lui-même également et ne peut pas l'appliquer s'il l'a déjà. Un seul allié pourra donc l'avoir en même temps
     - Reinvoque un mob mort à 6 PO avec 70% de ses PV (relance 3)
   Advice: |
-    - Pour entamer Voldelor, mettez le <u>**Pesanteur**</u> en permanence, il servira à rien tant qu'il vous ne choppe pas à 4 PO. Sans Pesanteur, il faudra soit le oneturn, soit séparer toute votre team tel qu'il puisse pas coop into oneshot
+    - Pour entamer Voldelor, mettez le <u>**Pesanteur**</u> en permanence (ou le perso ayant son état!), il servira à rien tant qu'il vous ne choppe pas à 4 PO. Sans Pesanteur, il faudra soit le oneturn, soit éloigner le perso qui a l'état de Voldelor
     - Si vous le gardez en dernier, ne le tapez pas sans faire exprès. Il passera sa vie à vous taper un peu à distance
+    - Vu qu'il tape à PO infinie sans ligne de vue, il passera souvent sa vie à l'autre bout de la map. Pour le faire approcher, placez un appât à 17 PO. Il s'avancera alors avec ses 5 PM pour mettre son sort à 12 PO
   InformationShort: |
     - Tant que vous ne tapez pas Voldelor, il ne sert pas à grande chose. <u>**Il peut coop les persos qui l'ont tapé (PO infinie) et les oneshot à 4 PO max**</u>
     - Reinvoque un mob mort avec 70% de ses PV (relance 3)

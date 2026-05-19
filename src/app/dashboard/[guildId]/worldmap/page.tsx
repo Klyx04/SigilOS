@@ -38,6 +38,7 @@ export default async function WorldMapPage({ params, searchParams }: Props) {
                     description="Explorez le monde des Douze"
                     icon={MapIcon}
                     backHref={`/dashboard/${guildId}`}
+                    compact={true}
                 />
             </div>
             <div className="flex-1 w-full relative">

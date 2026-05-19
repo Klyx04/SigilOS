@@ -192,27 +192,82 @@ export function JobsGrid({
                 </div>
             )}
 
-            <div className="flex-1 content-start mb-6">
-                {activeJobsData.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                        {activeJobsData.slice(0, 12).map(job => (
-                            <div key={job.id} className="flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors">
-                                <span className="flex items-center justify-center">
-                                    {job.icon.startsWith("/") ? (
-                                        <Image src={job.icon} alt={job.name} width={20} height={20} className="w-5 h-5 object-contain" />
+            {jobs.length > 0 && (
+                <div className="flex-1 mt-2 mb-6">
+                    <Tabs defaultValue="Récolte" className="w-full flex flex-col">
+                        <TabsList className="grid w-full grid-cols-4 bg-zinc-950/40 border border-white/5 p-1 h-11 rounded-xl mb-6">
+                            <TabsTrigger 
+                                value="Récolte"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                            >
+                                Récolte
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="Artisanat"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                            >
+                                Artisanat
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="Forgemagie"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                            >
+                                Forgemagie
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="Élevage"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                            >
+                                Élevage
+                            </TabsTrigger>
+                        </TabsList>
+
+
+
+                        {Object.entries(DOFUS_JOBS).map(([category, categoryJobs]) => {
+                            const activeCategoryJobs = categoryJobs.filter(job => jobs.includes(job.id));
+                            
+                            return (
+                                <TabsContent key={category} value={category} className="mt-0 focus-visible:outline-none">
+                                    {activeCategoryJobs.length > 0 ? (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                            {activeCategoryJobs.map(job => (
+                                                <div
+                                                    key={job.id}
+                                                    className="group relative flex flex-col items-center justify-center p-5 rounded-2xl border border-white/5 bg-zinc-950/30 hover:border-white/10 hover:bg-zinc-900/10 shadow-lg aspect-square overflow-hidden transition-all duration-300"
+                                                >
+                                                    <div className="mb-3 transform transition-transform duration-500 group-hover:scale-110">
+                                                        {job.icon.startsWith("/") ? (
+                                                            <Image
+                                                                src={job.icon}
+                                                                alt={job.name}
+                                                                width={56}
+                                                                height={56}
+                                                                className="w-14 h-14 object-contain drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-4xl">{job.icon}</span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-center text-zinc-300 leading-tight group-hover:text-white transition-colors duration-300">
+                                                        {job.name}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     ) : (
-                                        <span className="text-base">{job.icon}</span>
+                                        <div className="flex flex-col items-center justify-center p-12 rounded-2xl border border-dashed border-zinc-800/60 bg-zinc-950/20 text-zinc-500 text-center">
+                                            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Aucun métier</p>
+                                            <p className="text-[10px] text-zinc-600 mt-1">Vous n'avez renseigné aucun métier de type {category.toLowerCase()}.</p>
+                                        </div>
                                     )}
-                                </span>
-                                <span className="text-xs font-medium text-zinc-300">{job.name}</span>
-                            </div>
-                        ))}
-                        {activeJobsData.length > 12 && (
-                            <Badge variant="outline" className="text-zinc-500 bg-zinc-900/50">+{activeJobsData.length - 12}</Badge>
-                        )}
-                    </div>
-                )}
-            </div>
+                                </TabsContent>
+                            );
+                        })}
+                    </Tabs>
+                </div>
+            )}
+
 
             {userHasFMJobs && (
                 <div className="border-t border-white/5 pt-4 mt-auto">

@@ -5,6 +5,7 @@ import { Navigation, ChevronRight, Check, CheckCircle2, Circle, Sparkles, Users,
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress } from "@/server/actions/optimized-guide-actions";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 
@@ -15,6 +16,7 @@ interface OptimizedGuideTabProps {
 
 export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabProps) {
     const { data: session } = useSession();
+    const router = useRouter();
     const [selectedGuideSlug, setSelectedGuideSlug] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [guideData, setGuideData] = useState<any>(null);
@@ -22,30 +24,28 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
     const [memberProgress, setMemberProgress] = useState<any[]>([]);
     const [selectedStepIndex, setSelectedStepIndex] = useState(0);
 
-    const handleSelectGuide = async (slug: string) => {
-        setSelectedGuideSlug(slug);
-        setLoading(true);
-        try {
-            const [detailRes, progressRes] = await Promise.all([
-                getOptimizedGuideDetail(slug, guildId),
-                getGuildOptimizedGuideProgress(slug, guildId)
-            ]);
+    const [redirecting, setRedirecting] = useState(initialGuides && initialGuides.length === 1);
 
-            if (detailRes.success && detailRes.guide) {
-                setGuideData(detailRes.guide);
-                setQuestsDetail(detailRes.questsDetail || []);
-                setSelectedStepIndex(0);
-            }
-            
-            if (progressRes.success) {
-                setMemberProgress(progressRes.memberProgress || []);
-            }
-        } catch (e) {
-            toast.error("Erreur lors de la récupération du guide");
-        } finally {
-            setLoading(false);
+    useEffect(() => {
+        if (initialGuides && initialGuides.length === 1) {
+            router.replace(`/dashboard/${guildId}/quetes-dofus/guide/${initialGuides[0].slug}`);
+        } else {
+            setRedirecting(false);
         }
+    }, [initialGuides, guildId, router]);
+
+    const handleSelectGuide = (slug: string) => {
+        router.push(`/dashboard/${guildId}/quetes-dofus/guide/${slug}`);
     };
+
+    if (redirecting) {
+        return (
+            <div className="flex flex-col items-center justify-center py-24 gap-4 animate-pulse">
+                <div className="w-12 h-12 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+                <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Chargement de votre feuille de route...</p>
+            </div>
+        );
+    }
 
     // Helper to get quest info
     const getQuestInfo = (id: string) => questsDetail.find(q => q.id === id);
@@ -65,10 +65,10 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
         });
     };
 
-    if (selectedGuideSlug && guideData) {
-        // --- DETAIL VIEW ---
-        const totalSteps = guideData.steps.length;
-        const completedSteps = guideData.steps.filter((s: any) => isStepCompleted(s)).length;
+    if (selectedGuideSlug && guideData && guideData.steps) {
+        // --- DETAIL VIEW (Legacy fallback) ---
+        const totalSteps = guideData.steps?.length || 0;
+        const completedSteps = guideData.steps?.filter((s: any) => isStepCompleted(s)).length || 0;
         const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
 
         return (

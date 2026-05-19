@@ -32,7 +32,7 @@ export function sanitizeHtml(input: string | null, maxLength: number = 100000, s
     // Strict mode for Presentation (Bio/Description)
     const config: any = strict
         ? { ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'br'] }
-        : { ADD_ATTR: ['target'] }; // Normal mode allows safe HTML (h1, img, etc.)
+        : { ADD_ATTR: ['target', 'dofusdbid', 'dofusdbId', 'name', 'type', 'imageurl', 'src', 'alt', 'guideid', 'stepid', 'stepnumber', 'guidename', 'label', 'baseurl', 'data-id', 'data-type', 'questid', 'questname', 'status'] }; // Normal mode: allow safe HTML + custom Dofus/Ganymede attrs including img src
 
     return DOMPurify.sanitize(truncated, config) as unknown as string;
 }

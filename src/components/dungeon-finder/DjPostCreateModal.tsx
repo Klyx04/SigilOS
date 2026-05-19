@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Plus, Search, Swords, Map,
-    Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check
+    Users, CheckCircle2, X, Trophy, ChevronsUpDown, Check, ChevronRight, ScrollText, Hash, AlertTriangle
 } from "lucide-react";
 import { createDjPost } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
@@ -34,6 +34,9 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
+import { getDungeonFinderConfig } from "@/server/actions/dungeon-finder-actions";
+import { Eye } from "lucide-react";
 
 interface Dungeon {
     id: string;
@@ -60,6 +63,7 @@ interface DjPostCreateModalProps {
 
 export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscordConfigured, onClose, onCreated }: DjPostCreateModalProps) {
     // Top-Level Mode
+    const [step, setStep] = useState(1);
     const [mode, setMode] = useState<"DONJON" | "QUETE">("DONJON");
 
     // Donjons
@@ -84,16 +88,16 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
     const [linkedQuest, setLinkedQuest] = useState<{ id: number; name: string } | null>(null);
 
     // Shared Config
-    const [step, setStep] = useState(1); // 1 = Search (Donjon/Quete), 2 = Config
     const [maxMembers, setMaxMembers] = useState(4);
     const [message, setMessage] = useState("");
     const [targetDate, setTargetDate] = useState("");
     const [requiredClasses, setRequiredClasses] = useState<string[]>([]);
     const [isDiscordPublished, setIsDiscordPublished] = useState(false);
-    const [mentionRoleId, setMentionRoleId] = useState<string | null>(null);
+    const [mentionRoleIds, setMentionRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [roleOpen, setRoleOpen] = useState(false);
+    const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
 
     const [isPending, startTransition] = useTransition();
 
@@ -118,7 +122,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
             setTargetDate("");
             setRequiredClasses([]);
             setIsDiscordPublished(isDiscordConfigured === true);
-            setMentionRoleId(null);
+            setMentionRoleIds([]);
         }
     }, [isOpen, isDiscordConfigured]);
 
@@ -126,7 +130,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
     useEffect(() => {
         if (isOpen && isDiscordPublished && discordRoles.length === 0) {
             setIsLoadingRoles(true);
-            getDiscordRolesAction(guildId)
+            getDiscordRolesAction(guildId, { context: "dj" })
                 .then(res => {
                     if (res.success && res.roles) {
                         // Filter out @everyone if possible or just keep all
@@ -137,6 +141,21 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                 .finally(() => setIsLoadingRoles(false));
         }
     }, [isOpen, isDiscordPublished, guildId, discordRoles.length]);
+
+    // Fetch Target Channel Name
+    useEffect(() => {
+        if (isOpen && isDiscordPublished) {
+            getDungeonFinderConfig(guildId).then(res => {
+                if (res.success && res.data?.djNotifyChannelId) {
+                    getDiscordChannelInfo(guildId, res.data.djNotifyChannelId).then(chanRes => {
+                        if (chanRes.success && chanRes.data) {
+                            setTargetChannelName(chanRes.data.name);
+                        }
+                    });
+                }
+            });
+        }
+    }, [isOpen, isDiscordPublished, guildId]);
 
     // Handle initialDungeonId when dungeons are loaded
     useEffect(() => {
@@ -240,6 +259,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
     }
 
     async function handleSubmit() {
+        if (step < 2) {
+            setStep(2);
+            return;
+        }
+
         if (mode === "DONJON" && !selectedDungeon) {
             toast.error("Veuillez sélectionner un donjon.");
             return;
@@ -253,21 +277,28 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
             return;
         }
 
+        if (step === 2 && isDiscordConfigured) {
+            setStep(3);
+            return;
+        }
+
+        const input = {
+            mode,
+            dungeonId: mode === "DONJON" ? selectedDungeon!.id : null,
+            questId: mode === "QUETE" ? selectedQuest!.id : (linkedQuest ? linkedQuest.id : null),
+            questName: mode === "QUETE" ? selectedQuest!.name : (linkedQuest ? linkedQuest.name : null),
+            questUrl: mode === "QUETE" && questUrl ? questUrl : null,
+            wantedAchievementIds: mode === "DONJON" ? selectedAchievements : [],
+            maxMembers,
+            message: message ? message : null,
+            targetDate: targetDate ? new Date(targetDate) : null,
+            requiredClasses,
+            isDiscordPublished,
+            mentionRoleIds,
+        };
+
         startTransition(async () => {
-            const res = await createDjPost(guildId, {
-                mode,
-                dungeonId: mode === "DONJON" ? selectedDungeon!.id : null,
-                questId: mode === "QUETE" ? selectedQuest!.id : (linkedQuest ? linkedQuest.id : null),
-                questName: mode === "QUETE" ? selectedQuest!.name : (linkedQuest ? linkedQuest.name : null),
-                questUrl: mode === "QUETE" && questUrl ? questUrl : null,
-                wantedAchievementIds: mode === "DONJON" ? selectedAchievements : [],
-                maxMembers,
-                message: message ? message : null,
-                targetDate: targetDate ? new Date(targetDate) : null,
-                requiredClasses,
-                isDiscordPublished,
-                mentionRoleId,
-            });
+            const res = await createDjPost(guildId, input);
 
             if (res.success) {
                 toast.success("Votre recherche de groupe est en ligne !");
@@ -281,7 +312,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="w-[95vw] max-w-2xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 custom-scrollbar">
+            <DialogContent className="w-[95vw] max-w-xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[90vh] overflow-y-auto p-0 gap-0 premium-scrollbar">
                 <div className="p-6 pb-4 border-b border-white/5 bg-zinc-900/40 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
                     <DialogTitle className="text-xl font-black flex items-center gap-3 relative z-10">
@@ -343,7 +374,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                 Consultation du bestiaire...
                                             </div>
                                         ) : (
-                                            <div className="h-72 overflow-y-auto space-y-2 pr-2 custom-scrollbar p-1">
+                                            <div className="h-72 overflow-y-auto space-y-2 pr-2 premium-scrollbar p-1">
                                                 {filteredDungeons.length === 0 ? (
                                                     <div className="text-center py-20 bg-zinc-900/30 rounded-3xl border border-white/5 border-dashed">
                                                         <Search className="w-8 h-8 mx-auto mb-3 text-zinc-700 opacity-50" />
@@ -407,7 +438,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                         />
 
                                                         {questSearchQuery.trim().length > 0 && (
-                                                            <div className="mt-3 bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden custom-scrollbar max-h-64 overflow-y-auto relative shadow-inner">
+                                                            <div className="mt-3 bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden premium-scrollbar max-h-64 overflow-y-auto relative shadow-inner">
                                                                 <button
                                                                     onClick={() => setSelectedQuest({ id: -1, name: questSearchQuery.trim() })}
                                                                     className="w-full text-left px-4 py-3 text-sm font-bold text-indigo-400 bg-indigo-950/20 hover:bg-indigo-900/40 transition-colors border-b border-slate-700/50 flex items-center gap-2"
@@ -647,93 +678,172 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                     />
                                 </div>
 
-                                {/* Footer Action - Refined */}
-                                <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-white/5 mt-4 relative">
-                                    <div className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-2xl border border-white/5 shadow-inner">
-                                        <Switch
-                                            checked={isDiscordPublished}
-                                            onCheckedChange={setIsDiscordPublished}
-                                            disabled={!isDiscordConfigured}
-                                            className="data-[state=checked]:bg-indigo-500"
-                                        />
+                                {/* Footer Action - Details Step */}
+                                <div className="pt-8 border-t border-white/5 mt-4">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => setStep(1)}
+                                            className="h-12 px-8 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                                        >
+                                            Retour
+                                        </Button>
+                                        <Button
+                                            className={`flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 ${
+                                                mode === "DONJON" 
+                                                    ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-900/20" 
+                                                    : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
+                                            }`}
+                                            onClick={() => setStep(3)}
+                                            disabled={isPending || (mode === "DONJON" && !selectedDungeon) || (mode === "QUETE" && !selectedQuest)}
+                                        >
+                                            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                                            <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
+                                                {isPending ? (
+                                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <ChevronRight className="w-4 h-4" />
+                                                )}
+                                                {isPending ? "PUBLICATION..." : "SUIVANT"}
+                                            </div>
+                                        </Button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {step === 3 && (
+                            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                                <div className="text-center space-y-3 mb-8">
+                                    <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)]">
+                                        <Hash className="w-8 h-8 text-indigo-400" />
+                                    </div>
+                                    <h3 className="text-xl font-black uppercase tracking-tight text-white">Configuration Discord</h3>
+                                    <p className="text-sm text-zinc-500 max-w-xs mx-auto font-medium">Voulez-vous notifier la guilde de cette session sur Discord ?</p>
+                                </div>
+
+                                <div className={`p-6 rounded-3xl border transition-all duration-500 ${isDiscordPublished ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-zinc-900/50 border-white/5'}`}>
+                                    <div className="flex items-center justify-between">
                                         <div className="flex flex-col">
-                                            <span className={`text-xs font-black uppercase tracking-widest ${isDiscordConfigured ? 'text-zinc-300' : 'text-zinc-600'}`}>Synchro Discord</span>
-                                            {!isDiscordConfigured && (
-                                                <span className="text-[8px] text-amber-500/70 font-black uppercase tracking-tighter">⚠️ Non configuré</span>
+                                            <span className={`text-sm font-black uppercase tracking-widest ${isDiscordPublished ? 'text-indigo-400' : 'text-zinc-300'}`}>Synchro Automatique</span>
+                                            {isDiscordPublished ? (
+                                                <div className="flex items-center gap-1 mt-1 animate-in fade-in">
+                                                    <Hash className="w-3 h-3 text-indigo-400/70" />
+                                                    <span className="text-[10px] text-indigo-400/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Désactivé</span>
                                             )}
                                         </div>
+                                        <Switch
+                                            checked={isDiscordPublished && isDiscordConfigured}
+                                            onCheckedChange={setIsDiscordPublished}
+                                            disabled={!isDiscordConfigured}
+                                            className="data-[state=checked]:bg-indigo-500 scale-125 origin-right"
+                                        />
                                     </div>
 
+                                    {!isDiscordConfigured && (
+                                        <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+                                            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                                            <p className="text-[10px] text-amber-200/70 font-bold uppercase tracking-wider">
+                                                Discord non configuré pour ce module. Contactez un admin.
+                                            </p>
+                                        </div>
+                                    )}
+
                                     {isDiscordPublished && discordRoles.length > 0 && (
-                                        <div className="flex flex-col gap-2 min-w-[180px]">
-                                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Mentionner un rôle</span>
+                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-indigo-500/20 space-y-3">
+                                            <span className="text-[10px] font-black text-indigo-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
                                             <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                                 <PopoverTrigger asChild>
                                                     <Button
                                                         variant="outline"
                                                         role="combobox"
                                                         aria-expanded={roleOpen}
-                                                        className="h-10 bg-zinc-900 border-white/10 text-xs font-bold rounded-xl justify-between group/role w-full"
+                                                        className="h-14 bg-zinc-950/50 border-white/10 text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-zinc-950 px-4"
                                                     >
-                                                        <div className="flex items-center gap-2 truncate">
-                                                            {mentionRoleId ? (
-                                                                <>
-                                                                    <div 
-                                                                        className="w-2 h-2 rounded-full shrink-0" 
-                                                                        style={{ backgroundColor: discordRoles.find(r => r.id === mentionRoleId)?.color === "#000000" ? "#9ca3af" : discordRoles.find(r => r.id === mentionRoleId)?.color }} 
-                                                                    />
-                                                                    <span className="truncate">{discordRoles.find(r => r.id === mentionRoleId)?.name}</span>
-                                                                </>
+                                                        <div className="flex items-center gap-3 truncate">
+                                                            {mentionRoleIds.length > 0 ? (
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    {mentionRoleIds.map(id => {
+                                                                        const role = discordRoles.find(r => r.id === id);
+                                                                        if (!role) return null;
+                                                                        const roleColor = role.color === "#000000" ? "#9ca3af" : role.color;
+                                                                        return (
+                                                                            <div 
+                                                                                key={id} 
+                                                                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all"
+                                                                                style={{ 
+                                                                                    backgroundColor: `${roleColor}15`, 
+                                                                                    borderColor: `${roleColor}40`,
+                                                                                    color: roleColor 
+                                                                                }}
+                                                                            >
+                                                                                <div 
+                                                                                    className="w-1.5 h-1.5 rounded-full shrink-0 shadow-[0_0_5px_currentColor]" 
+                                                                                    style={{ backgroundColor: roleColor }} 
+                                                                                />
+                                                                                <span className="text-[10px] font-bold uppercase truncate max-w-[80px]">{role.name}</span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setMentionRoleIds(prev => prev.filter(rid => rid !== id));
+                                                                                    }}
+                                                                                    className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                                                                >
+                                                                                    <X className="h-2.5 w-2.5" />
+                                                                                </button>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
                                                             ) : (
-                                                                <span className="text-zinc-500 italic">Aucun ping</span>
+                                                                <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
                                                             )}
                                                         </div>
                                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                     </Button>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border-white/10" align="end">
+                                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
                                                     <Command className="bg-transparent text-white">
-                                                        <CommandInput placeholder="Rechercher..." className="h-9 border-none focus:ring-0" />
-                                                        <CommandList className="max-h-[280px] custom-scrollbar">
+                                                        <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
+                                                        <CommandList className="max-h-[320px] premium-scrollbar p-2">
                                                             <CommandEmpty>Aucun rôle.</CommandEmpty>
                                                             <CommandGroup>
                                                                 <CommandItem
                                                                     onSelect={() => {
-                                                                        setMentionRoleId(null);
-                                                                        setRoleOpen(false);
+                                                                        setMentionRoleIds([]);
                                                                     }}
-                                                                    className="text-zinc-500 italic focus:bg-white/10 cursor-pointer text-xs"
+                                                                    className="text-zinc-500 italic focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
                                                                 >
-                                                                    <Check
-                                                                        className={cn(
-                                                                            "mr-2 h-3 h-3",
-                                                                            !mentionRoleId ? "opacity-100" : "opacity-0"
-                                                                        )}
-                                                                    />
-                                                                    Aucun ping
+                                                                    <span className="font-bold uppercase tracking-widest">Aucun ping</span>
+                                                                    {mentionRoleIds.length === 0 && <Check className="h-4 w-4 text-zinc-400" />}
                                                                 </CommandItem>
                                                                 {discordRoles.map((role) => (
                                                                     <CommandItem
                                                                         key={role.id}
                                                                         onSelect={() => {
-                                                                            setMentionRoleId(role.id);
-                                                                            setRoleOpen(false);
+                                                                            setMentionRoleIds(prev => 
+                                                                                prev.includes(role.id) 
+                                                                                    ? prev.filter(id => id !== role.id) 
+                                                                                    : [...prev, role.id]
+                                                                            );
                                                                         }}
-                                                                        className="text-white focus:bg-white/10 cursor-pointer text-xs"
+                                                                        className="text-white focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group mt-1"
                                                                     >
-                                                                        <Check
-                                                                            className={cn(
-                                                                                "mr-2 h-3 w-3",
-                                                                                mentionRoleId === role.id ? "opacity-100" : "opacity-0"
-                                                                            )}
-                                                                        />
-                                                                        <div className="flex items-center gap-2 flex-1 truncate font-bold">
+                                                                        <div className="flex items-center gap-3 flex-1 truncate font-black tracking-tight uppercase">
                                                                             <div 
-                                                                                className="w-2 h-2 rounded-full shrink-0" 
-                                                                                style={{ backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color }} 
+                                                                                className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_8px_-2px_currentColor]" 
+                                                                                style={{ 
+                                                                                    backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color,
+                                                                                    color: role.color === "#000000" ? "#9ca3af" : role.color
+                                                                                }} 
                                                                             />
-                                                                            <span className="truncate">{role.name}</span>
+                                                                            <span className="truncate group-hover:translate-x-1 transition-transform">{role.name}</span>
                                                                         </div>
+                                                                        {mentionRoleIds.includes(role.id) && <Check className="h-4 w-4 text-indigo-400 shrink-0" />}
                                                                     </CommandItem>
                                                                 ))}
                                                             </CommandGroup>
@@ -741,28 +851,39 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                     </Command>
                                                 </PopoverContent>
                                             </Popover>
-                                        </div>
+                                        </motion.div>
                                     )}
+                                </div>
 
-                                    <Button
-                                        className={`h-14 px-10 rounded-2xl font-black text-sm tracking-tight transition-all active:scale-95 shadow-2xl relative group overflow-hidden ${
-                                            mode === "DONJON" 
-                                                ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-900/20" 
-                                                : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
-                                        }`}
-                                        onClick={handleSubmit}
-                                        disabled={isPending || (mode === "DONJON" && !selectedDungeon) || (mode === "QUETE" && !selectedQuest)}
-                                    >
-                                        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
-                                        <div className="flex items-center gap-3 relative z-10">
-                                            {isPending ? (
-                                                <div className="w-5 h-5 border-3 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />
-                                            ) : (
-                                                <Users className="w-5 h-5" />
-                                            )}
-                                            {isPending ? "PUBLICATION..." : "LANCER LA SESSION"}
-                                        </div>
-                                    </Button>
+                                <div className="pt-8 border-t border-white/5 mt-4">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => setStep(2)}
+                                            className="h-12 px-8 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                                        >
+                                            Retour
+                                        </Button>
+                                        <Button
+                                            className={`flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2 ${
+                                                mode === "DONJON" 
+                                                    ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-900/20" 
+                                                    : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
+                                            }`}
+                                            onClick={handleSubmit}
+                                            disabled={isPending}
+                                        >
+                                            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                                            <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
+                                                {isPending ? (
+                                                    <div className="w-4 h-4 border-2 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />
+                                                ) : (
+                                                    <CheckCircle2 className="w-4 h-4" />
+                                                )}
+                                                {isPending ? "PUBLICATION..." : "CONFIRMER & LANCER"}
+                                            </div>
+                                        </Button>
+                                    </div>
                                 </div>
                             </motion.div>
                         )}

@@ -56,6 +56,8 @@ interface OcreFilterBarProps {
     guildId: string;
     showMarketplace?: boolean;
     hasOcreChannel?: boolean;
+    selectionMode?: boolean;
+    onSelectionModeToggle?: () => void;
 }
 
 // =============================================================================
@@ -95,6 +97,8 @@ export function OcreFilterBar({
     guildId,
     showMarketplace = true,
     hasOcreChannel,
+    selectionMode,
+    onSelectionModeToggle,
 }: OcreFilterBarProps) {
     const updateFilter = <K extends keyof OcreFilters>(key: K, value: OcreFilters[K]) => {
         onFiltersChange({ ...filters, [key]: value });
@@ -162,6 +166,21 @@ export function OcreFilterBar({
                         Reset
                     </Button>
                 )}
+
+                <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={onSelectionModeToggle}
+                    className={cn(
+                        "h-12 px-4 rounded-xl font-bold gap-2 transition-all shrink-0",
+                        selectionMode 
+                            ? "bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20" 
+                            : "bg-zinc-900/40 text-muted-foreground border-white/5 hover:bg-zinc-800"
+                    )}
+                >
+                    <Check className={cn("h-5 w-5", selectionMode && "animate-bounce")} />
+                    <span className="hidden sm:inline">{selectionMode ? "Quitter Sélection" : "Sélectionner"}</span>
+                </Button>
 
                 {showMarketplace && (
                     <>

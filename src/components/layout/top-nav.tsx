@@ -87,7 +87,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
     const [roomCount, setRoomCount] = useState(0);
 
     return (
-        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-2xl border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-all duration-300">
+        <header className="sticky top-0 z-40 bg-background lg:bg-background/80 lg:backdrop-blur-2xl border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-all duration-300">
 
             {/* LEFT: Mobile Trigger & Breadcrumbs */}
             <div className="flex items-center gap-6 shrink-0">
@@ -99,7 +99,7 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                             <Menu className="h-5 w-5" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-[260px] border-r border-border bg-background">
+                    <SheetContent side="left" className="p-0 w-[260px] border-r border-border bg-zinc-950 shadow-[20px_0_40px_rgba(0,0,0,0.5)]">
                         <SheetTitle className="sr-only">Menu de Navigation Mobile</SheetTitle>
                         <SheetDescription className="sr-only">Accédez aux différents modules et outils de votre guilde.</SheetDescription>
                         <AppSidebar {...sidebarProps} />

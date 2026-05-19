@@ -6,12 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Hammer, Palmtree, ShieldCheck } from "lucide-react";
+import { Hammer, Palmtree, Shield, ShieldCheck, Sparkles } from "lucide-react";
 import { getClass, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getAlignment, getOrder } from "@/lib/dofus-assets";
 import {
     Tooltip,
     TooltipContent,
@@ -25,6 +26,10 @@ interface ExtendedProfile extends UserProfile {
     roleColor?: number;
     roleName?: string;
     isAdmin?: boolean;
+    alignment: string | null;
+    alignmentOrder: string | null;
+    alignmentLevel: number | null;
+    legendaryCrafts?: any[];
 }
 
 interface MemberCardProps {
@@ -63,26 +68,39 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
     const activeThreshold = 2 * 60 * 1000;
     const isOnline = profile.lastActivityAt && (new Date().getTime() - new Date(profile.lastActivityAt).getTime() < activeThreshold);
 
+    const alignmentData = getAlignment(profile.alignment || "");
+    const orderData = profile.alignment && profile.alignmentOrder ? getOrder(profile.alignment, profile.alignmentOrder) : null;
+
     return (
-        <Link href={`/dashboard/${guildId}/members/${profile.id}`}>
+        <Link href={`/dashboard/${guildId}/members/${encodeURIComponent(profile.pseudoDofus || profile.id)}`}>
             <Card
                 className={cn(
-                    "bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-all group overflow-hidden cursor-pointer border-2 shadow-lg",
-                    roleColor ? "" : "border-border",
-                    isOnVacation && "bg-cyan-500/[0.02] border-cyan-500/20 shadow-cyan-500/[0.05]"
+                    "group relative overflow-hidden cursor-pointer border shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl bg-zinc-950/80 backdrop-blur-md",
+                    roleColor ? "" : "border-white/5 hover:border-white/10",
+                    isOnVacation && "bg-cyan-950/20 border-cyan-500/20 hover:border-cyan-500/40"
                 )}
-                style={roleColor ? { borderColor: roleColor } : undefined}
+                style={roleColor ? { borderColor: `${roleColor}30`, boxShadow: `0 10px 40px -10px ${roleColor}15` } : undefined}
             >
-                <CardContent className="p-6 flex flex-col items-center gap-4 relative">
-                    {/* Vacation Badge */}
+                {/* Dynamic Background Glow & Top Banner */}
+                <div 
+                    className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-500 pointer-events-none"
+                    style={roleColor ? { background: `radial-gradient(circle at 50% 0%, ${roleColor}, transparent 70%)` } : { background: `radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1), transparent 70%)` }}
+                />
+                <div 
+                    className="absolute top-0 left-0 w-full h-1"
+                    style={roleColor ? { backgroundColor: roleColor } : { background: "linear-gradient(90deg, #3f3f46, #71717a)" }}
+                />
+
+                <CardContent className="p-6 flex flex-col items-center gap-4 relative z-10">
+                    {/* Vacation Badges */}
                     {isOnVacation && (
-                        <div className="absolute top-3 right-3">
+                        <div className="absolute top-3 right-3 z-20">
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <Badge variant="outline" className="bg-cyan-500/10 border-cyan-500/30 text-cyan-400 gap-1.5 hover:bg-cyan-500/20 transition-colors cursor-help">
                                             <Palmtree className="w-3.5 h-3.5" />
-                                            <span className="text-[10px] font-semibold uppercase tracking-wide">En vacances</span>
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide hidden sm:inline">En vacances</span>
                                         </Badge>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" className="glass-premium border-cyan-500/30 text-cyan-600 dark:text-cyan-300">
@@ -93,13 +111,13 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                         </div>
                     )}
                     {isUpcoming && (
-                        <div className="absolute top-3 right-3">
+                        <div className="absolute top-3 right-3 z-20">
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400 gap-1.5 hover:bg-orange-500/20 transition-colors cursor-help">
                                             <Palmtree className="w-3.5 h-3.5" />
-                                            <span className="text-[10px] font-semibold uppercase tracking-wide">Bientôt</span>
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide hidden sm:inline">Bientôt</span>
                                         </Badge>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" className="glass-premium border-orange-500/30 text-orange-600 dark:text-orange-300">
@@ -110,49 +128,125 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                         </div>
                     )}
 
-                    {/* Avatar */}
-                    <div className="relative group/avatar">
+                    {/* Avatar Container */}
+                    <div className="relative group/avatar mt-2">
+                        <div className="absolute inset-0 rounded-full blur-md opacity-0 group-hover/avatar:opacity-50 transition-opacity duration-500"
+                             style={roleColor ? { backgroundColor: roleColor } : { backgroundColor: "rgba(255,255,255,0.2)" }} />
+                        
                         <Avatar
-                            className="w-20 h-20 border-2 transition-all shadow-xl group-hover:shadow-primary/20"
-                            style={roleColor ? { borderColor: roleColor } : { borderColor: "rgba(255,255,255,0.1)" }}
+                            className="w-24 h-24 transition-all duration-500 ring-2 ring-offset-4 ring-offset-zinc-950 group-hover/avatar:scale-105"
+                            style={{ "--ringColor": roleColor || "rgba(255,255,255,0.1)" } as React.CSSProperties}
                         >
-                            <AvatarImage src={profile.user.image || ""} />
-                            <AvatarFallback className="text-xl font-black bg-foreground/10 text-muted-foreground">
+                            <AvatarImage src={profile.user.image || ""} className="object-cover" />
+                            <AvatarFallback className="text-2xl font-black bg-zinc-900 text-zinc-500">
                                 {displayName.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
-                    </div>
+                        
+                        {/* Online Status Indicator */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className={cn(
+                                        "absolute bottom-1 right-1 w-5 h-5 rounded-full border-[3px] border-zinc-950 transition-all duration-300",
+                                        isOnline ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]" : "bg-zinc-600"
+                                    )} />
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="glass-premium border-white/10 text-xs font-bold uppercase tracking-widest">
+                                    {isOnline ? "En ligne récemment" : "Hors ligne"}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
 
-                    {/* Name & Class */}
-                    <div className="text-center space-y-1 w-full">
-                        <div className="flex items-center justify-center gap-1.5">
-                            <h3 className="font-black text-lg truncate text-foreground italic uppercase tracking-tighter">
-                                {displayName}
-                            </h3>
-                            {profile.isAdmin && (
+                        {/* Alignment/Order Badge */}
+                        {profile.alignment && (
+                            <div className="absolute -top-1 -left-1 z-20">
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <ShieldCheck className="w-4 h-4 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] shrink-0" />
+                                            <div className={cn(
+                                                "w-8 h-8 rounded-lg border bg-zinc-950 shadow-lg flex items-center justify-center overflow-hidden",
+                                                profile.alignment === "bontarien" ? "border-blue-500/30" : 
+                                                profile.alignment === "brakmarien" ? "border-red-500/30" : 
+                                                "border-white/10"
+                                            )}>
+                                                {orderData ? (
+                                                    <Image src={orderData.icon} alt={orderData.name} width={20} height={20} className="object-contain" />
+                                                ) : (
+                                                    <Shield className={cn(
+                                                        "w-4 h-4",
+                                                        profile.alignment === "bontarien" ? "text-blue-400" : 
+                                                        profile.alignment === "brakmarien" ? "text-red-400" : 
+                                                        "text-zinc-500"
+                                                    )} />
+                                                )}
+                                            </div>
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" className="glass-premium border-purple-500/30 text-purple-600 dark:text-purple-200 text-[10px] font-black uppercase tracking-widest">
-                                            Administration
+                                        <TooltipContent side="left" className="glass-premium border-white/10 text-[10px] font-black uppercase tracking-widest">
+                                            <p>{alignmentData?.name}{orderData ? ` - ${orderData.name}` : ""}</p>
+                                            {profile.alignmentLevel ? <p className="text-zinc-500">Niveau {profile.alignmentLevel}</p> : null}
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Name & Role */}
+                    <div className="text-center space-y-2 w-full mt-2">
+                        <div className="flex flex-col items-center justify-center gap-1.5">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-black text-xl truncate text-white italic uppercase tracking-tighter">
+                                    {displayName}
+                                </h3>
+                                {profile.isAdmin && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <ShieldCheck className="w-4 h-4 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)] shrink-0" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="glass-premium border-amber-500/30 text-amber-500 text-[10px] font-black uppercase tracking-widest">
+                                                Administration SigilOS
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                                {profile.legendaryCrafts && profile.legendaryCrafts.length > 0 && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Sparkles className="w-4 h-4 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.6)] shrink-0 animate-pulse" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="glass-premium border-purple-500/30 text-purple-400 text-[10px] font-black uppercase tracking-widest">
+                                                Artisan Légendaire Spécialisé
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                            </div>
+                            
+                            {/* Role Badge if available */}
+                            {profile.roleName && (
+                                <Badge variant="outline" className="text-[9px] px-2 py-0 uppercase font-black tracking-widest bg-zinc-900/80 border-white/5" style={roleColor ? { color: roleColor } : { color: "#a1a1aa" }}>
+                                    {profile.roleName}
+                                </Badge>
                             )}
                         </div>
-                        <div className="flex items-center justify-center gap-1.5">
-                            {classData && <ClassIcon classId={classData.id} size={20} />}
-                            <p className="text-sm text-muted-foreground font-medium">
+                        
+                        <div className="flex items-center justify-center gap-1.5 pt-1">
+                            {classData && <ClassIcon classId={classData.id} size={18} className="opacity-80" />}
+                            <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider">
                                 {classData?.name || profile.classe || "Aventurier"}
                             </p>
                         </div>
                     </div>
 
+                    {/* Divider */}
+                    <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-1" />
+
                     {/* Jobs */}
                     <div className={cn(
-                        "flex flex-wrap items-center justify-center gap-2 mt-2 min-h-[1.5rem]",
+                        "flex flex-wrap items-center justify-center gap-2 min-h-[1.5rem]",
                         isOnVacation && "mb-2"
                     )}>
                         {jobs.length > 0 ? (
@@ -160,26 +254,28 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 {topJobs.map(job => {
                                     const jobData = Object.values(DOFUS_JOBS).flat().find(j => j.id === job);
                                     return (
-                                        <Badge key={job} variant="secondary" className="bg-foreground/[0.05] hover:bg-foreground/[0.1] text-[10px] px-2 py-0.5 border-border font-black uppercase tracking-tighter text-muted-foreground">
+                                        <Badge key={job} variant="secondary" className="bg-white/[0.03] hover:bg-white/[0.08] text-[9px] px-2.5 py-1 border-white/5 font-black uppercase tracking-widest text-zinc-300 transition-colors">
                                             {jobData?.icon ? (
                                                 jobData.icon.startsWith("/") ? (
-                                                    <Image src={jobData.icon} alt={jobData.name} width={16} height={16} className="w-4 h-4 mr-1 object-contain" />
+                                                    <Image src={jobData.icon} alt={jobData.name} width={14} height={14} className="w-3.5 h-3.5 mr-1.5 object-contain opacity-80" />
                                                 ) : (
-                                                    <span className="mr-1">{jobData.icon}</span>
+                                                    <span className="mr-1.5 opacity-80 text-[10px]">{jobData.icon}</span>
                                                 )
                                             ) : (
-                                                <Hammer className="w-3 h-3 mr-1 opacity-50" />
+                                                <Hammer className="w-3 h-3 mr-1.5 opacity-50" />
                                             )}
-                                            <span className="ml-1">{jobData?.name || job}</span>
+                                            {jobData?.name || job}
                                         </Badge>
                                     );
                                 })}
                                 {remaining > 0 && (
-                                    <span className="text-xs text-muted-foreground">+{remaining}</span>
+                                    <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-black text-zinc-400">
+                                        +{remaining}
+                                    </div>
                                 )}
                             </>
                         ) : (
-                            <span className="text-xs text-muted-foreground/40 italic font-medium">Aucun métier</span>
+                            <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">Aucun métier</span>
                         )}
                     </div>
 
@@ -189,15 +285,12 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <span className="text-[9px] text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
                                 <Palmtree className="w-3 h-3" /> Période d'absence
                             </span>
-                            <span className="text-[11px] text-muted-foreground font-black italic whitespace-nowrap">
+                            <span className="text-[11px] text-zinc-300 font-black italic whitespace-nowrap">
                                 {format(vacationStart!, "d MMMM", { locale: fr })}
                                 {vacationEnd ? ` au ${format(vacationEnd, "d MMMM", { locale: fr })}` : " (indéfini)"}
                             </span>
                         </div>
                     )}
-
-                    {/* Forgemagie Badge */}
-
                 </CardContent>
             </Card>
         </Link>

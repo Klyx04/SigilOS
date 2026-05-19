@@ -402,11 +402,10 @@ export async function purchaseBonus(
             await sendChannelMessage(notificationChannelId, mentionText, {
                 embedTitle: "💎 Bonus de Guilde disponible : " + config.name,
                 embedColor: 0x9333ea,
-                embedDescription: `Un nouveau bonus a été acheté par **${session?.user?.name || "un membre"}**.\nN'importe quel membre peut l'activer en jeu !`,
+                embedDescription: `Un nouveau bonus a été acheté par **${session?.user?.name || "un membre"}**.\n\n**Comment l'activer ?**\nN'importe quel membre peut l'activer en jeu ! Vous avez **24h** pour le faire dans l'onglet **"Obtenu"** du menu des bonus de guilde.`,
                 fields: [
                     { name: "✨ Effet du bonus", value: config.description, inline: true },
                     { name: "⏳ Disponibilité restante", value: `<t:${discordTimestamp}:R>`, inline: false },
-                    { name: "🖥️ Dashboard de Guilde", value: `[Gérer les bonus et suivre l'activité](${dashboardUrl})`, inline: false },
                     { name: "\u200b", value: "*Pas encore sur le Dashboard ? Rejoins-le sur **beta.sigilos.fr** !*", inline: false }
                 ],
                 embedFooter: "SigilOS • Pas encore sur le Dashboard ? → beta.sigilos.fr",
@@ -586,9 +585,9 @@ export async function getXpMultiplier(guildId: string): Promise<number> {
  */
 export async function getBonusConfig(
     guildId: string
-): Promise<ActionResponse<{ bonusNotifyChannelId: string | null }>> {
+): Promise<ActionResponse<{ bonusNotifyChannelId: string | null; channelName?: string }>> {
     try {
-        await requireAdmin(guildId);
+        await requireBonusManage(guildId);
 
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -599,7 +598,18 @@ export async function getBonusConfig(
             return { success: false, error: "Guilde introuvable" };
         }
 
-        return { success: true, data: { bonusNotifyChannelId: config.bonusNotifyChannelId } };
+        let channelName = undefined;
+        if (config.bonusNotifyChannelId) {
+            const { fetchChannel } = await import("@/server/discord");
+            try {
+                const channel = await fetchChannel(config.bonusNotifyChannelId);
+                if (channel) channelName = channel.name;
+            } catch (err) {
+                console.error("Failed to fetch bonus channel name:", err);
+            }
+        }
+
+        return { success: true, data: { bonusNotifyChannelId: config.bonusNotifyChannelId, channelName } };
     } catch (error) {
         return { success: false, error: (error as Error).message };
     }

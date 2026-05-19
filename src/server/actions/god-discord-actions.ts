@@ -68,6 +68,23 @@ export async function diagnoseDiscordConnectivity() {
         results.channels.status = await checkChan(config?.serviceStatusChannelId || null);
         results.channels.alerts = await checkChan(config?.godNotifyChannelId || null);
 
+        // 4. Send a Discord Alert if requested/configured
+        const targetAlertChannel = config?.godNotifyChannelId;
+        if (targetAlertChannel) {
+            const { sendChannelMessage } = await import("@/server/discord");
+            await sendChannelMessage(targetAlertChannel, "", {
+                embedTitle: "🔍 Diagnostic Connectivité SigilOS",
+                embedDescription: `Audit terminé pour **${results.botIdentity?.username || "Bot Inconnu"}**.\n\n` +
+                    `✅ **Token** : Valide\n` +
+                    `📊 **Serveurs** : ${results.guilds.length}\n` +
+                    `🔗 **Hub** : ${results.channels.hub.status}\n` +
+                    `📡 **Status** : ${results.channels.status.status}\n` +
+                    `🚨 **Alertes** : ${results.channels.alerts.status}`,
+                embedColor: 0x6366f1,
+                embedFooter: "SigilOS God Diagnostics • Rapport Automatique"
+            }).catch(() => null);
+        }
+
         return { success: true, results };
 
     } catch (error: any) {

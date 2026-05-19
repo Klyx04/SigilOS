@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -396,7 +396,8 @@ export async function createPoll(
             };
         }
 
-        const creatorName = profile.pseudoDofus || profile.discordNickname || session.user.name || "Membre";
+        const ctx = await getUserContext(data.guildId);
+        const creatorName = ctx.name || "Membre";
 
         // Create poll + options in transaction
         const poll = await db.$transaction(async (tx) => {
@@ -540,7 +541,7 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
         await createAuditLog({
             guildId: data.guildId,
             actorUserId: session.user.id,
-            actorName: profile.pseudoDofus || session.user.name || "Membre",
+            actorName: ctx.name || "Membre",
             action: "POLL_UPDATED" as any,
             targetType: "POLL",
             targetId: poll.id,
@@ -725,7 +726,7 @@ export async function closePoll(
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
-            actorName: session.user.name || "Admin",
+            actorName: ctx.name || "Admin",
             action: "POLL_CLOSED",
             targetType: "POLL",
             targetId: pollId,
@@ -839,7 +840,7 @@ export async function deletePoll(
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
-            actorName: session.user.name || "Admin",
+            actorName: (await getUserContext(discordGuildId)).name || "Admin",
             action: "POLL_DELETED",
             targetType: "POLL",
             targetId: pollId,
@@ -1183,7 +1184,7 @@ export async function acquirePollCreatorRole(discordGuildId: string): Promise<Ac
         });
 
         // Audit Log
-        const actorName = ctx.name || session.user.name || "Membre";
+        const actorName = ctx.name || "Membre";
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
@@ -1235,7 +1236,7 @@ export async function releasePollCreatorRole(discordGuildId: string): Promise<Ac
         await createAuditLog({
             guildId: discordGuildId,
             actorUserId: session.user.id,
-            actorName: ctx.name || session.user.name || "Membre",
+            actorName: ctx.name || "Membre",
             action: "POLL_CREATOR_ROLE_RELEASED" as any,
             targetType: "ROLE",
             targetId: "poll-creator",

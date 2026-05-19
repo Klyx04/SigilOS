@@ -58,7 +58,10 @@ export type DofusbookPreviewData = {
         count: number;
         total: number;
         clothItems?: DofusbookItem[]; // items belonging to this set (equipped ones)
+        bonuses?: Record<string, number>;
     }[];
+    thumbnail?: string;
+    smithmagic?: any;
 };
 
 export function getClassName(id: number): string {
@@ -194,7 +197,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     });
 
     // 🔗 3. Panoplie Bonuses
-    const activeCloths: { name: string; count: number; total: number; clothItems?: DofusbookItem[] }[] = [];
+    const activeCloths: { name: string; count: number; total: number; clothItems?: DofusbookItem[]; bonuses?: Record<string, number> }[] = [];
     if (Array.isArray(raw.cloths)) {
         raw.cloths.forEach((cloth: any) => {
             const clothItemIds = new Set((cloth.items || []).map((i: any) => Number(i.id)));
@@ -205,6 +208,24 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             const total = cloth.count_item || cloth.items?.length || 0;
             const clothName = cloth.name || "Panoplie inconnue";
 
+            // Apply ALL cumulative bonuses up to equippedCount
+            // Dofus pano bonuses are cumulative: 3 pieces = 2-piece bonus + 3-piece bonus
+            const bonuses = (cloth.effects || []).filter(
+                (e: any) => Number(e.count) <= equippedCount
+            );
+            
+            const clothBonuses: Record<string, number> = {};
+            bonuses.forEach((e: any) => {
+                sumEffect(e);
+                const name = (e.name || "").toLowerCase();
+                const val = Number(e.value) || Math.max(Number(e.min) || 0, Number(e.max) || 0);
+                if (val !== 0 && name !== 'invo' && name !== 'po') {
+                    clothBonuses[name] = (clothBonuses[name] || 0) + val;
+                } else if (val !== 0) {
+                    clothBonuses[name] = (clothBonuses[name] || 0) + val;
+                }
+            });
+
             if (equippedCount > 1) {
                 // Collect the actually-equipped items from this cloth
                 const equippedClothItems: DofusbookItem[] = (cloth.items || [])
@@ -213,15 +234,8 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
                     .filter(Boolean)
                     .map((i: any) => ({ id: i.id, name: i.name, picture: i.picture, official: i.official }));
 
-                activeCloths.push({ name: clothName, count: equippedCount, total, clothItems: equippedClothItems });
+                activeCloths.push({ name: clothName, count: equippedCount, total, clothItems: equippedClothItems, bonuses: clothBonuses });
             }
-
-            // Apply ALL cumulative bonuses up to equippedCount
-            // Dofus pano bonuses are cumulative: 3 pieces = 2-piece bonus + 3-piece bonus
-            const bonuses = (cloth.effects || []).filter(
-                (e: any) => Number(e.count) <= equippedCount
-            );
-            bonuses.forEach(sumEffect);
         });
     }
 
@@ -319,8 +333,58 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         });
     }
 
+    // 🔧 6. Extract true Exo/Over for the FM Panel
+    // We compare stuffFmItem (full modified stats) with the base item effects
+    const computedSmithmagic: Record<string, Record<string, number>> = {};
+    if (stuffFmItem && typeof stuffFmItem === 'object') {
+        Object.entries(stuffFmItem).forEach(([slot, fmStats]: [string, any]) => {
+            if (!fmStats || typeof fmStats !== 'object') return;
+            const itemId = stuffItemsSlots[slot];
+            const item = itemsList.find(i => Number(i.id) === Number(itemId));
+            
+            const diff: Record<string, number> = {};
+            const baseStats: Record<string, number> = {};
+            
+            // Gather max base stats
+            if (item && Array.isArray(item.effects)) {
+                item.effects.forEach((e: any) => {
+                    const name = (e.name || "").toLowerCase();
+                    const minVal = e.min !== undefined && e.min !== null ? Number(e.min) : undefined;
+                    const maxVal = e.max !== undefined && e.max !== null ? Number(e.max) : undefined;
+                    let val = Number(e.value) || 0;
+                    if (minVal !== undefined && maxVal !== undefined) val = Math.max(minVal, maxVal);
+                    else if (maxVal !== undefined) val = maxVal;
+                    else if (minVal !== undefined) val = minVal;
+                    
+                    baseStats[name] = (baseStats[name] || 0) + val;
+                });
+            }
+
+            // Compare FM stats to base stats
+            for (const [stat, val] of Object.entries(fmStats)) {
+                const fmVal = Number(val) || 0;
+                const baseVal = baseStats[stat.toLowerCase()] || 0;
+                const exo = fmVal - baseVal;
+                if (exo !== 0) {
+                    diff[stat.toLowerCase()] = exo;
+                }
+            }
+
+            if (Object.keys(diff).length > 0) {
+                computedSmithmagic[slot] = diff;
+            }
+        });
+    }
+
+    const numericIdMatch = id?.match(/^(\d+)/);
+    const numericId = numericIdMatch ? numericIdMatch[1] : id;
+    
+    const thumbnail = numericId 
+        ? `https://static.dofusbook.net/equipement/render/${numericId}.png`
+        : undefined;
+
     return {
-        id: parseInt(id),
+        id: parseInt(id) || 0,
         name: raw.stuff?.name || "Sans nom",
         level,
         classId: raw.stuff?.character_class || 1,
@@ -330,6 +394,8 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
         resists: { neutre: resN, terre: resT, feu: resF, eau: resE, air: resA },
         damages: { neutre: dn, terre: dt, feu: df, eau: de, air: da, general: dom, critique: dc, poussee: dp, armes: do_armes, sorts: do_sorts, melee: do_melee, distance: do_dist },
         items: itemsMap,
-        cloths: activeCloths
+        cloths: activeCloths,
+        thumbnail,
+        smithmagic: computedSmithmagic
     };
 }

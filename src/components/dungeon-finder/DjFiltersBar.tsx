@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Search, X, Swords, Map, Users, Star, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export interface DjFiltersState {
     search: string;
@@ -61,43 +62,58 @@ export function DjFiltersBar({ filters, onChange, total, filtered }: DjFiltersBa
             {/* Row 1: Essential Search + Mode + Filter Toggle */}
             <div className="flex flex-col md:flex-row gap-2">
                 {/* Search */}
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <div className="relative flex-1 group">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-300">
+                        <Search className={cn(
+                            "w-4 h-4 transition-colors",
+                            filters.search ? "text-amber-500" : "text-zinc-500 group-focus-within:text-amber-400"
+                        )} />
+                    </div>
                     <input
                         ref={searchRef}
                         type="text"
                         value={filters.search}
                         onChange={(e) => onChange({ ...filters, search: e.target.value })}
                         placeholder="Rechercher un donjon, boss, quête…"
-                        className="w-full bg-slate-900/50 border border-white/5 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-white/20 focus:ring-4 focus:ring-white/5 shadow-inner transition-all h-11 backdrop-blur-md"
+                        className="w-full bg-zinc-900/80 border border-white/10 rounded-xl pl-10 pr-8 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/10 shadow-2xl transition-all h-11 backdrop-blur-xl"
                     />
+                    {filters.search && (
+                        <button 
+                            onClick={() => onChange({ ...filters, search: "" })}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-white transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
                     {/* Mode Selector */}
-                    <div className="flex bg-slate-900/50 border border-white/5 rounded-xl p-1 relative shadow-inner h-11 items-center">
+                    <div className="flex bg-zinc-900/80 border border-white/10 rounded-xl p-1 relative shadow-2xl h-11 items-center backdrop-blur-xl">
                         {[
-                            { value: "", label: "Tous", icon: null },
-                            { value: "DONJON", label: "DJ", icon: Swords },
-                            { value: "QUETE", label: "Quête", icon: Map },
-                        ].map(({ value, label, icon: Icon }) => {
+                            { value: "", label: "Tous", icon: null, activeColor: "bg-indigo-500", activeText: "text-white", glow: "shadow-indigo-500/40" },
+                            { value: "DONJON", label: "DJ", icon: Swords, activeColor: "bg-rose-500", activeText: "text-white", glow: "shadow-rose-500/40" },
+                            { value: "QUETE", label: "Quête", icon: Map, activeColor: "bg-emerald-500", activeText: "text-white", glow: "shadow-emerald-500/40" },
+                        ].map(({ value, label, icon: Icon, activeColor, activeText, glow }) => {
                             const isActive = filters.mode === value;
                             return (
                                 <button
                                     key={value}
                                     onClick={() => onChange({ ...filters, mode: value })}
-                                    className={`relative z-10 flex items-center justify-center gap-1.5 px-3 h-full rounded-lg text-[11px] font-black transition-all ${isActive ? "text-zinc-900" : "text-slate-500 hover:text-slate-300"
-                                        }`}
+                                    className={cn(
+                                        "relative z-10 flex items-center justify-center gap-1.5 px-4 h-full rounded-lg text-[11px] font-black transition-all duration-300",
+                                        isActive ? activeText : "text-zinc-500 hover:text-zinc-300"
+                                    )}
                                 >
                                     {isActive && (
                                         <motion.div
                                             layoutId="active-mode-pill"
-                                            className="absolute inset-0 rounded-lg -z-10 bg-white border border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+                                            className={cn("absolute inset-0 rounded-lg -z-10 shadow-lg", activeColor, glow)}
                                             transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                                         />
                                     )}
-                                    {Icon && <Icon className="w-3.5 h-3.5" />}
-                                    {label}
+                                    {Icon && <Icon className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-zinc-500")} />}
+                                    <span className="relative z-10 uppercase tracking-wider">{label}</span>
                                 </button>
                             );
                         })}

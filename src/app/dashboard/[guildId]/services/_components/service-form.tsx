@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
     Dialog,
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, X, Sword, ScrollText, Hammer, Crown, Wrench, MessageSquare, Gamepad2 } from "lucide-react";
+import { Loader2, Plus, X, Sword, ScrollText, Hammer, Crown, Wrench, MessageSquare, Gamepad2, ArrowLeft } from "lucide-react";
 import { createServiceListing } from "@/server/actions/service-actions";
 import { ServiceCategory } from "@prisma/client";
 import { toast } from "sonner";
@@ -53,7 +53,7 @@ const VISIBLE_CATEGORIES: { key: ServiceCategory; label: string; icon: React.Rea
     { key: "FORGEMAGIE", label: "Forgemagie", icon: <Hammer className="h-5 w-5" />, color: "from-amber-500/20 to-transparent", accent: "border-amber-500/60 bg-amber-500/15 text-amber-300" },
     { key: "METIER", label: "Métier", icon: <Wrench className="h-5 w-5" />, color: "from-emerald-500/20 to-transparent", accent: "border-emerald-500/60 bg-emerald-500/15 text-emerald-300" },
     { key: "QUETE", label: "Quête", icon: <ScrollText className="h-5 w-5" />, color: "from-violet-500/20 to-transparent", accent: "border-violet-500/60 bg-violet-500/15 text-violet-300" },
-    { key: "OCRE", label: "Quête Ocre 🥚", icon: <Crown className="h-5 w-5" />, color: "from-yellow-500/20 to-transparent", accent: "border-yellow-500/60 bg-yellow-500/15 text-yellow-300" },
+    { key: "OCRE", label: "Quête Ocre", icon: <Crown className="h-5 w-5" />, color: "from-yellow-500/20 to-transparent", accent: "border-yellow-500/60 bg-yellow-500/15 text-yellow-300" },
 ];
 
 const CATEGORY_ACCENT: Record<ServiceCategory, string> = {
@@ -72,6 +72,7 @@ const CATEGORY_ACCENT: Record<ServiceCategory, string> = {
 export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [step, setStep] = useState<1 | 2>(1);
 
     // Common
     const [category, setCategory] = useState<ServiceCategory>("PASSAGE_DONJON");
@@ -103,8 +104,68 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
     // METIER
     const [metierMode, setMetierMode] = useState<"craft" | "pack">("craft");
     const [selectedMetierJob, setSelectedMetierJob] = useState<string>("");
+    const [eleveurOptions, setEleveurOptions] = useState({
+        emeraude: { active: false, price: "" },
+        dragodinde: { active: false, price: "", gen: "all" as string | number },
+        muldo: { active: false, price: "", gen: "all" as string | number },
+        volkorne: { active: false, price: "", gen: "all" as string | number },
+        pack100: { active: false, price: "" },
+        pack1000: { active: false, price: "" },
+    });
+
+    useEffect(() => {
+        if (open) {
+            setStep(1);
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (category === "PASSAGE_DONJON") {
+            if (!dungeonSelection) {
+                setTitle("");
+                return;
+            }
+            const dungeonName = dungeonSelection.dungeon.name;
+            const selAchs = dungeonSelection.dungeon.achievements
+                .filter(a => dungeonSelection.selectedAchievementIds.includes(a.id))
+                .map(a => a.challenge.name);
+
+            if (selAchs.length === 0) {
+                setTitle(`${dungeonName} - Passage classique`);
+            } else {
+                setTitle(`${dungeonName} - ${selAchs.join(" + ")}`);
+            }
+        } else if (category === "FORGEMAGIE") {
+            if (selectedJobs.length === 0) {
+                setTitle("Forgemagie");
+            } else {
+                setTitle(`Forgemagie - ${selectedJobs.join(" & ")}`);
+            }
+        } else if (category === "METIER") {
+            if (selectedMetierJob === "Éleveur") {
+                setTitle("Élevage de Montures - Services & Packs");
+            } else {
+                const modeLabel = metierMode === "craft" ? "Craft sur commande" : "Pack 1→200";
+                if (!selectedMetierJob) {
+                    setTitle(`Artisanat - ${modeLabel}`);
+                } else {
+                    setTitle(`Artisanat - ${selectedMetierJob} (${modeLabel})`);
+                }
+            }
+        } else if (category === "QUETE") {
+            if (!questSelection) {
+                setTitle("");
+                return;
+            }
+            setTitle(`Quête - ${questSelection.questName}`);
+        } else if (category === "OCRE") {
+            const packLabel = OCRE_PACKS.find(p => p.value === ocrePack)?.label || "Quête Ocre";
+            setTitle(`Quête Ocre - ${packLabel}`);
+        }
+    }, [category, dungeonSelection, selectedJobs, metierMode, selectedMetierJob, questSelection, ocrePack]);
 
     const resetForm = () => {
+        setStep(1);
         setCategory("PASSAGE_DONJON");
         setTitle(""); setDescription(""); setPrice(""); setAvailability("");
         setContactDiscord(true); setContactIngame(false);
@@ -113,6 +174,14 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
         setSelectedJobs([]); setFmItem(""); setPassTrans(""); setCommandeExo(false); setFmLinkedItem(null);
         setOcrePack("boss"); setOcrePrice("");
         setMetierMode("craft"); setSelectedMetierJob("");
+        setEleveurOptions({
+            emeraude: { active: false, price: "" },
+            dragodinde: { active: false, price: "", gen: "all" },
+            muldo: { active: false, price: "", gen: "all" },
+            volkorne: { active: false, price: "", gen: "all" },
+            pack100: { active: false, price: "" },
+            pack1000: { active: false, price: "" },
+        });
     };
 
     function addPriceTier() {
@@ -130,9 +199,26 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
 
     const handleSubmit = async () => {
         if (!title.trim()) { toast.error("Le titre est requis."); return; }
+        
+        // Validation for Éleveur (Breeder)
+        if (category === "METIER" && selectedMetierJob === "Éleveur") {
+            const hasActive = Object.values(eleveurOptions).some(o => o.active);
+            if (!hasActive) {
+                toast.error("Veuillez activer au moins une prestation d'élevage.");
+                return;
+            }
+            const activeOptions = Object.entries(eleveurOptions).filter(([_, o]) => o.active);
+            const missingPrices = activeOptions.some(([_, o]) => !o.price.trim());
+            if (missingPrices) {
+                toast.error("Veuillez renseigner un tarif pour chaque prestation d'élevage sélectionnée.");
+                return;
+            }
+        }
+
         setLoading(true);
         try {
             const toJson = (v: unknown) => v as import("@prisma/client").Prisma.InputJsonValue;
+            
             // Résoudre les labels combo (JSON d'IDs → noms lisibles)
             const allAchievements = dungeonSelection?.dungeon.achievements ?? [];
             const resolvedTiers = priceTiers.map(t => {
@@ -149,11 +235,43 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
             });
             const validTiers = resolvedTiers.filter((t) => t.label && t.price);
 
+            // Compile Price Tiers for Breeder
+            let finalPriceTiers = validTiers;
+            if (category === "METIER" && selectedMetierJob === "Éleveur") {
+                const tiers: PriceTier[] = [];
+                if (eleveurOptions.emeraude.active) {
+                    tiers.push({ label: "Dofus Émeraude (accouplement/naissance)", price: eleveurOptions.emeraude.price.trim() });
+                }
+                if (eleveurOptions.dragodinde.active) {
+                    const genLabel = eleveurOptions.dragodinde.gen === "all" ? "Pack full géné 1→10" : `Génération ${eleveurOptions.dragodinde.gen}`;
+                    tiers.push({ label: `Pack Dragodinde (${genLabel})`, price: eleveurOptions.dragodinde.price.trim() });
+                }
+                if (eleveurOptions.muldo.active) {
+                    const genLabel = eleveurOptions.muldo.gen === "all" ? "Pack full géné 1→10" : `Génération ${eleveurOptions.muldo.gen}`;
+                    tiers.push({ label: `Pack Muldo (${genLabel})`, price: eleveurOptions.muldo.price.trim() });
+                }
+                if (eleveurOptions.volkorne.active) {
+                    const genLabel = eleveurOptions.volkorne.gen === "all" ? "Pack full géné 1→10" : `Génération ${eleveurOptions.volkorne.gen}`;
+                    tiers.push({ label: `Pack Volkorne (${genLabel})`, price: eleveurOptions.volkorne.price.trim() });
+                }
+                if (eleveurOptions.pack100.active) {
+                    tiers.push({ label: "Pack naissance 100 montures", price: eleveurOptions.pack100.price.trim() });
+                }
+                if (eleveurOptions.pack1000.active) {
+                    tiers.push({ label: "Pack naissance 1000 montures", price: eleveurOptions.pack1000.price.trim() });
+                }
+                finalPriceTiers = tiers;
+            }
+
             const result = await createServiceListing(guildId, {
                 category,
                 title: title.trim(),
                 description: description.trim() || null,
-                price: (category === "OCRE" ? OCRE_PACKS.find(p => p.value === ocrePack)?.label : price.trim()) || null,
+                price: (category === "OCRE"
+                    ? OCRE_PACKS.find(p => p.value === ocrePack)?.label
+                    : (category === "METIER" && selectedMetierJob === "Éleveur")
+                        ? "Prestations Élevage"
+                        : price.trim()) || null,
                 availability: availability.trim() || null,
                 contactMethod: [contactDiscord && "Discord", contactIngame && "En jeu"].filter(Boolean).join(" + ") || null,
                 publishToDiscord: true,
@@ -173,11 +291,13 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                 dofusItemIconUrl: fmLinkedItem?.iconUrl || null,
                 priceTiers: category === "OCRE" && ocrePrice.trim()
                     ? toJson([{ label: OCRE_PACKS.find(p => p.value === ocrePack)?.label ?? ocrePack, price: ocrePrice.trim() }]) as unknown as PriceTier[]
-                    : validTiers.length ? toJson(validTiers) as unknown as PriceTier[] : null,
+                    : finalPriceTiers.length ? toJson(finalPriceTiers) as unknown as PriceTier[] : null,
                 craftMeta: category === "FORGEMAGIE"
-                    ? toJson({ fmItems: fmItem || undefined, passTrans: passTrans || undefined, commandeExo: commandeExo ? "oui" : undefined }) as unknown as { fmItems?: string; passTrans?: string; commandeExo?: string }
+                    ? toJson({ fmItems: undefined, passTrans: undefined, commandeExo: commandeExo ? "oui" : undefined }) as unknown as { fmItems?: string; passTrans?: string; commandeExo?: string }
                     : null,
-                professions: selectedJobs.length ? selectedJobs : null,
+                professions: category === "FORGEMAGIE"
+                    ? (selectedJobs.length ? selectedJobs : null)
+                    : (category === "METIER" && selectedMetierJob ? [selectedMetierJob] : null),
             });
 
             if (result.success) {
@@ -198,561 +318,942 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-xl bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl text-white max-h-[92vh] overflow-y-auto p-0 gap-0">
-                {/* Gradient header */}
-                <div className={`bg-gradient-to-r ${cat?.color ?? ""} px-6 pt-6 pb-4 border-b border-white/5`}>
-                    <DialogTitle className="text-lg font-black flex items-center gap-2.5">
-                        <span className={`p-1.5 rounded-lg border shadow-inner ${cat?.accent ?? ""}`}>{cat?.icon}</span>
-                        Publier un service
-                    </DialogTitle>
+                {step === 1 ? (
+                    <div className="flex flex-col h-full">
+                        {/* Gradient header */}
+                        <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent px-6 pt-6 pb-5 border-b border-white/5">
+                            <DialogTitle className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                                🚀 Publier un service
+                            </DialogTitle>
+                            <p className="text-xs text-zinc-400 leading-relaxed mt-1">
+                                Sélectionnez la catégorie de service que vous souhaitez proposer à la guilde pour ouvrir son configurateur dédié.
+                            </p>
+                        </div>
 
-                    {/* Category pills */}
-                    <div className="flex flex-wrap gap-2 mt-4">
-                        {VISIBLE_CATEGORIES.map((c) => (
-                            <button
-                                key={c.key}
-                                onClick={() => { setCategory(c.key); setDungeonSelection(null); setQuestSelection(null); }}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200 ${category === c.key
-                                    ? c.accent
-                                    : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-                                    }`}
-                            >
-                                {c.icon}
-                                {c.label}
-                            </button>
-                        ))}
+                        <div className="space-y-3 px-6 py-5 overflow-y-auto max-h-[50vh]">
+                            {VISIBLE_CATEGORIES.map((c) => {
+                                const colors: Record<ServiceCategory, { border: string; text: string; bg: string; iconBorder: string; hoverShadow: string }> = {
+                                    PASSAGE_DONJON: { 
+                                        border: "hover:border-cyan-500/40", 
+                                        text: "text-cyan-400", 
+                                        bg: "bg-cyan-500/10", 
+                                        iconBorder: "group-hover:border-cyan-500/30",
+                                        hoverShadow: "hover:shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                                    },
+                                    FORGEMAGIE: { 
+                                        border: "hover:border-amber-500/40", 
+                                        text: "text-amber-400", 
+                                        bg: "bg-amber-500/10", 
+                                        iconBorder: "group-hover:border-amber-500/30",
+                                        hoverShadow: "hover:shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                                    },
+                                    METIER: { 
+                                        border: "hover:border-emerald-500/40", 
+                                        text: "text-emerald-400", 
+                                        bg: "bg-emerald-500/10", 
+                                        iconBorder: "group-hover:border-emerald-500/30",
+                                        hoverShadow: "hover:shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                                    },
+                                    QUETE: { 
+                                        border: "hover:border-violet-500/40", 
+                                        text: "text-violet-400", 
+                                        bg: "bg-violet-500/10", 
+                                        iconBorder: "group-hover:border-violet-500/30",
+                                        hoverShadow: "hover:shadow-[0_0_15px_rgba(139,92,246,0.15)]"
+                                    },
+                                    OCRE: { 
+                                        border: "hover:border-yellow-500/40", 
+                                        text: "text-yellow-400", 
+                                        bg: "bg-yellow-500/10", 
+                                        iconBorder: "group-hover:border-yellow-500/30",
+                                        hoverShadow: "hover:shadow-[0_0_15px_rgba(234,179,8,0.15)]"
+                                    },
+                                    AUTRE: { 
+                                        border: "hover:border-white/20", 
+                                        text: "text-white", 
+                                        bg: "bg-white/10", 
+                                        iconBorder: "group-hover:border-white/20",
+                                        hoverShadow: "hover:shadow-none"
+                                    },
+                                };
+                                const colorInfo = colors[c.key];
+
+                                const descs: Record<ServiceCategory, string> = {
+                                    PASSAGE_DONJON: "Proposez des passages de boss avec gestion automatique des succès et tarifs flexibles.",
+                                    FORGEMAGIE: "Proposez vos améliorations d'équipements, commandes d'exo ou over-max.",
+                                    METIER: "Offrez vos services de fabrication d'objets ou de livraison de packs niveau 1 à 200.",
+                                    QUETE: "Aidez d'autres membres de la guilde à valider leurs quêtes Dofus principales.",
+                                    OCRE: "Proposez des packs spécifiques d'archimonstres ou d'étapes de l'Éternelle Moisson.",
+                                    AUTRE: "Proposez d'autres services libres.",
+                                };
+                                const descText = descs[c.key];
+
+                                return (
+                                    <button
+                                        key={c.key}
+                                        onClick={() => {
+                                            setCategory(c.key);
+                                            setStep(2);
+                                        }}
+                                        className={`flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-300 group text-left min-h-[96px] md:h-[96px] ${colorInfo.border} ${colorInfo.hoverShadow}`}
+                                    >
+                                        <div className={`p-3 rounded-xl border border-white/10 transition-all duration-300 group-hover:scale-105 ${colorInfo.bg} ${colorInfo.text} ${colorInfo.iconBorder}`}>
+                                            {c.icon}
+                                        </div>
+                                        <div className="flex-1 space-y-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-sm font-black text-zinc-100 group-hover:text-white transition-colors">{c.label}</h4>
+                                                <span className={`text-[10px] font-black uppercase tracking-wider ${colorInfo.text} opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0`}>
+                                                    Configurer →
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors leading-normal">{descText}</p>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="flex flex-col h-full">
+                        {/* Gradient header */}
+                        <div className={`bg-gradient-to-r ${cat?.color ?? ""} px-6 pt-5 pb-4 border-b border-white/5`}>
+                            {/* Return Button */}
+                            <button
+                                type="button"
+                                onClick={() => setStep(1)}
+                                className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-white transition-colors mb-3"
+                            >
+                                <ArrowLeft className="h-3.5 w-3.5" /> Changer de service
+                            </button>
 
-                <div className="space-y-5 px-6 py-5">
-                    {/* === PASSAGE_DONJON specific === */}
-                    {category === "PASSAGE_DONJON" && (
-                        <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Donjon</Label>
-                            <DungeonPicker guildId={guildId} onSelect={setDungeonSelection} value={dungeonSelection} />
+                            <DialogTitle className="text-lg font-black flex items-center gap-2.5">
+                                <span className={`p-1.5 rounded-lg border shadow-inner ${cat?.accent ?? ""}`}>{cat?.icon}</span>
+                                Configurer votre annonce
+                            </DialogTitle>
                         </div>
-                    )}
 
-                    {/* === QUETE specific === */}
-                    {category === "QUETE" && (
-                        <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Quête <span className="text-violet-400 font-normal">via DofusDB</span></Label>
-                            <QuestPicker onSelect={setQuestSelection} value={questSelection} showSubCategory />
-                        </div>
-                    )}
-
-                    {/* === OCRE specific === */}
-                    {category === "OCRE" && (
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Pack proposé</Label>
-                                <div className="flex gap-2">
-                                    {OCRE_PACKS.map((p) => (
-                                        <button
-                                            key={p.value}
-                                            type="button"
-                                            onClick={() => setOcrePack(p.value)}
-                                            className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-bold border transition-all ${ocrePack === p.value
-                                                ? "border-yellow-500/60 bg-yellow-500/15 text-yellow-300"
-                                                : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
-                                                }`}
-                                        >
-                                            {p.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            {/* Tarif kamas */}
-                            <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif <span className="text-zinc-600 font-normal">(kamas — optionnel)</span></Label>
-                                <div className="relative">
-                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
-                                        <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
+                        <div className="space-y-4 px-6 py-5 overflow-y-auto max-h-[62vh]">
+                            {/* PASSAGE_DONJON */}
+                            {category === "PASSAGE_DONJON" && (
+                                <div className="space-y-3">
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Sélectionner le Donjon *</Label>
+                                        <DungeonPicker guildId={guildId} onSelect={setDungeonSelection} value={dungeonSelection} />
                                     </div>
-                                    <Input
-                                        value={ocrePrice}
-                                        onChange={(e) => setOcrePrice(e.target.value)}
-                                        placeholder="Ex: 50M ou 50 000 000"
-                                        className="bg-white/5 border-white/10 pl-9 font-semibold"
-                                        maxLength={50}
-                                    />
-                                </div>
-                                <p className="text-[10px] text-zinc-600">Affiché sur ta carte de service.</p>
-                            </div>
-                        </div>
-                    )}
 
-                    {/* === FORGEMAGIE specific === */}
-                    {category === "FORGEMAGIE" && (
-                        <div className="space-y-4">
-                            {/* Jobs FM avec icônes locales */}
-                            <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Métiers FM</Label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {FM_JOBS.map((job) => (
-                                        <button
-                                            key={job.id}
-                                            type="button"
-                                            onClick={() => toggleJob(job.name)}
-                                            title={job.name}
-                                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-[10px] font-medium ${selectedJobs.includes(job.name)
-                                                ? "border-amber-500/60 bg-amber-500/15 text-amber-300"
-                                                : "border-white/8 bg-white/3 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
-                                                }`}
-                                        >
-                                            <div className="relative h-10 w-10">
+                                    {/* Dungeon Thumbnail / Miniature */}
+                                    {dungeonSelection?.dungeon.imageUrl && (
+                                        <div className="relative flex items-center gap-4 p-3 rounded-2xl border border-cyan-500/20 bg-cyan-950/10 hover:border-cyan-500/30 transition-all duration-300 group">
+                                            {/* Glow background */}
+                                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent pointer-events-none" />
+
+                                            {/* Square contained image */}
+                                            <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/5 bg-slate-950/40 flex-shrink-0">
                                                 <Image
-                                                    src={job.iconUrl}
-                                                    alt={job.name}
+                                                    src={dungeonSelection.dungeon.imageUrl}
+                                                    alt={dungeonSelection.dungeon.name}
                                                     fill
-                                                    className="object-contain"
-                                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                                    className="object-contain p-1 group-hover:scale-105 transition-transform duration-300"
                                                 />
                                             </div>
-                                            <span className="leading-tight text-center">{job.name}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
 
-                            {/* Item lié (optionnel) */}
-                            <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
-                                    Item lié <span className="text-zinc-600 font-normal">(optionnel)</span>
-                                </Label>
-                                <DofusItemSearch
-                                    category="equipment"
-                                    onSelect={setFmLinkedItem}
-                                    value={fmLinkedItem}
-                                    onClear={() => setFmLinkedItem(null)}
-                                    placeholder="Rechercher un item à forgemager..."
-                                />
-                            </div>
+                                            {/* Text block */}
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <span className="text-[9px] text-cyan-400 font-bold uppercase tracking-widest leading-none mb-1.5">Donjon sélectionné</span>
+                                                <span className="text-sm font-black text-white leading-tight truncate">{dungeonSelection.dungeon.name}</span>
+                                            </div>
+                                        </div>
+                                    )}
 
-                            {/* Tarifs FM */}
-                            <div className="grid grid-cols-1 gap-3">
-                                <div className="space-y-1">
-                                    <Label className="text-zinc-500 text-xs">Tarif FM Items <span className="text-zinc-600">(kamas)</span></Label>
-                                    <Input
-                                        type="number" value={fmItem}
-                                        onChange={(e) => setFmItem(e.target.value)}
-                                        placeholder="Ex: 200000"
-                                        className="bg-white/5 border-white/10 h-8 text-sm"
-                                        min={0} max={10000000}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-zinc-500 text-xs">Passage Trans <span className="text-zinc-600">(kamas)</span></Label>
-                                    <Input
-                                        type="number" value={passTrans}
-                                        onChange={(e) => setPassTrans(e.target.value)}
-                                        placeholder="Ex: 500000"
-                                        className="bg-white/5 border-white/10 h-8 text-sm"
-                                        min={0} max={10000000}
-                                    />
-                                </div>
-                                {/* Commande Exo — OUI/NON */}
-                                <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">
-                                    <div>
-                                        <p className="text-xs font-bold text-zinc-300">Prendre commandes Exo / Over</p>
-                                        <p className="text-[10px] text-zinc-600">Acceptez-vous les commandes exo ?</p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setCommandeExo(v => !v)}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${commandeExo ? "bg-amber-500" : "bg-zinc-700"
-                                            }`}
-                                    >
-                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${commandeExo ? "translate-x-6" : "translate-x-1"
-                                            }`} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                                    {/* Tarifs par succès */}
+                                    {(() => {
+                                        const selAchs = dungeonSelection?.dungeon.achievements
+                                            .filter(a => dungeonSelection.selectedAchievementIds.includes(a.id)) || [];
+                                        const hasAchs = selAchs.length > 0;
 
-                    {/* Title */}
-                    <div className="space-y-2">
-                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Titre *</Label>
-                        <Input
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder={
-                                category === "PASSAGE_DONJON" ? "Ex: Passage Duo + Statue" :
-                                    category === "FORGEMAGIE" ? "Ex: FM Cordomage / Forgemage" :
-                                        category === "QUETE" ? "Ex: Aide Quête Dimensionnelle Xélor" :
-                                            category === "OCRE" ? "Ex: Pack Complet pour Quête Ocre" :
-                                                category === "METIER" ? "Ex: Craft Forgeron sur commande" :
-                                                    "Titre de votre service"
-                            }
-                            className="bg-white/5 border-white/10"
-                            maxLength={100}
-                        />
-                    </div>
+                                        const soloLabels: string[] = hasAchs
+                                            ? ["Simple (sans succès)", ...selAchs.map(a => a.challenge.name)]
+                                            : [];
+                                        const comboTiers = priceTiers.filter(t => {
+                                            if (soloLabels.includes(t.label)) return false;
+                                            try { const p = JSON.parse(t.label); return Array.isArray(p); }
+                                            catch { return false; }
+                                        });
 
-                    {/* ── Tarifs pour DONJON (intelligent) ── */}
-                    {category === "PASSAGE_DONJON" && (() => {
-                        const selAchs = dungeonSelection?.dungeon.achievements
-                            .filter(a => dungeonSelection.selectedAchievementIds.includes(a.id)) || [];
-                        const hasAchs = selAchs.length > 0;
+                                        type ComboMeta = { ids: string[]; price: string };
+                                        const comboMetas: ComboMeta[] = comboTiers.map((t) => {
+                                            try { return { ids: JSON.parse(t.label), price: t.price }; }
+                                            catch { return { ids: [], price: t.price }; }
+                                        });
 
-                        // Lignes auto par succès individuel + ligne Simple
-                        const soloLabels: string[] = hasAchs
-                            ? ["Simple (sans succès)", ...selAchs.map(a => a.challenge.name)]
-                            : [];
-                        // comboTiers: priceTiers dont le label est un JSON d'IDs (commence par "[")
-                        // Distingue les combos des labels texte solo
-                        const comboTiers = priceTiers.filter(t => {
-                            if (soloLabels.includes(t.label)) return false;
-                            try { const p = JSON.parse(t.label); return Array.isArray(p); }
-                            catch { return false; }
-                        });
+                                        const addComboTier = () => {
+                                            if (priceTiers.length >= 8) return;
+                                            const defaultIds = selAchs.slice(0, 2).map(a => a.id);
+                                            setPriceTiers(prev => [...prev, { label: JSON.stringify(defaultIds), price: "" }]);
+                                        };
 
-                        type ComboMeta = { ids: string[]; price: string };
-                        const comboMetas: ComboMeta[] = comboTiers.map((t: typeof priceTiers[number]) => {
-                            try { return { ids: JSON.parse(t.label), price: t.price }; }
-                            catch { return { ids: [], price: t.price }; }
-                        });
-
-                        const addComboTier = () => {
-                            if (priceTiers.length >= 8) return;
-                            // Démarrer avec les 2 premiers achievements auto-sélectionnés
-                            const defaultIds = selAchs.slice(0, 2).map(a => a.id);
-                            setPriceTiers(prev => [...prev, { label: JSON.stringify(defaultIds), price: "" }]);
-                        };
-
-                        return (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarifs par succès</Label>
-                                    <div className="flex items-center gap-2">
-                                        {hasAchs && selAchs.length >= 2 && (
-                                            <button
-                                                type="button"
-                                                onClick={addComboTier}
-                                                className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors"
-                                            >
-                                                <Plus className="h-3 w-3" /> Combo
-                                            </button>
-                                        )}
-                                        {!hasAchs && priceTiers.length < 6 && (
-                                            <button type="button" onClick={addPriceTier} className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors">
-                                                <Plus className="h-3 w-3" /> Ajouter
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {hasAchs ? (
-                                    <div className="space-y-2 rounded-xl border border-cyan-500/15 bg-cyan-500/5 p-3">
-                                        <p className="text-[10px] text-cyan-400 font-bold">Prix par configuration :</p>
-
-                                        {/* Lignes solo */}
-                                        {soloLabels.map((lbl, i) => {
-                                            const existing = priceTiers.find(t => t.label === lbl);
-                                            return (
-                                                <div key={lbl} className="flex gap-2 items-center">
-                                                    <span className={`text-xs font-bold shrink-0 w-44 truncate ${i === 0 ? "text-zinc-400" : "text-cyan-300"}`}>
-                                                        {i === 0 ? "⚪" : "✨"} {lbl}
-                                                    </span>
-                                                    <Input
-                                                        value={existing?.price ?? ""}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            setPriceTiers(prev => {
-                                                                const filtered = prev.filter(t => t.label !== lbl);
-                                                                return val ? [...filtered, { label: lbl, price: val }] : filtered;
-                                                            });
-                                                        }}
-                                                        placeholder="Ex: 200k"
-                                                        className="bg-white/5 border-white/10 h-8 text-sm flex-1"
-                                                        maxLength={50}
-                                                    />
+                                        return (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarifs par succès</Label>
+                                                    <div className="flex items-center gap-2">
+                                                        {hasAchs && selAchs.length >= 2 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={addComboTier}
+                                                                className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                                                            >
+                                                                <Plus className="h-3 w-3" /> Combo
+                                                            </button>
+                                                        )}
+                                                        {!hasAchs && priceTiers.length < 6 && (
+                                                            <button type="button" onClick={addPriceTier} className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors">
+                                                                <Plus className="h-3 w-3" /> Ajouter
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            );
-                                        })}
 
-                                        {/* Lignes combo avec icônes cliquables */}
-                                        {comboTiers.length > 0 && (
-                                            <div className="mt-2 pt-2 border-t border-white/8 space-y-3">
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-violet-400">Combos multi-succès</p>
-                                                {comboMetas.map((meta, ci) => {
-                                                    const comboTier = comboTiers[ci];
-                                                    const tierIdx = priceTiers.indexOf(comboTier);
-                                                    // Label lisible : noms des achievements sélectionnés
-                                                    const selectedAchNames = selAchs
-                                                        .filter(a => meta.ids.includes(a.id))
-                                                        .map(a => a.challenge.name);
+                                                {hasAchs ? (
+                                                    <div className="space-y-2 rounded-xl border border-cyan-500/15 bg-cyan-500/5 p-3">
+                                                        <p className="text-[10px] text-cyan-400 font-bold">Prix par configuration :</p>
+                                                        {soloLabels.map((lbl, i) => {
+                                                            const existing = priceTiers.find(t => t.label === lbl);
+                                                            return (
+                                                                <div key={lbl} className="flex gap-2 items-center">
+                                                                    <span className={`text-xs font-bold shrink-0 w-44 truncate ${i === 0 ? "text-zinc-400" : "text-cyan-300"}`}>
+                                                                        {i === 0 ? "⚪" : "✨"} {lbl}
+                                                                    </span>
+                                                                    <Input
+                                                                        value={existing?.price ?? ""}
+                                                                        onChange={(e) => {
+                                                                            const val = e.target.value;
+                                                                            setPriceTiers(prev => {
+                                                                                const filtered = prev.filter(t => t.label !== lbl);
+                                                                                return val ? [...filtered, { label: lbl, price: val }] : filtered;
+                                                                            });
+                                                                        }}
+                                                                        placeholder="Ex: 200k"
+                                                                        className="bg-white/5 border-white/10 h-8 text-sm flex-1"
+                                                                        maxLength={50}
+                                                                    />
+                                                                </div>
+                                                            );
+                                                        })}
 
-                                                    const toggleAchInCombo = (achId: string) => {
-                                                        const newIds = meta.ids.includes(achId)
-                                                            ? meta.ids.filter(id => id !== achId)
-                                                            : [...meta.ids, achId];
-                                                        updatePriceTier(tierIdx, "label", JSON.stringify(newIds));
-                                                    };
+                                                        {comboTiers.length > 0 && (
+                                                            <div className="mt-2 pt-2 border-t border-white/8 space-y-3">
+                                                                <p className="text-[9px] font-black uppercase tracking-widest text-violet-400">Combos multi-succès</p>
+                                                                {comboMetas.map((meta, ci) => {
+                                                                    const comboTier = comboTiers[ci];
+                                                                    const tierIdx = priceTiers.indexOf(comboTier);
+                                                                    const selectedAchNames = selAchs
+                                                                        .filter(a => meta.ids.includes(a.id))
+                                                                        .map(a => a.challenge.name);
 
-                                                    return (
-                                                        <div key={tierIdx} className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-2.5 space-y-2">
-                                                            {/* Icônes cliquables */}
-                                                            <div className="flex flex-wrap gap-1.5 items-center">
-                                                                <span className="text-[9px] text-violet-400 font-black uppercase tracking-widest mr-1">Succès :</span>
-                                                                {selAchs.map((ach) => {
-                                                                    const isOn = meta.ids.includes(ach.id);
-                                                                    const iconUrl = `/game-data/achievements/${ach.challenge.slug || ach.challenge.name.toLowerCase().replace(/\s+/g, "-")}.png`;
+                                                                    const toggleAchInCombo = (achId: string) => {
+                                                                        const newIds = meta.ids.includes(achId)
+                                                                            ? meta.ids.filter(id => id !== achId)
+                                                                            : [...meta.ids, achId];
+                                                                        updatePriceTier(tierIdx, "label", JSON.stringify(newIds));
+                                                                    };
+
                                                                     return (
-                                                                        <button
-                                                                            key={ach.id}
-                                                                            type="button"
-                                                                            title={ach.challenge.name}
-                                                                            onClick={() => toggleAchInCombo(ach.id)}
-                                                                            className={`relative w-9 h-9 rounded-lg border-2 transition-all duration-150 overflow-hidden ${isOn
-                                                                                ? "border-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.6)] scale-110"
-                                                                                : "border-white/10 opacity-40 hover:opacity-70 hover:border-white/30"
-                                                                                }`}
-                                                                        >
-                                                                            <img
-                                                                                src={iconUrl}
-                                                                                alt={ach.challenge.name}
-                                                                                className="w-full h-full object-contain p-0.5"
-                                                                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                                                                            />
-                                                                            {isOn && (
-                                                                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-violet-500 rounded-full flex items-center justify-center">
-                                                                                    <span className="text-[7px] text-white font-black">✓</span>
+                                                                        <div key={tierIdx} className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-2.5 space-y-2">
+                                                                            <div className="flex flex-wrap gap-1.5 items-center">
+                                                                                <span className="text-[9px] text-violet-400 font-black uppercase tracking-widest mr-1">Succès :</span>
+                                                                                {selAchs.map((ach) => {
+                                                                                    const isOn = meta.ids.includes(ach.id);
+                                                                                    const iconUrl = `/game-data/achievements/${ach.challenge.slug || ach.challenge.name.toLowerCase().replace(/\s+/g, "-")}.png`;
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={ach.id}
+                                                                                            type="button"
+                                                                                            title={ach.challenge.name}
+                                                                                            onClick={() => toggleAchInCombo(ach.id)}
+                                                                                            className={`relative w-9 h-9 rounded-lg border-2 transition-all duration-150 overflow-hidden ${isOn
+                                                                                                ? "border-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.6)] scale-110"
+                                                                                                : "border-white/10 opacity-40 hover:opacity-70 hover:border-white/30"
+                                                                                                }`}
+                                                                                        >
+                                                                                            <img
+                                                                                                src={iconUrl}
+                                                                                                alt={ach.challenge.name}
+                                                                                                className="w-full h-full object-contain p-0.5"
+                                                                                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                                                                            />
+                                                                                            {isOn && (
+                                                                                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-violet-500 rounded-full flex items-center justify-center">
+                                                                                                    <span className="text-[7px] text-white font-black">✓</span>
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                            <div className="flex gap-2 items-center">
+                                                                                <span className="text-xs text-violet-300 font-bold truncate flex-1 min-w-0">
+                                                                                    {selectedAchNames.length > 0 ? selectedAchNames.join(" + ") : <span className="text-zinc-600 italic">Aucun succès sélectionné</span>}
                                                                                 </span>
-                                                                            )}
-                                                                        </button>
+                                                                                <Input
+                                                                                    value={comboTier.price}
+                                                                                    onChange={(e) => updatePriceTier(tierIdx, "price", e.target.value)}
+                                                                                    placeholder="Ex: 350k"
+                                                                                    className="bg-white/5 border-white/10 w-24 text-sm h-7"
+                                                                                    maxLength={50}
+                                                                                />
+                                                                                <button type="button" onClick={() => removePriceTier(tierIdx)} className="text-zinc-600 hover:text-rose-400 transition-colors shrink-0">
+                                                                                    <X className="h-4 w-4" />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
                                                                     );
                                                                 })}
                                                             </div>
-                                                            {/* Label auto-généré + prix */}
-                                                            <div className="flex gap-2 items-center">
-                                                                <span className="text-xs text-violet-300 font-bold truncate flex-1 min-w-0">
-                                                                    {selectedAchNames.length > 0 ? selectedAchNames.join(" + ") : <span className="text-zinc-600 italic">Aucun succès sélectionné</span>}
-                                                                </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-1.5">
+                                                        {priceTiers.length === 0 ? (
+                                                            <div className="space-y-1.5">
+                                                                <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 100k / passage" className="bg-white/5 border-white/10" maxLength={100} />
+                                                                <p className="text-xs text-zinc-600">Sélectionnez des succès pour générer les paliers automatiques, ou &quot;Ajouter&quot; pour des paliers libres.</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                {priceTiers.map((tier, i) => (
+                                                                    <div key={i} className="flex gap-2 items-center">
+                                                                        <Input value={tier.label} onChange={(e) => updatePriceTier(i, "label", e.target.value)} placeholder="Ex: Full succès" className="bg-white/5 border-white/10 flex-1 text-sm h-8" maxLength={100} />
+                                                                        <Input value={tier.price} onChange={(e) => updatePriceTier(i, "price", e.target.value)} placeholder="Ex: 200k" className="bg-white/5 border-white/10 w-28 text-sm h-8" maxLength={100} />
+                                                                        <button type="button" onClick={() => removePriceTier(i)} className="text-zinc-600 hover:text-rose-400 transition-colors"><X className="h-4 w-4" /></button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+
+                            {/* FORGEMAGIE */}
+                            {category === "FORGEMAGIE" && (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Métiers FM *</Label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {FM_JOBS.map((job) => (
+                                                <button
+                                                    key={job.id}
+                                                    type="button"
+                                                    onClick={() => toggleJob(job.name)}
+                                                    title={job.name}
+                                                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all text-[10px] font-bold ${selectedJobs.includes(job.name)
+                                                        ? "border-amber-500 bg-amber-500/15 text-amber-300"
+                                                        : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                                                        }`}
+                                                >
+                                                    <div className="relative h-9 w-9">
+                                                        <Image
+                                                            src={job.iconUrl}
+                                                            alt={job.name}
+                                                            fill
+                                                            className="object-contain"
+                                                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                                        />
+                                                    </div>
+                                                    <span className="leading-tight text-center">{job.name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Commande Exo — OUI/NON */}
+                                    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                                        <div>
+                                            <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                                                ✨ Prendre commandes Exo / Over
+                                            </p>
+                                            <p className="text-[10px] text-zinc-500">Acceptez-vous les commandes exo ou over-stats ?</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCommandeExo(v => !v)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${commandeExo ? "bg-amber-500" : "bg-zinc-700"}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${commandeExo ? "translate-x-6" : "translate-x-1"}`} />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif indicatif <span className="text-zinc-600 font-normal">(optionnel)</span></Label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+                                                <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
+                                            </div>
+                                            <Input
+                                                value={price}
+                                                onChange={(e) => setPrice(e.target.value)}
+                                                placeholder="Ex: 500k / exo, gratuit pour xp, etc."
+                                                className="bg-white/5 border-white/10 pl-9 font-semibold text-sm h-10"
+                                                maxLength={100}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* METIER */}
+                            {category === "METIER" && (
+                                <div className="space-y-4">
+                                    {selectedMetierJob !== "Éleveur" && (
+                                        <div className="flex gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
+                                            {(["craft", "pack"] as const).map((mode) => (
+                                                <button
+                                                    key={mode}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setMetierMode(mode);
+                                                        setPrice("");
+                                                    }}
+                                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all duration-200 ${metierMode === mode
+                                                        ? "bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 shadow-sm"
+                                                        : "text-zinc-400 hover:text-zinc-200"
+                                                        }`}
+                                                >
+                                                    {mode === "craft" ? "🛠️ Craft sur commande" : "📦 Pack montée 1 → 200"}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Sélectionner le métier *</Label>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {DOFUS_JOBS.map((job) => (
+                                                <button
+                                                    key={job.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedMetierJob(job.name === selectedMetierJob ? "" : job.name)}
+                                                    title={job.name}
+                                                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all text-[10px] font-bold ${selectedMetierJob === job.name
+                                                        ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                                                        : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+                                                        }`}
+                                                >
+                                                    <div className="relative h-8 w-8">
+                                                        <Image
+                                                            src={job.iconUrl}
+                                                            alt={job.name}
+                                                            fill
+                                                            className="object-contain"
+                                                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                                        />
+                                                    </div>
+                                                    <span className="leading-tight text-center">{job.name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {selectedMetierJob === "Éleveur" ? (
+                                        <div className="space-y-3 border-t border-white/5 pt-4">
+                                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider block mb-1">Prestations de l'Éleveur</Label>
+
+                                            {/* Passage Dofus Émeraude */}
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.emeraude.active ? "border-emerald-500/30 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
+                                                        <Image src="https://api.dofusdu.de/dofus3/v1/img/item/23002-64.png" alt="Dofus Émeraude" fill className="object-contain p-1" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Passage Dofus Émeraude</p>
+                                                        <p className="text-[9px] text-zinc-500 font-medium">Accouplement / Naissance</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEleveurOptions(prev => ({
+                                                            ...prev,
+                                                            emeraude: { ...prev.emeraude, active: !prev.emeraude.active }
+                                                        }))}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.emeraude.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                    >
+                                                        {eleveurOptions.emeraude.active ? "Activé" : "Proposer"}
+                                                    </button>
+                                                </div>
+                                                {eleveurOptions.emeraude.active && (
+                                                    <div className="mt-3 pl-12 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        <div className="relative flex-1">
+                                                            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                                <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                            </div>
+                                                            <Input
+                                                                value={eleveurOptions.emeraude.price}
+                                                                onChange={(e) => setEleveurOptions(prev => ({
+                                                                    ...prev,
+                                                                    emeraude: { ...prev.emeraude, price: e.target.value }
+                                                                }))}
+                                                                placeholder="Ex: 500k ou Gratuit"
+                                                                className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Pack Dragodinde */}
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.dragodinde.active ? "border-emerald-500/30 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                        <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97016-64.png" alt="Dragodinde" fill className="object-contain p-1" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack Dragodinde</p>
+                                                        <p className="text-[9px] text-zinc-500 font-medium">Générations de 1 à 10</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEleveurOptions(prev => ({
+                                                            ...prev,
+                                                            dragodinde: { ...prev.dragodinde, active: !prev.dragodinde.active }
+                                                        }))}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.dragodinde.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                    >
+                                                        {eleveurOptions.dragodinde.active ? "Activé" : "Proposer"}
+                                                    </button>
+                                                </div>
+                                                {eleveurOptions.dragodinde.active && (
+                                                    <div className="mt-3 pl-12 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        <div className="flex gap-2">
+                                                            <div className="w-1/2 flex items-center gap-2">
+                                                                <span className="text-[10px] text-zinc-400 font-bold shrink-0">Choix :</span>
+                                                                <select
+                                                                    value={eleveurOptions.dragodinde.gen}
+                                                                    onChange={(e) => setEleveurOptions(prev => ({
+                                                                        ...prev,
+                                                                        dragodinde: { ...prev.dragodinde, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
+                                                                    }))}
+                                                                    className="bg-black/40 border border-white/10 rounded-lg text-xs h-8 px-2 flex-1 text-white font-bold outline-none focus:border-emerald-500/50"
+                                                                >
+                                                                    <option value="all" className="bg-zinc-950 text-white">Pack Complet 1→10</option>
+                                                                    {Array.from({ length: 10 }).map((_, i) => (
+                                                                        <option key={i + 1} value={i + 1} className="bg-zinc-950 text-white">Géné {i + 1}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="relative flex-1">
+                                                                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                                    <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                                </div>
                                                                 <Input
-                                                                    value={comboTier.price}
-                                                                    onChange={(e) => updatePriceTier(tierIdx, "price", e.target.value)}
-                                                                    placeholder="Ex: 350k"
-                                                                    className="bg-white/5 border-white/10 w-24 text-sm h-7"
-                                                                    maxLength={50}
+                                                                    value={eleveurOptions.dragodinde.price}
+                                                                    onChange={(e) => setEleveurOptions(prev => ({
+                                                                        ...prev,
+                                                                        dragodinde: { ...prev.dragodinde, price: e.target.value }
+                                                                    }))}
+                                                                    placeholder="Tarif (kamas)"
+                                                                    className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
                                                                 />
-                                                                <button type="button" onClick={() => removePriceTier(tierIdx)} className="text-zinc-600 hover:text-rose-400 transition-colors shrink-0">
-                                                                    <X className="h-4 w-4" />
-                                                                </button>
                                                             </div>
                                                         </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    /* Mode manuel sans achievements */
-                                    <div className="space-y-1.5">
-                                        {priceTiers.length === 0 ? (
-                                            <div className="space-y-1.5">
-                                                <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 100k / passage" className="bg-white/5 border-white/10" maxLength={100} />
-                                                <p className="text-xs text-zinc-600">Sélectionne des succès pour générer les paliers auto, ou &quot;Ajouter&quot; pour des paliers libres.</p>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {priceTiers.map((tier, i) => (
-                                                    <div key={i} className="flex gap-2 items-center">
-                                                        <Input value={tier.label} onChange={(e) => updatePriceTier(i, "label", e.target.value)} placeholder="Ex: Full succès" className="bg-white/5 border-white/10 flex-1 text-sm h-8" maxLength={100} />
-                                                        <Input value={tier.price} onChange={(e) => updatePriceTier(i, "price", e.target.value)} placeholder="Ex: 200k" className="bg-white/5 border-white/10 w-28 text-sm h-8" maxLength={100} />
-                                                        <button type="button" onClick={() => removePriceTier(i)} className="text-zinc-600 hover:text-rose-400 transition-colors"><X className="h-4 w-4" /></button>
                                                     </div>
-                                                ))}
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
 
-                    {/* Paliers libres pour QUETE */}
-                    {category === "QUETE" && (
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Paliers de prix</Label>
-                                {priceTiers.length < 6 && (
-                                    <button type="button" onClick={addPriceTier} className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors">
-                                        <Plus className="h-3 w-3" /> Ajouter
-                                    </button>
-                                )}
-                            </div>
-                            {priceTiers.length === 0 ? (
-                                <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 100k / passage" className="bg-white/5 border-white/10" maxLength={100} />
-                            ) : (
-                                <div className="space-y-2">
-                                    {priceTiers.map((tier, i) => (
-                                        <div key={i} className="flex gap-2 items-center">
-                                            <Input value={tier.label} onChange={(e) => updatePriceTier(i, "label", e.target.value)} placeholder="Ex: Full succès" className="bg-white/5 border-white/10 flex-1 text-sm h-8" maxLength={100} />
-                                            <Input value={tier.price} onChange={(e) => updatePriceTier(i, "price", e.target.value)} placeholder="Ex: 200k" className="bg-white/5 border-white/10 w-28 text-sm h-8" maxLength={100} />
-                                            <button type="button" onClick={() => removePriceTier(i)} className="text-zinc-600 hover:text-rose-400 transition-colors"><X className="h-4 w-4" /></button>
+                                            {/* Pack Muldo */}
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.muldo.active ? "border-emerald-500/30 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                        <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97299-64.png" alt="Muldo" fill className="object-contain p-1" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack Muldo</p>
+                                                        <p className="text-[9px] text-zinc-500 font-medium">Générations de 1 à 10</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEleveurOptions(prev => ({
+                                                            ...prev,
+                                                            muldo: { ...prev.muldo, active: !prev.muldo.active }
+                                                        }))}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.muldo.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                     >
+                                                        {eleveurOptions.muldo.active ? "Activé" : "Proposer"}
+                                                    </button>
+                                                </div>
+                                                {eleveurOptions.muldo.active && (
+                                                    <div className="mt-3 pl-12 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        <div className="flex gap-2">
+                                                            <div className="w-1/2 flex items-center gap-2">
+                                                                <span className="text-[10px] text-zinc-400 font-bold shrink-0">Choix :</span>
+                                                                <select
+                                                                    value={eleveurOptions.muldo.gen}
+                                                                    onChange={(e) => setEleveurOptions(prev => ({
+                                                                        ...prev,
+                                                                        muldo: { ...prev.muldo, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
+                                                                    }))}
+                                                                    className="bg-black/40 border border-white/10 rounded-lg text-xs h-8 px-2 flex-1 text-white font-bold outline-none focus:border-emerald-500/50"
+                                                                >
+                                                                    <option value="all" className="bg-zinc-950 text-white">Pack Complet 1→10</option>
+                                                                    {Array.from({ length: 10 }).map((_, i) => (
+                                                                        <option key={i + 1} value={i + 1} className="bg-zinc-950 text-white">Géné {i + 1}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="relative flex-1">
+                                                                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                                    <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                                </div>
+                                                                <Input
+                                                                    value={eleveurOptions.muldo.price}
+                                                                    onChange={(e) => setEleveurOptions(prev => ({
+                                                                        ...prev,
+                                                                        muldo: { ...prev.muldo, price: e.target.value }
+                                                                    }))}
+                                                                    placeholder="Tarif (kamas)"
+                                                                    className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Pack Volkorne */}
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.volkorne.active ? "border-emerald-500/30 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                        <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97261-64.png" alt="Volkorne" fill className="object-contain p-1" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack Volkorne</p>
+                                                        <p className="text-[9px] text-zinc-500 font-medium">Générations de 1 à 10</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEleveurOptions(prev => ({
+                                                            ...prev,
+                                                            volkorne: { ...prev.volkorne, active: !prev.volkorne.active }
+                                                        }))}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.volkorne.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                     >
+                                                        {eleveurOptions.volkorne.active ? "Activé" : "Proposer"}
+                                                    </button>
+                                                </div>
+                                                {eleveurOptions.volkorne.active && (
+                                                    <div className="mt-3 pl-12 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        <div className="flex gap-2">
+                                                            <div className="w-1/2 flex items-center gap-2">
+                                                                <span className="text-[10px] text-zinc-400 font-bold shrink-0">Choix :</span>
+                                                                <select
+                                                                    value={eleveurOptions.volkorne.gen}
+                                                                    onChange={(e) => setEleveurOptions(prev => ({
+                                                                        ...prev,
+                                                                        volkorne: { ...prev.volkorne, gen: e.target.value === "all" ? "all" : parseInt(e.target.value) }
+                                                                    }))}
+                                                                    className="bg-black/40 border border-white/10 rounded-lg text-xs h-8 px-2 flex-1 text-white font-bold outline-none focus:border-emerald-500/50"
+                                                                >
+                                                                    <option value="all" className="bg-zinc-950 text-white">Pack Complet 1→10</option>
+                                                                    {Array.from({ length: 10 }).map((_, i) => (
+                                                                        <option key={i + 1} value={i + 1} className="bg-zinc-950 text-white">Géné {i + 1}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="relative flex-1">
+                                                                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                                    <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                                </div>
+                                                                <Input
+                                                                    value={eleveurOptions.volkorne.price}
+                                                                    onChange={(e) => setEleveurOptions(prev => ({
+                                                                        ...prev,
+                                                                        volkorne: { ...prev.volkorne, price: e.target.value }
+                                                                    }))}
+                                                                    placeholder="Tarif (kamas)"
+                                                                    className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Pack naissance 100 montures */}
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.pack100.active ? "border-emerald-500/30 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                        <Image src="https://api.dofusdu.de/dofus3/v1/img/item/93104-64.png" alt="100 montures" fill className="object-contain p-1" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack naissance 100 montures</p>
+                                                        <p className="text-[9px] text-zinc-500 font-medium">Kit d'accouplements prêt à naître</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEleveurOptions(prev => ({
+                                                            ...prev,
+                                                            pack100: { ...prev.pack100, active: !prev.pack100.active }
+                                                        }))}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack100.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                    >
+                                                        {eleveurOptions.pack100.active ? "Activé" : "Proposer"}
+                                                    </button>
+                                                </div>
+                                                {eleveurOptions.pack100.active && (
+                                                    <div className="mt-3 pl-12 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        <div className="relative flex-1">
+                                                            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                                <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                            </div>
+                                                            <Input
+                                                                value={eleveurOptions.pack100.price}
+                                                                onChange={(e) => setEleveurOptions(prev => ({
+                                                                    ...prev,
+                                                                    pack100: { ...prev.pack100, price: e.target.value }
+                                                                }))}
+                                                                placeholder="Ex: 2M ou 2 000 000"
+                                                                className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Pack naissance 1000 montures */}
+                                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${eleveurOptions.pack1000.active ? "border-emerald-500/30 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative w-9 h-9 shrink-0 bg-slate-800/40 rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                                                        <Image src="https://api.dofusdu.de/dofus3/v1/img/item/93293-64.png" alt="1000 montures" fill className="object-contain p-1" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-zinc-200 leading-tight">Pack naissance 1000 montures</p>
+                                                        <p className="text-[9px] text-zinc-500 font-medium">Élevage industriel prêt à naître</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEleveurOptions(prev => ({
+                                                            ...prev,
+                                                            pack1000: { ...prev.pack1000, active: !prev.pack1000.active }
+                                                        }))}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${eleveurOptions.pack1000.active ? "bg-emerald-500 text-black font-black hover:bg-emerald-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                    >
+                                                        {eleveurOptions.pack1000.active ? "Activé" : "Proposer"}
+                                                    </button>
+                                                </div>
+                                                {eleveurOptions.pack1000.active && (
+                                                    <div className="mt-3 pl-12 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        <div className="relative flex-1">
+                                                            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                                <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                            </div>
+                                                            <Input
+                                                                value={eleveurOptions.pack1000.price}
+                                                                onChange={(e) => setEleveurOptions(prev => ({
+                                                                    ...prev,
+                                                                    pack1000: { ...prev.pack1000, price: e.target.value }
+                                                                }))}
+                                                                placeholder="Ex: 15M ou 15 000 000"
+                                                                className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* ========== METIER ========== */}
-                    {category === "METIER" && (
-                        <div className="space-y-4">
-                            {/* Mode */}
-                            <div className="flex gap-2">
-                                {(["craft", "pack"] as const).map((mode) => (
-                                    <button
-                                        key={mode}
-                                        type="button"
-                                        onClick={() => setMetierMode(mode)}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${metierMode === mode
-                                            ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-300"
-                                            : "border-white/10 bg-white/3 text-zinc-500 hover:border-white/20"
-                                            }`}
-                                    >
-                                        {mode === "craft" ? "🛠️ Craft sur commande" : "📦 Pack montée 1→200"}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Sélection du métier */}
-                            <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Métier</Label>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {DOFUS_JOBS.map((job) => (
-                                        <button
-                                            key={job.id}
-                                            type="button"
-                                            onClick={() => setSelectedMetierJob(job.name === selectedMetierJob ? "" : job.name)}
-                                            title={job.name}
-                                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-[10px] font-medium ${selectedMetierJob === job.name
-                                                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-300"
-                                                : "border-white/8 bg-white/3 text-zinc-500 hover:border-white/20 hover:text-zinc-300"
-                                                }`}
-                                        >
-                                            <div className="relative h-8 w-8">
-                                                <Image src={job.iconUrl} alt={job.name} fill className="object-contain"
-                                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
+                                                {metierMode === "craft" ? "Tarif du Craft / Recette" : "Tarif du Pack Complet 1 → 200"}
+                                            </Label>
+                                            <div className="relative">
+                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+                                                    <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
+                                                </div>
+                                                <Input
+                                                    value={price}
+                                                    onChange={(e) => setPrice(e.target.value)}
+                                                    placeholder={metierMode === "craft" ? "Ex: 10k par craft, ou gratuit" : "Ex: 10M ou 10 000 000"}
+                                                    className="bg-white/5 border-white/10 pl-9 font-semibold text-sm h-10"
+                                                    maxLength={50}
                                                 />
                                             </div>
-                                            <span className="leading-tight text-center">{job.name}</span>
-                                        </button>
-                                    ))}
+                                            <p className="text-[10px] text-zinc-500 italic">
+                                                {metierMode === "craft"
+                                                    ? "Indiquez votre prix par craft ou coop."
+                                                    : "Prix global pour fournir l'intégralité des ressources du niveau 1 à 200."}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Pack auto 1→200 */}
-                            {metierMode === "pack" && (
-                                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
-                                    <p className="text-xs font-bold text-emerald-400">📦 Pack montée automatique</p>
-                                    <p className="text-[11px] text-zinc-400">Définissez un tarif par palier de progression :</p>
+                            {/* QUETE */}
+                            {category === "QUETE" && (
+                                <div className="space-y-4">
                                     <div className="space-y-2">
-                                        {[["1 → 50", ""], ["50 → 100", ""], ["100 → 150", ""], ["150 → 200", ""], ["1 → 200 (complet)", ""]].map(([label], i) => {
-                                            const tier = priceTiers[i] ?? { label, price: "" };
-                                            return (
-                                                <div key={i} className="flex gap-2 items-center">
-                                                    <span className="text-xs text-zinc-400 w-28 shrink-0">{label}</span>
-                                                    <Input
-                                                        value={priceTiers[i]?.price ?? ""}
-                                                        onChange={(e) => {
-                                                            const next = [...priceTiers];
-                                                            while (next.length <= i) next.push({ label: [["1 → 50", ""], ["50 → 100", ""], ["100 → 150", ""], ["150 → 200", ""], ["1 → 200 (complet)", ""]][next.length]?.[0] ?? "", price: "" });
-                                                            next[i] = { label: tier.label, price: e.target.value };
-                                                            setPriceTiers(next.filter(t => t.price));
-                                                        }}
-                                                        placeholder="Ex: 5M"
-                                                        className="bg-white/5 border-white/10 h-8 text-sm"
-                                                        maxLength={50}
-                                                    />
-                                                </div>
-                                            );
-                                        })}
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Sélectionner la quête *</Label>
+                                        <QuestPicker onSelect={setQuestSelection} value={questSelection} showSubCategory />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif <span className="text-zinc-600 font-normal">(optionnel)</span></Label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+                                                <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
+                                            </div>
+                                            <Input
+                                                value={price}
+                                                onChange={(e) => setPrice(e.target.value)}
+                                                placeholder="Ex: 500k ou Gratuit"
+                                                className="bg-white/5 border-white/10 pl-9 font-semibold text-sm h-10"
+                                                maxLength={50}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Remarque / Détails</Label>
+                                        <Input
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                            placeholder="Ex: Dispo pour combats, étapes spécifiques, etc."
+                                            className="bg-white/5 border-white/10 text-sm h-10"
+                                            maxLength={300}
+                                        />
                                     </div>
                                 </div>
                             )}
 
-                            {/* Prix libre si craft */}
-                            {metierMode === "craft" && (
+                            {/* OCRE */}
+                            {category === "OCRE" && (
+                                <div className="space-y-4">
+                                    {/* Beautiful Dofus Card */}
+                                    <div className="flex gap-4 items-center p-3.5 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 shadow-[0_0_20px_rgba(234,179,8,0.05)]">
+                                        <div className="relative w-14 h-14 shrink-0 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 shadow-[0_0_12px_rgba(234,179,8,0.15)]">
+                                            <Image
+                                                src="/assets/icons/ocre.png"
+                                                alt="Dofus Ocre"
+                                                width={48}
+                                                height={48}
+                                                className="object-contain animate-pulse"
+                                            />
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <span className="text-[9px] text-yellow-500 font-black uppercase tracking-widest leading-none">L'Éternelle Moisson</span>
+                                            <h4 className="text-sm font-black text-white leading-tight">Dofus Ocre</h4>
+                                            <p className="text-[10px] text-zinc-500 leading-normal">Configurez vos packs ou services liés à la quête Ocre.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Pack proposé *</Label>
+                                        <div className="flex gap-2">
+                                            {OCRE_PACKS.map((p) => (
+                                                <button
+                                                    key={p.value}
+                                                    type="button"
+                                                    onClick={() => setOcrePack(p.value)}
+                                                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-black border transition-all duration-200 ${ocrePack === p.value
+                                                        ? "border-yellow-500 bg-yellow-500/15 text-yellow-300"
+                                                        : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
+                                                        }`}
+                                                >
+                                                    {p.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif <span className="text-zinc-600 font-normal">(kamas — optionnel)</span></Label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+                                                <img src="/assets/icons/kama.png" alt="kamas" className="w-4 h-4 object-contain" />
+                                            </div>
+                                            <Input
+                                                value={ocrePrice}
+                                                onChange={(e) => setOcrePrice(e.target.value)}
+                                                placeholder="Ex: 50M ou 50 000 000"
+                                                className="bg-white/5 border-white/10 pl-9 font-semibold text-sm h-10"
+                                                maxLength={50}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Description for non-Quete categories */}
+                            {category !== "QUETE" && (
                                 <div className="space-y-2">
-                                    <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif <span className="text-zinc-600 font-normal">(kamas)</span></Label>
+                                    <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Remarque / Détails</Label>
                                     <Input
-                                        type="number" value={price}
-                                        onChange={(e) => setPrice(e.target.value)}
-                                        placeholder="Ex: 100000"
-                                        className="bg-white/5 border-white/10"
-                                        min={0} max={10000000}
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="Ex: dispo en soirée, contactez-moi avant, etc."
+                                        className="bg-white/5 border-white/10 text-sm h-10"
+                                        maxLength={300}
                                     />
                                 </div>
                             )}
+
+                            {/* Availability */}
+                            <div className="space-y-2">
+                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Disponibilité</Label>
+                                <AvailabilityPreview guildId={guildId} />
+                                <Input
+                                    value={availability}
+                                    onChange={(e) => setAvailability(e.target.value)}
+                                    placeholder="Précision optionnelle (ex: sauf mercredi)"
+                                    className="bg-white/5 border-white/10 text-xs h-9"
+                                    maxLength={200}
+                                />
+                            </div>
+
+                            {/* Contact Method */}
+                            <div className="space-y-2">
+                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Contact préféré</Label>
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setContactDiscord(v => !v)}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 ${contactDiscord
+                                            ? "border-indigo-500 bg-indigo-500/15 text-indigo-300"
+                                            : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20"
+                                            }`}
+                                    >
+                                        <MessageSquare className="h-3.5 w-3.5" />
+                                        Ping Discord
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setContactIngame(v => !v)}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 ${contactIngame
+                                            ? "border-cyan-500 bg-cyan-500/15 text-cyan-300"
+                                            : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20"
+                                            }`}
+                                    >
+                                        <Gamepad2 className="h-3.5 w-3.5" />
+                                        Ping en jeu
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    )}
 
-                    {/* Simple price for AUTRE (not FM, not OCRE, not METIER, not DJ/Quete) */}
-                    {category === "AUTRE" && (
-                        <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Tarif</Label>
-                            <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 100k / heure" className="bg-white/5 border-white/10" maxLength={100} />
-                        </div>
-                    )}
-
-
-
-                    {/* Dispo — depuis le profil */}
-                    <div className="space-y-2">
-                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Disponibilité</Label>
-                        <AvailabilityPreview guildId={guildId} />
-                        <Input
-                            value={availability}
-                            onChange={(e) => setAvailability(e.target.value)}
-                            placeholder="Précision optionnelle (ex: sauf mercredi)"
-                            className="bg-white/5 border-white/10 text-xs"
-                            maxLength={200}
-                        />
-                    </div>
-
-                    {/* Contact préféré — checkboxes */}
-                    <div className="space-y-2">
-                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Contact préféré</Label>
-                        <div className="flex gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setContactDiscord(v => !v)}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${contactDiscord
-                                    ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-300"
-                                    : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20"
-                                    }`}
+                        <div className="px-6 py-5 bg-slate-900/40 border-t border-white/5 flex gap-3 sticky bottom-0 z-10 mt-auto">
+                            <Button variant="ghost" onClick={() => setStep(1)} className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all">Retour</Button>
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={loading || !title.trim()}
+                                className={`flex-1 font-black h-12 text-white shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/20" : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20"}`}
                             >
-                                <MessageSquare className="h-3.5 w-3.5" />
-                                Ping Discord
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setContactIngame(v => !v)}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${contactIngame
-                                    ? "border-cyan-500/60 bg-cyan-500/15 text-cyan-300"
-                                    : "border-white/10 bg-white/5 text-zinc-500 hover:border-white/20"
-                                    }`}
-                            >
-                                <Gamepad2 className="h-3.5 w-3.5" />
-                                Ping en jeu
-                            </button>
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publier"}
+                            </Button>
                         </div>
                     </div>
-                </div>
-
-                <div className="px-6 py-5 bg-slate-900/40 border-t border-white/5 flex gap-3 sticky bottom-0 z-10 mt-2">
-                    <Button variant="ghost" onClick={() => onOpenChange(false)} className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all">Annuler</Button>
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={loading || !title.trim()}
-                        className={`flex-1 font-black h-12 text-white shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/20" : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20"}`}
-                    >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publier"}
-                    </Button>
-                </div>
+                )}
             </DialogContent>
         </Dialog>
     );

@@ -82,7 +82,8 @@ async function fetchHaapiWithFallback(url: string): Promise<any[] | null> {
     try {
         const res = await fetch(url, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            next: { revalidate: 900 }
+            next: { revalidate: 900 },
+            signal: AbortSignal.timeout(5000)
         });
         if (res.ok) {
             const data = await res.json();
@@ -164,15 +165,26 @@ export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
     const keys = ['PATCHNOTES', 'CHANGELOG', 'MAJ', 'CORRECTIFS'];
     let items: any[] | null = null;
     
-    for (const key of keys) {
+    // Parallelize fetching to avoid sequential timeouts
+    const fetchPromises = keys.map(async (key) => {
         try {
             const url = `https://haapi.ankama.com/json/Ankama/v5/Cms/Items/Get?site=DOFUS&lang=fr&template_key=${key}`;
-            items = await fetchHaapiWithFallback(url);
-            if (items && Array.isArray(items) && items.length > 0) {
-                console.log(`[feed-aggregator] Found changelogs with key: ${key}`);
-                break;
+            const data = await fetchHaapiWithFallback(url);
+            if (data && Array.isArray(data) && data.length > 0) {
+                return { key, data };
             }
-        } catch(e) { /* continue */ }
+        } catch (e) {
+            /* ignore individual failures */
+        }
+        return null;
+    });
+
+    const results = await Promise.all(fetchPromises);
+    const firstValid = results.find(r => r !== null);
+    
+    if (firstValid) {
+        console.log(`[feed-aggregator] Found changelogs with key: ${firstValid.key}`);
+        items = firstValid.data;
     }
 
     if (!items || !Array.isArray(items)) return [];
@@ -180,8 +192,8 @@ export async function fetchDofusChangelogs(): Promise<ExtractedContent[]> {
         // Fallback image strategy: find the first non-null image in the list to use as a default for patch notes
         let commonImage = items.find(i => i.image_url)?.image_url || null;
         if (!commonImage) {
-            // Very last fallback: generic dofus update/patch image (Stable Ankama URL)
-            commonImage = "https://static.ankama.com/ankama/cms/images/282/2024/10/24/1763133.jpg"; 
+            // Very last fallback: Emerald Dofus
+            commonImage = "/module-dofus/Dofus_Emeraude.png"; 
         }
 
         return items.slice(0, 10).map((item, idx) => {

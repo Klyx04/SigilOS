@@ -530,19 +530,19 @@ export function RunCloseModal({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 pb-6 pt-4 flex gap-3 border-t border-white/5">
+                        <div className="px-6 pb-6 pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 border-t border-white/5">
                             <Button
                                 variant="ghost"
                                 onClick={onClose}
                                 disabled={isPending}
-                                className="flex-1 h-12 border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 font-bold rounded-xl transition-all"
+                                className="flex-1 h-12 border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 font-bold rounded-xl transition-all order-2 sm:order-1"
                             >
                                 Annuler
                             </Button>
                             <Button
                                 onClick={handleConfirm}
                                 disabled={isPending || isLoading}
-                                className="flex-1 h-12 text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border shadow-xl"
+                                className="flex-1 h-12 text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border shadow-xl order-1 sm:order-2"
                                 style={{ 
                                     backgroundColor: "#0d0d12",
                                     borderColor: `${accentColor}30`,

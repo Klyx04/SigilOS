@@ -100,6 +100,7 @@ import { auth } from "@/auth";
 import { SupportOrb } from "@/components/shared/support-orb";
 import { db } from "@/lib/prisma";
 import { headers } from "next/headers";
+import { GodBypassCookie } from "@/components/god-bypass-cookie";
 
 export default async function RootLayout({
   children,
@@ -120,11 +121,12 @@ export default async function RootLayout({
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
-          enableSystem
+          forcedTheme="dark"
           disableTransitionOnChange
         >
           <AuthProvider session={session}>
             <TooltipProvider>
+              <GodBypassCookie />
               {children}
               {donationsEnabled && <SupportOrb />}
               <Toaster

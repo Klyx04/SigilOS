@@ -72,7 +72,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                 <div className="flex-shrink-0">
                     <CharacterQuestSelector 
                         mainCharacter={{ 
-                            pseudo: user.pseudoDofus || session.user.name || "Principal", 
+                            pseudo: user.pseudoDofus || user.name || "Principal", 
                             classe: user.classe 
                         }}
                         mules={user.altPseudos as any || []}

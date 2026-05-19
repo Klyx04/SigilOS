@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -8,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
     Users, CheckCircle2, XCircle, Crown, Swords, Clock,
-    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil
+    Trophy, Map, Link2, LogIn, LogOut, Trash2, Pencil, Bell
 } from "lucide-react";
 import {
     acceptDjParticipant,
@@ -17,6 +19,7 @@ import {
     joinDjPost,
     leaveDjPost,
     deleteDjPost,
+    sendDjReminder,
 } from "@/server/actions/dungeon-finder-actions";
 import { DjCloseModal } from "./DjCloseModal";
 import { DjEditModal } from "./DjEditModal";
@@ -113,6 +116,17 @@ export function DjPostDetailModal({
             const res = await rejectDjParticipant(guildId, post.id, participantId);
             if (res.success) { toast.success("Participant retiré."); onRefresh(); }
             else toast.error(res.error);
+        });
+    }
+
+    function handleReminder() {
+        startTransition(async () => {
+            const res = await sendDjReminder(guildId, post.id);
+            if (res.success) {
+                toast.success("Rappel envoyé sur Discord !");
+            } else {
+                toast.error(res.error || "Erreur lors de l'envoi du rappel.");
+            }
         });
     }
 
@@ -328,17 +342,33 @@ export function DjPostDetailModal({
                                 <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Candidature</p>
                                 <div className="bg-slate-900/40 rounded-xl p-4 border border-white/5 grid grid-cols-1 sm:grid-cols-3 gap-4 shadow-inner">
                                     <div className="sm:col-span-1">
-                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Ta classe</label>
-                                        <select
-                                            value={classe}
-                                            onChange={(e) => setClasse(e.target.value)}
-                                            className="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 appearance-none shadow-inner"
-                                        >
-                                            <option value="">Sélectionner…</option>
-                                            {DOFUS_CLASSES.map((c) => (
-                                                <option key={c.id} value={c.name}>{c.name}</option>
-                                            ))}
-                                        </select>
+                                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-2">Ta classe</label>
+                                        <div className="grid grid-cols-6 gap-1.5 p-2 rounded-xl bg-slate-900 border border-white/10 shadow-inner">
+                                            {DOFUS_CLASSES.map((c) => {
+                                                const isSelected = classe === c.name;
+                                                return (
+                                                    <button
+                                                        key={c.id}
+                                                        type="button"
+                                                        title={c.name}
+                                                        onClick={() => setClasse(isSelected ? "" : c.name)}
+                                                        className={cn(
+                                                            "aspect-square rounded-lg flex items-center justify-center transition-all border group/class",
+                                                            isSelected 
+                                                                ? "border-indigo-500/50 bg-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.2)] scale-110 z-10" 
+                                                                : "border-transparent opacity-40 hover:opacity-100 hover:bg-white/5 hover:border-white/10"
+                                                        )}
+                                                    >
+                                                        <img 
+                                                            src={c.icon} 
+                                                            alt={c.name} 
+                                                            className="w-5 h-5 object-contain drop-shadow-md group-hover/class:scale-110 transition-transform" 
+                                                            onError={(e) => e.currentTarget.style.display = 'none'} 
+                                                        />
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                     <div className="sm:col-span-2">
                                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Message (opt.)</label>
@@ -379,15 +409,29 @@ export function DjPostDetailModal({
                         {(isOwner || isAdmin) && post.status === "OPEN" && (
                             <div className="border-t border-white/5 pt-5 flex gap-3">
                                 {isOwner && (
-                                    <Button
-                                        variant="outline"
-                                        className="flex-1 border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-11 transition-all"
-                                        onClick={() => setIsEditModalOpen(true)}
-                                        disabled={isPending}
-                                    >
-                                        <Pencil className="w-4 h-4 mr-2" strokeWidth={2.5} />
-                                        Modifier le groupe
-                                    </Button>
+                                    <>
+                                        {post.isDiscordPublished && post.discordMessageId && acceptedCount > 1 && (
+                                            <Button
+                                                variant="outline"
+                                                className="border-indigo-500/30 bg-indigo-500/10 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/30 font-bold h-11 transition-all px-4"
+                                                onClick={handleReminder}
+                                                disabled={isPending}
+                                                title="Envoyer un rappel aux participants sur Discord"
+                                            >
+                                                <Bell className="w-4 h-4 mr-2" />
+                                                Rappel
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="outline"
+                                            className="flex-1 border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-11 transition-all"
+                                            onClick={() => setIsEditModalOpen(true)}
+                                            disabled={isPending}
+                                        >
+                                            <Pencil className="w-4 h-4 mr-2" strokeWidth={2.5} />
+                                            Modifier le groupe
+                                        </Button>
+                                    </>
                                 )}
                                 <Button
                                     variant="outline"

@@ -57,8 +57,8 @@ export default async function FinderPage({
 
             <Suspense
                 fallback={
-                    <div className="h-64 flex items-center justify-center text-slate-600 animate-pulse">
-                        Chargement…
+                    <div className="h-64 flex items-center justify-center text-zinc-600 font-black uppercase tracking-widest animate-pulse">
+                        Synchronisation Tactique…
                     </div>
                 }
             >

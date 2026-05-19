@@ -26,6 +26,7 @@ export type AuditAction =
     | "WEBHOOK_GUILD_DELETE"   // Bot removed from guild
     | "WEBHOOK_MEMBER_ADD"     // Member joined Discord guild
     | "WEBHOOK_MEMBER_REMOVE"  // Member left Discord guild
+    | "WEBHOOK_MEMBER_UPDATE"  // Member changed nickname or roles
     | "USER_GDPR_DELETE"      // User requested full account deletion
     | "MISSION_CREATED"       // Admin published missions for a week
     | "MISSION_DELETED"       // Admin deleted a mission or reset a week
@@ -38,11 +39,6 @@ export type AuditAction =
     | "POLL_CLOSED"           // Poll closed
     | "POLL_DELETED"          // Poll deleted
     | "POLL_CREATOR_ROLE_ACQUIRED" // Member took the guild micro
-    | "CHAT_MUTE"                  // Admin muted a user in chat
-    | "CHAT_UNMUTE"                // Admin unmuted a user in chat
-    | "CHAT_CLEAR"                 // Admin cleared guild chat history
-    | "CHAT_BLOCKED_ATTEMPT"       // System blocked a message (strike)
-    | "CHAT_MOTD_UPDATE"           // Admin updated the MOTD
     | "MEMBER_RELANCE"            // Admin sent pings/changed roles for absents
     | "MEMBER_BANNED"             // Member was banned on Discord
     | "MEMBER_PSEUDO_UPDATE"      // Manual pseudo override
@@ -127,16 +123,13 @@ export async function reportSecurityIncident(
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        // Try to get internal user details, but don't block on it
-        let actorName = session.user.name || "Unknown User";
+        // Try to get server context for accurate pseudo
+        let actorName = session.user.name || "Membre";
         try {
-            const user = await db.user.findUnique({
-                where: { id: session.user.id },
-                select: { name: true }
-            });
-            if (user?.name) actorName = user.name;
+            const ctx = await getUserContext(guildId);
+            if (ctx.name) actorName = ctx.name;
         } catch (e) {
-            console.warn("[Security] User lookup failed, using session name", e);
+            console.warn("[Security] Context lookup failed, using session name", e);
         }
 
         // 🛡️ FORENSICS: Get real security headers
@@ -293,10 +286,17 @@ export async function logAction({
         const userAgent = headersList.get("user-agent") || "Inconnu";
         const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
 
+        // Get fresh server pseudo
+        let actorName = session.user.name || "Anonymous";
+        try {
+            const ctx = await getUserContext(guildId);
+            if (ctx.name) actorName = ctx.name;
+        } catch {}
+
         await createAuditLog({
             guildId,
             actorUserId: session.user.id,
-            actorName: session.user.name || "Anonymous",
+            actorName,
             action,
             targetType,
             targetId,
@@ -352,17 +352,29 @@ export async function logAdminAccessDenied(
         // 🛡️ FORENSICS: Get real security headers
         const { headers } = await import("next/headers");
         const headersList = await headers();
+        
+        // 🛡️ SECURITY: Detect and ignore prefetch attempts (avoid spamming logs with false positives)
+        const isPrefetch = headersList.get("Next-Router-Prefetch") === "1" || headersList.get("Purpose") === "prefetch";
+        if (isPrefetch) return;
+
         const userAgent = headersList.get("user-agent") || "Inconnu";
         const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
 
         // Import Prisma for JsonNull handling
         const { Prisma } = await import("@prisma/client");
 
+        // Get fresh server pseudo
+        let actorName = session.user.name || "Membre";
+        try {
+            const ctx = await getUserContext(discordGuildId);
+            if (ctx.name) actorName = ctx.name;
+        } catch {}
+
         await db.auditLog.create({
             data: {
                 guildId: guildConfig.id,
                 actorUserId: session.user.id,
-                actorName: session.user.name || "Unknown",
+                actorName: actorName,
                 action: "ADMIN_FULL_DENIED",
                 targetType: "ACCESS_ATTEMPT",
                 targetId: targetPage,
@@ -612,7 +624,9 @@ export async function getAuditActionTypes(
 // AUDIT LOG CLEANUP (Retention Policy)
 // ============================================================================
 
-const RETENTION_DAYS = 30;
+// RGPD Art. 5: 90 days minimum for security audit logs
+// Admins can request manual export before purge (RGPD Art. 20)
+const RETENTION_DAYS = 90;
 
 /**
  * Cleanup old audit logs for a guild
@@ -744,7 +758,7 @@ export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deleted
         if (!isAdmin) return { success: false, error: "Unauthorized" };
 
         const cutoffDate = new Date();
-        const RETENTION_DAYS = 30; // 30 days retention for audit logs
+        const RETENTION_DAYS = 90; // 90 days retention for audit logs (RGPD Art. 5)
         cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 
         const result = await db.auditLog.deleteMany({

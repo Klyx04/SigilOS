@@ -575,16 +575,16 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
             engine.wavePending = false; // RELEASE spawn lock after announcement
         }, 3000);
         
-        // Wave Scaling — Logarithmic + Linear Late-Game Boost!
-        const logMult = Math.log10(1 + waveIndex);
-        const linearMult = Math.max(0, waveIndex - 20) * 0.15; // Kicks in after wave 20
-        const speedMult = 1.0 + (logMult * 1.2) + (linearMult * 0.05);
-        const hpMult = 1 + (logMult * 2.0) + linearMult;
+        // --- HIGH-PRECISION SCALING ENGINE (Square Root Scaling) ---
+        // We use sqrt for a curve that grows steadily but never explodes vertically.
+        const waveScale = Math.sqrt(waveIndex); // 1->1, 4->2, 9->3, 16->4, 25->5
+        const speedMult = 1.0 + (waveScale * 0.15); // Gradual speed increase
+        const hpMult = 1.0 + (waveScale * 0.8);    // Controlled HP scaling
 
-        // Player Count Scaling
+        // Player Count Scaling (Softened)
         const playerCount = Object.keys(engine.souls).length + 1;
-        const playerHpMult = 1 + (playerCount - 1) * 0.45;
-        const playerQuotaMult = 1 + (playerCount - 1) * 0.65;
+        const playerHpMult = 1 + (playerCount - 1) * 0.35; // +35% HP per extra player
+        const playerQuotaMult = 1 + (playerCount - 1) * 0.45; // +45% mobs per extra player
 
         // Wave start invulnerability
         engineRef.current.player.isShielded = true;
@@ -656,9 +656,9 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
             };
 
             if (formation === 'grid') {
-                const rows = Math.min(3 + Math.floor(waveIndex / 3), 7);
-                const cols = Math.min(Math.floor((8 + Math.floor(waveIndex / 2)) * playerQuotaMult), 24);
-                const spacingX = Math.min(90, canvasW / (cols + 1));
+                const rows = Math.min(3 + Math.floor(waveIndex / 4), 5); // Cap at 5 rows
+                const cols = Math.min(Math.floor((6 + Math.floor(waveIndex / 3)) * playerQuotaMult), 12); // Cap at 12 cols
+                const spacingX = Math.min(100, canvasW / (cols + 1));
                 const startX = centerX - ((cols - 1) * spacingX) / 2;
                 for (let r = 0; r < rows; r++) {
                     for (let c = 0; c < cols; c++) addMob(startX + c * spacingX, startY - r * 80);
@@ -912,10 +912,10 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
         const aimAngle = Math.atan2(targetY - pCenterY, targetX - pCenterX); // RAW aim angle
         const targetRotation = aimAngle + Math.PI / 2; // Graphic adjustment
         
-        // Smooth rotation using lerp on angle delta
+        // Smooth rotation using lerp on angle delta (Increased responsiveness)
         const delta = targetRotation - engine.player.rotation;
         const normalizedDelta = Math.atan2(Math.sin(delta), Math.cos(delta));
-        engine.player.rotation += normalizedDelta * 0.25; 
+        engine.player.rotation += normalizedDelta * 0.4; 
 
         const sacrierMult = engine.player.perks.sacrierFury ? 1 + (1 - engine.player.health/100) * 0.8 : 1;
         const finalDmgMult = (engine.player?.permanentUpgrades?.damage || 1) * sacrierMult;
@@ -928,7 +928,8 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
             engine.player.recoil = 10;
             engine.player.spin += 0.2;
             
-            if (now - engine.comboTime > 2500) engine.combo = 0;
+            // PROJECTILE DIRECTION: Follow the ship's actual rotation to avoid "laggy" aiming
+            const firingAngle = engine.player.rotation - Math.PI / 2;
 
             const comboBonus = engine.combo >= 40 ? 4 : (engine.combo >= 25 ? 2 : (engine.combo >= 10 ? 1 : 0));
             // Cap projectile count to avoid extreme browser lag
@@ -941,29 +942,29 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
                     playSound('laser');
                     engine.projectiles.push({
                         x: pCenterX, y: pCenterY,
-                        speed: 0, vx: Math.cos(aimAngle) * 50, vy: Math.sin(aimAngle) * 50, 
-                        damage: 15 * difficulty * (engine.player?.permanentUpgrades?.damage || 1),
+                        speed: 0, vx: Math.cos(firingAngle) * 50, vy: Math.sin(firingAngle) * 50, 
+                        damage: 15 * (engine.player?.permanentUpgrades?.damage || 1), // FIXED: No more difficulty multiplier on DMG
                         color: 'laser_purple', fromPlayer: true
                     });
                 } else if (wType === 'kamas') {
                     playSound('kamas');
                     for(let i=0; i < count; i++) {
-                        const shootAngle = aimAngle + (i - (count-1)/2) * angleStep;
+                        const shootAngle = firingAngle + (i - (count-1)/2) * angleStep;
                         engine.projectiles.push({
                             x: pCenterX, y: pCenterY,
                             speed: 15, vx: Math.cos(shootAngle) * 16, vy: Math.sin(shootAngle) * 16,
-                            damage: 12 * difficulty * (engine.player?.permanentUpgrades?.damage || 1),
+                            damage: 12 * (engine.player?.permanentUpgrades?.damage || 1), // FIXED: No more difficulty multiplier
                             color: '#facc15', fromPlayer: true
                         });
                     }
                 } else if (wType === 'basic') {
                     playSound('shoot');
                     for(let i=0; i < count; i++) {
-                        const shootAngle = aimAngle + (i - (count-1)/2) * angleStep;
+                        const shootAngle = firingAngle + (i - (count-1)/2) * angleStep;
                         engine.projectiles.push({
                             x: pCenterX, y: pCenterY,
                             speed: 15, vx: Math.cos(shootAngle) * 15, vy: Math.sin(shootAngle) * 15,
-                            damage: 10 * difficulty * finalDmgMult,
+                            damage: 10 * finalDmgMult, // FIXED: No more difficulty multiplier
                             color: '#f97316', fromPlayer: true
                         });
                     }
@@ -995,6 +996,11 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
 
         // Screen Flash decay
         if (engine.flashTime > 0) engine.flashTime -= dt;
+
+        // Combo Reset Check (Global, not only on shoot)
+        if (now - engine.comboTime > 4500) { // Increased from 2.5s to 4.5s
+            engine.combo = 0;
+        }
 
         // Projectiles movement
         engine.projectiles = engine.projectiles.filter((p) => {
@@ -1278,7 +1284,12 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
             const ex = e.x + e.width / 2;
             const ey = e.y + e.height / 2;
             const dist = Math.sqrt(Math.pow(px - ex, 2) + Math.pow(py - ey, 2));
-            const collisionThreshold = 14 + (e.width / 4); // Very generous micro-hitbox
+            
+            // --- FIX COLLISION THRESHOLD ---
+            // Player is ~70x70, Mob is ~46x46. 
+            // Previous 14px radius was way too small (ghosting).
+            // New threshold: approx 70% of combined radii for a tight but fair feel.
+            const collisionThreshold = (engine.player.width * 0.4) + (e.width * 0.4); 
 
             if (dist < collisionThreshold) {
                 if (!engine.player.isShielded) {
@@ -1695,8 +1706,8 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
                         };
                         
                         engine.player.weapon = nextTypes[nextTypes.length - 1]; // Visual focus on last
-                        engine.player.weaponTime = 12000;
-                        engine.weaponTime = 12000;
+                        engine.player.weaponTime = 25000; // INCREASED DURATION: 25s for tactical satisfaction
+                        engine.weaponTime = 25000;
                         
                         toast.success(`SYSTEM STACK: ${pu.type.toUpperCase()} ACTIVÉ`);
                         return next;
@@ -2110,55 +2121,136 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
             }
         }
         
-        // Draw Obstacles
+        // Draw Obstacles (Asteroids & Mines)
         engine.obstacles.forEach(obs => {
             ctx.save();
             ctx.translate(obs.x, obs.y);
             ctx.rotate(obs.rotation);
 
             if (obs.type === 'asteroid') {
-                // Procedural Asteroid
+                // --- PREMIUM PROCEDURAL ASTEROID ---
+                // 1. Base Gradient for Spherical Depth
+                const grad = ctx.createRadialGradient(-obs.radius/3, -obs.radius/3, obs.radius/10, 0, 0, obs.radius);
+                grad.addColorStop(0, '#475569'); // Lighter slate
+                grad.addColorStop(0.6, '#1e293b'); // Dark slate
+                grad.addColorStop(1, '#0f172a'); // Very dark slate (edge shadow)
+                
                 ctx.beginPath();
-                ctx.fillStyle = '#1e293b';
-                ctx.strokeStyle = '#334155';
-                ctx.lineWidth = 2;
-                for (let i = 0; i < 8; i++) {
-                    const angle = (i / 8) * Math.PI * 2;
-                    const r = obs.radius * (0.8 + Math.random() * 0.4);
+                // Custom jagged shape
+                const sides = 10;
+                for (let i = 0; i < sides; i++) {
+                    const angle = (i / sides) * Math.PI * 2;
+                    // Use a seeded-ish pseudo-random based on ID for stable jaggedness
+                    const seed = (Math.sin(obs.id * (i + 1)) * 0.5 + 0.5);
+                    const r = obs.radius * (0.85 + seed * 0.3);
                     const tx = Math.cos(angle) * r;
                     const ty = Math.sin(angle) * r;
                     if (i === 0) ctx.moveTo(tx, ty);
                     else ctx.lineTo(tx, ty);
                 }
                 ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
                 
-                // Craters
-                ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                ctx.beginPath();
-                ctx.arc(-obs.radius/3, -obs.radius/4, obs.radius/4, 0, Math.PI * 2);
+                // Shadow / Glow
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.fillStyle = grad;
                 ctx.fill();
+                
+                // 2. Highlights (Rim Lighting)
+                ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // 3. Detailed Craters
+                const craterCount = 3;
+                for(let j=0; j<craterCount; j++) {
+                    ctx.save();
+                    const cSeed = Math.sin(obs.id + j) * 0.5 + 0.5;
+                    const cDist = obs.radius * 0.4 * cSeed;
+                    const cAngle = (j / craterCount) * Math.PI * 2;
+                    ctx.translate(Math.cos(cAngle) * cDist, Math.sin(cAngle) * cDist);
+                    
+                    const cSize = obs.radius * (0.15 + cSeed * 0.2);
+                    
+                    // Crater Deepness
+                    ctx.beginPath();
+                    ctx.arc(0, 0, cSize, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+                    ctx.fill();
+                    
+                    // Crater Rim
+                    ctx.beginPath();
+                    ctx.arc(0, 0, cSize, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
             } else {
-                // Mine
-                const blink = Math.sin(Date.now() / 150) > 0;
+                // --- HIGH-TECH ROBOTIC MINE ---
+                const now = Date.now();
+                const blinkSpeed = 150;
+                const blink = Math.sin(now / blinkSpeed) > 0;
+                const pulse = (Math.sin(now / 100) + 1) / 2;
+                
+                // 1. Rotating Spikes (Mechanical)
+                ctx.save();
+                ctx.rotate(now / 1000); // Constant slow spin
+                ctx.fillStyle = '#3f3f46';
+                for (let i = 0; i < 8; i++) {
+                    ctx.rotate(Math.PI / 4);
+                    ctx.beginPath();
+                    ctx.moveTo(obs.radius * 0.8, -4);
+                    ctx.lineTo(obs.radius * 1.2, 0);
+                    ctx.lineTo(obs.radius * 0.8, 4);
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                // 2. Mine Body
+                const bodyGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, obs.radius);
+                bodyGrad.addColorStop(0, '#27272a');
+                bodyGrad.addColorStop(1, '#09090b');
+                
                 ctx.beginPath();
                 ctx.arc(0, 0, obs.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#18181b';
-                ctx.strokeStyle = blink ? '#ef4444' : '#7f1d1d';
+                ctx.fillStyle = bodyGrad;
+                ctx.strokeStyle = blink ? '#ef4444' : '#450a0a';
                 ctx.lineWidth = 3;
-                ctx.fill();
-                ctx.stroke();
-                
-                // Core
-                ctx.beginPath();
-                ctx.arc(0, 0, obs.radius/2, 0, Math.PI * 2);
-                ctx.fillStyle = blink ? '#f87171' : '#450a0a';
-                ctx.fill();
                 
                 if (blink) {
-                    ctx.shadowBlur = 15;
+                    ctx.shadowBlur = 25;
                     ctx.shadowColor = '#ef4444';
+                }
+                ctx.fill();
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // 3. Core Hazard Light
+                ctx.beginPath();
+                ctx.arc(0, 0, obs.radius * 0.4, 0, Math.PI * 2);
+                const coreGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, obs.radius * 0.4);
+                coreGrad.addColorStop(0, blink ? '#fca5a5' : '#7f1d1d');
+                coreGrad.addColorStop(1, blink ? '#ef4444' : '#450a0a');
+                ctx.fillStyle = coreGrad;
+                ctx.fill();
+
+                // 4. Tech Detailing (Circles/Lines)
+                ctx.beginPath();
+                ctx.arc(0, 0, obs.radius * 0.7, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Homing Indicator (Small "target" reticle if close)
+                const dx = engine.player.x + 35 - obs.x;
+                const dy = engine.player.y + 35 - obs.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 400 && blink) {
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+                    ctx.beginPath();
+                    ctx.moveTo(-obs.radius, 0); ctx.lineTo(obs.radius, 0);
+                    ctx.moveTo(0, -obs.radius); ctx.lineTo(0, obs.radius);
                     ctx.stroke();
                 }
             }
@@ -2226,16 +2318,18 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
             ctx.fillRect(bx + barW * 0.25, by, 1, barH);
             ctx.fillRect(bx + barW * 0.75, by, 1, barH);
 
-            // Boss Name Label (Pro)
-            const bossId = activeBoss.type.split('_')[1];
-            const bossInfo = gameManifest?.bosses?.find(b => b.id.toString() === bossId);
-            const bossName = bossInfo?.name?.toUpperCase() || "ANCIENT ENTITY";
+            // Boss Name Label (Pro Alignment Fix)
+            const bossIdRaw = activeBoss.type.split('_')[1];
+            const bossInfo = gameManifest?.bosses?.find(b => b.id.toString() === bossIdRaw);
+            const bossName = bossInfo?.name?.toUpperCase() || `ENTITÉ INCONNUE [ID:${bossIdRaw}]`;
 
             ctx.fillStyle = 'white';
-            ctx.font = 'black 12px italic "Inter", sans-serif';
+            ctx.font = '900 16px "Inter", sans-serif'; // Bolder font
             ctx.textAlign = 'center';
-            ctx.fillText(`${bossName} [ SUPREME THREAT ]`, canvas.width / 2, by - 15);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${bossName} — MENACE SUPRÊME`, canvas.width / 2, by - 20);
             ctx.textAlign = 'start';
+            ctx.textBaseline = 'alphabetic';
             
             // Phase Text
             if (pct < 0.5) {
@@ -3255,98 +3349,156 @@ export default function SigilInvaderGame({ room, guildId, isSolo, isSpectator }:
                         )}
 
                         {gameState === 'SHOP' && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/95 backdrop-blur-2xl flex flex-col items-center z-50 p-6 lg:p-12 pt-16 overflow-y-auto custom-scrollbar">
-                                <div className="text-center mb-8">
-                                    <span className="text-indigo-500 font-black uppercase italic tracking-[0.6em] text-[10px] mb-2 block">Marché du Sigil</span>
-                                    <h2 className="text-4xl md:text-6xl font-black text-white uppercase italic tracking-tighter">LA BOUTIQUE</h2>
-                                    <div className="flex items-center justify-center gap-4 mt-4">
-                                        <span className="text-white/20 text-[10px] md:text-xs font-bold uppercase italic">Crédits Disponibles</span>
-                                        <span className="text-white text-2xl md:text-3xl font-black italic tabular-nums">{score.toLocaleString()} 🪙</span>
-                                    </div>
-                                </div>
+                            <motion.div 
+                                initial={{ opacity: 0 }} 
+                                animate={{ opacity: 1 }} 
+                                className="absolute inset-0 bg-black/95 backdrop-blur-2xl flex flex-col items-center z-50 p-6 lg:p-12 overflow-hidden"
+                            >
+                                {/* SCANLINE OVERLAY for Gaming Feel */}
+                                <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-10" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, #fff 2px, #fff 4px)' }} />
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto pb-8">
-                                    {[
-                                        { id: 'dmg',          name: 'Arsenal Offensif',  desc: '+20% Dégâts par tir',             cost: 800,  icon: '🔥' },
-                                        { id: 'rate',         name: 'Cycle Rapide',      desc: '+25% Cadence de Tir',             cost: 1200, icon: '⚡' },
-                                        { id: 'heal',         name: 'Réparation',        desc: '+1 Cœur d\'Intégrité',            cost: 2000, icon: '❤️' },
-                                        { id: 'armor_abrak',  name: 'Écorce Abraknyde',  desc: '50 Armor (Songe)',               cost: 1500, icon: '🪵' },
-                                        { id: 'fury_sacri',   name: 'Fureur Sacrieur',   desc: 'Dégâts si HP bas (Songe)',        cost: 3000, icon: '🩸' },
-                                        { id: 'chance_eca',   name: 'Chance Écaflip',    desc: '25% Esquive (Songe)',            cost: 2500, icon: '🎲' },
-                                        { id: 'slow_xelor',   name: 'Poussière Xelor',   desc: 'Projectiles -15% Speed (Songe)',  cost: 2500, icon: '⏳' },
-                                        { id: 'pierce_cra',   name: 'Tir Perçant',       desc: 'Tirs traversant (Songe)',         cost: 4000, icon: '🏹' },
-                                        { id: 'multi',        name: 'Salve Sigil',       desc: '+1 Projectile Permanent (max 8)', cost: 2500, icon: '🎯' },
-                                        { id: 'shield_regen', name: 'Égide du Sigil',   desc: 'Bouclier Instantané 4 secondes', cost: 1500, icon: '🛡️' },
-                                    ].map(baseItem => {
-                                        const purchases = (engineRef.current.purchaseHistory as any)[baseItem.id] || 0;
-                                        const cost = Math.floor(baseItem.cost * (1 + purchases * 0.5));
-                                        const isPerk = ['fury_sacri', 'chance_eca', 'slow_xelor', 'pierce_cra'].includes(baseItem.id);
-                                        const alreadyOwned = isPerk && purchases > 0;
-                                        const canAfford = score >= cost && !alreadyOwned;
-
-                                        return (
-                                            <button 
-                                                key={baseItem.id} 
-                                                onClick={() => {
-                                                    if (canAfford) {
-                                                        const engine = engineRef.current;
-                                                        playSound('powerup');
-                                                        engine.purchaseHistory[baseItem.id] = (engine.purchaseHistory[baseItem.id] || 0) + 1;
-                                                        if (baseItem.id === 'dmg') engine.player.permanentUpgrades.damage += 0.20;
-                                                        if (baseItem.id === 'rate') engine.player.permanentUpgrades.fireRate += 0.25;
-                                                        if (baseItem.id === 'heal') engine.lives = Math.min(5, engine.lives + 1);
-                                                        if (baseItem.id === 'armor_abrak') engine.player.armor = Math.min(100, engine.player.armor + 50);
-                                                        if (baseItem.id === 'fury_sacri') engine.player.perks.sacrierFury = true;
-                                                        if (baseItem.id === 'chance_eca') engine.player.perks.dodgeChance = 0.25;
-                                                        if (baseItem.id === 'slow_xelor') engine.player.perks.slowProjectiles = true;
-                                                        if (baseItem.id === 'pierce_cra') engine.player.perks.piercingShots = true;
-                                                        if (baseItem.id === 'speed') engine.player.permanentUpgrades.speed = (engine.player.permanentUpgrades.speed || 1) + 0.2;
-                                                        if (baseItem.id === 'multi') setWeapon(prev => ({ ...prev, projectileCount: Math.min(prev.projectileCount + 1, 8) }));
-                                                        if (baseItem.id === 'shield_regen') { engine.player.isShielded = true; engine.player.shieldTime = 4000; }
-                                                        engine.score -= cost;
-                                                        setScore(engine.score);
-                                                        setGameState('PLAYING');
-                                                    }
-                                                }}
-                                                disabled={!canAfford}
-                                                className={`p-6 rounded-[2rem] border transition-all text-left group flex flex-col justify-between min-h-[150px] relative overflow-hidden ${canAfford ? 'bg-white/5 border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/10' : 'bg-white/[0.02] border-white/5 opacity-50 grayscale'}`}
-                                            >
-                                                {alreadyOwned && (
-                                                    <div className="absolute inset-0 z-20 bg-indigo-500/20 backdrop-blur-sm flex items-center justify-center">
-                                                        <span className="text-white font-black italic uppercase text-xs tracking-widest border border-white/20 px-4 py-2 rounded-xl bg-black/40 shadow-2xl">DÉBLOQUÉ</span>
-                                                    </div>
-                                                )}
-                                                <div className="relative z-10">
-                                                    <div className="text-4xl mb-6">{baseItem.icon}</div>
-                                                    <div className="text-white font-black text-xl italic mb-2 uppercase">{baseItem.name}</div>
-                                                    <p className="text-white/40 text-[10px] uppercase font-bold leading-relaxed">{baseItem.desc}</p>
-                                                </div>
-                                                <div className="relative z-10 mt-8 flex items-end justify-between">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] text-white/20 font-bold uppercase tracking-widest italic">Coût Actuel</span>
-                                                        <span className={`text-2xl font-black italic tabular-nums ${canAfford ? 'text-white' : 'text-red-500/50'}`}>{cost.toLocaleString()} 🪙</span>
-                                                    </div>
-                                                    <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase italic transition-all ${canAfford ? 'bg-indigo-500 text-white' : 'bg-white/5 text-white/20'}`}>
-                                                        {alreadyOwned ? 'Unique' : (score >= cost ? 'Acquérir' : 'Insuffisant')}
-                                                    </div>
-                                                </div>
-                                                <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="mt-8 mb-4 px-6 py-3 bg-red-500/20 border border-red-500/40 rounded-2xl flex items-center justify-between w-full max-w-md">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
-                                        <span className="text-red-400 font-black uppercase text-[10px] italic">Déploiement Imminent</span>
+                                <div className="relative z-20 w-full max-w-5xl flex flex-col h-full">
+                                    <div className="text-center mb-10 shrink-0">
+                                        <div className="flex items-center justify-center gap-3 mb-2">
+                                            <div className="h-px w-20 bg-gradient-to-r from-transparent to-indigo-500/50" />
+                                            <span className="text-indigo-500 font-black uppercase italic tracking-[0.6em] text-[10px]">Terminal d'Armement</span>
+                                            <div className="h-px w-20 bg-gradient-to-l from-transparent to-indigo-500/50" />
+                                        </div>
+                                        <h2 className="text-5xl md:text-7xl font-black text-white uppercase italic tracking-tighter drop-shadow-[0_0_15px_rgba(79,70,229,0.3)]">BOUTIQUE SIGIL</h2>
+                                        
+                                        <div className="mt-6 inline-flex items-center gap-4 bg-zinc-900/80 border border-white/10 px-8 py-3 rounded-full backdrop-blur-md shadow-2xl">
+                                            <span className="text-white/40 text-[10px] font-black uppercase italic tracking-widest">Crédits de Mission</span>
+                                            <div className="h-6 w-px bg-white/10" />
+                                            <span className="text-white text-3xl font-black italic tabular-nums drop-shadow-[0_0_10px_rgba(250,204,21,0.4)]">
+                                                {score.toLocaleString()} <span className="text-yellow-400">🪙</span>
+                                            </span>
+                                        </div>
                                     </div>
-                                    <span className="text-white text-2xl font-black italic tabular-nums">
-                                        {Math.max(0, Math.ceil(((engineRef.current.shopEndTime || 0) - Date.now()) / 1000))}s
-                                    </span>
-                                </div>
+                                    
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 -mr-4 pb-12">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {[
+                                                { id: 'dmg',          name: 'Arsenal Offensif',  desc: '+20% Dégâts par tir',             cost: 800,  icon: '🔥', tag: 'OFFENSIF' },
+                                                { id: 'rate',         name: 'Cycle Rapide',      desc: '+25% Cadence de Tir',             cost: 1200, icon: '⚡', tag: 'OFFENSIF' },
+                                                { id: 'multi',        name: 'Salve Sigil',       desc: '+1 Projectile (max 8)',           cost: 2500, icon: '🎯', tag: 'OFFENSIF' },
+                                                { id: 'heal',         name: 'Réparation',        desc: '+1 Cœur d\'Intégrité',            cost: 2000, icon: '❤️', tag: 'DÉFENSIF' },
+                                                { id: 'armor_abrak',  name: 'Écorce Abraknyde',  desc: '50 Armor (Max 100)',             cost: 1500, icon: '🪵', tag: 'DÉFENSIF' },
+                                                { id: 'shield_regen', name: 'Égide du Sigil',   desc: 'Bouclier de 4 secondes',         cost: 1500, icon: '🛡️', tag: 'DÉFENSIF' },
+                                                { id: 'chance_eca',   name: 'Chance Écaflip',    desc: '25% Esquive (Passif)',           cost: 2500, icon: '🎲', tag: 'SYSTÈME' },
+                                                { id: 'slow_xelor',   name: 'Poussière Xelor',   desc: 'Projectiles ennemis -15% Speed', cost: 2500, icon: '⏳', tag: 'SYSTÈME' },
+                                                { id: 'pierce_cra',   name: 'Tir Perçant',       desc: 'Tirs traversant l\'ennemi',      cost: 4000, icon: '🏹', tag: 'SYSTÈME' },
+                                            ].map(baseItem => {
+                                                const purchases = (engineRef.current.purchaseHistory as any)[baseItem.id] || 0;
+                                                const cost = Math.floor(baseItem.cost * (1 + purchases * 0.5));
+                                                const isPerk = ['fury_sacri', 'chance_eca', 'slow_xelor', 'pierce_cra'].includes(baseItem.id);
+                                                const alreadyOwned = isPerk && purchases > 0;
+                                                const canAfford = score >= cost && !alreadyOwned;
 
-                                <button onClick={() => { setGameState('PLAYING'); engineRef.current.wave++; spawnWave(engineRef.current.wave); }} className="mt-8 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-[0.4em] italic transition-colors">Ignorer le Marché (Prêt pour la Suite)</button>
+                                                return (
+                                                    <motion.button 
+                                                        key={baseItem.id} 
+                                                        whileHover={canAfford ? { scale: 1.02, y: -4 } : {}}
+                                                        whileTap={canAfford ? { scale: 0.98 } : {}}
+                                                        onClick={() => {
+                                                            if (canAfford) {
+                                                                const engine = engineRef.current;
+                                                                playSound('powerup');
+                                                                engine.purchaseHistory[baseItem.id] = (engine.purchaseHistory[baseItem.id] || 0) + 1;
+                                                                if (baseItem.id === 'dmg') engine.player.permanentUpgrades.damage += 0.20;
+                                                                if (baseItem.id === 'rate') engine.player.permanentUpgrades.fireRate += 0.25;
+                                                                if (baseItem.id === 'heal') engine.lives = Math.min(5, engine.lives + 1);
+                                                                if (baseItem.id === 'armor_abrak') engine.player.armor = Math.min(100, engine.player.armor + 50);
+                                                                if (baseItem.id === 'chance_eca') engine.player.perks.dodgeChance = 0.25;
+                                                                if (baseItem.id === 'slow_xelor') engine.player.perks.slowProjectiles = true;
+                                                                if (baseItem.id === 'pierce_cra') engine.player.perks.piercingShots = true;
+                                                                if (baseItem.id === 'multi') setWeapon(prev => ({ ...prev, projectileCount: Math.min(prev.projectileCount + 1, 8) }));
+                                                                if (baseItem.id === 'shield_regen') { engine.player.isShielded = true; engine.player.shieldTime = 4000; }
+                                                                engine.score -= cost;
+                                                                setScore(engine.score);
+                                                                setGameState('PLAYING');
+                                                            }
+                                                        }}
+                                                        disabled={!canAfford}
+                                                        className={cn(
+                                                            "relative flex flex-col p-5 rounded-[1.5rem] border transition-all text-left overflow-hidden h-full group",
+                                                            canAfford 
+                                                                ? "bg-zinc-900/50 border-white/10 hover:border-indigo-500/50 hover:bg-zinc-900/80" 
+                                                                : "bg-black/20 border-white/5 opacity-50 grayscale cursor-not-allowed"
+                                                        )}
+                                                    >
+                                                        {/* Header: Tag + Icon */}
+                                                        <div className="flex justify-between items-start mb-4 relative z-10">
+                                                            <div className={cn(
+                                                                "px-2 py-0.5 rounded-md text-[8px] font-black italic tracking-widest",
+                                                                baseItem.tag === 'OFFENSIF' ? "bg-red-500/20 text-red-400" : 
+                                                                baseItem.tag === 'DÉFENSIF' ? "bg-emerald-500/20 text-emerald-400" : "bg-indigo-500/20 text-indigo-400"
+                                                            )}>
+                                                                {baseItem.tag}
+                                                            </div>
+                                                            <div className="text-3xl filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] group-hover:scale-110 transition-transform">
+                                                                {baseItem.icon}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Info */}
+                                                        <div className="relative z-10 flex-1">
+                                                            <div className="text-white font-black text-lg italic uppercase tracking-tight mb-1 group-hover:text-indigo-400 transition-colors">
+                                                                {baseItem.name}
+                                                            </div>
+                                                            <p className="text-white/40 text-[10px] font-bold uppercase italic leading-tight mb-6">
+                                                                {baseItem.desc}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Footer: Price + Action */}
+                                                        <div className="relative z-10 flex items-center justify-between pt-4 border-t border-white/5">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[7px] text-white/20 font-black uppercase tracking-widest italic">Coût de Déploiement</span>
+                                                                <span className={cn(
+                                                                    "text-xl font-black italic tabular-nums",
+                                                                    canAfford ? "text-white" : "text-red-500/50"
+                                                                )}>
+                                                                    {cost.toLocaleString()} <span className="text-yellow-400/50">🪙</span>
+                                                                </span>
+                                                            </div>
+                                                            <div className={cn(
+                                                                "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase italic transition-all",
+                                                                alreadyOwned ? "bg-white/10 text-white/40" : 
+                                                                (canAfford ? "bg-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]" : "bg-white/5 text-white/10")
+                                                            )}>
+                                                                {alreadyOwned ? 'Acquis' : (score >= cost ? 'Installer' : 'Bloqué')}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Glitch Overlay on Hover */}
+                                                        {canAfford && (
+                                                            <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity" />
+                                                        )}
+                                                    </motion.button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Shop Bottom Bar */}
+                                    <div className="shrink-0 mt-auto pt-6 flex flex-col md:flex-row items-center justify-between border-t border-white/10 bg-black/40 p-6 -mx-6 rounded-b-[2rem]">
+                                        <div className="flex items-center gap-4 mb-4 md:mb-0">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                                                <span className="text-red-400 font-black uppercase text-[10px] italic">Déploiement forcé dans :</span>
+                                            </div>
+                                            <span className="text-white text-3xl font-black italic tabular-nums min-w-[40px]">
+                                                {Math.max(0, Math.ceil(((engineRef.current.shopEndTime || 0) - Date.now()) / 1000))}s
+                                            </span>
+                                        </div>
+                                        <button 
+                                            onClick={() => { setGameState('PLAYING'); engineRef.current.wave++; spawnWave(engineRef.current.wave); }} 
+                                            className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black uppercase text-xs italic tracking-widest transition-all"
+                                        >
+                                            Ignorer le Marché (Prêt)
+                                        </button>
+                                    </div>
+                                </div>
                             </motion.div>
                         )}
                         

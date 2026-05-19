@@ -161,6 +161,9 @@ const processHtml = (html: string) => {
           if (lowerSrc === 'monster' || lowerSrc.includes('icon_monster.png')) {
             return `src="https://ganymede-dofus.com/images/icon_monster.png"`;
           }
+          if (lowerSrc.includes('gyazo.com/0a5cd701d47079078cad5f59fe91e700')) {
+            return `src="https://ganymede-app.com/images/ganymede-logo.webp"`;
+          }
           return match;
         });
       }

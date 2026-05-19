@@ -21,7 +21,7 @@ export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gameP
         <div className="flex items-center justify-center gap-2 sm:gap-4 animate-in slide-in-from-top-10 duration-700 pointer-events-auto">
             {/* Spectators - Floating on the left */}
             {spectators.length > 0 && (
-                <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-2xl mr-2">
+                <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-slate-900 border border-white/5 rounded-2xl mr-2">
                     <div className="flex -space-x-2">
                         {spectators.slice(0, 3).map(s => (
                              <div key={s.userId || s.id} className="w-6 h-6 rounded-lg border border-black p-0.5 bg-zinc-900 overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-help relative" title={s.userName}>
@@ -52,7 +52,7 @@ export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gameP
 
             {/* Timer */}
             <div className={cn(
-                "group flex flex-col items-center justify-center px-6 py-2 sm:px-10 sm:py-4 bg-[#1a1c23]/95 backdrop-blur-2xl border-2 transition-all duration-500 rounded-2xl sm:rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.8)] ring-1 ring-white/10",
+                "group flex flex-col items-center justify-center px-6 py-2 sm:px-10 sm:py-4 bg-[#1a1c23] border-2 transition-all duration-500 rounded-2xl sm:rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.8)] ring-1 ring-white/10",
                 timeLeft <= 10 ? "border-red-500/60 ring-red-500/20" : "border-[#a78bfa]/30 ring-purple-500/20"
             )}>
                 <span className="text-[8px] sm:text-[9px] text-white/30 font-black uppercase tracking-[0.2em] mb-0.5 italic">Temps restant</span>

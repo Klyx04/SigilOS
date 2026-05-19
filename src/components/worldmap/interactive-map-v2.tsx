@@ -102,8 +102,9 @@ export default function InteractiveMapV2({
     const [isCreating, setIsCreating] = useState(false);
     const [minimapRecenterTrigger, setMinimapRecenterTrigger] = useState(0);
     const [showZoneDetail, setShowZoneDetail] = useState(false);
-    const [showMapHelp, setShowMapHelp] = useState(!hideUI);
+    const [showMapHelp, setShowMapHelp] = useState(false);
     const [autoCopyTravel, setAutoCopyTravel] = useState(false);
+    const [activePanelTab, setActivePanelTab] = useState<'map' | 'scores'>('map');
 
     // Mini-Jeux States
     const [gamePhase, setGamePhase] = useState<'idle' | 'countdown' | 'playing' | 'result' | 'summary'>('idle');
@@ -121,6 +122,8 @@ export default function InteractiveMapV2({
     const [showRules, setShowRules] = useState(false);
     const [isLeavingSession, setIsLeavingSession] = useState(false);
     const [showPerfectCelebration, setShowPerfectCelebration] = useState(false);
+    const [showHDMap, setShowHDMap] = useState(true);
+
 
     // Leaderboard States
     const [ladder, setLadder] = useState<any[]>(initialLadder || []);
@@ -547,6 +550,8 @@ export default function InteractiveMapV2({
         newSocket.on("geoguesser:state:sync", (state) => {
             if (!state || isLeavingSession) return;
 
+            const me = state.participants?.find((p: any) => p.userId === currentUserIdRef.current);
+
             // Host migration notification
             if (activeSession && state.hostId !== activeSession.hostId) {
                 // Use local variable currentUserId from state
@@ -594,7 +599,6 @@ export default function InteractiveMapV2({
             // 1. Determine new phase and handle side effects
             if (newState === 'IN_PROGRESS') {
                 const isNewRound = state.currentRound !== activeSessionRef.current?.currentRound;
-                const me = state.participants?.find((p: any) => p.userId === currentUserIdRef.current);
                 const hasGuessedOnServer = me?.hasGuessed;
 
                 // We only revert to 'playing' if it's a new round 
@@ -634,9 +638,13 @@ export default function InteractiveMapV2({
                 setGamePhase('idle');
             }
 
+            // Sync total score state for HUD and Summary
+            if (me) {
+                setScore(me.score || 0);
+            }
+
             // 2. Sync results ALWAYS if in RESULT or FINISHED, 
             // OR if we already have a guess synced on server but we are locally in 'playing' (recovery)
-            const me = state.participants?.find((p: any) => p.userId === currentUserId);
             if ((state.state === 'RESULT' || state.state === 'FINISHED' || (me?.hasGuessed && gamePhase === 'playing')) && (state.currentMapId || state.targetMapIds) && state.currentRound > 0) {
                 const targetId = state.currentMapId || (state.targetMapIds && state.targetMapIds[state.currentRound - 1]);
                 const tMap = allMapsById.get(targetId);
@@ -871,6 +879,8 @@ export default function InteractiveMapV2({
         if (isSpectator && activeTab === 'games') return;
 
         if (activeTab === 'games' && gamePhase === 'playing' && targetMapId) {
+            // SECURITY: Prevent moving the marker if already guessed
+            if (me?.hasGuessed) return;
             setSelectedPosition(pos);
         } else if (activeTab === 'map' && !hideUI) {
             setSelectedPosition(pos);
@@ -924,8 +934,11 @@ export default function InteractiveMapV2({
         return null;
     }, [activeSession]);
 
-    // Auto-switch minimap world when a new target map is set in Geoguesser
+    // Auto-switch minimap world and reset HD Map visibility when a new target map is set in Geoguesser
     useEffect(() => {
+        if (targetMapId) {
+            setShowHDMap(true);
+        }
         if (targetMapId && activeTab === 'games' && gamePhase === 'playing') {
             const tMap = allMapsByIdRef.current.get(targetMapId);
             if (tMap && tMap.worldMap !== selectedWorldId) {
@@ -993,57 +1006,54 @@ export default function InteractiveMapV2({
                                 exit={{ opacity: 0, x: 20 }}
                                 className="flex items-center gap-4"
                             >
-                                {/* World Selection */}
-                                <div className="relative group">
-                                    <button className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors">
-                                        <MapIcon size={12} className="text-emerald-500" />
-                                        <span className="text-[10px] font-black uppercase italic tracking-tighter">{activeWorld.name.fr}</span>
-                                        <ChevronDown size={12} className="text-white/20" />
-                                    </button>
-                                    <div className="absolute top-full right-0 pt-2 w-60 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-[700]">
-                                        <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 max-h-[50vh] overflow-y-auto">
-                                            {visibleWorlds.map(w => (
-                                                <button key={w.id} onClick={() => setSelectedWorldId(w.id)} className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}>{w.name.fr}</button>
-                                            ))}
+                                {/* Essential Tools (Visible everywhere) */}
+                                <div className="flex items-center gap-2 sm:gap-4">
+                                    {/* World Selection */}
+                                    <div className="relative group">
+                                        <button className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors">
+                                            <MapIcon size={12} className="text-emerald-500" />
+                                            <span className="text-[9px] sm:text-[10px] font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
+                                            <ChevronDown size={12} className="text-white/20" />
+                                        </button>
+                                        <div className="absolute top-full right-0 pt-2 w-60 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-[700]">
+                                            <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 max-h-[50vh] overflow-y-auto">
+                                                {visibleWorlds.map(w => (
+                                                    <button key={w.id} onClick={() => setSelectedWorldId(w.id)} className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}>{w.name.fr}</button>
+                                                ))}
+                                            </div>
                                         </div>
+                                    </div>
+
+                                    {/* Secondary Tools (Hidden on Mobile, in Dropdown) */}
+                                    <div className="hidden lg:flex items-center gap-2">
+                                        {/* Grid Toggle */}
+                                        <button
+                                            onClick={() => setShowDebugGrid(!showDebugGrid)}
+                                            className={cn(
+                                                "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
+                                                showDebugGrid ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/5 text-white/40 hover:text-white/60"
+                                            )}
+                                            title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
+                                        >
+                                            {showDebugGrid ? <Eye size={14} /> : <EyeOff size={14} />}
+                                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">Grille</span>
+                                        </button>
+
+                                        {/* Help Toggle */}
+                                        <button
+                                            onClick={() => setShowMapHelp(true)}
+                                            className={cn(
+                                                "p-2 rounded-xl border transition-all",
+                                                showMapHelp ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-white/5 border-white/5 text-white/40 hover:text-white/60"
+                                            )}
+                                            title="Aide du Monde"
+                                        >
+                                            <HelpCircle size={14} />
+                                        </button>
+
                                     </div>
                                 </div>
 
-                                {/* Grid Toggle */}
-                                <button
-                                    onClick={() => setShowDebugGrid(!showDebugGrid)}
-                                    className={`p-2 rounded-xl border transition-all ${showDebugGrid ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/5 text-white/40 hover:text-white/60'}`}
-                                    title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
-                                >
-                                    {showDebugGrid ? <Eye size={14} /> : <EyeOff size={14} />}
-                                </button>
-
-                                {/* Help Toggle */}
-                                <button
-                                    onClick={() => setShowMapHelp(true)}
-                                    className={cn(
-                                        "p-2 rounded-xl border transition-all",
-                                        showMapHelp ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-white/5 border-white/5 text-white/40 hover:text-white/60"
-                                    )}
-                                    title="Aide du Monde"
-                                >
-                                    <HelpCircle size={14} />
-                                </button>
-
-                                {/* Auto-Copy Toggle */}
-                                <button
-                                    onClick={() => setAutoCopyTravel(!autoCopyTravel)}
-                                    className={cn(
-                                        "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
-                                        autoCopyTravel 
-                                            ? "bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]" 
-                                            : "bg-white/5 border-white/5 text-white/20 hover:text-white/40"
-                                    )}
-                                    title={autoCopyTravel ? "Désactiver la copie automatique" : "Activer la copie automatique"}
-                                >
-                                    <Zap size={14} className={cn(autoCopyTravel && "fill-amber-500")} />
-                                    <span className={cn("text-[9px] font-black uppercase tracking-tighter italic", !autoCopyTravel && "opacity-40")}>Copie Auto</span>
-                                </button>
 
                                 {/* Selection Quick Action */}
                                 <AnimatePresence mode="wait">
@@ -1063,23 +1073,24 @@ export default function InteractiveMapV2({
                                                     icon: <Rocket className="w-4 h-4 text-emerald-400" />
                                                 });
                                             }}
-                                            className="px-5 py-2 rounded-xl bg-emerald-500 text-emerald-950 font-black text-[10px] uppercase italic flex items-center gap-2.5 shadow-[0_15px_30px_rgba(16,185,129,0.3)] border-b-2 border-emerald-700 transition-all origin-right"
+                                            className="px-3 sm:px-5 py-2 rounded-xl bg-emerald-500 text-emerald-950 font-black text-[9px] sm:text-[10px] uppercase italic flex items-center gap-2 sm:gap-2.5 shadow-[0_15px_30px_rgba(16,185,129,0.3)] border-b-2 border-emerald-700 transition-all origin-right"
                                         >
                                             <Rocket size={12} className="fill-emerald-950" />
-                                            <span>Copier [ {selectedPosition.x}, {selectedPosition.y} ]</span>
+                                            <span className="hidden sm:inline">Copier [ {selectedPosition.x}, {selectedPosition.y} ]</span>
+                                            <span className="sm:hidden">[ {selectedPosition.x}, {selectedPosition.y} ]</span>
                                         </motion.button>
                                     )}
                                 </AnimatePresence>
 
-                                {/* Zone Search */}
-                                <div className="relative">
+                                {/* Zone Search - Optimized for space */}
+                                <div className="relative hidden md:block">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={12} />
                                     <input
                                         type="text"
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
-                                        placeholder="Chercher une zone..."
-                                        className="w-48 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
+                                        placeholder="Zone..."
+                                        className="w-32 lg:w-48 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
                                     />
                                     {searchResults.length > 0 && (
                                         <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[700]">
@@ -1096,6 +1107,41 @@ export default function InteractiveMapV2({
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Mobile Tools Overflow */}
+                                <div className="lg:hidden relative group">
+                                    <button className="p-2 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-white/70">
+                                        <Plus size={16} />
+                                    </button>
+                                    <div className="absolute top-full right-0 pt-2 w-48 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-[700]">
+                                        <div className="bg-slate-900 border border-white/10 rounded-xl shadow-2xl p-2 space-y-1">
+                                            <button onClick={() => setShowDebugGrid(!showDebugGrid)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[10px] font-bold uppercase text-white/50 hover:bg-white/5">
+                                                {showDebugGrid ? <Eye size={14} className="text-emerald-500" /> : <EyeOff size={14} />}
+                                                Grille
+                                            </button>
+                                            <button onClick={() => setAutoCopyTravel(!autoCopyTravel)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[10px] font-bold uppercase text-white/50 hover:bg-white/5">
+                                                <Zap size={14} className={autoCopyTravel ? "text-amber-500 fill-amber-500" : ""} />
+                                                Copie Auto
+                                            </button>
+                                            <button onClick={() => setShowMapHelp(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[10px] font-bold uppercase text-white/50 hover:bg-white/5">
+                                                <HelpCircle size={14} />
+                                                Aide
+                                            </button>
+                                            <div className="md:hidden pt-2 border-t border-white/5">
+                                                <div className="relative">
+                                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-white/20" size={10} />
+                                                    <input
+                                                        type="text"
+                                                        value={search}
+                                                        onChange={e => setSearch(e.target.value)}
+                                                        placeholder="Zone..."
+                                                        className="w-full rounded-lg bg-black/40 py-1.5 pl-7 pr-3 text-white text-[9px] uppercase font-bold border border-white/5 outline-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -1111,50 +1157,84 @@ export default function InteractiveMapV2({
                         {/* 🖼️ ZONE CIBLE À GAUCHE (FRAGMENTS DE CARTE) */}
                         <div className="h-[35vh] lg:h-auto lg:flex-1 relative bg-black/40 overflow-hidden flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 shrink-0 min-h-0">
                             {targetMapId ? (
-                                <motion.div
-                                    className="w-full h-full relative geoguesser-image-container"
-                                    initial={{ scale: 1.1, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                >
-                                    <img
-                                        src={`/game-data/hd_maps/${targetMapId}.webp`}
-                                        className="w-full h-full object-cover opacity-90 transition-all duration-1000 ease-out"
-                                        alt="Target"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+                                showHDMap ? (
+                                    <motion.div
+                                        className="w-full h-full relative geoguesser-image-container group/hdmap"
+                                        initial={{ scale: 1.1, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                    >
+                                        <img
+                                            src={`/game-data/hd_maps/${targetMapId}.webp`}
+                                            className="w-full h-full object-cover opacity-90 transition-all duration-1000 ease-out"
+                                            alt="Target"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
 
-                                    {/* Hint Overlay (Floating in image) */}
-                                    <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 flex items-center gap-2 md:gap-5">
-                                        <div className="w-8 h-8 md:w-16 md:h-16 rounded-xl md:rounded-[2rem] bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-2xl flex items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.2)]">
-                                            <Target className="w-4 h-4 md:w-8 md:h-8 text-emerald-500" />
+                                        {/* Close button for HD Map - User request */}
+                                        <button 
+                                            onClick={() => setShowHDMap(false)}
+                                            className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white flex items-center justify-center opacity-0 group-hover/hdmap:opacity-100 transition-all hover:bg-rose-500 hover:border-rose-400 active:scale-90"
+                                            title="Fermer l'image HD"
+                                        >
+                                            <X size={20} />
+                                        </button>
+
+                                        {/* Hint Overlay (Floating in image) */}
+                                        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 flex items-center gap-2 md:gap-5">
+                                            <div className="w-8 h-8 md:w-16 md:h-16 rounded-xl md:rounded-[2rem] bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-2xl flex items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.2)]">
+                                                <Target className="w-4 h-4 md:w-8 md:h-8 text-emerald-500" />
+                                            </div>
+                                            <div className="space-y-0 md:space-y-1">
+                                                <h2 className="text-white font-black text-sm md:text-4xl uppercase italic tracking-tighter drop-shadow-2xl">Où est-ce ?</h2>
+                                                <p className="text-emerald-400/60 text-[6px] md:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.4em]">Analyse le décor</p>
+                                            </div>
                                         </div>
-                                        <div className="space-y-0 md:space-y-1">
-                                            <h2 className="text-white font-black text-sm md:text-4xl uppercase italic tracking-tighter drop-shadow-2xl">Où est-ce ?</h2>
-                                            <p className="text-emerald-400/60 text-[6px] md:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.4em]">Analyse le décor</p>
+                                    </motion.div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center gap-4 text-center p-6 bg-slate-950/40 w-full h-full">
+                                        <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
+                                            <EyeOff size={28} />
                                         </div>
+                                        <div>
+                                            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300">Image HD masquée</h3>
+                                            <p className="text-xs text-zinc-500 mt-1 max-w-xs leading-relaxed">
+                                                Vous avez masqué l'aperçu HD pour libérer de l'espace.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowHDMap(true)}
+                                            className="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold uppercase tracking-wider text-[10px] hover:bg-indigo-500/20 hover:border-indigo-500/30 active:scale-95 transition-all"
+                                        >
+                                            Revoir l'image HD
+                                        </button>
                                     </div>
-                                </motion.div>
+                                )
                             ) : (
                                 <div className="flex flex-col items-center gap-4 text-white/10 uppercase font-black italic">
                                     <Loader2 className="animate-spin" size={32} />
                                     <p className="tracking-widest text-[10px]">Initialisation...</p>
                                 </div>
                             )}
+
                         </div>
 
                         {/* 🗺️ PANEL INTERACTIF À DROITE (CARTE COMPLÈTE) */}
                         <div className="flex-1 lg:flex-none lg:w-[35vw] lg:max-w-[850px] lg:min-w-[500px] border-l border-white/5 bg-[#080b0e] flex flex-col relative z-20 shadow-[-20px_0_50px_rgba(0,0,0,0.5)] min-h-0">
 
-                            {/* Integrated Multi-Leaderboard (Top of panel - Fixed Height) */}
+                            {/* Integrated Multi-Leaderboard */}
                             {!isSoloMode && (
-                                <div className="hidden lg:flex flex-col h-[180px] md:h-[280px] shrink-0 bg-black/40 p-3 md:p-6 border-b border-white/5">
-                                    <div className="flex items-center justify-between mb-4">
+                                <div className={cn(
+                                    "flex flex-col shrink-0 bg-black/40 border-b border-white/5 transition-all duration-500",
+                                    "lg:h-[280px] lg:flex", // Desktop fixed height
+                                    activePanelTab === 'scores' ? "flex-1 h-full" : "hidden lg:flex" // Mobile toggle
+                                )}>
+                                    <div className="flex items-center justify-between p-4 md:p-6 pb-2 md:pb-4">
                                         <h4 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] flex items-center gap-2 italic">
                                             <Users size={14} /> Joueurs du Salon
                                         </h4>
                                         <span className="text-emerald-500/40 text-[9px] font-black uppercase tracking-widest italic">{activeSession?.participants?.length || 1} Connectés</span>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar list-none">
+                                    <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-4 md:pb-6 space-y-2 custom-scrollbar list-none">
                                         {[...(activeSession?.participants || [])].sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).map((p: any, i: number) => {
                                             const isMe = p.userId === currentUserId;
                                             return (
@@ -1201,10 +1281,30 @@ export default function InteractiveMapV2({
                             )}
 
                             {/* Panel Header */}
-                            <div className="h-14 shrink-0 px-6 flex items-center justify-between border-b border-white/5 bg-black/20">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_15px_#10b981]" />
-                                    <h3 className="text-white font-black text-[10px] uppercase tracking-widest italic">Carte Tactique</h3>
+                            <div className="h-14 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-white/5 bg-black/20">
+                                <div className="flex items-center gap-2 md:gap-3">
+                                    <div className="lg:hidden flex bg-white/5 p-1 rounded-xl border border-white/5">
+                                        <button 
+                                            onClick={() => setActivePanelTab('map')}
+                                            className={cn(
+                                                "p-1.5 rounded-lg transition-all",
+                                                activePanelTab === 'map' ? "bg-emerald-500 text-emerald-950 shadow-lg" : "text-white/20 hover:text-white/40"
+                                            )}
+                                        >
+                                            <MapIcon size={12} />
+                                        </button>
+                                        <button 
+                                            onClick={() => setActivePanelTab('scores')}
+                                            className={cn(
+                                                "p-1.5 rounded-lg transition-all",
+                                                activePanelTab === 'scores' ? "bg-emerald-500 text-emerald-950 shadow-lg" : "text-white/20 hover:text-white/40"
+                                            )}
+                                        >
+                                            <Trophy size={12} />
+                                        </button>
+                                    </div>
+                                    <div className="hidden md:block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_15px_#10b981]" />
+                                    <h3 className="hidden sm:block text-white font-black text-[10px] uppercase tracking-widest italic">Carte Tactique</h3>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="flex items-center gap-1 mr-2 border-r border-white/10 pr-3">
@@ -1225,16 +1325,28 @@ export default function InteractiveMapV2({
                                     </div>
                                     <button
                                         onClick={() => setMinimapRecenterTrigger(t => t > 0 && t < 900 ? t + 1 : 1)}
-                                        className="px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/5 transition-all flex items-center gap-2 active:scale-95"
+                                        className="px-3 md:px-4 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/5 transition-all flex items-center gap-2 active:scale-95"
                                     >
                                         <Compass size={12} />
-                                        <span className="text-[9px] font-black uppercase italic">Recentrer</span>
+                                        <span className="hidden sm:inline text-[9px] font-black uppercase italic">Recentrer</span>
+                                    </button>
+
+                                    {/* Minimize / Toggle UI button - user request */}
+                                    <button
+                                        onClick={() => setIsMinimapHidden(!isMinimapHidden)}
+                                        className="p-1.5 rounded-lg bg-white/5 hover:bg-rose-500/20 text-white/40 hover:text-rose-500 border border-white/5 transition-all active:scale-95 ml-auto"
+                                        title={isMinimapHidden ? "Afficher l'interface" : "Masquer l'interface"}
+                                    >
+                                        <X size={14} />
                                     </button>
                                 </div>
                             </div>
 
                             {/* Integrated Map - Fixed flexible container */}
-                            <div className="flex-1 relative bg-slate-950 overflow-hidden min-h-[300px] lg:min-h-[400px]">
+                            <div className={cn(
+                                "flex-1 relative bg-slate-950 overflow-hidden min-h-[300px] lg:min-h-[400px]",
+                                activePanelTab === 'scores' && "hidden lg:block"
+                            )}>
                                 <LeafletMapCore
                                     activeWorld={activeWorld}
                                     selectedWorldId={selectedWorldId}
@@ -1290,7 +1402,7 @@ export default function InteractiveMapV2({
                 {activeTab === 'map' && (
                     <div className="relative w-full h-full">
                         <AnimatePresence>
-                            {showMapHelp && (
+                            {(showMapHelp && !hideUI) && (
                                 <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-4xl px-4 pointer-events-none">
                                     <div className="pointer-events-auto">
                                         <MapHelpCard onClose={() => setShowMapHelp(false)} />
@@ -1972,11 +2084,15 @@ export default function InteractiveMapV2({
                                                         <span className="text-emerald-500/40 text-[10px] font-black uppercase mt-0.5 whitespace-nowrap">Guesser • {room.playerCount}/8</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        {room.state !== 'LOBBY' ? (
-                                                            <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
-                                                                Lancé
-                                                            </div>
-                                                        ) : (
+                                                        {room.state === 'IN_PROGRESS' || room.state === 'COUNTDOWN' ? (
+                                                             <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                 En cours
+                                                             </div>
+                                                         ) : room.state === 'RESULT' || room.state === 'FINISHED' ? (
+                                                             <div className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500/50 font-black uppercase text-[10px] cursor-not-allowed italic">
+                                                                 Fini
+                                                             </div>
+                                                         ) : (
                                                             <button 
                                                                 onClick={() => handleJoinRoom(room)} 
                                                                 disabled={joiningId === room.id}

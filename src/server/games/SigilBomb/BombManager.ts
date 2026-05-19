@@ -21,6 +21,7 @@ export class BombManager {
         socket.on("bomb:typing",        (text) => this.getRoom(socket)?.handleTyping(socket.id, text));
         socket.on("bomb:restart",       ()     => this.getRoom(socket)?.resetToLobby());
         socket.on("bomb:leave",         ()     => this.leaveRoom(socket));
+        socket.on("bomb:sync:request",  ()     => this.getRoom(socket)?.syncState());
     }
 
     public handleDisconnect(socket: Socket) {

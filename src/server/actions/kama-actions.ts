@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, checkGuildPermission, type ActionResponse } from "./user-actions";
@@ -445,6 +445,11 @@ export async function reviewKamaDonation(
 
         revalidatePath(`/dashboard/${input.guildId}/missions`);
         revalidatePath(`/dashboard/${input.guildId}/ladder`);
+
+        // 🔥 Real-time Discord Update
+        const { refreshMissionDiscordEmbed } = await import("./mission-actions");
+        await refreshMissionDiscordEmbed(input.guildId);
+
         return { success: true };
     } catch (error) {
         logger.error("reviewKamaDonation error", { error, guildId: input.guildId });

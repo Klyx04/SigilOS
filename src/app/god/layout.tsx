@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
 import { Suspense } from "react";
-import { getGodNotifications } from "@/server/actions/god-notif-actions";
+import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
 
 export default async function GodLayout({ children }: { children: React.ReactNode }) {
@@ -26,9 +26,10 @@ export default async function GodLayout({ children }: { children: React.ReactNod
         details: { environment: process.env.NODE_ENV }
     });
 
-    // Fetch unread notifications for the sidebar badge
-    const notifs = await getGodNotifications(100);
-    const unreadCount = notifs.success ? notifs.data.filter((n: any) => !n.isRead).length : 0;
+    // Fetch unread counts for the sidebar badges
+    const unreadStats = await getGodUnreadCounts();
+    const unreadCount = unreadStats.notifications;
+    const ticketCount = unreadStats.tickets;
 
     return (
         <div className="flex h-screen bg-[#050505] font-sans text-zinc-100 selection:bg-white/20 overflow-hidden dashboard-layout">
@@ -38,6 +39,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     className="w-72 hidden lg:flex shrink-0" 
                     user={session.user} 
                     unreadCount={unreadCount}
+                    ticketCount={ticketCount}
                 />
             </Suspense>
             
@@ -50,7 +52,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                         </span>
                     </div>
                     <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
-                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} />
+                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} />
                     </Suspense>
                 </div>
 

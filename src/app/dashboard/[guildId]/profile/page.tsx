@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { getUserProfile, getProfileStats } from "@/server/actions/profile-actions";
 import { getUserContext } from "@/server/actions/user-actions";
+import { db } from "@/lib/prisma";
 import { ProfileBentoGrid } from "@/components/profile/profile-bento-grid";
 import { redirect } from "next/navigation";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -16,10 +17,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
     const { guildId } = await params;
 
     // Fetch all data in parallel to avoid waterfalls
-    const [userContext, profileResponse, statsResponse] = await Promise.all([
+    const [userContext, profileResponse, statsResponse, guildConfig] = await Promise.all([
         getUserContext(guildId),
         getUserProfile(guildId),
-        getProfileStats(guildId)
+        getProfileStats(guildId),
+        db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { absenceChannelId: true } })
     ]);
 
     // RBAC: Must be authenticated member of the guild with profile view permission
@@ -40,7 +42,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
     const stats = statsResponse.success && statsResponse.data
         ? {
             ...statsResponse.data,
-            joinedAt: (userContext.joinedAt ?? statsResponse.data.joinedAt) as string | null
+            joinedAt: (userContext.joinedAt ?? statsResponse.data.joinedAt) as string | null,
+            totalGuildMissions: (statsResponse.data as any).totalGuildMissions ?? 0
         }
         : {
             xp: profile.xp || 0,
@@ -53,6 +56,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
             isTopContributor: false,
             weeklyActivity: [],
             missionsByCategory: [],
+            totalGuildMissions: 0,
+            discordStats: statsResponse.success && (statsResponse.data as any).discordStats ? (statsResponse.data as any).discordStats : {
+                weekly: { messages: 0, voice: 0 },
+                monthly: { messages: 0, voice: 0 },
+                total: { messages: 0, voice: 0 }
+            }
         };
 
     return (
@@ -117,6 +126,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     roleColor={userContext.roleColor}
                     readOnly={false}
                     isSuperAdmin={userContext.isSuperAdmin}
+                    hasAbsenceChannel={!!guildConfig?.absenceChannelId}
                 />
             </div>
         </div>

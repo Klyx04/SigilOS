@@ -50,7 +50,7 @@ export type ActivityView = "weekly" | "monthly" | "alltime";
  */
 export async function getPresenceLadder(
     guildId: string,
-    metric: "messages" | "voice",
+    metric: "messages" | "voice" | "characters" | "reactions" | "stream" | "replies",
     view: ActivityView = "weekly",
     page: number = 1,
     pageSize: number = 25
@@ -83,17 +83,32 @@ export async function getPresenceLadder(
                 if (view === "weekly") field = "discordMessageCountWeekly";
                 else if (view === "monthly") field = "discordMessageCountMonthly";
                 else field = "discordMessageCountTotal";
-            } else {
+            } else if (metric === "voice") {
                 if (view === "weekly") field = "discordVoiceTimeWeekly";
                 else if (view === "monthly") field = "discordVoiceTimeMonthly";
                 else field = "discordVoiceTimeTotal";
+            } else if (metric === "characters") {
+                if (view === "weekly") field = "discordCharactersWeekly";
+                else if (view === "monthly") field = "discordCharactersMonthly";
+                else field = "discordCharactersTotal";
+            } else if (metric === "reactions") {
+                if (view === "weekly") field = "discordReactionsReceivedWeekly";
+                else if (view === "monthly") field = "discordReactionsReceivedMonthly";
+                else field = "discordReactionsReceivedTotal";
+            } else if (metric === "stream") {
+                if (view === "weekly") field = "discordVoiceStreamTimeWeekly";
+                else if (view === "monthly") field = "discordVoiceStreamTimeMonthly";
+                else field = "discordVoiceStreamTimeTotal";
+            } else {
+                if (view === "weekly") field = "discordRepliesWeekly";
+                else if (view === "monthly") field = "discordRepliesMonthly";
+                else field = "discordRepliesTotal";
             }
 
             const activeProfiles = await db.userProfile.findMany({
                 where: { 
                     guildId: guildConfig.id, 
-                    status: "ACTIVE",
-                    [field]: { gt: 0 } // Only show people with activity
+                    status: "ACTIVE"
                 },
                 select: {
                     id: true,
@@ -851,7 +866,7 @@ export async function getGuildatonsLadder(
 
                 const guildatonsByProfile = await db.$queryRaw<{ profileId: string; total: number }[]>`
                     WITH MissionG AS (
-                        SELECT s."profileId", COALESCE(SUM(m."guildatonReward"), 0)::int AS g
+                        SELECT s."profileId", COALESCE(SUM(m."guildatonsReward"), 0)::int AS g
                         FROM "Submission" s
                         JOIN "Mission" m ON s."missionId" = m."id"
                         JOIN "UserProfile" up ON s."profileId" = up."id"
@@ -986,3 +1001,4 @@ export async function getGuildatonsLadder(
         return { success: false, error: "Erreur lors du chargement du classement de guildatons" };
     }
 }
+

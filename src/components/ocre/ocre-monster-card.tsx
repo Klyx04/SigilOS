@@ -13,10 +13,31 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy, Check, Loader2, MapPin, Sparkles, Users, ChevronDown, ChevronUp } from "lucide-react";
+import {
+    Copy,
+    Check,
+    Loader2,
+    MapPin,
+    Sparkles,
+    Users,
+    ChevronDown,
+    ChevronUp,
+    Settings2,
+    Save,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcreMonster, MonsterState } from "@/lib/metamob-client";
 import type { ExchangePartner } from "@/server/actions/ocre-actions";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    updateMonsterTradeParamsAction,
+} from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 
 interface OcreMonsterCardProps {
@@ -25,6 +46,9 @@ interface OcreMonsterCardProps {
     availableExchanges?: number;
     showExchangeButton?: boolean;
     onFindExchanges?: () => Promise<ExchangePartner[]>;
+    isSelected?: boolean;
+    isSelectionMode?: boolean;
+    onToggleSelection?: (id: number) => void;
 }
 
 const stateConfig: Record<MonsterState, { label: string; color: string; icon: string }> = {
@@ -51,11 +75,44 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
     availableExchanges = 0,
     showExchangeButton = true,
     onFindExchanges,
+    isSelected = false,
+    isSelectionMode = false,
+    onToggleSelection,
 }: OcreMonsterCardProps) {
     const [showPartners, setShowPartners] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [partners, setPartners] = useState<ExchangePartner[]>([]);
     const [copiedUser, setCopiedUser] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Manual Trade Override State
+    const [tradeParams, setTradeParams] = useState({
+        offer: monster.trade_offer ?? 0,
+        want: monster.trade_want ?? 0,
+    });
+    const [isUpdatingTrade, setIsUpdatingTrade] = useState(false);
+
+    const handleUpdateTrade = async () => {
+        setIsUpdatingTrade(true);
+        try {
+            const res = await updateMonsterTradeParamsAction({
+                guildId,
+                monsterId: monster.id,
+                params: {
+                    trade_offer: tradeParams.offer,
+                    trade_want: tradeParams.want,
+                }
+            });
+            if (res.success) {
+                toast.success("Préférences d'échange mises à jour");
+            } else {
+                toast.error(res.error || "Erreur");
+            }
+        } catch {
+            toast.error("Erreur réseau");
+        } finally {
+            setIsUpdatingTrade(false);
+        }
+    };
 
     const config = stateConfig[monster.state];
     const hasExchange = availableExchanges > 0;
@@ -74,7 +131,8 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
 
         if (!onFindExchanges) return;
 
-        setLoading(true);
+
+        setIsLoading(true);
         try {
             const result = await onFindExchanges();
             // Filter partners to only show those who have THIS specific monster in 'monstersTheyHave'
@@ -88,7 +146,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
         } catch {
             toast.error("Erreur lors de la recherche");
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -111,11 +169,28 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                     "group relative overflow-hidden transition-all duration-300",
                     "backdrop-blur-xl bg-card",
                     "border hover:scale-[1.02]",
-                    hasExchange && isManquant
-                        ? "border-emerald-500/50 hover:border-emerald-500/70 ring-1 ring-emerald-500/20"
-                        : "border-border hover:border-amber-500/30"
+                    isSelected && isSelectionMode
+                        ? "border-amber-500 ring-2 ring-amber-500/20"
+                        : hasExchange && isManquant
+                            ? "border-emerald-500/50 hover:border-emerald-500/70 ring-1 ring-emerald-500/20"
+                            : "border-border hover:border-amber-500/30",
+                    isSelectionMode && "cursor-pointer active:scale-95"
                 )}
+                onClick={() => isSelectionMode && onToggleSelection?.(monster.id)}
             >
+                {/* Selection Indicator */}
+                {isSelectionMode && (
+                    <div className="absolute top-3 left-3 z-20">
+                        <div className={cn(
+                            "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                            isSelected 
+                                ? "bg-amber-500 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]" 
+                                : "bg-black/40 border-white/20"
+                        )}>
+                            {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
+                        </div>
+                    </div>
+                )}
                 {/* Glow effect on hover */}
                 <div
                     className={cn(
@@ -157,9 +232,59 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                 <h3 className="font-medium text-sm leading-tight line-clamp-2">
                                     {monster.name}
                                 </h3>
-                                <Badge variant="outline" className={cn("shrink-0 text-xs", config.color)}>
-                                    {config.icon} x{monster.owned}
-                                </Badge>
+                                <div className={cn("flex flex-col items-end gap-1 shrink-0", isSelectionMode && "pointer-events-none opacity-50")}>
+                                    <Badge variant="outline" className={cn("text-xs", config.color)}>
+                                        {config.icon} x{monster.owned}
+                                    </Badge>
+                                    
+                                    {/* Manual Trade Override Popover */}
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-5 w-5 rounded-md hover:bg-amber-500/10 hover:text-amber-500 transition-colors">
+                                                <Settings2 className="h-3 w-3" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-48 p-3 rounded-2xl bg-card border-border shadow-2xl" side="left" align="start">
+                                            <div className="space-y-3">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Forçage Manuel</span>
+                                                    <span className="text-[9px] text-muted-foreground leading-tight">Remplace les calculs automatiques de Metamob.</span>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <Label className="text-[10px] font-bold">Offrir</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-7 w-12 text-[10px] text-center font-bold px-1"
+                                                            value={tradeParams.offer}
+                                                            onChange={(e) => setTradeParams(s => ({ ...s, offer: parseInt(e.target.value) || 0 }))}
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <Label className="text-[10px] font-bold">Chercher</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-7 w-12 text-[10px] text-center font-bold px-1"
+                                                            value={tradeParams.want}
+                                                            onChange={(e) => setTradeParams(s => ({ ...s, want: parseInt(e.target.value) || 0 }))}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <Button 
+                                                    size="sm" 
+                                                    className="w-full h-7 text-[10px] font-bold gap-2 bg-amber-500 hover:bg-amber-400 text-white rounded-lg transition-all"
+                                                    onClick={handleUpdateTrade}
+                                                    disabled={isUpdatingTrade}
+                                                >
+                                                    {isUpdatingTrade ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                                    Appliquer
+                                                </Button>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -177,7 +302,7 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
 
                     {/* Exchange button for missing monsters */}
                     {isManquant && showExchangeButton && (
-                        <div className="mt-3 pt-3 border-t border-border">
+                        <div className={cn("mt-3 pt-3 border-t border-border", isSelectionMode && "pointer-events-none opacity-50")}>
                             <Button
                                 variant={hasExchange ? "default" : "ghost"}
                                 size="sm"
@@ -186,9 +311,9 @@ export const OcreMonsterCard = memo(function OcreMonsterCard({
                                     hasExchange && "bg-emerald-600 hover:bg-emerald-700"
                                 )}
                                 onClick={handleFindExchanges}
-                                disabled={loading}
+                                disabled={isLoading}
                             >
-                                {loading ? (
+                                {isLoading ? (
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                 ) : hasExchange ? (
                                     <Sparkles className="h-3 w-3" />

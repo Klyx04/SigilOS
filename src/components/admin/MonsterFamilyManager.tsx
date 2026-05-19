@@ -55,6 +55,7 @@ export default function MonsterFamilyManager() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedZone, setSelectedZone] = useState<string>("all");
+    const [selectedLevel, setSelectedLevel] = useState<string>("all");
 
     const [formData, setFormData] = useState({
         name: "",
@@ -69,38 +70,47 @@ export default function MonsterFamilyManager() {
     }, []);
 
     async function loadData() {
-        setLoading(true);
-        const filters: any = {};
-        if (selectedZone !== "all") filters.zoneId = selectedZone;
-
-        const [familiesRes, zonesRes] = await Promise.all([
-            getMonsterFamilies(filters),
-            getAdminZones()
-        ]);
-
-        if (familiesRes.success && familiesRes.data) {
-            setFamilies(familiesRes.data);
-        } else {
-            toast.error(familiesRes.error || "Erreur chargement familles");
-        }
-
+        // loadData is now just for initial auxiliary data like zones
+        const zonesRes = await getAdminZones();
         if (zonesRes.success && zonesRes.data) {
             setZones(zonesRes.data);
         }
-
-        setLoading(false);
     }
 
     useEffect(() => {
         loadFamilies();
-    }, [selectedZone]);
+    }, [selectedZone, selectedLevel]);
 
     async function loadFamilies() {
+        setLoading(true);
         const filters: any = {};
         if (selectedZone !== "all") filters.zoneId = selectedZone;
-        const result = await getMonsterFamilies(filters);
-        if (result.success && result.data) {
-            setFamilies(result.data);
+        
+        if (selectedLevel !== "all") {
+            if (selectedLevel === "200") {
+                filters.minLevel = 200;
+                filters.maxLevel = 1000;
+            } else {
+                const [min, max] = selectedLevel.split("-").map(Number);
+                if (!isNaN(min)) filters.minLevel = min;
+                if (!isNaN(max)) filters.maxLevel = max;
+            }
+        }
+        
+        try {
+            const result = await getMonsterFamilies(filters);
+            if (result.success && result.data) {
+                setFamilies(result.data);
+                if (selectedLevel !== "all" || selectedZone !== "all") {
+                   toast.info(`${result.data.length} familles trouvées avec ces filtres`);
+                }
+            } else {
+                toast.error(result.error || "Erreur de filtrage");
+            }
+        } catch (e) {
+            toast.error("Erreur réseau ou serveur");
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -142,7 +152,7 @@ export default function MonsterFamilyManager() {
         setEditing(family.id);
         setFormData({
             name: family.name,
-            level: family.level || undefined,
+            level: family.level ?? undefined,
             description: family.description || "",
             imageUrl: family.imageUrl || "",
             zoneIds: family.zones?.map(z => z.id) || [],
@@ -186,6 +196,23 @@ export default function MonsterFamilyManager() {
                                     {zone.name}
                                 </SelectItem>
                             ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* Level Filter */}
+                <div className="w-full md:w-48">
+                    <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-200">
+                            <SelectValue placeholder="Filtrer par niveau" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700">
+                            <SelectItem value="all">Tous les niveaux</SelectItem>
+                            <SelectItem value="1-50">Niveau 1 - 50</SelectItem>
+                            <SelectItem value="51-100">Niveau 51 - 100</SelectItem>
+                            <SelectItem value="101-150">Niveau 101 - 150</SelectItem>
+                            <SelectItem value="151-199">Niveau 151 - 199</SelectItem>
+                            <SelectItem value="200">Niveau 200</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -251,9 +278,13 @@ export default function MonsterFamilyManager() {
                                         <h3 className="font-bold text-slate-200 truncate group-hover:text-indigo-300 transition-colors">
                                             {family.name}
                                         </h3>
-                                        {family.level && (
+                                        {(family.level !== null && family.level !== undefined) ? (
                                             <Badge variant="outline" className="ml-2 border-indigo-500/30 text-indigo-400 font-bold bg-indigo-500/5">
                                                 Lvl {family.level}
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="ml-2 border-slate-700 text-slate-500 font-medium bg-slate-800/50">
+                                                Lvl ?
                                             </Badge>
                                         )}
                                     </div>
@@ -319,13 +350,16 @@ export default function MonsterFamilyManager() {
                                                 />
                                             </div>
                                             <div className="space-y-3">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Lvl Moyen</label>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Lvl</label>
                                                 <div className="relative">
                                                     <Input
                                                         type="number"
-                                                        value={formData.level || ""}
-                                                        onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) || 0 })}
-                                                        placeholder="200"
+                                                        value={(formData.level === undefined || formData.level === null) ? "" : formData.level}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === "" ? undefined : parseInt(e.target.value);
+                                                            setFormData({ ...formData, level: val });
+                                                        }}
+                                                        placeholder="Niveau..."
                                                         className="h-16 pl-12 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-xl font-bold transition-all rounded-2xl"
                                                     />
                                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Lvl</span>

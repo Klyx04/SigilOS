@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
+import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -30,7 +30,7 @@ type Props = {
 
 export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus }: Props) {
     const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons" | "discord">("activity");
-    const [discordMetric, setDiscordMetric] = useState<"messages" | "voice">("messages");
+    const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "characters" | "reactions" | "stream" | "replies">("messages");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [pagination, setPagination] = useState<{ totalPages: number; totalCount: number } | null>(null);
@@ -85,7 +85,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         }
 
         loadLadder();
-    }, [guildId, activeTab, activityView, currentPage]);
+    }, [guildId, activeTab, activityView, currentPage, discordMetric]);
 
     const getValueLabel = (entry: LadderEntry): React.ReactNode => {
         switch (activeTab) {
@@ -113,7 +113,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 return (
                     <div className="flex items-center gap-1.5 font-black text-yellow-500">
                         <span>{entry.value.toLocaleString()}</span>
-                        <Image src="/guildaton.png" alt="G" width={16} height={16} className="object-contain" />
+                        <Image src="/guildatons.png" alt="G" width={16} height={16} className="object-contain" />
                     </div>
                 );
             case "discord":
@@ -124,7 +124,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             <span>{entry.value.toLocaleString()} messages</span>
                         </div>
                     );
-                } else {
+                } else if (discordMetric === "voice") {
                     const totalMinutes = entry.value;
                     const months = Math.floor(totalMinutes / (30 * 24 * 60));
                     const days = Math.floor((totalMinutes % (30 * 24 * 60)) / (24 * 60));
@@ -142,6 +142,37 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                             </div>
                         </div>
                     );
+                } else if (discordMetric === "characters") {
+                    return (
+                        <div className="flex items-center gap-2 font-black text-emerald-400">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span>{entry.value.toLocaleString()} caractères</span>
+                        </div>
+                    );
+                } else if (discordMetric === "reactions") {
+                    return (
+                        <div className="flex items-center gap-2 font-black text-amber-400">
+                            <Heart className="w-3.5 h-3.5 fill-amber-400" />
+                            <span>{entry.value.toLocaleString()} reçues</span>
+                        </div>
+                    );
+                } else if (discordMetric === "stream") {
+                    const totalMinutes = entry.value;
+                    const hours = Math.floor(totalMinutes / 60);
+                    const mins = totalMinutes % 60;
+                    return (
+                        <div className="flex items-center gap-2 font-black text-pink-400">
+                            <Tv className="w-3.5 h-3.5" />
+                            <span>{hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} stream</span>
+                        </div>
+                    );
+                } else {
+                    return (
+                        <div className="flex items-center gap-2 font-black text-purple-400">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>{entry.value.toLocaleString()} réponses</span>
+                        </div>
+                    );
                 }
             default:
                 return entry.value.toString();
@@ -150,7 +181,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
     const categories = [
         { id: "activity", label: "Activité", icon: "/PA.png", isImage: true, color: "#10b981" },
-        { id: "guildatons", label: "Guildatons", icon: "/guildaton.png", isImage: true, color: "#eab308" },
+        { id: "guildatons", label: "Guildatons", icon: "/guildatons.png", isImage: true, color: "#eab308" },
         { id: "discord", label: "Discord", icon: MessageSquare, isImage: false, color: "#818cf8" },
         { id: "contribution", label: "Contribution", icon: HandHeart, isImage: false, color: "#a855f7" },
         { id: "seniority", label: "Ancienneté", icon: Clock, isImage: false, color: "#06b6d4" },
@@ -274,32 +305,24 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
                                 {/* Contextual Period Selector */}
                                 {(activeTab === "activity" || activeTab === "guildatons" || activeTab === "discord") && (
-                                    <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500 w-full sm:w-auto">
                                         {activeTab === "discord" && (
-                                            <div className="flex bg-white/[0.03] border border-white/10 rounded-xl p-1 shadow-xl backdrop-blur-3xl">
-                                                <button
-                                                    onClick={() => setDiscordMetric("messages")}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                                                        discordMetric === "messages" 
-                                                            ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" 
-                                                            : "text-zinc-500 hover:text-zinc-300 border border-transparent"
-                                                    )}
-                                                >
-                                                    Messages
-                                                </button>
-                                                <button
-                                                    onClick={() => setDiscordMetric("voice")}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                                                        discordMetric === "voice" 
-                                                            ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" 
-                                                            : "text-zinc-500 hover:text-zinc-300 border border-transparent"
-                                                    )}
-                                                >
-                                                    Vocal
-                                                </button>
-                                            </div>
+                                            <Select value={discordMetric} onValueChange={(v) => setDiscordMetric(v as any)}>
+                                                <SelectTrigger className="w-full sm:w-[220px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20 shrink-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <MessageSquare className="w-3.5 h-3.5 text-zinc-500" />
+                                                        <SelectValue placeholder="Métrique" />
+                                                    </div>
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-zinc-950/98 backdrop-blur-3xl border-white/10 p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
+                                                    <SelectItem value="messages" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-indigo-400">💬 Messages</SelectItem>
+                                                    <SelectItem value="voice" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-cyan-400">🎙️ Vocal</SelectItem>
+                                                    <SelectItem value="characters" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-emerald-400">✍️ Caractères (Écrivain)</SelectItem>
+                                                    <SelectItem value="reactions" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-amber-400">🔥 Réactions reçues (Star)</SelectItem>
+                                                    <SelectItem value="stream" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-pink-400">📺 Streams (Vocal)</SelectItem>
+                                                    <SelectItem value="replies" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-purple-400">🤝 Réponses (Entraide)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         )}
                                         <Select value={activityView} onValueChange={(v) => setActivityView(v as ActivityView)}>
                                             <SelectTrigger className="w-full sm:w-[200px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20">
@@ -374,7 +397,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         >
                             <Link href={`/dashboard/${guildId}/admin/validation?tab=achievements`}>
                                 <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
-                                Validation Preuves
+                                Validation
                             </Link>
                         </Button>
                     )}

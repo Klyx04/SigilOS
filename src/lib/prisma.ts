@@ -1,3 +1,4 @@
+// v3.0.9 - Force reload for maintenance mode v2
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
@@ -30,13 +31,16 @@ const createPrismaClient = () => {
     
     const pool = new Pool({
         connectionString,
-        max: isDev ? 10 : 30,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 15000,
-        // Windows + Docker Desktop (WSL2): the bridge network silently drops idle
-        // TCP connections after ~30-60s. TCP keepalives prevent this.
+        max: isDev ? 8 : 30, // Reduced from 10 to prevent exhaustion in local HMR
+        idleTimeoutMillis: 5000, // Reduced from 30s to release connections faster
+        connectionTimeoutMillis: 5000, // Fail fast (5s) instead of hanging (15s)
+        // Kill any query that takes longer than 10s in prod (30s in dev for debugging)
+        // Prevents runaway queries from exhausting the connection pool
+        statement_timeout: isDev ? 30_000 : 10_000,
+        query_timeout: isDev ? 30_000 : 10_000,
+        allowExitOnIdle: true,
         keepAlive: true,
-        keepAliveInitialDelayMillis: 10000, // Start probing after 10s of inactivity
+        keepAliveInitialDelayMillis: 10000,
     })
 
 

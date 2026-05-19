@@ -3,12 +3,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trophy, Upload, Loader2, CheckCircle2, AlertCircle, Sparkles, Clock } from "lucide-react";
-import { syncMemberSuccessPoints, refreshUserSuccessPoints, getLadderPreview } from "@/server/actions/profile-actions";
+import { Trophy, Loader2, Sparkles, RefreshCw, Edit2, ExternalLink, UserSearch, Info } from "lucide-react";
+import { refreshUserSuccessPoints, getLadderPreview } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { cancelAchievementSubmission } from "@/server/actions/achievement-actions";
 
 interface SuccessSyncProps {
     guildId: string;
@@ -19,23 +18,11 @@ interface SuccessSyncProps {
     readOnly?: boolean;
     onTabChange?: (tab: string) => void;
     onSuccess?: (points: number) => void;
-    pendingSubmission?: {
-        id: string;
-        points: number;
-        ocrScore: number;
-        createdAt: Date;
-    } | null;
-    onCancel?: () => void;
-    targetUserId?: string;
     canSyncLadder?: boolean;
-    canManualSync?: boolean;
-    isSuperAdmin?: boolean;
-    isAdmin?: boolean;
 }
 
-import { ALL_DOFUS_SERVERS, DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
+import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 import { getClass } from "@/lib/dofus-assets";
-import { ExternalLink, Info, MapPin, MousePointer2, UserSearch, RefreshCw, Edit2 } from "lucide-react";
 
 export function SuccessSync({
     guildId,
@@ -46,20 +33,9 @@ export function SuccessSync({
     readOnly = false,
     onTabChange,
     onSuccess,
-    pendingSubmission,
-    onCancel,
-    targetUserId,
     canSyncLadder = false,
-    canManualSync = true,
-    isSuperAdmin = false,
-    isAdmin = false
 }: SuccessSyncProps) {
-    const [isUploading, setIsUploading] = useState(false);
-    const [dragActive, setDragActive] = useState(false);
-    const [lastScanResult, setLastScanResult] = useState<{ points?: number, error?: string, pending?: boolean, confidence?: number, debugImage?: string } | null>(
-        pendingSubmission ? { points: pendingSubmission.points, pending: true, confidence: pendingSubmission.ocrScore } : null
-    );
-
+    const [isSyncing, setIsSyncing] = useState(false);
     const [previewData, setPreviewData] = useState<{ 
         points: number, 
         level: number, 
@@ -90,34 +66,18 @@ export function SuccessSync({
         return () => { isMounted = false; };
     }, [pseudoDofus, previewFetched, readOnly, guildId]);
 
-    // Use provided server ID from guild config or fallback to Draconiros (295)
     const serverId = dofusServerId || "295";
     const serverName = [...Object.values(DOFUS_UNITY_SERVERS).flat()].find(s => s.id.toString() === serverId)?.name || "Draconiros";
-
     const ladderUrl = pseudoDofus ? `https://www.dofus.com/fr/mmorpg/communaute/ladder/succes?server_id=${serverId}&name=${pseudoDofus}#jt_list` : null;
 
-    const handleCancel = async () => {
-        setIsUploading(true);
-        const res = await cancelAchievementSubmission(guildId, targetUserId);
-        setIsUploading(false);
-        if (res.success) {
-            toast.success("Demande annulée");
-            setLastScanResult(null);
-            onCancel?.();
-        } else {
-            toast.error(res.error || "Erreur lors de l'annulation");
-        }
-    };
-
     const handleLadderSync = async () => {
-        if (isUploading || lastScanResult?.pending) return;
+        if (isSyncing) return;
 
-        setIsUploading(true);
+        setIsSyncing(true);
         try {
             const res = await refreshUserSuccessPoints(guildId);
             if (res.success && res.data) {
                 toast.success(`Succès synchronisés via Ladder : ${res.data.points} points ! (Niv. ${res.data.level})`);
-                setLastScanResult({ points: res.data.points });
                 onSuccess?.(res.data.points);
             } else {
                 toast.error(res.error || "Échec de la synchronisation via Ladder.");
@@ -125,121 +85,9 @@ export function SuccessSync({
         } catch (err) {
             toast.error("Une erreur est survenue lors de la synchronisation.");
         } finally {
-            setIsUploading(false);
+            setIsSyncing(false);
         }
     };
-
-    const handleFile = async (file: File) => {
-        if (lastScanResult?.pending) {
-            toast.error("Vous avez déjà une demande en cours.");
-            return;
-        }
-        if (!file.type.startsWith("image/")) {
-            toast.error("Veuillez sélectionner une image.");
-            return;
-        }
-
-        // 🛡️ NSFW Safety Check
-        const { analyzeImageSafety } = await import("@/lib/safety-client");
-        const safety = await analyzeImageSafety(file);
-        if (!safety.isSafe) {
-            toast.error(safety.reason || "Contenu inapproprié détecté. L'image a été bloquée.");
-            return;
-        }
-
-        setIsUploading(true);
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-
-        reader.onload = async () => {
-            // const base64 = reader.result as string; // OLD
-            try {
-                // NEW: Compression
-                const { compressImage } = await import("@/lib/image-compression");
-                const compressedBase64 = await compressImage(file, {
-                    maxWidth: 1920,
-                    maxHeight: 1080,
-                    quality: 0.8
-                });
-
-                const res = await syncMemberSuccessPoints({
-                    guildId,
-                    imageData: compressedBase64,
-                    targetUserId,
-                });
-
-                if (res.success) {
-                    if (res.data?.pending) {
-                        const conf = Math.round(res.data.confidence || 0);
-                        toast.info("Votre capture est en cours de vérification par le staff.");
-                        setLastScanResult({
-                            points: res.data?.points,
-                            pending: true,
-                            confidence: res.data?.confidence,
-                            debugImage: res.data?.debugImage
-                        });
-                    } else {
-                        toast.success(`Succès synchronisés : ${res.data?.points} points !`);
-                        setLastScanResult({ points: res.data?.points, debugImage: res.data?.debugImage });
-                        if (res.data?.points) {
-                            onSuccess?.(res.data.points);
-                        }
-                    }
-                } else {
-                    toast.error(res.error || "Échec de la synchronisation.");
-                    setLastScanResult({ error: res.error });
-                }
-            } catch (err) {
-                toast.error("Une erreur est survenue lors de l'envoi.");
-            } finally {
-                setIsUploading(false);
-                setDragActive(false);
-            }
-        };
-    };
-
-    const handleBrowseClick = () => {
-        const fileInput = document.getElementById("success-upload-input");
-        if (fileInput) fileInput.click();
-    };
-
-
-    const onDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        setDragActive(true);
-    };
-
-    const onDragLeave = () => {
-        setDragActive(false);
-    };
-
-    const onDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setDragActive(false);
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    };
-
-    // START: Clipboard Paste Support
-    useEffect(() => {
-        if (readOnly) return;
-
-        const handlePaste = (e: ClipboardEvent) => {
-            if (e.clipboardData && e.clipboardData.files.length > 0) {
-                const file = e.clipboardData.files[0];
-                if (file.type.startsWith("image/")) {
-                    e.preventDefault();
-                    handleFile(file);
-                    toast.info("Image collée depuis le presse-papier ! 📋");
-                }
-            }
-        };
-
-        window.addEventListener("paste", handlePaste);
-        return () => window.removeEventListener("paste", handlePaste);
-    }, [readOnly, isUploading, lastScanResult]); // Re-bind if these change, though handleFile uses them
-    // END: Clipboard Paste Support
 
     if (readOnly && !successPoints) return null;
 
@@ -264,127 +112,15 @@ export function SuccessSync({
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                {!readOnly && canManualSync && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
-                        <div
-                            onDragOver={onDragOver}
-                            onDragLeave={onDragLeave}
-                            onDrop={onDrop}
-                            className={cn(
-                                "relative group flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl transition-all",
-                                dragActive ? "border-amber-500 bg-amber-500/10" : "border-white/10 hover:border-white/20 hover:bg-white/5",
-                                (isUploading || lastScanResult?.pending) && "opacity-50 pointer-events-none cursor-not-allowed"
-                            )}
-                        >
-                            {lastScanResult?.pending ? (
-                                <div className="flex flex-col items-center gap-2 p-4 text-center">
-                                    <Clock className="w-8 h-8 text-blue-400 animate-pulse" />
-                                    <p className="text-sm font-bold text-blue-200 uppercase">Demande en attente</p>
-                                    <p className="text-xs text-blue-300/60 max-w-[200px]">Une capture est déjà en cours de validation par le staff.</p>
-                                </div>
-                            ) : isUploading ? (
-                                <div className="flex flex-col items-center gap-2 animate-pulse">
-                                    <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-                                    <span className="text-sm font-medium text-amber-200">Synchronisation en cours...</span>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="p-3 rounded-full bg-white/5 group-hover:scale-110 transition-transform">
-                                        <Upload className="w-6 h-6 text-white/40 group-hover:text-amber-400" />
-                                    </div>
-                                    <div className="text-center space-y-1">
-                                        <p className="text-base font-bold text-white/90">Déposez votre capture</p>
-                                        <p className="text-sm text-white/40">
-                                            coller (CTRL+V) ou{" "}
-                                            <button
-                                                type="button"
-                                                onClick={handleBrowseClick}
-                                                className="text-amber-400 hover:text-amber-300 font-medium hover:underline focus:outline-none"
-                                            >
-                                                cliquez pour sélectionner
-                                            </button>
-                                        </p>
-                                    </div>
-                                    <input
-                                        id="success-upload-input"
-                                        type="file"
-                                        className="hidden"
-                                        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                                        accept="image/*"
-                                    />
-                                </>
-                            )}
-                        </div>
-
-                        {/* Instructional Tip with Full Examples */}
-                        <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-4">
-                            <div className="flex items-center gap-2 text-amber-400">
-                                <div className="p-2 rounded-lg bg-amber-500/10">
-                                    <MousePointer2 className="w-5 h-5" />
-                                </div>
-                                <span className="text-sm font-bold uppercase tracking-wider">Bien cadrer la capture</span>
-                            </div>
-                            <p className="text-sm text-zinc-300 leading-relaxed font-medium">
-                                Ne prenez pas tout l'écran ! Utilisez un outil de capture d'écran (Snipping Tool, Greenshot, etc) pour détourer uniquement la zone avec vos points. Si vous incluez la barre de progression à droite de vos points, l'IA sera encore plus précise.
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl mx-auto">
-                                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center p-2">
-                                    <img
-                                        src="/assets/ladder/exemple-succes.png"
-                                        alt="Exemple valide 1"
-                                        className="w-full h-auto rounded-lg"
-                                    />
-                                </div>
-                                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center p-2">
-                                    <img
-                                        src="/assets/ladder/exemple4.png"
-                                        alt="Exemple valide 2"
-                                        className="w-full h-auto rounded-lg"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Pseudo Configuration Instruction */}
-                        {!pseudoDofus && (
-                            <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-5">
-                                <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 shrink-0">
-                                    <UserSearch className="w-6 h-6" />
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-base font-bold text-amber-200 uppercase tracking-tight">Pseudo Dofus requis</p>
-                                    <p className="text-sm text-amber-400/80 leading-relaxed font-medium">
-                                        Pour activer le lien direct vers le ladder officiel, rendez-vous dans l'onglet{" "}
-                                        <button
-                                            onClick={() => onTabChange?.('overview')}
-                                            className="text-amber-200 underline decoration-amber-200/30 underline-offset-4 hover:text-white transition-colors cursor-pointer"
-                                        >
-                                            Général
-                                        </button>
-                                        {" "}et modifiez votre bloc{" "}
-                                        <button
-                                            onClick={() => onTabChange?.('overview')}
-                                            className="text-amber-200 underline decoration-amber-200/30 underline-offset-4 hover:text-white transition-colors cursor-pointer text-left"
-                                        >
-                                            Identité de Combat
-                                        </button>
-                                        {" "}pour y ajouter votre pseudo exact.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 {/* Ladder Sync Button (if enabled) */}
                 {!readOnly && canSyncLadder && (
                     <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-700">
                         <Button
                             onClick={handleLadderSync}
-                            disabled={isUploading || !pseudoDofus || (lastScanResult?.pending ?? false)}
+                            disabled={isSyncing || !pseudoDofus}
                             className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all active:scale-95 disabled:opacity-50 group gap-3"
                         >
-                            {isUploading ? (
+                            {isSyncing ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
                                 <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
@@ -396,45 +132,6 @@ export function SuccessSync({
                                 Le pseudo Dofus est requis pour la synchronisation automatique.
                             </p>
                         )}
-                    </div>
-                )}
-
-                {lastScanResult?.pending && (
-                    <div className="relative overflow-hidden p-5 rounded-2xl bg-blue-500/10 text-blue-300 border border-blue-500/20 animate-in fade-in zoom-in-95 duration-500">
-                        {/* Status bar background */}
-                        <div className="absolute top-0 left-0 h-1 bg-blue-500/10 w-full" />
-                        <div
-                            className="absolute top-0 left-0 h-1 bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)] transition-all duration-1000"
-                            style={{ width: `${Math.round(lastScanResult.confidence || 0)}%` }}
-                        />
-
-                        <div className="flex flex-col gap-4 relative z-10">
-                            <div className="flex items-start gap-3">
-                                <Clock className="w-5 h-5 mt-1 shrink-0 text-blue-400" />
-                                <div className="flex-1 space-y-1">
-                                    <p className="text-xs leading-relaxed opacity-80 font-medium">
-                                        Votre capture est en cours de vérification par le staff.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-end gap-3 pt-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 text-[10px] font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10"
-                                    onClick={handleCancel}
-                                    disabled={isUploading}
-                                >
-                                    Annuler la demande
-                                </Button>
-                                <Button
-                                    className="h-8 text-[10px] font-bold bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-500/30 pointer-events-none"
-                                >
-                                    Attente Staff
-                                </Button>
-                            </div>
-                        </div>
                     </div>
                 )}
 
@@ -625,22 +322,12 @@ export function SuccessSync({
                         variant="sigil"
                         className="w-full h-11"
                     >
-                        <Link href={`/dashboard/${guildId}/ladder`}>
+                        <Link href={`/dashboard/${guildId}/ladder?tab=success`}>
                             <Trophy className="w-5 h-5" />
                             <span>VOIR LE CLASSEMENT DE GUILDE</span>
                         </Link>
                     </Button>
                 </div>
-
-                {!successPoints && !readOnly && (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                        <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
-                        <div className="space-y-1">
-                            <p className="text-sm font-bold text-blue-200">Ladder vide</p>
-                            <p className="text-sm leading-relaxed opacity-80">Synchronisez vos points pour apparaître dans le classement mondial et de guilde.</p>
-                        </div>
-                    </div>
-                )}
             </CardContent>
         </Card >
     );

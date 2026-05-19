@@ -21,6 +21,7 @@ import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
 import { CommandMenu } from "@/components/layout/command-menu";
 import { SupportOrb } from "@/components/shared/support-orb";
+import { GalacticFooter } from "@/components/layout/galactic-footer";
 
 export default async function DashboardLayout({
     children,
@@ -76,6 +77,7 @@ export default async function DashboardLayout({
                 variant="archive"
                 action={<SignOutButton variant="ghost" />}
                 countdownDate={(user as any).scheduledDeletion}
+                hasPendingReactivation={user.hasPendingReactivation}
             />
         );
     }
@@ -142,6 +144,7 @@ export default async function DashboardLayout({
                         guildData={guildData}
                         userGuilds={userGuilds}
                         modules={modules}
+                        roadmapEnabled={roadmapEnabled}
                         className="h-full border-r border-border bg-muted/40 backdrop-blur-3xl shadow-[5px_0_30px_rgba(0,0,0,0.02)] dark:shadow-[20px_0_40px_rgba(0,0,0,0.4)]"
                     />
                 </div>
@@ -181,7 +184,6 @@ export default async function DashboardLayout({
                                         {children}
                                     </Suspense>
                                 </div>
-
                             </div>
                         </div>
 
@@ -197,20 +199,20 @@ export default async function DashboardLayout({
                     </Suspense>
                 </div>
 
-
-
                 {/* Guild Activity Stream — popup toasts only */}
                 <GuildActivityStream guildId={guildId} />
 
                 {/* Changelog Modal (Global Platform Updates) */}
                 <ChangelogModal />
 
-
                 {/* Support Orb (Donation system STATE OF ART 2026) */}
                 {donationsEnabled && <SupportOrb />}
 
                 {/* Command Palette (Cmd+K) */}
-                <CommandMenu guildId={guildId} />
+                <CommandMenu guildId={guildId} user={user} />
+
+                {/* 4. FLOATING FOOTER (Compact version) */}
+                <GalacticFooter variant="compact" isMember={true} />
             </div>
         </NebulaClientWrapper>
     );

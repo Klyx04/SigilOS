@@ -7,6 +7,7 @@ import { ActionResponse } from "./user-actions";
 import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
 
 const GuildatonRecordSchema = z.object({
     discordId: z.string().regex(/^(\d{17,20}|manual_[\w\d_\.\-]+)$/, "ID Discord ou manuel invalide"),
@@ -75,7 +76,7 @@ export async function getGuildatonData(guildId: string): Promise<ActionResponse<
     availableChannels?: { id: string, name: string }[];
 }>> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifi├®" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) {
@@ -223,14 +224,14 @@ export async function getGuildatonData(guildId: string): Promise<ActionResponse<
         };
 
     } catch (error) {
-        console.error("[Guildaton Actions] Error:", error);
+        logger.error("[Guildaton Actions] Error:", { error });
         return { success: false, error: "Erreur lors de la récupération des données" };
     }
 }
 
 export async function updateGuildatonValue(guildId: string, data: z.infer<typeof GuildatonRecordSchema>): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifi├®" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
@@ -292,14 +293,14 @@ export async function updateGuildatonValue(guildId: string, data: z.infer<typeof
         return { success: true };
 
     } catch (error) {
-        console.error("[Guildaton Actions] Update Error:", error);
+        logger.error("[Guildaton Actions] Update Error:", { error });
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
 
 export async function importGuildatonCsv(guildId: string, rows: any[]): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifi├®" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
@@ -449,14 +450,14 @@ export async function importGuildatonCsv(guildId: string, rows: any[]): Promise<
         return { success: true };
 
     } catch (error) {
-        console.error("[Guildaton Actions] Import Error:", error);
+        logger.error("[Guildaton Actions] Import Error:", { error });
         return { success: false, error: "Erreur lors de l'importation" };
     }
 }
 
 export async function updateGuildatonSettings(guildId: string, settings: GuildatonSettings): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifi├®" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
@@ -487,14 +488,14 @@ export async function updateGuildatonSettings(guildId: string, settings: Guildat
         return { success: true };
 
     } catch (error) {
-        console.error("[Guildaton Actions] Settings Update Error:", error);
+        logger.error("[Guildaton Actions] Settings Update Error:", { error });
         return { success: false, error: "Erreur lors de la mise à jour des paramètres" };
     }
 }
 
 export async function deleteGuildatonRecord(guildId: string, discordId: string): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifi├®" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
@@ -536,18 +537,18 @@ export async function deleteGuildatonRecord(guildId: string, discordId: string):
         return { success: true };
 
     } catch (error) {
-        console.error("[Guildaton Actions] Delete Error:", error);
+        logger.error("[Guildaton Actions] Delete Error:", { error });
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }
 
 /**
  * Prend un snapshot de tous les records actuels pour l'historique
- * C'est l'action manuelle qui "déclare la semaine terminée"
+ * C'est l'action manuelle qui "d├®clare la semaine termin├®e"
  */
 export async function validateWeeklyGuildaton(guildId: string): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifi├®" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
@@ -564,10 +565,10 @@ export async function validateWeeklyGuildaton(guildId: string): Promise<ActionRe
         if (!guild) return { success: false, error: "Guilde introuvable" };
 
         if (guild.guildatonRecords.length === 0) {
-            return { success: false, error: "Aucun membre à valider." };
+            return { success: false, error: "Aucun membre ├á valider." };
         }
 
-        // Créer les entrées d'historique
+        // Cr├®er les entr├®es d'historique
         const historyData = guild.guildatonRecords.map(record => ({
             guildId: guild.id,
             discordId: record.discordId,
@@ -592,17 +593,17 @@ export async function validateWeeklyGuildaton(guildId: string): Promise<ActionRe
         return { success: true };
 
     } catch (error) {
-        console.error("[Guildaton Actions] Validation Error:", error);
+        logger.error("[Guildaton Actions] Validation Error:", { error });
         return { success: false, error: "Erreur lors de la validation" };
     }
 }
 
 /**
- * Force l'envoi du rapport sur Discord immédiatement
+ * Force l'envoi du rapport sur Discord imm├®diatement
  */
 export async function sendManualGuildatonReport(guildId: string): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifi├®" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
@@ -611,7 +612,7 @@ export async function sendManualGuildatonReport(guildId: string): Promise<Action
         const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const url = `${baseUrl}/api/cron/guildaton-report?token=${process.env.CRON_SECRET}&forceGuild=${guildId}`;
         
-        console.log(`[Guildaton] Triggering manual report for guild: ${guildId}`);
+        logger.info(`[Guildaton] Triggering manual report for guild: ${guildId}`);
         
         const response = await fetch(url, { cache: 'no-store' });
         
@@ -619,11 +620,11 @@ export async function sendManualGuildatonReport(guildId: string): Promise<Action
             return { success: true };
         } else {
             const errorText = await response.text();
-            console.error(`[Guildaton] Manual report API error: ${response.status}`, errorText);
+            logger.error(`[Guildaton] Manual report API error: ${response.status}`, { errorText });
             return { success: false, error: "Échec de l'envoi Discord" };
         }
     } catch (error: any) {
-        console.error("[Guildaton] Manual report fetch error:", error);
+        logger.error("[Guildaton] Manual report fetch error:", { error });
         return { success: false, error: "Erreur lors de l'envoi" };
     }
 }

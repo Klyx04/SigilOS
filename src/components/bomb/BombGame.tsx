@@ -28,7 +28,9 @@ import {
     ArrowLeft,
     Mic,
     MicOff,
-    LogOut
+    LogOut,
+    Volume2,
+    VolumeX
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -38,7 +40,43 @@ import { useBombSounds } from "./useBombSounds";
 import { useDiscordVoice } from "@/hooks/use-discord-voice";
 import { DiscordVoiceOverlay } from "@/components/shared/DiscordVoiceOverlay";
 
-export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: string, guildId: string }) {
+class BombErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
+    constructor(props: {children: React.ReactNode}) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="fixed inset-0 z-[1000] bg-red-900/90 text-white flex flex-col items-center justify-center p-8">
+                    <h2 className="text-3xl font-black mb-4">Erreur Fatale (Frontend)</h2>
+                    <pre className="text-xs bg-black/50 p-4 rounded-xl whitespace-pre-wrap max-w-2xl overflow-auto border border-white/20 shadow-2xl">
+                        {this.state.error?.message}
+                        {"\n\n"}
+                        {this.state.error?.stack}
+                    </pre>
+                    <button onClick={() => window.location.reload()} className="mt-8 px-8 py-4 bg-white/20 hover:bg-white/30 rounded-xl font-black transition-all">Rafraîchir la page</button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+export default function BombGame({ 
+    roomId: initialRoomId, 
+    guildId, 
+    userName: propUserName, 
+    userAvatar: propUserAvatar 
+}: { 
+    roomId?: string, 
+    guildId: string,
+    userName?: string,
+    userAvatar?: string
+}) {
     const { data: session, status: sessionStatus } = useSession();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [gameState, setGameState] = useState<any>(null);
@@ -59,14 +97,40 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
     const [localTimeLeft, setLocalTimeLeft] = useState<number>(0);
     const [explosionPlayerId, setExplosionPlayerId] = useState<string | null>(null);
     const [typingMap, setTypingMap] = useState<Record<string, string>>({});
-    // Mode selection: null = not yet chosen, 'solo' = solo vs bot, 'multi' = multiplayer
-    const [selectedMode, setSelectedMode] = useState<'solo' | 'multi' | null>(initialRoomId ? 'multi' : null);
-    
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const sessionRef = useRef(session);
     useEffect(() => { sessionRef.current = session; }, [session]);
-    const { playTick, playUrgentTick, playExplosion, playSuccess } = useBombSounds();
+    const [showSettingsPrompt, setShowSettingsPrompt] = useState(false);
+    const [isSuddenDeath, setIsSuddenDeath] = useState(false);
+    const [showSuddenDeathFlash, setShowSuddenDeathFlash] = useState(false);
+    const [myStreak, setMyStreak] = useState(0);
+
+    const [masterVolume, setMasterVolume] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('bomb_master_volume');
+            return saved ? parseFloat(saved) : 0.5;
+        }
+        return 0.5;
+    });
+    const [tickVolume, setTickVolume] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('bomb_tick_volume');
+            return saved ? parseFloat(saved) : 0.8;
+        }
+        return 0.8;
+    });
+    const [showAudioSettings, setShowAudioSettings] = useState(false);
+
+    useEffect(() => {
+        localStorage.setItem('bomb_master_volume', masterVolume.toString());
+    }, [masterVolume]);
+
+    useEffect(() => {
+        localStorage.setItem('bomb_tick_volume', tickVolume.toString());
+    }, [tickVolume]);
+
+    const { playTick, playUrgentTick, playExplosion, playSuccess, playDoubleKill, playTripleKill, playRampage, playGodlike, playSuddenDeath } = useBombSounds(masterVolume, tickVolume);
 
     // Discord Voice Monitoring
     const { voiceUsers } = useDiscordVoice(guildId, socket);
@@ -104,8 +168,8 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                     playerObj: { 
                         userId: user.id, 
                         discordId: (user as any).discordId,
-                        userName: user.name, 
-                        userAvatar: user.image, 
+                        userName: propUserName || user.name, 
+                        userAvatar: propUserAvatar || user.image, 
                         guildId 
                     }
                 });
@@ -120,10 +184,19 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                 // Keep existing transition logic for toasts...
                 return state;
             }); 
-            setLocalTimeLeft(state.timeLeft);
-            // We no longer automatically set showGameEnd(false) here to avoid racing with the results screen
+            setIsSuddenDeath(state.isSuddenDeath || false);
+            // Timer logic: prioritize timeLeft from server, fallback to config if playing
+            let newTime = state.timeLeft;
+            if ((newTime === undefined || newTime === null || newTime === 0) && state.state === 'PLAYING') {
+                newTime = state.config?.turnTime ?? 12;
+            }
+            setLocalTimeLeft(newTime ?? 0);
+            
+            // CLEANUP: If server says we are in LOBBY, ensure all overlays are closed
             if (state.state === 'LOBBY') {
+                setShowGameEnd(false);
                 setShowOptions(false); 
+                setShowTutorial(false);
             }
         });
         s.on("bomb:game-end", (data) => {
@@ -152,17 +225,29 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                 rotate: Math.random() * 360
             }));
             setBloodSplats(prev => [...prev.slice(-10), ...newSplats]);
+            if (data.playerId === s.id) setMyStreak(0);
             setTimeout(() => { setExplosionFlash(false); }, 800);
             setTimeout(() => { setBloodSplats([]); setExplosionPlayerId(null); }, 2500);
-            if (data.hintWord) {
-                toast(`💥 ${data.playerName || 'Le joueur'} a raté « ${data.syllable} » — on pouvait dire « ${data.hintWord} »`, { duration: 4000 });
-            }
         });
-        s.on("bomb:word-success", () => { 
+        s.on("bomb:word-success", (data) => { 
             setWordInput(""); 
-            setTypingMap({}); // Clear local typing on success
-            playSuccess(); 
+            setTypingMap({});
             triggerShake();
+            // Only increment streak + play sounds for our own words
+            const isMe = data?.playerId === s.id;
+            if (isMe) {
+                setMyStreak(prev => {
+                    const next = prev + 1;
+                    if (next >= 10) { playGodlike(); toast("🌟 GODLIKE ! Tu es inarrêtable !", { duration: 3000 }); }
+                    else if (next >= 5) { playRampage(); toast("🔥 RAMPAGE ! " + next + " mots d'affilée !", { duration: 2500 }); }
+                    else if (next === 3) { playTripleKill(); toast("⚡ TRIPLE ! En feu !", { duration: 2000 }); }
+                    else if (next === 2) { playDoubleKill(); }
+                    else { playSuccess(); }
+                    return next;
+                });
+            } else {
+                playSuccess();
+            }
         });
         s.on("bomb:typing-update", (data: { playerId: string; text: string }) => {
             setTypingMap(prev => ({ ...prev, [data.playerId]: data.text }));
@@ -175,6 +260,17 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
             if (data.playerId === s.id) {
                 toast("🔥 ALPHABET COMPLÉTÉ ! +1 VIE", { icon: <Sparkles className="text-yellow-500" /> });
             }
+        });
+
+        s.on("bomb:sudden-death", (data) => {
+            setIsSuddenDeath(true);
+            setShowSuddenDeathFlash(true);
+            playSuddenDeath();
+            toast.error("⚠️ MORT SUBITE : TEMPS RÉDUIT !", {
+                description: `Le temps de réflexion est réduit de ${data.reductionPercent}%. Bonne chance.`,
+                duration: 5000,
+            });
+            setTimeout(() => setShowSuddenDeathFlash(false), 3000);
         });
 
         return () => { s.disconnect(); };
@@ -196,6 +292,18 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
         }
         prevState.current = gameState?.state || null;
     }, [gameState?.currentTurnIndex, gameState?.state, socket?.id]);
+    
+    // Safety: Monitor gameState state to clean up UI blockers
+    useEffect(() => {
+        if (gameState?.state === 'LOBBY') {
+            setShowGameEnd(false);
+            setShowOptions(false);
+        } else if (gameState?.state === 'STARTING') {
+            setShowGameEnd(false);
+            setShowOptions(false);
+            setShowTutorial(false);
+        }
+    }, [gameState?.state]);
 
     const handleCreateRoom = (isSolo = false) => {
         const id = Math.random().toString(36).substring(2, 9).toUpperCase();
@@ -206,8 +314,8 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
             playerObj: { 
                 userId: user.id, 
                 discordId: (user as any).discordId,
-                userName: user.name, 
-                userAvatar: user.image, 
+                userName: propUserName || user.name, 
+                userAvatar: propUserAvatar || user.image, 
                 guildId,
                 isSoloMode: isSolo  // Passed directly so server applies it synchronously on room creation
             }
@@ -215,30 +323,7 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
         window.history.replaceState(null, "", `?room=${id}`);
     };
 
-    const handleSelectSolo = () => {
-        setSelectedMode('solo');
-        const id = Math.random().toString(36).substring(2, 9).toUpperCase();
-        const user = sessionRef.current?.user;
-        if (!user) return;
-        socket?.emit("bomb:room:join", {
-            roomId: id,
-            playerObj: { 
-                userId: user.id, 
-                discordId: (user as any).discordId,
-                userName: user.name, 
-                userAvatar: user.image, 
-                guildId,
-                isSoloMode: true,
-                autoStart: false // Request the server not to auto-start if possible
-            }
-        });
-        window.history.replaceState(null, "", `?room=${id}`);
-    };
 
-    const handleSelectMulti = () => {
-        setSelectedMode('multi');
-        socket?.emit("bomb:room:list");
-    };
 
     const handleJoinRoom = (id: string) => {
         const user = sessionRef.current?.user;
@@ -248,8 +333,8 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
             playerObj: { 
                 userId: user.id, 
                 discordId: (user as any).discordId,
-                userName: user.name, 
-                userAvatar: user.image, 
+                userName: propUserName || user.name, 
+                userAvatar: propUserAvatar || user.image, 
                 guildId 
             }
         });
@@ -264,6 +349,8 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
         setShowGameEnd(false);
         setWinnerName(null); 
         setLeaderboard([]); 
+        setIsSuddenDeath(false);
+        setShowSuddenDeathFlash(false);
         setGameState((prev: any) => prev ? { ...prev, currentSyllable: "" } : null);
         socket?.emit("bomb:restart"); 
     };
@@ -284,7 +371,6 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
         
         // Clear state
         setGameState(null);
-        setSelectedMode(null);
         
         // Clean URL properly to prevent auto-rejoin logic from firing
         const url = new URL(window.location.href);
@@ -439,109 +525,7 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
             );
         }
 
-        // ── MODE SELECTION SCREEN ────────────────────────────────────────────
-        if (selectedMode === null) {
-            return (
-                <div className="h-full w-full bg-[#0a0614] flex flex-col items-center justify-center relative overflow-hidden">
-                    <AtmosphericParticles />
-
-                    {/* Ambient glow */}
-                    <div className="absolute inset-0 pointer-events-none">
-                        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px]" />
-                        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-violet-500/10 rounded-full blur-[120px]" />
-                    </div>
-
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
-                        className="z-10 flex flex-col items-center gap-10 px-4 w-full max-w-3xl"
-                    >
-                        {/* Back button */}
-                        <button
-                            onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
-                            className="self-start flex items-center gap-2 text-white/30 hover:text-white/70 transition-colors group"
-                        >
-                            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                            <span className="text-[10px] font-black uppercase italic tracking-widest">Retour aux jeux</span>
-                        </button>
-
-                        {/* Title */}
-                        <div className="text-center space-y-3">
-                            <div className="flex items-center justify-center gap-4 mb-2">
-                                <img src="/assets/dofus/classes/13.png" className="w-16 h-16 object-contain drop-shadow-[0_0_20px_rgba(99,102,241,0.5)]" alt="" />
-                            </div>
-                            <h1 className="text-7xl font-black text-white uppercase italic tracking-tighter drop-shadow-[0_0_40px_rgba(99,102,241,0.3)]">Sigil-Bomb</h1>
-                            <p className="text-white/30 font-bold uppercase tracking-[0.4em] text-[10px] italic">Le défi de la Reine des Voleurs</p>
-                        </div>
-
-                        {/* Mode cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full">
-                            {/* SOLO */}
-                            <motion.button
-                                whileHover={{ scale: 1.02, y: -4 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={handleSelectSolo}
-                                className="group relative p-8 rounded-[2.5rem] bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 hover:border-emerald-500/60 transition-all shadow-xl overflow-hidden flex flex-col items-center gap-5 text-center"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute -top-8 -right-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
-                                <div className="relative z-10 flex flex-col items-center gap-5">
-                                    <div className="w-20 h-20 rounded-3xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center group-hover:bg-emerald-500/30 transition-all">
-                                        <img src="/assets/dofus/classes/9.png" className="w-12 h-12 object-contain" alt="Bot" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Solo vs Bot</h2>
-                                        <p className="text-emerald-400/60 text-[10px] font-black uppercase tracking-widest mt-1 italic">Crâ-Mée t'attend !</p>
-                                    </div>
-                                    <p className="text-white/40 text-xs font-medium leading-relaxed">
-                                        Affronte notre robot Crâ de manière autonome. Parfait pour s'entraîner et maîtriser le lore Dofus.
-                                    </p>
-                                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30">
-                                        <Zap size={12} className="text-emerald-400" />
-                                        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest">Lancer immédiatement</span>
-                                    </div>
-                                </div>
-                            </motion.button>
-
-                            {/* MULTI */}
-                            <motion.button
-                                whileHover={{ scale: 1.02, y: -4 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={handleSelectMulti}
-                                className="group relative p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-500/20 to-violet-500/10 border border-indigo-500/30 hover:border-indigo-500/60 transition-all shadow-xl overflow-hidden flex flex-col items-center gap-5 text-center"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute -top-8 -right-8 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all" />
-                                <div className="relative z-10 flex flex-col items-center gap-5">
-                                    <div className="w-20 h-20 rounded-3xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center group-hover:bg-indigo-500/30 transition-all">
-                                        <Users size={32} className="text-indigo-400" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Multijoueur</h2>
-                                        <p className="text-indigo-400/60 text-[10px] font-black uppercase tracking-widest mt-1 italic">Jusqu'à 8 joueurs</p>
-                                    </div>
-                                    <p className="text-white/40 text-xs font-medium leading-relaxed">
-                                        Crée ou rejoins une salle et défie ta guilde. L'hôte configure les règles dans le lobby.
-                                    </p>
-                                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/20 border border-indigo-500/30">
-                                        <Users size={12} className="text-indigo-400" />
-                                        <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest">Créer / Rejoindre</span>
-                                    </div>
-                                </div>
-                            </motion.button>
-                        </div>
-
-                        {/* Help hint */}
-                        <p className="text-white/15 text-[10px] font-black uppercase tracking-[0.3em] italic">
-                            Les règles se configurent dans le lobby — après le choix du mode
-                        </p>
-                    </motion.div>
-                </div>
-            );
-        }
-
-        // ── MULTI: ROOM LIST / CREATE SCREEN ────────────────────────────────
+        // ── ROOM LIST / CREATE SCREEN ────────────────────────────────
         return (
             <div className="h-full w-full bg-[#0a0614] flex flex-col items-center justify-center relative overflow-hidden">
                 <AtmosphericParticles />
@@ -549,13 +533,13 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                     <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px]" />
                 </div>
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="z-10 text-center space-y-8 p-12 bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[3rem] shadow-2xl max-w-2xl w-full mx-4 relative">
-                    {/* Back to mode selection */}
+                    {/* Back to mini-games */}
                     <button
-                        onClick={() => setSelectedMode(null)}
+                        onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
                         className="absolute top-8 left-8 flex items-center gap-2 text-white/30 hover:text-white/70 transition-colors group"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-[10px] font-black uppercase italic tracking-widest hidden md:inline">Retour</span>
+                        <span className="text-[10px] font-black uppercase italic tracking-widest hidden md:inline">Retour aux jeux</span>
                     </button>
                     <div className="space-y-2">
                         <div className="flex items-center justify-center gap-3 mb-3">
@@ -598,9 +582,16 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
     }
 
 
-    const myPlayer = gameState.players?.find((p: any) => p.userId === session?.user?.id || p.id === socket?.id);
+    // Use session ID as primary, fallback to socket ID
+    const myPlayer = gameState.players?.find((p: any) => (p.userId && p.userId === session?.user?.id) || p.id === socket?.id);
     const currentPlayer = gameState?.players?.[gameState?.currentTurnIndex];
-    const isHost = myPlayer?.id === gameState.hostId || socket?.id === gameState.hostId || (gameState.players?.filter((p: any) => !p.isBot).length === 1 && !myPlayer?.isSpectator);
+    
+    // Resilient Host Check: check by userId first, then socketId, or if only one human is left
+    const isHost = (myPlayer?.userId && myPlayer.userId === gameState.hostUserId) || 
+                   (myPlayer?.id === gameState.hostId) || 
+                   (socket?.id === gameState.hostId) || 
+                   (gameState.players?.filter((p: any) => !p.isBot).length === 1 && !myPlayer?.isSpectator);
+                   
     if (!gameState || !gameState.players || !gameState.config) return <div className="h-full w-full bg-[#0a0d14] flex items-center justify-center"><Loader2 className="animate-spin text-indigo-500" /></div>;
 
     const isMyTurn = currentPlayer?.id === socket?.id;
@@ -614,10 +605,12 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
 
     const isLobby = gameState.state === 'LOBBY';
     const isPlaying = gameState.state === 'PLAYING';
+    const isMatchActive = gameState.state === 'PLAYING' || gameState.state === 'STARTING';
     const isGameEnd = gameState.state === 'GAME_END';
 
 
     return (
+        <BombErrorBoundary>
         <div ref={containerRef} className={cn(
             "bg-[#0a0614] flex flex-col relative overflow-hidden transition-all duration-300",
             isImmersive ? "fixed inset-0 z-[100]" : "h-full w-full",
@@ -678,18 +671,35 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                 >
                     {isImmersive ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
                 </button>
-                        <button 
-                            onClick={(e) => handleLeave(e)}
-                            className="w-12 h-12 rounded-2xl flex items-center justify-center bg-muted border border-border hover:bg-muted/80 text-foreground/40 hover:text-foreground transition-all"
-                            title="Quitter le salon"
-                        >
-                            <LogOut size={20} />
-                        </button>
+                <button 
+                    onClick={() => setShowAudioSettings(!showAudioSettings)}
+                    className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all bg-white/5 border border-white/10 hover:bg-white/10 text-white/40 hover:text-white",
+                        showAudioSettings && "bg-indigo-500/20 border-indigo-500 text-indigo-400"
+                    )}
+                    title="Paramètres audio"
+                >
+                    {masterVolume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                </button>
                         <button 
                             onClick={() => setShowTutorial(true)}
                             className="w-12 h-12 rounded-2xl flex items-center justify-center bg-muted border border-border hover:bg-muted/80 text-foreground/40 hover:text-foreground transition-all"
+                            title="Aide et Tutoriel"
                         >
                             <HelpCircle size={20} />
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setShowGameEnd(false);
+                                setShowOptions(false);
+                                setShowTutorial(false);
+                                socket?.emit("bomb:sync:request");
+                                toast.success("Interface réinitialisée");
+                            }}
+                            className="w-12 h-12 rounded-2xl flex items-center justify-center bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-orange-400 transition-all"
+                            title="Réinitialiser l'interface (en cas de gel)"
+                        >
+                            <Zap size={20} />
                         </button>
             </div>
 
@@ -706,6 +716,32 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
 
             <main className="flex-1 flex flex-col items-center pt-4 md:pt-[68px] pb-4 min-h-0 gap-2 overflow-hidden relative">
                 {explosionFlash && <motion.div initial={{ opacity: 1, scale: 1.2 }} animate={{ opacity: 0, scale: 1 }} className="absolute inset-0 bg-red-600/20 z-[100] blur-3xl pointer-events-none" />}
+                
+                {/* Sudden Death Flash Overlay */}
+                <AnimatePresence>
+                    {showSuddenDeathFlash && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 z-[150] flex items-center justify-center pointer-events-none bg-red-950/40 backdrop-blur-sm"
+                        >
+                            <motion.div 
+                                initial={{ scale: 0.5, y: 20 }}
+                                animate={{ scale: [1, 1.1, 1], y: 0 }}
+                                transition={{ duration: 0.3, repeat: 3 }}
+                                className="text-center"
+                            >
+                                <h2 className="text-6xl md:text-8xl font-[1000] text-red-600 uppercase italic tracking-[0.2em] drop-shadow-[0_0_30px_rgba(220,38,38,0.8)]">
+                                    SUDDEN DEATH
+                                </h2>
+                                <p className="text-red-400 font-black uppercase tracking-[0.5em] mt-4 animate-pulse">
+                                    -30% TURN TIME
+                                </p>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* HUD TOP: SYLLABE - MOVED TO CENTER ARENA TO AVOID AVATAR OVERLAP */}
                 <div className="flex-shrink-0 h-4 flex flex-col items-center justify-end pointer-events-none" />
@@ -720,15 +756,37 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                     )}
                 >
                     
-                    {/* CENTER HUD — Lobby: just the Roublard image. Buttons moved below arena. */}
-                    <div className="absolute z-40 flex flex-col items-center text-center">
+                    {/* CENTER HUD — Lobby: player list. STARTING: countdown. PLAYING: invisible. */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 flex flex-col items-center text-center w-full">
                         <AnimatePresence mode="wait">
                              {gameState.state === 'LOBBY' ? (
-                                <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center">
-                                    <div className="relative group">
-                                        <div className="absolute -inset-6 bg-indigo-500/15 blur-3xl rounded-full" />
-                                        <img src="/assets/dofus/classes/13.png" className="w-20 h-20 md:w-28 md:h-28 object-contain relative z-10 drop-shadow-2xl" alt="Roublard" />
+                                <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-2 pointer-events-auto px-4 w-full max-w-xs">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 italic mb-1">Joueurs dans le salon</p>
+                                    {gameState.players?.filter((p: any) => !p.isSpectator).map((p: any) => (
+                                        <div key={p.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl bg-white/5 border border-white/10">
+                                            <img src={p.userAvatar || `https://ui-avatars.com/api/?name=${p.userName}`} className="w-8 h-8 rounded-xl object-cover border border-white/10 shrink-0" alt="" />
+                                            <span className="text-xs font-black uppercase italic text-white/80 flex-1 truncate">{p.userName}</span>
+                                            {p.isReady
+                                                ? <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Pret</span>
+                                                : <span className="text-[9px] font-black uppercase text-white/20 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full">...</span>
+                                            }
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            ) : gameState.state === 'STARTING' ? (
+                                <motion.div key="starting" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-4">
+                                    <div className="relative">
+                                        <div className="absolute -inset-10 bg-indigo-500/20 blur-[60px] rounded-full animate-pulse" />
+                                        <motion.span 
+                                            key={localTimeLeft}
+                                            initial={{ scale: 1.5, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            className="text-8xl font-[1000] italic text-white drop-shadow-[0_0_30px_rgba(99,102,241,0.5)]"
+                                        >
+                                            {localTimeLeft}
+                                        </motion.span>
                                     </div>
+                                    <p className="text-indigo-400 text-xs font-black uppercase tracking-[0.4em] italic animate-pulse">Préparez-vous...</p>
                                 </motion.div>
                             ) : gameState.state === 'PLAYING' ? (
                                 <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} />
@@ -795,10 +853,10 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                         </AnimatePresence>
                     </div>
                 {/* ─── MATCH INTERFACE (ARENA) ─── */}
-                {isPlaying && (
+                {isMatchActive && (
                     <>
                     <div className="absolute inset-0 flex items-center justify-center p-4">
-                        <div className="relative w-full aspect-square max-w-[min(80vh,800px)]">
+                        <div className="relative w-full aspect-square max-w-[min(80vh,800px)] flex items-center justify-center">
 
                     {gameState.players.map((p: any, i: number) => {
                         const pos = playerPositions[i];
@@ -807,6 +865,7 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                         const isActive = p.id === currentPlayer?.id && gameState.state === 'PLAYING';
                         const isExploding = p.id === explosionPlayerId;
                         const count = gameState.players.filter((p: any) => !p.isSpectator).length;
+                        const isBottom = pos.y > 0;
 
                         return (
                             <motion.div 
@@ -841,12 +900,18 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                                     )}
 
                                     {/* LIVES */}
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex gap-0.5 z-30">
+                                    <div className={cn(
+                                        "absolute left-1/2 -translate-x-1/2 flex gap-0.5 z-30",
+                                        isBottom ? "-bottom-6" : "-top-6"
+                                    )}>
                                         {[...Array(gameState.config?.startingLives || 3)].map((_, li) => (li < p.lives ? <Heart key={li} size={10} fill="#ef4444" className="text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,0.5)]" /> : <Heart key={li} size={10} className="text-white/10" />))}
                                     </div>
                                     
                                     {/* PLAYER NAME */}
-                                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap z-30">
+                                    <div className={cn(
+                                        "absolute left-1/2 -translate-x-1/2 whitespace-nowrap z-30",
+                                        isBottom ? "-bottom-12" : "-top-12"
+                                    )}>
                                         <span className={cn(
                                             "text-[10px] font-black italic uppercase tracking-widest px-2 py-0.5 rounded-md",
                                             isActive ? "text-indigo-400 bg-indigo-500/10" : "text-white/40"
@@ -917,10 +982,10 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                         </div>
                     )}
 
-                            {/* Bombe et HUD (Arena center only has bomb now) */}
-                            {gameState.state === 'PLAYING' && (
+                             {/* Bombe et HUD (Arena center only has bomb now) */}
+                            {isPlaying && (
                                 <motion.div 
-                                    initial={{ scale: 0, opacity: 0 }}
+                                    initial={false}
                                     animate={{ 
                                         scale: localTimeLeft <= 3 ? [0.8, 1.1, 0.8] : 0.8,
                                         rotate: localTimeLeft <= 3 ? [0, 10, -10, 0] : [0, 2, -2, 0],
@@ -930,7 +995,7 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                                         scale: { repeat: Infinity, duration: localTimeLeft <= 3 ? 0.2 : 1 },
                                         rotate: { repeat: Infinity, duration: localTimeLeft <= 3 ? 0.1 : 2 }
                                     }}
-                                    className="relative z-10"
+                                    className="relative z-10 flex items-center justify-center"
                                 >
                                     <div className="relative group flex items-center justify-center">
                                         <div className={cn(
@@ -962,13 +1027,13 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                 </div>
                 </div>
 
-                <div className="absolute inset-y-0 right-6 md:right-10 flex flex-col justify-center w-64 md:w-80 pointer-events-none z-[100]">
+                <div className="absolute inset-y-0 left-6 md:left-10 flex flex-col justify-center w-64 md:w-80 pointer-events-none z-[100]">
                     <AnimatePresence mode="wait">
                         {gameState.state === 'PLAYING' && (
                             <motion.div
-                                initial={{ opacity: 0, x: 50 }}
+                                initial={{ opacity: 0, x: -50 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 50 }}
+                                exit={{ opacity: 0, x: -50 }}
                                 className="space-y-6"
                             >
                                 <div className="bg-black/60 backdrop-blur-3xl border-2 border-white/10 rounded-[2rem] md:rounded-[3rem] p-6 md:p-8 flex flex-col items-center shadow-2xl relative overflow-hidden group">
@@ -1086,7 +1151,7 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                                             <Settings size={18} />
                                         </button>
                                         <button
-                                            onClick={handleStartGame}
+                                            onClick={() => { setShowOptions(true); }}
                                             disabled={!allReady}
                                             className={cn(
                                                 "px-10 py-3 rounded-2xl font-black italic uppercase tracking-widest text-xs border-b-4 transition-all shadow-xl active:scale-95",
@@ -1095,7 +1160,7 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                                                     : "bg-zinc-800/80 text-white/20 border-black/50 cursor-not-allowed opacity-50"
                                             )}
                                         >
-                                            {allReady ? "⚡ Lancer l'Épreuve" : !hasEnoughPlayers ? "Attente de joueurs" : "En attente du lancement"}
+                                            {allReady ? "⚡ Configurer & Lancer" : !hasEnoughPlayers ? "Attente de joueurs" : "En attente des joueurs"}
                                         </button>
                                     </div>
                             ) : (
@@ -1281,31 +1346,102 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                                             </div>
                                         </div>
 
-                                        {/* Solo Mode Toggle */}
-                                        <div className="flex items-center justify-between p-6 bg-white/5 rounded-[2rem] border border-white/5">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Mode Solo</span>
-                                                <span className="text-[8px] text-white/20 font-bold uppercase italic">Jouer contre le robot</span>
-                                            </div>
+                                        {/* Solo Mode removed — not useful for current design */}
+
+                                        <div className="flex flex-col gap-3">
                                             <button 
-                                                onClick={() => handleUpdateConfig({ isSoloMode: !gameState.config?.isSoloMode })}
-                                                className={cn(
-                                                    "w-12 h-6 rounded-full relative transition-all duration-500",
-                                                    gameState.config?.isSoloMode ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]" : "bg-white/10"
-                                                )}
+                                                onClick={() => { setShowOptions(false); handleStartGame(); }}
+                                                className="w-full py-6 bg-indigo-500 hover:bg-indigo-400 text-white font-black italic uppercase tracking-widest rounded-[2rem] shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
                                             >
-                                                <div className={cn(
-                                                    "absolute top-1 w-4 h-4 rounded-full transition-all duration-500 bg-white shadow-lg",
-                                                    gameState.config?.isSoloMode ? "left-7" : "left-1"
-                                                )} />
+                                                &#9889; Lancer l&apos;Epreuve
                                             </button>
+                                            <button 
+                                                onClick={() => setShowOptions(false)}
+                                                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white font-black italic uppercase tracking-widest text-xs rounded-[2rem] transition-all"
+                                            >
+                                                Modifier seulement
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* --- AUDIO SETTINGS MODAL --- */}
+                <AnimatePresence>
+                    {showAudioSettings && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-background/80 backdrop-blur-xl z-[250] flex items-center justify-center p-6"
+                        >
+                            <motion.div 
+                                initial={{ scale: 0.9, y: 20 }}
+                                animate={{ scale: 1, y: 0 }}
+                                exit={{ scale: 0.9, y: 20 }}
+                                className="max-w-md w-full bg-card border border-border rounded-[3rem] p-10 shadow-2xl relative overflow-hidden"
+                            >
+                                <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full" />
+                                
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-3 bg-indigo-500/20 rounded-2xl text-indigo-500">
+                                                <Volume2 size={24} />
+                                            </div>
+                                            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Audio</h3>
+                                        </div>
+                                        <button 
+                                            onClick={() => setShowAudioSettings(false)}
+                                            className="p-2 hover:bg-white/5 rounded-xl transition-colors text-white/20 hover:text-white"
+                                        >
+                                            <XCircle size={20} />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-8">
+                                        {/* Master Volume */}
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-end">
+                                                <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Volume Général</label>
+                                                <span className="text-xl font-black text-indigo-400 italic">{Math.round(masterVolume * 100)}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" 
+                                                min="0" max="1" step="0.05"
+                                                value={masterVolume} 
+                                                onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
+                                                className="w-full accent-indigo-500 h-2 bg-white/10 rounded-full appearance-none cursor-pointer" 
+                                            />
+                                        </div>
+
+                                        {/* Tick Volume specifically */}
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-end">
+                                                <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Volume du Tic-Tac</label>
+                                                <span className="text-xl font-black text-indigo-400 italic">{Math.round(tickVolume * 100)}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" 
+                                                min="0" max="1" step="0.05"
+                                                value={tickVolume} 
+                                                onChange={(e) => setTickVolume(parseFloat(e.target.value))}
+                                                className="w-full accent-indigo-500 h-2 bg-white/10 rounded-full appearance-none cursor-pointer" 
+                                            />
+                                            <p className="text-[9px] text-white/20 italic uppercase font-bold tracking-widest">Ajuste spécifiquement le bruit du temps qui s&apos;écoule.</p>
                                         </div>
 
                                         <button 
-                                            onClick={() => setShowOptions(false)}
-                                            className="w-full py-6 bg-indigo-500 hover:bg-indigo-400 text-white font-black italic uppercase tracking-widest rounded-[2rem] shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                            onClick={() => {
+                                                setShowAudioSettings(false);
+                                                playTick();
+                                            }}
+                                            className="w-full py-5 bg-indigo-500 hover:bg-indigo-400 text-white font-black italic uppercase tracking-widest rounded-[2rem] shadow-xl transition-all"
                                         >
-                                            Valider les réglages
+                                            Enregistrer
                                         </button>
                                     </div>
                                 </div>
@@ -1435,7 +1571,7 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                                     Contient{' '}
                                     <span className={cn("font-black text-sm", isMyTurn ? "text-indigo-300" : "text-white/40")}>&ldquo;{gameState.currentSyllable}&rdquo;</span>
                                 </span>
-                                {gameState.currentSyllableCategory && (
+                                {gameState.currentSyllableCategory && gameState.config?.dictionaryMode !== 'dofus' && (
                                     <>
                                         <span className="w-px h-4 bg-white/10" />
                                         <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 shadow-[0_0_15px_rgba(79,70,229,0.1)] transition-all">
@@ -1487,8 +1623,9 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
 
                     {/* NEW LARGE HUD TIMER (BOTTOM LEFT) */}
                     <AnimatePresence>
-                        {gameState.state === 'PLAYING' && localTimeLeft >= 0 && (
+                        {(gameState.state === 'PLAYING' || gameState.state === 'STARTING') && localTimeLeft >= 0 && (
                             <motion.div
+                                key="main-timer"
                                 initial={{ opacity: 0, x: -50, scale: 0.8 }}
                                 animate={{ 
                                     opacity: 1, 
@@ -1497,7 +1634,7 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                                     filter: localTimeLeft <= 3 ? ["blur(0px)", "blur(1px)", "blur(0px)"] : "blur(0px)" 
                                 }}
                                 exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                                className="fixed bottom-12 left-12 z-[200] pointer-events-none"
+                                className="absolute bottom-12 left-12 z-[200] pointer-events-none"
                             >
                                 <div className="relative flex flex-col items-start select-none">
                                     <div className="flex items-center gap-3 mb-[-12px]">
@@ -1540,5 +1677,6 @@ export default function BombGame({ roomId: initialRoomId, guildId }: { roomId?: 
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
             `}</style>
         </div>
+        </BombErrorBoundary>
     );
 }

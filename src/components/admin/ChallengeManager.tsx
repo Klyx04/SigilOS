@@ -118,7 +118,7 @@ export default function ChallengeManager() {
                 <div className="relative flex-1 w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
-                        placeholder="Rechercher un challenge..."
+                        placeholder="Rechercher un succès..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-indigo-500/50"
@@ -129,7 +129,7 @@ export default function ChallengeManager() {
                     className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-900/20 transition-all font-medium"
                 >
                     <Plus className="w-4 h-4 mr-2" />
-                    Nouveau Challenge
+                    Nouveau Succès
                 </Button>
             </div>
 
@@ -194,10 +194,10 @@ export default function ChallengeManager() {
                         <DialogHeader>
                             <DialogTitle className="text-3xl font-black text-white flex items-center gap-4">
                                 <Trophy className="w-8 h-8 text-indigo-500" />
-                                {editing ? "Modifier le challenge" : "Nouveau challenge"}
+                                {editing ? "Modifier le succès" : "Nouveau succès"}
                             </DialogTitle>
                             <DialogDescription className="text-slate-400 text-lg">
-                                Configurez les détails du challenge et son icône représentative.
+                                Configurez les détails du succès et son icône représentative.
                             </DialogDescription>
                         </DialogHeader>
                     </div>
@@ -208,11 +208,11 @@ export default function ChallengeManager() {
                                 {/* Left Column: Info */}
                                 <div className="lg:col-span-7 space-y-10">
                                     <div className="space-y-8 bg-slate-900/30 p-8 rounded-3xl border border-slate-800/50">
-                                        <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-2">Configuration du Challenge</h3>
+                                        <h3 className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-2">Configuration du Succès</h3>
 
                                         <div className="space-y-6">
                                             <div className="space-y-3">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom du Challenge <span className="text-rose-500 text-lg">*</span></label>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom du Succès <span className="text-rose-500 text-lg">*</span></label>
                                                 <Input
                                                     value={formData.name}
                                                     onChange={(e) => {
@@ -230,7 +230,8 @@ export default function ChallengeManager() {
                                                 />
                                             </div>
 
-                                            <div className="space-y-3">
+                                            {/* Slug and description fields are hidden from UI as they are handled automatically or unused online */}
+                                            <div className="hidden space-y-3">
                                                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Identifiant (Slug)</label>
                                                 <Input
                                                     value={formData.slug}
@@ -241,7 +242,7 @@ export default function ChallengeManager() {
                                                 />
                                             </div>
 
-                                            <div className="space-y-3">
+                                            <div className="hidden space-y-3">
                                                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Description</label>
                                                 <textarea
                                                     value={formData.description || ""}
@@ -273,7 +274,7 @@ export default function ChallengeManager() {
 
                             <div className="flex gap-4 pt-6 border-t border-slate-800 sticky bottom-0 bg-slate-950 py-4 shrink-0">
                                 <Button type="submit" className="flex-[3] bg-indigo-600 hover:bg-indigo-500 h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all rounded-xl active:scale-[0.98]">
-                                    {editing ? "💾 Enregistrer" : "➕ Créer le Challenge"}
+                                    {editing ? "💾 Enregistrer" : "➕ Créer le Succès"}
                                 </Button>
                                 <Button
                                     type="button"

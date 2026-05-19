@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { db as prisma } from "@/lib/prisma";
 import path from "path";
+import { logger } from "@/lib/logger";
 
 const execAsync = promisify(exec);
 
@@ -24,23 +25,23 @@ export async function runV3Siphoner(slug: string): Promise<ActionResponse> {
     if (!isAdmin) return { success: false, error: "Non autorisé" };
 
     try {
-        console.log(`[V3_SIPHONER] Starting for ${slug}...`);
+        logger.info(`[V3_SIPHONER] Starting siphoner for slug: ${slug}...`);
         
         // On utilise la version JS buildée pour éviter les lenteurs tsx en runtime action
         const scriptPath = path.join(process.cwd(), "scripts", "v3", "multi-source-siphoner.js");
         const { stdout, stderr } = await execAsync(`node ${scriptPath} ${slug}`);
         
         if (stderr && !stdout) {
-            console.error(`[V3_SIPHONER] Error for ${slug}:`, stderr);
+            logger.error(`[V3_SIPHONER] Error for slug: ${slug}`, { stderr });
             return { success: false, error: stderr };
         }
 
-        console.log(`[V3_SIPHONER] Success for ${slug}:`, stdout);
+        logger.info(`[V3_SIPHONER] Success for slug: ${slug}`, { stdout });
         revalidatePath("/god/quetes-dofus");
         
         return { success: true };
     } catch (error: any) {
-        console.error(`[V3_SIPHONER] Fatal error for ${slug}:`, error.message);
+        logger.error(`[V3_SIPHONER] Fatal error for slug: ${slug}`, { error: error.message });
         return { success: false, error: error.message };
     }
 }

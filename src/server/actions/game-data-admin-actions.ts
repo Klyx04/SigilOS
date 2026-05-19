@@ -40,6 +40,8 @@ const DungeonFormSchema = z.object({
     bossName: z.string().min(1, "Nom du boss requis").max(150),
     level: z.number().min(1, "Niveau invalide").max(1000),
     dpnlUrl: z.string().optional().or(z.literal("")),
+    dofuspourlesnoobsUrl: z.string().optional().or(z.literal("")),
+    dofensiveUrl: z.string().optional().or(z.literal("")),
     imageUrl: z.string().optional().or(z.literal("")),
     isExpedition: z.boolean().default(false),
     expeditionModes: z.array(z.enum(["BRAVOURE", "AUDACE", "NORMAL"])).optional(),
@@ -63,33 +65,54 @@ async function requireSuperAdmin(): Promise<string | null> {
 // MONSTER FAMILIES
 // ===========================
 
-const FamilyFilterSchema = z.object({
-    zoneId: z.string().optional(),
+const CommonFilterSchema = z.object({
     search: z.string().optional(),
+    minLevel: z.number().optional(),
+    maxLevel: z.number().optional(),
+});
+
+const FamilyFilterSchema = CommonFilterSchema.extend({
+    zoneId: z.string().optional(),
 });
 
 export async function getMonsterFamilies(
     filters: z.infer<typeof FamilyFilterSchema> = {}
 ): Promise<ActionResponse<any[]>> {
     try {
+        const validated = FamilyFilterSchema.parse(filters);
         const whereClause: any = {};
 
-        if (filters.zoneId) {
-            whereClause.zones = { some: { id: filters.zoneId } };
+        if (validated.zoneId) {
+            whereClause.zones = { some: { id: validated.zoneId } };
         }
 
-        if (filters.search) {
-            whereClause.name = { contains: filters.search, mode: 'insensitive' };
+        if (validated.search) {
+            whereClause.name = { contains: validated.search, mode: 'insensitive' };
+        }
+
+        if (validated.minLevel !== undefined || validated.maxLevel !== undefined) {
+            const levelFilter: any = {};
+            if (typeof validated.minLevel === 'number') levelFilter.gte = validated.minLevel;
+            if (typeof validated.maxLevel === 'number') levelFilter.lte = validated.maxLevel;
+            
+            if (Object.keys(levelFilter).length > 0) {
+                whereClause.level = levelFilter;
+            }
         }
 
         const families = await db.monsterFamily.findMany({
             where: whereClause,
-            include: {
+            select: {
+                id: true,
+                name: true,
+                level: true,
+                description: true,
+                imageUrl: true,
                 _count: { select: { monsters: true } },
                 zones: { select: { id: true, name: true } }
             },
-            take: filters.search ? 20 : 100, // Limit results if searching
-            orderBy: { level: 'asc' }
+            take: validated.search ? 20 : 100,
+            orderBy: { name: 'asc' } // Changed order to name to see if level sorting was the issue
         });
         return { success: true, data: families };
     } catch (error) {
@@ -273,9 +296,29 @@ export async function deleteChallenge(id: string): Promise<ActionResponse> {
 // DUNGEONS
 // ===========================
 
-export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[]>> {
+export async function getDungeonsWithAchievements(
+    filters: z.infer<typeof CommonFilterSchema> = {}
+): Promise<ActionResponse<any[]>> {
     try {
+        const validated = CommonFilterSchema.parse(filters);
+        const whereClause: any = {};
+
+        if (validated.search) {
+            whereClause.OR = [
+                { name: { contains: validated.search, mode: 'insensitive' } },
+                { bossName: { contains: validated.search, mode: 'insensitive' } }
+            ];
+        }
+
+        if (validated.minLevel !== undefined || validated.maxLevel !== undefined) {
+            const levelFilter: any = {};
+            if (typeof validated.minLevel === 'number') levelFilter.gte = validated.minLevel;
+            if (typeof validated.maxLevel === 'number') levelFilter.lte = validated.maxLevel;
+            if (Object.keys(levelFilter).length > 0) whereClause.level = levelFilter;
+        }
+
         const dungeons = await db.dungeon.findMany({
+            where: whereClause,
             include: {
                 achievements: {
                     include: { challenge: true },
@@ -305,6 +348,8 @@ export async function createDungeon(
             data: {
                 ...dungeonData,
                 dpnlUrl: dungeonData.dpnlUrl || null,
+                dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
+                dofensiveUrl: dungeonData.dofensiveUrl || null,
                 imageUrl: dungeonData.imageUrl || null,
                 expeditionModes: (dungeonData.expeditionModes || null) as any,
                 expeditionMechanics: dungeonData.expeditionMechanics || null,
@@ -351,6 +396,8 @@ export async function updateDungeon(
                 data: {
                     ...dungeonData,
                     dpnlUrl: dungeonData.dpnlUrl || null,
+                    dofuspourlesnoobsUrl: dungeonData.dofuspourlesnoobsUrl || null,
+                    dofensiveUrl: dungeonData.dofensiveUrl || null,
                     imageUrl: dungeonData.imageUrl || null,
                     expeditionModes: (dungeonData.expeditionModes || null) as any,
                     expeditionMechanics: dungeonData.expeditionMechanics || null,
@@ -772,9 +819,26 @@ export async function searchDungeons(query: string = ""): Promise<ActionResponse
     }
 }
 
-export async function getAdminZones(): Promise<ActionResponse<any[]>> {
+export async function getAdminZones(
+    filters: z.infer<typeof CommonFilterSchema> = {}
+): Promise<ActionResponse<any[]>> {
     try {
+        const validated = CommonFilterSchema.parse(filters);
+        const whereClause: any = {};
+
+        if (validated.search) {
+            whereClause.name = { contains: validated.search, mode: 'insensitive' };
+        }
+
+        if (validated.minLevel !== undefined || validated.maxLevel !== undefined) {
+            const levelFilter: any = {};
+            if (typeof validated.minLevel === 'number') levelFilter.gte = validated.minLevel;
+            if (typeof validated.maxLevel === 'number') levelFilter.lte = validated.maxLevel;
+            if (Object.keys(levelFilter).length > 0) whereClause.level = levelFilter;
+        }
+
         const zones = await db.zone.findMany({
+            where: whereClause,
             include: {
                 families: true,
                 dungeons: true

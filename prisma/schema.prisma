@@ -130,6 +130,8 @@ model PlatformConfig {
   godNotifyWebEnabled    Boolean  @default(true)
   geoguesserReportedMaps Int[]    @default([])
   donationsEnabled       Boolean  @default(true)
+  maintenanceMode        Boolean  @default(false)
+  maintenanceMessage     String?
 }
 
 model GodNotification {
@@ -176,6 +178,7 @@ model GuildConfig {
   updatedAt                        DateTime                @updatedAt
   absenceChannelId                 String?
   calendarNotifyChannelId          String?
+  userRequestChannelId             String?
   dofusServerId                    String?
   dofusServerName                  String?
   presentationActivities           Json?
@@ -206,6 +209,7 @@ model GuildConfig {
   ownerId                          String?
   missionNotifyChannelId           String?
   missionNotifyRoleId              String?
+  missionDiscordMessageId          String?
   pollsNotifyChannelId             String?
   pollsNotifyRoleId                String?
   ocreNotifyChannelId              String?
@@ -213,6 +217,7 @@ model GuildConfig {
   servicesNotifyChannelId          String?
   loansNotifyChannelId             String?
   systemNotifyChannelId            String?
+  lifecycleNotifyChannelId         String?
   welcomeEnabled                   Boolean                 @default(false)
   welcomeNotifyChannelId           String?
   welcomeDashboardEnabled          Boolean                 @default(true)
@@ -238,6 +243,9 @@ model GuildConfig {
   missionManagementNotifyChannelId String?
   missionManagementNotifyRoleId    String?
   newsBroadcastEnabled             Boolean                 @default(false)
+  guildHallPosX                    Int?
+  guildHallPosY                    Int?
+  guildHallWorldId                 Int?                    @default(1)
   guildatonAdminChannelId          String?
   guildatonNotifyChannelId         String?
   guildatonReminderDay             Int?                    @default(0)
@@ -272,6 +280,10 @@ model GuildConfig {
   sigilRoles                       SigilRole[]
   profiles                         UserProfile[]
   vaultEntries                     VaultEntry[]
+  allowedPingRoleIds               String[]                @default([])
+  calendarPingRoleIds              String[]                @default([])
+  djPingRoleIds                    String[]                @default([])
+  songesPingRoleIds                String[]                @default([])
 }
 
 model UserSkin {
@@ -411,6 +423,7 @@ model UserProfile {
   vacationEnd                DateTime?
   vacationNotify             Boolean                    @default(false)
   vacationStart              DateTime?
+  vacationReason             String?
   xp                         Int                        @default(0)
   metamobQuestSlug           String?
   metamobServerId            Int?
@@ -426,6 +439,9 @@ model UserProfile {
   ocreProgressSnapshot       Json?
   dofusLevel                 Int?                       @default(0)
   totalXp                    BigInt?                    @default(0)
+  alignment                  String?
+  alignmentOrder             String?
+  alignmentLevel             Int?                       @default(0)
   ankamaId                   String?
   discordMessageCountWeekly  Int                        @default(0)
   discordVoiceTimeWeekly     Int                        @default(0)
@@ -437,6 +453,19 @@ model UserProfile {
   discordMessageCountTotal   Int                        @default(0)
   discordVoiceTimeMonthly    Int                        @default(0)
   discordVoiceTimeTotal      Int                        @default(0)
+  // Advanced Discord tracking
+  discordCharactersWeekly    Int                        @default(0)
+  discordCharactersMonthly   Int                        @default(0)
+  discordCharactersTotal      Int                        @default(0)
+  discordReactionsReceivedWeekly Int                    @default(0)
+  discordReactionsReceivedMonthly Int                   @default(0)
+  discordReactionsReceivedTotal Int                     @default(0)
+  discordVoiceStreamTimeWeekly Int                      @default(0)
+  discordVoiceStreamTimeMonthly Int                     @default(0)
+  discordVoiceStreamTimeTotal  Int                        @default(0)
+  discordRepliesWeekly       Int                        @default(0)
+  discordRepliesMonthly      Int                        @default(0)
+  discordRepliesTotal        Int                        @default(0)
   archiveDuration            Int?
   reactivationRequestReason  String?
   reactivationRequestedAt    DateTime?
@@ -466,6 +495,8 @@ model UserProfile {
   submissions                Submission[]
   userDungeonAchievements    UserDungeonAchievement[]
   dungeonProgress            UserDungeonProgress[]
+  legendaryCrafts            LegendaryItem[]            @relation("LegendaryCrafters")
+  playerGuideProgress        PlayerGuideProgress[]
   guild                      GuildConfig                @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   skins                      UserSkin[]
@@ -475,6 +506,22 @@ model UserProfile {
   @@unique([userId, guildId])
   @@index([guildId])
   @@index([userId])
+}
+
+model LegendaryItem {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  level       Int      @default(200)
+  category    String   // Chapeau, Cape, Bouclier, etc.
+  jobRequired String   // Tailleur, Bijoutier, Forgeur, Cordonnier, Façonneur
+  passiveName String?
+  passiveDesc String?
+  effects     Json?    // Liste des stats (Force, Intel, etc.)
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  crafters    UserProfile[] @relation("LegendaryCrafters")
 }
 
 model Mission {
@@ -558,27 +605,32 @@ model AchievementSubmission {
 }
 
 model Dungeon {
-  id                  String                @id @default(cuid())
-  name                String
-  bossName            String
-  level               Int
-  dpnlUrl             String?
-  imageUrl            String?
-  createdAt           DateTime              @default(now())
-  expeditionMechanics String?
-  expeditionModes     Json?
-  isExpedition        Boolean               @default(false)
-  updatedAt           DateTime              @updatedAt
-  isEventDungeon      Boolean               @default(false)
-  djSearchPosts       DjSearchPost[]
-  achievements        DungeonAchievement[]
-  userProgress        UserDungeonProgress[]
-  zones               Zone[]                @relation("DungeonToZone")
+  id                   String                @id @default(cuid())
+  name                 String
+  bossName             String
+  level                Int
+  dpnlUrl              String?
+  dofuspourlesnoobsUrl String?
+  dofensiveUrl         String?
+  imageUrl             String?
+  createdAt            DateTime              @default(now())
+  expeditionMechanics  String?
+  expeditionModes      Json?
+  isExpedition         Boolean               @default(false)
+  updatedAt            DateTime              @updatedAt
+  isEventDungeon       Boolean               @default(false)
+  dofusdbId            Int?                  // Identifiant DofusDB pour croisement avec les données du jeu
+  djSearchPosts        DjSearchPost[]
+  achievements         DungeonAchievement[]
+  userProgress         UserDungeonProgress[]
+  zones                Zone[]                @relation("DungeonToZone")
+  milestoneSequences   GuideSequence[]       // Donjons référencés dans les séquences du guide
 
   @@unique([name, bossName])
   @@index([level])
   @@index([isExpedition])
   @@index([isEventDungeon])
+  @@index([dofusdbId])
 }
 
 model Zone {
@@ -615,6 +667,7 @@ model Bounty {
   rewardType String   @default("Doplon")
   mapUrl     String?
   rewards    Json?    @default("[]")
+  position   String?
 
   @@index([name])
   @@index([zoneName])
@@ -753,6 +806,11 @@ model DreamRunMember {
   run      DreamRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  linkedStuffId        String?
+  linkedStuffName      String?
+  linkedStuffThumbnail String?
+  linkedStuffUrl       String?
+
   @@unique([runId, userId])
   @@unique([runId, slot])
 }
@@ -809,6 +867,11 @@ model DreamJoinRequest {
   discordMessageId String?
   run              DreamRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  linkedStuffId        String?
+  linkedStuffName      String?
+  linkedStuffThumbnail String?
+  linkedStuffUrl       String?
 
   @@unique([runId, userId])
   @@index([runId, status])
@@ -1106,6 +1169,7 @@ model DjSearchPost {
   updatedAt            DateTime              @updatedAt
   closedAt             DateTime?
   expiresAt            DateTime
+  lastReminderAt       DateTime?
   isDiscordPublished   Boolean               @default(false)
   questId              Int?
   requiredClasses      String[]
@@ -1792,6 +1856,8 @@ model GuildatonHistory {
   @@index([createdAt])
 }
 
+// ─── Guide Optimisé — Arbre de Progression ───────────────────────────────────
+
 model OptimizedGuide {
   id          String               @id @default(cuid())
   slug        String               @unique
@@ -1802,6 +1868,7 @@ model OptimizedGuide {
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   steps       OptimizedGuideStep[]
+  milestones  GuideMilestone[]     // Nouveaux noeuds de l'arbre de progression
 }
 
 model OptimizedGuideStep {
@@ -1817,6 +1884,116 @@ model OptimizedGuideStep {
 
   @@index([guideId])
   @@index([guideId, order])
+}
+
+// Noeud de l'arbre de progression : représente un objectif majeur du jeu
+// (ex: Dofus Argenté, Alignement, Tour du Monde...)
+model GuideMilestone {
+  id              String               @id @default(cuid())
+  guideId         String
+  type            GuideMilestoneType
+  title           String               // ex: "Dofus Argenté"
+  subtitle        String?              // ex: "Compléter Incarnam & Astrub"
+  description     String?              // Texte de présentation affiché dans le panneau
+  chapter         Int                  // Regroupement visuel (1 à 7)
+  chapterLabel    String               // ex: "Chapitre 1 — Premiers Pas"
+  imageUrl        String?              // Image du récompense (item DofusDB)
+  accentColor     String?              // Couleur hex du noeud sur l'arbre
+  posX            Float                @default(0) // Position X dans le canvas
+  posY            Float                @default(0) // Position Y dans le canvas
+  isOptional      Boolean              @default(false)
+  prerequisiteIds String[]             @default([]) // IDs de milestones requis avant celui-ci
+  order           Int                  @default(0)  // Ordre global pour le tri
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  guide           OptimizedGuide       @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  sequences       GuideSequence[]      // Étapes ordonnées à réaliser pour atteindre ce milestone
+  playerProgress  PlayerGuideProgress[]
+
+  @@index([guideId])
+  @@index([guideId, chapter, order])
+  @@index([type])
+}
+
+// Une séquence = un bloc de travail dans un sous-guide à réaliser
+// pour atteindre le milestone parent
+// ex: "Faire les étapes 1 à 25 de [GP1] Incarnam & Astrub"
+model GuideSequence {
+  id          String   @id @default(cuid())
+  milestoneId String
+  order       Int      // Ordre d'exécution dans la séquence
+
+  // Identification du sous-guide source
+  subGuideRef  String   // Code interne du sous-guide (ex: "GP1", "GP2")
+  subGuideName String   // Nom lisible (ex: "Incarnam & Astrub")
+  stepFrom     Int?     // Étape de départ dans le sous-guide
+  stepTo       Int?     // Étape de fin dans le sous-guide
+  isPartial    Boolean  @default(true)  // true = portion du guide, false = guide entier
+  isOptional   Boolean  @default(false)
+  note         String?  // Avertissement ou conseil (ex: "Ne pas cliquer le Portail !")
+  isResume     Boolean  @default(false) // true = on reprend après interruption
+
+  // Lien optionnel vers un donjon de notre base existante
+  dungeonId    String?
+  dungeon      Dungeon? @relation(fields: [dungeonId], references: [id], onDelete: SetNull)
+
+  // Métadonnées de jeu extraites du guide
+  // Donjons à faire (dofusdbIds), quêtes associées (dofusdbIds)
+  dungeonDbIds Int[]    @default([])   // dofusdbId des donjons concernés
+  questDbIds   Int[]    @default([])   // dofusdbId des quêtes concernées
+  mapPositions Json?    @default("[]") // Positions cliquables [{x, y, label}]
+
+  createdAt   DateTime      @default(now())
+  milestone   GuideMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@index([milestoneId])
+  @@index([milestoneId, order])
+  @@index([dungeonId])
+}
+
+// Progression d'un membre sur un milestone donné
+model PlayerGuideProgress {
+  id          String         @id @default(cuid())
+  profileId   String
+  milestoneId String
+  isCompleted Boolean        @default(false)
+  completedAt DateTime?
+  completedSteps Json?       @default("[]")
+  notes       String?        // Note personnelle du membre
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  profile     UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  milestone   GuideMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, milestoneId])
+  @@index([profileId])
+  @@index([milestoneId])
+}
+
+enum GuideMilestoneType {
+  DOFUS         // Obtention d'un Dofus
+  ZONE          // Débloquer une zone/région
+  DONJON        // Compléter un donjon clé
+  QUETE_SERIE   // Série de quêtes majeures
+  ALIGNEMENT    // Progression d'alignement
+  PREREQUIS     // Prérequis technique (non visible dans l'arbre principal)
+}
+
+// Stocke le JSON complet d'un sous-guide Ganymède (GP1, GP2, etc.)
+// Permet d'afficher les étapes détaillées quand un membre consulte une séquence
+model SubGuideData {
+  id          String   @id @default(cuid())
+  guideRef    String   @unique // "GP1", "GP2", "GP3"... Clé de lookup
+  ganymadeId  Int      @unique // ID numérique sur ganymede-app.com
+  guideName   String           // "[GP1] Incarnam & Astrub"
+  totalSteps  Int      @default(0)
+  steps       Json             // Array of { id, stepNumber, web_text, pos_x, pos_y }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([guideRef])
 }
 
 enum GodNotifyType {

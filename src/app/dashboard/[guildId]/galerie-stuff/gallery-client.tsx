@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
+import { DofusroomPreview } from "@/components/dofus/dofusroom-preview";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -64,6 +65,7 @@ export function GalleryClient({
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
     const [selectedGender, setSelectedGender] = useState<string | null>(null);
+    const [selectedSource, setSelectedSource] = useState<"dofusbook" | "dofusroom" | null>(null);
     const [sortBy, setSortBy] = useState<"newest" | "votes">("newest");
     
     const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
@@ -76,12 +78,20 @@ export function GalleryClient({
     const debouncedSearch = useDebounce(searchQuery, 300);
 
     // Reset and re-fetch from page 1 when filters change
-    const applyFilters = useCallback((query: string, tag: string | null, classId: string | null, gender: string | null, sortKey: "newest" | "votes", tab: "STUFF" | "SKIN") => {
+    const applyFilters = useCallback((
+        query: string, 
+        tag: string | null, 
+        classId: string | null, 
+        gender: string | null, 
+        sortKey: "newest" | "votes", 
+        tab: "STUFF" | "SKIN",
+        source: "dofusbook" | "dofusroom" | null
+    ) => {
         const runFilters = async () => {
             setIsLoading(true);
             try {
                 if (tab === "STUFF") {
-                    const res = await getStuffGalleryPage(guildId, 1, query || undefined, tag || undefined, classId || undefined, sortKey);
+                    const res = await getStuffGalleryPage(guildId, 1, query || undefined, tag || undefined, classId || undefined, sortKey, source || undefined);
                     if (res.success && res.data) {
                         setStuffBuilds(res.data.builds);
                         setStuffTotal(res.data.total);
@@ -113,29 +123,34 @@ export function GalleryClient({
     // Use debounced search to trigger filtering
     useEffect(() => {
         if (debouncedSearch !== undefined) {
-            applyFilters(debouncedSearch, selectedTag, selectedClass, selectedGender, sortBy, activeTab);
+            applyFilters(debouncedSearch, selectedTag, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
         }
-    }, [debouncedSearch, selectedTag, selectedClass, selectedGender, sortBy, activeTab, applyFilters]);
+    }, [debouncedSearch, selectedTag, selectedClass, selectedGender, sortBy, activeTab, selectedSource, applyFilters]);
 
     const handleTagChange = (tag: string | null) => {
         setSelectedTag(tag);
-        applyFilters(searchQuery, tag, selectedClass, selectedGender, sortBy, activeTab);
+        applyFilters(searchQuery, tag, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
     };
 
     const handleClassChange = (classId: string | number | null) => {
         const idStr = classId !== null ? String(classId) : null;
         setSelectedClass(idStr);
-        applyFilters(searchQuery, selectedTag, idStr, selectedGender, sortBy, activeTab);
+        applyFilters(searchQuery, selectedTag, idStr, selectedGender, sortBy, activeTab, selectedSource);
     };
 
     const handleGenderChange = (gender: string | null) => {
         setSelectedGender(gender);
-        applyFilters(searchQuery, selectedTag, selectedClass, gender, sortBy, activeTab);
+        applyFilters(searchQuery, selectedTag, selectedClass, gender, sortBy, activeTab, selectedSource);
+    };
+
+    const handleSourceChange = (source: "dofusbook" | "dofusroom" | null) => {
+        setSelectedSource(source);
+        applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, sortBy, activeTab, source);
     };
     
     const handleSortChange = (newSort: "newest" | "votes") => {
         setSortBy(newSort);
-        applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, newSort, activeTab);
+        applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, newSort, activeTab, selectedSource);
     };
 
     const handleTabChange = (newTab: "STUFF" | "SKIN") => {
@@ -144,7 +159,8 @@ export function GalleryClient({
         setSelectedTag(null);
         setSelectedClass(null);
         setSelectedGender(null);
-        applyFilters(searchQuery, null, null, null, sortBy, newTab);
+        setSelectedSource(null);
+        applyFilters(searchQuery, null, null, null, sortBy, newTab, null);
     };
 
     // Infinite scroll: load next page
@@ -160,7 +176,8 @@ export function GalleryClient({
                         searchQuery || undefined, 
                         selectedTag || undefined,
                         selectedClass || undefined,
-                        sortBy
+                        sortBy,
+                        selectedSource || undefined
                     );
                     if (res.success && res.data) {
                         setStuffBuilds(prev => [...prev, ...res.data!.builds]);
@@ -200,7 +217,7 @@ export function GalleryClient({
             const res = await refreshBuildMetadata(guildId, build.author.id, build.url);
             if (res.success) {
                 toast.success("Build mis à jour !");
-                applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, sortBy, activeTab);
+                applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, sortBy, activeTab, selectedSource);
             } else {
                 toast.error(res.error || "Échec du rafraîchissement");
             }
@@ -437,7 +454,7 @@ export function GalleryClient({
                                                     selectedTag === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
                                                 )}
                                             >
-                                                {tag.text}
+                                                {tag.label}
                                             </button>
                                         );
                                     })}
@@ -448,6 +465,39 @@ export function GalleryClient({
                                 {/* 3. Advanced / Specialities */}
                                 <div className="flex items-center bg-black/40 p-1 rounded-2xl border border-white/5">
                                     <AdvancedTagFilter selectedTag={selectedTag} onSelectTag={handleTagChange} />
+                                </div>
+
+                                <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
+
+                                {/* 4. Source Filter */}
+                                <div className="flex items-center bg-black/40 p-1 rounded-2xl border border-white/5 gap-1">
+                                    <button
+                                        onClick={() => handleSourceChange(null)}
+                                        className={cn(
+                                            "h-8 px-3 rounded-xl text-[11px] font-black transition-all shrink-0",
+                                            !selectedSource ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                                        )}
+                                    >
+                                        Tous sites
+                                    </button>
+                                    <button
+                                        onClick={() => handleSourceChange("dofusbook")}
+                                        className={cn(
+                                            "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                            selectedSource === "dofusbook" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-zinc-500 hover:text-emerald-400 hover:bg-white/10"
+                                        )}
+                                    >
+                                        Dofusbook
+                                    </button>
+                                    <button
+                                        onClick={() => handleSourceChange("dofusroom")}
+                                        className={cn(
+                                            "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
+                                            selectedSource === "dofusroom" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-zinc-500 hover:text-sky-400 hover:bg-white/10"
+                                        )}
+                                    >
+                                        DofusRoom
+                                    </button>
                                 </div>
                             </>
                         )}
@@ -485,11 +535,11 @@ export function GalleryClient({
                                 <span className="text-white font-black">{activeTab === "STUFF" ? stuffBuilds.length : skinBuilds.length}</span>
                                 <span> sur {activeTab === "STUFF" ? stuffTotal : skinTotal} item{ (activeTab === "STUFF" ? stuffTotal : skinTotal) !== 1 ? "s" : ""}</span>
                             </p>
-                            {(searchQuery || selectedTag || selectedClass || selectedGender) ? (
+                            {(searchQuery || selectedTag || selectedClass || selectedGender || selectedSource) ? (
                                 <>
                                     <div className="w-px h-4 bg-white/10 shrink-0" />
                                     <button
-                                        onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); setSelectedGender(null); applyFilters("", null, null, null, sortBy, activeTab); }}
+                                        onClick={() => { setSearchQuery(""); setSelectedTag(null); setSelectedClass(null); setSelectedGender(null); setSelectedSource(null); applyFilters("", null, null, null, sortBy, activeTab, null); }}
                                         className="text-[10px] text-zinc-400 hover:text-white transition-colors font-bold uppercase tracking-widest flex items-center gap-1 shrink-0"
                                     >
                                         <RefreshCw className="w-3 h-3" /> Reset
@@ -511,7 +561,11 @@ export function GalleryClient({
                         stuffBuilds.map((build) => (
                             <div key={build.id} className="group/card flex flex-col gap-3">
                                 <div className="relative">
-                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} />
+                                    {build.source === "dofusroom" ? (
+                                        <DofusroomPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} />
+                                    ) : (
+                                        <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} />
+                                    )}
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent transition-all duration-300 rounded-2xl flex flex-col justify-end p-4 z-10 pointer-events-none">
                                         <div className="flex items-center justify-end gap-2">
@@ -519,7 +573,7 @@ export function GalleryClient({
                                                 onClick={(e) => { e.stopPropagation(); handleRefresh(build); }}
                                                 disabled={refreshingIds.has(build.id)}
                                                 className="p-1.5 bg-zinc-800/90 rounded-lg text-white hover:bg-zinc-700 transition-colors shadow-lg pointer-events-auto disabled:opacity-50"
-                                                title="Actualiser depuis Dofusbook"
+                                                title={build.source === "dofusroom" ? "Actualiser depuis DofusRoom" : "Actualiser depuis Dofusbook"}
                                             >
                                                 <RefreshCw className={cn("w-3.5 h-3.5", refreshingIds.has(build.id) && "animate-spin")} />
                                             </button>
@@ -585,6 +639,14 @@ export function GalleryClient({
                                             Par <span className="text-zinc-300 font-bold">{build.author.name}</span>
                                         </span>
                                     </div>
+                                    <span className={cn(
+                                        "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
+                                        build.source === "dofusroom"
+                                            ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                            : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                    )}>
+                                        {build.source === "dofusroom" ? "DofusRoom" : "DofusBook"}
+                                    </span>
                                 </div>
                             </div>
                         ))

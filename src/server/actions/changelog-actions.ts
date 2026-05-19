@@ -321,10 +321,41 @@ export async function updatePlatformConfig(data: {
         revalidatePath('/');
         revalidatePath('/god');
         revalidatePath('/god/roadmap');
+        revalidatePath('/maintenance');
         return { success: true, config };
     } catch (e) {
         console.error('[updatePlatformConfig]', e);
         return { success: false, error: "Erreur écriture config" };
+    }
+}
+
+/**
+ * Toggle maintenance mode on/off (GOD only).
+ */
+export async function toggleMaintenanceMode(enabled: boolean, message?: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    try {
+        await (db.platformConfig as any).upsert({
+            where: { id: "singleton" },
+            update: { 
+                maintenanceMode: enabled,
+                ...(message !== undefined && { maintenanceMessage: message || null })
+            },
+            create: {
+                id: "singleton",
+                maintenanceMode: enabled,
+                maintenanceMessage: message || null,
+            }
+        });
+        revalidatePath('/');
+        revalidatePath('/maintenance');
+        revalidatePath('/god');
+        return { success: true };
+    } catch (e) {
+        console.error('[toggleMaintenanceMode]', e);
+        return { success: false, error: "Erreur maintenance" };
     }
 }
 
@@ -339,6 +370,31 @@ export async function testStatusPing(channelId?: string) {
         return await sendGlobalStatusPing(true, 'notification', undefined, channelId);
     } catch (e: any) {
         console.error('[testStatusPing]', e);
+        return { success: false, error: e.message || "Erreur interne" };
+    }
+}
+
+export async function testBackupNotification(channelId?: string) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    try {
+        const { notifyGod } = await import("./god-notif-actions");
+        return await notifyGod({
+            title: "Sauvegarde Système (TEST)",
+            message: "Ceci est une notification de test pour vérifier le bon fonctionnement du flux R2 / Cloudflare.",
+            type: "SYSTEM",
+            success: true,
+            forceChannelId: channelId, // New parameter to override DB config during test
+            metadata: {
+                target: "R2_BUCKET_TEST",
+                size: "42.5 MB",
+                duration: "1.2s",
+                mode: "MANUAL_TEST"
+            }
+        });
+    } catch (e: any) {
+        console.error('[testBackupNotification]', e);
         return { success: false, error: e.message || "Erreur interne" };
     }
 }

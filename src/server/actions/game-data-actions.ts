@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import fs from 'fs';
 import path from 'path';
+import { logger } from "@/lib/logger";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -18,7 +19,7 @@ export async function getDungeons(): Promise<ActionResponse<any[]>> {
         const dungeons = await db.dungeon.findMany({ orderBy: { level: 'asc' } });
         return { success: true, data: dungeons };
     } catch (error) {
-        console.error('[getDungeons] Error:', error);
+        logger.error('[getDungeons] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement des donjons' };
     }
 }
@@ -31,7 +32,7 @@ export async function getZones(): Promise<ActionResponse<any[]>> {
         });
         return { success: true, data: zones };
     } catch (error) {
-        console.error('[getZones] Error:', error);
+        logger.error('[getZones] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement des zones' };
     }
 }
@@ -41,7 +42,7 @@ export async function getFamilyMonsters(familyId: string): Promise<ActionRespons
         const monsters = await db.monster.findMany({ where: { familyId }, orderBy: { name: 'asc' } });
         return { success: true, data: monsters };
     } catch (error) {
-        console.error('[getFamilyMonsters] Error:', error);
+        logger.error('[getFamilyMonsters] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement des monstres' };
     }
 }
@@ -56,7 +57,7 @@ export async function searchDungeons(query: string): Promise<ActionResponse<any[
         });
         return { success: true, data: dungeons };
     } catch (error) {
-        console.error('[searchDungeons] Error:', error);
+        logger.error('[searchDungeons] Error:', { error });
         return { success: false, error: 'Erreur lors de la recherche' };
     }
 }
@@ -74,7 +75,7 @@ export async function getMonsterFamilies(filters: { zoneId?: string; search?: st
         });
         return { success: true, data: families };
     } catch (error) {
-        console.error('[getMonsterFamilies] Error:', error);
+        logger.error('[getMonsterFamilies] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement des familles' };
     }
 }
@@ -92,7 +93,7 @@ export async function searchZones(query: string = "", eventOnly: boolean = false
         });
         return { success: true, data: zones };
     } catch (error) {
-        console.error('[searchZones] Error:', error);
+        logger.error('[searchZones] Error:', { error });
         return { success: false, error: 'Erreur recherche zones' };
     }
 }
@@ -105,7 +106,7 @@ export async function getDungeonsWithAchievements(): Promise<ActionResponse<any[
         });
         return { success: true, data: dungeons };
     } catch (error) {
-        console.error('[getDungeonsWithAchievements] Error:', error);
+        logger.error('[getDungeonsWithAchievements] Error:', { error });
         return { success: false, error: 'Erreur lors du chargement' };
     }
 }
@@ -139,7 +140,7 @@ export async function searchDungeonsAdvanced(filters: {
         });
         return { success: true, data: dungeons };
     } catch (error) {
-        console.error('[searchDungeonsAdvanced] Error:', error);
+        logger.error('[searchDungeonsAdvanced] Error:', { error });
         return { success: false, error: 'Erreur lors de la recherche' };
     }
 }
@@ -156,7 +157,7 @@ export async function getEventZones(): Promise<ActionResponse<any[]>> {
         });
         return { success: true, data: zones };
     } catch (error) {
-        console.error('[getEventZones] Error:', error);
+        logger.error('[getEventZones] Error:', { error });
         return { success: false, error: 'Erreur chargement zones événements' };
     }
 }
@@ -179,7 +180,7 @@ export async function upsertEventZone(data: {
         });
         return { success: true, data: zone };
     } catch (error) {
-        console.error('[upsertEventZone] Error:', error);
+        logger.error('[upsertEventZone] Error:', { error });
         return { success: false, error: 'Erreur création/mise à jour de la zone' };
     }
 }
@@ -191,7 +192,7 @@ export async function deleteEventZone(zoneId: string): Promise<ActionResponse> {
         await db.zone.delete({ where: { id: zoneId } });
         return { success: true };
     } catch (error) {
-        console.error('[deleteEventZone] Error:', error);
+        logger.error('[deleteEventZone] Error:', { error });
         return { success: false, error: 'Erreur suppression zone' };
     }
 }
@@ -203,7 +204,7 @@ export async function linkFamilyToZone(zoneId: string, familyId: string): Promis
         await db.zone.update({ where: { id: zoneId }, data: { families: { connect: { id: familyId } } } });
         return { success: true };
     } catch (error) {
-        console.error('[linkFamilyToZone] Error:', error);
+        logger.error('[linkFamilyToZone] Error:', { error });
         return { success: false, error: 'Erreur liaison famille' };
     }
 }
@@ -215,7 +216,7 @@ export async function unlinkFamilyFromZone(zoneId: string, familyId: string): Pr
         await db.zone.update({ where: { id: zoneId }, data: { families: { disconnect: { id: familyId } } } });
         return { success: true };
     } catch (error) {
-        console.error('[unlinkFamilyFromZone] Error:', error);
+        logger.error('[unlinkFamilyFromZone] Error:', { error });
         return { success: false, error: 'Erreur déliaison famille' };
     }
 }
@@ -228,7 +229,7 @@ export async function linkDungeonToZone(zoneId: string, dungeonId: string): Prom
         await db.dungeon.update({ where: { id: dungeonId }, data: { isEventDungeon: true } });
         return { success: true };
     } catch (error) {
-        console.error('[linkDungeonToZone] Error:', error);
+        logger.error('[linkDungeonToZone] Error:', { error });
         return { success: false, error: 'Erreur liaison donjon' };
     }
 }
@@ -240,7 +241,7 @@ export async function unlinkDungeonFromZone(zoneId: string, dungeonId: string): 
         await db.zone.update({ where: { id: zoneId }, data: { dungeons: { disconnect: { id: dungeonId } } } });
         return { success: true };
     } catch (error) {
-        console.error('[unlinkDungeonFromZone] Error:', error);
+        logger.error('[unlinkDungeonFromZone] Error:', { error });
         return { success: false, error: 'Erreur déliaison donjon' };
     }
 }
@@ -252,7 +253,7 @@ export async function toggleEventDungeon(dungeonId: string, isEvent: boolean): P
         await db.dungeon.update({ where: { id: dungeonId }, data: { isEventDungeon: isEvent } });
         return { success: true };
     } catch (error) {
-        console.error('[toggleEventDungeon] Error:', error);
+        logger.error('[toggleEventDungeon] Error:', { error });
         return { success: false, error: 'Erreur mise à jour donjon' };
     }
 }
@@ -262,6 +263,7 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
     zoneName: string;
     normalMonsters: any[];
     avisDeRecherche: any[];
+    families: any[];
 }>> {
     try {
         const zone = await db.zone.findFirst({
@@ -279,9 +281,18 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
 
         const normalMonsters: any[] = [];
         const avisDeRecherche: any[] = [];
+        const families: any[] = [];
 
         zone.families.forEach(family => {
             const isAvis = family.name.toLowerCase().includes('avis de recherche');
+            if (!isAvis) {
+                families.push({
+                    id: family.id,
+                    name: family.name,
+                    imageUrl: family.imageUrl,
+                    monstersCount: family.monsters.length
+                });
+            }
             family.monsters.forEach(monster => {
                 if (isAvis) avisDeRecherche.push(monster);
                 else normalMonsters.push({ ...monster, familyName: family.name });
@@ -293,11 +304,12 @@ export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<
             data: {
                 zoneName: zone.name,
                 normalMonsters,
-                avisDeRecherche
+                avisDeRecherche,
+                families
             }
         };
     } catch (error) {
-        console.error('[getZoneMonsters] Error:', error);
+        logger.error('[getZoneMonsters] Error:', { error });
         return { success: false, error: 'Erreur chargement monstres' };
     }
 }
@@ -312,15 +324,15 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
         const localBounties = await db.bounty.findMany({
             where: {
                 OR: [
-                    { zoneName: { equals: zoneName, mode: 'insensitive' } },
-                    { zoneName: { equals: normalizedZone, mode: 'insensitive' } },
-                    { zoneName: { equals: unaccentedZone, mode: 'insensitive' } },
-                    { zoneName: { equals: baseZone, mode: 'insensitive' } },
+                    { zoneName: { contains: zoneName, mode: 'insensitive' } },
+                    { zoneName: { contains: normalizedZone, mode: 'insensitive' } },
+                    { zoneName: { contains: unaccentedZone, mode: 'insensitive' } },
+                    { zoneName: { contains: baseZone, mode: 'insensitive' } },
                 ]
             }
         });
 
-        console.log(`[Bounties] Requested zone: "${zoneName}" -> normalized: "${normalizedZone}" -> base: "${baseZone}". Found local: ${localBounties.length}`);
+        logger.debug(`[Bounties] Requested zone: "${zoneName}" -> normalized: "${normalizedZone}" -> base: "${baseZone}". Found local: ${localBounties.length}`);
 
         // 2. Fallback/Merge with DofusDB for dynamic data or missing entries
         const regionMapping: Record<string, string[]> = {
@@ -395,7 +407,7 @@ export async function getBountiesForZone(zoneName: string): Promise<ActionRespon
 
         return { success: true, data: merged };
     } catch (error) {
-        console.error('[getBountiesForZone] Error:', error);
+        logger.error('[getBountiesForZone] Error:', { error });
         return { success: false, error: 'Erreur lors de la récupération des avis' };
     }
 }
@@ -432,7 +444,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
             }
         }
     } catch (err) {
-        console.error("[getMonsterStats] Local coordinate fetch error:", err);
+        logger.error("[getMonsterStats] Local coordinate fetch error:", { error: err });
     }
 
     try {
@@ -658,7 +670,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                     return {
                         objectId: d.objectId,
                         name: item?.name?.fr || "Objet",
-                        imageUrl: `https://static.dofusdb.fr/items/${iconId}.png`,
+                        imageUrl: item?.img || `https://static.dofusdb.fr/items/illustr/${iconId}.png`,
                         percent: formattedPercent
                     };
                 }) || [],
@@ -695,7 +707,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
             }
         };
     } catch (error) {
-        console.error('[getMonsterStats] Error:', error);
+        logger.error('[getMonsterStats] Error:', { error });
         return { success: false, error: 'Erreur DofusDB' };
     }
 }
@@ -712,6 +724,8 @@ export async function updateGodBountyRecord(bountyId: string, data: {
     mechanics?: string;
     imageUrl?: string;
     mapUrl?: string;
+    dpnlUrl?: string;
+    position?: string;
 }): Promise<ActionResponse> {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Non autorisé — Super Admin uniquement' };
@@ -730,11 +744,13 @@ export async function updateGodBountyRecord(bountyId: string, data: {
                 ...(data.mechanics !== undefined && { mechanics: data.mechanics }),
                 ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
                 ...(data.mapUrl !== undefined && { mapUrl: data.mapUrl }),
+                ...(data.dpnlUrl !== undefined && { dpnlUrl: data.dpnlUrl }),
+                ...(data.position !== undefined && { position: data.position }),
             }
         });
         return { success: true };
     } catch (error) {
-        console.error('[updateGodBountyRecord] Error:', error);
+        logger.error('[updateGodBountyRecord] Error:', { error });
         return { success: false, error: 'Erreur lors de la mise à jour de l\'avis' };
     }
 }
@@ -791,3 +807,103 @@ export async function getQuestsByZone(zoneName: string): Promise<ActionResponse<
         return { success: false, error: 'Erreur lors de la récupération des quêtes' };
     }
 }
+
+/** Fetch quests and optimized guide sequences that match a specific [x, y] position */
+export async function getQuestsAndGuidesByPosition(x: number, y: number): Promise<ActionResponse<{
+    quests: any[];
+    guides: any[];
+}>> {
+    try {
+        // 1. Fetch quests at the exact position [x, y]
+        const quests = await (db as any).dofusQuestEntry.findMany({
+            where: {
+                posX: x,
+                posY: y
+            },
+            select: {
+                id: true,
+                name: true,
+                zone: true,
+                npcSubArea: true,
+                questType: true,
+                posX: true,
+                posY: true,
+                isDungeon: true,
+                bossName: true,
+                isOptional: true,
+                chain: {
+                    select: {
+                        sectionName: true,
+                        dofus: {
+                            select: {
+                                id: true,
+                                name: true,
+                                nameShort: true,
+                                imageUrl: true,
+                                color: true,
+                                slug: true,
+                            }
+                        }
+                    }
+                }
+            },
+            take: 50
+        });
+
+        // 2. Fetch sequences with their milestones and guides to filter by mapPositions
+        const sequences = await db.guideSequence.findMany({
+            include: {
+                milestone: {
+                    include: {
+                        guide: true
+                    }
+                }
+            }
+        });
+
+        const guides: any[] = [];
+        for (const seq of sequences) {
+            if (!seq.mapPositions) continue;
+            let positions: any[] = [];
+            try {
+                if (typeof seq.mapPositions === 'string') {
+                    positions = JSON.parse(seq.mapPositions);
+                } else if (Array.isArray(seq.mapPositions)) {
+                    positions = seq.mapPositions as any[];
+                }
+            } catch (e) {
+                continue;
+            }
+
+            if (!Array.isArray(positions)) continue;
+
+            const hasMatch = positions.some(pos => {
+                if (!pos) return false;
+                const px = typeof pos.x === 'string' ? parseInt(pos.x, 10) : pos.x;
+                const py = typeof pos.y === 'string' ? parseInt(pos.y, 10) : pos.y;
+                return px === x && py === y;
+            });
+
+            if (hasMatch) {
+                guides.push({
+                    id: seq.id,
+                    subGuideName: seq.subGuideName,
+                    subGuideRef: seq.subGuideRef,
+                    stepFrom: seq.stepFrom,
+                    stepTo: seq.stepTo,
+                    note: seq.note,
+                    milestoneTitle: seq.milestone?.title,
+                    milestoneSubtitle: seq.milestone?.subtitle,
+                    guideName: seq.milestone?.guide?.name,
+                    guideSlug: seq.milestone?.guide?.slug,
+                });
+            }
+        }
+
+        return { success: true, data: { quests, guides } };
+    } catch (error) {
+        console.error('[getQuestsAndGuidesByPosition] Error:', error);
+        return { success: false, error: 'Erreur lors de la récupération des quêtes et guides' };
+    }
+}
+

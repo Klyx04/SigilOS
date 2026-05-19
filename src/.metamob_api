@@ -1,5 +1,4 @@
-API Metamob
-L'API Metamob vous permet d'accéder à vos données de manière programmatique. Vous pouvez l'utiliser pour créer des outils personnalisés, des bots Discord, ou intégrer Metamob à d'autres applications.
+'API Metamob vous permet d'accéder à vos données de manière programmatique. Vous pouvez l'utiliser pour créer des outils personnalisés, des bots Discord, ou intégrer Metamob à d'autres applications.
 
 URL de base : https://www.metamob.fr/api/
 
@@ -319,6 +318,7 @@ Méthode	Endpoint	Description
 PATCH	v1/quests/{slug}	Modifier les paramètres d'une quête
 PATCH	v1/quests/{slug}/monsters/{monsterId}	Modifier la quantité d'un monstre
 PATCH	v1/quests/{slug}/monsters	Modifier plusieurs monstres en une requête
+PATCH	v1/quests/{slug}/monsters/{monsterId}/trade	Paramètres de trade manuels
 GET	/v1/quests/{slug}/matches	Trouver des partenaires d'échange
 GET	/v1/quests/{slug}/zones	Progression par zones
 Note : Vous ne pouvez modifier que vos propres quêtes. Le slug de la quête est visible dans l'URL de votre page de quête ou via l'endpoint /v1/users/{username}/quests.

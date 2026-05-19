@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Plus, Pencil, ShieldAlert, RefreshCw, Copy, Megaphone } from "lucide-react";
+import { Link2, Trash2, Pencil, Plus, RefreshCw, Copy, Megaphone } from "lucide-react";
 import NextImage from "next/image";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateDofusBookLinks } from "@/server/actions/profile-actions";
 import { shareGalleryItemOnDiscord } from "@/server/actions/gallery-actions";
 import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
+import { DofusroomPreview } from "@/components/dofus/dofusroom-preview";
+import { AddBuildModal } from "@/components/profile/add-build-modal";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import type { BUILD_TAG_TYPE } from "@/lib/dofus-tags";
 
@@ -21,8 +23,24 @@ export type DofusBookLink = {
     name: string;
     tags?: string[];
     classId?: number;
+    source?: "dofusbook" | "dofusroom"; // Source of the build
     previewData?: any; // Cached build info
 };
+
+/** Detect whether a URL is a DofusRoom build */
+function isDofusroomUrl(url: string): boolean {
+    return /dofusroom\.com/.test(url);
+}
+
+const DOFUS_CLASSES = [
+    { id: 1, name: "Féca" }, { id: 2, name: "Osamodas" }, { id: 3, name: "Enutrof" },
+    { id: 4, name: "Sram" }, { id: 5, name: "Xélor" }, { id: 6, name: "Écaflip" },
+    { id: 7, name: "Éniripsa" }, { id: 8, name: "Iop" }, { id: 9, name: "Crâ" },
+    { id: 10, name: "Sadida" }, { id: 11, name: "Sacrieur" }, { id: 12, name: "Pandawa" },
+    { id: 13, name: "Roublard" }, { id: 14, name: "Zobal" }, { id: 15, name: "Steamer" },
+    { id: 16, name: "Éliotrope" }, { id: 17, name: "Huppermage" }, { id: 18, name: "Ouginak" },
+    { id: 19, name: "Forgelance" }
+];
 
 const ClassSelector = ({ 
     selectedId, 
@@ -113,80 +131,11 @@ interface BuildsCardProps {
 }
 
 export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targetUserId }: BuildsCardProps) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [newLinkName, setNewLinkName] = useState("");
-    const [newLinkUrl, setNewLinkUrl] = useState("");
-    const [newLinkTags, setNewLinkTags] = useState<string[]>([]);
-    const [newLinkClassId, setNewLinkClassId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingLink, setEditingLink] = useState<DofusBookLink | null>(null);
     const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
-    const DOFUS_CLASSES = [
-        { id: 1, name: "Féca" }, { id: 2, name: "Osamodas" }, { id: 3, name: "Enutrof" },
-        { id: 4, name: "Sram" }, { id: 5, name: "Xélor" }, { id: 6, name: "Écaflip" },
-        { id: 7, name: "Éniripsa" }, { id: 8, name: "Iop" }, { id: 9, name: "Crâ" },
-        { id: 10, name: "Sadida" }, { id: 11, name: "Sacrieur" }, { id: 12, name: "Pandawa" },
-        { id: 13, name: "Roublard" }, { id: 14, name: "Zobal" }, { id: 15, name: "Steamer" },
-        { id: 16, name: "Éliotrope" }, { id: 17, name: "Huppermage" }, { id: 18, name: "Ouginak" },
-        { id: 19, name: "Forgelance" }
-    ];
 
-    const handleAddLink = async () => {
-        if (!newLinkName.trim() || !newLinkUrl.trim()) {
-            toast.error("Veuillez remplir tous les champs");
-            return;
-        }
-
-        // Strict Validation (supports /private/, etc.)
-        const urlPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/;
-        if (!urlPattern.test(newLinkUrl.trim())) {
-            toast.error("Format de lien invalide (d-bk.net ou dofusbook.net requis avec langue)");
-            return;
-        }
-
-        if (links.length >= 20) {
-            toast.error("Limite de 20 builds atteinte");
-            return;
-        }
-
-        setIsSubmitting(true);
-
-
-        const newLink: DofusBookLink = {
-            id: crypto.randomUUID(),
-            name: newLinkName.trim(),
-            url: newLinkUrl.trim(),
-            tags: newLinkTags,
-            classId: newLinkClassId || undefined,
-            previewData: null
-        };
-
-        const updatedLinks = [...links, newLink];
-
-        try {
-            const result = await updateDofusBookLinks({
-                guildId,
-                links: updatedLinks,
-                targetUserId
-            });
-            if (result.success) {
-                onSave(updatedLinks);
-                setIsOpen(false);
-                setNewLinkName("");
-                setNewLinkUrl("");
-                setNewLinkTags([]);
-                setNewLinkClassId(null);
-                toast.success("Build ajouté");
-            } else {
-                toast.error(result.error || "Erreur lors de l'ajout");
-            }
-        } catch (error) {
-            toast.error("Erreur serveur");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const handleEditLink = async () => {
         if (!editingLink) return;
@@ -194,9 +143,10 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
             toast.error("Veuillez remplir tous les champs");
             return;
         }
-        const urlPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/;
-        if (!urlPattern.test(editingLink.url.trim())) {
-            toast.error("Format de lien invalide (d-bk.net ou dofusbook.net requis)");
+        const dofusbookPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/;
+        const dofusroomPattern = /^https:\/\/(www\.)?dofusroom\.com\/(buildroom\/build\/show\/\d+|b-\d+)\/?$/;
+        if (!dofusbookPattern.test(editingLink.url.trim()) && !dofusroomPattern.test(editingLink.url.trim())) {
+            toast.error("Format de lien invalide (DofusBook ou DofusRoom requis)");
             return;
         }
         setIsSubmitting(true);
@@ -204,8 +154,6 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
         const updatedLinks = links.map(l =>
             l.id === editingLink.id ? editingLink : l
         );
-
-        setIsSubmitting(true);
         try {
             const result = await updateDofusBookLinks({
                 guildId,
@@ -290,97 +238,12 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 </div>
 
                 {!readOnly && links.length < 20 && (
-                    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="sigil-emerald" size="sm" className="gap-2 h-9 px-4">
-                                <Plus className="w-4 h-4" />
-                                <span className="hidden sm:inline">Ajouter un Build</span>
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-xl max-h-[90vh] overflow-y-auto">
-                            <DialogHeader>
-                                <DialogTitle>Ajouter un Build DofusBook</DialogTitle>
-                                <DialogDescription className="text-zinc-400">
-                                    Copiez le lien de partage de votre stuff (d-bk.net ou dofusbook.net).
-                                </DialogDescription>
-                            </DialogHeader>
-
-                            <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Nom du build (Max 30)</Label>
-                                    <Input
-                                        id="name"
-                                        placeholder="Ex: Cra Terre 200"
-                                        maxLength={30}
-                                        value={newLinkName}
-                                        onChange={(e) => setNewLinkName(e.target.value)}
-                                        className="bg-zinc-900 border-white/10"
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="url">Lien DofusBook</Label>
-                                    <Input
-                                        id="url"
-                                        placeholder="https://d-bk.net/fr/d/..."
-                                        value={newLinkUrl}
-                                        onChange={(e) => setNewLinkUrl(e.target.value)}
-                                        className="bg-zinc-900 border-white/10 font-mono text-xs"
-                                    />
-                                    <p className="text-[10px] text-zinc-500 flex items-center gap-1">
-                                        <ShieldAlert className="w-3 h-3" />
-                                        Seuls les liens d-bk.net et dofusbook.net sécurisés (https) sont acceptés.
-                                    </p>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Tags (Optionnel, max 3)</Label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {DO_TAGS.map(tag => {
-                                            const isSelected = newLinkTags.includes(tag.id);
-                                            return (
-                                                <button
-                                                    key={tag.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (isSelected) {
-                                                            setNewLinkTags(prev => prev.filter((t: string) => t !== tag.id));
-                                                        } else if (newLinkTags.length < 3) {
-                                                            setNewLinkTags(prev => [...prev, tag.id]);
-                                                        }
-                                                    }}
-                                                    className={cn(
-                                                        "px-2.5 py-1 text-[10px] sm:text-xs rounded-full transition-all border font-medium select-none",
-                                                        isSelected
-                                                            ? tag.className
-                                                            : "bg-zinc-900 border-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300 opacity-60 hover:opacity-100"
-                                                    )}
-                                                >
-                                                    {tag.text}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Icône de classe (Recommandé)</Label>
-                                    <ClassSelector 
-                                        selectedId={newLinkClassId} 
-                                        onSelect={setNewLinkClassId} 
-                                        classes={DOFUS_CLASSES} 
-                                    />
-                                    <p className="text-[10px] text-zinc-500">
-                                        Sélectionnez la classe pour assurer une belle preview, même si Dofusbook est lent.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <DialogFooter>
-                                <Button variant="ghost" onClick={() => setIsOpen(false)}>Annuler</Button>
-                                <Button onClick={handleAddLink} disabled={isSubmitting} variant="sigil-emerald" className="h-10 px-6">
-                                    {isSubmitting ? "Ajout..." : "Ajouter"}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                    <AddBuildModal
+                        guildId={guildId}
+                        links={links}
+                        onSave={onSave}
+                        targetUserId={targetUserId}
+                    />
                 )}
             </div>
 
@@ -415,7 +278,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             selectedTagFilter === id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
                                         )}
                                     >
-                                        {tag.text}
+                                        {tag.label}
                                     </button>
                                 );
                             })}
@@ -439,7 +302,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                     selectedTagFilter === tag.id ? `${tag.className} shadow-lg ring-1 ring-white/20` : "text-zinc-500 hover:text-white hover:bg-white/10"
                                                 )}
                                             >
-                                                {tag.text}
+                                                {tag.label}
                                             </button>
                                         );
                                     })}
@@ -467,16 +330,20 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 {filteredLinks.length > 0 ? (
                     filteredLinks.map(link => (
                         <div key={link.id} className="relative group/card h-full flex flex-col">
-                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
+                            {isDofusroomUrl(link.url) ? (
+                                <DofusroomPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
+                            ) : (
+                                <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
+                            )}
 
-                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-all z-20 pointer-events-none">
-                                <div className="flex gap-1 pointer-events-auto">
+                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-30 opacity-0 group-hover/card:opacity-100 translate-y-2 group-hover/card:translate-y-0 transition-all duration-300 pointer-events-none">
+                                <div className="flex items-center gap-1.5 bg-zinc-950/95 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-auto shrink-0 w-max">
                                     <button
                                         onClick={() => handleCopyLink(link.url)}
-                                        className="p-2 bg-zinc-800/90 hover:bg-emerald-500 text-zinc-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
+                                        className="p-2 bg-zinc-900/80 hover:bg-emerald-500 text-zinc-400 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all"
                                         title="Copier le lien"
                                     >
-                                        <Copy className="w-4 h-4" />
+                                        <Copy className="w-3.5 h-3.5" />
                                     </button>
                                     <button
                                         onClick={async () => {
@@ -484,43 +351,43 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                             if (res.success) toast.success("Partagé sur Discord !");
                                             else toast.error(res.error || "Erreur lors du partage");
                                         }}
-                                        className="p-2 bg-zinc-800/90 hover:bg-indigo-500 text-indigo-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
+                                        className="p-2 bg-zinc-900/80 hover:bg-indigo-500 text-indigo-400 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all"
                                         title="Partager sur Discord"
                                     >
-                                        <Megaphone className="w-4 h-4" />
+                                        <Megaphone className="w-3.5 h-3.5" />
                                     </button>
+                                    {!readOnly && (
+                                        <>
+                                            <button
+                                                onClick={() => handleForceBake(link)}
+                                                disabled={isSubmitting}
+                                                className="p-2 bg-zinc-900/80 hover:bg-emerald-500 text-zinc-400 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all disabled:opacity-50"
+                                                title="Récupérer les données (Baking)"
+                                            >
+                                                <RefreshCw className={cn("w-3.5 h-3.5", isSubmitting && "animate-spin")} />
+                                            </button>
+                                            <button
+                                                onClick={() => setEditingLink({ ...link })}
+                                                className="p-2 bg-zinc-900/80 hover:bg-indigo-500 text-white/50 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all"
+                                                title="Modifier ce build"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" strokeWidth={2.5} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteLink(link.id)}
+                                                className="p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 shadow-lg transition-all"
+                                                title="Supprimer ce build"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
-                                {!readOnly && (
-                                    <>
-                                    <button
-                                        onClick={() => handleForceBake(link)}
-                                        disabled={isSubmitting}
-                                        className="p-2 bg-zinc-800/90 hover:bg-emerald-500 text-zinc-400 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all disabled:opacity-50"
-                                        title="Récupérer les données (Baking)"
-                                    >
-                                        <RefreshCw className={cn("w-4 h-4", isSubmitting && "animate-spin")} />
-                                    </button>
-                                    <button
-                                        onClick={() => setEditingLink({ ...link })}
-                                        className="p-2 bg-zinc-800/90 hover:bg-indigo-500 text-white/50 hover:text-white rounded-xl border border-white/10 shadow-xl transition-all"
-                                        title="Modifier ce build"
-                                    >
-                                        <Pencil className="w-4 h-4" strokeWidth={2.5} />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteLink(link.id)}
-                                        className="p-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl border border-red-500/20 transition-all shadow-xl"
-                                        title="Supprimer ce build"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                    </>
-                                )}
                             </div>
                         </div>
                     ))
                 ) : (
-                    <div className="text-center py-16 bg-zinc-950/40 rounded-[2rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-6 relative overflow-hidden group/empty">
+                    <div className="col-span-full text-center py-16 bg-zinc-950/40 rounded-[2rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-6 relative overflow-hidden group/empty">
                         <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 group-hover/empty:opacity-100 transition-all duration-700" />
                         
                         <div className="relative">
@@ -533,24 +400,27 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                         </div>
 
                         <div className="space-y-2 relative px-6">
-                            <h4 className="text-white font-black uppercase tracking-widest text-sm">Aucun build Dofusbook</h4>
+                            <h4 className="text-white font-black uppercase tracking-widest text-sm">Aucun build importé</h4>
                             <p className="text-zinc-500 text-xs leading-relaxed max-w-sm mx-auto font-medium">
-                                Partagez vos stuffs pour que les autres membres puissent s'en inspirer ou vous aider à les optimiser.
+                                Importez vos stuffs depuis <span className="text-emerald-400 font-bold">DofusBook</span> ou <span className="text-sky-400 font-bold">DofusRoom</span> pour que les membres puissent s'en inspirer.
                                 <br />
                                 <span className="text-zinc-600 italic">C'est ici que vous lorgnez le stuff des autres !</span>
                             </p>
                         </div>
 
                         {!readOnly && (
-                            <Button 
-                                variant="sigil-emerald" 
-                                size="xl"
-                                onClick={() => setIsOpen(true)}
-                                className="h-14"
-                            >
-                                <Plus className="w-5 h-5 mr-3" />
-                                Importer mon premier stuff
-                            </Button>
+                            <AddBuildModal
+                                guildId={guildId}
+                                links={links}
+                                onSave={onSave}
+                                targetUserId={targetUserId}
+                                trigger={
+                                    <Button variant="sigil-emerald" size="xl" className="h-14">
+                                        <Plus className="w-5 h-5 mr-3" />
+                                        Importer mon premier stuff
+                                    </Button>
+                                }
+                            />
                         )}
                     </div>
                 )}
@@ -578,7 +448,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="edit-url">Lien DofusBook</Label>
+                                <Label htmlFor="edit-url">Lien du Build (DofusBook ou DofusRoom)</Label>
                                 <Input
                                     id="edit-url"
                                     value={editingLink.url}
@@ -615,7 +485,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                                         : "bg-zinc-900 border-white/5 text-zinc-500 hover:border-white/20 hover:text-zinc-300 opacity-60 hover:opacity-100"
                                                 )}
                                             >
-                                                {tag.text}
+                                                {tag.label}
                                             </button>
                                         );
                                     })}

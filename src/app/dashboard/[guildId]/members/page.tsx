@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
 import { getGuildMembers } from "@/server/actions/profile-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { MemberDirectory } from "@/components/directory/member-directory";
@@ -19,7 +20,10 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
         return <AccessDenied />;
     }
 
-    const response = await getGuildMembers(guildId);
+    const [response, legendaryItems] = await Promise.all([
+        getGuildMembers(guildId),
+        db.legendaryItem.findMany({ orderBy: { name: "asc" } })
+    ]);
 
     if (!response.success) {
         return (
@@ -39,7 +43,11 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
                 backHref={`/dashboard/${guildId}`}
             />
 
-            <MemberDirectory initialMembers={response.data || []} guildId={guildId} />
+            <MemberDirectory 
+                initialMembers={response.data || []} 
+                legendaryItems={legendaryItems}
+                guildId={guildId} 
+            />
         </div>
     );
 }

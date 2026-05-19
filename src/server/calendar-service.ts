@@ -1,6 +1,6 @@
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { updateChannelMessage, sendChannelMessage } from "@/server/discord";
+import { updateChannelMessage, sendChannelMessage, fetchChannel, createForumPost } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
 
 // Map event types to premium image filenames
@@ -32,8 +32,22 @@ const EVENT_CONFIG: Record<string, { emoji: string; color: number; label: string
     DUNGEON_FARM: { emoji: "🏰", color: 0xec4899, label: "Donjon" },
     SOCIAL: { emoji: "🍻", color: 0xf97316, label: "Social" },
     OFFICIAL_RESET: { emoji: "🔄", color: 0x64748b, label: "Reset" },
-    OTHERS: { emoji: "💠", color: 0x94a3b8, label: "Autres" }
+    OTHERS: { emoji: "💠", color: 0x94a3b8, label: "Autres" },
+    // Categories for missions
+    DONJON: { emoji: "⚔️", color: 0xef4444, label: "Donjon" },
+    REGULATION: { emoji: "💀", color: 0x10b981, label: "Régulation" },
+    ANOMALIE: { emoji: "⚡", color: 0xd946ef, label: "Anomalie" },
+    SONGES: { emoji: "🌙", color: 0x22d3ee, label: "Songes" },
+    EXPEDITION: { emoji: "⌛", color: 0xf59e0b, label: "Expédition" },
 };
+
+async function getDiscordId(userId: string): Promise<string | null> {
+    const account = await db.account.findFirst({
+        where: { userId, provider: "discord" },
+        select: { providerAccountId: true },
+    });
+    return account?.providerAccountId || null;
+}
 
 // Rate limiting for interactions (prevent Discord embed hammer)
 const interactionCooldowns = new Map<string, number>();
@@ -57,7 +71,15 @@ export async function processRegistration(guildId: string, eventId: string, user
     if (!event) return { success: false, error: "Événement introuvable" };
     if (event.status !== "PUBLISHED") return { success: false, error: "Inscriptions fermées" };
 
-    // Anti-spam check (User-Event based cooldown)
+    // RBAC: Raids require RAID_MEMBER permission to participate
+    if (event.type === "RAID_OFFICIAL") {
+        const { getUserContext } = await import("@/server/actions/user-actions");
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isAdmin && !ctx.canJoinRaid) {
+            return { success: false, error: "Permission requise: Participation aux Raids" };
+        }
+    }
+
     const cooldownKey = `${userId}:${eventId}`;
     const lastAction = interactionCooldowns.get(cooldownKey) || 0;
     if (Date.now() - lastAction < INTERACTION_COOLDOWN_MS) {
@@ -67,7 +89,6 @@ export async function processRegistration(guildId: string, eventId: string, user
 
     if (event.participants.length > 0) return { success: false, error: "Déjà inscrit" };
 
-    // Check raid 1/week rule
     if (event.type === "RAID_OFFICIAL") {
         const weekStart = new Date();
         weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
@@ -91,7 +112,6 @@ export async function processRegistration(guildId: string, eventId: string, user
         }
     }
 
-    // Determine position
     const currentCount = event._count.participants;
     const maxParticipants = event.maxParticipants || 999;
     const isReserve = currentCount >= maxParticipants;
@@ -107,10 +127,8 @@ export async function processRegistration(guildId: string, eventId: string, user
         }
     });
 
-    // Update Discord Embed (Fire and Forget)
     updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
 
-    // Revalidate Calendar Page AND Dashboard Layout (for Ticker)
     revalidatePath(`/dashboard/${guildId}/calendar`);
     revalidatePath(`/dashboard/${guildId}`, "layout");
     return { success: true, isReserve };
@@ -130,7 +148,6 @@ export async function processUnregistration(guildId: string, eventId: string, us
 
     if (!participant) return { success: false, error: "Non inscrit" };
 
-    // Anti-spam check
     const cooldownKey = `${userId}:${eventId}`;
     const lastAction = interactionCooldowns.get(cooldownKey) || 0;
     if (Date.now() - lastAction < INTERACTION_COOLDOWN_MS) {
@@ -140,12 +157,10 @@ export async function processUnregistration(guildId: string, eventId: string, us
 
     const wasRegistered = participant.status === "REGISTERED";
 
-    // Delete participation
     await db.eventParticipant.delete({
         where: { id: participant.id }
     });
 
-    // Auto-promote first reserve if was registered
     if (wasRegistered) {
         const firstReserve = await db.eventParticipant.findFirst({
             where: { eventId, status: "RESERVE" },
@@ -160,11 +175,9 @@ export async function processUnregistration(guildId: string, eventId: string, us
                     promotedAt: new Date()
                 }
             });
-            // Optional: Send DM to promoted user
         }
     }
 
-    // Reorder positions
     const participants = await db.eventParticipant.findMany({
         where: { eventId },
         orderBy: { position: "asc" }
@@ -177,10 +190,8 @@ export async function processUnregistration(guildId: string, eventId: string, us
         });
     }
 
-    // Update Discord Embed (Fire and Forget)
     updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
 
-    // Revalidate Calendar Page AND Dashboard Layout (for Ticker)
     revalidatePath(`/dashboard/${guildId}/calendar`);
     revalidatePath(`/dashboard/${guildId}`, "layout");
     return { success: true };
@@ -200,32 +211,91 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         const event = await db.guildEvent.findUnique({
             where: { id: eventId },
             include: {
-                // Include participants count for initial render
                 _count: { select: { participants: true } }
             }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
 
-        // 1. Prepare Payload
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
         const imageName = EVENT_IMAGES[event.type] || "calendar_event_guild.png";
         const publicUrl = getAppBaseUrl();
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
-        // Fixed Timezone Handling via Discord Dynamic Timestamps
+        // Fetch Mentions from metadata
+        const meta = event.metadata as any;
+        const mentionRoleIds: string[] = meta?.mentionRoleIds || [];
+        const roleMentions = mentionRoleIds.length > 0 
+            ? mentionRoleIds.map(id => `<@&${id}>`).join(" ") 
+            : "";
+            
+        const creatorDiscordId = await getDiscordId(event.creatorId);
+        const creatorMention = creatorDiscordId ? `<@${creatorDiscordId}>` : "";
+        const mentionContent = [creatorMention, roleMentions].filter(Boolean).join(" ");
+
+        // Fetch Missions if any
+        const missionIds = meta?.missionIds || [];
+        let missions: any[] = [];
+        let missionThumbnail: string | undefined = undefined;
+
+        if (missionIds.length > 0) {
+            missions = await db.mission.findMany({
+                where: { id: { in: missionIds } },
+                select: { title: true, category: true, payload: true }
+            });
+
+            if (missions.length > 0) {
+                const first = missions[0];
+                const p = first.payload as any;
+                if (first.category === 'SONGES') {
+                    const diff: string = (p.difficulty || 'Reve').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const levelMap: Record<string, number> = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4 };
+                    const lvl = levelMap[p.level as string] || 1;
+                    missionThumbnail = `${publicUrl}/assets/missions/${diff}${lvl}.png`;
+                } else {
+                    missionThumbnail = p.imageUrl || p.image;
+                }
+            }
+        }
+
         const startTs = Math.floor(new Date(event.startDate).getTime() / 1000);
         const endTs = Math.floor(new Date(event.endDate).getTime() / 1000);
+
+        const isRaid = event.type === "RAID_OFFICIAL";
+        const raidMeta = isRaid ? (event.metadata as any) : null;
 
         const fields = [
             { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
             { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
             { name: "👥 Places", value: `0/${event.maxParticipants || "∞"}`, inline: true },
             { name: "🔗 Lien", value: `[Voir l'événement](${publicUrl}/dashboard/${guildId}/calendar?event=${event.id})`, inline: true },
-            { name: "📝 Description", value: event.description || "*Pas de description*", inline: false },
+        ];
+
+        if (isRaid && raidMeta) {
+            if (raidMeta.raidLabel) fields.push({ name: "⚔️ Type de Raid", value: `**${raidMeta.raidLabel}**`, inline: true });
+            if (raidMeta.raidCaptain) fields.push({ name: "👑 Capitaine", value: `**${raidMeta.raidCaptain}**`, inline: true });
+            fields.push({ 
+                name: "🌐 Visibilité", 
+                value: raidMeta.openToExternal ? "🟢 Ouvert aux extérieurs" : "🔒 Guilde uniquement", 
+                inline: true 
+            });
+        }
+
+        fields.push({ name: "📝 Description", value: event.description || "*Pas de description*", inline: false });
+
+        if (missions.length > 0) {
+            const missionText = missions.map(m => {
+                const catConfig = EVENT_CONFIG[m.category] || { emoji: "🎯" };
+                const title = m.title || (m.payload as any).dungeonName || (m.payload as any).monsterName || "Objectif";
+                return `${catConfig.emoji} **${title}**`;
+            }).join("\n");
+            fields.push({ name: "🎯 Objectifs de la session", value: missionText, inline: false });
+        }
+
+        fields.push(
             { name: `✅ Inscrits (0)`, value: "*Aucun inscrit*", inline: true },
             { name: `⏳ File d'attente (0)`, value: "*Personne en file d'attente*", inline: true },
-        ];
+        );
 
         const components = [
             {
@@ -237,27 +307,45 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             }
         ];
 
-        // 2. Send Message
-        const messageId = await sendChannelMessage(
-            guildConfig.calendarNotifyChannelId,
-            "",
-            {
-                embedTitle: `${typeConfig.emoji} ${event.title}`,
-                embedColor: typeConfig.color,
-                embedImage: imageUrl,
-                fields: fields,
-                embedFooter: "Statut: 🟢 Ouvert",
-                components: components
+        const messageOptions = {
+            embedTitle: `${typeConfig.emoji} ${event.title}`,
+            embedColor: typeConfig.color,
+            embedImage: imageUrl,
+            embedThumbnail: missionThumbnail,
+            fields: fields,
+            embedFooter: "Statut: 🟢 Ouvert",
+            components: components
+        };
+
+        const channel = await fetchChannel(guildConfig.calendarNotifyChannelId);
+        let messageId: string | null = null;
+        let finalChannelId = guildConfig.calendarNotifyChannelId;
+
+        if (channel && channel.type === 15) {
+            const res = await createForumPost(
+                guildConfig.calendarNotifyChannelId,
+                `${typeConfig.emoji} ${event.title}`,
+                "",
+                messageOptions
+            );
+            if (res) {
+                messageId = res.messageId;
+                finalChannelId = res.id;
             }
-        );
+        } else {
+            messageId = await sendChannelMessage(
+                guildConfig.calendarNotifyChannelId,
+                mentionContent,
+                messageOptions
+            );
+        }
 
         if (messageId) {
-            // 3. Save Message ID and Channel ID
             await db.guildEvent.update({
                 where: { id: eventId },
                 data: {
                     discordMessageId: messageId,
-                    discordChannelId: guildConfig.calendarNotifyChannelId,
+                    discordChannelId: finalChannelId,
                     status: "PUBLISHED"
                 }
             });
@@ -303,17 +391,40 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
 
         if (!event || !event.discordMessageId || !event.discordChannelId) return;
 
-        // Visual Config
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
         const imageName = EVENT_IMAGES[event.type] || "calendar_event_guild.png";
         const publicUrl = getAppBaseUrl();
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
-        // Build Participant Lists
+        // Fetch Missions
+        const meta = event.metadata as any;
+        const missionIds = meta?.missionIds || [];
+        let missions: any[] = [];
+        let missionThumbnail: string | undefined = undefined;
+
+        if (missionIds.length > 0) {
+            missions = await db.mission.findMany({
+                where: { id: { in: missionIds } },
+                select: { title: true, category: true, payload: true }
+            });
+
+            if (missions.length > 0) {
+                const first = missions[0];
+                const p = first.payload as any;
+                if (first.category === 'SONGES') {
+                    const diff: string = (p.difficulty || 'Reve').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const levelMap: Record<string, number> = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4 };
+                    const lvl = levelMap[p.level as string] || 1;
+                    missionThumbnail = `${publicUrl}/assets/missions/${diff}${lvl}.png`;
+                } else {
+                    missionThumbnail = p.imageUrl || p.image;
+                }
+            }
+        }
+
         const registered = event.participants.filter(p => p.status === "REGISTERED" || p.status === "CONFIRMED");
         const reserve = event.participants.filter(p => p.status === "RESERVE");
 
-        // Helper to format names
         const formatParticipant = (p: any) => {
             const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
             const classe = p.classe ? `(${p.classe})` : "";
@@ -328,40 +439,51 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
             ? reserve.map(formatParticipant).join("\n")
             : "*Personne en file d'attente*";
 
-        // Fixed Timezone Handling via Discord Dynamic Timestamps
         const startTs = Math.floor(new Date(event.startDate).getTime() / 1000);
         const endTs = Math.floor(new Date(event.endDate).getTime() / 1000);
+
+        const isRaid = event.type === "RAID_OFFICIAL";
+        const raidMeta = isRaid ? (event.metadata as any) : null;
 
         const fields = [
             { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
             { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
             { name: "👥 Places", value: `${registered.length}/${event.maxParticipants || "∞"}`, inline: true },
             { name: "🔗 Lien", value: `[Voir l'événement](${publicUrl}/dashboard/${guildId}/calendar?event=${event.id})`, inline: true },
-            { name: "📝 Description", value: event.description || "*Pas de description*", inline: false },
-            // SEPARATED LISTS
-            { name: `✅ Inscrits (${registered.length})`, value: registeredList, inline: true },
-            { name: `⏳ File d'attente (${reserve.length})`, value: reserveList, inline: true },
         ];
 
-        // Interactive Buttons
+        if (isRaid && raidMeta) {
+            if (raidMeta.raidLabel) fields.push({ name: "⚔️ Type de Raid", value: `**${raidMeta.raidLabel}**`, inline: true });
+            if (raidMeta.raidCaptain) fields.push({ name: "👑 Capitaine", value: `**${raidMeta.raidCaptain}**`, inline: true });
+            fields.push({ 
+                name: "🌐 Visibilité", 
+                value: raidMeta.openToExternal ? "🟢 Ouvert aux extérieurs" : "🔒 Guilde uniquement", 
+                inline: true 
+            });
+        }
+
+        fields.push({ name: "📝 Description", value: event.description || "*Pas de description*", inline: false });
+
+        if (missions.length > 0) {
+            const missionText = missions.map(m => {
+                const catConfig = EVENT_CONFIG[m.category] || { emoji: "🎯" };
+                const title = m.title || (m.payload as any).dungeonName || (m.payload as any).monsterName || "Objectif";
+                return `${catConfig.emoji} **${title}**`;
+            }).join("\n");
+            fields.push({ name: "🎯 Objectifs de la session", value: missionText, inline: false });
+        }
+
+        fields.push(
+            { name: `✅ Inscrits (${registered.length})`, value: registeredList, inline: true },
+            { name: `⏳ File d'attente (${reserve.length})`, value: reserveList, inline: true },
+        );
+
         const components = [
             {
-                type: 1, // Action Row
+                type: 1,
                 components: [
-                    {
-                        type: 2, // Button
-                        style: 1, // Primary (Blurple)
-                        label: "S'inscrire",
-                        emoji: { name: "✅" },
-                        custom_id: `calendar:join:${event.id}`
-                    },
-                    {
-                        type: 2, // Button
-                        style: 4, // Danger (Red)
-                        label: "Se désinscrire",
-                        emoji: { name: "🚪" },
-                        custom_id: `calendar:leave:${event.id}`
-                    }
+                    { type: 2, style: 1, label: "S'inscrire", emoji: { name: "✅" }, custom_id: `calendar:join:${event.id}` },
+                    { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `calendar:leave:${event.id}` }
                 ]
             }
         ];
@@ -369,11 +491,12 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
         await updateChannelMessage(
             event.discordChannelId,
             event.discordMessageId,
-            "", // No plain content update
+            "",
             {
                 embedTitle: `${typeConfig.emoji} ${event.title}`,
                 embedColor: typeConfig.color,
                 embedImage: imageUrl,
+                embedThumbnail: missionThumbnail,
                 fields: fields,
                 embedFooter: `Statut: ${event.status === "PUBLISHED" ? "🟢 Ouvert" : "🔴 Fermé"}`,
                 components: components

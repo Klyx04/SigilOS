@@ -16,6 +16,7 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { logger } from "@/lib/logger";
 import { createAuditLog } from "./audit-actions";
+import { fetchGuildBans } from "@/server/discord";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -112,8 +113,13 @@ export async function syncMembershipStatus(
             return { success: false, archived: 0, reactivated: 0, errors: ["Guild not found in database"] };
         }
 
-        // 2. Fetch all Discord members
-        const discordMemberIds = await fetchAllGuildMembers(discordGuildId);
+        // 2. Fetch all Discord members and bans
+        const [discordMemberIds, discordBans] = await Promise.all([
+            fetchAllGuildMembers(discordGuildId),
+            fetchGuildBans(discordGuildId).catch(() => [])
+        ]);
+
+        const bannedUserIds = new Set(discordBans.map(b => b.user.id));
 
         // 3. Get all profiles for this guild
         const profiles = await db.userProfile.findMany({
@@ -146,26 +152,60 @@ export async function syncMembershipStatus(
             const isInGuild = discordMemberIds.has(discordUserId);
 
             if (profile.status === "ACTIVE" && !isInGuild) {
-                // Member left Discord - Archive their profile
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        status: "ARCHIVED",
-                        archivedAt: new Date(),
-                        archiveReason: "LEFT"
-                    }
-                });
+                // Member is no longer in Discord - Check if they were banned
+                const isBannedOnDiscord = bannedUserIds.has(discordUserId);
                 
-                // 📝 Audit Log Archival (Sync)
-                await createAuditLog({
-                    guildId: discordGuildId,
-                    actorUserId: ctx.id || "SYSTEM",
-                    actorName: ctx.name || "Admin Sync",
-                    action: "PROFILE_ARCHIVED",
-                    targetType: "PROFILE",
-                    targetId: profile.id,
-                    metadata: { description: profile.discordNickname || profile.userId, reason: "LEFT_GUILD" }
-                });
+                if (isBannedOnDiscord) {
+                    // Member was BANNED on Discord - Archive with BANNED status
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "BANNED",
+                            archivedAt: new Date(),
+                            archiveReason: "BANNED",
+                            scheduledDeletion: null // No automatic deletion for bans
+                        }
+                    });
+
+                    await createAuditLog({
+                        guildId: discordGuildId,
+                        actorUserId: ctx.id || "SYSTEM",
+                        actorName: ctx.name || "Admin Sync",
+                        action: "PROFILE_ARCHIVED",
+                        targetType: "PROFILE",
+                        targetId: profile.id,
+                        metadata: { description: profile.discordNickname || profile.userId, reason: "BANNED_FROM_DISCORD" }
+                    });
+                } else {
+                    // Member LEFT Discord - Archive for 12 months (Retention policy)
+                    const twelveMonthsFromNow = new Date();
+                    twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
+
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "ARCHIVED",
+                            archivedAt: new Date(),
+                            archiveReason: "LEFT",
+                            scheduledDeletion: twelveMonthsFromNow
+                        }
+                    });
+                    
+                    // 📝 Audit Log Archival (Sync)
+                    await createAuditLog({
+                        guildId: discordGuildId,
+                        actorUserId: ctx.id || "SYSTEM",
+                        actorName: ctx.name || "Admin Sync",
+                        action: "PROFILE_ARCHIVED",
+                        targetType: "PROFILE",
+                        targetId: profile.id,
+                        metadata: { 
+                            description: profile.discordNickname || profile.userId, 
+                            reason: "LEFT_GUILD",
+                            retention: "12_MONTHS"
+                        }
+                    });
+                }
                 result.archived++;
             }
             else if (
@@ -270,7 +310,13 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
             return { success: false, archived: 0, reactivated: 0, errors: ["Guild not found"] };
         }
 
-        const discordMemberIds = await fetchAllGuildMembers(discordGuildId);
+        // 2. Fetch all Discord members and bans
+        const [discordMemberIds, discordBans] = await Promise.all([
+            fetchAllGuildMembers(discordGuildId),
+            fetchGuildBans(discordGuildId).catch(() => [])
+        ]);
+
+        const bannedUserIds = new Set(discordBans.map(b => b.user.id));
 
         const profiles = await db.userProfile.findMany({
             where: { guildId: guild.id },
@@ -290,28 +336,61 @@ async function syncMembershipStatusInternal(discordGuildId: string): Promise<Syn
             const discordAccount = profile.user.accounts[0];
             if (!discordAccount) continue;
 
-            const isInGuild = discordMemberIds.has(discordAccount.providerAccountId);
+            const discordUserId = discordAccount.providerAccountId;
+            const isInGuild = discordMemberIds.has(discordUserId);
 
             if (profile.status === "ACTIVE" && !isInGuild) {
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        status: "ARCHIVED",
-                        archivedAt: new Date(),
-                        archiveReason: "LEFT"
-                    }
-                });
+                const isBannedOnDiscord = bannedUserIds.has(discordUserId);
 
-                // 📝 Audit Log (Internal/Cron)
-                await createAuditLog({
-                    guildId: discordGuildId,
-                    actorUserId: "SYSTEM",
-                    actorName: "Internal Sync Bot",
-                    action: "PROFILE_ARCHIVED",
-                    targetType: "PROFILE",
-                    targetId: profile.id,
-                    metadata: { description: profile.discordNickname || profile.userId, reason: "LEFT_GUILD" }
-                });
+                if (isBannedOnDiscord) {
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "BANNED",
+                            archivedAt: new Date(),
+                            archiveReason: "BANNED",
+                            scheduledDeletion: null
+                        }
+                    });
+
+                    await createAuditLog({
+                        guildId: discordGuildId,
+                        actorUserId: "SYSTEM",
+                        actorName: "Internal Sync Bot",
+                        action: "PROFILE_ARCHIVED",
+                        targetType: "PROFILE",
+                        targetId: profile.id,
+                        metadata: { description: profile.discordNickname || profile.userId, reason: "BANNED_FROM_DISCORD" }
+                    });
+                } else {
+                    const twelveMonthsFromNow = new Date();
+                    twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
+
+                    await db.userProfile.update({
+                        where: { id: profile.id },
+                        data: {
+                            status: "ARCHIVED",
+                            archivedAt: new Date(),
+                            archiveReason: "LEFT",
+                            scheduledDeletion: twelveMonthsFromNow
+                        }
+                    });
+
+                    // 📝 Audit Log (Internal/Cron)
+                    await createAuditLog({
+                        guildId: discordGuildId,
+                        actorUserId: "SYSTEM",
+                        actorName: "Internal Sync Bot",
+                        action: "PROFILE_ARCHIVED",
+                        targetType: "PROFILE",
+                        targetId: profile.id,
+                        metadata: { 
+                            description: profile.discordNickname || profile.userId, 
+                            reason: "LEFT_GUILD",
+                            retention: "12_MONTHS"
+                        }
+                    });
+                }
                 result.archived++;
             } else if (
                 profile.status === "ARCHIVED" &&

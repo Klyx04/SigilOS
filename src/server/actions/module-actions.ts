@@ -72,31 +72,43 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
             include: { modules: true },
         });
 
-        const modules = guildConfig?.modules as any;
-        const data = !modules ? DEFAULT_MODULES : {
-            presentation: modules.presentation,
-            roster: modules.roster,
-            stats: modules.stats,
-            calendar: modules.calendar,
-            missions: modules.missions,
-            songes: modules.songes,
-            ocre: modules.ocre,
-            ladder: modules.ladder,
-            services: modules.services,
-            donjons: modules.donjons,
-            profile: modules.profile,
-            docs: modules.docs,
-            polls: modules.polls,
-            logs: modules.logs,
-            admin: modules.admin,
-            quests: modules.quests,
-            worldmap: modules.worldmap,
-            resources: modules.resources,
-            gallery: modules.gallery,
-            ladderSync: modules.ladderSync,
-            manualLadderSync: modules.manualLadderSync ?? true,
-            minigames: modules.minigames ?? true,
+        const dbModules = guildConfig?.modules as any;
+        
+        // If no modules record at all, return defaults
+        if (!dbModules) {
+            moduleCache.set(discordGuildId, { data: DEFAULT_MODULES, expiresAt: now + MODULE_CACHE_TTL });
+            return DEFAULT_MODULES;
+        }
+
+        // Merge defaults with DB values, ensuring boolean conversion and fallback
+        const data: GuildModulesState = {
+            ...DEFAULT_MODULES,
+            presentation: dbModules.presentation ?? DEFAULT_MODULES.presentation,
+            roster: dbModules.roster ?? DEFAULT_MODULES.roster,
+            stats: dbModules.stats ?? DEFAULT_MODULES.stats,
+            calendar: dbModules.calendar ?? DEFAULT_MODULES.calendar,
+            missions: dbModules.missions ?? DEFAULT_MODULES.missions,
+            songes: dbModules.songes ?? DEFAULT_MODULES.songes,
+            ocre: dbModules.ocre ?? DEFAULT_MODULES.ocre,
+            ladder: dbModules.ladder ?? DEFAULT_MODULES.ladder,
+            services: dbModules.services ?? DEFAULT_MODULES.services,
+            donjons: dbModules.donjons ?? DEFAULT_MODULES.donjons,
+            profile: dbModules.profile ?? DEFAULT_MODULES.profile,
+            docs: dbModules.docs ?? DEFAULT_MODULES.docs,
+            polls: dbModules.polls ?? DEFAULT_MODULES.polls,
+            logs: dbModules.logs ?? DEFAULT_MODULES.logs,
+            admin: dbModules.admin ?? DEFAULT_MODULES.admin,
+            quests: dbModules.quests ?? DEFAULT_MODULES.quests,
+            worldmap: dbModules.worldmap ?? DEFAULT_MODULES.worldmap,
+            resources: dbModules.resources ?? DEFAULT_MODULES.resources,
+            gallery: dbModules.gallery ?? DEFAULT_MODULES.gallery,
+            ladderSync: dbModules.ladderSync ?? DEFAULT_MODULES.ladderSync,
+            manualLadderSync: dbModules.manualLadderSync ?? DEFAULT_MODULES.manualLadderSync,
+            minigames: dbModules.minigames ?? DEFAULT_MODULES.minigames,
         };
+
+        moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });
+        return data;
 
         moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });
         return data;

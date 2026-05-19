@@ -51,14 +51,14 @@ export async function createInvaderRoom(guildId: string) {
     const room: InvaderRoom = {
         roomId,
         hostId: session.user.id,
-        hostName: session.user.name || "Inconnu",
+        hostName: user.name || "Inconnu",
         guildId,
         playerCount: 1,
         maxPlayers: 4,
         state: 'LOBBY',
         players: [{
             userId: session.user.id,
-            name: session.user.name || "Inconnu",
+            name: user.name || "Inconnu",
             avatar: session.user.image || undefined,
             score: 0,
             ready: false,
@@ -113,7 +113,7 @@ export async function joinInvaderRoom(roomId: string, guildId: string) {
     
     room.players.push({
         userId: session.user.id,
-        name: session.user.name || "Inconnu",
+        name: user.name || "Inconnu",
         avatar: session.user.image || undefined,
         score: 0,
         ready: isSpectator, // Spectators are always ready

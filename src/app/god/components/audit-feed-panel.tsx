@@ -32,7 +32,6 @@ const ACTION_COLORS: Record<string, string> = {
     POLL_CLOSED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     POLL_DELETED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
     POLL_CREATOR_ROLE_ACQUIRED: "bg-cyan-400/10 text-cyan-300 border-cyan-400/20",
-    CHAT_BLOCKED_ATTEMPT: "bg-red-500/20 text-red-400 border-red-500/30",
     USER_GDPR_DELETE: "bg-red-600/20 text-red-300 border-red-600/30",
     GOD_ACTION: "bg-blue-600/20 text-blue-300 border-blue-500/30",
 };
@@ -46,7 +45,6 @@ const ACTION_OPTIONS = [
     { value: "POLL_CREATED,POLL_CLOSED,POLL_DELETED,POLL_CREATOR_ROLE_ACQUIRED", label: "📊 Sondages & Micro" },
     { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE", label: "🔄 Mouvements" },
     { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
-    { value: "CHAT_BLOCKED_ATTEMPT", label: "💬 Modération Chat" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
 ];
 

@@ -82,8 +82,8 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                     className="text-lg md:text-xl text-white/40 max-w-2xl mx-auto leading-relaxed font-medium"
                 >
                     {user
-                        ? "Centralisez la gestion de vos membres, automatisez vos missions et coordonnez vos sorties depuis un cockpit unique."
-                        : "Le tableau de bord le plus complet pour piloter votre guilde : quêtes, missions, Songes, sorties et ladder."
+                        ? "Centralisez la gestion de vos membres, suivez vos missions et coordonnez vos sorties depuis un cockpit unique."
+                        : "Le tableau de bord le plus complet pour piloter votre guilde : quêtes, missions, coordination et ladder."
                     }
                 </motion.p>
 
@@ -177,22 +177,8 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                 </div>
                             )}
 
-                            {/* Main CTA: Only show 'Ajouter SigilOS' if they already have guilds (the cards handle the access) */}
-                            {userGuilds.length > 0 ? (
-                                <Button
-                                    variant="sigil"
-                                    onClick={() => setShowAccessModal(true)}
-                                    className="h-auto py-3.5 px-8 rounded-2xl"
-                                >
-                                    <div className="flex flex-col items-start leading-none gap-1 text-left">
-                                        <span className="text-[9px] font-black opacity-60 uppercase tracking-widest">Chef de Guilde ?</span>
-                                        <div className="flex items-center gap-2">
-                                            <Crown className="w-3.5 h-3.5 text-white/80" />
-                                            <span className="text-sm font-bold">Inscrire Ma Guilde</span>
-                                        </div>
-                                    </div>
-                                </Button>
-                            ) : (
+                            {/* Main CTA: Only show 'Demander l'accès' if they have NO guilds yet */}
+                            {userGuilds.length === 0 && (
                                 <Button
                                     variant="sigil-emerald"
                                     onClick={() => setShowAccessModal(true)}

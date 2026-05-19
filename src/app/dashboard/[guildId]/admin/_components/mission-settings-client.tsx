@@ -23,10 +23,6 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
     const [validationChannelId, setValidationChannelId] = useState<string>("");
     const [validationRoleId, setValidationRoleId] = useState<string | null>(null);
 
-    // Validation Succès
-    const [achievementChannelId, setAchievementChannelId] = useState<string>("");
-    const [achievementRoleId, setAchievementRoleId] = useState<string | null>(null);
-
     // Contributions Kamas
     const [kamaChannelId, setKamaChannelId] = useState<string>("");
     const [kamaRoleId, setKamaRoleId] = useState<string | null>(null);
@@ -43,18 +39,17 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
         async function loadData() {
             const [configRes, rolesRes] = await Promise.all([
                 getMissionConfig(guildId),
-                getDiscordRolesAction(guildId)
+                getDiscordRolesAction(guildId, { ignoreWhitelist: true })
+
             ]);
 
             if (configRes.success && configRes.data) {
                 setChannelId(configRes.data.missionChannelId || "");
                 setValidationChannelId(configRes.data.missionValidationChannelId || "");
                 setKamaChannelId(configRes.data.kamaNotifyChannelId || "");
-                setAchievementChannelId(configRes.data.achievementNotifyChannelId || "");
                 setRoleId(configRes.data.missionNotifyRoleId || null);
                 setValidationRoleId(configRes.data.missionValidationNotifyRoleId || null);
                 // New fields (may not exist in older configs, graceful fallback)
-                setAchievementRoleId((configRes.data as any).achievementNotifyRoleId || null);
                 setKamaRoleId((configRes.data as any).kamaNotifyRoleId || null);
                 setManagementChannelId(configRes.data.missionManagementNotifyChannelId || "");
                 setManagementRoleId(configRes.data.missionManagementNotifyRoleId || null);
@@ -78,8 +73,6 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 validationRoleId: validationRoleId,
                 kamaNotifyChannelId: kamaChannelId.trim() || null,
                 kamaNotifyRoleId: kamaRoleId,
-                achievementNotifyChannelId: achievementChannelId.trim() || null,
-                achievementNotifyRoleId: achievementRoleId,
                 missionManagementNotifyChannelId: managementChannelId.trim() || null,
                 missionManagementNotifyRoleId: managementRoleId,
             });
@@ -93,272 +86,185 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[200px]">
+            <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="w-8 h-8 animate-spin text-amber-500/50" />
             </div>
         );
     }
 
-    /** Composant réutilisable pour un bloc salon + rôle uniforme */
-    const NotifBlock = ({
-        accentClass,
-        focusClass,
-        channelValue,
-        onChannelChange,
-        channelHint,
-        roleValue,
-        onRoleChange,
-        timer24h,
-    }: {
-        accentClass: string;
-        focusClass: string;
-        channelValue: string;
-        onChannelChange: (v: string) => void;
-        channelHint: string;
-        roleValue: string | null;
-        onRoleChange: (v: string | null) => void;
-        timer24h?: true;
-    }) => (
-        <div className="space-y-3">
-            {/* Salon */}
-            <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                    <Hash className="w-3 h-3" /> Salon
-                </label>
-                <Input
-                    value={channelValue}
-                    onChange={(e) => onChannelChange(e.target.value)}
-                    placeholder="ID du salon..."
-                    className={`font-mono bg-black/40 border-white/10 text-white h-10 text-sm ${focusClass} rounded-xl`}
-                />
-                <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">{channelHint}</p>
-            </div>
-
-            {/* Rôle */}
-            <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                    <Users className="w-3 h-3" /> Staff à Alerter
-                </label>
-                <RoleSelector
-                    value={roleValue}
-                    onChange={onRoleChange}
-                    roles={roles}
-                    className={`h-10 border-${accentClass}-500/20`}
-                />
-                <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
-                    Rôle mentionné dans l&apos;embed Discord.
-                </p>
-            </div>
-
-            {/* 24h badge */}
-            <div className={`p-2.5 rounded-xl bg-${accentClass}-500/5 border border-${accentClass}-500/10`}>
-                <div className="flex gap-2 items-start">
-                    <Clock className={`w-3 h-3 text-${accentClass}-400 shrink-0 mt-0.5`} />
-                    <p className="text-[10px] text-zinc-500 leading-relaxed italic">
-                        <span className={`text-${accentClass}-400 font-bold not-italic`}>24h</span> — Suppression automatique de la preuve si non validée.
-                        {timer24h && <span className="ml-1">Un compte à rebours est visible dans le dashboard admin.</span>}
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-
     return (
-        <div className="space-y-8 max-w-5xl mx-auto">
-            {/* ── SECTION 1: PUBLICATION (full width) ── */}
-            <div>
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-600 mb-3 pl-1">
-                    📢 Publication hebdomadaire
-                </h3>
-                <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                    <CardContent className="p-6 relative z-10">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                    <Hash className="w-3 h-3" /> Salon de Publication
-                                </label>
-                                <Input
-                                    value={channelId}
-                                    onChange={(e) => setChannelId(e.target.value)}
-                                    placeholder="ID du salon..."
-                                    className="font-mono bg-black/40 border-white/10 text-white h-11 focus:ring-amber-500/20 focus:border-amber-500/50 rounded-xl"
-                                />
-                                <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
-                                    Salon pour l&apos;annonce des 12 missions hebdomadaires.
-                                </p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                    <Users className="w-3 h-3" /> Rôle à Mentionner
-                                </label>
-                                <RoleSelector
-                                    value={roleId}
-                                    onChange={setRoleId}
-                                    roles={roles}
-                                    className="h-11"
-                                />
-                                <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
-                                    Envoyé chaque lundi matin (auto ou manuellement).
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* ── SECTION 2: VALIDATION CHANNELS (3 cards) ── */}
-            <div>
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-600 mb-3 pl-1">
-                    🔔 Salons de notification uploads
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                    {/* VALIDATION MISSIONS */}
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                        <CardHeader className="pb-2">
-                            <CardTitle className="flex items-center gap-2 text-purple-400 text-sm">
-                                <ShieldCheck className="w-4 h-4" />
-                                Validation Missions
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Configuration Panel */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* SECTION 1: PUBLICATION */}
+                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-white">
+                                <span className="bg-amber-500/20 text-amber-400 p-2 rounded-lg">
+                                    <Target className="w-5 h-5" />
+                                </span>
+                                Publication Hebdomadaire
                             </CardTitle>
-                            <CardDescription className="text-[10px] font-medium leading-relaxed">
-                                Embed + boutons ✅❌ envoyés quand un membre soumet une preuve de mission.
+                            <CardDescription>
+                                Annonce automatique des 12 missions de la semaine.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="relative z-10 pt-0">
-                            <NotifBlock
-                                accentClass="purple"
-                                focusClass="focus:ring-purple-500/20 focus:border-purple-500/50"
-                                channelValue={validationChannelId}
-                                onChannelChange={setValidationChannelId}
-                                channelHint="Vide = salon de publication."
-                                roleValue={validationRoleId}
-                                onRoleChange={setValidationRoleId}
-                                timer24h
-                            />
-                        </CardContent>
-                    </Card>
-
-                    {/* VALIDATION SUCCÈS */}
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                        <CardHeader className="pb-2">
-                            <CardTitle className="flex items-center gap-2 text-sky-400 text-sm">
-                                <Trophy className="w-4 h-4" />
-                                Validation Succès
-                            </CardTitle>
-                            <CardDescription className="text-[10px] font-medium leading-relaxed">
-                                Embed + boutons ✅❌ envoyés quand un membre upload une preuve de points succès.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="relative z-10 pt-0">
-                            <NotifBlock
-                                accentClass="sky"
-                                focusClass="focus:ring-sky-500/20 focus:border-sky-500/50"
-                                channelValue={achievementChannelId}
-                                onChannelChange={setAchievementChannelId}
-                                channelHint="Vide = salon validation missions."
-                                roleValue={achievementRoleId}
-                                onRoleChange={setAchievementRoleId}
-                                timer24h
-                            />
-                        </CardContent>
-                    </Card>
-
-                    {/* CONTRIBUTIONS KAMAS */}
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                        <CardHeader className="pb-2">
-                            <CardTitle className="flex items-center gap-2 text-yellow-400 text-sm">
-                                <Coins className="w-4 h-4" />
-                                Contributions Kamas
-                            </CardTitle>
-                            <CardDescription className="text-[10px] font-medium leading-relaxed">
-                                Embed + boutons ✅❌ envoyés quand un membre soumet un don de kamas.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="relative z-10 pt-0">
-                            <NotifBlock
-                                accentClass="yellow"
-                                focusClass="focus:ring-yellow-500/20 focus:border-yellow-500/50"
-                                channelValue={kamaChannelId}
-                                onChannelChange={setKamaChannelId}
-                                channelHint="Vide = pas de notification."
-                                roleValue={kamaRoleId}
-                                onRoleChange={setKamaRoleId}
-                                timer24h
-                            />
-                        </CardContent>
-                    </Card>
-
-                    {/* RAPPEL RESET HEBDO (STAFF) */}
-                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative md:col-span-3">
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                        <CardHeader className="pb-2">
-                            <CardTitle className="flex items-center gap-2 text-indigo-400 text-sm">
-                                <Bell className="w-4 h-4" />
-                                Rappel Reset Hebdo (Staff)
-                            </CardTitle>
-                            <CardDescription className="text-[10px] font-medium leading-relaxed">
-                                Ping automatique envoyé **chaque mardi matin à 08h00** pour rappeler aux officiers de générer les missions et purger les attentes.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="relative z-10 pt-0">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                        <Hash className="w-3 h-3" /> Salon de Rappel
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                                        <Hash className="w-3 h-3" /> Salon de Publication
                                     </label>
                                     <Input
-                                        value={managementChannelId}
-                                        onChange={(e) => setManagementChannelId(e.target.value)}
+                                        value={channelId}
+                                        onChange={(e) => setChannelId(e.target.value)}
                                         placeholder="ID du salon..."
-                                        className="font-mono bg-black/40 border-white/10 text-white h-10 focus:ring-indigo-500/20 focus:border-indigo-500/50 rounded-xl"
+                                        className="font-mono bg-black/20 border-white/10 h-10"
                                     />
-                                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
-                                        Laisse vide pour désactiver ce rappel.
-                                    </p>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                                        <Users className="w-3 h-3" /> Rôle (Officiers / Mission Managers)
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                                        <Users className="w-3 h-3" /> Rôle à Mentionner
                                     </label>
-                                    <RoleSelector
-                                        value={managementRoleId}
-                                        onChange={setManagementRoleId}
-                                        roles={roles}
-                                        className="h-10 border-indigo-500/10"
-                                    />
-                                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
-                                        Le rôle qui possède les droits de validation / création.
-                                    </p>
+                                    <RoleSelector value={roleId} onChange={setRoleId} roles={roles} className="h-10" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* SECTION 2: NOTIFICATIONS UPLOADS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <Card className="bg-zinc-900/60 border-white/5">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-sm flex items-center gap-2 text-purple-400 uppercase tracking-tight">
+                                    <ShieldCheck className="w-4 h-4" /> Validation Missions
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Salon ID</label>
+                                    <Input value={validationChannelId} onChange={(e) => setValidationChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-9" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Staff à alerter</label>
+                                    <RoleSelector value={validationRoleId} onChange={setValidationRoleId} roles={roles} className="h-9" />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-zinc-900/60 border-white/5">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-sm flex items-center gap-2 text-yellow-400 uppercase tracking-tight">
+                                    <Coins className="w-4 h-4" /> Contributions Kamas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Salon ID</label>
+                                    <Input value={kamaChannelId} onChange={(e) => setKamaChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-9" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Staff à alerter</label>
+                                    <RoleSelector value={kamaRoleId} onChange={setKamaRoleId} roles={roles} className="h-9" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* SECTION 3: RAPPEL RESET */}
+                    <Card className="bg-zinc-900/60 border-white/5">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-indigo-400 text-sm uppercase tracking-tight">
+                                <Bell className="w-4 h-4" /> Rappel Reset Hebdo (Mardi 08:00)
+                            </CardTitle>
+                            <CardDescription>Rappelle aux officiers de générer les missions après la maintenance Dofus.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Salon de Rappel</label>
+                                <Input value={managementChannelId} onChange={(e) => setManagementChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-10" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Rôle Staff</label>
+                                <RoleSelector value={managementRoleId} onChange={setManagementRoleId} roles={roles} className="h-10" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex justify-end pt-4">
+                        <Button onClick={handleSave} disabled={isPending} className="bg-amber-600 hover:bg-amber-500 text-white min-w-[200px] font-bold h-12 shadow-xl shadow-amber-600/20">
+                            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                            SAUVEGARDER TOUT
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Preview Panel */}
+                <div className="space-y-6">
+                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
+                        <CardHeader className="bg-white/5 pb-4 px-4 py-3">
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Aperçu : Validation</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6 relative text-left px-4">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
+                                    <ShieldCheck className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-2 mb-1">
+                                        <span className="font-medium text-purple-400 text-xs">SigilOS</span>
+                                        <span className="text-[9px] text-zinc-500 uppercase">Maintenant</span>
+                                    </div>
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-purple-400 p-3 max-w-sm shadow-xl">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-sm">🛡️</span>
+                                            <h4 className="font-semibold text-white text-[11px]">Preuve de Mission</h4>
+                                        </div>
+                                        <p className="text-zinc-300 text-[10px] mb-3 leading-relaxed">
+                                            <span className="text-purple-400 font-medium">@Wylan</span> a soumis une preuve pour **Donjon Kralamoure**.
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <div className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-bold rounded">VALIDER</div>
+                                            <div className="px-3 py-1 bg-rose-500/20 border border-rose-500/30 text-rose-400 text-[9px] font-bold rounded">REFUSER</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-zinc-900/60 border-white/5 overflow-hidden">
+                        <CardHeader className="bg-white/5 pb-4 px-4 py-3">
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Aperçu : Reset Hebdo</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6 relative text-left px-4">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
+                                    <Bell className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-2 mb-1">
+                                        <span className="font-medium text-indigo-400 text-xs">SigilOS</span>
+                                        <span className="text-[9px] text-zinc-500 uppercase font-black">Mardi 08:00</span>
+                                    </div>
+                                    <div className="bg-[#2b2d31] rounded border-l-4 border-indigo-400 p-3 max-w-sm">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-sm">🚀</span>
+                                            <h4 className="font-semibold text-white text-[11px]">Reset Hebdomadaire</h4>
+                                        </div>
+                                        <p className="text-zinc-300 text-[10px] leading-relaxed mb-3">
+                                            Le reset Dofus a eu lieu. Il est temps de générer les missions !
+                                        </p>
+                                        <div className="w-full py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-[9px] font-bold rounded flex items-center justify-center gap-2">
+                                            <span>🛠️</span> GÉRER LES MISSIONS
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
-            </div>
-
-            {/* ACTION FOOTER */}
-            <div className="sticky bottom-4 z-30 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-zinc-900/80 backdrop-blur-xl border border-white/10 shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.5)] mt-8">
-                <div className="flex items-start gap-4 max-w-lg">
-                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 shrink-0 shadow-inner">
-                        <Search className="w-4 h-4 text-amber-400" />
-                    </div>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">
-                        Ces réglages s&apos;appliquent à l&apos;ensemble de la guilde. Assurez-vous que le bot SigilOS a les permissions d&apos;écrire dans les salons choisis.
-                    </p>
-                </div>
-                <Button
-                    onClick={handleSave}
-                    disabled={isPending}
-                    className="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white font-black px-8 h-12 shadow-[0_0_20px_rgba(217,119,6,0.2)] rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-                >
-                    {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    {isPending ? "SAUVEGARDE EN COURS..." : "SAUVEGARDER LES MODIFICATIONS"}
-                </Button>
             </div>
         </div>
     );

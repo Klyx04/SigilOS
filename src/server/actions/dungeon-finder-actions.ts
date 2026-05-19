@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
+import { deleteChannelMessage } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
@@ -16,6 +17,14 @@ async function notifyDjUpdate(guildId: string) {
     } catch (err) {
         console.error("[notifyDjUpdate] Error publishing to Redis:", err);
     }
+}
+
+async function getDiscordId(userId: string): Promise<string | null> {
+    const account = await db.account.findFirst({
+        where: { userId, provider: "discord" },
+        select: { providerAccountId: true },
+    });
+    return account?.providerAccountId || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,6 +46,8 @@ export type DjPostWithDetails = {
     targetDate: Date | null;
     requiredClasses: string[];
     isDiscordPublished: boolean;
+    discordMessageId?: string | null;
+    discordChannelId?: string | null;
     status: string;
     createdAt: Date;
     updatedAt: Date;
@@ -79,7 +90,24 @@ export type DjPostWithDetails = {
 
 export type DjSettings = {
     djNotifyChannelId: string | null;
+    djPingRoleIds: string[];
 };
+
+export async function getDungeonFinderConfig(guildId: string): Promise<ActionResponse<DjSettings>> {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { djNotifyChannelId: true, djPingRoleIds: true },
+        });
+        return { success: true, data: { djNotifyChannelId: config?.djNotifyChannelId || null, djPingRoleIds: config?.djPingRoleIds || [] } };
+    } catch (error) {
+        console.error("[getDungeonFinderConfig]", error);
+        return { success: false, error: "Erreur lors de la récupération de la config" };
+    }
+}
 
 // ---------------------------------------------------------------------------
 // SCHEMAS
@@ -97,7 +125,7 @@ const createPostSchema = z.object({
     targetDate: z.date().nullable(),
     requiredClasses: z.array(z.string()).default([]),
     isDiscordPublished: z.boolean().default(true),
-    mentionRoleId: z.string().nullable().optional(),
+    mentionRoleIds: z.array(z.string()).default([]),
 });
 
 // ---------------------------------------------------------------------------
@@ -132,7 +160,8 @@ async function sendDiscordNotification(
     guildId: string,
     postId: string,
     embed: any,
-    mentionRoleId?: string | null
+    mentionRoleId?: string | null,
+    creatorDiscordId?: string | null
 ) {
     try {
         const guildConfig = await (db as any).guildConfig.findUnique({
@@ -176,9 +205,17 @@ async function sendDiscordNotification(
             const availableTags: { id: string; name: string; moderated?: boolean }[] = channelData.available_tags || [];
             const firstUsableTag = availableTags.find((t: { moderated?: boolean }) => !t.moderated);
 
+            const roleMentions = mentionRoleId ? mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ") : "";
+            const creatorMention = creatorDiscordId ? `<@${creatorDiscordId}>` : "";
+            const mentions = [creatorMention, roleMentions].filter(Boolean).join(" ");
+
             const forumBody: Record<string, unknown> = {
                 name: threadTitle,
-                message: { embeds: [embed], components },
+                message: { 
+                    content: mentions || undefined,
+                    embeds: [embed], 
+                    components 
+                },
                 auto_archive_duration: 1440,
             };
             if (firstUsableTag) {
@@ -193,11 +230,15 @@ async function sendDiscordNotification(
             if (res.ok) { const t = await res.json(); discordChannelId = t.id; discordMessageId = t.message?.id; }
             else { console.error("[DJ Embed] Forum thread error:", await res.json()); }
         } else {
+            const roleMentions = mentionRoleId ? mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ") : "";
+            const creatorMention = creatorDiscordId ? `<@${creatorDiscordId}>` : "";
+            const mentions = [creatorMention, roleMentions].filter(Boolean).join(" ");
+            
             const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
                 method: "POST",
                 headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
                 body: JSON.stringify({ 
-                    content: mentionRoleId ? `<@&${mentionRoleId}>` : undefined,
+                    content: mentions || undefined,
                     embeds: [embed], 
                     components 
                 }),
@@ -266,38 +307,108 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
 async function disableDjDiscordEmbed(guildId: string, discordChannelId: string | null, discordMessageId: string | null) {
     if (!discordChannelId || !discordMessageId) return;
     try {
-        await deleteDiscordMessage(discordChannelId, discordMessageId);
+        await deleteChannelMessage(discordChannelId, discordMessageId);
     } catch (error) { 
         console.error("[disableDjDiscordEmbed] Failed to delete Discord message:", error); 
     }
 }
 
 /**
- * Supprime un message Discord ou un thread forum (détecte le type via API).
+ * Envoie un rappel (ping) aux participants acceptés sur Discord.
  */
-async function deleteDiscordMessage(channelId: string, messageId: string) {
-    const token = process.env.DISCORD_BOT_TOKEN;
-    if (!token) return;
+export async function sendDjReminder(guildId: string, postId: string) {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+
     try {
-        const channelRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, { headers: { Authorization: `Bot ${token}` } });
-        if (!channelRes.ok) return;
-        const isThread = [10, 11, 12].includes((await channelRes.json()).type);
-        if (isThread) {
-            await fetch(`https://discord.com/api/v10/channels/${channelId}`, { method: "DELETE", headers: { Authorization: `Bot ${token}` } });
-        } else {
-            await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, { method: "DELETE", headers: { Authorization: `Bot ${token}` } });
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            include: {
+                dungeon: {
+                    include: {
+                        achievements: {
+                            include: {
+                                challenge: { select: { id: true, name: true, iconUrl: true } },
+                            },
+                        },
+                    },
+                },
+                profile: {
+                    select: {
+                        discordNickname: true,
+                        pseudoDofus: true,
+                        dofusPseudo: true,
+                        userId: true,
+                        user: { select: { name: true } }
+                    }
+                },
+                participants: {
+                    where: { status: "ACCEPTED" },
+                    include: {
+                        profile: {
+                            select: {
+                                userId: true,
+                                discordNickname: true,
+                                pseudoDofus: true,
+                                dofusPseudo: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!post) return { success: false, error: "Post introuvable" };
+        if (post.profileId !== user.profileId) return { success: false, error: "Seul le leader peut envoyer un rappel" };
+        if (!post.discordChannelId) return { success: false, error: "Post non publié sur Discord" };
+
+        // Spam Protection: 5 minutes cooldown
+        const COOLDOWN_MS = 5 * 60 * 1000;
+        if (post.lastReminderAt && (Date.now() - post.lastReminderAt.getTime() < COOLDOWN_MS)) {
+            const remainingMinutes = Math.ceil((COOLDOWN_MS - (Date.now() - post.lastReminderAt.getTime())) / 60000);
+            return { success: false, error: `Anti-spam : Veuillez attendre ${remainingMinutes} minute(s) avant le prochain rappel.` };
         }
-    } catch (error) { console.error("[deleteDiscordMessage]", error); }
+
+        const mentions: string[] = [];
+        for (const p of post.participants) {
+            const discordId = await getDiscordId(p.profile.userId);
+            if (discordId) mentions.push(`<@${discordId}>`);
+        }
+
+        if (mentions.length === 0) return { success: false, error: "Aucun participant à pinger" };
+
+        const { sendDiscordRawEmbed } = await import("@/server/discord");
+        
+        const authorName = post.profile?.discordNickname || post.profile?.user?.name || "Leader";
+        const embed = await buildPostEmbed(post, authorName, guildId);
+        
+        // Customizations for reminder
+        embed.title = `🔔 RAPPEL : ${post.mode === "DONJON" ? "DONJON" : "QUÊTE"}`;
+        embed.description = `⚠️ **Le leader demande votre attention pour le départ !**\n\n${embed.description}`;
+        embed.color = 0x9333ea; // Purple for reminders
+
+        await sendDiscordRawEmbed(guildId, post.discordChannelId, mentions.join(" "), embed);
+
+        await (db as any).djSearchPost.update({
+            where: { id: postId },
+            data: { lastReminderAt: new Date() }
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("[sendDjReminder]", error);
+        return { success: false, error: "Erreur lors de l'envoi du rappel" };
+    }
 }
+
+
+
 
 
 async function buildPostEmbed(post: any, authorName: string, guildId: string, acceptedParticipants: any[] = []) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
     const isDungeon = post.mode === "DONJON";
-    const title = isDungeon
-        ? `⚔️ Recherche de groupe — Donjon`
-        : `📜 Recherche de groupe — Quête`;
-
+    
     // Fetch creator's Discord ID for pinging
     let creatorDiscordId: string | null = null;
     if (post.profile?.userId) {
@@ -308,65 +419,84 @@ async function buildPostEmbed(post: any, authorName: string, guildId: string, ac
         creatorDiscordId = acc?.providerAccountId || null;
     }
 
+    const title = isDungeon
+        ? `⚔️ RECHERCHE DONJON`
+        : `📜 RECHERCHE QUÊTE`;
+
     const fields: any[] = [];
 
+    // Main Content Info
     if (isDungeon && post.dungeon) {
-        fields.push({ name: "📊 Niveau", value: `${post.dungeon.level}`, inline: true });
-    }
-
-    // Removed "Places" field as it was redundant and didn't refresh correctly
-
-    if (post.wantedAchievementIds.length > 0 && post.dungeon?.achievements) {
-        const achNames = post.dungeon.achievements
-            .filter((a: any) => post.wantedAchievementIds.includes(a.id))
-            .map((a: any) => a.challenge.name)
-            .join(", ");
-        if (achNames) {
-            fields.push({ name: "🏆 Succès visés", value: achNames });
-        }
-    }
-
-    if (post.requiredClasses && post.requiredClasses.length > 0) {
-        fields.push({ name: "🎭 Classes recherchées", value: post.requiredClasses.join(", ") });
+        fields.push({ 
+            name: "📍 Donjon", 
+            value: `**${post.dungeon.name}**\n*Niveau ${post.dungeon.level}*`,
+            inline: true 
+        });
+    } else if (!isDungeon) {
+        fields.push({ 
+            name: "📂 Quête", 
+            value: post.questUrl 
+                ? `**[${post.questName || "Inconnue"}](${post.questUrl})**`
+                : `**${post.questName || "Inconnue"}**`,
+            inline: true 
+        });
     }
 
     if (post.targetDate) {
         const d = new Date(post.targetDate);
         const timestamp = Math.floor(d.getTime() / 1000);
         fields.push({
-            name: "\uD83D\uDCC5 Date prévue",
-            value: `<t:${timestamp}:F> (<t:${timestamp}:R>)`,
+            name: "📅 Date prévue",
+            value: `<t:${timestamp}:F>\n(<t:${timestamp}:R>)`,
+            inline: true
+        });
+    }
+
+    // New line for following fields
+    fields.push({ name: "\u200b", value: "\u200b", inline: false });
+
+    if (isDungeon && post.wantedAchievementIds.length > 0 && post.dungeon?.achievements) {
+        const achNames = post.dungeon.achievements
+            .filter((a: any) => post.wantedAchievementIds.includes(a.id))
+            .map((a: any) => `• ${a.challenge.name}`)
+            .join("\n");
+        if (achNames) {
+            fields.push({ name: "🏆 Succès visés", value: achNames, inline: true });
+        }
+    }
+
+    if (post.requiredClasses && post.requiredClasses.length > 0) {
+        fields.push({ 
+            name: "🎭 Classes recherchées", 
+            value: post.requiredClasses.map((c: string) => `\`${c}\``).join(" "),
+            inline: true
         });
     }
 
     // Live participants list
     const acceptedParts = (post.participants ?? []).filter((p: any) => p.status === "ACCEPTED");
     const totalCount = acceptedParts.length + 1; // +1 for creator
-    if (acceptedParts.length > 0) {
-        const names = acceptedParts
-            .map((p: any) => {
-                const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
-                return p.classe ? `${n} *(${p.classe})*` : n;
-            })
-            .join("\n");
-        fields.push({ name: `\uD83D\uDC64 Membres (${totalCount}/${post.maxMembers})`, value: `**${authorName} (LEAD)**\n${names}` });
-    } else {
-        fields.push({ name: `\uD83D\uDC64 Membres (1/${post.maxMembers})`, value: `**${authorName} (LEAD)**\nEn attente de joueurs\u2026` });
-    }
+    
+    const leadName = authorName;
+    const participantLines = acceptedParts.map((p: any) => {
+        const n = p.profile?.discordNickname || p.profile?.pseudoDofus || p.profile?.dofusPseudo || "Membre";
+        return `• ${n}${p.classe ? ` *(${p.classe})*` : ""}`;
+    });
+
+    fields.push({ 
+        name: `👥 Membres (${totalCount}/${post.maxMembers})`, 
+        value: `**${leadName}**\n${participantLines.length > 0 ? participantLines.join("\n") : "*En attente de joueurs...*"}` ,
+        inline: false
+    });
 
     return {
         title,
         description: [
-            isDungeon
-                ? `🏰 **Donjon :** ${post.dungeon?.name || "Inconnu"}`
-                : `📜 **Quête :** ${post.questName || "Inconnue"}`,
             `👤 **${creatorDiscordId ? `<@${creatorDiscordId}>` : authorName}** cherche des compagnons !`,
-            post.message ? `\n💬 *${post.message}*` : "",
+            post.message ? `\n> ${post.message}` : "",
         ].filter(Boolean).join("\n"),
         color: isDungeon ? 0x818cf8 : 0x34d399,
         fields,
-        // Discord requires a publicly accessible HTTPS URL for thumbnails.
-        // Skip if appUrl is localhost (Discord cannot reach it).
         thumbnail: (() => {
             if (!isDungeon || !post.dungeon?.imageUrl) return undefined;
             const rawUrl = post.dungeon.imageUrl.startsWith("http")
@@ -400,7 +530,8 @@ export async function createDjPost(
     const parsed = createPostSchema.safeParse(input);
     if (!parsed.success) return { success: false, error: "Données invalides" };
 
-    const data = parsed.data;
+    const { mentionRoleIds, ...rest } = parsed.data;
+    const mentionRoleId = mentionRoleIds.length > 0 ? mentionRoleIds.join(",") : null;
 
     try {
         const guildConfig = await db.guildConfig.findUnique({
@@ -423,20 +554,10 @@ export async function createDjPost(
 
         const post = await (db as any).djSearchPost.create({
             data: {
+                ...rest,
                 guildId: guildConfig.id,
                 profileId: user.profileId,
-                mode: data.mode,
-                dungeonId: data.dungeonId,
-                questId: data.questId,
-                questName: data.questName,
-                questUrl: data.questUrl,
-                wantedAchievementIds: data.wantedAchievementIds,
-                maxMembers: data.maxMembers,
-                message: data.message,
-                targetDate: data.targetDate,
-                requiredClasses: data.requiredClasses,
-                isDiscordPublished: data.isDiscordPublished,
-                mentionRoleId: data.mentionRoleId,
+                mentionRoleId,
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                 // Note: creator is NOT added as a participant — they occupy 1 slot implicitly
             },
@@ -454,10 +575,11 @@ export async function createDjPost(
         });
 
         // Discord notification
-        if (data.isDiscordPublished) {
+        if (rest.isDiscordPublished) {
             const authorName = user.name || "Membre";
             const embed = await buildPostEmbed(post, authorName, guildId);
-            await sendDiscordNotification(guildId, post.id, embed, data.mentionRoleId);
+            const creatorDiscordId = await getDiscordId(user.id || "");
+            await sendDiscordNotification(guildId, post.id, embed, mentionRoleId, creatorDiscordId);
         }
 
 
@@ -706,7 +828,7 @@ export async function deleteDjPost(
         }
 
         if (post.discordChannelId && post.discordMessageId) {
-            deleteDiscordMessage(post.discordChannelId, post.discordMessageId).catch(() => { });
+            deleteChannelMessage(post.discordChannelId, post.discordMessageId).catch(() => { });
         }
 
         await (db as any).djSearchPost.delete({
@@ -1383,12 +1505,18 @@ export async function getDjSettings(guildId: string): Promise<ActionResponse<DjS
     try {
         const guildConfig = await (db as any).guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { djNotifyChannelId: true },
+            select: { djNotifyChannelId: true, djPingRoleIds: true },
         });
 
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
-        return { success: true, data: { djNotifyChannelId: guildConfig.djNotifyChannelId } };
+        return {
+            success: true,
+            data: {
+                djNotifyChannelId: guildConfig.djNotifyChannelId || null,
+                djPingRoleIds: guildConfig.djPingRoleIds || [],
+            },
+        };
     } catch (error) {
         console.error("[getDjSettings]", error);
         return { success: false, error: "Erreur lors du chargement des paramètres" };

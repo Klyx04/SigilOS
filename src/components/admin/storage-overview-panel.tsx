@@ -499,9 +499,9 @@ function StorageMiniItem({
     
     // Filtre les fichiers en attente de validation pour cette catégorie
     const myPending = pendingFiles.filter(pf => {
-        if (type === "MISSION") return pf.type === "MISSION";
-        if (type === "KAMA") return pf.type === "KAMA";
-        if (type === "ACHIEVEMENT") return pf.type === "ACHIEVEMENT";
+        if (pf.type === "MISSION") return type === "MISSION";
+        if (pf.type === "KAMA") return type === "KAMA";
+        if (pf.type === "ACHIEVEMENT") return type === "ACHIEVEMENT";
         return false;
     });
 

@@ -6,16 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { createWeekMissions, resetMission, resetWeek, getWeekMissions, updateWeekTier } from "@/server/actions/mission-actions";
-import { getDofusConfig } from "@/server/actions/admin-actions";
+import { getDofusConfig, updateGuildHallConfig } from "@/server/actions/admin-actions";
 import { toast } from "sonner";
-import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles } from "lucide-react";
+import { Save, Trash2, Edit2, RotateCcw, Check, Loader2, AlertTriangle, Send, Swords, Sparkles, Home, ChevronDown, MapPin, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_CONFIG, MISSION_CATEGORIES, type MissionCategoryType } from "@/lib/mission-config";
 import { getDofusWeek } from "@/lib/date-utils";
 import { useRouter } from "next/navigation";
 import { BonusMenuButton } from "@/components/admin/BonusMenuButton";
-import { MissionDiscordPublishDialog } from "./mission-discord-publish-dialog";
+import { MissionPublishFlowDialog } from "./mission-publish-flow-dialog";
 import { GuidePulse } from "@/components/dashboard/guide-pulse";
+import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import {
     DungeonForm,
     RegulationForm,
@@ -66,8 +67,14 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
-    const [isDiscordDialogOpen, setIsDiscordDialogOpen] = useState(false);
     const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
+
+    // Guild Hall Config state
+    const [hallPanelOpen, setHallPanelOpen] = useState(false);
+    const [hallPosX, setHallPosX] = useState<number | null>(null);
+    const [hallPosY, setHallPosY] = useState<number | null>(null);
+    const [hallWorldId, setHallWorldId] = useState<number>(1);
+    const [isSavingHall, setIsSavingHall] = useState(false);
 
     // Slots for current pool
     const poolMissions = missionPool === 'CLASSIQUES'
@@ -82,6 +89,13 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
             const configRes = await getDofusConfig(guildId);
             const guildTier = configRes.success && configRes.data?.missionTier ? configRes.data.missionTier : 3;
             setGuildDefaultTier(guildTier);
+
+            // Load guild hall config
+            if (configRes.success && configRes.data) {
+                setHallPosX(configRes.data.guildHallPosX ?? null);
+                setHallPosY(configRes.data.guildHallPosY ?? null);
+                setHallWorldId(configRes.data.guildHallWorldId ?? 1);
+            }
 
             const res = await getWeekMissions(guildId, weekNumber, year);
             if (res.success && res.data) {
@@ -124,12 +138,26 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
     const handleSaveSingle = async (slot: number) => {
         const mission = missions[slot];
+        
+        // Local uniqueness check
+        const currentSig = `${mission.category}-${globalTier}-${mission.rank}-${mission.title}-${JSON.stringify(mission.payload)}`;
+        const isDuplicate = missions.some((m, idx) => {
+            if (idx === slot || !m.title) return false;
+            const sig = `${m.category}-${globalTier}-${m.rank}-${m.title}-${JSON.stringify(m.payload)}`;
+            return sig === currentSig;
+        });
+
+        if (isDuplicate) {
+            toast.error(`Doublon détecté : La mission "${mission.title}" est déjà configurée dans un autre slot.`);
+            return;
+        }
+
         const promise = createWeekMissions({
             guildId,
             weekNumber,
             year,
             missions: [{ ...mission, tier: globalTier }],
-            updateGuildTier: globalTier
+            updateGuildTier: missionPool === 'CLASSIQUES' ? globalTier : undefined
         });
 
         toast.promise(promise, {
@@ -157,16 +185,28 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
     };
 
     const handleGlobalPublish = async () => {
+        // Uniqueness check (Frontend safety)
+        const seen = new Set<string>();
+        const duplicates = [];
+        for (const m of poolMissions) {
+            if (!m.title) continue;
+            const sig = `${m.category}-${globalTier}-${m.rank}-${m.title}-${JSON.stringify(m.payload)}`;
+            if (seen.has(sig)) duplicates.push(m.title);
+            seen.add(sig);
+        }
+
+        if (duplicates.length > 0) {
+            toast.error(`Doublon détecté : "${duplicates[0]}". Chaque mission doit être unique.`);
+            return { success: false, error: "Duplicate missions" };
+        }
+
         setIsSaving(true);
         // Only publish missions from the current pool
-        const poolMissionsToPublish = missionPool === 'CLASSIQUES'
-            ? missions.slice(0, 12)
-            : missions.slice(12, 18);
         const res = await createWeekMissions({
             guildId,
             weekNumber,
             year,
-            missions: poolMissionsToPublish.map(m => ({ ...m, tier: globalTier })),
+            missions: poolMissions.filter(m => m.title).map(m => ({ ...m, tier: globalTier })),
             updateGuildTier: missionPool === 'CLASSIQUES' ? globalTier : undefined,
             notifyMembers: true
         });
@@ -174,10 +214,12 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
         setConfirmPublishOpen(false);
 
         if (res.success) {
-            toast.success(missionPool === 'CLASSIQUES' ? "Missions classiques publiées !" : "Missions spéciales publiées !");
+            toast.success(missionPool === 'CLASSIQUES' ? "Missions classiques sauvegardées !" : "Missions spéciales sauvegardées !");
             fetchData();
+            return { success: true };
         } else {
             toast.error(res.error || "Erreur globale");
+            return { success: false, error: res.error };
         }
     };
 
@@ -266,7 +308,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                     <div className="flex-1">
                         <h4 className="text-sm font-black text-amber-500 uppercase tracking-widest mb-1">Configuration Discord Absente</h4>
                         <p className="text-xs text-amber-200/70 leading-relaxed font-medium">
-                            Le salon de notification des missions n&apos;est pas configuré dans les paramètres de la guilde. 
+                            Le salon de notification des missions n&apos;est pas configuré dans les paramètres de la guilde.
                             <span className="text-amber-400 font-bold ml-1 italic text-[10px] sm:text-xs">
                                 Le bouton d&apos;Annonce Discord est masqué pour éviter les pings invalides.
                             </span>
@@ -314,49 +356,151 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                     {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />}
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
-                    <div className="flex-1 sm:flex-none"><BonusMenuButton guildId={guildId} /></div>
+                <div className="flex items-center gap-2 p-1 bg-black/40 border border-white/5 rounded-xl shadow-inner backdrop-blur-md">
+                    <BonusMenuButton guildId={guildId} />
+                    
+                    <div className="w-px h-6 bg-white/10 mx-1" />
+
+                    {/* Guild Hall Config Button */}
+                    <button
+                        type="button"
+                        onClick={() => setHallPanelOpen(v => !v)}
+                        className={cn(
+                            "h-9 px-3 flex items-center gap-1.5 rounded-lg text-xs font-bold transition-all",
+                            hallPanelOpen
+                                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                                : "text-zinc-400 hover:text-cyan-400 hover:bg-cyan-500/10"
+                        )}
+                    >
+                        <Home className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Hall</span>
+                        {(hallPosX !== null && hallPosY !== null) && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                        )}
+                    </button>
+
+                    <div className="w-px h-6 bg-white/10 mx-1" />
+
                     <Button
                         type="button"
-                        variant="destructive"
+                        variant="ghost"
                         size="sm"
-                        className="flex-1 sm:flex-none h-9"
+                        className="h-9 px-3 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10"
                         onClick={handleResetWeek}
                         disabled={isResetting || isLoading}
                     >
                         {isResetting ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                             <Trash2 className="w-4 h-4 mr-2" />
                         )}
-                        Reset Semaine
+                        <span className="hidden sm:inline">Reset Semaine</span>
                     </Button>
-                    <div className="w-full sm:w-px h-px sm:h-8 bg-zinc-800 mx-1 block"></div>
 
-                    {isDiscordConfigured && (
-                        <Button
-                            variant="sigil-emerald"
-                            className="h-9 flex-1 sm:flex-none px-4"
-                            disabled={isLoading}
-                            onClick={() => setIsDiscordDialogOpen(true)}
-                        >
-                            <Send className="w-4 h-4 mr-2" />
-                            Annonce Discord
-                        </Button>
-                    )}
+                    <div className="w-px h-6 bg-white/10 mx-1" />
 
-                    <div className="relative group flex-1 sm:flex-none">
-                        <Button onClick={() => setConfirmPublishOpen(true)} variant="sigil" className="w-full h-9" size="sm">
-                            <Save className="w-4 h-4 mr-2" />
-                            Tout Publier
-                        </Button>
-                        <GuidePulse
-                            description="Enregistre toutes les missions et notifie les membres si l'option est cochée."
-                            className="absolute -top-1 -right-1"
-                        />
-                    </div>
+                    <Button 
+                        onClick={() => setConfirmPublishOpen(true)} 
+                        variant="sigil" 
+                        className="h-9 px-6 shadow-lg shadow-indigo-500/20" 
+                        size="sm"
+                        disabled={isLoading}
+                    >
+                        <Save className="w-4 h-4 mr-2" />
+                        TOUT PUBLIER
+                    </Button>
                 </div>
             </div>
+
+            {/* Guild Hall Config Panel */}
+            {hallPanelOpen && (
+                <div className="border border-cyan-500/20 bg-cyan-500/5 backdrop-blur-md rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                                <Home className="w-4 h-4 text-cyan-400" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-black text-white">Hall de Guilde</p>
+                                <p className="text-[10px] text-zinc-500">Position du point de ralliement visible par tous les membres.</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setHallPanelOpen(false)} className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-all">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                        <div>
+                            <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1">Position X</label>
+                            <input
+                                type="number"
+                                value={hallPosX ?? ""}
+                                onChange={(e) => setHallPosX(e.target.value ? Number(e.target.value) : null)}
+                                placeholder="Ex: -3"
+                                className="w-full bg-zinc-950/60 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm font-bold text-white text-center outline-none transition-all"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1">Position Y</label>
+                            <input
+                                type="number"
+                                value={hallPosY ?? ""}
+                                onChange={(e) => setHallPosY(e.target.value ? Number(e.target.value) : null)}
+                                placeholder="Ex: -56"
+                                className="w-full bg-zinc-950/60 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm font-bold text-white text-center outline-none transition-all"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1">Monde</label>
+                            <div className="relative">
+                                <select
+                                    value={hallWorldId}
+                                    onChange={(e) => setHallWorldId(Number(e.target.value))}
+                                    className="w-full bg-zinc-950/60 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl pl-3 pr-7 py-2 text-[11px] font-bold text-white outline-none appearance-none transition-all cursor-pointer"
+                                >
+                                    {DOFUS_WORLDS.map(w => (
+                                        <option key={w.id} value={w.id} className="bg-zinc-950 text-white text-xs">{w.name}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {hallPosX !== null && hallPosY !== null && (
+                        <p className="text-[10px] text-cyan-400/70 font-mono text-center">
+                            /travel {hallPosX} {hallPosY}
+                        </p>
+                    )}
+
+                    <div className="flex justify-end">
+                        <Button
+                            size="sm"
+                            disabled={isSavingHall}
+                            onClick={async () => {
+                                setIsSavingHall(true);
+                                const res = await updateGuildHallConfig(guildId, {
+                                    posX: hallPosX,
+                                    posY: hallPosY,
+                                    worldId: hallWorldId
+                                });
+                                setIsSavingHall(false);
+                                if (res.success) {
+                                    toast.success("Hall de Guilde configuré !");
+                                    setHallPanelOpen(false);
+                                } else {
+                                    toast.error(res.error || "Erreur");
+                                }
+                            }}
+                            className="px-6 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-cyan-500/20"
+                        >
+                            {isSavingHall ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                            Sauvegarder
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Pool Toggle — Dofus 3.5 Classiques / Spéciales */}
             <div className="flex items-center gap-3 flex-wrap w-full">
@@ -685,34 +829,13 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={confirmPublishOpen} onOpenChange={setConfirmPublishOpen}>
-                <DialogContent className="max-w-sm bg-zinc-900 border-zinc-800 text-white shadow-2xl rounded-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-amber-500 font-black text-base">
-                            <AlertTriangle className="w-4 h-4" />
-                            Confirmer la publication
-                        </DialogTitle>
-                        <DialogDescription className="text-zinc-400 text-sm">
-                            Vous allez publier les {missionPool === 'CLASSIQUES' ? 'missions classiques' : 'missions spéciales'} ({poolMissions.filter(m => m.title).length} configurées sur {missionPool === 'CLASSIQUES' ? 12 : 6}) pour la Semaine {weekNumber}.
-                            <br /><br />
-                            {missionPool === 'CLASSIQUES'
-                                ? "Cela mettra à jour les 12 slots classiques (indices 0-11)."
-                                : "Cela mettra à jour les 6 slots spéciaux (indices 12-17), dans le pool Événements."}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setConfirmPublishOpen(false)}>Annuler</Button>
-                        <Button onClick={handleGlobalPublish} variant="sigil" className="h-10">
-                            Publier maintenant
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <MissionDiscordPublishDialog
-                isOpen={isDiscordDialogOpen}
-                onOpenChange={setIsDiscordDialogOpen}
+            <MissionPublishFlowDialog
+                isOpen={confirmPublishOpen}
+                onOpenChange={setConfirmPublishOpen}
                 guildId={guildId}
+                missionPool={missionPool}
+                missionsCount={poolMissions.filter(m => m.title).length}
+                onConfirm={handleGlobalPublish}
             />
         </div >
     );

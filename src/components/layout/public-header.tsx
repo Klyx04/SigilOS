@@ -4,14 +4,23 @@ import { useEffect, useState } from "react";
 
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut, ChevronRight } from "lucide-react";
+import { LogOut, ChevronRight, LayoutDashboard } from "lucide-react";
 import { User } from "next-auth";
 import { Button } from "@/components/ui/button";
-import { loginWithDiscord } from "@/server/actions/auth-actions";
+import { loginWithDiscord, logoutAction } from "@/server/actions/auth-actions";
 import { DiscordIcon } from "@/components/shared/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardDrawer } from "./dashboard-drawer";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = {
     label: string;
@@ -92,7 +101,6 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                     {/* Left: Brand */}
                     <div className="flex items-center gap-12">
                         <Link href="/" className="flex items-center gap-4 group shrink-0 relative">
-                            {/* Animated Background Glow */}
                             <div className="absolute -inset-4 bg-emerald-500/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-all duration-700" />
                             
                             <div className="relative w-10 h-10 transition-all duration-500 group-hover:scale-110 group-hover:rotate-3">
@@ -113,8 +121,7 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                             </div>
                         </Link>
 
-                        {/* Desktop Nav (Standard 2026) */}
-                        <nav className="hidden lg:flex items-center gap-1 bg-white/[0.03] border border-white/5 rounded-full p-1 leading-none">
+                        <nav className="hidden lg:flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full p-1 leading-none shadow-2xl">
                             {NAV_ITEMS.map((item) => {
                                 const isActive = activePage === item.id;
                                 return (
@@ -124,8 +131,8 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                         className={cn(
                                             "px-5 py-2 rounded-full text-[11px] font-black transition-all uppercase tracking-widest leading-none",
                                             isActive
-                                                ? "text-white bg-white/10 shadow-lg"
-                                                : "text-zinc-500 hover:text-white hover:bg-white/5"
+                                                ? "text-white bg-white/20 shadow-lg"
+                                                : "text-zinc-300 hover:text-white hover:bg-white/10"
                                         )}
                                     >
                                         {item.label}
@@ -135,7 +142,7 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                         </nav>
                     </div>
 
-                    {/* Right: Auth / CTA / Mobile Toggle */}
+                    {/* Right: Auth */}
                     <div className="flex items-center gap-3 sm:gap-5">
                         <AnimatePresence mode="wait">
                             {user ? (
@@ -145,15 +152,56 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="flex items-center gap-3"
                                 >
-                                    <DashboardDrawer clientId={clientId}>
-                                        <button className="group relative flex items-center gap-2 sm:gap-3 px-4 sm:px-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl bg-white text-black text-[10px] sm:text-[11px] font-black uppercase tracking-wider sm:tracking-[0.2em] transition-all hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:-translate-y-1 active:scale-95 shadow-2x border border-white/20">
-                                            <span className="hidden sm:inline">Accéder au Dashboard</span>
-                                            <span className="sm:hidden">Dashboard</span>
-                                            <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-black/5 flex items-center justify-center group-hover:bg-black/10 transition-colors">
-                                                <ChevronRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 transition-transform group-hover:translate-x-0.5" />
-                                            </div>
-                                        </button>
-                                    </DashboardDrawer>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className="group relative flex items-center gap-3 pl-3 pr-4 py-2 rounded-2xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] hover:border-emerald-500/30 transition-all shadow-xl active:scale-95 outline-none">
+                                                <Avatar className="w-10 h-10 border border-white/10 rounded-xl">
+                                                    <AvatarImage src={user.image || ""} />
+                                                    <AvatarFallback className="bg-zinc-800 text-white font-black">{user.name?.[0]}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col items-start -space-y-0.5 hidden sm:flex">
+                                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Session</span>
+                                                    <span className="text-[11px] font-bold text-white">{user.name}</span>
+                                                </div>
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent className="w-64 bg-zinc-950 border border-white/10 rounded-2xl p-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)]" align="end">
+                                            <DropdownMenuLabel className="px-4 py-3">
+                                                <div className="flex flex-col space-y-1">
+                                                    <p className="text-xs font-black text-white uppercase tracking-widest">Compte SigilOS</p>
+                                                    <p className="text-[10px] text-zinc-500 font-medium truncate">{user.email}</p>
+                                                </div>
+                                            </DropdownMenuLabel>
+                                            <DropdownMenuSeparator className="bg-white/5 mx-2" />
+                                            
+                                            <DashboardDrawer clientId={clientId}>
+                                                <DropdownMenuItem 
+                                                    onSelect={(e) => e.preventDefault()}
+                                                    className="focus:bg-emerald-500/10 focus:text-emerald-400 rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
+                                                >
+                                                    <LayoutDashboard className="w-4 h-4" />
+                                                    <span className="text-[11px] font-black uppercase tracking-widest">Gestion Multi-Guilde</span>
+                                                </DropdownMenuItem>
+                                            </DashboardDrawer>
+
+                                            <DropdownMenuItem asChild className="focus:bg-zinc-800 focus:text-white rounded-xl p-3 cursor-pointer outline-none">
+                                                <Link href={dashboardHref} className="flex items-center gap-3 w-full">
+                                                    <LayoutDashboard className="w-4 h-4 opacity-40" />
+                                                    <span className="text-[11px] font-black uppercase tracking-widest">Dashboard Central</span>
+                                                </Link>
+                                            </DropdownMenuItem>
+
+                                            <DropdownMenuSeparator className="bg-white/5 mx-2" />
+                                            
+                                            <DropdownMenuItem 
+                                                onSelect={() => logoutAction()}
+                                                className="focus:bg-rose-500/10 focus:text-rose-400 rounded-xl p-3 cursor-pointer w-full flex items-center gap-3 outline-none"
+                                            >
+                                                <LogOut className="w-4 h-4" />
+                                                <span className="text-[11px] font-black uppercase tracking-widest text-left flex-1">Déconnexion</span>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </motion.div>
                             ) : (
                                 <motion.div
@@ -163,8 +211,8 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                     className="hidden sm:block"
                                 >
                                     <form action={loginWithDiscord}>
-                                        <button className="group relative flex items-center gap-3 px-8 py-3 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-black uppercase tracking-widest transition-all hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] hover:-translate-y-0.5">
-                                            <DiscordIcon className="w-4.5 h-4.5" />
+                                        <button className="group relative flex items-center gap-3 px-8 py-3 rounded-2xl bg-zinc-900 border border-white/10 hover:border-emerald-500/50 text-white text-[11px] font-black uppercase tracking-widest transition-all hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] hover:-translate-y-0.5">
+                                            <DiscordIcon className="w-4.5 h-4.5 text-emerald-500" />
                                             Connexion
                                         </button>
                                     </form>
@@ -172,11 +220,10 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                             )}
                         </AnimatePresence>
 
-                        {/* Mobile Menu Button - PREMIUM 2026 */}
                         <div className="lg:hidden">
                             <Sheet>
                                 <SheetTrigger asChild>
-                                    <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all">
+                                    <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all outline-none">
                                         <div className="space-y-1.5">
                                             <div className="w-5 h-0.5 bg-white rounded-full" />
                                             <div className="w-3 h-0.5 bg-white rounded-full ml-auto" />
@@ -213,7 +260,7 @@ export function PublicHeader({ activePage, user, variant = "standard", dashboard
                                     {!user && (
                                         <div className="p-6 bg-white/[0.02] border-t border-white/5 relative z-10">
                                             <form action={loginWithDiscord}>
-                                                <button className="w-full h-14 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all hover:shadow-[0_0_25px_rgba(88,101,242,0.5)]">
+                                                <button className="w-full h-14 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all">
                                                     <DiscordIcon className="w-5 h-5" />
                                                     Connexion
                                                 </button>

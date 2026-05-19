@@ -5,7 +5,7 @@ import {
     Search, Save, Info, Sparkles, Coins, ShieldAlert,
     ArrowLeft, Loader2, Edit3, Image as ImageIcon,
     Plus, Trash2, Map as MapIcon, SwatchBook,
-    Layers, Crosshair
+    Layers, Crosshair, ExternalLink, Copy, Check, MapPin
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -14,7 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import ReactMarkdown from "react-markdown";
+import { DocContent } from '@/components/doc/doc-content';
+import { AdvancedEditor } from '@/components/editor/advanced-editor';
+import { AssetGalleryModal } from "@/components/admin/asset-gallery-modal";
 
 import { getAllBounties } from "@/server/actions/admin-actions";
 import { updateGodBountyRecord } from "@/server/actions/game-data-actions";
@@ -26,6 +28,9 @@ const REWARD_TYPES = [
 ];
 
 export default function GodBountiesPage() {
+    const [galleryOpen, setGalleryOpen] = useState(false);
+    const [galleryType, setGalleryType] = useState<"portraits" | "maps">("portraits");
+    const [galleryTargetField, setGalleryTargetField] = useState<"imageUrl" | "mapUrl">("imageUrl");
     const router = useRouter();
     const [bounties, setBounties] = useState<any[]>([]);
     const [filteredBounties, setFilteredBounties] = useState<any[]>([]);
@@ -119,20 +124,20 @@ export default function GodBountiesPage() {
     return (
         <div className="flex flex-col h-full bg-[#050505] overflow-hidden">
             {/* Header */}
-            <header className="p-8 border-b border-white/5 flex items-center justify-between bg-black/40 backdrop-blur-2xl shrink-0 z-10">
+            <header className="p-4 sm:p-8 border-b border-white/5 flex flex-col lg:flex-row lg:items-center justify-between bg-black/40 backdrop-blur-2xl shrink-0 z-10 gap-6">
                 <div className="flex items-center gap-8">
                     <div className="flex flex-col">
-                        <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter flex items-center gap-4 leading-none">
-                            <ShieldAlert className="text-amber-500" size={28} />
+                        <h1 className="text-xl sm:text-3xl font-black text-white uppercase italic tracking-tighter flex items-center gap-4 leading-none">
+                            <ShieldAlert className="text-amber-500" size={24} />
                             Avis de Recherche
                         </h1>
-                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2 ml-1">
+                        <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] mt-2 ml-1">
                             Base de données tactique · {bounties.length} Records
                         </p>
                     </div>
                 </div>
 
-                <div className="relative w-96 group">
+                <div className="relative w-full lg:w-96 group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
                     <Input
                         placeholder="Rechercher une cible..."
@@ -143,9 +148,12 @@ export default function GodBountiesPage() {
                 </div>
             </header>
 
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {/* Bounty List */}
-                <div className="w-[380px] border-r border-white/5 overflow-y-auto p-6 space-y-3 bg-black/20 shrink-0 custom-scrollbar">
+                <div className={cn(
+                    "w-full lg:w-[380px] border-r border-white/5 overflow-y-auto p-4 sm:p-6 space-y-3 bg-black/20 shrink-0 custom-scrollbar transition-all duration-500",
+                    selectedBounty && "hidden lg:block"
+                )}>
                     {filteredBounties.map(b => (
                         <button
                             key={b.id}
@@ -186,20 +194,33 @@ export default function GodBountiesPage() {
                 </div>
 
                 {/* Editor Section */}
-                <div className="flex-1 overflow-y-auto bg-[#080808] custom-scrollbar">
+                <div className={cn(
+                    "flex-1 overflow-y-auto bg-[#080808] custom-scrollbar transition-all duration-500",
+                    !selectedBounty && "hidden lg:block"
+                )}>
                     {selectedBounty ? (
-                        <div className="p-12 max-w-5xl mx-auto space-y-12">
-                            <Tabs defaultValue="general" className="space-y-12">
-                                <div className="flex items-center justify-between sticky top-0 py-2 bg-[#080808] z-20">
-                                    <TabsList className="bg-black/40 border border-white/5 p-1.5 h-14 rounded-2xl">
-                                        <TabsTrigger value="general" className="rounded-xl px-8 font-black uppercase italic text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
-                                            Configuration
+                        <div className="p-4 sm:p-8 lg:p-12 max-w-5xl mx-auto space-y-8 lg:space-y-12">
+                            <div className="lg:hidden mb-4">
+                                <Button 
+                                    variant="ghost" 
+                                    onClick={() => setSelectedBounty(null)}
+                                    className="text-zinc-500 hover:text-white pl-0"
+                                >
+                                    <ArrowLeft className="mr-2" size={16} /> Retour à la liste
+                                </Button>
+                            </div>
+
+                            <Tabs defaultValue="general" className="space-y-8 lg:space-y-12">
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between sticky top-0 py-2 bg-[#080808] z-20 gap-4">
+                                    <TabsList className="bg-black/40 border border-white/5 p-1 h-auto lg:h-14 rounded-xl lg:rounded-2xl flex-wrap lg:flex-nowrap">
+                                        <TabsTrigger value="general" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-[9px] lg:text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
+                                            Config
                                         </TabsTrigger>
-                                        <TabsTrigger value="rewards" className="rounded-xl px-8 font-black uppercase italic text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
-                                            Dotations
+                                        <TabsTrigger value="rewards" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-[9px] lg:text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
+                                            Rewards
                                         </TabsTrigger>
-                                        <TabsTrigger value="mechanics" className="rounded-xl px-8 font-black uppercase italic text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
-                                            Briefing Tactique
+                                        <TabsTrigger value="mechanics" className="flex-1 lg:flex-none rounded-lg lg:rounded-xl px-4 lg:px-8 py-2 lg:py-0 font-black uppercase italic text-[9px] lg:text-[11px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
+                                            Briefing
                                         </TabsTrigger>
                                     </TabsList>
 
@@ -223,38 +244,70 @@ export default function GodBountiesPage() {
                                                     <label className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] italic ml-1 flex items-center gap-2 drop-shadow-sm">
                                                         <Crosshair size={12} /> Portrait Cible
                                                     </label>
-                                                    <div className="aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl">
+                                                    <button 
+                                                        onClick={() => { setGalleryType("portraits"); setGalleryOpen(true); }}
+                                                        className="w-full aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl transition-all hover:border-amber-500/50"
+                                                    >
                                                         {selectedBounty.imageUrl ? (
                                                             <img src={selectedBounty.imageUrl} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" />
                                                         ) : (
                                                             <ImageIcon size={48} className="text-zinc-700" />
                                                         )}
+                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                                            <ImageIcon size={24} className="text-amber-500" />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-white">Changer</span>
+                                                        </div>
+                                                    </button>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            value={selectedBounty.imageUrl || ""}
+                                                            onChange={(e) => setSelectedBounty({ ...selectedBounty, imageUrl: e.target.value })}
+                                                            placeholder="Portrait URL..."
+                                                            className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-[10px] text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
+                                                        />
+                                                        <Button 
+                                                            onClick={() => { setGalleryType("portraits"); setGalleryOpen(true); }}
+                                                            variant="outline"
+                                                            className="h-11 w-11 p-0 rounded-xl border-white/10 bg-zinc-950/50 hover:bg-amber-500 hover:text-black"
+                                                        >
+                                                            <SwatchBook size={18} />
+                                                        </Button>
                                                     </div>
-                                                    <Input
-                                                        value={selectedBounty.imageUrl || ""}
-                                                        onChange={(e) => setSelectedBounty({ ...selectedBounty, imageUrl: e.target.value })}
-                                                        placeholder="Portrait URL..."
-                                                        className="bg-zinc-950/50 border-white/10 font-mono text-[10px] text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
-                                                    />
                                                 </div>
 
                                                 <div className="space-y-3">
                                                     <label className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] italic ml-1 flex items-center gap-2 drop-shadow-sm">
                                                         <MapIcon size={12} /> Zone de Spawn
                                                     </label>
-                                                    <div className="aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl">
+                                                    <button 
+                                                        onClick={() => { setGalleryType("maps"); setGalleryOpen(true); }}
+                                                        className="w-full aspect-square rounded-3xl bg-zinc-950/80 border border-white/10 flex items-center justify-center overflow-hidden relative group shadow-xl transition-all hover:border-amber-500/50"
+                                                    >
                                                         {selectedBounty.mapUrl ? (
                                                             <img src={selectedBounty.mapUrl} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" />
                                                         ) : (
                                                             <MapIcon size={48} className="text-zinc-700" />
                                                         )}
+                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                                            <MapIcon size={24} className="text-amber-500" />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-white">Changer</span>
+                                                        </div>
+                                                    </button>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            value={selectedBounty.mapUrl || ""}
+                                                            onChange={(e) => setSelectedBounty({ ...selectedBounty, mapUrl: e.target.value })}
+                                                            placeholder="Minimap URL..."
+                                                            className="flex-1 bg-zinc-950/50 border-white/10 font-mono text-[10px] text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
+                                                        />
+                                                        <Button 
+                                                            onClick={() => { setGalleryType("maps"); setGalleryOpen(true); }}
+                                                            variant="outline"
+                                                            className="h-11 w-11 p-0 rounded-xl border-white/10 bg-zinc-950/50 hover:bg-amber-500 hover:text-black"
+                                                        >
+                                                            <SwatchBook size={18} />
+                                                        </Button>
                                                     </div>
-                                                    <Input
-                                                        value={selectedBounty.mapUrl || ""}
-                                                        onChange={(e) => setSelectedBounty({ ...selectedBounty, mapUrl: e.target.value })}
-                                                        placeholder="Minimap URL..."
-                                                        className="bg-zinc-950/50 border-white/10 font-mono text-[10px] text-zinc-400 h-11 rounded-xl focus-visible:ring-amber-500/50"
-                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -271,7 +324,7 @@ export default function GodBountiesPage() {
 
                                             <div className="grid grid-cols-2 gap-6">
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1">Niveau Combat</label>
+                                                    <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1">Niveau prérequis &gt;</label>
                                                     <Input
                                                         type="number"
                                                         value={selectedBounty.level}
@@ -285,6 +338,48 @@ export default function GodBountiesPage() {
                                                         value={selectedBounty.milice || ""}
                                                         onChange={(e) => setSelectedBounty({ ...selectedBounty, milice: e.target.value })}
                                                         className="bg-black/40 border-white/5 font-black h-14 rounded-2xl text-lg italic focus-visible:ring-amber-500/30"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1 flex items-center justify-between">
+                                                    <span>Position de départ (NPC / Milice)</span>
+                                                    <span className="text-[8px] opacity-40">Format: X,Y (ex: 4,-18)</span>
+                                                </label>
+                                                <div className="relative group">
+                                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
+                                                    <Input
+                                                        value={selectedBounty.position || ""}
+                                                        onChange={(e) => setSelectedBounty({ ...selectedBounty, position: e.target.value })}
+                                                        placeholder="4,-18"
+                                                        className="pl-12 bg-black/40 border-white/5 font-black h-14 rounded-2xl focus-visible:ring-amber-500/30 text-amber-500"
+                                                    />
+                                                    {selectedBounty.position && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(`/travel ${selectedBounty.position}`);
+                                                                toast.success("Commande /travel copiée !");
+                                                            }}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-zinc-500 hover:text-white h-10 px-4 rounded-xl"
+                                                        >
+                                                            <Copy size={12} className="mr-2" /> /travel
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1">Lien DofusPourLesNoobs (DPNL)</label>
+                                                <div className="relative group">
+                                                    <ExternalLink className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-amber-500 transition-colors" size={18} />
+                                                    <Input
+                                                        value={selectedBounty.dpnlUrl || ""}
+                                                        onChange={(e) => setSelectedBounty({ ...selectedBounty, dpnlUrl: e.target.value })}
+                                                        placeholder="https://www.dofuspourlesnoobs.com/..."
+                                                        className="pl-12 bg-black/40 border-white/5 font-bold h-14 rounded-2xl focus-visible:ring-amber-500/30"
                                                     />
                                                 </div>
                                             </div>
@@ -397,20 +492,21 @@ export default function GodBountiesPage() {
                                     </div>
 
                                     <div className="grid grid-cols-1 gap-6">
-                                        <div className="p-8 rounded-[2.5rem] bg-black/40 border border-white/5 shadow-2xl relative overflow-hidden group min-h-[500px]">
+                                        <div className="p-1 rounded-[2.5rem] bg-gradient-to-br from-white/5 to-transparent border border-white/5 shadow-2xl relative overflow-hidden group min-h-[500px]">
                                             <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/20 group-hover:bg-amber-500 transition-all shadow-[0_0_20px_rgba(245,158,11,0.5)]" />
                                             {!previewMode ? (
-                                                <Textarea
-                                                    value={selectedBounty.mechanics || ""}
-                                                    onChange={(e) => setSelectedBounty({ ...selectedBounty, mechanics: e.target.value })}
-                                                    placeholder={"# Phase 1\n* Tape en ligne\n* Retire du tacle\n\n# Phase 2\nInvulnérable tant que..."}
-                                                    className="w-full min-h-[450px] bg-transparent border-none text-lg font-medium text-zinc-300 leading-relaxed resize-none focus-visible:ring-0 placeholder:text-zinc-800"
-                                                />
+                                                <div className="relative h-full">
+                                                    <AdvancedEditor
+                                                        initialContent={selectedBounty.mechanics || ""}
+                                                        onChange={(html) => setSelectedBounty({ ...selectedBounty, mechanics: html })}
+                                                        contentClassName="min-h-[500px]"
+                                                    />
+                                                </div>
                                             ) : (
-                                                <div className="prose prose-invert prose-amber max-w-none">
-                                                    <ReactMarkdown>
-                                                        {selectedBounty.mechanics || "*Aucun contenu à prévisualiser*"}
-                                                    </ReactMarkdown>
+                                                <div className="p-10">
+                                                    <DocContent 
+                                                        content={selectedBounty.mechanics || "<p><em>Aucun contenu à prévisualiser</em></p>"} 
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -432,6 +528,20 @@ export default function GodBountiesPage() {
                     )}
                 </div>
             </div>
+
+            <AssetGalleryModal
+                open={galleryOpen}
+                onOpenChange={setGalleryOpen}
+                initialType={galleryType}
+                onSelect={(url) => {
+                    if (galleryType === "portraits") {
+                        setSelectedBounty({ ...selectedBounty, imageUrl: url });
+                    } else {
+                        setSelectedBounty({ ...selectedBounty, mapUrl: url });
+                    }
+                }}
+                title={galleryType === "portraits" ? "Sélecteur de Portraits" : "Sélecteur de Minimaps"}
+            />
 
             <style jsx global>{`
                 .custom-scrollbar::-webkit-scrollbar {

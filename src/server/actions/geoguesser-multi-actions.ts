@@ -6,7 +6,7 @@ import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { redis } from "@/lib/redis";
 
-const LOBBY_CACHE_TTL = 300; // 5 minutes cache for lobby list per guild
+const LOBBY_CACHE_TTL = 5; // 5 seconds cache for lobby list (keep it very short for real-time games)
 
 const getClient = () => ((db as any).geoguesserSession ? db : null) as any;
 
@@ -21,40 +21,26 @@ export async function createGeoguesserSession(guildId: string, maxRounds: number
         const client = getClient();
         if (!client) return { success: false, error: "Database client not ready" };
 
-        // Safety: Auto-cleanup ghost sessions older than 2 hours
+        // Clean up ANY existing session for this host in this guild to prevent ghost rooms
         await client.geoguesserSession.deleteMany({
             where: {
                 guildId,
-                hostId: session.user.id,
-                status: { in: ['LOBBY', 'IN_PROGRESS'] },
-                createdAt: { lt: new Date(Date.now() - 2 * 60 * 60 * 1000) }
+                hostId: session.user.id
             }
         });
-
-        const existingRoom = await client.geoguesserSession.findFirst({
-            where: {
-                guildId,
-                hostId: session.user.id,
-                status: { in: ['LOBBY', 'IN_PROGRESS'] }
-            }
-        });
-
-        if (existingRoom) {
-            await client.geoguesserSession.delete({ where: { id: existingRoom.id } });
-        }
 
         const room = await client.geoguesserSession.create({
             data: {
                 guildId,
                 hostId: session.user.id,
-                hostName: session.user.name || "Hôte",
+                hostName: ctx.name || "Hôte",
                 maxRounds,
                 timePerRound,
                 status: 'LOBBY',
                 participants: {
                     create: {
                         userId: session.user.id,
-                        userName: session.user.name || "Joueur",
+                        userName: ctx.name || "Joueur",
                         userAvatar: session.user.image,
                     }
                 }
@@ -162,11 +148,12 @@ export async function joinGeoguesserSession(sessionId: string, isSpectator: bool
         }
 
         if (!isAlreadyIn) {
+            const ctx = await getUserContext(room.guildId);
             await client.geoguesserSessionPlayer.create({
                 data: {
                     sessionId,
                     userId: sessionToken.user!.id,
-                    userName: sessionToken.user!.name || "Joueur",
+                    userName: ctx.name || "Joueur",
                     userAvatar: sessionToken.user!.image,
                 }
             });
@@ -178,7 +165,7 @@ export async function joinGeoguesserSession(sessionId: string, isSpectator: bool
                         data: {
                             userId: room.hostId,
                             title: "SigilGuesser",
-                            message: `${sessionToken.user!.name} a rejoint votre salon !`,
+                            message: `${ctx.name} a rejoint votre salon !`,
                             type: "SYSTEM_INFO",
                             category: "SYSTEM",
                             link: `/dashboard/${room.guildId}/mini-jeux`

@@ -41,6 +41,19 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
 
     const discordUserId = account.providerAccountId;
 
+    // ─── Cache permission result for 60s to avoid 3× Discord API calls per action ───
+    const cacheKey = `guard:admin:${discordUserId}:${guildId}`;
+    try {
+        const { redis } = await import("@/lib/redis");
+        if (redis.status === "ready") {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached) as { isAuthorized: boolean; discordUserId: string };
+                return parsed;
+            }
+        }
+    } catch { /* ignore cache errors, fall through to live check */ }
+
     try {
         const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
         const { isSuperAdmin } = await import("./super-admin-actions");
@@ -57,7 +70,13 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
 
         // Check 1: Is Owner?
         if (guildInfo.owner_id === discordUserId) {
-            return { isAuthorized: true, discordUserId };
+            const result = { isAuthorized: true, discordUserId };
+            // Cache positive result
+            try {
+                const { redis } = await import("@/lib/redis");
+                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+            } catch { /* ignore */ }
+            return result;
         }
 
         // Check 2: Is guild member?
@@ -75,7 +94,14 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
             return { isAuthorized: false, error: "Admin permission required" };
         }
 
-        return { isAuthorized: true, discordUserId };
+        const result = { isAuthorized: true, discordUserId };
+        // Cache positive result for 60s
+        try {
+            const { redis } = await import("@/lib/redis");
+            if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+        } catch { /* ignore */ }
+
+        return result;
     } catch (error) {
         console.error(`[Guard] Admin check failed for ${context}:`, error);
         return { isAuthorized: false, error: "Permission check failed" };

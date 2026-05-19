@@ -14,7 +14,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Upload, X, UserSearch, Handshake, Send } from "lucide-react";
+import { Loader2, Upload, X, UserSearch, Handshake, Send, AlertTriangle } from "lucide-react";
 import { createLoan } from "@/server/actions/loan-actions";
 import { LOAN_TYPE_LABELS } from "@/server/actions/services-constants";
 import { LoanType } from "@prisma/client";
@@ -31,11 +31,12 @@ interface LoanFormProps {
     onOpenChange: (open: boolean) => void;
     guildId: string;
     currentProfileId?: string;
+    isDiscordConfigured?: boolean;
 }
 
 const TYPES = Object.entries(LOAN_TYPE_LABELS) as [LoanType, string][];
 
-export function LoanForm({ open, onOpenChange, guildId, currentProfileId }: LoanFormProps) {
+export function LoanForm({ open, onOpenChange, guildId, currentProfileId, isDiscordConfigured = false }: LoanFormProps) {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
@@ -53,6 +54,12 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId }: Loan
     const [isDragging, setIsDragging] = useState(false);
     const [notifyDiscord, setNotifyDiscord] = useState(false);
 
+    useEffect(() => {
+        if (open) {
+            setNotifyDiscord(!!isDiscordConfigured);
+        }
+    }, [open, isDiscordConfigured]);
+
     const resetForm = () => {
         setType("KAMAS");
         setBorrower(null);
@@ -64,7 +71,7 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId }: Loan
         setLinkedItem(null);
         setProofFile(null);
         setProofPreview(null);
-        setNotifyDiscord(false);
+        setNotifyDiscord(!!isDiscordConfigured);
     };
 
     const processFile = async (file: File) => {
@@ -375,21 +382,33 @@ export function LoanForm({ open, onOpenChange, guildId, currentProfileId }: Loan
                         </div>
 
                         {/* Notif Discord */}
-                        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                            <div className="flex items-center gap-2.5">
-                                <Send className="h-4 w-4 text-indigo-400" />
-                                <div>
-                                    <p className="text-xs font-bold text-zinc-300">Notifier sur Discord</p>
-                                    <p className="text-[10px] text-zinc-600">Envoyer un embed dans le salon prêts</p>
+                        <div className={`p-4 rounded-xl border transition-all duration-300 ${notifyDiscord && isDiscordConfigured ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-white/5 border-white/10'}`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <Send className={`h-4 w-4 ${notifyDiscord && isDiscordConfigured ? 'text-indigo-400' : 'text-zinc-500'}`} />
+                                    <div>
+                                        <p className={`text-xs font-bold ${notifyDiscord && isDiscordConfigured ? 'text-indigo-300' : 'text-zinc-300'}`}>Notifier sur Discord</p>
+                                        <p className="text-[10px] text-zinc-600">Envoyer un embed dans le salon prêts</p>
+                                    </div>
                                 </div>
+                                <button
+                                    type="button"
+                                    disabled={!isDiscordConfigured}
+                                    onClick={() => setNotifyDiscord(v => !v)}
+                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${notifyDiscord && isDiscordConfigured ? "bg-indigo-500" : "bg-zinc-700"} ${!isDiscordConfigured ? "opacity-50 cursor-not-allowed" : ""}`}
+                                >
+                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${notifyDiscord && isDiscordConfigured ? "translate-x-4" : "translate-x-1"}`} />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setNotifyDiscord(v => !v)}
-                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${notifyDiscord ? "bg-indigo-500" : "bg-zinc-700"}`}
-                            >
-                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${notifyDiscord ? "translate-x-4" : "translate-x-1"}`} />
-                            </button>
+
+                            {!isDiscordConfigured && (
+                                <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                    <p className="text-[10px] text-amber-200/70 font-bold uppercase tracking-wider">
+                                        Le salon Discord n&apos;est pas configuré. Les notifications sont désactivées.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
 

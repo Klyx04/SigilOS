@@ -47,21 +47,40 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
         throw new Error("Guild not found");
     }
 
+    const rolesMapping = (guild.rolesMapping as Record<string, string[]>) || {};
+    const isRbacConfigured = Array.isArray(rolesMapping["dashboard:login"]) && rolesMapping["dashboard:login"].length > 0;
+
     const steps: OnboardingProgress["steps"] = [
+        {
+            id: "dofus",
+            title: "Serveur de Jeu (Obligatoire)",
+            description: "Sélectionnez le serveur Dofus de votre guilde. Cela débloquera l'accès aux autres paramètres.",
+            status: guild.dofusServerId ? "COMPLETED" : "TO_DO",
+            points: 20,
+            href: `/dashboard/${guildId}/admin/settings?tab=dofus`,
+        },
+        {
+            id: "rbac",
+            title: "Rôles & Permissions (Obligatoire)",
+            description: "Définissez au moins un rôle Discord pour l'autorisation 'Accès Dashboard' afin de sécuriser l'accès.",
+            status: isRbacConfigured ? "COMPLETED" : "TO_DO",
+            points: 20,
+            href: `/dashboard/${guildId}/admin/permissions`,
+        },
         {
             id: "discord",
             title: "Lier le Bot Discord",
-            description: "Le cœur de SigilOS est son lien avec Discord. Assurez-vous d'avoir configuré un salon de notifications.",
-            status: guild.missionNotifyChannelId ? "COMPLETED" : "TO_DO",
-            points: 20,
-            href: `/dashboard/${guildId}/admin/settings`,
+            description: "Configurez au moins le salon de notifications principal (Lifecycle ou Missions).",
+            status: guild.missionNotifyChannelId || guild.lifecycleNotifyChannelId ? "COMPLETED" : "IN_PROGRESS",
+            points: 15,
+            href: `/dashboard/${guildId}/admin/settings?tab=annonces`,
         },
         {
             id: "modules",
             title: "Configurer les Modules",
             description: "Activez les fonctionnalités dont votre guilde a besoin (Missions, Songes, Ocre...).",
             status: guild.modules && countEnabledModules(guild.modules) > 4 ? "COMPLETED" : "IN_PROGRESS",
-            points: 20,
+            points: 15,
             href: `/dashboard/${guildId}/admin/modules`,
         },
         {
@@ -69,7 +88,7 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Page de Présentation",
             description: "Personnalisez votre page publique pour attirer de nouveaux membres.",
             status: guild.presentationEnabled && guild.presentationHistory ? "COMPLETED" : "IN_PROGRESS",
-            points: 20,
+            points: 15,
             href: `/dashboard/${guildId}/admin/presentation`,
         },
         {
@@ -77,16 +96,8 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Premières Missions",
             description: "Lancez l'activité en publiant des missions hebdomadaires pour vos membres.",
             status: guild._count.missions > 0 ? "COMPLETED" : "TO_DO",
-            points: 20,
+            points: 15,
             href: `/dashboard/${guildId}/missions/manage`,
-        },
-        {
-            id: "members",
-            title: "Inviter les Membres",
-            description: "Partagez l'accès au Dashboard à vos membres pour qu'ils commencent à gagner de l'XP.",
-            status: guild._count.profiles > 1 ? "COMPLETED" : "IN_PROGRESS",
-            points: 20,
-            href: `/dashboard/${guildId}/admin/settings#membres`,
         },
     ];
 

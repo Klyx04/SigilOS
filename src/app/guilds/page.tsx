@@ -45,7 +45,7 @@ export default async function GuildsDirectoryPage() {
             <PublicHeader user={session?.user} backHref="/" backLabel="Retour à l'accueil" isMember={userContext.isMember} />
 
             {/* Main Content */}
-            <main className="flex-1 w-auto relative z-10 pt-32 pb-24 px-6 md:px-8 overflow-y-auto custom-scrollbar">
+            <main className="flex-1 w-auto relative z-10 pt-32 pb-24 px-6 md:px-8">
                 <div className="max-w-7xl mx-auto space-y-16">
 
                     {/* Hero Section */}

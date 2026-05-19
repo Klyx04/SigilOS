@@ -52,8 +52,11 @@ import {
     addBlacklistEntry, 
     getBlacklistEntries, 
     deleteBlacklistEntry,
-    editBlacklistEntry 
+    editBlacklistEntry,
+    getBlacklistConfig
 } from "@/server/actions/blacklist-actions";
+import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
+import { Hash } from "lucide-react";
 
 interface BlacklistEntry {
     id: string;
@@ -74,6 +77,8 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState("");
     const [isPending, startTransition] = useTransition();
+    const [blacklistChannelId, setBlacklistChannelId] = useState<string | null>(null);
+    const [targetChannelName, setTargetChannelName] = useState("annonces");
 
     const renderFormattedContent = (text: string) => {
         const pseudoRegex = /([a-zA-Z0-9_-]+)(#\d{4})/g;
@@ -132,6 +137,18 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
 
     useEffect(() => {
         fetchEntries();
+        
+        // Fetch Blacklist Config
+        getBlacklistConfig(guildId).then(res => {
+            if (res.success && res.data?.blacklistChannelId) {
+                setBlacklistChannelId(res.data.blacklistChannelId);
+                getDiscordChannelInfo(guildId, res.data.blacklistChannelId).then(chanRes => {
+                    if (chanRes.success && chanRes.data) {
+                        setTargetChannelName(chanRes.data.name);
+                    }
+                });
+            }
+        });
     }, [guildId]);
 
     const handleSearch = (val: string) => {
@@ -241,6 +258,21 @@ export function MemberBlacklist({ guildId }: MemberBlacklistProps) {
                                 className="min-h-[120px] bg-black/40 border-white/5 text-white rounded-3xl focus:ring-red-500/20 focus:border-red-500/50 transition-all placeholder:text-zinc-600 font-medium resize-none p-4"
                             />
                         </div>
+
+                        {blacklistChannelId && newContent.trim() && (
+                            <div className="space-y-2 pt-2 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl shadow-inner">
+                                    <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center border border-red-500/30">
+                                        <Hash className="w-4 h-4 text-red-400" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Destination Discord</span>
+                                        <span className="text-xs font-bold text-white">Log envoyé dans <span className="text-red-400 italic">#{targetChannelName}</span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <Button 
                             className="w-full h-12 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest gap-2 shadow-lg shadow-red-600/20"
                             onClick={handleAdd}

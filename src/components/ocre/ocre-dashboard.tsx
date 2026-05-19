@@ -28,7 +28,10 @@ import {
     Check,
     User,
     CheckCircle2,
+    Plus,
+    Minus,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -39,6 +42,7 @@ import { OcreMonsterCard } from "./ocre-monster-card";
 import { OcreFilterBar, type OcreFilters, type MonsterType, type SortOption } from "./ocre-filter-bar";
 import { OcreExchangeModal } from "./ocre-exchange-modal";
 import { OcreTradeInbox } from "./ocre-trade-inbox";
+import { OcreSettingsModal } from "./ocre-settings-modal";
 import {
     forceRefreshOcre,
     getGuildExchangeMap,
@@ -74,6 +78,50 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
     const [exchangeMap, setExchangeMap] = useState<Record<number, number>>({});
     const [exchangeMapLoading, setExchangeMapLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Selection Mode
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedMonsterIds, setSelectedMonsterIds] = useState<Set<number>>(new Set());
+    const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+    const toggleMonsterSelection = useCallback((id: number) => {
+        setSelectedMonsterIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+
+    const handleBulkUpdate = async (type: 'inc' | 'dec' | 'set', value?: number) => {
+        if (selectedMonsterIds.size === 0) return;
+        setIsBulkUpdating(true);
+        try {
+            const updates = Array.from(selectedMonsterIds).map(id => {
+                const m = data.monsters.find(x => x.id === id);
+                let newQty = m?.owned || 0;
+                if (type === 'inc') newQty += 1;
+                else if (type === 'dec') newQty = Math.max(0, newQty - 1);
+                else if (type === 'set' && value !== undefined) newQty = value;
+                return { monster_id: id, quantity: newQty };
+            });
+
+            const { bulkUpdateMonsterQuantitiesAction } = await import("@/server/actions/ocre-actions");
+            const res = await bulkUpdateMonsterQuantitiesAction({ guildId, monsters: updates });
+            if (res.success) {
+                toast.success(`${selectedMonsterIds.size} monstres mis à jour !`);
+                setIsSelectionMode(false);
+                setSelectedMonsterIds(new Set());
+                window.location.reload();
+            } else {
+                toast.error(res.error || "Erreur lors de la mise à jour groupée");
+            }
+        } catch {
+            toast.error("Erreur réseau");
+        } finally {
+            setIsBulkUpdating(false);
+        }
+    };
 
     // Load exchange map on mount
     const loadExchangeMap = useCallback(async () => {
@@ -363,6 +411,8 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                 <ArrowRightLeft className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-amber-500 transition-colors" />
                                 <span className="text-xs font-semibold">Changer de quête / perso</span>
                             </Button>
+
+                            <OcreSettingsModal data={data} guildId={guildId} />
                         </div>
                     </div>
 
@@ -458,6 +508,11 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                         guildId={guildId}
                         showMarketplace={false}
                         hasOcreChannel={hasOcreChannel}
+                        selectionMode={isSelectionMode}
+                        onSelectionModeToggle={() => {
+                            setIsSelectionMode(!isSelectionMode);
+                            setSelectedMonsterIds(new Set());
+                        }}
                     />
 
                     {/* Secondary Tabs (Grid) */}
@@ -498,6 +553,9 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                 currentPage={currentPage}
                                 onPageChange={setCurrentPage}
                                 onFindExchanges={handleFindExchanges}
+                                isSelectionMode={isSelectionMode}
+                                selectedIds={selectedMonsterIds}
+                                onToggleSelection={toggleMonsterSelection}
                             />
                         </TabsContent>
 
@@ -511,9 +569,11 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                         ? "Aucun monstre ne correspond aux filtres"
                                         : "Vous n'avez encore aucun monstre possédé"
                                 }
-                                showExchangeButton={false}
                                 currentPage={currentPage}
                                 onPageChange={setCurrentPage}
+                                isSelectionMode={isSelectionMode}
+                                selectedIds={selectedMonsterIds}
+                                onToggleSelection={toggleMonsterSelection}
                             />
                         </TabsContent>
 
@@ -530,6 +590,9 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                 showExchangeButton={false}
                                 currentPage={currentPage}
                                 onPageChange={setCurrentPage}
+                                isSelectionMode={isSelectionMode}
+                                selectedIds={selectedMonsterIds}
+                                onToggleSelection={toggleMonsterSelection}
                             />
                         </TabsContent>
                     </Tabs>
@@ -563,6 +626,62 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                     </div>
                 </TabsContent>
             </Tabs>
+
+            {/* Floating Bulk Action Bar */}
+            <AnimatePresence>
+                {isSelectionMode && selectedMonsterIds.size > 0 && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-[90vw] max-w-2xl"
+                    >
+                        <div className="bg-zinc-900/90 backdrop-blur-2xl border border-amber-500/30 rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 pl-2">
+                                <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+                                    <Badge className="bg-amber-500 text-white font-black">{selectedMonsterIds.size}</Badge>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-white uppercase tracking-wider">Monstres sélectionnés</span>
+                                    <span className="text-[10px] text-muted-foreground italic">Actions groupées Metamob</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-10 rounded-xl bg-background/50 hover:bg-emerald-500/10 hover:text-emerald-500 font-bold border-white/5"
+                                    onClick={() => handleBulkUpdate('inc')}
+                                    disabled={isBulkUpdating}
+                                >
+                                    {isBulkUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                                    +1
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-10 rounded-xl bg-background/50 hover:bg-red-500/10 hover:text-red-500 font-bold border-white/5"
+                                    onClick={() => handleBulkUpdate('dec')}
+                                    disabled={isBulkUpdating}
+                                >
+                                    <Minus className="h-4 w-4 mr-2" />
+                                    -1
+                                </Button>
+                                <div className="w-px h-8 bg-white/10 mx-1" />
+                                <Button
+                                    size="sm"
+                                    className="h-10 px-6 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold transition-all active:scale-95"
+                                    onClick={() => handleBulkUpdate('set', 1)}
+                                    disabled={isBulkUpdating}
+                                >
+                                    Possédé (1)
+                                </Button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -581,6 +700,9 @@ interface MonsterGridProps {
     currentPage: number;
     onPageChange: (page: number) => void;
     onFindExchanges?: (monsterId: number) => Promise<ExchangePartner[]>;
+    isSelectionMode?: boolean;
+    selectedIds?: Set<number>;
+    onToggleSelection?: (id: number) => void;
 }
 
 function MonsterGrid({
@@ -592,6 +714,9 @@ function MonsterGrid({
     currentPage,
     onPageChange,
     onFindExchanges,
+    isSelectionMode = false,
+    selectedIds = new Set(),
+    onToggleSelection,
 }: MonsterGridProps) {
     const totalPages = Math.ceil(monsters.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -650,6 +775,9 @@ function MonsterGrid({
                         availableExchanges={exchangeMap[monster.id] || 0}
                         showExchangeButton={showExchangeButton}
                         onFindExchanges={onFindExchanges ? () => onFindExchanges(monster.id) : undefined}
+                        isSelected={selectedIds.has(monster.id)}
+                        isSelectionMode={isSelectionMode}
+                        onToggleSelection={onToggleSelection}
                     />
                 ))}
             </div>

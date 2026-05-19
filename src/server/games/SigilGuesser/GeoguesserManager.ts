@@ -83,9 +83,10 @@ export class GeoguesserManager {
         });
         this.io.to(`guild:${guildId}`).emit("geoguesser:room:list", rooms);
 
-        // Internal Redis broadcast for Dashboard EventTicker
+        // Synchronize with Server Action cache key for unified lobby list
         if (guildId !== "global") {
-            await redis.set(`guild:${guildId}:geoguesser:rooms`, JSON.stringify(rooms), "EX", 3600);
+            const cacheKey = `lobby:guild:${guildId}`;
+            await redis.set(cacheKey, JSON.stringify(rooms), "EX", 10);
         }
     }
 
@@ -275,6 +276,7 @@ export class GeoguesserManager {
                     const { sendChannelMessage } = await import("@/server/discord");
                     const ping = (config as any).godNotifyRoleId ? `<@&${(config as any).godNotifyRoleId}>` : "";
                     
+                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
                     await sendChannelMessage((config as any).godNotifyChannelId, ping, {
                         embedTitle: "🚩 Signalement Map SigilGuesser",
                         embedColor: 0xef4444,
@@ -284,10 +286,10 @@ export class GeoguesserManager {
                             `**Map ID :** \`${data.mapId}\``,
                             `**Signalé par :** \`${socket.id}\``,
                             "",
-                            `▸ [Gérer les maps sur Dashboard](https://sigilos.fr/god/mini-games?game=SigilGuesser)`,
+                            `▸ [Gérer les maps sur Dashboard](${appUrl}/god/mini-games?game=SigilGuesser)`,
                         ].join("\n"),
                         embedFooter: "SigilOS Administration · SigilGuesser",
-                        embedThumbnail: "https://sigilos.fr/assets/ui/icons/geoguesser.png"
+                        embedThumbnail: `${appUrl}/assets/ui/icons/geoguesser.png`
                     });
                 }
             }

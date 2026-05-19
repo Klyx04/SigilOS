@@ -47,7 +47,7 @@ export default async function ChangelogPage() {
     const nonce = headersList.get('x-nonce') ?? '';
 
     return (
-        <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-accent-teal/30 landing-theme">
+        <div className="relative min-h-screen w-full flex flex-col bg-zinc-950 font-sans selection:bg-accent-teal/30 landing-theme overflow-x-hidden">
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow" />

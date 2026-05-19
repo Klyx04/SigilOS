@@ -66,6 +66,7 @@ export default function MiniGamesGodClient({
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [manualId, setManualId] = useState("");
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [worldFilter, setWorldFilter] = useState<string>("ALL");
 
     const refreshDataFromServer = async () => {
         setIsRefreshing(true);
@@ -409,21 +410,35 @@ export default function MiniGamesGodClient({
                                     </div>
                                 </div>
 
-                                {/* Manual Add */}
-                                <div className="flex gap-2">
-                                    <input 
-                                        type="number" 
-                                        value={manualId}
-                                        onChange={(e) => setManualId(e.target.value)}
-                                        placeholder="Ajouter un Map ID..."
-                                        className="flex-1 bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500/50 transition-all font-mono"
-                                    />
-                                    <button 
-                                        onClick={handleManualAdd}
-                                        className="px-4 py-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 transition-all flex items-center justify-center"
+                                {/* Manual Add & Filter */}
+                                <div className="flex gap-2 flex-col sm:flex-row">
+                                    <div className="flex flex-1 gap-2">
+                                        <input 
+                                            type="number" 
+                                            value={manualId}
+                                            onChange={(e) => setManualId(e.target.value)}
+                                            placeholder="Ajouter un Map ID..."
+                                            className="flex-1 bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500/50 transition-all font-mono"
+                                        />
+                                        <button 
+                                            onClick={handleManualAdd}
+                                            className="px-4 py-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 transition-all flex items-center justify-center shrink-0"
+                                        >
+                                            <Plus size={18} />
+                                        </button>
+                                    </div>
+                                    <select
+                                        value={worldFilter}
+                                        onChange={(e) => setWorldFilter(e.target.value)}
+                                        className="sm:w-48 bg-zinc-950/50 border border-white/10 rounded-xl px-3 py-3 text-xs text-zinc-400 focus:outline-none focus:border-amber-500/50 transition-all shrink-0"
                                     >
-                                        <Plus size={18} />
-                                    </button>
+                                        <option value="ALL">Tous les mondes</option>
+                                        {Array.from(new Set(blacklist.map(id => mapDetails[id]?.worldMap).filter(Boolean))).map((worldId: any) => (
+                                            <option key={worldId} value={worldId}>
+                                                {WORLD_NAMES[worldId] || `Monde ${worldId}`}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto max-h-[440px] space-y-3 pr-2 custom-scrollbar">
@@ -433,10 +448,12 @@ export default function MiniGamesGodClient({
                                             <p className="text-xs font-bold uppercase tracking-widest">Blacklist vide</p>
                                         </div>
                                     ) : (
-                                        blacklist.map(id => {
-                                            const details = mapDetails[id];
-                                            return (
-                                                <div key={id} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-3 flex items-center justify-between group hover:border-red-500/30 transition-all">
+                                        blacklist
+                                            .filter(id => worldFilter === "ALL" || mapDetails[id]?.worldMap?.toString() === worldFilter)
+                                            .map(id => {
+                                                const details = mapDetails[id];
+                                                return (
+                                                    <div key={id} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-3 flex items-center justify-between group hover:border-red-500/30 transition-all">
                                                     <div className="flex items-center gap-4">
                                                         <div className="relative group/map">
                                                             <div className="w-16 h-12 rounded-xl bg-red-500/5 overflow-hidden border border-white/5 flex items-center justify-center text-red-500/20 transition-all group-hover/map:border-red-500/50">

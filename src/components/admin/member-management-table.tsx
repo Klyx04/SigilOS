@@ -27,7 +27,9 @@ import {
     Check,
     Crown,
     Palmtree,
-    CalendarDays
+    CalendarDays,
+    ChevronLeft,
+    ChevronRight
 } from "lucide-react";
 import {
     Table,
@@ -109,6 +111,10 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc"); // desc = newer first
     const [roleFilter, setRoleFilter] = useState("all");
     const [joinedFilter, setJoinedFilter] = useState("all");
+    
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 15;
 
     // Dialog state
     const [badgeTarget, setBadgeTarget] = useState<{ id: string, name: string } | null>(null);
@@ -147,6 +153,17 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
             const dateB = new Date(b.createdAt).getTime();
             return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
         });
+
+    const paginatedMembers = filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const totalPages = Math.ceil(filteredMembers.length / pageSize);
+
+    // Reset page when filters change
+    const [lastFilterHash, setLastFilterHash] = useState("");
+    const currentFilterHash = `${activeTab}-${search}-${roleFilter}-${joinedFilter}`;
+    if (currentFilterHash !== lastFilterHash) {
+        setLastFilterHash(currentFilterHash);
+        setCurrentPage(1);
+    }
 
     const uniqueRoles = [...new Set(members.map(m => m.discordRoleName).filter(Boolean))];
 
@@ -400,13 +417,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredMembers.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={8} className="h-32 text-center text-zinc-500">
-                                    Aucun membre trouvé.
-                                </TableCell>
-                            </TableRow>
-                        ) : filteredMembers.map((member) => (
+                        {paginatedMembers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="h-32 text-center text-zinc-500 italic">
+                                        Aucun membre trouvé pour ces critères.
+                                    </TableCell>
+                                </TableRow>
+                            ) : paginatedMembers.map((member) => (
                             <TableRow key={member.id} className="hover:bg-white/5 transition-colors border-white/5">
                                 <TableCell>
                                     <div className="flex items-center gap-3">
@@ -639,6 +656,42 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Pagination UI */}
+            {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 mt-4 bg-zinc-900/20 border border-white/5 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 italic">
+                        Affichage de {Math.min(filteredMembers.length, (currentPage - 1) * pageSize + 1)} à {Math.min(filteredMembers.length, currentPage * pageSize)} sur {filteredMembers.length} membres
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="w-9 h-9 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 disabled:opacity-30 transition-all"
+                        >
+                            <ChevronLeft className="w-4 h-4 text-zinc-400" />
+                        </Button>
+
+                        <div className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-white/5 border border-white/10 shadow-lg">
+                            <span className="text-[10px] font-black text-white">{currentPage}</span>
+                            <span className="text-[10px] font-black text-zinc-600">/</span>
+                            <span className="text-[10px] font-black text-zinc-400">{totalPages}</span>
+                        </div>
+
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="w-9 h-9 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 disabled:opacity-30 transition-all"
+                        >
+                            <ChevronRight className="w-4 h-4 text-zinc-400" />
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {badgeTarget && (
                 <ProbationGrantDialog

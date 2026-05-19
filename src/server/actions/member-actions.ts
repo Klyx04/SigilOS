@@ -21,6 +21,10 @@ export type MemberReconciliationData = {
     ankamaId?: string | null;
     discordMessageCountWeekly?: number;
     discordVoiceTimeWeekly?: number;
+    discordMessageCountMonthly?: number;
+    discordVoiceTimeMonthly?: number;
+    discordMessageCountTotal?: number;
+    discordVoiceTimeTotal?: number;
 };
 
 export type RoleStats = {
@@ -65,6 +69,10 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
                     ankamaId: true,
                     discordMessageCountWeekly: true,
                     discordVoiceTimeWeekly: true,
+                    discordMessageCountMonthly: true,
+                    discordVoiceTimeMonthly: true,
+                    discordMessageCountTotal: true,
+                    discordVoiceTimeTotal: true,
                     user: { 
                         select: { 
                             accounts: { 
@@ -86,14 +94,18 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
         );
 
         // Map profiles by Discord ID
-        const profileByDiscordId = new Map<string, { id: string, ankamaId?: string | null, discordMessageCountWeekly: number, discordVoiceTimeWeekly: number }>();
+        const profileByDiscordId = new Map<string, { id: string, ankamaId?: string | null, discordMessageCountWeekly: number, discordVoiceTimeWeekly: number, discordMessageCountMonthly: number, discordVoiceTimeMonthly: number, discordMessageCountTotal: number, discordVoiceTimeTotal: number }>();
         dbProfiles.forEach(p => {
             const discordId = p.user.accounts[0]?.providerAccountId;
             if (discordId) profileByDiscordId.set(discordId, { 
                 id: p.id, 
                 ankamaId: p.ankamaId,
                 discordMessageCountWeekly: p.discordMessageCountWeekly || 0,
-                discordVoiceTimeWeekly: p.discordVoiceTimeWeekly || 0
+                discordVoiceTimeWeekly: p.discordVoiceTimeWeekly || 0,
+                discordMessageCountMonthly: p.discordMessageCountMonthly || 0,
+                discordVoiceTimeMonthly: p.discordVoiceTimeMonthly || 0,
+                discordMessageCountTotal: p.discordMessageCountTotal || 0,
+                discordVoiceTimeTotal: p.discordVoiceTimeTotal || 0
             });
         });
 
@@ -111,7 +123,11 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
                 profileId: profileByDiscordId.get(m.user.id)?.id,
                 ankamaId: profileByDiscordId.get(m.user.id)?.ankamaId,
                 discordMessageCountWeekly: profileByDiscordId.get(m.user.id)?.discordMessageCountWeekly || 0,
-                discordVoiceTimeWeekly: profileByDiscordId.get(m.user.id)?.discordVoiceTimeWeekly || 0
+                discordVoiceTimeWeekly: profileByDiscordId.get(m.user.id)?.discordVoiceTimeWeekly || 0,
+                discordMessageCountMonthly: profileByDiscordId.get(m.user.id)?.discordMessageCountMonthly || 0,
+                discordVoiceTimeMonthly: profileByDiscordId.get(m.user.id)?.discordVoiceTimeMonthly || 0,
+                discordMessageCountTotal: profileByDiscordId.get(m.user.id)?.discordMessageCountTotal || 0,
+                discordVoiceTimeTotal: profileByDiscordId.get(m.user.id)?.discordVoiceTimeTotal || 0
             }));
 
         // Calculate Stats

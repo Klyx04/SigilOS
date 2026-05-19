@@ -15,10 +15,13 @@ import { UserSettings } from "./user-settings";
 import { IntroductionCard } from "./introduction-card";
 import { MemberStats } from "./member-stats";
 import { SkinLibrary } from "./skin-library";
+import { AlignmentSection } from "./alignment-section";
+import { LegendaryCrafting } from "./legendary-crafting";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos, type ContributorTier } from "@/server/actions/profile-actions";
+import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
+import type { ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, BarChart3, Settings } from "lucide-react";
+import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, BarChart3, Settings, Hammer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
@@ -39,6 +42,7 @@ interface ProfileBentoGridProps {
         vacationStart?: Date | null;
         vacationEnd?: Date | null;
         vacationNotify?: boolean;
+        vacationReason?: string | null;
         metamobPseudo?: string | null;
         metamobVerified?: boolean;
         metamobLastSync?: Date | null;
@@ -54,16 +58,13 @@ interface ProfileBentoGridProps {
             polls?: boolean;
             admin_validations?: boolean;
         } | null;
-        pendingSubmission?: {
-            id: string;
-            points: number;
-            ocrScore: number;
-            createdAt: Date;
-        } | null;
         roleGrants?: any[];
         introduction?: string | null;
         showPresence?: boolean;
         skins?: any[];
+        alignment?: string | null;
+        alignmentOrder?: string | null;
+        alignmentLevel?: number | null;
     };
     user: {
         name?: string | null;
@@ -82,6 +83,12 @@ interface ProfileBentoGridProps {
         rank?: number;
         weeklyActivity: { week: string; submissions: number; validated: number }[];
         missionsByCategory: { category: string; count: number; validated: number }[];
+        totalGuildMissions: number;
+        discordStats?: {
+            weekly: { messages: number; voice: number };
+            monthly: { messages: number; voice: number };
+            total: { messages: number; voice: number };
+        };
     };
     guildId: string;
     discordNickname?: string | null;
@@ -101,6 +108,7 @@ interface ProfileBentoGridProps {
     roleColor?: number;
     welcomeBadgeName?: string | null;
     isSuperAdmin?: boolean;
+    hasAbsenceChannel?: boolean;
 }
 
 export function ProfileBentoGrid({
@@ -118,6 +126,7 @@ export function ProfileBentoGrid({
     roleColor = 0,
     welcomeBadgeName,
     isSuperAdmin = false,
+    hasAbsenceChannel = false,
 }: ProfileBentoGridProps) {
     const [localProfile, setLocalProfile] = useState(profile);
     const searchParams = useSearchParams();
@@ -243,18 +252,20 @@ export function ProfileBentoGrid({
         }
     };
 
-    const handleVacationSave = async (data: { start: Date | null; end: Date | null; notify: boolean; noEndDate: boolean }) => {
+    const handleVacationSave = async (data: { start: Date | null; end: Date | null; notify: boolean; noEndDate: boolean; reason: string | null }) => {
         setLocalProfile(prev => ({
             ...prev,
             vacationStart: data.start,
             vacationEnd: data.noEndDate ? null : data.end,
             vacationNotify: data.notify,
+            vacationReason: data.reason,
         }));
         const res = await updateVacationMode({
             guildId,
             vacationStart: data.start?.toISOString() ?? null,
             vacationEnd: data.noEndDate ? null : (data.end?.toISOString() ?? null),
             vacationNotify: data.notify,
+            vacationReason: data.reason ?? null,
             targetUserId
         });
         if (res.success) {
@@ -281,6 +292,29 @@ export function ProfileBentoGrid({
             toast.success(enabled ? "Visibilité de l'activité activée" : "Visibilité de l'activité désactivée");
         } else {
             toast.error(res.error || "Erreur");
+        }
+    };
+
+    const handleAlignmentSave = async (data: { alignment: string | null; alignmentOrder: string | null; alignmentLevel: number }) => {
+        setLocalProfile(prev => ({
+            ...prev,
+            alignment: data.alignment,
+            alignmentOrder: data.alignmentOrder,
+            alignmentLevel: data.alignmentLevel
+        }));
+
+        const res = await updateUserProfile({
+            guildId,
+            alignment: data.alignment,
+            alignmentOrder: data.alignmentOrder,
+            alignmentLevel: data.alignmentLevel,
+            targetUserId
+        });
+
+        if (res.success) {
+            toast.success("Alignement mis à jour");
+        } else {
+            toast.error(res.error || "Erreur lors de la sauvegarde");
         }
     };
 
@@ -316,6 +350,9 @@ export function ProfileBentoGrid({
                     discordRoleName={roleName}
                     discordRoleColor={roleColor}
                     welcomeBadgeName={welcomeBadgeName}
+                    shareSlug={encodeURIComponent(localProfile.pseudoDofus || profile.id)}
+                    guildId={guildId}
+                    readOnly={readOnly}
                 />
             </div>
 
@@ -326,63 +363,92 @@ export function ProfileBentoGrid({
                 {/* Sidebar Navigation (Sticky on Desktop, Scrollable on Mobile) */}
                 <aside className="lg:sticky lg:top-24 z-20 min-w-0 w-full">
                     <TabsList className="bg-transparent flex lg:flex-col flex-row flex-nowrap overflow-x-auto lg:overflow-visible gap-2 p-1 h-auto justify-start border-none w-full scrollbar-width-none [&::-webkit-scrollbar]:hidden">
-                        {[
-                            { id: "overview", label: "Général", icon: UserCircle, color: "emerald text-emerald-500" },
-                            { id: "intro", label: "Présentation", icon: LayoutDashboard, color: "emerald text-emerald-500" },
-                            { id: "combat", label: "Stuffs", icon: Shield, color: "indigo text-indigo-500" },
-                            { id: "skins", label: "Skins", icon: Sparkles, color: "pink text-pink-500" },
-                            { id: "mules", icon: Users, label: "Mules", color: "indigo text-indigo-500" },
-                            { id: "planning", label: "Planning", icon: Calendar, color: "amber text-amber-500" },
-                            { id: "achievements", label: "Succès", icon: Trophy, color: "amber text-amber-500" },
-                            { id: "stats", label: "Statistiques", icon: BarChart3, color: "cyan text-cyan-500" },
-                            ...(canEdit ? [{ id: "settings", label: "Réglages", icon: Settings, color: "zinc text-zinc-400" }] : []),
-                        ].map((tab) => (
-                            <TabsTrigger
-                                key={tab.id}
-                                value={tab.id}
-                                className={cn(
-                                    "relative flex items-center justify-start gap-3 min-w-[max-content] lg:w-full px-4 py-3 rounded-2xl transition-all duration-300 group shrink-0 overflow-hidden",
-                                    "bg-zinc-900/40 backdrop-blur-md border border-white/5",
-                                    "data-[state=active]:border-white/10 data-[state=active]:shadow-[0_0_20px_rgba(0,0,0,0.3)]",
-                                    "hover:bg-white/[0.07] hover:border-white/10 active:scale-[0.98]"
-                                )}
-                            >
-                                {/* Active Background Slide */}
-                                {activeTab === tab.id && (
-                                    <motion.div 
-                                        layoutId="profile-tab-active"
-                                        className="absolute inset-0 bg-white/5 z-0"
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                    />
-                                )}
+                        {(() => {
+                            const TABS_GROUPS = [
+                                {
+                                    name: "Identité",
+                                    tabs: [
+                                        { id: "overview", label: "Général", icon: UserCircle, activeColor: "text-emerald-400", bgActive: "bg-emerald-500/10", indicator: "bg-emerald-500 shadow-emerald-500/50" },
+                                        { id: "intro", label: "Présentation", icon: LayoutDashboard, activeColor: "text-sky-400", bgActive: "bg-sky-500/10", indicator: "bg-sky-500 shadow-sky-500/50" },
+                                    ]
+                                },
+                                {
+                                    name: "Jeu & Progression",
+                                    tabs: [
+                                        { id: "combat", label: "Stuffs", icon: Shield, activeColor: "text-rose-400", bgActive: "bg-rose-500/10", indicator: "bg-rose-500 shadow-rose-500/50" },
+                                        { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/10", indicator: "bg-pink-500 shadow-pink-500/50" },
+                                        { id: "mules", icon: Users, label: "Mules", activeColor: "text-indigo-400", bgActive: "bg-indigo-500/10", indicator: "bg-indigo-500 shadow-indigo-500/50" },
+                                        { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-amber-400", bgActive: "bg-amber-500/10", indicator: "bg-amber-500 shadow-amber-500/50" },
+                                    ]
+                                },
+                                {
+                                    name: "Artisanat",
+                                    tabs: [
+                                        { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-orange-400", bgActive: "bg-orange-500/10", indicator: "bg-orange-500 shadow-orange-500/50" },
+                                        { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/10", indicator: "bg-fuchsia-500 shadow-fuchsia-500/50" },
+                                    ]
+                                },
+                                {
+                                    name: "Activité",
+                                    tabs: [
+                                        { id: "planning", label: "Planning", icon: Calendar, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/10", indicator: "bg-cyan-500 shadow-cyan-500/50" },
+                                        { id: "stats", label: "Statistiques", icon: BarChart3, activeColor: "text-blue-400", bgActive: "bg-blue-500/10", indicator: "bg-blue-500 shadow-blue-500/50" },
+                                    ]
+                                },
+                                ...(canEdit ? [{
+                                    name: "Administration",
+                                    tabs: [
+                                        { id: "settings", label: "Réglages", icon: Settings, activeColor: "text-zinc-200", bgActive: "bg-white/10", indicator: "bg-white shadow-white/50" }
+                                    ]
+                                }] : [])
+                            ];
 
-                                {/* Hover Glow (Pre-click highlight) */}
-                                <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            return TABS_GROUPS.map((group, gIdx) => (
+                                <div key={group.name} className={cn("flex flex-col gap-1 w-full", gIdx > 0 && "mt-4 lg:mt-6")}>
+                                    <h4 className="hidden lg:block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-2 px-4">
+                                        {group.name}
+                                    </h4>
+                                    {group.tabs.map((tab) => (
+                                        <TabsTrigger
+                                            key={tab.id}
+                                            value={tab.id}
+                                            className={cn(
+                                                "relative flex items-center justify-start gap-3 min-w-[max-content] lg:w-full px-4 py-3 rounded-2xl transition-all duration-300 group shrink-0 overflow-hidden",
+                                                "bg-zinc-900/40 backdrop-blur-md border border-white/5",
+                                                "data-[state=active]:border-white/10 data-[state=active]:shadow-lg",
+                                                activeTab === tab.id ? tab.bgActive : "hover:bg-white/[0.07] hover:border-white/10 active:scale-[0.98]"
+                                            )}
+                                        >
+                                            {/* Hover Glow (Pre-click highlight) */}
+                                            <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                                <div className={cn(
-                                    "p-2 rounded-xl transition-all duration-500 z-10",
-                                    "bg-zinc-800/50 group-data-[state=active]:scale-110 group-data-[state=active]:translate-x-1",
-                                    activeTab === tab.id ? `text-${tab.color.split(' ')[0]}-400 shadow-[0_0_15px_rgba(0,0,0,0.3)]` : "text-zinc-500 group-hover:text-zinc-300"
-                                )}>
-                                    <tab.icon className="w-5 h-5" />
+                                            <div className={cn(
+                                                "p-2 rounded-xl transition-all duration-500 z-10",
+                                                "bg-zinc-800/50 group-data-[state=active]:scale-110 group-data-[state=active]:translate-x-1 group-data-[state=active]:bg-zinc-950/50",
+                                                activeTab === tab.id ? `${tab.activeColor} shadow-[0_0_15px_rgba(0,0,0,0.3)]` : "text-zinc-500 group-hover:text-zinc-300"
+                                            )}>
+                                                <tab.icon className="w-4 h-4" />
+                                            </div>
+                                            
+                                            <span className={cn(
+                                                "text-sm font-black uppercase tracking-widest transition-all duration-300 z-10",
+                                                activeTab === tab.id ? "text-white translate-x-1" : "text-zinc-400 group-hover:text-zinc-200 group-hover:translate-x-0.5"
+                                            )}>
+                                                {tab.label}
+                                            </span>
+
+                                            {/* Neon Indicator */}
+                                            {activeTab === tab.id && (
+                                                <div className={cn(
+                                                    "absolute left-0 w-1 h-6 rounded-full z-10 shadow-[0_0_10px_rgba(0,0,0,0.5)]",
+                                                    tab.indicator
+                                                )} />
+                                            )}
+                                        </TabsTrigger>
+                                    ))}
                                 </div>
-                                
-                                <span className={cn(
-                                    "text-sm font-black uppercase tracking-widest transition-all duration-300 z-10",
-                                    activeTab === tab.id ? "text-white translate-x-1" : "text-zinc-400 group-hover:text-zinc-200 group-hover:translate-x-0.5"
-                                )}>
-                                    {tab.label}
-                                </span>
-...
-                                {/* Neon Indicator (Sigma 2026 Core) */}
-                                {activeTab === tab.id && (
-                                    <div className={cn(
-                                        "absolute left-0 w-1 h-6 rounded-full z-10",
-                                        `bg-${tab.color.split(' ')[0]}-500 shadow-[0_0_10px_rgba(0,0,0,0.5)] shadow-${tab.color.split(' ')[0]}-500/50`
-                                    )} />
-                                )}
-                            </TabsTrigger>
-                        ))}
+                            ));
+                        })()}
                     </TabsList>
                 </aside>
 
@@ -391,40 +457,35 @@ export function ProfileBentoGrid({
 
                 {/* OVERVIEW TAB */}
                 <TabsContent value="overview" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                        <div className="flex flex-col gap-6">
-                            {/* Classes */}
-                            <ClassDisplay
-                                pseudoDofus={localProfile.pseudoDofus}
-                                mainClass={localProfile.classe}
-                                onSave={handleClassSave}
+                    <div className="flex flex-col gap-6">
+                        {/* Classes */}
+                        <ClassDisplay
+                            pseudoDofus={localProfile.pseudoDofus}
+                            mainClass={localProfile.classe}
+                            onSave={handleClassSave}
+                            readOnly={!canEdit}
+                            guildId={guildId}
+                        />
+
+                        {/* Metamob */}
+                        {canViewOcre && (
+                            <MetamobLink
+                                guildId={guildId}
+                                metamobPseudo={profile.metamobPseudo}
+                                metamobVerified={profile.metamobVerified}
+                                metamobLastSync={profile.metamobLastSync}
                                 readOnly={!canEdit}
+                                isAdmin={isAdmin}
+                                targetUserId={targetUserId}
                             />
+                        )}
 
-                            {/* Metamob */}
-                            {canViewOcre && (
-                                <MetamobLink
-                                    guildId={guildId}
-                                    metamobPseudo={profile.metamobPseudo}
-                                    metamobVerified={profile.metamobVerified}
-                                    metamobLastSync={profile.metamobLastSync}
-                                    readOnly={!canEdit}
-                                    isAdmin={isAdmin}
-                                    targetUserId={targetUserId}
-                                />
-                            )}
-                        </div>
-
-                        {/* Jobs */}
-                        <JobsGrid
-                            jobs={localProfile.metiers || []}
-                            forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
-                            fmPriceClassic={localProfile.fmPriceClassic}
-                            fmPriceTrans={localProfile.fmPriceTrans}
-                            fmPriceExo={localProfile.fmPriceExo}
-                            onSaveJobs={handleJobsSave}
-                            onSaveForgemagieStatus={handleForgemagieStatusSave}
-                            onSaveForgemagiePrices={handleForgemagiePricesSave}
+                        {/* Alignment & Order */}
+                        <AlignmentSection
+                            alignment={localProfile.alignment}
+                            alignmentOrder={localProfile.alignmentOrder}
+                            alignmentLevel={localProfile.alignmentLevel}
+                            onSave={handleAlignmentSave}
                             readOnly={!canEdit}
                         />
                     </div>
@@ -504,11 +565,13 @@ export function ProfileBentoGrid({
                                     vacationStart={localProfile.vacationStart}
                                     vacationEnd={localProfile.vacationEnd}
                                     vacationNotify={localProfile.vacationNotify}
+                                    vacationReason={localProfile.vacationReason}
                                     onSave={handleVacationSave}
                                     readOnly={!canEdit}
                                     guildId={guildId}
                                     pseudo={displayName}
                                     profileId={profile.id}
+                                    hasAbsenceChannel={hasAbsenceChannel}
                                 />
                             </div>
                         </div>
@@ -530,27 +593,44 @@ export function ProfileBentoGrid({
                                 setLocalProfile(prev => ({
                                     ...prev,
                                     successPoints: points,
-                                    lastLadderUpdate: new Date(),
-                                    pendingSubmission: null
+                                    lastLadderUpdate: new Date()
                                 }));
                             }}
-                            pendingSubmission={localProfile.pendingSubmission}
-                            onCancel={() => {
-                                setLocalProfile(prev => ({
-                                    ...prev,
-                                    pendingSubmission: null
-                                }));
-                            }}
-                            targetUserId={targetUserId}
                             canSyncLadder={canSyncLadder}
-                            canManualSync={canManualSyncLadder}
-                            isSuperAdmin={isSuperAdmin}
-                            isAdmin={isAdmin}
                         />
                     )}
                 </TabsContent>
 
-                {/* STATS TAB */}
+                 {/* MÉTIERS TAB */}
+                 <TabsContent value="metiers" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                     {visitedTabs.has("metiers") && (
+                         <JobsGrid
+                             jobs={localProfile.metiers || []}
+                             forgemagieStatus={(localProfile.forgemagieStatus as ForgemagieStatusId) || "UNAVAILABLE"}
+                             fmPriceClassic={localProfile.fmPriceClassic}
+                             fmPriceTrans={localProfile.fmPriceTrans}
+                             fmPriceExo={localProfile.fmPriceExo}
+                             onSaveJobs={handleJobsSave}
+                             onSaveForgemagieStatus={handleForgemagieStatusSave}
+                             onSaveForgemagiePrices={handleForgemagiePricesSave}
+                             readOnly={!canEdit}
+                         />
+                     )}
+                 </TabsContent>
+
+                 {/* ARTISANAT TAB */}
+                 <TabsContent value="artisanat" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                     {visitedTabs.has("artisanat") && (
+                         <LegendaryCrafting 
+                             guildId={guildId}
+                             profileId={localProfile.id}
+                             metiers={localProfile.metiers || []}
+                             readOnly={!canEdit}
+                         />
+                     )}
+                 </TabsContent>
+
+                 {/* STATS TAB */}
                 <TabsContent value="stats" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {visitedTabs.has("stats") && (
                         <MemberStats stats={stats} />

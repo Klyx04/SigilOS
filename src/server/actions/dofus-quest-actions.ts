@@ -5,6 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { DofusQuestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
 
 export type ActionResponse<T = void> = {
     success: boolean;
@@ -284,7 +285,7 @@ export async function getDofusListWithProgress(guildId: string, characterName: s
 
         return { success: true, data: result };
     } catch (error) {
-        console.error("[dofus-quest-actions] getDofusListWithProgress error:", error);
+        logger.error("[dofus-quest-actions] getDofusListWithProgress error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -475,7 +476,7 @@ export async function getDofusDetailWithChains(
 
         return { success: true, data: { dofus: dofusData, chains } };
     } catch (error) {
-        console.error("[dofus-quest-actions] getDofusDetailWithChains error:", error);
+        logger.error("[dofus-quest-actions] getDofusDetailWithChains error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -634,7 +635,7 @@ export async function getGuildDofusStats(guildId: string): Promise<{
 
         return { success: true, data: { stats, topMembers, totalMembers } };
     } catch (error) {
-        console.error("[dofus-quest-actions] getGuildDofusStats error:", error);
+        logger.error("[dofus-quest-actions] getGuildDofusStats error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -733,8 +734,8 @@ export async function getDofusWarRoomData(guildId: string): Promise<ActionRespon
             data: { hotZones, questSynergies, dungeonSynergies }
         };
     } catch (error) {
-        console.error("[getDofusWarRoomData] error:", error);
-        return { success: false, error: "Erreur lors du calcul de la War Room" };
+        logger.error("[getDofusWarRoomData] error:", { error });
+        return { success: false, error: "Erreur lors de la calcul de la War Room" };
     }
 }
 
@@ -787,7 +788,7 @@ export async function getOtherMembersOnQuest(
 
         return { success: true, data: members };
     } catch (error) {
-        console.error("[getOtherMembersOnQuest] Error:", error);
+        logger.error("[getOtherMembersOnQuest] Error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -845,7 +846,7 @@ export async function getGuildSynergyForDofus(
 
         return { success: true, data: synergyMap };
     } catch (error) {
-        console.error("[getGuildSynergyForDofus] Error:", error);
+        logger.error("[getGuildSynergyForDofus] Error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -929,13 +930,13 @@ export async function toggleQuestStatus(
             }
         } catch (e) {
             // Non-blocking: cache refresh failure should not break the toggle
-            console.error("[toggleQuestStatus] completionPercent refresh failed:", e);
+            logger.error("[toggleQuestStatus] completionPercent refresh failed:", { error: e });
         }
 
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
         return { success: true };
     } catch (error) {
-        console.error("[dofus-quest-actions] toggleQuestStatus error:", error);
+        logger.error("[dofus-quest-actions] toggleQuestStatus error:", { error });
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -1032,7 +1033,7 @@ export async function toggleDofusObtained(
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
         return { success: true };
     } catch (error) {
-        console.error("[dofus-quest-actions] toggleDofusObtained error:", error);
+        logger.error("[dofus-quest-actions] toggleDofusObtained error:", { error });
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -1083,7 +1084,7 @@ export async function updateDolmanaxProgress(
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
         return { success: true };
     } catch (error) {
-        console.error("[updateDolmanaxProgress] error:", error);
+        logger.error("[updateDolmanaxProgress] error:", { error });
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -1117,7 +1118,7 @@ export async function seedDofusData(guildId: string): Promise<{
         const validSlugs = items.map((i: any) => i.slug);
         const ghosts = await (db as any).dofusItem.findMany({ where: { slug: { notIn: validSlugs } } });
         for (const ghost of ghosts) {
-            console.log(`[seedDofusData] Deleting ghost item: ${ghost.slug}`);
+            logger.debug(`[seedDofusData] Deleting ghost item: ${ghost.slug}`);
             
             // Delete player progresses
             await (db as any).playerDofusProgress.deleteMany({ where: { dofusId: ghost.id } });
@@ -1229,7 +1230,7 @@ export async function seedDofusData(guildId: string): Promise<{
                 const fileContent = fs.readFileSync(resolvedPath, "utf-8");
                 chainData = JSON.parse(fileContent);
             } catch (err) {
-                console.error(`[seedDofusData] Could not load ${filePath}:`, err);
+                logger.error(`[seedDofusData] Could not load ${filePath}:`, { error: err });
                 continue;
             }
 
@@ -1287,7 +1288,7 @@ export async function seedDofusData(guildId: string): Promise<{
             message: `✅ Seed terminé : ${itemCount} Dofus, ${chainCount} sections, ${entryCount} entrées (Cache vidéo Next.js purgé)`,
         };
     } catch (error) {
-        console.error("[dofus-quest-actions] seedDofusData error:", error);
+        logger.error("[dofus-quest-actions] seedDofusData error:", { error });
         return { success: false, error: `Erreur seed: ${(error as Error).message}` };
     }
 }
@@ -1328,7 +1329,7 @@ export async function getDofusRequirements(
             })),
         };
     } catch (error) {
-        console.error("[getDofusRequirements] error:", error);
+        logger.error("[getDofusRequirements] error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1373,7 +1374,7 @@ export async function seedDofusRequirements(guildId: string): Promise<ActionResp
         }
         return { success: true, data: { count } };
     } catch (error) {
-        console.error("[seedDofusRequirements] error:", error);
+        logger.error("[seedDofusRequirements] error:", { error });
         return { success: false, error: `Erreur: ${(error as Error).message}` };
     }
 }
@@ -1523,7 +1524,7 @@ export async function getGuildHeatmapForDofus(
 
         return { success: true, data: { entries, members } };
     } catch (error) {
-        console.error("[getGuildHeatmapForDofus] error:", error);
+        logger.error("[getGuildHeatmapForDofus] error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1558,7 +1559,7 @@ export async function getUserCompletedQuestIds(
 
         return { success: true, data: Array.from(ids) };
     } catch (error) {
-        console.error("[getUserCompletedQuestIds] error:", error);
+        logger.error("[getUserCompletedQuestIds] error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }

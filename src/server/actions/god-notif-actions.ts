@@ -15,14 +15,15 @@ export async function notifyGod(params: {
     success?: boolean;
     metadata?: any;
     ping?: boolean; // Whether to ping the configured role on Discord
+    forceChannelId?: string; // Optional override for testing
 }) {
-    const { title, message, type, success = true, metadata, ping = false } = params;
+    const { title, message, type, success = true, metadata, ping = false, forceChannelId } = params;
 
     try {
         const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
         
         // 1. WEB NOTIFICATION
-        if ((platformConfig as any)?.godNotifyWebEnabled !== false) {
+        if ((platformConfig as any)?.godNotifyWebEnabled !== false || forceChannelId) {
             await (db as any).godNotification.create({
                 data: {
                     title,
@@ -36,7 +37,9 @@ export async function notifyGod(params: {
         }
 
         // 2. DISCORD NOTIFICATION
-        if ((platformConfig as any)?.godNotifyChannelId) {
+        const targetChannelId = forceChannelId || (platformConfig as any)?.godNotifyChannelId;
+        
+        if (targetChannelId) {
             let mention = "";
             if (ping && (platformConfig as any).godNotifyRoleId) {
                 mention = `<@&${(platformConfig as any).godNotifyRoleId}>`;
@@ -47,7 +50,7 @@ export async function notifyGod(params: {
 
             try {
                 await sendChannelMessage(
-                    (platformConfig as any).godNotifyChannelId,
+                    targetChannelId,
                     mention,
                     {
                         embedTitle: `${emoji} ${title}`,
@@ -103,5 +106,26 @@ export async function getGodNotifications(limit = 50) {
         return { success: true, data: notifications };
     } catch (err: any) {
         return { success: false, error: err.message };
+    }
+}
+
+/**
+ * Get combined unread counts for God dashboard badges
+ */
+export async function getGodUnreadCounts() {
+    try {
+        const [unreadNotifs, openTickets] = await Promise.all([
+            (db as any).godNotification.count({ where: { isRead: false } }),
+            db.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } })
+        ]);
+
+        return {
+            success: true,
+            notifications: unreadNotifs,
+            tickets: openTickets
+        };
+    } catch (err: any) {
+        console.error("[GodStats] Failed to fetch unread counts:", err);
+        return { success: false, notifications: 0, tickets: 0 };
     }
 }

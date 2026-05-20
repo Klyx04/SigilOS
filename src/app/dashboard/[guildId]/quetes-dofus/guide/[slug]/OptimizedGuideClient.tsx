@@ -589,7 +589,8 @@ function NarrativeBlock({ html }: { html: string }) {
         {type === 'info'    && <Info size={14}/>}
       </div>
       <div className="narrative-body ganymade-step-text"
-        {...{ dangerouslySetInnerHTML: { __html: processHtml(html) } }}/>
+        // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+        dangerouslySetInnerHTML={{ __html: processHtml(html) }}/>
     </div>
   );
 }

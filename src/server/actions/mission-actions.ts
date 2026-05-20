@@ -79,7 +79,8 @@ async function notifyValidators(guildId: string, title: string, message: string,
                 const absoluteImageUrl = getDiscordPublicUrl(proofUrl);
 
                 // Compact validation alert with proof screenshot + action buttons
-                const messageId = await sendChannelMessage(discordChannelId, content, {
+                const messageId = await sendChannelMessage(discordChannelId, "", {
+                    mentionContent: content,
                     embedTitle: "🎯 Nouvelle Mission à Valider",
                     embedDescription: message,
                     embedColor: 0x9333ea, // Purple
@@ -1595,7 +1596,8 @@ export async function publishMissionsToDiscord(
         const { sendChannelMessage } = await import("@/server/discord");
         const { formatDofusRange } = await import("@/lib/date-utils");
 
-        const messageId = await sendChannelMessage(guild.missionNotifyChannelId, mentionContent, {
+        const messageId = await sendChannelMessage(guild.missionNotifyChannelId, "", {
+            mentionContent,
             embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
             embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan

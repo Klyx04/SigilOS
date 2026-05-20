@@ -357,7 +357,7 @@ export function EventDetailModal({
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent
                     draggable
-                    className="w-[95vw] sm:max-w-2xl bg-zinc-900/95 backdrop-blur-xl border-zinc-800 p-0 overflow-hidden max-h-[90vh] flex flex-col shadow-2xl fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                    className="w-[95vw] sm:max-w-2xl bg-zinc-900/98 backdrop-blur-xl border border-white/10 ring-1 ring-orange-500/25 p-0 overflow-hidden max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(249,115,22,0.2)] fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                 >
                     {/* Header */}
                     <div className={cn("relative px-8 pt-12 pb-10 border-b border-zinc-800/50 overflow-hidden", typeConfig.bgColor)}>
@@ -959,7 +959,7 @@ export function EventDetailModal({
             {/* ========== RAID COMPLETION MODAL ========== */}
             {isRaid && showRaidCompletion && (
                 <Dialog open={showRaidCompletion} onOpenChange={setShowRaidCompletion}>
-                    <DialogContent className="w-[95vw] sm:max-w-lg bg-zinc-900/98 backdrop-blur-xl border border-red-500/20 p-0 overflow-hidden shadow-2xl">
+                    <DialogContent className="w-[95vw] sm:max-w-lg bg-zinc-900/98 backdrop-blur-xl border border-white/10 ring-1 ring-red-500/25 p-0 overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.2)]">
                         <div className="relative p-6 border-b border-red-500/10 bg-red-500/5">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">

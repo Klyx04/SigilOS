@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, MapPin, AlertTriangle, Lightbulb, Info, Flag, Skull,
-  Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy,
+  Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
   Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ─── EYE_SVG Constant ────────────────────────────────────────────────────────
 const EYE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye inline-block w-3.5 h-3.5"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
-import { toggleMilestoneProgress, getSubGuideSteps } from "@/server/actions/optimized-guide-actions";
+import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress } from "@/server/actions/optimized-guide-actions";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
@@ -89,10 +89,18 @@ type Milestone = {
   id: string; title: string; subtitle?: string; description?: string;
   type: string; accentColor: string; chapter: number; chapterLabel: string;
   order: number; isOptional: boolean; sequences: Sequence[];
-  playerProgress?: { isCompleted: boolean; completedSteps?: number[] };
+  playerProgress?: { isCompleted: boolean; completedSteps?: string[] };
 };
 type SubStep = { stepNumber: number; plainText?: string; web_text?: string; pos_x?: number; pos_y?: number };
-type GuildMember = { profileId: string; userName: string; userAvatar?: string; milestoneId: string; profileSlug?: string };
+type GuildMember = {
+  profileId: string;
+  userName: string;
+  userAvatar?: string;
+  milestoneId: string;
+  profileSlug?: string;
+  isCompleted?: boolean;
+  completedSteps?: string[];
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const GP_PALETTE = [
@@ -283,7 +291,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, guildProgress, milestones, selectedMilestoneId, guildId }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -291,6 +299,13 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
   onInteractiveClick: (e: React.MouseEvent) => void;
   defaultExpanded?: boolean;
   hideCompletedGlobal?: boolean;
+  onSelectSubGuide?: (name: string) => void;
+  bookmarkStepKey: string | null;
+  onStepBookmark: (key: string) => void;
+  guildProgress: GuildMember[];
+  milestones: Milestone[];
+  selectedMilestoneId: string;
+  guildId: string;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -362,9 +377,31 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
     <div className="sgc" style={{"--sgc-color": color} as React.CSSProperties}>
       {/* Card Header */}
       <button className="sgc-header" onClick={handleExpand} aria-expanded={expanded}>
-        <div className="sgc-badge">{seq.subGuideRef}</div>
+        <div 
+          className="sgc-badge hover:bg-emerald-500 hover:text-emerald-950 transition-all cursor-pointer transform hover:scale-105"
+          title={`Filtrer par le guide secondaire : ${seq.subGuideName}`}
+          onClick={(e) => {
+            if (onSelectSubGuide) {
+              e.stopPropagation();
+              onSelectSubGuide(seq.subGuideName);
+            }
+          }}
+        >
+          {seq.subGuideRef}
+        </div>
         <div className="sgc-info">
-          <span className="sgc-name">{seq.subGuideName}</span>
+          <span 
+            className="sgc-name hover:text-emerald-400 transition-colors cursor-pointer"
+            title={`Filtrer par le guide secondaire : ${seq.subGuideName}`}
+            onClick={(e) => {
+              if (onSelectSubGuide) {
+                e.stopPropagation();
+                onSelectSubGuide(seq.subGuideName);
+              }
+            }}
+          >
+            {seq.subGuideName}
+          </span>
           <span className="sgc-range">
             {seq.stepFrom && seq.stepTo
               ? `Étapes ${seq.stepFrom} → ${seq.stepTo}`
@@ -385,7 +422,39 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
       {/* Notes/flags */}
       {(seq.note || seq.isResume) && (
         <div className="sgc-flags">
-          {seq.isResume && <span className="sgc-flag resume">↩ Reprendre depuis votre dernière position</span>}
+          {seq.isResume && (
+            <button 
+              className="sgc-flag resume cursor-pointer hover:bg-blue-500/20 hover:text-white transition-all transform hover:scale-105"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                let targetId = "";
+                if (bookmarkStepKey && bookmarkStepKey.startsWith(`${seq.subGuideRef}-`)) {
+                  targetId = `sgc-step-${bookmarkStepKey}`;
+                } else {
+                  const firstUnchecked = steps.find(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
+                  if (firstUnchecked) {
+                    targetId = `sgc-step-${seq.subGuideRef}-${firstUnchecked.stepNumber}`;
+                  } else if (steps.length > 0) {
+                    targetId = `sgc-step-${seq.subGuideRef}-${steps[0].stepNumber}`;
+                  }
+                }
+                if (targetId) {
+                  const el = document.getElementById(targetId);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.style.transition = "background-color 0.5s";
+                    const oldBg = el.style.backgroundColor;
+                    el.style.backgroundColor = "rgba(59, 130, 246, 0.25)";
+                    setTimeout(() => el.style.backgroundColor = oldBg, 1500);
+                    toast.success("Retour à votre position !");
+                  }
+                }
+              }}
+            >
+              ↩ Reprendre depuis votre dernière position
+            </button>
+          )}
           {seq.note && <span className="sgc-flag warn"><AlertTriangle size={10}/> {seq.note}</span>}
         </div>
       )}
@@ -463,11 +532,26 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                           </button>
                         </div>
 
-                        <div className={`sgc-step sgc-step-focus ${checked ? "done" : ""}`}>
+                        <div className={`sgc-step sgc-step-focus ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}>
                           <div className="sgc-step-check" 
                             onClick={() => handleStepCheckToggle(step.stepNumber, currentStepIndex)}>
                             {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
                           </div>
+                          <button
+                            className="sgc-step-bookmark-btn"
+                            title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              onStepBookmark(key);
+                            }}
+                          >
+                            {bookmarkStepKey === key ? (
+                              <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
+                            ) : (
+                              <Bookmark size={18} />
+                            )}
+                          </button>
                           <span className="sgc-step-num"
                             onClick={() => handleStepCheckToggle(step.stepNumber, currentStepIndex)}>
                             {step.stepNumber}
@@ -519,48 +603,116 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
 
                         const stepIndexInFullList = steps.findIndex(s => s.stepNumber === step.stepNumber);
 
+                        // ── Per-step presence: who validated or is "rendu" here ──
+                        const selectedMs = milestones.find(m => m.id === selectedMilestoneId);
+                        const validatedMembers: GuildMember[] = [];
+                        const activeMembers: GuildMember[] = [];
+                        if (selectedMs) {
+                          guildProgress.forEach(member => {
+                            const memberMs = milestones.find(m => m.id === member.milestoneId);
+                            if (!memberMs) return;
+                            const isOnOrPastMs = memberMs.order > selectedMs.order || member.isCompleted;
+                            const explicitlyValidated = Array.isArray(member.completedSteps) && member.completedSteps.includes(key);
+                            if (explicitlyValidated || isOnOrPastMs) {
+                              validatedMembers.push(member);
+                            } else if (member.milestoneId === selectedMilestoneId) {
+                              // Member is active on this milestone — check if this is their first incomplete step
+                              const memberCheckedKeys = new Set(Array.isArray(member.completedSteps) ? member.completedSteps : []);
+                              const firstIncompleteStep = steps.find(s => !memberCheckedKeys.has(`${seq.subGuideRef}-${s.stepNumber}`));
+                              if (firstIncompleteStep?.stepNumber === step.stepNumber) {
+                                activeMembers.push(member);
+                              }
+                            }
+                          });
+                        }
+
                         return (
                           <div key={step.stepNumber}
                             id={`sgc-step-${seq.subGuideRef}-${step.stepNumber}`}
-                            className={`sgc-step ${checked ? "done" : ""}`}>
+                            className={`sgc-step ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}>
                             <div className="sgc-step-check" 
                               title={checked ? "Désactiver cette étape" : "Valider cette étape"}
                               onClick={() => handleStepCheckToggle(step.stepNumber, stepIndexInFullList)}>
                               {checked ? <CheckCircle2 size={18} className="checked-icon"/> : <Circle size={18} className="unchecked-icon"/>}
                             </div>
+                            <button
+                              className="sgc-step-bookmark-btn"
+                              title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                onStepBookmark(key);
+                              }}
+                            >
+                              {bookmarkStepKey === key ? (
+                                <BookmarkCheck size={16} className="text-amber-500 fill-amber-500/20" />
+                              ) : (
+                                <Bookmark size={16} />
+                              )}
+                            </button>
                             <span className="sgc-step-num"
                               title={checked ? "Désactiver cette étape" : "Valider cette étape"}
                               onClick={() => handleStepCheckToggle(step.stepNumber, stepIndexInFullList)}>
                               {step.stepNumber}
                             </span>
-                            <div className="sgc-step-content ganymade-step-text"
-                              onClick={onInteractiveClick}
-                              {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
-                            {coords.length > 0 && (
-                              <div className="sgc-step-coords">
-                                {coords.map((c,i) => {
-                                  const cmd = `/travel ${c.x} ${c.y}`;
-                                  return (
-                                    <div key={i} className="flex items-center gap-1.5">
-                                      <button className="coord-btn" onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigator.clipboard.writeText(cmd);
-                                        toast.success("Commande copiée !", { description: cmd });
-                                      }} title="Copier la commande /travel">
-                                        <MapPin size={9}/> {c.x},{c.y}{c.worldId ? ` (Monde ${c.worldId})` : ''}
-                                      </button>
-                                      <button className="p-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all cursor-pointer inline-flex items-center justify-center h-[22px] w-[22px]"
-                                        onClick={(e) => {
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <div className="sgc-step-content ganymade-step-text"
+                                onClick={onInteractiveClick}
+                                {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
+                              {(validatedMembers.length > 0 || activeMembers.length > 0) && (
+                                <div className="sgc-step-presence">
+                                  {validatedMembers.slice(0, 5).map(m => (
+                                    <a
+                                      key={`val-${m.profileId}`}
+                                      href={`/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`}
+                                      className="sgc-step-presence-avatar validated"
+                                      title={`✅ ${m.userName} — a validé cette étape`}
+                                    >
+                                      {m.userAvatar
+                                        ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
+                                        : m.userName.charAt(0).toUpperCase()}
+                                    </a>
+                                  ))}
+                                  {activeMembers.slice(0, 3).map(m => (
+                                    <a
+                                      key={`act-${m.profileId}`}
+                                      href={`/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`}
+                                      className="sgc-step-presence-avatar active"
+                                      title={`📍 ${m.userName} — rendu à cette étape`}
+                                    >
+                                      {m.userAvatar
+                                        ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
+                                        : m.userName.charAt(0).toUpperCase()}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                              {coords.length > 0 && (
+                                <div className="sgc-step-coords">
+                                  {coords.map((c,i) => {
+                                    const cmd = `/travel ${c.x} ${c.y}`;
+                                    return (
+                                      <div key={i} className="flex items-center gap-1.5">
+                                        <button className="coord-btn" onClick={(e) => {
                                           e.stopPropagation();
-                                          onMapClick(c.x, c.y, c.worldId);
-                                        }} title="Voir la carte HD">
-                                        <Eye size={10} />
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                                          navigator.clipboard.writeText(cmd);
+                                          toast.success("Commande copiée !", { description: cmd });
+                                        }} title="Copier la commande /travel">
+                                          <MapPin size={9}/> {c.x},{c.y}{c.worldId ? ` (Monde ${c.worldId})` : ''}
+                                        </button>
+                                        <button className="p-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all cursor-pointer inline-flex items-center justify-center h-[22px] w-[22px]"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onMapClick(c.x, c.y, c.worldId);
+                                          }} title="Voir la carte HD">
+                                          <Eye size={10} />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         );
                       })
@@ -596,15 +748,17 @@ function NarrativeBlock({ html }: { html: string }) {
 }
 
 // ─── Chapter Group ────────────────────────────────────────────────────────────
-function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, defaultOpen, presenceMap, bookmarkId, guildId }: {
+function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
-  onSelect: (m: Milestone) => void; defaultOpen: boolean;
+  onSelect: (m: Milestone) => void; isOpen: boolean;
+  onToggle: (open: boolean) => void;
   presenceMap: Record<string, GuildMember[]>;
   bookmarkId?: string | null;
   guildId: string;
+  onShowPresenceModal: (milestoneId: string, title: string) => void;
+  onBookmark: (milestoneId: string) => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
   const done = milestones.filter(m => completedIds.has(m.id)).length;
   const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
   const allDone = done === milestones.length;
@@ -617,7 +771,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
       <button 
         className={`chapter-header ${allDone ? "all-done" : ""} ${isChapterActive ? "active" : ""}`} 
         style={isChapterActive ? { "--accent-color": selectedId ? milestones.find(m => m.id === selectedId)?.accentColor || "#3b82f6" : "#3b82f6" } as React.CSSProperties : undefined}
-        onClick={() => setOpen(v=>!v)}
+        onClick={() => onToggle(!isOpen)}
       >
         <ProgressRing pct={pct} size={28} stroke={2.5} color={allDone ? "#10b981" : isChapterActive ? "var(--accent-color)" : "#60a5fa"}/>
         <div className="chapter-label">
@@ -631,11 +785,11 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
             )}
           </div>
         </div>
-        {open ? <ChevronDown size={14} className={isChapterActive ? "text-blue-400" : "text-zinc-500"}/> : <ChevronRight size={14} className="text-zinc-500"/>}
+        {isOpen ? <ChevronDown size={14} className={isChapterActive ? "text-blue-400" : "text-zinc-500"}/> : <ChevronRight size={14} className="text-zinc-500"/>}
       </button>
 
       <AnimatePresence>
-        {open && (
+        {isOpen && (
           <motion.div className="chapter-items"
             initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
             transition={{ duration: 0.18 }}>
@@ -664,14 +818,18 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                   <span className="ms-title">{ms.title}</span>
                   
                   {here.length > 0 && (
-                    <div className="ms-member-avatars">
+                    <div 
+                      className="ms-member-avatars cursor-pointer hover:scale-105 transition-transform"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onShowPresenceModal(ms.id, ms.title);
+                      }}
+                    >
                       {here.slice(0, 3).map((m) => (
-                        <Link
+                        <div
                           key={m.profileId}
-                          href={`/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`}
                           className="ms-member-avatar"
                           title={m.userName}
-                          onClick={(e) => e.stopPropagation()}
                         >
                           {m.userAvatar ? (
                             <img src={m.userAvatar} alt={m.userName} />
@@ -680,7 +838,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                               {m.userName.slice(0, 1).toUpperCase()}
                             </span>
                           )}
-                        </Link>
+                        </div>
                       ))}
                       {here.length > 3 && (
                         <div className="ms-member-avatar-more" title={`${here.length} membres ici`}>
@@ -692,6 +850,23 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
 
                   {ms.sequences.length > 0 && (
                     <span className="ms-seqs">{ms.sequences.length}</span>
+                  )}
+
+                  {!isDone && (
+                    <button
+                      className="ms-bookmark-btn"
+                      title={bookmarkId === ms.id ? "Retirer mon marque-page (J'en suis là)" : "Marquer comme ma position (J'en suis là)"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onBookmark(ms.id);
+                      }}
+                    >
+                      {bookmarkId === ms.id ? (
+                        <BookmarkCheck size={12} className="text-amber-500 fill-amber-500/20" />
+                      ) : (
+                        <Bookmark size={12} />
+                      )}
+                    </button>
                   )}
                 </div>
               );
@@ -709,7 +884,7 @@ export default function OptimizedGuideClient({
 }: {
   guide: { id: string; name: string; slug: string };
   milestones: Milestone[];
-  userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: number[] }[];
+  userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[] }[];
   guildProgress: GuildMember[];
   guildId: string;
 }) {
@@ -718,9 +893,75 @@ export default function OptimizedGuideClient({
   const [completedIds, setCompletedIds] = useState<Set<string>>(
     new Set(userProgress.filter(p => p.isCompleted).map(p => p.milestoneId))
   );
+
+  const [openChapters, setOpenChapters] = useState<Record<number, boolean>>(() => {
+    const initial: Record<number, boolean> = {};
+    if (initialMilestones.length > 0) {
+      initial[initialMilestones[0].chapter] = true;
+    }
+    return initial;
+  });
+
+  const [bookmarkStepKey, setBookmarkStepKey] = useState<string | null>(() => {
+    if (typeof window !== "undefined") return localStorage.getItem(`guide-bm-step-${guide.slug}`) ?? null;
+    return null;
+  });
+
+  const handleStepBookmark = useCallback((stepKey: string) => {
+    setBookmarkStepKey(prev => {
+      const next = prev === stepKey ? null : stepKey;
+      if (next) {
+        localStorage.setItem(`guide-bm-step-${guide.slug}`, next);
+        toast.success("Position d'étape sauvegardée !");
+      } else {
+        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        toast.info("Marque-page d'étape retiré");
+      }
+      return next;
+    });
+  }, [guide.slug]);
+
+  const handleCollapseAll = useCallback(() => {
+    setOpenChapters({});
+    toast.info("Tous les chapitres ont été réduits");
+  }, []);
+
+  const handleExpandAll = useCallback(() => {
+    const all: Record<number, boolean> = {};
+    initialMilestones.forEach(m => {
+      all[m.chapter] = true;
+    });
+    setOpenChapters(all);
+    toast.success("Tous les chapitres ont été développés");
+  }, [initialMilestones]);
+
+  const handleToggleChapter = useCallback((chapterNum: number, open: boolean) => {
+    setOpenChapters(prev => ({
+      ...prev,
+      [chapterNum]: open
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (selected?.chapter !== undefined) {
+      setOpenChapters(prev => ({
+        ...prev,
+        [selected.chapter]: true
+      }));
+    }
+  }, [selected?.id, selected?.chapter]);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
-  const [checkedSteps, setCheckedSteps] = useState<Set<string>>(new Set());
+  // Initialize checkedSteps from userProgress on mount
+  const [checkedSteps, setCheckedSteps] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    userProgress.forEach(p => {
+      if (Array.isArray(p.completedSteps)) {
+        (p.completedSteps as string[]).forEach(k => initial.add(k));
+      }
+    });
+    return initial;
+  });
   const [search, setSearch] = useState("");
   const [validating, setValidating] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -729,6 +970,7 @@ export default function OptimizedGuideClient({
   const [activeSeqIndex, setActiveSeqIndex] = useState(0);
   const [activeGuideFilter, setActiveGuideFilter] = useState<string | null>(null);
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [globalHideCompletedSteps, setGlobalHideCompletedSteps] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [createDjModal, setCreateDjModal] = useState<{ isOpen: boolean; initialDungeonId?: string; initialQuestName?: string }>({ isOpen: false });
@@ -744,6 +986,14 @@ export default function OptimizedGuideClient({
   const [welcomeModal, setWelcomeModal] = useState<{ show: boolean; lastViewedId?: string; validatedCount: number } | null>(null);
   const sessionValidatedCountRef = useRef(0);
   const initializedSessionRef = useRef(false);
+
+  const [presenceModal, setPresenceModal] = useState<{
+    isOpen: boolean;
+    milestoneId: string;
+    milestoneTitle: string;
+  } | null>(null);
+
+  // handleBackToMainGuideCurrentStep is declared after bookmarkId to avoid TDZ
 
   const handleLaunchDungeonSearch = useCallback((name: string, dofusdbIdVal: number | null) => {
     setDungeonChoiceModal(null);
@@ -903,6 +1153,25 @@ export default function OptimizedGuideClient({
     if (next) { localStorage.setItem(`guide-bm-${guide.slug}`, next); toast.success("Position sauvegardée !"); }
     else { localStorage.removeItem(`guide-bm-${guide.slug}`); toast.info("Marque-page supprimé"); }
   }, [bookmarkId, guide.slug]);
+
+  const handleBackToMainGuideCurrentStep = useCallback(() => {
+    setActiveGuideFilter(null);
+    if (bookmarkId) {
+      const bmMs = milestones.find(m => m.id === bookmarkId);
+      if (bmMs) {
+        setSelected(bmMs);
+        toast.success("Retour au guide principal !", {
+          description: `Positionné sur : ${bmMs.title}`
+        });
+        return;
+      }
+    }
+    const firstIncomplete = milestones.find(m => !completedIds.has(m.id));
+    if (firstIncomplete) {
+      setSelected(firstIncomplete);
+      toast.success("Retour au guide principal !");
+    }
+  }, [bookmarkId, milestones, completedIds]);
 
   useEffect(() => {
     setActiveSeqIndex(0);
@@ -1064,9 +1333,19 @@ export default function OptimizedGuideClient({
     setCheckedSteps(prev => {
       const next = new Set(prev);
       next.has(key) ? next.delete(key) : next.add(key);
+
+      // Persist to DB: gather all checked keys for the current milestone's sequences
+      if (selected) {
+        const milestoneKeys = Array.from(next).filter(k =>
+          selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+        );
+        // Fire-and-forget: don't block UI
+        updateStepProgress(guildId, selected.id, milestoneKeys).catch(() => {});
+      }
+
       return next;
     });
-  }, []);
+  }, [selected, guildId]);
 
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
@@ -1427,70 +1706,127 @@ export default function OptimizedGuideClient({
 
       {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
       <aside className="guide-sidebar">
-        {/* Header */}
-        <div className="sidebar-header">
-          <Link
-            href={`/dashboard/${guildId}/quetes-dofus`}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-300 hover:text-white transition-all mb-6 cursor-pointer group w-full"
-          >
-            <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-400 group-hover:text-white" />
-            <span>Retour au Hub</span>
+
+        {/* ── Compact Header ── */}
+        <div className="sidebar-compact-header">
+          <Link href={`/dashboard/${guildId}/quetes-dofus`} className="sb-back-btn group">
+            <ChevronLeft size={11} className="group-hover:-translate-x-0.5 transition-transform"/>
+            <span>Hub</span>
           </Link>
-          <div className="sidebar-title-row">
-            <div>
-              <p className="sidebar-super">ROADMAP</p>
-              <h2 className="sidebar-title">{guide.name}</h2>
-            </div>
-            <div className="sidebar-ring-wrap">
-              <ProgressRing pct={overallPct} size={44} stroke={3.5} color="#10b981"/>
-              <span className="sidebar-pct">{overallPct}%</span>
-            </div>
+          <div className="sb-guide-meta">
+            <span className="sb-guide-name" title={guide.name}>{guide.name}</span>
+            <span className="sb-guide-stats">{totalDone}/{totalMs} complétées</span>
           </div>
-          <div className="sidebar-stats">
-            <span>{totalDone} / {totalMs} complétées</span>
+          <div className="sb-ring-wrap">
+            <ProgressRing pct={overallPct} size={38} stroke={3} color="#10b981"/>
+            <span className="sb-ring-pct">{overallPct}%</span>
           </div>
         </div>
 
-        {/* Guild Radar */}
-        <div className="sidebar-radar">
-          <div className="radar-header">
-            <Users size={12} className="text-blue-400"/>
-            <span>Radar de Guilde</span>
+        {/* ── Compact Toolbar ── */}
+        <div className="sidebar-toolbar">
+          {/* Search */}
+          <div className="sb-search">
+            <Search size={11} className="sb-search-icon"/>
+            <input
+              className="sb-search-input"
+              placeholder="Rechercher une étape…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="sb-search-clear"><X size={10}/></button>
+            )}
           </div>
-          <p className="text-[10px] text-zinc-500 mb-3 leading-relaxed">
-            Membres de votre guilde actuellement présents et positionnés sur les étapes de cette feuille de route.
-          </p>
-          <div className="radar-grid">
-            <div className="radar-stat">
-              <span className="radar-val">{guildProgress.length}</span>
-              <span className="radar-lab">Membres actifs</span>
-            </div>
-            <div className="radar-stat">
-              <span className="radar-val">{Object.keys(presenceMap).length}</span>
-              <span className="radar-lab">Étapes occupées</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Search + Hide-completed toggle */}
-        <div className="sidebar-search">
-          <Search size={13} className="search-icon"/>
-          <input
-            className="search-input" placeholder="Rechercher une étape…"
-            value={search} onChange={e => setSearch(e.target.value)}/>
-          {search && <button onClick={() => setSearch("")} className="search-clear"><X size={12}/></button>}
-        </div>
-        <button
-          className={`hide-completed-toggle ${hideCompleted ? "active" : ""}`}
-          onClick={() => setHideCompleted(v => !v)}
-          title={hideCompleted ? "Afficher toutes les étapes" : "Masquer les étapes validées"}
-        >
-          {hideCompleted ? <Eye size={12}/> : <EyeOff size={12}/>}
-          <span>{hideCompleted ? "Afficher les étapes validées" : "Masquer les étapes validées"}</span>
-          {hideCompleted && completedIds.size > 0 && (
-            <span className="hide-badge">+{completedIds.size}</span>
+          {/* Actions row */}
+          <div className="sb-actions-row">
+            {/* Hide completed */}
+            <button
+              className={`sb-action-btn ${hideCompleted ? "active" : ""}`}
+              onClick={() => setHideCompleted(v => !v)}
+              title={hideCompleted ? "Afficher les étapes validées" : "Masquer les étapes validées"}
+            >
+              {hideCompleted ? <Eye size={13}/> : <EyeOff size={13}/>}
+            </button>
+
+            {/* Collapse all */}
+            <button className="sb-action-btn" onClick={handleCollapseAll} title="Réduire tous les chapitres">
+              <ChevronDown size={13} style={{ transform: "rotate(180deg)" }}/>
+            </button>
+
+            {/* Expand all */}
+            <button className="sb-action-btn" onClick={handleExpandAll} title="Développer tous les chapitres">
+              <ChevronDown size={13}/>
+            </button>
+
+            {/* Legend toggle */}
+            <button
+              className={`sb-action-btn ${legendOpen ? "active" : ""}`}
+              onClick={() => setLegendOpen(v => !v)}
+              title="Légende des indicateurs"
+            >
+              <HelpCircle size={13}/>
+            </button>
+
+          </div>
+
+          {/* Guild radar mini — only if members */}
+          {guildProgress.length > 0 && (
+            <div className="sb-radar-chip">
+              <Users size={10} className="text-blue-400 shrink-0"/>
+              <span>{guildProgress.length} membres actifs</span>
+              <span className="sb-radar-sep">·</span>
+              <span>{Object.keys(presenceMap).length} étapes occupées</span>
+            </div>
           )}
-        </button>
+
+          {/* Back to main guide (only when filter active) */}
+          {activeGuideFilter && (
+            <button
+              onClick={handleBackToMainGuideCurrentStep}
+              className="sb-back-main-btn"
+              title="Retourner à votre position du guide principal"
+            >
+              <BookOpenCheck size={10}/>
+              <span>← Guide principal</span>
+            </button>
+          )}
+
+          {/* Legend panel */}
+          <AnimatePresence initial={false}>
+            {legendOpen && (
+              <motion.div
+                className="sb-legend-panel"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <div className="sb-legend-row">
+                  <Bookmark size={10} className="text-amber-500 fill-amber-500/20 shrink-0"/>
+                  <span><strong className="text-amber-400">J&apos;en suis là</strong> — Position courante (sans valider)</span>
+                </div>
+                <div className="sb-legend-row">
+                  <CheckCircle2 size={10} className="text-emerald-500 shrink-0"/>
+                  <span><strong className="text-emerald-400">Validée</strong> — Étape terminée</span>
+                </div>
+                <div className="sb-legend-row">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)] shrink-0"/>
+                  <span><strong className="text-blue-400">Sélectionnée</strong> — Vue active</span>
+                </div>
+                <div className="sb-legend-row">
+                  <Circle size={10} className="text-zinc-600 shrink-0"/>
+                  <span><strong>À faire</strong> — Non commencée</span>
+                </div>
+                <div className="sb-legend-row">
+                  <Users size={10} className="text-blue-400 shrink-0"/>
+                  <span><strong>Guilde</strong> — Membres positionnés ici</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Chapter list */}
         <div className="sidebar-chapters">
@@ -1506,10 +1842,13 @@ export default function OptimizedGuideClient({
                 selectedId={selected?.id}
                 completedIds={completedIds}
                 onSelect={ms => setSelected(ms)}
-                defaultOpen={idx === 0 || ch.items.some(m => m.id === selected?.id)}
+                isOpen={openChapters[ch.chapter] ?? false}
+                onToggle={(open) => handleToggleChapter(ch.chapter, open)}
                 presenceMap={presenceMap}
                 bookmarkId={bookmarkId}
                 guildId={guildId}
+                onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
+                onBookmark={handleBookmark}
               />
             ))
           )}
@@ -1600,6 +1939,51 @@ export default function OptimizedGuideClient({
                 
                 <h1 className="step-title">{selected.title}</h1>
                 {selected.subtitle && <p className="step-subtitle">{selected.subtitle}</p>}
+
+                {/* Step presence banner */}
+                {membersHere.length > 0 && (
+                  <div 
+                    className="step-presence-banner flex items-center justify-between p-3.5 mt-4 rounded-2xl bg-zinc-950/40 border border-white/5 backdrop-blur-md cursor-pointer hover:bg-zinc-950/60 hover:border-emerald-500/30 transition-all select-none group"
+                    onClick={() => setPresenceModal({ isOpen: true, milestoneId: selected.id, milestoneTitle: selected.title })}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex -space-x-2 overflow-hidden">
+                        {membersHere.slice(0, 5).map((m) => (
+                          <div
+                            key={m.profileId}
+                            className="inline-block h-7 w-7 rounded-full ring-2 ring-zinc-950 bg-zinc-900 overflow-hidden"
+                          >
+                            {m.userAvatar ? (
+                              <img src={m.userAvatar} alt={m.userName} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-xs font-bold text-zinc-400 bg-zinc-800">
+                                {m.userName.slice(0, 1).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        {membersHere.length > 5 && (
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full ring-2 ring-zinc-950 bg-zinc-800 text-[10px] font-black text-zinc-300">
+                            +{membersHere.length - 5}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col text-left">
+                        <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
+                          {membersHere.length} {membersHere.length > 1 ? "membres sont" : "membre est"} sur cette étape
+                        </span>
+                        <span className="text-[10px] text-zinc-500">
+                          Cliquer pour voir la liste complète des pseudos cliquables
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900/60 border border-white/5 text-[10px] font-bold text-zinc-400 group-hover:text-emerald-400 group-hover:border-emerald-500/20 transition-all">
+                      <Users size={10} className="shrink-0" />
+                      <span>Voir la guilde</span>
+                    </div>
+                  </div>
+                )}
               </header>
 
               {/* Narrative block */}
@@ -1658,6 +2042,10 @@ export default function OptimizedGuideClient({
                           seq={activeSeq}
                           checkedSteps={checkedSteps}
                           onStepToggle={handleStepToggle}
+                          guildProgress={guildProgress}
+                          milestones={milestones}
+                          selectedMilestoneId={selected?.id || ""}
+                          guildId={guildId}
                           onMapClick={(x, y, explicitWorld) => {
                             navigator.clipboard.writeText(`/travel ${x} ${y}`);
                             let worldId = 1;
@@ -1698,6 +2086,9 @@ export default function OptimizedGuideClient({
                           onInteractiveClick={handleInteractiveClick}
                           defaultExpanded={true}
                           hideCompletedGlobal={globalHideCompletedSteps}
+                          onSelectSubGuide={setActiveGuideFilter}
+                          bookmarkStepKey={bookmarkStepKey}
+                          onStepBookmark={handleStepBookmark}
                         />
                       )}
                     </div>
@@ -1736,27 +2127,7 @@ export default function OptimizedGuideClient({
                 </div>
               )}
 
-              {/* Members here */}
-              {membersHere.length > 0 && (
-                <div className="members-here">
-                  <Users size={12}/>
-                  <span>{membersHere.length} membre{membersHere.length>1?"s":""} sur cette étape</span>
-                  <div className="member-avatars">
-                    {membersHere.map(m => (
-                      <Link
-                        key={m.profileId}
-                        href={`/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`}
-                        className="member-avatar"
-                        title={m.userName}
-                      >
-                        {m.userAvatar
-                          ? <img src={m.userAvatar} alt={m.userName || "Membre"}/>
-                          : <span>{(m.userName || "?")[0]?.toUpperCase()}</span>}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
+
 
               {/* Footer nav */}
               <footer className="step-footer">
@@ -2473,6 +2844,74 @@ export default function OptimizedGuideClient({
                   );
                 })
               )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Presence Modal Dialog */}
+      <Dialog 
+        open={presenceModal?.isOpen ?? false} 
+        onOpenChange={(open) => setPresenceModal(prev => prev ? { ...prev, isOpen: open } : null)}
+      >
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
+              <Users size={14} className="text-emerald-400" />
+              Membres actifs
+            </DialogTitle>
+            <div className="text-lg font-black italic tracking-tight text-white uppercase mt-1 truncate">
+              {presenceModal?.milestoneTitle}
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[350px] pr-2 no-scrollbar">
+            <div className="space-y-2 pb-2">
+              {(() => {
+                const members = presenceModal ? (presenceMap[presenceModal.milestoneId] || []) : [];
+                if (members.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-8 text-zinc-500 italic text-sm">
+                      <Info size={16} className="mb-2 opacity-40" />
+                      <span>Aucun membre à cette étape</span>
+                    </div>
+                  );
+                }
+                return members.map((m) => {
+                  const profileUrl = `/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`;
+                  return (
+                    <Link
+                      key={m.profileId}
+                      href={profileUrl}
+                      className="flex items-center justify-between p-3 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-all group cursor-pointer"
+                      onClick={() => {
+                        setPresenceModal(prev => prev ? { ...prev, isOpen: false } : null);
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                          {m.userAvatar ? (
+                            <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-sm font-bold text-zinc-400">
+                              {m.userName.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
+                            {m.userName}
+                          </span>
+                          <span className="text-[9px] text-zinc-500">
+                            Voir la fiche de membre
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-zinc-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+                    </Link>
+                  );
+                });
+              })()}
             </div>
           </ScrollArea>
         </DialogContent>

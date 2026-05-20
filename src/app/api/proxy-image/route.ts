@@ -7,6 +7,12 @@ const ALLOWED_DOMAINS = [
   "www.dofuspourlesnoobs.com",
   "ganymede-dofus.com",
   "ganymede-app.com",
+  "dofusbook.net",
+  "d-bk.net",
+  "ankama.com",
+  "metamob.fr",
+  "discordapp.com",
+  "discordapp.net",
 ];
 
 export async function GET(req: NextRequest) {

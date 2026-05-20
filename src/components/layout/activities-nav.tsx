@@ -12,7 +12,6 @@ export function ActivitiesNav({ guildId }: { guildId: string }) {
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "emerald" },
         { name: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo" },
         { name: "Les Dofus", href: `/dashboard/${guildId}/quetes-dofus`, icon: Gem, color: "cyan" },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Crown, color: "amber" },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "rose" },
     ];
 

@@ -35,6 +35,7 @@ interface MissionPublishFlowDialogProps {
     missionPool: 'CLASSIQUES' | 'SPECIALES';
     missionsCount: number;
     onConfirm: () => Promise<{ success: boolean; error?: string }>;
+    isDiscordConfigured?: boolean;
 }
 
 type Step = "CONFIRM" | "DISCORD_PING";
@@ -46,7 +47,8 @@ export function MissionPublishFlowDialog({
     guildId,
     missionPool,
     missionsCount,
-    onConfirm
+    onConfirm,
+    isDiscordConfigured = true
 }: MissionPublishFlowDialogProps) {
     const [step, setStep] = useState<Step>("CONFIRM");
     const [pingType, setPingType] = useState<PingType>("NONE");
@@ -76,7 +78,12 @@ export function MissionPublishFlowDialog({
         setIsSaving(false);
         
         if (res.success) {
-            setStep("DISCORD_PING");
+            if (!isDiscordConfigured) {
+                toast.success("Publication terminée !");
+                onOpenChange(false);
+            } else {
+                setStep("DISCORD_PING");
+            }
         }
     };
 

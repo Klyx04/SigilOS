@@ -102,6 +102,9 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const [profiles, setProfiles] = useState<MemberProfile[]>([]);
     const [pendingRequest, setPendingRequest] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [stuffs, setStuffs] = useState<any[]>([]);
+    const [selectedStuffId, setSelectedStuffId] = useState<string>("none");
+    const [customStuffName, setCustomStuffName] = useState("");
 
     const difficulty = DIFFICULTIES[run.difficulty as DifficultyKey];
     const objective = OBJECTIVES[run.objective as ObjectiveKey];
@@ -129,7 +132,20 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             }
         }
         loadData();
-    }, [run.members, run.id, currentUserId, isMember, isLeader, run.joinRequests]);
+    }, [run.members, run.id, currentUserId, isMember, isLeader, run.joinRequests, params.guildId]);
+
+    useEffect(() => {
+        if (joinDialogOpen && stuffs.length === 0) {
+            Promise.all([
+                import("@/server/actions/gallery-actions").then(m => m.getStuffGalleryPage(params.guildId as string)),
+                import("@/server/actions/user-actions").then(m => m.getUserContext(params.guildId as string))
+            ]).then(([res, userCtx]) => {
+                if (res.success && res.data && userCtx.profileId) {
+                    setStuffs(res.data.builds.filter((s: any) => s.author.id === userCtx.profileId));
+                }
+            });
+        }
+    }, [joinDialogOpen, stuffs.length, params.guildId]);
 
     const getDisplayName = (userId: string): string => {
         const profile = profiles.find((p) => p.userId === userId);
@@ -138,7 +154,16 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
 
     const handleSendJoinRequest = async () => {
         setLoading(true);
-        const result = await sendJoinRequest(params.guildId as string, { runId: run.id, classe: selectedClasse, message: message || undefined });
+        const selectedStuff = stuffs.find(s => s.id === selectedStuffId);
+        const result = await sendJoinRequest(params.guildId as string, { 
+            runId: run.id, 
+            classe: selectedClasse, 
+            message: message || undefined,
+            linkedStuffId: selectedStuffId === "none" ? null : selectedStuffId,
+            linkedStuffName: customStuffName || selectedStuff?.name || null,
+            linkedStuffThumbnail: selectedStuff?.previewData?.thumbnail || null,
+            linkedStuffUrl: selectedStuff?.url || null
+        });
         if (result.success) {
             toast.success("Candidature envoyée !");
             setJoinDialogOpen(false);
@@ -489,6 +514,45 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     className="bg-white/5 border-white/10 min-h-[100px] text-sm resize-none rounded-xl p-4"
                                 />
                             </div>
+                            
+                            {stuffs.length > 0 && (
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">
+                                        Ton Stuff (Optionnel)
+                                    </Label>
+                                    <Select value={selectedStuffId} onValueChange={setSelectedStuffId}>
+                                        <SelectTrigger className="bg-white/5 border-white/10 h-12 rounded-xl text-white">
+                                            <SelectValue placeholder="Choisir un stuff" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-[#0a0514] border-white/10">
+                                            <SelectItem value="none" className="text-zinc-500 italic">Aucun stuff</SelectItem>
+                                            {stuffs.map((stuff) => (
+                                                <SelectItem key={stuff.id} value={stuff.id} className="text-white focus:bg-white/10">
+                                                    <div className="flex items-center gap-2">
+                                                        {stuff.previewData?.thumbnail && (
+                                                            <img src={stuff.previewData.thumbnail} className="w-5 h-5 rounded object-cover border border-white/10" alt="" />
+                                                        )}
+                                                        <span className="truncate max-w-[200px]">{stuff.name}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {selectedStuffId !== "none" && (
+                                        <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+                                            <input
+                                                type="text"
+                                                placeholder="Nom personnalisé..."
+                                                value={customStuffName}
+                                                onChange={(e) => setCustomStuffName(e.target.value)}
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <Button onClick={handleSendJoinRequest} disabled={loading} className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/10 font-black uppercase tracking-[0.2em] h-14 rounded-xl shadow-xl">
                                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Envoyer ma candidature"}
                             </Button>

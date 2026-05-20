@@ -35,10 +35,15 @@ import {
     Star,
     X,
     Eye,
-    EyeOff
+    EyeOff,
+    Settings,
+    CheckCircle,
+    Rocket,
+    History,
+    Bug,
+    Map
 } from "lucide-react";
 import { SidebarSearch } from "./sidebar-search";
-import { ThemeToggle } from "./ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { type UserContext } from "@/server/actions/user-actions";
@@ -57,6 +62,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { togglePinnedNavItem, toggleHiddenNavItem } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
+import { getUnreadNotifications } from "@/server/actions/notification-actions";
 
 interface AppSidebarProps {
     guildId: string;
@@ -65,6 +71,7 @@ interface AppSidebarProps {
     modules?: GuildModulesState;
     userGuilds?: { id: string; name: string; iconUrl: string | null }[];
     className?: string;
+    roadmapEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -73,16 +80,42 @@ export function AppSidebar({
     guildData,
     userGuilds = [],
     modules = DEFAULT_MODULES,
+    roadmapEnabled = false,
     className
 }: AppSidebarProps) {
     const [mounted, setMounted] = useState(false);
     const [localPinnedHrefs, setLocalPinnedHrefs] = useState<string[]>(user.pinnedNavItems || []);
     const [localHiddenHrefs, setLocalHiddenHrefs] = useState<string[]>(user.hiddenNavItems || []);
+    const [notifications, setNotifications] = useState<any[]>([]);
     const pathname = usePathname();
 
     useEffect(() => {
         setMounted(true);
+        const fetchNotifs = async () => {
+            try {
+                const res = await getUnreadNotifications();
+                if (res.success && res.data) {
+                    setNotifications(res.data);
+                }
+            } catch (e) {
+                console.error("Failed to fetch sidebar notifications", e);
+            }
+        };
+        fetchNotifs();
+        const interval = setInterval(fetchNotifs, 10000);
+        return () => clearInterval(interval);
     }, []);
+
+    const getUnreadCount = (href: string) => {
+        if (href.endsWith("/missions")) return notifications.filter(n => n.category === "MISSION").length;
+        if (href.endsWith("/songes")) return notifications.filter(n => n.category === "SONGES").length;
+        if (href.endsWith("/calendar")) return notifications.filter(n => n.category === "EVENT").length;
+        if (href.endsWith("/sondages")) return notifications.filter(n => n.category === "POLL").length;
+        if (href.endsWith("/donjons-et-quetes")) return notifications.filter(n => n.category === "DONJONS").length;
+        if (href.endsWith("/ladder")) return notifications.filter(n => n.category === "SUCCESS").length;
+        if (href.endsWith("/quete-ocre")) return notifications.filter(n => n.category === "OCRE").length;
+        return 0;
+    };
 
     // Sync local state when user prop changes (after server revalidation)
     // Stabilize synchronization from server props
@@ -142,8 +175,8 @@ export function AppSidebar({
         `/dashboard/${guildId}/sondages`,
         `/dashboard/${guildId}/worldmap`,
     ];
-    const [othersOpen, setAutresOpen] = useState(
-        () => othersRoutes.some(r => pathname.startsWith(r))
+    const [othersOpen, setOthersOpen] = useState(
+        () => othersRoutes.some(r => pathname.startsWith(r)) || pathname === "/roadmap" || pathname === "/changelog"
     );
 
     const adminRoutes = [
@@ -161,19 +194,19 @@ export function AppSidebar({
 
     // 1. HORS SECTION
     const NAV_GLOBAL = [
-        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "zinc", visible: user.isMember && user.canViewDashboard, isDashboard: true },
+        { name: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, exact: true, color: "indigo", visible: user.isMember && user.canViewDashboard, isDashboard: true },
     ];
 
     // 3. PROGRESSION
     const NAV_PROGRESSION = [
         { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", visible: user.canViewMissions && modules.missions },
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "amber", visible: user.canViewSonges && modules.songes },
         { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", visible: user.canViewLadder && modules.ladder },
         { name: "Les Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/module-dofus/Dofus_Sylvestre.png", color: "amber", visible: user.canViewQuests && modules.quests },
     ];
 
     // 4. OUTILS
     const NAV_TOOLS: any[] = [
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo", visible: user.canViewSonges && modules.songes },
         { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", visible: user.canViewStuffGallery && modules.resources },
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", visible: user.canViewQuests && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", visible: user.canViewServices && modules.services },
@@ -184,6 +217,7 @@ export function AppSidebar({
         { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, color: "cyan", visible: user.canViewMiniGames },
         { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, color: "cyan", visible: user.canViewPolls && modules.polls },
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
+        { name: "Roadmap", href: "/roadmap", icon: Rocket, color: "amber", visible: roadmapEnabled },
     ];
 
     const NAV_ADMIN_TOP = { 
@@ -193,6 +227,7 @@ export function AppSidebar({
         exact: true, 
         color: "rose", 
         visible: hasAnyAdminPermission,
+        prefetch: false,
         aliases: [
             `/dashboard/${guildId}/admin/permissions`,
             `/dashboard/${guildId}/admin/settings`,
@@ -210,6 +245,7 @@ export function AppSidebar({
         ...NAV_GLOBAL,
         ...NAV_PROGRESSION,
         ...NAV_TOOLS,
+        ...NAV_OTHERS,
         NAV_ADMIN_TOP,
         { name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald", visible: user.canViewRoster },
         { name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", visible: user.canViewCalendar },
@@ -226,10 +262,18 @@ export function AppSidebar({
                 `/dashboard/${guildId}/stats`,
             ]
         },
-        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", visible: user.canViewQuests && modules.donjons },
-        { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", visible: user.canViewServices && modules.services },
-        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, color: "cyan", visible: user.canViewPolls && modules.polls },
-        { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
+
+        // ADMIN SUB-ROUTES (Searchable & Pinnable)
+        { name: "Paramètres Généraux", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, color: "amber", visible: user.canViewSettings },
+        { name: "Rôles & Permissions", href: `/dashboard/${guildId}/admin/permissions`, icon: Shield, color: "zinc", visible: user.isDiscordAdmin },
+        { name: "Gestion des Modules", href: `/dashboard/${guildId}/admin/modules`, icon: Hammer, color: "indigo", visible: user.isDiscordAdmin },
+        { name: "Identité de Guilde", href: `/dashboard/${guildId}/admin/presentation`, icon: BookOpen, color: "emerald", visible: user.canEditPresentation },
+        { name: "Gestion des Missions", href: `/dashboard/${guildId}/missions/manage`, icon: Swords, color: "emerald", visible: user.canManageMissions },
+        { name: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckCircle, color: "emerald", visible: user.canValidateMissions },
+        { name: "Gestion des Membres", href: `/dashboard/${guildId}/admin/members`, icon: Users, color: "cyan", visible: user.canManageMembers || user.canManageRelance },
+        { name: "Audit Logs", href: `/dashboard/${guildId}/admin/logs`, icon: FileText, color: "zinc", visible: user.canViewAuditLogs },
+        { name: "Mises à jour", href: "/changelog", icon: History, color: "indigo", visible: true },
+        { name: "Tracker de Bugs", href: `/dashboard/${guildId}/tracker`, icon: Bug, color: "amber", visible: true },
     ];
 
     // --- NAVIGATION GROUPS ---
@@ -297,17 +341,17 @@ export function AppSidebar({
             {/* 1. HEADER: BRAND & GUILD SWITCHER */}
             <div className="p-4 pb-2 space-y-4">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-3 px-1 group transition-all">
-                    <div className="relative h-7 w-7 transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_var(--primary)]">
+                <Link href="/" className="flex items-center gap-4 px-1 group transition-all">
+                    <div className="relative h-9 w-9 transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_0_12px_var(--primary)]">
                         <Image
                             src="/assets/ui/logo-v2.png"
                             alt="SigilOS"
                             fill
-                            sizes="28px"
+                            sizes="36px"
                             className="object-contain transition-all"
                         />
                     </div>
-                    <span className="text-sm font-black tracking-[0.4em] text-foreground/90 uppercase transition-all group-hover:text-foreground">
+                    <span className="text-lg font-black tracking-[0.4em] text-foreground/90 uppercase transition-all group-hover:text-foreground">
                         SIGIL<span className="text-primary tracking-[0.3em]">OS</span>
                     </span>
                 </Link>
@@ -398,7 +442,7 @@ export function AppSidebar({
 
                         {/* SECTION: FAVORI / PINNED */}
                         {pinnedItems.length > 0 && (
-                                <div className="space-y-1 relative group/section">
+                                <div key="section-favorites" className="space-y-1 relative group/section">
                                     <SectionTitle 
                                         label="Favoris" 
                                         collapsible 
@@ -421,6 +465,7 @@ export function AppSidebar({
                                                     isPinned={true}
                                                     onPin={handleTogglePin}
                                                     onHide={handleToggleHide}
+                                                    unreadCount={getUnreadCount(item.href)}
                                                 />
                                             ))}
                                         </motion.div>
@@ -429,9 +474,9 @@ export function AppSidebar({
                                 </div>
                         )}
 
-                        {/* SECTION: GLOBAL (HORS SECTION) */}
-                        <div className="mb-6">
-                            <div className="space-y-0.5">
+                        {/* SECTION: GLOBAL (DASHBOARD CARD) */}
+                        <div key="section-global" className="mb-10 px-1">
+                            <div className="space-y-1">
                                 {NAV_GLOBAL.filter(i => i.visible !== false && !localPinnedHrefs.includes(i.href) && !localHiddenHrefs.includes(i.href)).map((item) => (
                                 <NavItem 
                                     key={item.href} 
@@ -439,12 +484,13 @@ export function AppSidebar({
                                     isActive={checkIsActive(item.href, (item as any).exact)} 
                                     isPinned={false}
                                     onPin={handleTogglePin}
+                                    unreadCount={getUnreadCount(item.href)}
                                 />
                             ))}
                             </div>
                         </div>
 
-                        <div className="relative group/section">
+                        <div key="section-informations" className="relative group/section">
                             <SectionTitle 
                                 label="Informations" 
                                 collapsible 
@@ -453,6 +499,7 @@ export function AppSidebar({
                             />
                             {infoOpen && (
                                 <motion.div 
+                                    key="motion-info"
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: "auto", opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
@@ -463,27 +510,29 @@ export function AppSidebar({
                                     {(user.canViewWelcome || user.canViewPresentation || user.canViewStats) && 
                                     !localPinnedHrefs.includes(`/dashboard/${guildId}/guild-hub`) && 
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/guild-hub`) && (
-                                        <NavItem 
-                                            item={{ 
-                                                name: "La guilde", 
-                                                href: `/dashboard/${guildId}/guild-hub`, 
-                                                icon: Sparkles, 
-                                                color: "emerald",
-                                                aliases: [
+                                            <NavItem 
+                                                key={`nav-hub`}
+                                                item={{ 
+                                                    name: "La guilde", 
+                                                    href: `/dashboard/${guildId}/guild-hub`, 
+                                                    icon: Sparkles, 
+                                                    color: "emerald",
+                                                    aliases: [
+                                                        `/dashboard/${guildId}/welcome`,
+                                                        `/dashboard/${guildId}/presentation`,
+                                                        `/dashboard/${guildId}/stats`,
+                                                    ]
+                                                }} 
+                                                isActive={checkIsActive(`/dashboard/${guildId}/guild-hub`, false, [
                                                     `/dashboard/${guildId}/welcome`,
                                                     `/dashboard/${guildId}/presentation`,
                                                     `/dashboard/${guildId}/stats`,
-                                                ]
-                                            }} 
-                                            isActive={checkIsActive(`/dashboard/${guildId}/guild-hub`, false, [
-                                                `/dashboard/${guildId}/welcome`,
-                                                `/dashboard/${guildId}/presentation`,
-                                                `/dashboard/${guildId}/stats`,
-                                            ])} 
-                                            isPinned={false}
-                                            onPin={handleTogglePin}
-                                            onHide={handleToggleHide}
-                                        />
+                                                ])} 
+                                                isPinned={false}
+                                                onPin={handleTogglePin}
+                                                onHide={handleToggleHide}
+                                                unreadCount={getUnreadCount(`/dashboard/${guildId}/guild-hub`)}
+                                            />
                                     )}
 
                                     {/* Annuaire - Direct Link */}
@@ -491,11 +540,13 @@ export function AppSidebar({
                                     !localPinnedHrefs.includes(`/dashboard/${guildId}/members`) && 
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/members`) && (
                                         <NavItem 
+                                            key={`nav-roster`}
                                             item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/members`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(`/dashboard/${guildId}/members`)}
                                         />
                                     )}
                                     
@@ -504,11 +555,13 @@ export function AppSidebar({
                                     !localPinnedHrefs.includes(`/dashboard/${guildId}/calendar`) && 
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/calendar`) && (
                                         <NavItem 
+                                            key={`nav-calendar`}
                                             item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/calendar`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(`/dashboard/${guildId}/calendar`)}
                                         />
                                     )}
 
@@ -517,11 +570,13 @@ export function AppSidebar({
                                     !localPinnedHrefs.includes(`/dashboard/${guildId}/ressources`) && 
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/ressources`) && (
                                         <NavItem 
+                                            key={`nav-resources`}
                                             item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/ressources`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(`/dashboard/${guildId}/ressources`)}
                                         />
                                     )}
                                 </motion.div>
@@ -531,7 +586,7 @@ export function AppSidebar({
 
                         {/* SECTION: PROGRESSION */}
                         {showProgressionGroup && (
-                            <div className="relative group/section">
+                            <div key="section-progression" className="relative group/section">
                                 <SectionTitle 
                                     label="Progression" 
                                     collapsible 
@@ -554,6 +609,7 @@ export function AppSidebar({
                                                 isPinned={false}
                                                 onPin={handleTogglePin}
                                                 onHide={handleToggleHide}
+                                                unreadCount={getUnreadCount(item.href)}
                                             />
                                         ))}
                                     </motion.div>
@@ -562,7 +618,7 @@ export function AppSidebar({
                             </div>
                         )}
 
-                        <div className="relative group/section">
+                        <div key="section-tools" className="relative group/section">
                             <SectionTitle 
                                 label="Outils" 
                                 collapsible 
@@ -585,6 +641,7 @@ export function AppSidebar({
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(item.href)}
                                         />
                                     ))}
                                 </motion.div>
@@ -592,12 +649,12 @@ export function AppSidebar({
                             <div className="absolute -left-2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent opacity-0 group-hover/section:opacity-100 transition-opacity duration-1000" />
                         </div>
 
-                        <div className="relative group/section">
+                        <div key="section-others" className="relative group/section">
                             <SectionTitle 
                                 label="Autres" 
                                 collapsible 
                                 isOpen={othersOpen} 
-                                onToggle={() => setAutresOpen(!othersOpen)} 
+                                onToggle={() => setOthersOpen(!othersOpen)} 
                             />
                             {othersOpen && (
                                 <motion.div 
@@ -615,6 +672,7 @@ export function AppSidebar({
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(item.href)}
                                         />
                                     ))}
                                 </motion.div>
@@ -624,7 +682,7 @@ export function AppSidebar({
 
                         {/* SECTION: SUPERVISION (ADMIN) */}
                         {showAdminGroup && (
-                            <div className="relative group/section">
+                            <div key="section-supervision" className="relative group/section">
                                 <SectionTitle 
                                     label="Supervision" 
                                     collapsible 
@@ -645,6 +703,7 @@ export function AppSidebar({
                                             isPinned={false}
                                             onPin={handleTogglePin}
                                             onHide={handleToggleHide}
+                                            unreadCount={getUnreadCount(NAV_ADMIN_TOP.href)}
                                         />
                                     </motion.div>
                                 )}
@@ -671,6 +730,7 @@ export function AppSidebar({
                                                 isActive={checkIsActive(item.href, (item as any).exact, (item as any).aliases)} 
                                                 isHidden={true}
                                                 onHide={handleToggleHide}
+                                                unreadCount={getUnreadCount(item.href)}
                                             />
                                         ))}
                                     </div>
@@ -683,37 +743,80 @@ export function AppSidebar({
                 </ScrollArea>
             </div>
 
-            {/* 3. FOOTER: SEARCH & QUICK LINKS */}
-            <div className="p-4 bg-white/[0.02] border-t border-white/5 space-y-4 backdrop-blur-xl">
+            {/* 3. FOOTER: COMMAND CENTER HUD */}
+            <div className="p-4 bg-zinc-950/40 border-t border-white/5 space-y-4 backdrop-blur-3xl relative overflow-hidden">
+                {/* Background Ambient Hud Glow */}
+                <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/5 blur-[60px] -z-10" />
+                
                 {!mounted ? (
                     <div className="w-full h-24 bg-white/5 animate-pulse rounded-2xl" />
                 ) : (
-                    <>
-                        <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                                <SidebarSearch guildId={guildId} />
-                            </div>
-                            <div className="p-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                                <ThemeToggle />
-                            </div>
+                    <div className="space-y-4">
+                        {/* Search Module */}
+                        <div className="relative group/search">
+                            <SidebarSearch guildId={guildId} />
+                            {/* Decorative Corner Accents */}
+                            <div className="absolute top-0 left-0 w-1 h-1 border-t border-l border-white/20 rounded-tl-[2px]" />
+                            <div className="absolute top-0 right-0 w-1 h-1 border-t border-r border-white/20 rounded-tr-[2px]" />
                         </div>
-                        <div className="flex gap-2">
+
+                        {/* Quick Access Grid */}
+                        <div className="grid grid-cols-3 gap-2">
                              <Link 
-                                href="/docs" 
-                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/80 hover:text-emerald-400 transition-all group shadow-sm"
+                                 href="/docs" 
+                                 className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/50 transition-all duration-500 overflow-hidden shadow-2xl active:scale-95"
                             >
-                                <BookOpen className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                                Doc
+                                {/* Active Inner Glow */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-emerald-400 blur-lg opacity-0 group-hover:opacity-40 transition-opacity" />
+                                    <BookOpen className="w-4 h-4 text-emerald-500/60 group-hover:text-emerald-400 group-hover:scale-110 transition-all duration-500 relative z-10" />
+                                </div>
+                                
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500/90 group-hover:text-emerald-400 transition-all duration-300 relative z-10">Docs</span>
+                                
+                                {/* Kinetic Indicator */}
+                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-emerald-500/0 group-hover:bg-emerald-500/60 transition-all duration-700" />
                             </Link>
+                            
                             <Link 
                                 href="/changelog" 
-                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/80 hover:text-indigo-400 transition-all group shadow-sm"
+                                className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-indigo-500/10 border border-white/5 hover:border-indigo-500/50 transition-all duration-500 overflow-hidden shadow-2xl active:scale-95"
                             >
-                                <ScrollText className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                                Logs
+                                {/* Active Inner Glow */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-indigo-400 blur-lg opacity-0 group-hover:opacity-40 transition-opacity" />
+                                    <History className="w-4 h-4 text-indigo-500/60 group-hover:text-indigo-400 group-hover:scale-110 transition-all duration-500 relative z-10" />
+                                </div>
+                                
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-500/90 group-hover:text-indigo-400 transition-all duration-300 relative z-10">Maj</span>
+                                
+                                {/* Kinetic Indicator */}
+                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-indigo-500/0 group-hover:bg-indigo-500/60 transition-all duration-700" />
+                            </Link>
+
+                            <Link 
+                                href={`/dashboard/${guildId}/tracker`} 
+                                className="group relative flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl bg-zinc-900/50 hover:bg-amber-500/10 border border-white/5 hover:border-amber-500/50 transition-all duration-500 overflow-hidden shadow-2xl active:scale-95"
+                            >
+                                {/* Active Inner Glow */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-amber-400 blur-lg opacity-0 group-hover:opacity-40 transition-opacity" />
+                                    <Bug className="w-4 h-4 text-amber-500/60 group-hover:text-amber-400 group-hover:scale-110 transition-all duration-500 relative z-10" />
+                                </div>
+                                
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-500/90 group-hover:text-amber-400 transition-all duration-300 relative z-10">Bugs</span>
+                                
+                                {/* Kinetic Indicator */}
+                                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-amber-500/0 group-hover:bg-amber-500/60 transition-all duration-700" />
                             </Link>
                         </div>
-                    </>
+                    </div>
                 )}
             </div>
         </div>
@@ -749,7 +852,7 @@ function SectionTitle({ label, collapsible, isOpen, onToggle }: { label: string;
                 "bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]"
             )} />
             
-            <h4 className="text-[11px] font-black uppercase tracking-[0.35em] text-muted-foreground/60 transition-all duration-300 whitespace-nowrap group-hover/title:text-foreground group-hover/title:tracking-[0.45em]">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.35em] text-muted-foreground/80 transition-all duration-300 whitespace-nowrap group-hover/title:text-foreground group-hover/title:tracking-[0.45em]">
                 {label}
             </h4>
             
@@ -778,7 +881,8 @@ function NavItem({
     isPinned, 
     onPin,
     isHidden,
-    onHide
+    onHide,
+    unreadCount
 }: { 
     item: any; 
     isActive: boolean; 
@@ -787,6 +891,7 @@ function NavItem({
     onPin?: (href: string) => void;
     isHidden?: boolean;
     onHide?: (href: string) => void;
+    unreadCount?: number;
 }) {
     const colorMap: Record<string, { text: string, bg: string, border: string, glow: string, muted: string, accent: string }> = {
         emerald: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", glow: "shadow-[0_0_25px_rgba(16,185,129,0.2)]", muted: "text-emerald-400/40", accent: "bg-emerald-500" },
@@ -802,9 +907,12 @@ function NavItem({
     return (
         <Link
             href={item.href}
+            prefetch={item.prefetch ?? true}
             className={cn(
                 "group relative flex items-center gap-3.5 transition-all duration-500 rounded-2xl border outline-none mx-2 mb-1 overflow-hidden",
-                item.isDashboard ? "px-5 py-4 bg-muted/30 border-border/50" : "px-4 py-3",
+                item.isDashboard 
+                    ? "px-6 py-5 bg-zinc-900/40 border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-zinc-900/60" 
+                    : "px-4 py-3",
                 isActive 
                     ? cn(
                         "z-10 bg-white/[0.03] backdrop-blur-md border-white/10",
@@ -873,18 +981,25 @@ function NavItem({
 
             <div className="flex flex-col min-w-0 z-10 transition-transform duration-500 group-hover:translate-x-0.5">
                 <span className={cn(
-                    "text-[12px] font-bold uppercase tracking-[0.15em] transition-all duration-300",
+                    "text-[10.5px] font-bold uppercase tracking-[0.1em] transition-all duration-300",
                     isActive ? "text-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "text-muted-foreground/90 group-hover:text-foreground"
                 )}>
                     {item.name}
                 </span>
                 {item.isDashboard && (
-                    <span className="text-[9px] font-bold text-emerald-500/70 uppercase tracking-tight">Accès Principal</span>
+                    <span className="text-[9px] font-bold text-indigo-400/70 uppercase tracking-tight">Accès Principal</span>
                 )}
             </div>
 
+            {/* Notification Badge */}
+            {unreadCount !== undefined && unreadCount > 0 && (
+                <div className="flex shrink-0 items-center justify-center min-w-[20px] h-5 px-1 ml-auto mr-1 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)] z-20 animate-in zoom-in">
+                    <span className="text-[10px] font-black text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                </div>
+            )}
+
             {/* Actions Container */}
-            <div className="ml-auto flex items-center gap-1">
+            <div className={cn("flex items-center gap-1", unreadCount && unreadCount > 0 ? "" : "ml-auto")}>
                 {/* Pin Toggle */}
                 {!isHidden && onPin && (
                     <button
@@ -921,6 +1036,7 @@ function AdminSubItem({ item, isActive }: { item: any; isActive: boolean }) {
     return (
         <Link
             href={item.href}
+            prefetch={false}
             className={cn(
                 "group flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all relative overflow-hidden",
                 isActive ? "text-rose-600 dark:text-rose-300 bg-rose-500/5" : "text-muted-foreground hover:text-rose-500 hover:bg-foreground/[0.02]"

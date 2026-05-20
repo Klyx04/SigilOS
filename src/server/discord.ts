@@ -442,8 +442,10 @@ export async function sendChannelMessage(
         }
 
         // Footer — default universal CTA if none provided
-        const footerText = options.embedFooter ?? "SigilOS · Pas encore sur le Dashboard ? → sigilos.fr";
-        embed.footer = { text: footerText, icon_url: "https://sigilos.fr/assets/ui/logo-v2.png" };
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const displayUrl = appUrl.replace(/^https?:\/\//, "");
+        const footerText = options.embedFooter ?? `SigilOS · Pas encore sur le Dashboard ? → ${displayUrl}`;
+        embed.footer = { text: footerText, icon_url: `${appUrl}/assets/ui/logo-v2.png` };
 
         // Author section
         if (options.embedAuthor) {
@@ -600,9 +602,10 @@ export async function updateChannelMessage(
         }
 
         if (options.embedUrl) embed.url = options.embedUrl;
-        // Universal footer fallback
-        const updateFooterText = options.embedFooter ?? "SigilOS · Pas encore sur le Dashboard ? → sigilos.fr";
-        embed.footer = { text: updateFooterText, icon_url: "https://sigilos.fr/assets/ui/logo-v2.png" };
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const displayUrl = appUrl.replace(/^https?:\/\//, "");
+        const updateFooterText = options.embedFooter ?? `SigilOS · Pas encore sur le Dashboard ? → ${displayUrl}`;
+        embed.footer = { text: updateFooterText, icon_url: `${appUrl}/assets/ui/logo-v2.png` };
 
         if (options.embedAuthor) embed.author = { name: options.embedAuthor.name, icon_url: options.embedAuthor.iconUrl };
         if (options.embedThumbnail) embed.thumbnail = { url: options.embedThumbnail };
@@ -659,6 +662,11 @@ export async function deleteChannelMessage(channelId: string, messageId: string)
     if (!token) return false;
 
     try {
+        // Automatically handle Forum Posts/Threads where channelId === messageId
+        if (channelId === messageId) {
+            return await deleteChannel(channelId);
+        }
+
         const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
             method: "DELETE",
             headers: {
@@ -1027,76 +1035,49 @@ export async function sendGuildWelcomeEmbed(channelId: string, guildName: string
 }
 
 /**
- * Send a weekly Guildaton report comparing members to their weekly quota.
+ * Send a raw Discord embed object to a channel
  */
-export async function sendGuildatonWeeklyReport(params: {
-    guildId: string;
-    channelId: string;
-    quota: number;
-    slackers: Array<{ discordId: string, username: string, delta: number }>;
-    masters: Array<{ discordId: string, username: string, delta: number }>;
-}) {
-    if (params.slackers.length === 0 && params.masters.length === 0) return;
+export async function sendDiscordRawEmbed(
+    guildId: string,
+    channelId: string,
+    content: string,
+    embed: any
+): Promise<string | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
 
-    let description = `Voici le bilan Guildaton de la semaine passée (Quota ciblé : **${params.quota} pts/semaine**).\n\n`;
+    const roleMentions = [...content.matchAll(/<@&(\d+)>/g)].map(m => m[1]);
+    const userMentions = [...content.matchAll(/<@!?(\d+)>/g)].map(m => m[1]);
 
-    if (params.masters.length > 0) {
-        description += `🏆 **Les Bons Élèves** (${params.masters.length})\n`;
-        // Top 5 maximum
-        const top5 = [...params.masters].sort((a,b) => b.delta - a.delta).slice(0, 5);
-        top5.forEach(m => {
-            description += `- <@${m.discordId}> : +${m.delta} pts\n`;
-        });
-        if (params.masters.length > 5) {
-            description += `- ... et ${params.masters.length - 5} autres.\n`;
+    const body = {
+        content: sanitizeMentions(content),
+        embeds: [embed],
+        allowed_mentions: {
+            parse: ["everyone"],
+            roles: roleMentions,
+            users: userMentions
         }
-        description += `\n`;
-    }
+    };
 
-    if (params.slackers.length > 0) {
-        description += `⚠️ **Attention (Objectif non atteint)** (${params.slackers.length})\n`;
-        // Warning: on peut taguer, mais c'est violent. On mentionne discrètement
-        const sortedSlackers = [...params.slackers].sort((a,b) => a.delta - b.delta);
-        sortedSlackers.slice(0, 15).forEach(m => {
-            description += `- <@${m.discordId}> : +${m.delta} pts (manque ${params.quota - m.delta} pts)\n`;
-        });
-        if (sortedSlackers.length > 15) {
-            description += `- ... et ${sortedSlackers.length - 15} autres membres en retard.\n`;
-        }
-    }
-
-    await sendChannelMessage(params.channelId, "", {
-        embedTitle: `📊 Bilan Hebdomadaire Guildaton`,
-        embedDescription: description,
-        embedColor: 0x9333EA, // Purple
-        embedFooter: "SigilOS Manager",
-        embedThumbnail: "https://beta.sigilos.fr/guildaton.png"
-    });
-}
-
-/**
- * Send an admin-only reminder to launch SigilOCR and scan members.
- */
-export async function sendGuildatonAdminReminder(channelId: string, guildId: string) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-    
-    return sendChannelMessage(channelId, "", {
-        embedTitle: "🗓️ Rappel Guildaton (Admins)",
-        embedDescription: "C'est l'heure du scan hebdomadaire ! Pensez à lancer **SigilOCR** pour récupérer les scores et valider la semaine dans le panel d'administration.",
-        embedColor: 0x8B5CF6, // Violet
-        fields: [
-            {
-                name: "Logiciel Requis",
-                value: "[Télécharger SigilOCR v3.2](https://github.com/Klyx04/SigilOCR/releases/latest)",
-                inline: true
+    try {
+        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": "application/json",
             },
-            {
-                name: "Panel Admin",
-                value: `[Gérer les membres](${baseUrl}/dashboard/${guildId}/admin/members)`,
-                inline: true
-            }
-        ],
-        embedThumbnail: "https://beta.sigilos.fr/guildaton.png",
-        embedFooter: "SigilOS Manager • Rappel Automatique"
-    });
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            console.error(`[Discord] Raw embed failed: ${res.status}`, await res.text());
+            return null;
+        }
+
+        const json = await res.json() as { id: string };
+        return json.id;
+    } catch (error) {
+        console.error("[Discord] Error sending raw embed:", error);
+        return null;
+    }
 }

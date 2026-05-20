@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/prisma";
 import { sendChannelMessage } from "@/server/discord";
 import { verifyCronSecret } from "@/lib/cron-auth";

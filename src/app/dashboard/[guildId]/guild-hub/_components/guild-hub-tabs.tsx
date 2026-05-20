@@ -59,19 +59,27 @@ function HubCard({ id, label, description, icon: Icon, isActive, color, onClick 
                 "relative group flex items-center gap-5 p-6 rounded-3xl transition-all duration-700 outline-none select-none",
                 isActive 
                     ? "glass-premium bg-white/[0.03] border-white/10 scale-[1.02] shadow-2xl" 
-                    : "bg-white/[0.01] border-white/5 hover:bg-white/[0.03] hover:border-white/10 hover:-translate-y-1"
+                    : "bg-white/[0.06] border-white/10 hover:bg-white/[0.08] hover:border-white/20 hover:-translate-y-1 hover:shadow-xl"
             )}
         >
             {/* Themed Background Glow */}
             <AnimatePresence>
-                {isActive && (
+                {isActive ? (
                     <motion.div 
                         layoutId={`hub-glow-${id}`}
-                        className="absolute inset-0 rounded-[inherit] -z-10 opacity-30"
+                        className="absolute inset-0 rounded-[inherit] -z-10"
                         style={{ background: `radial-gradient(circle at center, ${theme.activeGlow}, transparent 70%)` }}
                         initial={{ opacity: 0 }}
-                        animate={{ opacity: 0.3 }}
+                        animate={{ opacity: 0.35 }}
                         exit={{ opacity: 0 }}
+                    />
+                ) : (
+                    <div 
+                        className={cn(
+                            "absolute inset-0 rounded-[inherit] -z-10 opacity-5 group-hover:opacity-15 transition-opacity duration-700",
+                            theme.accent
+                        )}
+                        style={{ background: `radial-gradient(circle at center, ${theme.activeGlow}, transparent 80%)` }}
                     />
                 )}
             </AnimatePresence>
@@ -88,7 +96,7 @@ function HubCard({ id, label, description, icon: Icon, isActive, color, onClick 
                 "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-700 relative z-10",
                 isActive 
                     ? cn(theme.bg, theme.border, theme.text, theme.glow) 
-                    : "bg-white/[0.03] border-white/5 text-zinc-600 group-hover:text-zinc-400 group-hover:border-white/10"
+                    : cn("bg-zinc-900/50 border-white/5 group-hover:border-white/10", theme.text, "opacity-40 group-hover:opacity-100")
             )}>
                 {/* Micro-glow for icon */}
                 {isActive && (
@@ -103,13 +111,13 @@ function HubCard({ id, label, description, icon: Icon, isActive, color, onClick 
             <div className="text-left relative z-10">
                 <p className={cn(
                     "font-black text-[13px] uppercase tracking-[0.3em] transition-all duration-500",
-                    isActive ? "text-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "text-zinc-500 group-hover:text-zinc-300"
+                    isActive ? "text-foreground drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "text-zinc-300 group-hover:text-white"
                 )}>
                     {label}
                 </p>
                 <p className={cn(
                     "text-[10px] font-bold mt-1 tracking-wider transition-colors duration-500",
-                    isActive ? "text-zinc-400" : "text-zinc-600 group-hover:text-zinc-400"
+                    isActive ? "text-zinc-400" : "text-zinc-500 group-hover:text-zinc-400"
                 )}>
                     {description}
                 </p>

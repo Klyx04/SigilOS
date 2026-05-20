@@ -129,3 +129,132 @@ export type ForgemagieStatusId = keyof typeof FORGEMAGIE_STATUS;
 export function getForgemagieStatus(id: string) {
     return FORGEMAGIE_STATUS[id as ForgemagieStatusId] || FORGEMAGIE_STATUS.UNAVAILABLE;
 }
+
+// -----------------------------------------------------------------------------
+// ALIGNMENTS & ORDERS
+// -----------------------------------------------------------------------------
+
+export const ALIGNMENTS = [
+    { id: "neutre", name: "Neutre", icon: "/ordres/neutre.png", color: "#9ca3af" },
+    { id: "bontarien", name: "Bontarien", icon: "/ordres/bonta.png", color: "#60a5fa" },
+    { id: "brakmarien", name: "Brakmarien", icon: "/ordres/brakmar.png", color: "#ef4444" },
+] as const;
+
+export type AlignmentId = typeof ALIGNMENTS[number]["id"];
+
+export const ORDERS = {
+    bontarien: [
+        { 
+            id: "vaillant", 
+            name: "Ordre du Cœur Vaillant", 
+            icon: "/ordres/bontarien/vaillant.png",
+            levels: {
+                20: "Disciple de Ménalt",
+                40: "Écuyer",
+                60: "Chevalier de l'Espoir",
+                80: "Champion Merveilleux",
+                100: "Héros Légendaire"
+            }
+        },
+        { 
+            id: "attentif", 
+            name: "Ordre de l'Œil Attentif", 
+            icon: "/ordres/bontarien/attentif.png",
+            levels: {
+                20: "Disciple de Silvosse",
+                40: "Espion silencieux",
+                60: "Chasseur de Renégats",
+                80: "Assassin Suprême",
+                100: "Maître des Illusions"
+            }
+        },
+        { 
+            id: "salvateur", 
+            name: "Ordre de l'Esprit Salvateur", 
+            icon: "/ordres/bontarien/salvateur.png",
+            levels: {
+                20: "Disciple de Jiva",
+                40: "Apprenti Éclairé",
+                60: "Adepte des Écrits",
+                80: "Maître des Parchemins",
+                100: "Gardien du Savoir"
+            }
+        },
+    ],
+    brakmarien: [
+        { 
+            id: "saignant", 
+            name: "Ordre du Cœur Saignant", 
+            icon: "/ordres/brakmarien/saignant.png",
+            levels: {
+                20: "Disciple de Djaul",
+                40: "Surineur",
+                60: "Chevalier du Désespoir",
+                80: "Champion du Chaos",
+                100: "Héros de l'Apocalypse"
+            }
+        },
+        { 
+            id: "putride", 
+            name: "Ordre de l'Œil Putride", 
+            icon: "/ordres/brakmarien/putride.png",
+            levels: {
+                20: "Disciple de Brumaire",
+                40: "Espion Sombre",
+                60: "Chasseur d'Âmes",
+                80: "Psychopathe",
+                100: "Maître des Ombres"
+            }
+        },
+        { 
+            id: "malsain", 
+            name: "Ordre de l'Esprit Malsain", 
+            icon: "/ordres/brakmarien/malsain.png",
+            levels: {
+                20: "Disciple d'Hécate",
+                40: "Apprenti Sombre",
+                60: "Adepte des Douleurs",
+                80: "Maître des Sévices",
+                100: "Gardien des Tortures"
+            }
+        },
+    ]
+} as const;
+
+export type OrderId = string;
+
+export function getAlignment(id: string) {
+    return ALIGNMENTS.find(a => a.id === id);
+}
+
+export function getOrder(alignmentId: string, orderId: string) {
+    return (ORDERS as any)[alignmentId]?.find((o: any) => o.id === orderId);
+}
+
+// -----------------------------------------------------------------------------
+// DOFUS WORLDS & DIMENSIONS
+// -----------------------------------------------------------------------------
+export const DOFUS_WORLDS = [
+    { id: 1, name: "Monde des Douze (Amakna, Frigost...)" },
+    { id: 2, name: "Incarnam" },
+    { id: 3, name: "Souterrains & Égouts" },
+    { id: 4, name: "Labyrinthe du Minotoror" },
+    { id: 5, name: "Antre du Dragon Cochon" },
+    { id: 6, name: "Labyrinthe du Maître Corbac" },
+    { id: 7, name: "Givrefoux & Cavernes" },
+    { id: 8, name: "Canaux Méphitiques" },
+    { id: 9, name: "Entrailles de Brâkmar" },
+    { id: 10, name: "Sanctuaire des Dragoeufs / Canopée" },
+    { id: 11, name: "Dimension Divine - Enutrosor" },
+    { id: 12, name: "Dimension Divine - Srambad" },
+    { id: 13, name: "Dimension Divine - Xélorium" },
+    { id: 14, name: "Dimension Divine - Écaflipus" },
+    { id: 15, name: "Voyage dans le Temps / Passé" },
+    { id: 19, name: "Mappemondes / Pandala" },
+    { id: 22, name: "Nimotopia" },
+    { id: 29, name: "Ecaflip City" },
+    { id: 31, name: "Dimension Divine - Srambad (Alt)" },
+    { id: 32, name: "Dimension Divine - Enutrosor (Alt)" },
+    { id: 33, name: "Dimension Divine - Xélorium (Alt)" },
+    { id: 34, name: "Dimension Divine - Écaflipus (Alt)" },
+] as const;

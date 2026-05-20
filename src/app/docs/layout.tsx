@@ -2,7 +2,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { auth } from "@/auth";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import Link from "next/link";
-import { Home, Book, Terminal, FileText, Layout, ShieldCheck } from "lucide-react";
+import { Home, Book, Terminal, FileText, Layout, ShieldCheck, ArrowRight } from "lucide-react";
 import { redirect } from "next/navigation";
 import { ResizableSidebar } from "./_components/resizable-sidebar";
 import { DocsSearch } from "@/components/doc/docs-search";
@@ -135,45 +135,61 @@ export default async function DocsLayout({
                 </div>
 
                 {/* Scrollable Content */}
-                <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    <div className="container max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col lg:flex-row gap-12 relative items-start">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
+                    <div className="container max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col lg:flex-row gap-16 relative items-start">
                         
-                        {/* Docs Category Sidebar (Fixed relative to main) */}
-                        <aside className="hidden lg:block w-64 shrink-0 sticky top-4">
-                            <DocsSearch />
-                            <nav className="mt-8 space-y-8">
-                                {categories.map(category => (
-                                    <div key={category}>
-                                        <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 mb-4 px-2 flex items-center gap-2">
-                                            <div className="w-1.5 h-3 bg-teal-500/50 rounded-full" />
-                                            {category}
-                                        </h4>
-                                        <ul className="space-y-1.5">
-                                            {groupedDocs[category].map(doc => {
-                                                const isSubPage = doc.slug.includes("/");
-                                                return (
-                                                    <li key={doc.id}>
-                                                        <Link
-                                                            href={`/docs/${doc.slug}`}
-                                                            className={cn(
-                                                                "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all truncate group border border-transparent",
-                                                                isSubPage && "ml-4 border-l border-white/10 rounded-l-none pl-4"
-                                                            )}
-                                                            title={doc.title}
-                                                        >
-                                                            <FileText className="w-3.5 h-3.5 text-zinc-600 group-hover:text-amber-400 transition-colors shrink-0" />
-                                                            <span className="truncate">{doc.title}</span>
-                                                        </Link>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    </div>
-                                ))}
-                            </nav>
+                        {/* Docs Category Sidebar (Integrated & Premium) */}
+                        <aside className="hidden lg:block w-64 shrink-0 sticky top-6">
+                            <div className="space-y-10">
+                                {/* Search Section */}
+                                <div>
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-4 px-1">Navigation</h4>
+                                    <DocsSearch />
+                                </div>
+
+                                {/* Categories Navigation */}
+                                <nav className="space-y-10">
+                                    {categories.map(category => (
+                                        <div key={category} className="space-y-4">
+                                            <div className="flex items-center gap-3 px-1">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.5)]" />
+                                                <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400">
+                                                    {category}
+                                                </h4>
+                                            </div>
+                                            
+                                            <ul className="space-y-1">
+                                                {groupedDocs[category].map(doc => {
+                                                    const isSubPage = doc.slug.includes("/");
+                                                    return (
+                                                        <li key={doc.id}>
+                                                            <Link
+                                                                href={`/docs/${doc.slug}`}
+                                                                className={cn(
+                                                                    "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-300 relative overflow-hidden",
+                                                                    "text-zinc-500 hover:text-white hover:bg-white/[0.03] border border-transparent hover:border-white/5",
+                                                                    isSubPage && "ml-4 border-l border-white/5 rounded-l-none pl-4"
+                                                                )}
+                                                                title={doc.title}
+                                                            >
+                                                                {/* Hover Accent */}
+                                                                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                
+                                                                <FileText className="w-4 h-4 text-zinc-700 group-hover:text-teal-400 transition-colors shrink-0" />
+                                                                <span className="truncate">{doc.title}</span>
+                                                                <ArrowRight className="w-3.5 h-3.5 ml-auto opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0 transition-all text-zinc-400" />
+                                                            </Link>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </nav>
+                            </div>
                         </aside>
 
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 bg-zinc-900/20 border border-white/5 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl backdrop-blur-xl min-h-[600px]">
                             {children}
                         </div>
                     </div>

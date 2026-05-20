@@ -12,32 +12,38 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import { sendVacationNotification } from "@/server/actions/profile-actions";
 
 interface VacationModeProps {
     vacationStart?: Date | null;
     vacationEnd?: Date | null;
     vacationNotify?: boolean;
-    onSave?: (data: { start: Date | null; end: Date | null; notify: boolean; noEndDate: boolean }) => void;
+    vacationReason?: string | null;
+    onSave?: (data: { start: Date | null; end: Date | null; notify: boolean; noEndDate: boolean; reason: string | null }) => void;
     readOnly?: boolean;
     guildId?: string;
     pseudo?: string;
     profileId?: string;
+    hasAbsenceChannel?: boolean;
 }
 
 export function VacationMode({
     vacationStart,
     vacationEnd,
     vacationNotify = false,
+    vacationReason,
     onSave,
     readOnly = false,
     guildId,
     pseudo,
     profileId,
+    hasAbsenceChannel = false,
 }: VacationModeProps) {
     const [startDate, setStartDate] = useState<Date | undefined>(vacationStart ?? undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(vacationEnd ?? undefined);
     const [notify, setNotify] = useState(vacationNotify);
+    const [reason, setReason] = useState(vacationReason || "");
     const [noEndDate, setNoEndDate] = useState(!vacationEnd && !!vacationStart);
     const [isSending, setIsSending] = useState(false);
 
@@ -50,6 +56,7 @@ export function VacationMode({
             end: noEndDate ? null : (endDate ?? null),
             notify,
             noEndDate,
+            reason: reason || null,
         });
     };
 
@@ -58,7 +65,17 @@ export function VacationMode({
         setEndDate(undefined);
         setNotify(false);
         setNoEndDate(false);
-        onSave?.({ start: null, end: null, notify: false, noEndDate: false });
+        setReason("");
+        onSave?.({ start: null, end: null, notify: false, noEndDate: false, reason: null });
+    };
+
+    const handleQuickPreset = (days: number) => {
+        const start = new Date();
+        const end = new Date();
+        end.setDate(end.getDate() + days);
+        setStartDate(start);
+        setEndDate(end);
+        setNoEndDate(false);
     };
 
     const handleSendNotification = async () => {
@@ -72,6 +89,7 @@ export function VacationMode({
                 profileId,
                 startDate: startDate?.toISOString() ?? null,
                 endDate: noEndDate ? null : (endDate?.toISOString() ?? null),
+                reason: reason || null,
             });
 
             if (result.success) {
@@ -120,6 +138,9 @@ export function VacationMode({
                                 </p>
                             ) : (
                                 <p className="text-xs text-zinc-500 italic">Pas de date de retour prévue</p>
+                            )}
+                            {vacationReason && (
+                                <p className="text-xs text-zinc-400 italic mt-1 break-words bg-black/20 p-2 rounded border border-white/5">Motif: {vacationReason}</p>
                             )}
                         </>
                     ) : (
@@ -218,6 +239,32 @@ export function VacationMode({
                         </Label>
                     </div>
 
+                    {/* Quick Presets */}
+                    <div className="flex items-center gap-1.5 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(2)} className="h-6 text-[10px] px-2 border-white/10 hover:bg-white/10">Weekend</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(7)} className="h-6 text-[10px] px-2 border-white/10 hover:bg-white/10">1 Semaine</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickPreset(30)} className="h-6 text-[10px] px-2 border-white/10 hover:bg-white/10">1 Mois</Button>
+                    </div>
+
+                    {/* Reason */}
+                    <div className="space-y-1">
+                        <Label className="text-xs text-zinc-500">Motif (Optionnel)</Label>
+                        <Input 
+                            value={reason} 
+                            onChange={(e) => setReason(e.target.value)} 
+                            placeholder="Ex: Déplacement pro, Vacances d'été..." 
+                            className="h-8 text-xs bg-white/5 border-white/10"
+                        />
+                    </div>
+
+                    {isOnVacation && (
+                        <div className="pt-2">
+                            <Button onClick={handleClear} size="sm" className="w-full h-8 text-xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30">
+                                Je suis de retour !
+                            </Button>
+                        </div>
+                    )}
+
                     {/* Actions */}
                     <div className="flex gap-2 border-t border-white/5 pt-2">
                         <Button onClick={handleSave} size="sm" className="flex-1 h-7 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
@@ -232,20 +279,26 @@ export function VacationMode({
 
                     {/* Discord Notification Button */}
                     {startDate && guildId && profileId && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleSendNotification}
-                            disabled={isSending}
-                            className="w-full h-7 text-xs border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300"
-                        >
-                            {isSending ? (
-                                <Loader2 className="w-3 h-3 mr-2 animate-spin" />
-                            ) : (
-                                <Bell className="w-3 h-3 mr-2" />
-                            )}
-                            Notifier sur Discord
-                        </Button>
+                        hasAbsenceChannel ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleSendNotification}
+                                disabled={isSending}
+                                className="w-full h-7 text-xs border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300"
+                            >
+                                {isSending ? (
+                                    <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                                ) : (
+                                    <Bell className="w-3 h-3 mr-2" />
+                                )}
+                                Notifier sur Discord
+                            </Button>
+                        ) : (
+                            <div className="w-full h-7 flex items-center justify-center text-[10px] text-zinc-500 italic bg-black/20 rounded border border-white/5">
+                                Salon Discord non configuré
+                            </div>
+                        )
                     )}
                 </div>
             )}

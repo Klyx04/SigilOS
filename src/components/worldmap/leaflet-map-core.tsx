@@ -960,7 +960,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
     return (
         <div className="w-full h-full cursor-crosshair relative map-core-wrapper">
             {/* L'UI de la zone survolée est mise à jour manuellement pour des raisons de perfs absolues sans re-render */}
-            {!isMiniMap && (
+            {!isMiniMap && !hideUI && (
                 <div 
                     id="sigil-map-hover-hud"
                     style={{ display: 'none' }}

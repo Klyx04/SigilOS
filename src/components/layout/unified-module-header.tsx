@@ -18,6 +18,7 @@ interface UnifiedModuleHeaderProps {
     middleContent?: ReactNode;
     className?: string;
     gradient?: boolean;
+    compact?: boolean;
 }
 
 export function UnifiedModuleHeader({
@@ -32,9 +33,14 @@ export function UnifiedModuleHeader({
     middleContent,
     className,
     gradient = true,
+    compact = false,
 }: UnifiedModuleHeaderProps) {
     return (
-        <div className={cn("relative space-y-4 mb-8 md:mb-12 animate-in fade-in slide-in-from-top-4 duration-700", className)}>
+        <div className={cn(
+            "relative animate-in fade-in slide-in-from-top-4 duration-700",
+            compact ? "space-y-1 mb-2" : "space-y-4 mb-8 md:mb-12",
+            className
+        )}>
             {/* 1. BACK BUTTON & BREADCRUMBS */}
             {backHref && (
                 <Button
@@ -84,7 +90,8 @@ export function UnifiedModuleHeader({
                         {/* TITLE SECTION - Fluid Typography 2026 */}
                         <div className="min-w-0">
                             <h1 className={cn(
-                                "text-[clamp(1.75rem,8vw,3.5rem)] font-black tracking-tighter leading-[0.9] uppercase py-1 text-foreground"
+                                compact ? "text-[clamp(1.25rem,5vw,2rem)]" : "text-[clamp(1.75rem,8vw,3.5rem)]",
+                                "font-black tracking-tighter leading-[0.9] uppercase py-1 text-foreground"
                             )}>
                                 {title}
                             </h1>

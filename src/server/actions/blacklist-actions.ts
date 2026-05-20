@@ -11,6 +11,7 @@ import {
     deleteChannelMessage 
 } from "@/server/discord";
 import { revalidatePath } from "next/cache";
+import { getAppBaseUrl } from "@/lib/utils";
 
 const BlacklistSchema = z.object({
     guildId: z.string(),
@@ -109,7 +110,8 @@ export async function addBlacklistEntry(rawData: z.infer<typeof BlacklistSchema>
                         name: `Ajouté par ${ctx.name || "Admin"}`,
                         iconUrl: ctx.image
                     },
-                    embedFooter: "Sycnhoronisation SigilOS ⇆ Discord"
+                    embedFooter: "Synchronisation SigilOS ⇆ Discord",
+                    embedUrl: `${getAppBaseUrl()}/dashboard/${guildId}/admin/members`
                 });
             } catch (err) {
                 console.error("[Blacklist] Discord sync failed:", err);

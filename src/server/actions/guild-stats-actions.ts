@@ -149,20 +149,25 @@ export interface GuildStats {
 // MAIN ACTION
 // ============================================
 
-// Simple in-memory cache to prevent DB saturation
-const statsCache = new Map<string, { stats: GuildStats; timestamp: number }>();
-const CACHE_TTL = 60 * 1000; // 60 seconds
+import { redis } from "@/lib/redis";
 
 export async function getGuildStats(guildId: string): Promise<{
     success: boolean;
     error?: string;
     stats?: GuildStats;
 }> {
-    // Check Cache
-    const cached = statsCache.get(guildId);
-    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-        return { success: true, stats: cached.stats };
+    const cacheKey = `guild:stats:${guildId}`;
+
+    // 1. Check Redis Cache (60s TTL)
+    try {
+        const cached = await redis.get(cacheKey).catch(() => null);
+        if (cached) {
+            return { success: true, stats: JSON.parse(cached) as GuildStats };
+        }
+    } catch (e) {
+        console.error("[Stats] Redis error:", e);
     }
+
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.isMember) {
         return { success: false, error: "Non autorisé" };
@@ -705,8 +710,8 @@ export async function getGuildStats(guildId: string): Promise<{
             records,
         };
 
-        // Cache for next time
-        statsCache.set(guildId, { stats, timestamp: Date.now() });
+        // Cache for next time (60s)
+        await redis.set(cacheKey, JSON.stringify(stats), "EX", 60).catch(() => {});
 
         return {
             success: true,

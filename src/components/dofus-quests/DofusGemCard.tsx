@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Crown, Gem, Lock, Sparkles } from "lucide-react";
+import { Crown, Gem, Lock, Sparkles, RefreshCw } from "lucide-react";
 import { DofusProgressRing } from "./DofusProgressRing";
 import { DofusIcon } from "./DofusIcon";
 import { toggleDofusObtained } from "@/server/actions/dofus-quest-actions";
 import type { DofusItemWithProgress } from "@/server/actions/dofus-quest-actions";
+import { toast } from "sonner";
 
 interface DofusGemCardProps {
     dofus: DofusItemWithProgress;
@@ -18,6 +19,24 @@ interface DofusGemCardProps {
 export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }: DofusGemCardProps) {
     const [isObtained, setIsObtained] = useState(dofus.isObtained);
     const [isPending, startTransition] = useTransition();
+    const [syncAllMules, setSyncAllMules] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("dofus-sync-all-mules") === "true";
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        setIsObtained(dofus.isObtained);
+    }, [dofus.isObtained, selectedCharacter]);
+
+    useEffect(() => {
+        const handleSyncChange = () => {
+            setSyncAllMules(localStorage.getItem("dofus-sync-all-mules") === "true");
+        };
+        window.addEventListener("dofus-sync-all-mules-changed", handleSyncChange);
+        return () => window.removeEventListener("dofus-sync-all-mules-changed", handleSyncChange);
+    }, []);
 
     const color = dofus.color || "#6366f1";
     const hasChain = dofus.totalQuests > 0;
@@ -31,7 +50,17 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
         const newVal = !isObtained;
         setIsObtained(newVal);
         startTransition(async () => {
-            await toggleDofusObtained(guildId, dofus.id, newVal, selectedCharacter);
+            const res = await toggleDofusObtained(guildId, dofus.id, newVal, selectedCharacter, syncAllMules);
+            if (res.success) {
+                if (syncAllMules) {
+                    toast.success(`Dofus ${newVal ? "obtenu" : "retiré"} sur tous vos personnages !`);
+                } else {
+                    toast.success(`Dofus ${newVal ? "obtenu" : "retiré"} pour ${selectedCharacter === "PRINCIPAL" ? "votre personnage principal" : selectedCharacter}.`);
+                }
+            } else {
+                toast.error(res.error || "Erreur de mise à jour");
+                setIsObtained(!newVal); // rollback
+            }
         });
     }
 
@@ -88,6 +117,29 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                     </div>
                 )}
             </div>
+
+            {/* Sync All Mules toggle button */}
+            <button
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const nextVal = !syncAllMules;
+                    setSyncAllMules(nextVal);
+                    localStorage.setItem("dofus-sync-all-mules", String(nextVal));
+                    window.dispatchEvent(new Event("dofus-sync-all-mules-changed"));
+                }}
+                className={`absolute top-3 right-12 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 border ${
+                    syncAllMules ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" : "bg-white/5 border-white/10 text-zinc-500 hover:text-white"
+                }`}
+                style={{
+                    borderColor: syncAllMules ? `${color}66` : undefined,
+                    color: syncAllMules ? color : undefined,
+                    boxShadow: syncAllMules ? `0 0 8px ${color}33` : undefined,
+                }}
+                title={syncAllMules ? "Sync multi-personnages ACTIVE (Appliquer à tous)" : "Sync multi-personnages INACTIVE (Seulement ce perso)"}
+            >
+                <RefreshCw className="w-3.5 h-3.5" />
+            </button>
 
             {/* Obtained toggle button */}
             <button

@@ -29,15 +29,24 @@ export function formatDofusPseudo(pseudo: string): string {
   if (!pseudo) return "";
   
   // On autorise : lettres (incluant accents), tirets et espaces.
-  // Les chiffres sont exclus par sécurité (non autorisés sur Dofus).
   const cleaned = pseudo.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-]/g, "");
   
-  // On capitalise chaque mot séparé par un espace ou un tiret
-  return cleaned
-    .split(/([-\s])/) // Garde les séparateurs pour pouvoir reconstruire la chaîne
+  const parts = cleaned.split(/([-\s])/);
+  let firstWordFound = false;
+
+  return parts
     .map((part) => {
       if (part === "-" || part === " " || part.length === 0) return part;
-      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      
+      if (!firstWordFound) {
+        firstWordFound = true;
+        // Premier mot du pseudo : Toujours Majuscule au début
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      }
+      
+      // Mots suivants : On autorise Majuscule OU Minuscule au début (choix utilisateur)
+      // Mais on force le reste en minuscule pour éviter les pseudos en FULL CAPS
+      return part.charAt(0) + part.slice(1).toLowerCase();
     })
     .join("");
 }

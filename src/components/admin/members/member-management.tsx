@@ -28,7 +28,8 @@ import {
     Check,
     MessageSquare,
     Mic,
-    Ban
+    Ban,
+    ChevronLeft
 } from "lucide-react";
 import { 
     Card, 
@@ -84,7 +85,6 @@ import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { RelanceClient } from "@/components/admin/relance/relance-client";
 import { MemberDiscordCharts } from "@/components/admin/members/member-discord-charts";
-import { GuildatonManagement } from "@/components/admin/members/guildaton-management";
 import { MemberBlacklist } from "@/components/admin/members/member-blacklist";
 
 interface Member {
@@ -210,6 +210,10 @@ export default function MemberManagement({
     const [joinedFilter, setJoinedFilter] = useState<string>("all");
     const [actionFilter, setActionFilter] = useState<string>("all");
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'joinedAt', direction: 'desc' });
+    
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 15;
 
     const fetchData = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -234,6 +238,11 @@ export default function MemberManagement({
     useEffect(() => {
         fetchData();
     }, [guildId]);
+
+    // Reset pagination when search or filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, roleFilter, statusFilter, joinedFilter, actionFilter]);
 
     const filteredAuditMembers = useMemo(() => {
         if (!data) return [];
@@ -289,6 +298,13 @@ export default function MemberManagement({
 
         return filtered;
     }, [data, search, roleFilter, statusFilter, joinedFilter, actionFilter, sortConfig]);
+
+    const paginatedAuditMembers = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredAuditMembers.slice(start, start + pageSize);
+    }, [filteredAuditMembers, currentPage]);
+
+    const totalPages = Math.ceil(filteredAuditMembers.length / pageSize);
 
     const toggleSort = (key: string) => {
         setSortConfig(prev => ({
@@ -391,7 +407,6 @@ export default function MemberManagement({
                     {[
                         { id: "audit", label: "Audit & Sync", icon: ShieldCheck, requiresFull: true },
                         { id: "management", label: "Roster & Historique", icon: UserCircle, requiresFull: true },
-                        { id: "guildaton", label: "Analyse Guildaton", icon: ({ className }: { className?: string }) => <img src="/guildaton.png" className={cn("w-4 h-4 object-contain", className)} alt="" />, requiresFull: true },
                         { id: "blacklist", label: "Blacklist (Jeu)", icon: Ban, requiresFull: true },
                         { id: "relances", label: "Relances Discord", icon: Bell, requiresFull: false },
                     ].map(tab => {
@@ -425,10 +440,10 @@ export default function MemberManagement({
                 </div>
 
                 {/* --- TAB 1: AUDIT --- */}
-                <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
                     <div className="space-y-8">
                         {/* Advanced Discord Activity Charts */}
-                        {data && <MemberDiscordCharts members={data.members} />}
+                        {data && <MemberDiscordCharts members={data.members} roleStats={data.stats} />}
 
                         {/* Bottom Utility Cards */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -621,7 +636,7 @@ export default function MemberManagement({
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
-                                        ) : filteredAuditMembers.length === 0 ? (
+                                        ) : paginatedAuditMembers.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={5} className="h-48 text-center">
                                                     <div className="flex flex-col items-center gap-2 opacity-40">
@@ -632,7 +647,7 @@ export default function MemberManagement({
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            filteredAuditMembers.map(member => (
+                                            paginatedAuditMembers.map(member => (
                                                 <TableRow key={member.discordId} className="group border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                                                     <TableCell className="pl-8 py-5">
                                                         <div className="flex items-center gap-4">
@@ -724,6 +739,42 @@ export default function MemberManagement({
                                     </TableBody>
                                 </Table>
                             </div>
+
+                            {/* Pagination UI */}
+                            {totalPages > 1 && (
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4 py-4 bg-zinc-900/20 border border-white/5 rounded-3xl animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                                        Affichage de {Math.min(filteredAuditMembers.length, (currentPage - 1) * pageSize + 1)} à {Math.min(filteredAuditMembers.length, currentPage * pageSize)} sur {filteredAuditMembers.length} membres
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                            className="w-9 h-9 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 disabled:opacity-30 transition-all"
+                                        >
+                                            <ChevronLeft className="w-4 h-4 text-zinc-400" />
+                                        </Button>
+
+                                        <div className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-white/5 border border-white/10">
+                                            <span className="text-[10px] font-black text-white">{currentPage}</span>
+                                            <span className="text-[10px] font-black text-zinc-600">/</span>
+                                            <span className="text-[10px] font-black text-zinc-400">{totalPages}</span>
+                                        </div>
+
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="w-9 h-9 rounded-xl bg-white/5 border-white/10 hover:bg-white/10 disabled:opacity-30 transition-all"
+                                        >
+                                            <ChevronRight className="w-4 h-4 text-zinc-400" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
 
@@ -731,7 +782,7 @@ export default function MemberManagement({
                 </TabsContent>
 
                 {/* --- TAB 2: MANAGEMENT --- */}
-                <TabsContent value="management" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="management" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
                     <MemberStatsOverview stats={initialStats} />
                     <div className="p-1 px-3 bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
                         <MemberManagementTable 
@@ -746,7 +797,7 @@ export default function MemberManagement({
                 </TabsContent>
 
                 {/* --- TAB 3: RELANCES --- */}
-                <TabsContent value="relances" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <TabsContent value="relances" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
                     <div className="bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
                         <RelanceClient 
                             guildId={guildId}
@@ -757,13 +808,8 @@ export default function MemberManagement({
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 4: GUILDATON --- */}
-                <TabsContent value="guildaton" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <GuildatonManagement guildId={guildId} />
-                </TabsContent>
-
-                {/* --- TAB 5: BLACKLIST --- */}
-                <TabsContent value="blacklist" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* --- TAB 4: BLACKLIST --- */}
+                <TabsContent value="blacklist" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
                     <MemberBlacklist guildId={guildId} />
                 </TabsContent>
             </Tabs>

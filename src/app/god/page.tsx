@@ -56,7 +56,7 @@ export default async function SuperAdminPage(props: {
     const resolvedSearchParams = await props.searchParams;
     const tab = resolvedSearchParams.tab || "overview";
 
-    console.log(`[GodDashboard] Rendering tab: ${tab}`);
+
 
     // Fetch data for LifecyclePanel
     const { getGhostUsers, getUnauthorizedBotConnections } = await import("@/server/actions/super-admin-actions");
@@ -475,7 +475,7 @@ async function GameDataStatsServer() {
                 {[
                     { label: "Familles", count: families, icon: Layers, color: "text-blue-400" },
                     { label: "Zones", count: zones, icon: MapPin, color: "text-green-400" },
-                    { label: "Challenges", count: challenges, icon: Trophy, color: "text-yellow-400" },
+                    { label: "Succès", count: challenges, icon: Trophy, color: "text-yellow-400" },
                     { label: "Donjons", count: dungeons, icon: Database, color: "text-purple-400" },
                 ].map((stat) => (
                     <div key={stat.label} className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 flex items-center gap-4">

@@ -2,9 +2,10 @@ import { auth } from "@/auth";
 import { getWeekMissions, getGuildMissionXpOverride, getWeeklyGuildatons } from "@/server/actions/mission-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getMyWeeklyKamaStatus, getKamaStats } from "@/server/actions/kama-actions";
+import { getUserProfile } from "@/server/actions/profile-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
-import { ScrollText, Info } from "lucide-react";
+import { ScrollText } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { MissionsErrorState } from "@/components/missions/missions-error-state";
@@ -12,7 +13,9 @@ import { GuildProgressBar } from "@/components/missions/guild-progress-bar";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { ActivitiesNav } from "@/components/layout/activities-nav";
 import { getDofusWeek } from "@/lib/date-utils";
-import { WeeklyGuildatonCounter } from "@/components/missions/weekly-guildaton-counter";
+import { PersonalGuildatonWidget } from "@/components/missions/personal-guildaton-widget";
+import { db } from "@/lib/prisma";
+import { GuildHallWidget } from "@/components/missions/guild-hall-widget";
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +38,25 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     const { week, year } = getDofusWeek();
 
     // Fetch all data in parallel
-    const [response, overrideRes, kamaRes, kamaStatsRes, weeklyGuildatons] = await Promise.all([
+    const [response, overrideRes, kamaRes, kamaStatsRes, profileRes, guildConfig] = await Promise.all([
         getWeekMissions(guildId, week, year),
         getGuildMissionXpOverride(guildId),
         getMyWeeklyKamaStatus(guildId),
-        getKamaStats(guildId), // Fetch total guild stats for kama XP calculation
-        getWeeklyGuildatons(user.profileId!, week, year),
+        getKamaStats(guildId),
+        getUserProfile(guildId),
+        db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                guildHallPosX: true,
+                guildHallPosY: true,
+                guildHallWorldId: true,
+            }
+        })
     ]);
+
+    const weeklyGuildatons = profileRes.success && profileRes.data 
+        ? await getWeeklyGuildatons(profileRes.data.id, week, year)
+        : 0;
 
     // 24h Restriction Check
     const HOURS_RESIDENCY = 24;
@@ -109,20 +124,13 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                     />
                 </div>
                 <div className="space-y-6">
-                    <WeeklyGuildatonCounter current={weeklyGuildatons || 0} />
-                    
-                    {/* Placeholder for other stats/widgets if needed */}
-                    <div className="p-5 rounded-2xl bg-foreground/[0.03] border border-border flex flex-col items-center justify-center gap-3 text-center">
-                         <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                             <Info className="w-5 h-5 text-primary" />
-                         </div>
-                         <div>
-                             <p className="text-xs font-black text-foreground uppercase tracking-widest italic">Information</p>
-                             <p className="text-[10px] text-muted-foreground font-bold leading-relaxed mt-1 italic">
-                                Pensez à lier vos stuffs Dofusbook dans votre Profil (onglet Stuff) pour plus de visibilité.
-                             </p>
-                         </div>
-                    </div>
+                    <PersonalGuildatonWidget guildatons={weeklyGuildatons} />
+                    <GuildHallWidget 
+                        posX={guildConfig?.guildHallPosX ?? null} 
+                        posY={guildConfig?.guildHallPosY ?? null} 
+                        worldId={guildConfig?.guildHallWorldId ?? null} 
+                        guildId={guildId}
+                    />
                 </div>
             </div>
 

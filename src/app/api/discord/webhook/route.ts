@@ -162,6 +162,121 @@ async function handleGuildDelete(guildId: string) {
     });
 }
 
+// Handle new member arrival
+async function handleMemberAdd(guildId: string, memberData: any) {
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true, name: true }
+    });
+
+    if (!guild) return;
+
+    const userId = memberData.user.id;
+    const pseudo = memberData.nick || memberData.user.global_name || memberData.user.username;
+
+    // Log the arrival
+    await db.auditLog.create({
+        data: {
+            guildId: guild.id,
+            actorUserId: "SYSTEM",
+            actorName: "Discord Gateway Bot",
+            action: "WEBHOOK_MEMBER_ADD",
+            targetType: "PROFILE",
+            targetId: userId,
+            metadata: { 
+                discordUserId: userId,
+                description: pseudo,
+                username: memberData.user.username,
+                roles: memberData.roles,
+                joinedAt: memberData.joined_at
+            }
+        }
+    });
+
+    // --- PRO-ACTIVE SYNC ---
+    // If the user already has an account, we could auto-create/reactivate their profile here.
+    const account = await db.account.findFirst({
+        where: { provider: "discord", providerAccountId: userId },
+        select: { userId: true }
+    });
+
+    if (account) {
+        const profile = await db.userProfile.findUnique({
+            where: { userId_guildId: { userId: account.userId, guildId: guild.id } }
+        });
+
+        if (profile && profile.status === "ARCHIVED") {
+            await db.userProfile.update({
+                where: { id: profile.id },
+                data: { 
+                    status: "ACTIVE", 
+                    archivedAt: null, 
+                    archiveReason: null, 
+                    scheduledDeletion: null,
+                    discordNickname: memberData.nick || null
+                }
+            });
+            
+            await db.auditLog.create({
+                data: {
+                    guildId: guild.id,
+                    actorUserId: "SYSTEM",
+                    actorName: "Discord Gateway Bot",
+                    action: "PROFILE_REACTIVATED",
+                    targetType: "PROFILE",
+                    targetId: userId,
+                    metadata: { description: pseudo, reason: "WEBHOOK_REJOIN" }
+                }
+            });
+        }
+    }
+}
+
+// Handle member profile updates (nickname, roles)
+async function handleMemberUpdate(guildId: string, memberData: any) {
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { id: true }
+    });
+
+    if (!guild) return;
+
+    const userId = memberData.user.id;
+    const pseudo = memberData.nick || memberData.user.global_name || memberData.user.username;
+
+    // 1. Log the update for audit transparency
+    await db.auditLog.create({
+        data: {
+            guildId: guild.id,
+            actorUserId: "SYSTEM",
+            actorName: "Discord Gateway Bot",
+            action: "WEBHOOK_MEMBER_UPDATE",
+            targetType: "PROFILE",
+            targetId: userId,
+            metadata: { 
+                discordUserId: userId,
+                description: pseudo,
+                username: memberData.user.username,
+                newNick: memberData.nick,
+                newRoles: memberData.roles
+            }
+        }
+    });
+
+    // 2. Sync nickname to DB if profile exists
+    const account = await db.account.findFirst({
+        where: { provider: "discord", providerAccountId: userId },
+        select: { userId: true }
+    });
+
+    if (account) {
+        await db.userProfile.updateMany({
+            where: { userId: account.userId, guildId: guild.id },
+            data: { discordNickname: memberData.nick || null }
+        });
+    }
+}
+
 // Archive a user profile when they leave or are kicked
 async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT" | "KICKED", userMeta?: { username: string, global_name: string | null }) {
 
@@ -378,10 +493,18 @@ export async function POST(request: NextRequest) {
                     await handleGuildDelete(data.id);
                     break;
 
+                case "GUILD_MEMBER_ADD":
+                    await handleMemberAdd(data.guild_id, data);
+                    break;
+
                 case "GUILD_MEMBER_REMOVE":
                     // Note: Discord doesn't distinguish between leave and kick in this event
                     // We treat all as "LEFT" unless we have audit log access
                     await handleMemberRemove(data.guild_id, data.user.id, "LEFT", data.user);
+                    break;
+
+                case "GUILD_MEMBER_UPDATE":
+                    await handleMemberUpdate(data.guild_id, data);
                     break;
 
                 case "GUILD_BAN_ADD":

@@ -31,6 +31,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DofusIcon } from "./DofusIcon";
 import { QuestGuildStatus } from "./QuestGuildStatus";
+import { QuestActionsBlock } from "./QuestActionsBlock";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -43,6 +44,7 @@ interface DofusNeuralTreeProps {
     dofusColor: string;
     onToggleStatus: (questId: string, status: any) => void;
     completedIds: Set<string>;
+    onDungeonClick?: (name: string, dofusdbIdVal: number | null) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,6 +70,8 @@ function QuestCard({
     completedIds,
     onToggle,
     index,
+    synergy,
+    onDungeonClick,
 }: {
     entry: any;
     guildId: string;
@@ -75,6 +79,8 @@ function QuestCard({
     completedIds: Set<string>;
     onToggle: (id: string, status: any) => void;
     index: number;
+    synergy: Record<string, MemberOnQuest[]>;
+    onDungeonClick?: (name: string, dofusdbIdVal: number | null) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
 
@@ -206,7 +212,8 @@ function QuestCard({
                             {structuredDungeons.map((d, dx) => (
                                 <div
                                     key={`sd-${dx}`}
-                                    className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3"
+                                    className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3 cursor-pointer hover:bg-rose-500/15 hover:border-rose-500/30 transition-all"
+                                    onClick={() => onDungeonClick?.(d.name, d.id ? Number(d.id) : null)}
                                 >
                                     <div className="w-12 h-12 rounded-xl bg-black/60 border border-rose-500/20 flex items-center justify-center p-1 shrink-0 overflow-hidden">
                                         {d.img ? (
@@ -266,7 +273,8 @@ function QuestCard({
                                 dungeonInfos.map((di, dx) => (
                                     <div
                                         key={`di-${dx}`}
-                                        className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3"
+                                        className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3 cursor-pointer hover:bg-rose-500/15 hover:border-rose-500/30 transition-all"
+                                        onClick={() => onDungeonClick?.(di.dungeonName || "", di.bossId ? Number(di.bossId) : null)}
                                     >
                                         {di.mapImg && (
                                             // eslint-disable-next-line @next/next/no-img-element
@@ -388,92 +396,18 @@ function QuestCard({
                                 </div>
                             )}
 
-                            {/* Quick links */}
-                            <div className="flex items-center gap-2 pt-1">
-                                <a
-                                    href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[9px] font-black uppercase italic text-zinc-600 hover:text-white px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 transition-all hover:bg-white/10 flex items-center gap-1"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <Target className="w-2.5 h-2.5" /> DofusDB
-                                </a>
-                                <a
-                                    href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[9px] font-black uppercase italic text-zinc-600 hover:text-white px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 transition-all hover:bg-white/10 flex items-center gap-1"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <BookOpen className="w-2.5 h-2.5" /> Noobs
-                                </a>
-                                {entry.coords && (
-                                    <button
-                                        className="text-[9px] font-black uppercase italic text-zinc-600 hover:text-emerald-400 px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 transition-all hover:bg-white/10 flex items-center gap-1"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            copyWithToast(`/travel ${entry.coords.x} ${entry.coords.y}`);
-                                        }}
-                                    >
-                                        <Copy className="w-2.5 h-2.5" /> Travel
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Action terminal */}
-                            <div className="flex flex-col gap-3">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <a 
-                                        href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`} 
-                                        target="_blank" 
-                                        className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/15 hover:border-indigo-500/30 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-all shadow-lg shadow-indigo-900/10"
-                                    >
-                                        <Target className="w-5 h-5" /> DofusDB
-                                    </a>
-                                    
-                                    <a 
-                                        href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`} 
-                                        target="_blank" 
-                                        className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-amber-500/5 border border-amber-500/10 hover:bg-amber-500/15 hover:border-amber-500/30 text-[10px] font-black text-amber-400 uppercase tracking-widest transition-all shadow-lg shadow-amber-900/10"
-                                    >
-                                        <BookOpen className="w-5 h-5" /> Noobs
-                                    </a>
-
-                                    {entry.coords && (
-                                        <button 
-                                            onClick={() => copyWithToast(`/travel ${entry.coords?.x} ${entry.coords?.y}`)}
-                                            className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/15 hover:border-emerald-500/30 text-[10px] font-black text-emerald-400 uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/10"
-                                        >
-                                            <MapPin className="w-5 h-5" /> Travel
-                                        </button>
-                                    )}
-
-                                    <QuestGuildStatus 
-                                        guildId={guildId} 
-                                        questId={entry.id} 
-                                        dofusColor={dofusColor} 
-                                        variant="action"
-                                    />
-                                </div>
-                                <Button
-                                    disabled={isLocked && !isDone}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (isLocked && !isDone) return;
-                                        onToggle(entry.id, isDone ? "NOT_STARTED" : "COMPLETED");
-                                    }}
-                                    className={`w-full h-10 rounded-xl font-black italic uppercase text-[11px] tracking-widest transition-all ${
-                                        isDone
-                                            ? "bg-zinc-900 border border-white/10 text-zinc-500"
-                                            : isLocked
-                                            ? "bg-zinc-950 text-white/10 border border-white/5 cursor-not-allowed"
-                                            : "bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.08)]"
-                                    }`}
-                                >
-                                    {isDone ? "✓ Réinitialiser" : isLocked ? "🔒 Verrouillée" : "Valider l'étape"}
-                                </Button>
-                            </div>
+                            {/* Action Terminal */}
+                            <QuestActionsBlock
+                                entry={entry}
+                                guildId={guildId}
+                                dofusColor={dofusColor}
+                                initialMembers={synergy[entry.id] ?? []}
+                                lock={isLocked}
+                                done={isDone}
+                                onToggle={() => {
+                                    onToggle(entry.id, isDone ? "NOT_STARTED" : "COMPLETED");
+                                }}
+                            />
                         </div>
                     </motion.div>
                 )}
@@ -640,6 +574,7 @@ export function DofusNeuralTree({
     onToggleStatus,
     completedIds,
     synergy,
+    onDungeonClick,
 }: DofusNeuralTreeProps) {
     const [activeTab, setActiveTab] = useState<"roadmap" | "resources">("roadmap");
     const [openChainId, setOpenChainId] = useState<string | null>(null);
@@ -803,6 +738,8 @@ export function DofusNeuralTree({
                                                         completedIds={completedIds}
                                                         onToggle={onToggleStatus}
                                                         index={ei}
+                                                        synergy={synergy}
+                                                        onDungeonClick={onDungeonClick}
                                                     />
                                                 ))}
                                                 {entries.length === 0 && (

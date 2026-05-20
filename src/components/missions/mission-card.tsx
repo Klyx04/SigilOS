@@ -22,7 +22,8 @@ import {
     XCircle,
     Loader2,
     ShieldCheck,
-    Trophy
+    Trophy,
+    Calendar as CalendarIcon
 } from "lucide-react";
 import { Mission, MissionCategory, MissionInterest, UserProfile, User, Submission, SubmissionStatus } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -31,10 +32,12 @@ import { useRouter } from "next/navigation";
 import { toggleMissionInterest, cancelMissionSubmission, getMissionValidators } from "@/server/actions/mission-actions";
 import { toast } from "sonner";
 import Image from "next/image";
+import Link from "next/link";
 import { ProofUploadDialog } from "./proof-upload-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // --- Props ---
 
@@ -51,6 +54,7 @@ interface MissionCardProps {
     guildId: string; // Discord Guild ID for upload
     onInterestClick?: (missionId: string) => void; // For modal trigger
     isRestricted?: boolean;
+    linkedEvent?: { id: string, title: string, startDate: Date } | null;
 }
 
 // --- Category Config ---
@@ -143,7 +147,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
 
 // --- Component ---
 
-export function MissionCard({ mission, currentUserId, guildId, onInterestClick, isRestricted }: MissionCardProps) {
+export function MissionCard({ mission, currentUserId, guildId, onInterestClick, isRestricted, linkedEvent }: MissionCardProps) {
     const [isPending, startTransition] = useTransition();
     const [showUploadDialog, setShowUploadDialog] = useState(false);
     const [showValidators, setShowValidators] = useState(false);
@@ -405,10 +409,38 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                 {mission.guildatonsReward && (
                                     <div className="flex items-center justify-center gap-2 px-2.5 py-1 bg-black/40 rounded-lg border border-white/10 shadow-md min-w-[70px] sm:min-w-[85px]">
                                         <span className="text-white font-mono text-xs sm:text-sm font-black">{mission.guildatonsReward}</span>
-                                        <Image src="/guildaton.png" alt="Guildatons" width={18} height={18} className="object-contain" loading="lazy" />
+                                        <Image src="/guildatons.png" alt="Guildatons" width={18} height={18} className="object-contain" loading="lazy" />
                                     </div>
                                 )}
+                                {config.label && (
+                                    <span className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-2 self-center">
+                                        {config.label}
+                                    </span>
+                                )}
                             </div>
+
+                            {/* Linked Event Badge */}
+                            {linkedEvent && (
+                                <TooltipProvider delayDuration={0}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Link
+                                                href={`/dashboard/${guildId}/calendar?event=${linkedEvent.id}`}
+                                                className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all group/calendar"
+                                            >
+                                                <CalendarIcon className="w-3 h-3 text-amber-500 group-hover/calendar:scale-110 transition-transform" />
+                                                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-none">
+                                                    Session Prévue
+                                                </span>
+                                                <ExternalLink className="w-2.5 h-2.5 text-amber-500/50 group-hover/calendar:text-amber-500 transition-colors" />
+                                            </Link>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="bg-zinc-900 border-zinc-800 text-amber-500 font-bold text-[10px] uppercase tracking-widest px-3 py-1.5">
+                                            Voir l&apos;événement sur le calendrier ?
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
                         </div>
                     </div>
                 </div>

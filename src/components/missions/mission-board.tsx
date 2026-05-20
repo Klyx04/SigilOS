@@ -20,6 +20,7 @@ interface MissionBoardProps {
             }
         })[];
         submissions?: Submission[];
+        linkedEvent?: { id: string, title: string, startDate: Date } | null;
     })[];
     currentUserId: string;
     guildId: string; // Discord Guild ID for uploads
@@ -233,6 +234,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                             guildId={guildId}
                             onInterestClick={handleInterestClick}
                             isRestricted={isRestricted}
+                            linkedEvent={(mission as any).linkedEvent}
                         />
                     </div>
                 ))}

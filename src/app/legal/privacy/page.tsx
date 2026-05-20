@@ -37,7 +37,7 @@ export default function PrivacyPage() {
                 <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">1. Nature des Données Collectées</h2>
                 <p>Nous traitons les catégories de données suivantes :</p>
                 <ul className="list-disc pl-6 space-y-2">
-                    <li><strong>Identité Numérique :</strong> Votre identifiant Discord unique (ID), l'adresse e-mail liée, votre pseudonyme et votre avatar. Ces données sont récupérées via l'API officielle Discord lors de votre connexion.</li>
+                    <li><strong>Identité Numérique :</strong> Votre identifiant Discord unique (ID), votre pseudonyme et votre avatar. Ces données sont récupérées via l'API officielle Discord lors de votre connexion.</li>
                     <li><strong>Données de Jeu :</strong> Les informations relatives à votre avancement synchronisées manuellement ou via OCR (niveaux, succès, monstres d'Ocre possédés).</li>
                     <li><strong>Preuves Visuelles :</strong> Les captures d'écran de jeu que vous soumettez pour valider vos succès. Ces images sont traitées par nos algorithmes de reconnaissance avant d'être archivées.</li>
                 </ul>

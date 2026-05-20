@@ -9,10 +9,11 @@ const IMAGE_SIZES = {
     monster: 512,      // Monsters: 512px max
     achievement: 256,  // Achievements: 256px max (icons)
     dungeon: 512,      // Dungeons: 512px max
-    item: 256          // Items/Bonuses: 256px max
+    item: 256,         // Items/Bonuses: 256px max
+    legendary: 256     // Legendary items: 256px max
 };
 
-type ImageType = "monster" | "achievement" | "dungeon" | "item";
+type ImageType = "monster" | "achievement" | "dungeon" | "item" | "legendary";
 
 export async function downloadExternalImage(
     url: string,
@@ -46,6 +47,20 @@ export async function downloadExternalImage(
             return { success: false, error: `File too large (${(originalSize / 1024 / 1024).toFixed(2)} MB)` };
         }
 
+        return await processAndSaveImage(buffer, destinationPath, type, originalSize);
+    } catch (error: any) {
+        console.error("[ImageDownloader] Error:", error);
+        return { success: false, error: error.message || "Unknown error" };
+    }
+}
+
+export async function processAndSaveImage(
+    buffer: Buffer,
+    destinationPath: string,
+    type: ImageType,
+    originalSize: number
+): Promise<{ success: boolean; path?: string; error?: string; sizeReduction?: string }> {
+    try {
         // 5. Optimize image with sharp
         const maxSize = IMAGE_SIZES[type];
         const optimizedBuffer = await sharp(buffer)

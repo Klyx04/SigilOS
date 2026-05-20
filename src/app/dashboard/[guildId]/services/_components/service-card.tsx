@@ -9,24 +9,26 @@ import { CATEGORY_LABELS, CATEGORY_EMOJIS } from "@/server/actions/services-cons
 import { deleteServiceListing, toggleServiceStatus } from "@/server/actions/service-actions";
 import { ServiceCategory } from "@prisma/client";
 import { ServiceEditDialog } from "./service-edit-dialog";
+import { ServiceContactDialog } from "./service-contact-dialog";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useState } from "react";
 import Image from "next/image";
 import { FM_JOBS } from "./service-form";
 import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // DESIGN TOKENS
 // ---------------------------------------------------------------------------
 
-const CATEGORY_COLORS: Record<ServiceCategory, { badge: string; glow: string; hover: string; icon: string }> = {
-    PASSAGE_DONJON: { badge: "border-cyan-500/40 bg-cyan-500/10 text-cyan-300", glow: "hover:border-cyan-500/40", hover: "hover:bg-cyan-500/[0.03]", icon: "text-cyan-400" },
-    FORGEMAGIE: { badge: "border-amber-500/40 bg-amber-500/10 text-amber-300", glow: "hover:border-amber-500/40", hover: "hover:bg-amber-500/[0.03]", icon: "text-amber-400" },
-    METIER: { badge: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300", glow: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/[0.03]", icon: "text-emerald-400" },
-    QUETE: { badge: "border-violet-500/40 bg-violet-500/10 text-violet-300", glow: "hover:border-violet-500/40", hover: "hover:bg-violet-500/[0.03]", icon: "text-violet-400" },
-    OCRE: { badge: "border-yellow-500/40 bg-yellow-500/10 text-yellow-300", glow: "hover:border-yellow-500/40", hover: "hover:bg-yellow-500/[0.03]", icon: "text-yellow-400" },
-    AUTRE: { badge: "border-zinc-500/40 bg-zinc-500/10 text-zinc-300", glow: "hover:border-zinc-500/40", hover: "hover:bg-zinc-500/[0.03]", icon: "text-zinc-400" },
+const CATEGORY_COLORS: Record<ServiceCategory, { badge: string; glow: string; hover: string; icon: string; bg: string }> = {
+    PASSAGE_DONJON: { badge: "border-cyan-500/40 bg-cyan-500/10 text-cyan-400", glow: "hover:border-cyan-500/40", hover: "hover:bg-cyan-500/[0.03]", icon: "text-cyan-400", bg: "from-cyan-500/5 to-transparent" },
+    FORGEMAGIE: { badge: "border-amber-500/40 bg-amber-500/10 text-amber-400", glow: "hover:border-amber-500/40", hover: "hover:bg-amber-500/[0.03]", icon: "text-amber-400", bg: "from-amber-500/5 to-transparent" },
+    METIER: { badge: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400", glow: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/[0.03]", icon: "text-emerald-400", bg: "from-emerald-500/5 to-transparent" },
+    QUETE: { badge: "border-violet-500/40 bg-violet-500/10 text-violet-400", glow: "hover:border-violet-500/40", hover: "hover:bg-violet-500/[0.03]", icon: "text-violet-400", bg: "from-violet-500/5 to-transparent" },
+    OCRE: { badge: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400", glow: "hover:border-yellow-500/40", hover: "hover:bg-yellow-500/[0.03]", icon: "text-yellow-400", bg: "from-yellow-500/5 to-transparent" },
+    AUTRE: { badge: "border-zinc-500/40 bg-zinc-500/10 text-zinc-400", glow: "hover:border-zinc-500/40", hover: "hover:bg-zinc-500/[0.03]", icon: "text-zinc-400", bg: "from-zinc-500/5 to-transparent" },
 };
 
 // ---------------------------------------------------------------------------
@@ -197,16 +199,30 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
     };
 
     return (
-        <div className={`group relative flex flex-col rounded-2xl border ${isPaused ? "border-white/5 opacity-55" : `border-white/12 ${col.glow}`} bg-zinc-900/80 hover:bg-zinc-800/80 p-5 transition-all duration-300 gap-4 shadow-sm`}>
+        <div className={cn(
+            "group relative flex flex-col rounded-3xl border transition-all duration-500 overflow-hidden",
+            isPaused 
+                ? "border-white/5 opacity-60 bg-zinc-950/20" 
+                : "border-white/10 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-white/20 shadow-xl hover:shadow-2xl"
+        )}>
+            {/* Background Ambient Glow */}
+            {!isPaused && (
+                <div className={cn("absolute -top-24 -right-24 w-48 h-48 blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-700 bg-gradient-to-br", col.bg)} />
+            )}
+
+            <div className="relative p-6 flex flex-col gap-5 h-full z-10">
 
             {/* ── Header : badge catégorie + pause badge ── */}
             <div className="flex items-start justify-between gap-2">
-                <Badge variant="outline" className={`${col.badge} text-[11px] font-black uppercase tracking-wide px-2.5 py-1 border`}>
+                <Badge variant="outline" className={cn(
+                    "text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1 border rounded-full shadow-sm transition-all",
+                    col.badge
+                )}>
                     {CATEGORY_EMOJIS[listing.category]} {CATEGORY_LABELS[listing.category]}
                 </Badge>
                 {isPaused && (
-                    <Badge variant="outline" className="border-orange-500/30 bg-orange-500/10 text-orange-400 text-[10px] font-bold">
-                        ⏸ Pause
+                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest px-2 py-0.5">
+                        PAUSE
                     </Badge>
                 )}
             </div>
@@ -234,12 +250,35 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
                 </div>
             )}
 
+            {/* Breeder Profession Decorative Banner */}
+            {listing.category === "METIER" && (listing.professions as string[] | null)?.includes("Éleveur") && (
+                <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-2xl">
+                    <div className="flex -space-x-2 shrink-0">
+                        <div className="relative h-9 w-9 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-md">
+                            <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97016-64.png" alt="Dragodinde" fill className="object-contain p-1" />
+                        </div>
+                        <div className="relative h-9 w-9 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-md">
+                            <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97299-64.png" alt="Muldo" fill className="object-contain p-1" />
+                        </div>
+                        <div className="relative h-9 w-9 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-md">
+                            <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97261-64.png" alt="Volkorne" fill className="object-contain p-1" />
+                        </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest leading-none">Éleveur Certifié</p>
+                        <p className="text-xs text-zinc-400 font-bold mt-1 truncate">Dragodindes, Muldos & Volkornes</p>
+                    </div>
+                </div>
+            )}
+
             {/* ── Titre ── */}
-            <h3 className="text-base font-black text-white leading-snug line-clamp-2">{listing.title}</h3>
+            <h3 className="text-xl font-black text-white leading-tight tracking-tight group-hover:text-cyan-400 transition-colors duration-300">{listing.title}</h3>
 
             {/* ── Description ── */}
             {listing.description && (
-                <p className="text-[13px] text-zinc-300 leading-relaxed line-clamp-3">{listing.description}</p>
+                <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3 italic opacity-80 group-hover:opacity-100 transition-opacity">
+                    &quot;{listing.description}&quot;
+                </p>
             )}
 
             {/* ── Achievements avec icônes ── */}
@@ -296,19 +335,23 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
             })()}
 
             {/* ── Tarifs par palier (non-OCRE) ── */}
-            {listing.category !== "OCRE" && listing.priceTiers && listing.priceTiers.length > 0 ? (
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-1">
-                    {listing.priceTiers.map((tier, i) => <PriceLine key={i} tier={tier} />)}
+            {listing.category !== "OCRE" && listing.priceTiers && (listing.priceTiers as any[]).length > 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-2 shadow-inner">
+                    {(listing.priceTiers as any[]).map((tier, i) => <PriceLine key={i} tier={tier} />)}
                 </div>
             ) : listing.price && listing.category !== "OCRE" ? (
-                <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-                    <Image src="/assets/icons/kama.png" alt="kamas" width={18} height={18} className="object-contain shrink-0" />
-                    <span className="font-black text-white text-base">
-                        {/^\d+$/.test(listing.price.replace(/\s/g, ""))
-                            ? `${Number(listing.price).toLocaleString("fr-FR")}`
-                            : listing.price}
-                    </span>
-                    <span className="text-xs text-zinc-500 font-medium">kamas</span>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 shadow-inner">
+                    <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+                        <Image src="/assets/icons/kama.png" alt="kamas" width={20} height={20} className="object-contain" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-black text-white text-lg leading-none">
+                            {/^\d+$/.test(listing.price.replace(/\s/g, ""))
+                                ? `${Number(listing.price.replace(/\s/g, "")).toLocaleString("fr-FR")}`
+                                : listing.price}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-0.5">kamas total</span>
+                    </div>
                 </div>
             ) : null}
 
@@ -351,30 +394,39 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
             )}
 
             {/* ── Footer : auteur + actions ── */}
-            <div className="flex items-center justify-between pt-3 border-t border-white/8 mt-auto">
-                <div className="flex items-center gap-2.5">
-                    <Avatar className="h-7 w-7 rounded-lg border border-white/10">
-                        <AvatarImage src={listing.profile.user?.image || undefined} />
-                        <AvatarFallback className="text-[10px] bg-zinc-800 font-bold">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-bold text-zinc-200">{name}</span>
+            <div className="flex items-center justify-between pt-5 border-t border-white/10 mt-auto">
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <Avatar className="h-9 w-9 rounded-xl border border-white/10 shadow-lg">
+                            <AvatarImage src={listing.profile.user?.image || undefined} />
+                            <AvatarFallback className="text-xs bg-zinc-800 font-black text-zinc-400">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-glow" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-black text-white tracking-tight leading-none">{name}</span>
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Vendeur certifié</span>
+                    </div>
                 </div>
 
-                {(isOwner || isAdmin) && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {(isOwner || isAdmin) ? (
+                    <div className="flex items-center gap-2">
                         {isOwner && (
                             <>
                                 <ServiceEditDialog listing={listing} guildId={guildId} />
-                                <Button size="icon" variant="ghost" onClick={handleToggle} disabled={loading} className="h-8 w-8 text-zinc-500 hover:text-white">
+                                <Button size="icon" variant="ghost" onClick={handleToggle} disabled={loading} className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all">
                                     {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                                 </Button>
                             </>
                         )}
-                        <Button size="icon" variant="ghost" onClick={handleDelete} disabled={loading} className="h-8 w-8 text-zinc-500 hover:text-rose-400">
+                        <Button size="icon" variant="ghost" onClick={handleDelete} disabled={loading} className="h-9 w-9 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-all">
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
+                ) : (
+                    <ServiceContactDialog listing={listing} guildId={guildId} />
                 )}
+            </div>
             </div>
         </div>
     );

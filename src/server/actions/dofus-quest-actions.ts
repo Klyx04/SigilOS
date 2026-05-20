@@ -5,6 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { DofusQuestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
 
 export type ActionResponse<T = void> = {
     success: boolean;
@@ -284,7 +285,7 @@ export async function getDofusListWithProgress(guildId: string, characterName: s
 
         return { success: true, data: result };
     } catch (error) {
-        console.error("[dofus-quest-actions] getDofusListWithProgress error:", error);
+        logger.error("[dofus-quest-actions] getDofusListWithProgress error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -475,7 +476,7 @@ export async function getDofusDetailWithChains(
 
         return { success: true, data: { dofus: dofusData, chains } };
     } catch (error) {
-        console.error("[dofus-quest-actions] getDofusDetailWithChains error:", error);
+        logger.error("[dofus-quest-actions] getDofusDetailWithChains error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -634,7 +635,7 @@ export async function getGuildDofusStats(guildId: string): Promise<{
 
         return { success: true, data: { stats, topMembers, totalMembers } };
     } catch (error) {
-        console.error("[dofus-quest-actions] getGuildDofusStats error:", error);
+        logger.error("[dofus-quest-actions] getGuildDofusStats error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -733,8 +734,8 @@ export async function getDofusWarRoomData(guildId: string): Promise<ActionRespon
             data: { hotZones, questSynergies, dungeonSynergies }
         };
     } catch (error) {
-        console.error("[getDofusWarRoomData] error:", error);
-        return { success: false, error: "Erreur lors du calcul de la War Room" };
+        logger.error("[getDofusWarRoomData] error:", { error });
+        return { success: false, error: "Erreur lors de la calcul de la War Room" };
     }
 }
 
@@ -787,7 +788,7 @@ export async function getOtherMembersOnQuest(
 
         return { success: true, data: members };
     } catch (error) {
-        console.error("[getOtherMembersOnQuest] Error:", error);
+        logger.error("[getOtherMembersOnQuest] Error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -845,7 +846,7 @@ export async function getGuildSynergyForDofus(
 
         return { success: true, data: synergyMap };
     } catch (error) {
-        console.error("[getGuildSynergyForDofus] Error:", error);
+        logger.error("[getGuildSynergyForDofus] Error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -929,13 +930,13 @@ export async function toggleQuestStatus(
             }
         } catch (e) {
             // Non-blocking: cache refresh failure should not break the toggle
-            console.error("[toggleQuestStatus] completionPercent refresh failed:", e);
+            logger.error("[toggleQuestStatus] completionPercent refresh failed:", { error: e });
         }
 
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
         return { success: true };
     } catch (error) {
-        console.error("[dofus-quest-actions] toggleQuestStatus error:", error);
+        logger.error("[dofus-quest-actions] toggleQuestStatus error:", { error });
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -947,7 +948,8 @@ export async function toggleDofusObtained(
     guildId: string,
     dofusId: string,
     obtained: boolean,
-    characterName: string = "PRINCIPAL"
+    characterName: string = "PRINCIPAL",
+    syncAllMules: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
@@ -961,78 +963,91 @@ export async function toggleDofusObtained(
     if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
     try {
-        await (db as any).playerDofusProgress.upsert({
-            where: {
-                profileId_dofusId_characterName: {
-                    profileId: ctx.profileId,
-                    dofusId,
-                    characterName,
-                },
-            },
-            update: {
-                isObtained: obtained,
-                obtainedAt: obtained ? new Date() : null,
-            },
-            create: {
-                profileId: ctx.profileId,
-                guildId: guildConfig.id,
-                dofusId,
-                characterName,
-                isObtained: obtained,
-                obtainedAt: obtained ? new Date() : null,
-            },
-        });
-
-        // Si marqué comme obtenu, marquer toutes ses quêtes comme COMPLETED
-        if (obtained) {
-            const chains = await (db as any).dofusQuestChain.findMany({
-                where: { dofusId },
-                include: { entries: { select: { id: true } } },
+        let charactersToUpdate = [characterName];
+        if (syncAllMules) {
+            const profile = await db.userProfile.findUnique({
+                where: { id: ctx.profileId },
+                select: { altPseudos: true }
             });
-            const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
+            const altPseudosList = Array.isArray(profile?.altPseudos) ? (profile.altPseudos as any[]) : [];
+            const muleNames = altPseudosList.map(m => typeof m === 'string' ? m : m.pseudo).filter(Boolean);
+            charactersToUpdate = Array.from(new Set(["PRINCIPAL", ...muleNames]));
+        }
 
-            if (allEntryIds.length > 0) {
-                // Use a transaction for bulk update
-                await db.$transaction(
-                    allEntryIds.map((questId: string) =>
-                        (db as any).playerDofusQuestProgress.upsert({
-                            where: {
-                                profileId_questId_characterName: { 
-                                    profileId: ctx.profileId!, 
-                                    questId,
-                                    characterName 
-                                },
-                            },
-                            update: { status: "COMPLETED", completedAt: new Date() },
-                            create: {
-                                profileId: ctx.profileId!,
-                                guildId: guildConfig.id,
-                                questId,
-                                characterName,
-                                status: "COMPLETED",
-                                completedAt: new Date(),
-                            },
-                        })
-                    )
-                );
-            }
-            // Also update the completion percentage to 100
-            await (db as any).playerDofusProgress.update({
+        for (const charName of charactersToUpdate) {
+            await (db as any).playerDofusProgress.upsert({
                 where: {
                     profileId_dofusId_characterName: {
                         profileId: ctx.profileId,
                         dofusId,
-                        characterName,
+                        characterName: charName,
                     },
                 },
-                data: { completionPercent: 100 }
+                update: {
+                    isObtained: obtained,
+                    obtainedAt: obtained ? new Date() : null,
+                },
+                create: {
+                    profileId: ctx.profileId,
+                    guildId: guildConfig.id,
+                    dofusId,
+                    characterName: charName,
+                    isObtained: obtained,
+                    obtainedAt: obtained ? new Date() : null,
+                },
             });
+
+            // Si marqué comme obtenu, marquer toutes ses quêtes comme COMPLETED
+            if (obtained) {
+                const chains = await (db as any).dofusQuestChain.findMany({
+                    where: { dofusId },
+                    include: { entries: { select: { id: true } } },
+                });
+                const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
+
+                if (allEntryIds.length > 0) {
+                    // Use a transaction for bulk update
+                    await db.$transaction(
+                        allEntryIds.map((questId: string) =>
+                            (db as any).playerDofusQuestProgress.upsert({
+                                where: {
+                                    profileId_questId_characterName: { 
+                                        profileId: ctx.profileId!, 
+                                        questId,
+                                        characterName: charName 
+                                    },
+                                },
+                                update: { status: "COMPLETED", completedAt: new Date() },
+                                create: {
+                                    profileId: ctx.profileId!,
+                                    guildId: guildConfig.id,
+                                    questId,
+                                    characterName: charName,
+                                    status: "COMPLETED",
+                                    completedAt: new Date(),
+                                },
+                            })
+                        )
+                    );
+                }
+                // Also update the completion percentage to 100
+                await (db as any).playerDofusProgress.update({
+                    where: {
+                        profileId_dofusId_characterName: {
+                            profileId: ctx.profileId,
+                            dofusId,
+                            characterName: charName,
+                        },
+                    },
+                    data: { completionPercent: 100 }
+                });
+            }
         }
 
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
         return { success: true };
     } catch (error) {
-        console.error("[dofus-quest-actions] toggleDofusObtained error:", error);
+        logger.error("[dofus-quest-actions] toggleDofusObtained error:", { error });
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -1083,7 +1098,7 @@ export async function updateDolmanaxProgress(
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
         return { success: true };
     } catch (error) {
-        console.error("[updateDolmanaxProgress] error:", error);
+        logger.error("[updateDolmanaxProgress] error:", { error });
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -1117,7 +1132,7 @@ export async function seedDofusData(guildId: string): Promise<{
         const validSlugs = items.map((i: any) => i.slug);
         const ghosts = await (db as any).dofusItem.findMany({ where: { slug: { notIn: validSlugs } } });
         for (const ghost of ghosts) {
-            console.log(`[seedDofusData] Deleting ghost item: ${ghost.slug}`);
+            logger.debug(`[seedDofusData] Deleting ghost item: ${ghost.slug}`);
             
             // Delete player progresses
             await (db as any).playerDofusProgress.deleteMany({ where: { dofusId: ghost.id } });
@@ -1229,7 +1244,7 @@ export async function seedDofusData(guildId: string): Promise<{
                 const fileContent = fs.readFileSync(resolvedPath, "utf-8");
                 chainData = JSON.parse(fileContent);
             } catch (err) {
-                console.error(`[seedDofusData] Could not load ${filePath}:`, err);
+                logger.error(`[seedDofusData] Could not load ${filePath}:`, { error: err });
                 continue;
             }
 
@@ -1287,7 +1302,7 @@ export async function seedDofusData(guildId: string): Promise<{
             message: `✅ Seed terminé : ${itemCount} Dofus, ${chainCount} sections, ${entryCount} entrées (Cache vidéo Next.js purgé)`,
         };
     } catch (error) {
-        console.error("[dofus-quest-actions] seedDofusData error:", error);
+        logger.error("[dofus-quest-actions] seedDofusData error:", { error });
         return { success: false, error: `Erreur seed: ${(error as Error).message}` };
     }
 }
@@ -1328,7 +1343,7 @@ export async function getDofusRequirements(
             })),
         };
     } catch (error) {
-        console.error("[getDofusRequirements] error:", error);
+        logger.error("[getDofusRequirements] error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1373,7 +1388,7 @@ export async function seedDofusRequirements(guildId: string): Promise<ActionResp
         }
         return { success: true, data: { count } };
     } catch (error) {
-        console.error("[seedDofusRequirements] error:", error);
+        logger.error("[seedDofusRequirements] error:", { error });
         return { success: false, error: `Erreur: ${(error as Error).message}` };
     }
 }
@@ -1523,7 +1538,7 @@ export async function getGuildHeatmapForDofus(
 
         return { success: true, data: { entries, members } };
     } catch (error) {
-        console.error("[getGuildHeatmapForDofus] error:", error);
+        logger.error("[getGuildHeatmapForDofus] error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1558,7 +1573,7 @@ export async function getUserCompletedQuestIds(
 
         return { success: true, data: Array.from(ids) };
     } catch (error) {
-        console.error("[getUserCompletedQuestIds] error:", error);
+        logger.error("[getUserCompletedQuestIds] error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }

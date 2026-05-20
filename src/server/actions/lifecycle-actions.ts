@@ -63,11 +63,14 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
             }
         });
 
+        // 🔔 Lifecycle Notification
+        await sendLifecycleNotification(guildId, updatedProfile, "ARCHIVED");
+
         // Invalidate Redis cache to prevent stale restricted access
         await invalidateUserContextCache(
             updatedProfile.userId, 
-            guildId, 
-            updatedProfile.user.accounts[0]?.providerAccountId
+            updatedProfile.guildId, // Internal UUID
+            guildId                 // Discord ID
         );
 
         await createAuditLog({
@@ -83,12 +86,69 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
             }
         });
 
+        revalidatePath(`/dashboard/${guildId}`, "layout");
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (e) {
         console.error("Archive error:", e);
         return { success: false, error: "Database error" };
+    }
+}
+
+/**
+ * Helper to send lifecycle notifications to the configured Discord channel
+ */
+async function sendLifecycleNotification(guildId: string, profile: any, type: "LEFT" | "BANNED" | "ARCHIVED") {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { lifecycleNotifyChannelId: true, name: true }
+        });
+
+        if (!guildConfig?.lifecycleNotifyChannelId) return;
+
+        const { sendChannelMessage } = await import("@/server/discord");
+        
+        let title = "";
+        let color = 0;
+        let description = "";
+        let statusLabel = "";
+
+        if (type === "BANNED") {
+            title = "🚫 Membre Banni (Discord)";
+            color = 0xef4444; // Red
+            description = `Le membre **${profile.pseudoDofus || profile.discordNickname || "Inconnu"}** a été banni du serveur Discord.`;
+            statusLabel = "BANNED";
+        } else if (type === "LEFT") {
+            title = "📤 Membre Parti (Discord)";
+            color = 0xf59e0b; // Orange/Amber
+            description = `Le membre **${profile.pseudoDofus || profile.discordNickname || "Inconnu"}** a quitté le serveur Discord.`;
+            statusLabel = "ARCHIVED";
+        } else {
+             title = "💤 Membre Archivé";
+             color = 0x6366f1; // Indigo
+             description = `Le membre **${profile.pseudoDofus || profile.discordNickname || "Inconnu"}** a été archivé.`;
+             statusLabel = "ARCHIVED";
+        }
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const adminLink = `${appUrl}/dashboard/${guildId}/admin/members?status=${statusLabel}`;
+
+        await sendChannelMessage(guildConfig.lifecycleNotifyChannelId, "", {
+            embedTitle: title,
+            embedDescription: description,
+            embedColor: color,
+            embedThumbnail: profile.user.image || undefined,
+            fields: [
+                { name: "Pseudo Dofus", value: profile.pseudoDofus || "Non défini", inline: true },
+                { name: "Nom Discord", value: profile.discordNickname || profile.user.name || "Inconnu", inline: true },
+                { name: "Action Automatique", value: `Le profil a été placé en statut **${statusLabel}**. Les données seront purgées selon les délais légaux.` },
+                { name: "Lien de Gestion", value: `[Consulter le Profil dans le Roster](${adminLink})` }
+            ]
+        });
+    } catch (err) {
+        console.error("[Lifecycle Notification] Failed:", err);
     }
 }
 
@@ -445,6 +505,11 @@ export async function handleGdprDeletionRequest() {
         }
 
         // Supprimons simplement le user (Cascade s'occupe du reste)
+        // Mais invalidons d'abord les caches pour éviter les sessions fantômes
+        for (const profile of userProfiles) {
+            await invalidateUserContextCache(userId, profile.guild.id, profile.guild.discordGuildId);
+        }
+
         await db.user.delete({
             where: { id: userId }
         });
@@ -533,6 +598,9 @@ export async function syncGuildMembers(discordGuildId: string) {
                         }
                     });
 
+                    // 🔔 Lifecycle Notification
+                    await sendLifecycleNotification(discordGuildId, profile, "BANNED");
+
                     // 📝 AUDIT LOG Departure (Banned)
                     try {
                         const { createAuditLog: log } = await import("./audit-actions");
@@ -552,14 +620,21 @@ export async function syncGuildMembers(discordGuildId: string) {
 
                     bannedCount++;
                 } else {
+                    const twelveMonthsFromNow = new Date();
+                    twelveMonthsFromNow.setFullYear(twelveMonthsFromNow.getFullYear() + 1);
+
                     await db.userProfile.update({
                         where: { id: profile.id },
                         data: {
                             status: "ARCHIVED",
                             archivedAt: new Date(),
-                            archiveReason: "LEFT"
+                            archiveReason: "LEFT",
+                            scheduledDeletion: twelveMonthsFromNow
                         }
                     });
+
+                    // 🔔 Lifecycle Notification
+                    await sendLifecycleNotification(discordGuildId, profile, "LEFT");
 
                     // 📝 AUDIT LOG Departure (Left)
                     try {
@@ -605,6 +680,12 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
     }
 
     try {
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            include: { user: true }
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
         await db.userProfile.update({
             where: { id: profileId },
             data: {
@@ -627,6 +708,9 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
             }
         });
 
+        // 🔔 Lifecycle Notification
+        await sendLifecycleNotification(discordGuildId, profile, "BANNED");
+
         revalidatePath(`/dashboard/${discordGuildId}/admin`);
         return { success: true };
     } catch (error) {
@@ -635,10 +719,12 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
     }
 }
 
+import { formatDofusPseudo } from "@/lib/utils";
+
 /**
  * Request reactivation for an ARCHIVED profile (User action)
  */
-export async function requestProfileReactivation(guildId: string, reason?: string) {
+export async function requestProfileReactivation(guildId: string, pseudo?: string, reason?: string) {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
@@ -663,21 +749,49 @@ export async function requestProfileReactivation(guildId: string, reason?: strin
         if (!profile) return { success: false, error: "Profil introuvable" };
         if (profile.status !== "ARCHIVED") return { success: false, error: "Seuls les comptes archivés peuvent demander une réintégration." };
 
+        // 🛡️ Protection anti-spam : Une seule demande à la fois
+        if (profile.reactivationRequestedAt) {
+            return { success: false, error: "Une demande de réintégration est déjà en cours de traitement par le Staff." };
+        }
+
+        // Validation stricte du pseudo (pas de chiffres ni caractères spéciaux)
+        if (pseudo && /[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-]/.test(pseudo)) {
+            return { success: false, error: "Le pseudo contient des caractères invalides (chiffres ou symboles)." };
+        }
+
+        const cleanPseudo = pseudo ? formatDofusPseudo(pseudo) : profile.pseudoDofus;
+
+        // Uniqueness check if pseudo changed
+        if (cleanPseudo && cleanPseudo !== profile.pseudoDofus) {
+            const existing = await db.userProfile.findFirst({
+                where: {
+                    guildId: guildConfig.id,
+                    pseudoDofus: { equals: cleanPseudo, mode: "insensitive" },
+                    userId: { not: session.user.id }
+                }
+            });
+            if (existing) return { success: false, error: `Le pseudo "${cleanPseudo}" est déjà utilisé par un autre membre.` };
+        }
+
         // Update profile
         await db.userProfile.update({
             where: { id: profile.id },
             data: {
+                pseudoDofus: cleanPseudo,
                 reactivationRequestedAt: new Date(),
                 reactivationRequestReason: reason || "Demande via le Dashboard"
             }
         });
 
         // 📝 Audit Log
+        const ctx = await getUserContext(guildId);
+        const finalName = cleanPseudo || ctx.name || session.user.name || "Membre";
+
         await createAuditLog({
             guildId,
             action: "MEMBER_JOIN_REQUEST" as any,
             actorUserId: session.user.id,
-            actorName: profile.pseudoDofus || session.user.name || "Membre",
+            actorName: finalName,
             targetType: "PROFILE" as any,
             targetId: profile.id,
             metadata: {
@@ -696,12 +810,12 @@ export async function requestProfileReactivation(guildId: string, reason?: strin
 
                 await sendChannelMessage(channelId, `Bonjour ${mention} !`, {
                     embedTitle: "🔄 Demande de Réintégration",
-                    embedDescription: `Le membre **${profile.pseudoDofus || session.user.name}** souhaite réintégrer la guilde.`,
+                    embedDescription: `Le membre **${finalName}** souhaite réintégrer la guilde.`,
                     embedColor: 0x10b981, // Green
                     embedThumbnail: profile.user.image || undefined,
                     fields: [
                         { name: "Raison", value: reason || "Non précisée" },
-                        { name: "Lien Admin", value: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guildId}/admin/validation?tab=retours` }
+                        { name: "Lien Admin", value: `${process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr"}/dashboard/${guildId}/admin/validation?tab=retours` }
                     ],
                     components: [
                         {

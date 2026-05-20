@@ -5,6 +5,7 @@ import { getUserContext } from "./user-actions";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
+import { logger } from "@/lib/logger";
 
 const PAGE_SIZE = 24; // 24 cards per page (6 col × 4 rows)
 
@@ -15,6 +16,7 @@ export type GalleryBuild = {
     tags?: string[];
     classId?: string | number; // stored as string ("cra", "roublard") or number from legacy data
     previewData?: any; // Cached build info
+    source?: "dofusbook" | "dofusroom";
     author: {
         id: string;
         name: string;
@@ -76,7 +78,8 @@ export async function getStuffGalleryPage(
     searchQuery?: string,
     tag?: string,
     classId?: string,
-    sortBy?: "newest" | "votes"
+    sortBy?: "newest" | "votes",
+    source?: "dofusbook" | "dofusroom"
 ): Promise<ActionResponse<GalleryPage>> {
     if (!guildId) return { success: false, error: "ID de guilde requis" };
 
@@ -139,13 +142,26 @@ export async function getStuffGalleryPage(
             links.forEach((link, idx) => {
                 if (link?.url && link?.name) {
                     const buildId = link.id || `${profile.id}-${idx}`; // Prefer real id if exists
+                    const isDofusRoom = /dofusroom\.com/.test(link.url);
+                    const buildSource = isDofusRoom ? "dofusroom" : "dofusbook";
+                    
+                    const buildIdMatch = link.url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
+                    const parsedId = buildIdMatch ? (buildIdMatch[1] || buildIdMatch[2]) : null;
+                    const numericMatch = parsedId?.match(/^(\d+)/);
+                    const numericId = numericMatch ? numericMatch[1] : parsedId;
+                    const thumbnail = link.previewData?.thumbnail || (numericId ? `https://static.dofusbook.net/equipement/render/${numericId}.png` : null);
+
                     allBuilds.push({
                         id: buildId,
                         name: link.name,
                         url: link.url,
                         tags: link.tags || [],
                         classId: link.classId,
-                        previewData: link.previewData,
+                        source: buildSource,
+                        previewData: {
+                            ...link.previewData,
+                            thumbnail
+                        },
                         author: {
                             id: profile.id,
                             name: profile.pseudoDofus || profile.discordNickname || profile.user.name || "Membre",
@@ -187,6 +203,11 @@ export async function getStuffGalleryPage(
             allBuilds = allBuilds.filter(b => String(b.classId) === classId);
         }
 
+        // Apply source filter server-side (dofusbook vs dofusroom)
+        if (source) {
+            allBuilds = allBuilds.filter(b => b.source === source);
+        }
+
         const total = allBuilds.length;
         const offset = (page - 1) * PAGE_SIZE;
         const pageBuilds = allBuilds.slice(offset, offset + PAGE_SIZE);
@@ -203,7 +224,7 @@ export async function getStuffGalleryPage(
             }
         };
     } catch (error: any) {
-        console.error("Get Stuff Gallery Page Error:", error);
+        logger.error("Get Stuff Gallery Page Error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -223,13 +244,32 @@ export async function refreshBuildMetadata(
     if (!user.isAuthenticated) return { success: false, error: "Non authentifié" };
 
     try {
-        const { getDofusbookPreview } = await import("./dofusbook-actions");
         const { revalidatePath } = await import("next/cache");
+        const isDofusRoom = /dofusroom\.com/.test(buildUrl);
+        let previewData = null;
 
-        // 1. Fetch metadata from Dofusbook (Force bypass cache)
-        const res = await getDofusbookPreview(buildUrl, true);
-        if (!res.success || !res.data) {
-            return { success: false, error: res.error || "Impossible de récupérer les données" };
+        if (isDofusRoom) {
+            const buildIdMatch = buildUrl.match(/(?:build\/show\/|\/b-)(\d+)/);
+            const buildId = buildIdMatch ? buildIdMatch[1] : null;
+            if (!buildId) return { success: false, error: "Identifiant Dofusroom introuvable" };
+
+            const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+            const response = await fetch(`${baseUrl}/api/dofusroom/proxy/${buildId}`, {
+                method: "GET",
+                cache: "no-store",
+            });
+            if (response.ok) {
+                previewData = await response.json();
+            } else {
+                return { success: false, error: "Impossible de récupérer les données DofusRoom" };
+            }
+        } else {
+            const { getDofusbookPreview } = await import("./dofusbook-actions");
+            const res = await getDofusbookPreview(buildUrl, true);
+            if (!res.success || !res.data) {
+                return { success: false, error: res.error || "Impossible de récupérer les données" };
+            }
+            previewData = res.data;
         }
 
         // 2. Update user profile dofusBookLinks
@@ -243,7 +283,7 @@ export async function refreshBuildMetadata(
         const links = (profile.dofusBookLinks as any[]) || [];
         const updatedLinks = links.map(link => {
             if (link.url === buildUrl) {
-                return { ...link, previewData: res.data };
+                return { ...link, previewData, source: isDofusRoom ? "dofusroom" : "dofusbook" };
             }
             return link;
         });
@@ -259,7 +299,7 @@ export async function refreshBuildMetadata(
 
         return { success: true };
     } catch (error) {
-        console.error("Refresh Build Metadata Error:", error);
+        logger.error("Refresh Build Metadata Error:", { error });
         return { success: false, error: "Erreur serveur lors du rafraîchissement" };
     }
 }
@@ -398,7 +438,7 @@ export async function getSkinGalleryPage(
             }
         };
     } catch (error) {
-        console.error("Get Skin Gallery Page Error:", error);
+        logger.error("Get Skin Gallery Page Error:", { error });
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -445,7 +485,7 @@ export async function toggleSkinVote(guildId: string, skinId: string): Promise<A
             return { success: true, data: { voted: true } };
         }
     } catch (error) {
-        console.error("Toggle Skin Vote Error:", error);
+        logger.error("Toggle Skin Vote Error:", { error });
         return { success: false, error: "Erreur serveur lors du vote" };
     }
 }
@@ -613,9 +653,9 @@ export async function shareGalleryItemOnDiscord(
                 // TEXT CHANNEL
                 shareResult = await sendChannelMessage(channelId, "", embedOptions);
             }
-            console.log(`[Gallery Share] Success: ${type} ${itemId} shared on channel ${channelId}. Result ID:`, channelInfo.type === 15 ? shareResult?.messageId : shareResult);
+            logger.info(`[Gallery Share] Success: ${type} ${itemId} shared on channel ${channelId}. Result ID: ${channelInfo.type === 15 ? shareResult?.messageId : shareResult}`);
         } catch (discordError) {
-            console.error("[Gallery Share] Discord API Error:", discordError);
+            logger.error("[Gallery Share] Discord API Error:", { discordError });
             return { success: false, error: "Le salon Discord a refusé le message ou est mal configuré." };
         }
 
@@ -624,7 +664,7 @@ export async function shareGalleryItemOnDiscord(
         
         // Safety check to avoid Prisma errors if messageId is somehow weird
         if (!messageId || typeof messageId !== 'string') {
-            console.warn("[Gallery Share] No valid messageId returned from Discord, skipped DB link save.");
+            logger.warn("[Gallery Share] No valid messageId returned from Discord, skipped DB link save.");
         }
         
         if (type === "STUFF") {
@@ -660,7 +700,7 @@ export async function shareGalleryItemOnDiscord(
 
         return { success: true };
     } catch (error) {
-        console.error("Share Gallery Item Error:", error);
+        logger.error("Share Gallery Item Error:", { error });
         return { success: false, error: "Erreur lors du partage sur Discord" };
     }
 }
@@ -679,7 +719,7 @@ export async function handleDiscordGalleryDelete(discordGuildId: string, discord
 
         if (skin) {
             await db.userSkin.delete({ where: { id: skin.id } });
-            console.log(`[Gallery Sync] Deleted skin ${skin.id} after Discord message deletion`);
+            logger.info(`[Gallery Sync] Deleted skin ${skin.id} after Discord message deletion`);
             revalidatePath(`/dashboard/${discordGuildId}/galerie-stuff`);
             return;
         }
@@ -707,12 +747,12 @@ export async function handleDiscordGalleryDelete(discordGuildId: string, discord
                     where: { id: profile.id },
                     data: { dofusBookLinks: updatedLinks as any }
                 });
-                console.log(`[Gallery Sync] Removed stuff link from profile ${profile.id} after Discord message deletion`);
+                logger.info(`[Gallery Sync] Removed stuff link from profile ${profile.id} after Discord message deletion`);
                 revalidatePath(`/dashboard/${discordGuildId}/galerie-stuff`);
                 return;
             }
         }
     } catch (error) {
-        console.error("[Gallery Sync] Deletion sync error:", error);
+        logger.error("[Gallery Sync] Deletion sync error:", { error });
     }
 }

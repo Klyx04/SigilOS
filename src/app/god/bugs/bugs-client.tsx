@@ -53,42 +53,100 @@ const StatusBadge = ({ status }: { status: SystemIssueStatus }) => {
 };
 
 const IssueForm = ({ form, setForm }: { form: any, setForm: (f: any) => void }) => (
-    <div className="grid gap-4 py-4">
+    <div className="grid gap-6 py-2">
         <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-                <Label className="text-zinc-400">Type</Label>
+            <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                    Type
+                </Label>
                 <Select value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v })}>
-                    <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-zinc-950 border-zinc-800">
-                        <SelectItem value="BUG" className="focus:bg-zinc-800 cursor-pointer text-red-400"><BugIcon className="inline w-3 h-3 mr-2" />Bug</SelectItem>
-                        <SelectItem value="AMELIORATION" className="focus:bg-zinc-800 cursor-pointer text-blue-400"><LightbulbIcon className="inline w-3 h-3 mr-2" />Amélioration</SelectItem>
+                    <SelectTrigger className="h-12 bg-zinc-900/50 border-white/5 text-zinc-200 hover:bg-zinc-900 transition-colors focus:ring-1 focus:ring-amber-500/50">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-950 border-white/10 shadow-2xl">
+                        <SelectItem value="BUG" className="focus:bg-zinc-900 cursor-pointer py-3">
+                            <div className="flex items-center gap-2 text-red-400 font-medium">
+                                <BugIcon className="w-4 h-4" /> Bug
+                            </div>
+                        </SelectItem>
+                        <SelectItem value="AMELIORATION" className="focus:bg-zinc-900 cursor-pointer py-3">
+                            <div className="flex items-center gap-2 text-blue-400 font-medium">
+                                <LightbulbIcon className="w-4 h-4" /> Amélioration
+                            </div>
+                        </SelectItem>
                     </SelectContent>
                 </Select>
             </div>
-            <div className="space-y-2">
-                <Label className="text-zinc-400">Priorité</Label>
+            
+            <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Priorité</Label>
                 <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
-                    <SelectTrigger className="bg-zinc-900 border-zinc-800 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-zinc-950 border-zinc-800">
-                        <SelectItem value="Très important" className="focus:bg-zinc-800 cursor-pointer text-red-500">Très important</SelectItem>
-                        <SelectItem value="Important" className="focus:bg-zinc-800 cursor-pointer text-orange-500">Important</SelectItem>
-                        <SelectItem value="Normal" className="focus:bg-zinc-800 cursor-pointer text-blue-500">Normal</SelectItem>
-                        <SelectItem value="Faible" className="focus:bg-zinc-800 cursor-pointer text-zinc-500">Faible</SelectItem>
+                    <SelectTrigger className="h-12 bg-zinc-900/50 border-white/5 text-zinc-200 hover:bg-zinc-900 transition-colors focus:ring-1 focus:ring-amber-500/50">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-950 border-white/10 shadow-2xl">
+                        <SelectItem value="Très important" className="focus:bg-zinc-900 cursor-pointer py-2">
+                            <span className="flex items-center gap-2 font-medium text-red-500">
+                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                Très important
+                            </span>
+                        </SelectItem>
+                        <SelectItem value="Important" className="focus:bg-zinc-900 cursor-pointer py-2">
+                            <span className="flex items-center gap-2 font-medium text-orange-500">
+                                <div className="w-2 h-2 rounded-full bg-orange-500" />
+                                Important
+                            </span>
+                        </SelectItem>
+                        <SelectItem value="Normal" className="focus:bg-zinc-900 cursor-pointer py-2">
+                            <span className="flex items-center gap-2 font-medium text-blue-500">
+                                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                Normal
+                            </span>
+                        </SelectItem>
+                        <SelectItem value="Faible" className="focus:bg-zinc-900 cursor-pointer py-2">
+                            <span className="flex items-center gap-2 font-medium text-zinc-500">
+                                <div className="w-2 h-2 rounded-full bg-zinc-500" />
+                                Faible
+                            </span>
+                        </SelectItem>
                     </SelectContent>
                 </Select>
             </div>
         </div>
-        <div className="space-y-2">
-            <Label className="text-zinc-400">Catégorie</Label>
-            <Input className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ex: Combat, Quêtes, Divers" />
+
+        <div className="space-y-3">
+            <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Catégorie</Label>
+            <div className="relative">
+                <Input 
+                    className="h-12 pl-4 bg-zinc-900/50 border-white/5 text-zinc-200 focus-visible:ring-1 focus-visible:ring-amber-500/50 placeholder:text-zinc-600 transition-colors hover:bg-zinc-900" 
+                    value={form.category} 
+                    onChange={e => setForm({ ...form, category: e.target.value })} 
+                    placeholder="Ex: Combat, Quêtes, Interface, Divers..." 
+                />
+            </div>
         </div>
-        <div className="space-y-2">
-            <Label className="text-zinc-400">Description</Label>
-            <Textarea className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30 min-h-[120px]" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+
+        <div className="space-y-3">
+            <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Description détaillée</Label>
+            <Textarea 
+                className="bg-zinc-900/50 border-white/5 text-zinc-200 focus-visible:ring-1 focus-visible:ring-amber-500/50 placeholder:text-zinc-600 min-h-[140px] resize-none p-4 transition-colors hover:bg-zinc-900" 
+                value={form.description} 
+                onChange={e => setForm({ ...form, description: e.target.value })} 
+                placeholder="Décrivez le comportement attendu et ce qu'il se passe actuellement..."
+            />
         </div>
-        <div className="space-y-2">
-            <Label className="text-zinc-400">Lien (optionnel)</Label>
-            <Input className="bg-zinc-900 border-zinc-800 text-white focus-visible:ring-amber-500/30" value={form.forumLink} onChange={e => setForm({ ...form, forumLink: e.target.value })} placeholder="https://..." />
+
+        <div className="space-y-3">
+            <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                <LinkIcon className="w-3.5 h-3.5" />
+                Lien de référence (Optionnel)
+            </Label>
+            <Input 
+                className="h-12 bg-zinc-900/50 border-white/5 text-zinc-200 focus-visible:ring-1 focus-visible:ring-amber-500/50 placeholder:text-zinc-600 transition-colors hover:bg-zinc-900" 
+                value={form.forumLink} 
+                onChange={e => setForm({ ...form, forumLink: e.target.value })} 
+                placeholder="https://..." 
+            />
         </div>
     </div>
 );
@@ -212,28 +270,60 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
 
             {/* CREATE MODAL */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-200 shadow-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-medium text-white flex items-center">Nouveau Ticket</DialogTitle>
-                    </DialogHeader>
-                    <IssueForm form={form} setForm={setForm} />
-                    <DialogFooter className="pt-4 border-t border-zinc-800/50">
-                        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-semibold w-full sm:w-auto">Créer le ticket</Button>
+                <DialogContent className="sm:max-w-[600px] p-0 bg-zinc-950 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden rounded-2xl">
+                    <div className="px-6 py-5 border-b border-white/5 bg-zinc-900/20">
+                        <DialogTitle className="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
+                            <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                                <PlusCircle className="w-6 h-6 text-blue-400" />
+                            </div>
+                            Ouverture d'un Ticket
+                        </DialogTitle>
+                        <p className="text-zinc-500 text-sm mt-2 ml-[3.25rem]">
+                            Documentez précisément le bug ou l'amélioration pour faciliter le travail de l'équipe de développement.
+                        </p>
+                    </div>
+                    
+                    <div className="px-6 py-2">
+                        <IssueForm form={form} setForm={setForm} />
+                    </div>
+
+                    <DialogFooter className="px-6 py-5 border-t border-white/5 bg-zinc-900/30 flex gap-3 sm:justify-end">
+                        <Button type="button" variant="ghost" onClick={() => setIsCreateOpen(false)} className="text-zinc-400 hover:text-white hover:bg-white/5">
+                            Annuler
+                        </Button>
+                        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all">
+                            Créer le ticket
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* EDIT MODAL */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-200 shadow-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-medium text-white flex items-center">
-                            Éditer le Ticket #{editingIssueId}
+                <DialogContent className="sm:max-w-[600px] p-0 bg-zinc-950 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden rounded-2xl">
+                    <div className="px-6 py-5 border-b border-white/5 bg-zinc-900/20">
+                        <DialogTitle className="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
+                            <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                                <Edit className="w-6 h-6 text-amber-400" />
+                            </div>
+                            Édition du Ticket <span className="text-zinc-500 ml-2">#SIG-{editingIssueId}</span>
                         </DialogTitle>
-                    </DialogHeader>
-                    <IssueForm form={form} setForm={setForm} />
-                    <DialogFooter className="pt-4 border-t border-zinc-800/50">
-                        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-semibold w-full sm:w-auto">Sauvegarder</Button>
+                        <p className="text-zinc-500 text-sm mt-2 ml-[3.25rem]">
+                            Mettez à jour les informations du ticket.
+                        </p>
+                    </div>
+                    
+                    <div className="px-6 py-2">
+                        <IssueForm form={form} setForm={setForm} />
+                    </div>
+
+                    <DialogFooter className="px-6 py-5 border-t border-white/5 bg-zinc-900/30 flex gap-3 sm:justify-end">
+                        <Button type="button" variant="ghost" onClick={() => setIsEditOpen(false)} className="text-zinc-400 hover:text-white hover:bg-white/5">
+                            Annuler
+                        </Button>
+                        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all">
+                            Sauvegarder
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

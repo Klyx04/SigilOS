@@ -220,11 +220,18 @@ export class GeoguesserRoom {
             
             // Build tailored list for this specific player
             const tailoredParticipants = participantsBase.map(other => {
-                // If it's the current player, show them their own guess data
-                if (String(other.userId) === String(p.userId)) {
-                    return { ...other, lastGuess: p.lastGuess };
-                }
-                return other;
+                const isMe = String(other.userId) === String(p.userId);
+                
+                // SECURITY: Hide scores of others during gameplay to prevent proximity leakage (knowing if they found the spot)
+                // We only show scores during RESULT or FINISHED phases, or if it's the player's own score.
+                const shouldHideScore = (this.state === "IN_PROGRESS" || this.state === "COUNTDOWN") && !isMe;
+
+                return { 
+                    ...other, 
+                    score: shouldHideScore ? 0 : other.score,
+                    // If it's the current player, show them their own guess data, otherwise keep it masked/hidden
+                    lastGuess: isMe ? p.lastGuess : other.lastGuess 
+                };
             });
 
             this.io.to(p.id).emit("geoguesser:state:sync", {

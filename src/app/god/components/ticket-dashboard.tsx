@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
     Ticket,
     Search,
@@ -104,6 +105,19 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
     const [availableChannels, setAvailableChannels] = useState<any[]>([]);
     const [supportGuildRoles, setSupportGuildRoles] = useState<any[]>([]);
     const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+    const searchParams = useSearchParams();
+    const subTab = searchParams.get("sub");
+
+    // Sync with sidebar sub-tabs
+    useEffect(() => {
+        if (subTab === "OPEN" || subTab === "NONE" || !subTab) {
+            setStatusFilter("OPEN");
+            refreshTickets({ status: "OPEN" });
+        } else if (subTab === "CLOSED") {
+            setStatusFilter("CLOSED");
+            refreshTickets({ status: "CLOSED" });
+        }
+    }, [subTab]);
 
     // Fetch bot guilds on mount
     useEffect(() => {

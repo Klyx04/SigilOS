@@ -1,5 +1,5 @@
 import { db } from "@/lib/prisma";
-import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
+import { sendChannelMessage, updateChannelMessage, validateChannelBelongsToGuild, fetchChannel, createForumPost } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
 import { createNotification } from "@/server/actions/notification-actions";
 
@@ -109,7 +109,15 @@ async function buildRunEmbedData(guildId: string, runId: string) {
         const reqClass = run.joinRequests.find(r => r.userId === m.userId)?.classe;
         const displayClass = reqClass || p.classe;
         const classTag = displayClass ? `[${displayClass}] ` : "";
-        memberLines.push(`• ${classTag}**${p.name}**`);
+        
+        // Add stuff info if available
+        let stuffInfo = "";
+        const memberStuff = m as any;
+        if (memberStuff.linkedStuffId && memberStuff.linkedStuffUrl) {
+            stuffInfo = ` 🛡️ [${memberStuff.linkedStuffName || "Stuff"}](${memberStuff.linkedStuffUrl})`;
+        }
+        
+        memberLines.push(`• ${classTag}**${p.name}**${stuffInfo}`);
     }
     const membersList = memberLines.length > 0 ? memberLines.join("\n") : "*Aucun membre*";
 
@@ -223,29 +231,56 @@ export async function publishDiscordRun(guildId: string, runId: string) {
             return { success: false, error: "Canal Discord invalide" };
         }
 
-        const messageId = await sendChannelMessage(
-            guildConfig.songesNotifyChannelId,
-            run.mentionRoleId ? `<@&${run.mentionRoleId}>` : "",
-            {
-                embedTitle: data.embedTitle,
-                embedColor: diffConfig.color,
-                embedThumbnail: data.thumbnailUrl,
-                embedAuthor: {
-                    name: `Proposée par ${data.leaderProfile.name}`,
-                    iconUrl: data.leaderProfile.avatar || undefined
-                },
-                fields,
-                embedFooter: `Statut: ${statusText}`,
-                components,
+        const roleMentions = run.mentionRoleId ? run.mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ") : "";
+        const creatorDiscordId = await getDiscordId(run.leaderId);
+        const creatorMention = creatorDiscordId ? `<@${creatorDiscordId}>` : "";
+        const mentions = [creatorMention, roleMentions].filter(Boolean).join(" ");
+        
+        const channel = await fetchChannel(guildConfig.songesNotifyChannelId);
+        
+        let messageId: string | null = null;
+        let finalChannelId = guildConfig.songesNotifyChannelId;
+
+        const messageOptions = {
+            embedTitle: data.embedTitle,
+            embedColor: diffConfig.color,
+            embedThumbnail: data.thumbnailUrl,
+            embedAuthor: {
+                name: `Proposée par ${data.leaderProfile.name}`,
+                iconUrl: data.leaderProfile.avatar || undefined
+            },
+            fields,
+            embedFooter: `Statut: ${statusText}`,
+            components,
+        };
+
+        if (channel && channel.type === 15) {
+            // C'est un salon forum
+            const res = await createForumPost(
+                guildConfig.songesNotifyChannelId,
+                data.embedTitle,
+                mentions,
+                messageOptions
+            );
+            if (res) {
+                messageId = res.messageId;
+                finalChannelId = res.id; // The thread ID
             }
-        );
+        } else {
+            // Salon textuel classique
+            messageId = await sendChannelMessage(
+                guildConfig.songesNotifyChannelId,
+                mentions,
+                messageOptions
+            );
+        }
 
         if (messageId) {
             await db.dreamRun.update({
                 where: { id: runId },
                 data: {
                     discordMessageId: messageId,
-                    discordChannelId: guildConfig.songesNotifyChannelId,
+                    discordChannelId: finalChannelId,
                 },
             });
             return { success: true };

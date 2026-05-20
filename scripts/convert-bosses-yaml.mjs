@@ -3,8 +3,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
-// Path to the extracted ZIP data
-const YAML_PATH = 'tmp_songes/Songes_Pour_Les_Noobs-master/Songes_Pour_Les_Noobs/wwwroot/Data/monsters.yaml';
+const YAML_PATH = 'a:/SigilOS/Songes_Pour_Les_Noobs/wwwroot/Data/monsters.yaml';
 
 if (!existsSync(YAML_PATH)) {
     console.error(`❌ File not found: ${YAML_PATH}`);

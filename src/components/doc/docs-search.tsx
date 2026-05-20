@@ -54,38 +54,49 @@ export function DocsSearch() {
                 </kbd>
             </button>
 
-            <CommandDialog open={open} onOpenChange={setOpen}>
+            <CommandDialog 
+                open={open} 
+                onOpenChange={setOpen}
+                className="max-w-[600px] bg-zinc-950 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+            >
                 <DialogTitle className="sr-only">Recherche Documentation</DialogTitle>
                 <div className="relative">
-                    <CommandInput placeholder="Rechercher dans la documentation..." className="border-none focus:ring-0 text-lg font-medium" />
+                    <CommandInput 
+                        placeholder="Rechercher dans la documentation..." 
+                        className="border-none focus:ring-0 text-lg font-medium h-16" 
+                    />
                 </div>
 
-                <CommandList className="max-h-[500px] border-t border-white/5">
-                    <CommandEmpty className="py-12 text-center text-zinc-500">
-                        <Book className="w-12 h-12 mx-auto mb-4 text-zinc-800" />
-                        <p>Aucun article trouvé.</p>
+                <CommandList className="max-h-[450px] border-t border-white/5 no-scrollbar">
+                    <CommandEmpty className="py-16 text-center text-zinc-500">
+                        <div className="w-16 h-16 rounded-2xl bg-zinc-900/50 border border-white/5 flex items-center justify-center mx-auto mb-6">
+                            <Book className="w-8 h-8 text-zinc-700" />
+                        </div>
+                        <p className="text-sm font-bold uppercase tracking-widest text-zinc-600">Aucun résultat</p>
                     </CommandEmpty>
 
-                    <CommandGroup heading="Articles">
+                    <CommandGroup heading="Guides & Documentation" className="p-2">
                         {docs.map((doc) => (
                             <CommandItem
                                 key={doc.slug}
                                 onSelect={() => runCommand(() => router.push(`/docs/${doc.slug}`))}
                                 value={`${doc.title} ${doc.category} ${doc.excerpt}`}
-                                className="group items-start py-3 data-[selected=true]:bg-indigo-500/10 data-[selected=true]:text-white select-none cursor-pointer"
+                                className="group flex items-start gap-4 p-4 rounded-2xl data-[selected=true]:bg-indigo-500/10 data-[selected=true]:text-white select-none cursor-pointer transition-all duration-300 mb-1"
                             >
-                                <FileText className="mr-2 h-4 w-4 text-indigo-400 mt-1 shrink-0" />
-                                <div className="flex flex-col gap-0.5">
-                                    <span className="font-medium text-zinc-200 group-data-[selected=true]:text-white transition-colors">
+                                <div className="p-2.5 rounded-xl bg-zinc-900 border border-white/5 group-data-[selected=true]:border-indigo-500/30 group-data-[selected=true]:bg-indigo-500/5 transition-all">
+                                    <FileText className="h-5 w-5 text-zinc-500 group-data-[selected=true]:text-indigo-400 shrink-0" />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                    <span className="font-bold text-sm text-zinc-200 group-data-[selected=true]:text-white transition-colors truncate">
                                         {doc.title}
                                     </span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 bg-zinc-900/50 px-1.5 py-0.5 rounded border border-white/5">
+                                        <span className="text-[9px] uppercase tracking-[0.2em] font-black text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded border border-white/5 group-data-[selected=true]:border-indigo-500/20 group-data-[selected=true]:text-indigo-500/80">
                                             {doc.category}
                                         </span>
                                         {doc.excerpt && (
-                                            <span className="text-xs text-zinc-600 line-clamp-1 max-w-[300px] group-data-[selected=true]:text-zinc-400">
-                                                {doc.excerpt.slice(0, 60)}...
+                                            <span className="text-xs text-zinc-600 line-clamp-1 group-data-[selected=true]:text-zinc-400 italic">
+                                                {doc.excerpt.slice(0, 70)}...
                                             </span>
                                         )}
                                     </div>
@@ -94,6 +105,20 @@ export function DocsSearch() {
                         ))}
                     </CommandGroup>
                 </CommandList>
+                
+                <div className="p-3 border-t border-white/5 bg-zinc-950/50 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                         <div className="flex items-center gap-1.5">
+                            <kbd className="px-1.5 py-0.5 rounded border border-white/10 bg-zinc-900 text-[10px] font-black text-zinc-500">↑↓</kbd>
+                            <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Naviguer</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <kbd className="px-1.5 py-0.5 rounded border border-white/10 bg-zinc-900 text-[10px] font-black text-zinc-500">Enter</kbd>
+                            <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Ouvrir</span>
+                        </div>
+                    </div>
+                    <span className="text-[8px] font-black text-indigo-500/40 uppercase tracking-[0.3em]">SigilOS Search Index</span>
+                </div>
             </CommandDialog>
         </>
     );

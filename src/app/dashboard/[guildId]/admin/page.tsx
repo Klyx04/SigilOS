@@ -5,6 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { cn } from "@/lib/utils";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { PERMISSIONS } from "@/lib/permissions";
+import { db } from "@/lib/prisma";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import Link from "next/link";
 import {
@@ -23,6 +24,7 @@ import {
     Activity,
     ShieldAlert,
 } from "lucide-react";
+import { AdminCard } from "@/components/admin/admin-card";
 
 // ============================================================================
 // TYPES
@@ -102,7 +104,7 @@ function buildSections(guildId: string): AdminSection[] {
                 {
                     href: `/dashboard/${guildId}/admin/validation`,
                     icon: CheckCircle,
-                    title: "Validation Preuves",
+                    title: "Validation",
                     description: "Centre de tri des screens. Récompensez les efforts de vos membres.",
                     accent: "green",
                     permission: (u) => u.canValidateMissions,
@@ -114,14 +116,6 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Annuaire admin, synchronisation des pseudos, archivage et relances Discord.",
                     accent: "cyan",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
-                },
-                {
-                    href: `/dashboard/${guildId}/admin/bounties`,
-                    icon: ShieldAlert,
-                    title: "Gestion des Avis",
-                    description: "Édition des mécaniques, doplons, zones et visuels des avis de recherche.",
-                    accent: "rose",
-                    permission: (u) => u.canManageMissions || u.isDiscordAdmin,
                 },
             ],
         },
@@ -171,6 +165,15 @@ export default async function AdminPage({
 
     const user = await getUserContext(guildId);
     
+    // Fetch configurations
+    const guild = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { dofusServerId: true, rolesMapping: true }
+    });
+    const isDofusConfigured = !!guild?.dofusServerId;
+    const rolesMapping = (guild?.rolesMapping as Record<string, string[]>) || {};
+    const isRbacConfigured = Array.isArray(rolesMapping["dashboard:login"]) && rolesMapping["dashboard:login"].length > 0;
+
     const sections = buildSections(guildId);
     
     // Check if any management card is visible for this user
@@ -230,73 +233,26 @@ export default async function AdminPage({
                             {/* Cards grid: High-End HUD Slots */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {visibleCards.map((card) => {
-                                    const Icon = card.icon;
-                                    const a = ACCENT[card.accent] ?? ACCENT.slate;
-                                    
+                                    let warningBadge: string | undefined;
+                                    if (card.title === "Paramètres Généraux" && !isDofusConfigured) {
+                                        warningBadge = "Config. Requise";
+                                    }
+                                    if (card.title === "Rôles & Permissions" && !isRbacConfigured) {
+                                        warningBadge = "Rôle Requis";
+                                    }
+
                                     return (
-                                        <Link key={card.href} href={card.href} className="group outline-none">
-                                            <div className={cn(
-                                                "relative flex flex-col h-full rounded-[2.5rem] border border-white/5 bg-white/[0.02] p-8 transition-all duration-700 hover:border-white/10 hover:bg-white/[0.04] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] overflow-hidden",
-                                                "before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/[0.05] before:to-transparent before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-700"
-                                            )}>
-                                                {/* Card Accent Glow */}
-                                                <div className={cn(
-                                                    "absolute -top-24 -right-24 w-48 h-48 blur-[100px] opacity-0 group-hover:opacity-20 transition-opacity duration-700 rounded-full z-0",
-                                                    a.bg
-                                                )} />
-
-                                                <div className="relative z-10 flex flex-col h-full">
-                                                    {/* Header: Icon & Tech ID */}
-                                                    <div className="flex items-center justify-between mb-8">
-                                                        <div className={cn(
-                                                            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border group-hover:scale-110 group-hover:rotate-3 shadow-xl",
-                                                            a.bg,
-                                                            a.border.replace("hover:", "")
-                                                        )}>
-                                                            <Icon className={cn("w-7 h-7", a.text)} strokeWidth={1.5} />
-                                                        </div>
-                                                        <span className="text-[10px] font-black text-white/10 uppercase tracking-widest font-mono">
-                                                            {card.accent === 'rose' ? 'SEC.V4' : 'INT.GEN'}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Body: Title & Intro */}
-                                                    <div className="space-y-4 flex-1">
-                                                        <h3 className="text-xl font-black text-white tracking-tighter uppercase leading-tight">
-                                                            {card.title}
-                                                        </h3>
-                                                        <p className="text-[13px] text-zinc-500 font-medium leading-relaxed group-hover:text-zinc-400 transition-colors">
-                                                            {card.description}
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Footer: Action & Decoration */}
-                                                    <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
-                                                        <div className={cn(
-                                                            "flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all",
-                                                            a.text,
-                                                            "opacity-40 group-hover:opacity-100"
-                                                        )}>
-                                                            <span className="group-hover:translate-x-1 transition-transform">Accès Panel</span>
-                                                            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
-                                                        </div>
-                                                        
-                                                        {/* Industrial Corner Detail */}
-                                                        <div className="flex gap-1">
-                                                            {[...Array(3)].map((_, i) => (
-                                                                <div key={i} className="h-1 w-1 rounded-full bg-white/5 group-hover:bg-white/20 transition-colors" />
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Corner Decoration */}
-                                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition-opacity">
-                                                    <div className="h-[1px] w-12 bg-white/40" />
-                                                    <div className="h-12 w-[1px] bg-white/40 absolute top-3 right-3" />
-                                                </div>
-                                            </div>
-                                        </Link>
+                                        <AdminCard
+                                            key={card.href}
+                                            href={card.href}
+                                            iconName={(card.icon as any).displayName || (card.icon as any).name}
+                                            title={card.title}
+                                            description={card.description}
+                                            accent={card.accent}
+                                            guildId={guildId}
+                                            initialPinned={user.pinnedNavItems?.includes(card.href) || false}
+                                            warningBadge={warningBadge}
+                                        />
                                     );
                                 })}
                             </div>
@@ -313,16 +269,6 @@ export default async function AdminPage({
                         <div className="space-y-2">
                              <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">SigilOS Command Center</h4>
                              <p className="text-xs text-zinc-600 font-bold uppercase tracking-tight italic">Toutes les actions administratives sont tracées dans l'Audit Log.</p>
-                        </div>
-                        <div className="flex items-center gap-8">
-                             <div className="flex flex-col items-center">
-                                 <span className="text-[10px] font-black text-zinc-700 uppercase mb-1">Status</span>
-                                 <span className="text-[9px] font-black text-emerald-500 px-2 py-0.5 border border-emerald-500/20 rounded-md bg-emerald-500/5 animate-pulse">ESTABLISHED</span>
-                             </div>
-                             <div className="flex flex-col items-center">
-                                 <span className="text-[10px] font-black text-zinc-700 uppercase mb-1">Version</span>
-                                 <span className="text-[9px] font-bold text-zinc-500">v4.2.0-STABLE</span>
-                             </div>
                         </div>
                     </div>
                 </div>

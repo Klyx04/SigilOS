@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
     Card, 
     CardContent, 
@@ -71,6 +71,8 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
+import { Hash } from "lucide-react";
 
 interface RelanceClientProps {
     guildId: string;
@@ -95,6 +97,18 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
     const [addRoleId, setAddRoleId] = useState<string>("");
     const [removeRoleId, setRemoveRoleId] = useState<string>("");
     const [searchTerm, setSearchTerm] = useState("");
+    const [targetChannelName, setTargetChannelName] = useState("annonces");
+
+    // Fetch channel name for preview
+    useEffect(() => {
+        if (relanceType === "CHANNEL" && channelId) {
+            getDiscordChannelInfo(guildId, channelId).then(res => {
+                if (res.success && res.data) {
+                    setTargetChannelName(res.data.name);
+                }
+            });
+        }
+    }, [channelId, relanceType, guildId]);
 
     const templates = {
         MISSING_MISSIONS: "Bonjour ! Il semble que tu n'aies pas encore validé de missions cette semaine. N'oublie pas de participer pour aider la guilde ! 🚀",
@@ -409,6 +423,23 @@ export function RelanceClient({ guildId, channels, roles, initialHistory }: Rela
                                     placeholder="Écrivez votre message..."
                                 />
                             </div>
+
+                            {relanceType === "CHANNEL" && (
+                                <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2">
+                                    <div className="flex items-center gap-2 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl shadow-inner">
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                                            <Hash className="w-4 h-4 text-indigo-400" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Destination Discord</span>
+                                            <span className="text-xs font-bold text-white">Sera posté dans <span className="text-indigo-400 italic">#{targetChannelName}</span></span>
+                                        </div>
+                                    </div>
+                                    <p className="text-[9px] text-zinc-600 italic">
+                                        Note: Les {selectedUsers.length} membres sélectionnés seront mentionnés avant l'embed.
+                                    </p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 

@@ -73,13 +73,14 @@ export class WorldMapService {
                     // Strict check: must be outdoor AND from a primary world map AND not excluded by keyword
                     // We only allow World 1 (Amakna) and World 2 (Incarnam) as "Playable" origins for special mode
                     // Tunnels (World 3) and small labyrinths (World 4, 5, 6...) are excluded.
-                    const isMainWorld = m.worldMap === 1 || m.worldMap === 2;
+                    // Allowed worlds: Amakna(1), Incarnam(2), and most islands/external areas.
+                    // We exclude World 3 (Souterrains) and other known technical/interior worlds.
+                    const isPlayableWorld = m.worldMap > 0 && m.worldMap !== 3;
                     
                     // HEURISTIC: Tactical maps often have IDs in specific extreme ranges or are marked technical.
-                    // If we imported Dofus 2.x data, IDs >= 200,000,000 are often technical/tactical maps.
                     const isTechnicalMap = m.id >= 200000000;
                     
-                    if (m.outdoor && m.worldMap !== -1 && isMainWorld && !isExcluded && !isTechnicalMap) {
+                    if (m.outdoor && m.worldMap !== -1 && isPlayableWorld && !isExcluded && !isTechnicalMap) {
                         this.playableMaps.push({
                             id: m.id,
                             x: m.x,
@@ -138,6 +139,7 @@ export class WorldMapService {
 
         const result: number[] = [];
         const usedSubAreas = new Set<number>();
+        const usedWorlds = new Set<number>();
         const copy = [...filtered];
         
         while (result.length < count && copy.length > 0) {
@@ -151,6 +153,16 @@ export class WorldMapService {
                     continue; // Skip because we already have a map from this zone
                 }
                 usedSubAreas.add(selectedMap.subAreaId);
+            }
+
+            // In SPECIAL mode, ensure unique world per party (at least for the first 5 rounds)
+            if (mode === 'SPECIAL') {
+                if (usedWorlds.has(selectedMap.worldMap)) {
+                    // If we have enough other worlds available, we skip this one
+                    const availableOtherWorlds = copy.some(m => !usedWorlds.has(m.worldMap));
+                    if (availableOtherWorlds) continue;
+                }
+                usedWorlds.add(selectedMap.worldMap);
             }
             
             result.push(selectedMap.id);

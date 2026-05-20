@@ -675,7 +675,11 @@ export function DungeonDirectory({
                   return (
                     <div
                       key={achv.achievementId}
-                      className={`rounded-2xl transition-all duration-300 overflow-hidden border ${isExpanded ? "bg-slate-900/90 border-indigo-500/30 shadow-2xl shadow-indigo-900/10" : "bg-slate-900/40 border-white/5 hover:bg-slate-900/60 shadow-sm"}`}
+                      className={`group/card rounded-2xl transition-all duration-300 overflow-hidden border ${
+                        isExpanded
+                          ? "bg-slate-900/90 border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.08)]"
+                          : "bg-slate-900/30 border-white/5 hover:border-white/12 hover:bg-slate-900/50 hover:shadow-lg shadow-sm"
+                      }`}
                     >
                       <button
                         onClick={() =>
@@ -683,40 +687,78 @@ export function DungeonDirectory({
                             isExpanded ? null : achv.achievementId,
                           )
                         }
-                        className="w-full flex items-center justify-between p-4 md:p-5 text-left focus:outline-none"
+                        className="w-full flex flex-col md:flex-row md:items-center justify-between p-4 md:p-5 gap-4 text-left focus:outline-none"
                       >
                         <div className="flex items-center gap-4 flex-1 min-w-0">
-                          <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 border border-white/5 shadow-inner">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-inner transition-all duration-300 ${
+                            isExpanded
+                              ? "bg-indigo-600/10 border-indigo-500/30"
+                              : "bg-slate-900 border-white/5 group-hover/card:scale-105"
+                          }`}>
                             {achv.iconUrl ? (
                               <img
                                 src={achv.iconUrl}
                                 alt=""
-                                className="w-7 h-7 object-contain"
+                                className="w-8 h-8 object-contain"
                               />
                             ) : (
                               <Trophy className="w-6 h-6 text-indigo-400" />
                             )}
                           </div>
-                          <div>
-                            <h4 className="text-base font-bold text-white leading-snug">
+                          <div className="min-w-0">
+                            <h4 className="text-base font-extrabold text-white leading-snug tracking-tight">
                               {achv.achievementName}
                             </h4>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-slate-500">
-                                {completionRate}% de la guilde l'ont validé
+                            <div className="flex items-center gap-2 mt-1">
+                              {completionRate === 100 ? (
+                                <span className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  Terminé
+                                </span>
+                              ) : completionRate > 0 ? (
+                                <span className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                  En Cours
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700/50">
+                                  Non Commencé
+                                </span>
+                              )}
+                              <span className="text-xs text-slate-400">
+                                {achv.hasCompleted.length} / {totalMembers} membres
                               </span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4 shrink-0">
+                        {/* Progress Bar */}
+                        <div className="flex flex-col gap-1 w-full md:w-48 shrink-0">
+                          <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                            <span>Progression</span>
+                            <span className={completionRate === 100 ? "text-emerald-400 font-extrabold" : "text-indigo-400 font-extrabold"}>{completionRate}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner relative">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                completionRate === 100
+                                  ? "bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                                  : completionRate > 0
+                                  ? "bg-gradient-to-r from-indigo-500 to-violet-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]"
+                                  : "bg-slate-850"
+                              }`}
+                              style={{ width: `${completionRate}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 mt-2 md:mt-0 border-t border-white/5 pt-2.5 md:pt-0 md:border-none">
                           {/* Avatars Preview */}
                           {!isExpanded && achv.missing.length > 0 && (
-                            <div className="hidden sm:flex -space-x-2 mr-2">
-                              {achv.missing.slice(0, 3).map((m, i) => (
+                            <div className="flex -space-x-2">
+                              {achv.missing.slice(0, 4).map((m, i) => (
                                 <div
                                   key={i}
-                                  className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-800 overflow-hidden relative"
+                                  className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-850 overflow-hidden relative shadow-md"
+                                  title={`${m.name} cherche encore`}
                                 >
                                   {m.imageUrl ? (
                                     <img
@@ -729,16 +771,20 @@ export function DungeonDirectory({
                                   )}
                                 </div>
                               ))}
-                              {achv.missing.length > 3 && (
-                                <div className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-400 z-10">
-                                  +{achv.missing.length - 3}
+                              {achv.missing.length > 4 && (
+                                <div className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-400 z-10 shadow-md">
+                                  +{achv.missing.length - 4}
                                 </div>
                               )}
                             </div>
                           )}
 
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? "bg-indigo-500/20 text-indigo-300" : "bg-white/5 text-slate-400 border border-white/5"}`}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                              isExpanded
+                                ? "bg-indigo-500/20 text-indigo-300 shadow-[0_0_8px_rgba(99,102,241,0.2)]"
+                                : "bg-white/5 text-slate-400 border border-white/5 hover:bg-white/10"
+                            }`}
                           >
                             <ChevronDown
                               className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
@@ -755,10 +801,10 @@ export function DungeonDirectory({
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden border-t border-white/5"
                           >
-                            <div className="p-5 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-slate-900/20 shadow-inner">
+                            <div className="p-5 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-slate-950/20 shadow-inner">
                               {/* Col 1: MISSING */}
-                              <div className="bg-slate-900/60 border border-rose-900/20 rounded-2xl p-4">
-                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                              <div className="bg-slate-950/40 border border-rose-500/10 rounded-2xl p-5 shadow-[inset_0_1px_4px_rgba(244,63,94,0.05)]">
+                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
                                   <div className="flex items-center gap-2 font-bold text-sm">
                                     <div className="w-6 h-6 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
                                       <Circle className="w-3.5 h-3.5 text-rose-400" />
@@ -773,7 +819,7 @@ export function DungeonDirectory({
                                 </div>
 
                                 {achv.missing.length > 0 ? (
-                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
                                     {achv.missing.map((member) => (
                                       <MemberPill
                                         key={member.id}
@@ -790,8 +836,8 @@ export function DungeonDirectory({
                               </div>
 
                               {/* Col 2: HAS COMPLETED */}
-                              <div className="bg-emerald-950/10 border border-emerald-900/10 shadow-sm rounded-2xl p-4">
-                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-emerald-900/20">
+                              <div className="bg-slate-950/40 border border-emerald-500/10 rounded-2xl p-5 shadow-[inset_0_1px_4px_rgba(16,185,129,0.05)]">
+                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
                                   <div className="flex items-center gap-2 font-bold text-sm">
                                     <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shadow-inner flex items-center justify-center">
                                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -800,13 +846,13 @@ export function DungeonDirectory({
                                       Déjà validé
                                     </span>
                                   </div>
-                                  <span className="text-xs font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                  <span className="text-xs font-black bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">
                                     {achv.hasCompleted.length}
                                   </span>
                                 </div>
 
                                 {achv.hasCompleted.length > 0 ? (
-                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
                                     {achv.hasCompleted.map((member) => (
                                       <MemberPill
                                         key={member.id}
@@ -897,45 +943,61 @@ function MemberPill({
   variant: "missing" | "completed";
 }) {
   const isMissing = variant === "missing";
+  const cls = member.classe ? getClass(member.classe) : null;
 
   return (
     <div
-      className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border transition-colors ${
+      className={`group flex items-center justify-between p-2 rounded-xl border transition-all duration-200 ${
         isMissing
-          ? "bg-slate-900/60 hover:bg-slate-900/80 border-white/5 hover:border-white/10 text-slate-200"
-          : "bg-black/20 border-white/5 text-slate-400"
+          ? "bg-slate-950/40 hover:bg-slate-900/80 border-rose-500/10 hover:border-rose-500/30 text-rose-100 shadow-[0_2px_8px_rgba(244,63,94,0.02)]"
+          : "bg-emerald-950/20 hover:bg-emerald-900/30 border-emerald-500/10 hover:border-emerald-500/30 text-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.02)]"
       }`}
     >
-      <div
-        className={`w-6 h-6 rounded-full overflow-hidden shrink-0 ${!member.imageUrl && "bg-slate-800 flex items-center justify-center border border-white/5"}`}
-      >
-        {member.imageUrl ? (
-          <img
-            src={member.imageUrl}
-            alt={member.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <Users className="w-3 h-3 text-slate-400" />
-        )}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className={`w-7 h-7 rounded-lg overflow-hidden shrink-0 border transition-transform duration-200 group-hover:scale-105 ${
+            isMissing
+              ? "border-rose-500/20 bg-rose-950/30"
+              : "border-emerald-500/20 bg-emerald-950/30"
+          } flex items-center justify-center`}
+        >
+          {member.imageUrl ? (
+            <img
+              src={member.imageUrl}
+              alt={member.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Users className={`w-3.5 h-3.5 ${isMissing ? "text-rose-400/60" : "text-emerald-400/60"}`} />
+          )}
+        </div>
+
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-bold truncate text-slate-100 leading-tight">
+            {member.name}
+          </span>
+          {member.classe && (
+            <span className="text-[10px] text-slate-400 font-medium truncate capitalize">
+              {member.classe}
+            </span>
+          )}
+        </div>
       </div>
 
-      <span className="text-xs font-medium truncate max-w-[100px]">
-        {member.name}
-      </span>
-
-      {member.classe &&
-        (() => {
-          const cls = getClass(member.classe);
-          return cls ? (
-            <img
-              src={cls.icon}
-              alt={member.classe}
-              className={`w-3.5 h-3.5 object-contain opacity-60 ${isMissing ? "grayscale-0" : "grayscale"}`}
-              title={member.classe}
-            />
-          ) : null;
-        })()}
+      {cls && (
+        <div className="shrink-0 pl-1.5 flex items-center">
+          <img
+            src={cls.icon}
+            alt={member.classe}
+            className={`w-5 h-5 object-contain transition-all duration-300 group-hover:scale-110 ${
+              isMissing
+                ? "drop-shadow-[0_0_4px_rgba(244,63,94,0.2)] opacity-80 group-hover:opacity-100"
+                : "drop-shadow-[0_0_4px_rgba(16,185,129,0.2)] opacity-80 group-hover:opacity-100"
+            }`}
+            title={member.classe}
+          />
+        </div>
+      )}
     </div>
   );
 }

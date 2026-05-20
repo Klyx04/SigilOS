@@ -1,11 +1,14 @@
+"use client";
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Unlink, Link2, Crown, ArrowRightLeft, ShieldCheck, AlertCircle, Settings, MoreVertical } from "lucide-react";
-import { linkOcreAccount, unlinkOcreAccount, forceRefreshOcre, getAvailableOcreQuests, switchOcreQuest } from "@/server/actions/ocre-actions";
+import { linkOcreAccount, unlinkOcreAccount, forceRefreshOcre, getAvailableOcreQuests, switchOcreQuest, type OcreProgressData } from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 import Link from "next/link";
 import Image from "next/image";
@@ -13,6 +16,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { UserQuest } from "@/lib/metamob-client";
+import { OcreSettingsModal } from "../ocre/ocre-settings-modal";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -30,6 +34,7 @@ interface MetamobLinkProps {
     readOnly?: boolean;
     isAdmin?: boolean;
     targetUserId?: string;
+    progressData?: OcreProgressData;
 }
 
 export function MetamobLink({
@@ -40,6 +45,7 @@ export function MetamobLink({
     readOnly = false,
     isAdmin = false,
     targetUserId,
+    progressData,
 }: MetamobLinkProps) {
     const [isLinked, setIsLinked] = useState(Boolean(metamobPseudo && metamobVerified));
     const [currentPseudo, setCurrentPseudo] = useState(metamobPseudo || "");
@@ -192,6 +198,21 @@ export function MetamobLink({
                                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                                         Changer de quête
                                     </DropdownMenuItem>
+                                    {progressData && (
+                                        <OcreSettingsModal
+                                            data={progressData}
+                                            guildId={guildId}
+                                            trigger={
+                                                <DropdownMenuItem 
+                                                    onSelect={(e) => e.preventDefault()}
+                                                    className="cursor-pointer text-zinc-300"
+                                                >
+                                                    <Settings className="h-4 w-4 mr-2" />
+                                                    Réglages Expert
+                                                </DropdownMenuItem>
+                                            }
+                                        />
+                                    )}
                                     <DropdownMenuSeparator className="bg-white/5" />
                                     <DropdownMenuItem onClick={() => setShowUnlinkDialog(true)} className="text-rose-400 focus:text-rose-400 focus:bg-rose-950/30 cursor-pointer">
                                         <Unlink className="h-4 w-4 mr-2" />

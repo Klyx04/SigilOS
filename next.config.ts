@@ -133,6 +133,8 @@ const nextConfig: NextConfig = {
       "https://i.ytimg.com",
       "https://dofusskinmanga.com",
       "https://barbofus.com https://www.barbofus.com",
+      // Google Favicon service domains
+      "https://www.google.com https://*.gstatic.com",
       // Ganymede CDNs for guide quest/dungeon/step icons
       "https://ganymede-dofus.com https://ganymede-app.com",
     ].join(" ");

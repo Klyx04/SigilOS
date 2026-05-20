@@ -270,11 +270,29 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                         </div>
                     ) : (
                         <Tabs defaultValue="monsters" className="h-full flex flex-col">
-                            <div className="px-6 pt-4">
-                                <TabsList className="grid w-full grid-cols-2 bg-white/5">
-                                    <TabsTrigger value="monsters">Par Monstre ({monstersList.length})</TabsTrigger>
-                                    <TabsTrigger value="members">Par Membre ({partners.length})</TabsTrigger>
+                            <div className="px-6 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                <TabsList className="grid w-full md:w-[320px] grid-cols-2 bg-zinc-900/60 border border-white/5 p-1 rounded-xl">
+                                    <TabsTrigger value="monsters" className="rounded-lg font-bold py-2 text-xs">Par Monstre ({monstersList.length})</TabsTrigger>
+                                    <TabsTrigger value="members" className="rounded-lg font-bold py-2 text-xs">Par Membre ({partners.length})</TabsTrigger>
                                 </TabsList>
+
+                                {/* Aesthetic Visual Legend */}
+                                <div className="flex items-center gap-3 text-xs bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-xl px-3 py-2 shrink-0 self-start md:self-auto">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                        </span>
+                                        <span className="font-bold text-emerald-400 text-[11px]">Recherché</span>
+                                        <span className="text-[10px] text-zinc-500">(vous manque)</span>
+                                    </div>
+                                    <div className="w-px h-3 bg-white/10" />
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="h-2 w-2 rounded-full bg-zinc-700" />
+                                        <span className="font-bold text-zinc-400 text-[11px]">Possédé</span>
+                                        <span className="text-[10px] text-zinc-500">(déjà acquis)</span>
+                                    </div>
+                                </div>
                             </div>
 
                             <TabsContent value="monsters" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden">
@@ -284,8 +302,10 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                             <div
                                                 key={monster.name}
                                                 className={cn(
-                                                    "border border-white/5 rounded-lg p-3 transition-colors",
-                                                    monster.coversNeed ? "bg-emerald-950/10 border-emerald-500/20 hover:border-emerald-500/40" : "bg-zinc-900/50 hover:border-white/10"
+                                                    "border transition-all duration-200 rounded-xl p-3",
+                                                    monster.coversNeed 
+                                                        ? "bg-emerald-500/5 border-emerald-500/20 shadow-md shadow-emerald-950/10 hover:border-emerald-500/40" 
+                                                        : "bg-zinc-900/20 border-zinc-800/60 hover:border-zinc-700/60 opacity-75 hover:opacity-100"
                                                 )}
                                             >
                                                 <div className="flex items-start justify-between mb-2">
@@ -294,30 +314,33 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                             <img
                                                                 src={monster.imageUrl}
                                                                 alt={monster.name}
-                                                                className="w-8 h-8 object-contain"
+                                                                className="w-8 h-8 object-contain shrink-0"
                                                             />
                                                         )}
                                                         <div className="flex flex-col">
-                                                            <h4 className={cn("font-semibold text-sm", monster.coversNeed ? "text-emerald-300" : "text-zinc-300")}>
+                                                            <h4 className={cn("font-bold text-sm flex items-center gap-1.5", monster.coversNeed ? "text-emerald-300" : "text-zinc-400")}>
                                                                 {monster.name}
+                                                                {monster.coversNeed && (
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                                                                )}
                                                             </h4>
                                                             {monster.coversNeed && (
-                                                                <span className="text-[10px] text-emerald-500 font-medium uppercase tracking-wider">Recherché</span>
+                                                                <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">Recherché (vous manque)</span>
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <Badge variant="outline" className="text-[10px] border-white/10 bg-black/20 text-zinc-400">
+                                                    <Badge variant="outline" className="text-[10px] border-white/10 bg-black/20 text-zinc-400 font-bold">
                                                         x{monster.providers.length}
                                                     </Badge>
                                                 </div>
                                                 <div className="space-y-1.5 mt-2">
                                                     {monster.providers.map((provider) => (
-                                                        <div key={provider.name} className="flex items-center justify-between text-xs bg-black/40 p-1.5 rounded">
+                                                        <div key={provider.name} className="flex items-center justify-between text-xs bg-zinc-950/80 border border-white/5 p-1.5 rounded-lg">
                                                             <div className="flex items-center gap-2">
                                                                 <Link href={`/dashboard/${guildId}/members/${provider.profileId}`} target="_blank" rel="noopener noreferrer">
                                                                     <Avatar className="h-5 w-5 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
                                                                         <AvatarImage src={provider.avatar} />
-                                                                        <AvatarFallback className="text-[8px] bg-zinc-800 text-zinc-400">
+                                                                        <AvatarFallback className="text-[8px] bg-zinc-800 text-zinc-400 font-bold">
                                                                             {provider.name.substring(0, 2).toUpperCase()}
                                                                         </AvatarFallback>
                                                                     </Avatar>
@@ -327,9 +350,9 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                         href={`/dashboard/${guildId}/members/${provider.profileId}`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-zinc-300 hover:text-amber-400 transition-colors cursor-pointer"
+                                                                        className="text-zinc-300 hover:text-amber-400 font-semibold transition-colors cursor-pointer"
                                                                     >
-                                                                        {provider.name} <span className="text-zinc-500 text-[10px] ml-1">(x{provider.count})</span>
+                                                                        {provider.name} <span className="text-zinc-500 text-[10px] ml-1 font-normal">(x{provider.count})</span>
                                                                     </Link>
                                                                 </div>
                                                             </div>
@@ -378,14 +401,14 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                         {partners.map((partner) => (
                                             <div
                                                 key={partner.username}
-                                                className="bg-zinc-900/50 border border-white/5 rounded-xl p-4"
+                                                className="bg-zinc-900/40 border border-white/5 rounded-xl p-4"
                                             >
                                                 <div className="flex items-center justify-between mb-4">
                                                     <div className="flex items-center gap-3">
                                                         <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
                                                             <Avatar className="h-10 w-10 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
                                                                 <AvatarImage src={partner.discordAvatar} />
-                                                                <AvatarFallback className="bg-emerald-900/50 text-emerald-200">
+                                                                <AvatarFallback className="bg-emerald-900/50 text-emerald-200 font-bold">
                                                                     {partner.characterName[0].toUpperCase()}
                                                                 </AvatarFallback>
                                                             </Avatar>
@@ -403,7 +426,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                                 <p className="text-xs text-zinc-500">
                                                                     propose {partner.monstersTheyHave.length} monstres
                                                                 </p>
-                                                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded">
+                                                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-semibold">
                                                                     {partner.username}
                                                                 </span>
                                                             </div>
@@ -416,26 +439,29 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                         <div
                                                             key={monster.id}
                                                             className={cn(
-                                                                "flex items-center justify-between text-xs p-2 rounded border group cursor-pointer transition-all",
+                                                                "flex items-center justify-between text-xs p-2 rounded-lg border group cursor-pointer transition-all duration-200",
                                                                 monster.coversNeed
-                                                                    ? "bg-emerald-950/20 border-emerald-500/20 hover:border-emerald-500/50"
-                                                                    : "bg-black/40 border-white/5 hover:border-white/10"
+                                                                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-md shadow-emerald-950/20 hover:border-emerald-500/50"
+                                                                    : "bg-zinc-900/30 border-zinc-800/80 text-zinc-500 opacity-60 hover:opacity-100 hover:border-zinc-700"
                                                             )}
                                                             onClick={() => handleCopyMP(partner.characterName, monster.name)}
                                                         >
-                                                            <div className="flex items-center gap-2 truncate">
+                                                            <div className="flex items-center gap-2 truncate flex-1 min-w-0">
                                                                 {monster.imageUrl && (
                                                                     <img
                                                                         src={monster.imageUrl}
                                                                         alt={monster.name}
-                                                                        className="w-6 h-6 object-contain"
+                                                                        className="w-6 h-6 object-contain shrink-0"
                                                                     />
                                                                 )}
-                                                                <span className={cn("truncate transition-colors", monster.coversNeed ? "text-emerald-200" : "text-zinc-400")}>
+                                                                <span className={cn("truncate transition-colors", monster.coversNeed ? "text-emerald-300 font-bold" : "text-zinc-500")}>
                                                                     {monster.name}
                                                                 </span>
+                                                                {monster.coversNeed && (
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-auto" />
+                                                                )}
                                                             </div>
-                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="sm"

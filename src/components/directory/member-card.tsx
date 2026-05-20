@@ -44,6 +44,11 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
     const classData = getClass(profile.classe || "");
 
+    const altPseudos = Array.isArray(profile.altPseudos) ? (profile.altPseudos as any[]) : [];
+    const alignedMules = altPseudos.filter((mule: any) => 
+        mule && typeof mule === 'object' && mule.pseudo && mule.alignment && mule.alignment !== "neutre" && mule.alignmentOrder
+    );
+
 
     const displayName = profile.displayName || profile.pseudoDofus || profile.user.name || "Voyageur";
 
@@ -160,21 +165,21 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
 
                         {/* Alignment/Order Badge */}
                         {profile.alignment && (
-                            <div className="absolute -top-1 -left-1 z-20">
+                            <div className="absolute -top-1.5 -left-1.5 z-20">
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <div className={cn(
-                                                "w-8 h-8 rounded-lg border bg-zinc-950 shadow-lg flex items-center justify-center overflow-hidden",
-                                                profile.alignment === "bontarien" ? "border-blue-500/30" : 
-                                                profile.alignment === "brakmarien" ? "border-red-500/30" : 
-                                                "border-white/10"
+                                                "w-11 h-11 rounded-xl border-2 bg-zinc-950/90 shadow-2xl flex items-center justify-center overflow-hidden",
+                                                profile.alignment === "bontarien" ? "border-blue-500/40" : 
+                                                profile.alignment === "brakmarien" ? "border-red-500/40" : 
+                                                "border-white/20"
                                             )}>
                                                 {orderData ? (
-                                                    <Image src={orderData.icon} alt={orderData.name} width={20} height={20} className="object-contain" />
+                                                    <Image src={orderData.icon} alt={orderData.name} width={36} height={36} className="object-contain w-full h-full p-1" />
                                                 ) : (
                                                     <Shield className={cn(
-                                                        "w-4 h-4",
+                                                        "w-5 h-5",
                                                         profile.alignment === "bontarien" ? "text-blue-400" : 
                                                         profile.alignment === "brakmarien" ? "text-red-400" : 
                                                         "text-zinc-500"
@@ -278,6 +283,61 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                             <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">Aucun métier</span>
                         )}
                     </div>
+
+                    {/* Aligned Mules */}
+                    {alignedMules.length > 0 && (
+                        <>
+                            <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-1" />
+                            <div className="flex flex-col items-center gap-1.5 w-full">
+                                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Mules alignées</span>
+                                <div className="flex flex-wrap justify-center gap-1.5">
+                                    {alignedMules.map((mule: any, idx: number) => {
+                                        const mCls = getClass(mule.classe || "cra");
+                                        const mOrder = mule.alignment && mule.alignmentOrder ? getOrder(mule.alignment, mule.alignmentOrder) : null;
+                                        return (
+                                            <TooltipProvider key={mule.id || idx}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="flex items-center gap-1.5 bg-black/40 border border-white/5 rounded-md px-2 py-0.5 max-w-full">
+                                                            {mCls && (
+                                                                <div className="relative w-4.5 h-4.5 shrink-0">
+                                                                    <Image 
+                                                                        src={mCls.icon} 
+                                                                        alt={mCls.name} 
+                                                                        fill 
+                                                                        className="object-contain" 
+                                                                        unoptimized
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            <span className="text-[9px] text-zinc-300 font-bold max-w-[70px] truncate">
+                                                                {mule.pseudo}
+                                                            </span>
+                                                            {mOrder && (
+                                                                <div className="relative w-4 h-4 shrink-0 ml-0.5">
+                                                                    <Image 
+                                                                        src={mOrder.icon} 
+                                                                        alt={mOrder.name} 
+                                                                        fill 
+                                                                        className="object-contain" 
+                                                                        unoptimized
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" className="glass-premium border-white/10 text-[10px] font-black uppercase tracking-widest">
+                                                        <p>{mule.pseudo} (Nv. {mule.level || 200})</p>
+                                                        <p className="text-zinc-500">{mCls?.name || "Classe inconnue"} - {mOrder?.name || "Sans ordre"}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </>
+                    )}
 
                     {/* Absence details footer */}
                     {isOnVacation && (

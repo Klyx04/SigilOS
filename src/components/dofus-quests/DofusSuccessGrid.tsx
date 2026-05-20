@@ -22,6 +22,8 @@ import { NpcName, ParsedObjective, copyWithToast, detectRealDungeons, extractObj
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Package, Target, Navigation, Users, Sword } from "lucide-react";
 import { QuestGuildStatus } from "./QuestGuildStatus";
+import { QuestActionsBlock } from "./QuestActionsBlock";
+
 
 
 
@@ -33,6 +35,7 @@ interface DofusSuccessGridProps {
     dofusColor: string;
     onToggleStatus: (questId: string, status: any) => void;
     completedIds: Set<string>;
+    onDungeonClick?: (name: string, dofusdbIdVal: number | null) => void;
 }
 
 const SECTION_TYPES: Record<string, { label: string; color: string; order: number }> = {
@@ -50,6 +53,7 @@ export function DofusSuccessGrid({
     dofusColor,
     onToggleStatus,
     completedIds,
+    onDungeonClick,
 }: DofusSuccessGridProps) {
     const [selectedChainId, setSelectedChainId] = useState<string | null>(null);
     const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
@@ -127,55 +131,89 @@ export function DofusSuccessGrid({
                             </div>
                         </div>
 
-                        {/* Chain Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {zoneChains.map((chain) => {
+                        {/* Chain Cards (Parcours Pathway Timeline) */}
+                        <div className="relative pl-8 sm:pl-12 border-l border-white/10 space-y-8 py-2">
+                            {zoneChains.map((chain, chainIdx) => {
                                 const stats = getChainStats(chain);
                                 const isComplete = stats.done === stats.total && stats.total > 0;
-                                const nextInChain = chain.entries?.find((e: any) => e.status !== "COMPLETED" && !isLocked(e));
+                                const nextInChain = chain.entries?.find((e: any) => !completedIds.has(e.id) && !isLocked(e));
 
                                 return (
-                                    <motion.button
-                                        key={chain.id}
-                                        onClick={() => setSelectedChainId(chain.id)}
-                                        whileHover={{ scale: 1.02, y: -4 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        className={`p-5 rounded-[2rem] border transition-all duration-500 flex flex-col gap-4 text-left group overflow-hidden ${
-                                            isComplete 
-                                                ? "bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.1)]" 
-                                                : "bg-[#0c0d10] border-white/5 hover:border-white/20 active:bg-white/[0.02]"
-                                        }`}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <Badge 
-                                                variant="outline" 
-                                                className={`text-[9px] font-black py-0.5 px-2 rounded-lg border transition-all ${
-                                                    isComplete 
-                                                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
-                                                        : "bg-white/5 text-zinc-500 border-white/5"
-                                                }`}
-                                                style={isComplete ? {} : {}}
-                                            >
-                                                {isComplete ? "✓ Succès" : "Succès"}
-                                            </Badge>
+                                    <div key={chain.id} className="relative group">
+                                        {/* Timeline Connection Node */}
+                                        <div 
+                                            className={`absolute -left-[41px] sm:-left-[57px] top-6 w-5 h-5 rounded-full border-4 flex items-center justify-center transition-all duration-500 z-10 ${
+                                                isComplete 
+                                                    ? "bg-emerald-500 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.6)]" 
+                                                    : "bg-[#050608] border-zinc-700 group-hover:border-indigo-500"
+                                            }`}
+                                        >
                                             {isComplete ? (
-                                                <Check className="w-4 h-4 text-emerald-500" />
+                                                <Check className="w-2 h-2 text-black stroke-[4px]" />
                                             ) : (
-                                                <span className="text-[10px] font-black tabular-nums text-zinc-600">{stats.done}/{stats.total}</span>
+                                                <span className="text-[7px] font-black text-zinc-500 tabular-nums">{chainIdx + 1}</span>
                                             )}
                                         </div>
-                                        <div>
-                                            <h3 className={`text-lg font-black italic leading-tight uppercase tracking-tighter transition-colors ${
-                                                isComplete ? "text-emerald-400" : "text-white group-hover:text-indigo-400"
-                                            }`}>{chain.sectionName}</h3>
-                                            {nextInChain && !isComplete && (
-                                                <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-2 truncate">→ {nextInChain.name}</p>
-                                            )}
-                                        </div>
-                                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full transition-all duration-700" style={{ background: isComplete ? "#10b981" : zoneColor, width: `${stats.pct}%` }} />
-                                        </div>
-                                    </motion.button>
+
+                                        <motion.button
+                                            onClick={() => setSelectedChainId(chain.id)}
+                                            whileHover={{ scale: 1.01, x: 6 }}
+                                            whileTap={{ scale: 0.99 }}
+                                            className={`w-full p-6 rounded-[2.5rem] border transition-all duration-500 flex flex-col sm:flex-row sm:items-center justify-between gap-6 text-left overflow-hidden ${
+                                                isComplete 
+                                                    ? "bg-emerald-500/[0.02] border-emerald-500/20 hover:border-emerald-500/40 shadow-[0_0_40px_rgba(16,185,129,0.05)]" 
+                                                    : "bg-white/[0.01] border-white/5 hover:border-white/20 active:bg-white/[0.02]"
+                                            }`}
+                                        >
+                                            <div className="flex flex-col gap-3 max-w-xl">
+                                                <div className="flex items-center gap-3">
+                                                    <img 
+                                                        src="/succès.png" 
+                                                        alt="Succès" 
+                                                        className={`w-6 h-6 object-contain transition-all duration-300 ${
+                                                            isComplete ? "drop-shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-85"
+                                                        }`} 
+                                                    />
+                                                    <Badge 
+                                                        variant="outline" 
+                                                        className={`text-[9px] font-black py-0.5 px-2 rounded-lg border transition-all ${
+                                                            isComplete 
+                                                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
+                                                                : "bg-white/5 text-zinc-500 border-white/5"
+                                                        }`}
+                                                    >
+                                                        {isComplete ? "✓ Succès Complété" : `Étape ${chainIdx + 1}`}
+                                                    </Badge>
+                                                </div>
+                                                <div>
+                                                    <h3 className={`text-xl font-black italic leading-none uppercase tracking-tighter transition-colors ${
+                                                        isComplete ? "text-emerald-400" : "text-white group-hover:text-indigo-400"
+                                                    }`}>{chain.sectionName}</h3>
+                                                    {nextInChain && !isComplete && (
+                                                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2 truncate flex items-center gap-1.5">
+                                                            <span className="text-indigo-400 font-black">→ Suivant:</span> {nextInChain.name}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col items-start sm:items-end gap-3 shrink-0 min-w-[200px] w-full sm:w-auto">
+                                                <div className="flex items-center justify-between w-full text-[11px] font-black uppercase tracking-widest text-zinc-500">
+                                                    <span>Progression</span>
+                                                    <span className={`tabular-nums font-black ${isComplete ? "text-emerald-400" : "text-white"}`}>{stats.done}/{stats.total} quêtes</span>
+                                                </div>
+                                                <div className="w-full sm:w-48 h-2 bg-white/5 rounded-full overflow-hidden border border-white/5 shadow-inner relative">
+                                                    <div 
+                                                        className="h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(255,255,255,0.05)]" 
+                                                        style={{ 
+                                                            background: isComplete ? "#10b981" : zoneColor, 
+                                                            width: `${stats.pct}%` 
+                                                        }} 
+                                                    />
+                                                </div>
+                                            </div>
+                                        </motion.button>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -188,13 +226,16 @@ export function DofusSuccessGrid({
                 <DialogContent className="max-w-4xl h-[90vh] bg-[#050608] border-white/10 p-0 overflow-hidden rounded-[2.5rem] flex flex-col">
                     {/* Header Section */}
                     <div className="p-8 border-b border-white/5 flex items-start justify-between bg-zinc-950/50 flex-shrink-0">
-                        <div>
-                            <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-2">
-                                {selectedChain ? (SECTION_TYPES[selectedChain.sectionType]?.label || "Exploration") : ""}
+                        <div className="flex items-center gap-4">
+                            <img src="/succès.png" alt="Succès" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                            <div>
+                                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-1">
+                                    {selectedChain ? (SECTION_TYPES[selectedChain.sectionType]?.label || "Exploration") : ""}
+                                </div>
+                                <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">
+                                    {selectedChain?.sectionName}
+                                </h3>
                             </div>
-                            <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">
-                                {selectedChain?.sectionName}
-                            </h3>
                         </div>
                     </div>
 
@@ -312,7 +353,7 @@ export function DofusSuccessGrid({
                                                                 {hasDungeons && (
                                                                     <div className="space-y-3">
                                                                         {structuredDungeons.map((d, dx) => (
-                                                                            <div key={`sd-${dx}`} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-[1.5rem] flex items-center gap-4">
+                                                                            <div key={`sd-${dx}`} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-[1.5rem] flex items-center gap-4 cursor-pointer hover:bg-rose-500/15 hover:border-rose-500/30 transition-all" onClick={() => onDungeonClick?.(d.name, d.id ? Number(d.id) : null)}>
                                                                                 <div className="w-14 h-14 rounded-xl bg-black/60 border border-rose-500/20 flex items-center justify-center p-1 shrink-0 overflow-hidden">
                                                                                     {d.img ? (
                                                                                         // eslint-disable-next-line @next/next/no-img-element
@@ -334,7 +375,7 @@ export function DofusSuccessGrid({
                                                                             </div>
                                                                         ))}
                                                                         {structuredDungeons.length === 0 && dungeonInfos.map((di, dx) => (
-                                                                            <div key={`di-${dx}`} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-[1.5rem] flex items-center gap-4">
+                                                                            <div key={`di-${dx}`} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-[1.5rem] flex items-center gap-4 cursor-pointer hover:bg-rose-500/15 hover:border-rose-500/30 transition-all" onClick={() => onDungeonClick?.(di.dungeonName || "", di.bossId ? Number(di.bossId) : null)}>
                                                                                 {di.mapImg && (
                                                                                     // eslint-disable-next-line @next/next/no-img-element
                                                                                     <img src={di.mapImg} alt={di.dungeonName} className="w-14 h-14 object-cover rounded-xl border border-rose-500/30" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -377,72 +418,18 @@ export function DofusSuccessGrid({
                                                                 )}
 
                                                                 {/* Action Terminal */}
-                                                                <div className="flex flex-col gap-4">
-                                                                    <div className="grid grid-cols-2 gap-2">
-                                                                        <a 
-                                                                            href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`} 
-                                                                            target="_blank" 
-                                                                            className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/15 hover:border-indigo-500/30 text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-all shadow-lg shadow-indigo-900/10"
-                                                                        >
-                                                                            <Target className="w-5 h-5" /> DofusDB
-                                                                        </a>
-                                                                        
-                                                                        <a 
-                                                                            href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`} 
-                                                                            target="_blank" 
-                                                                            className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-amber-500/5 border border-amber-500/10 hover:bg-amber-500/15 hover:border-amber-500/30 text-[10px] font-black text-amber-400 uppercase tracking-widest transition-all shadow-lg shadow-amber-900/10"
-                                                                        >
-                                                                            <BookOpen className="w-5 h-5" /> Noobs
-                                                                        </a>
-
-                                                                        {entry.coords && (
-                                                                            <button 
-                                                                                onClick={() => copyWithToast(`/travel ${entry.coords.x} ${entry.coords.y}`)}
-                                                                                className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/15 hover:border-emerald-500/30 text-[10px] font-black text-emerald-400 uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/10"
-                                                                            >
-                                                                                <Navigation className="w-5 h-5" /> Travel
-                                                                            </button>
-                                                                        )}
-
-                                                                        <QuestGuildStatus 
-                                                                            guildId={guildId} 
-                                                                            questId={entry.id} 
-                                                                            dofusColor={dofusColor} 
-                                                                            variant="action"
-                                                                        />
-                                                                    </div>
-
-                                                                    <Button 
-                                                                        disabled={lock && !done}
-                                                                        onClick={(e) => { 
-                                                                            e.stopPropagation(); 
-                                                                            if (lock && !done) return;
-                                                                            if (!done) setSelectedQuestId(null); // Auto-collapse on validation
-                                                                            onToggleStatus(entry.id, done ? "NOT_STARTED" : "COMPLETED"); 
-                                                                        }}
-                                                                        className={`w-full h-14 rounded-2xl font-black italic uppercase text-[14px] transition-all tracking-widest ${
-                                                                            done ? "bg-zinc-900 border border-white/10 text-zinc-400" 
-                                                                            : lock ? "bg-zinc-950 text-white/10 border border-white/5 cursor-not-allowed"
-                                                                            : "bg-white text-black hover:bg-zinc-200 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
-                                                                        }`}
-                                                                    >
-                                                                        {done ? "Réinitialiser la progression" : lock ? "Quête Verrouillée" : "Valider l'étape de quête"}
-                                                                    </Button>
-                                                                    <div className="grid grid-cols-3 gap-4">
-                                                                        <a href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`} target="_blank" className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white/5 border border-white/5 hover:bg-indigo-500/10 hover:border-indigo-500/30 text-[10px] font-black text-zinc-500 hover:text-indigo-400 uppercase tracking-widest transition-all"><Target className="w-5 h-5" /> DofusDB</a>
-                                                                        <a href={entry.externalRef || `https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`} target="_blank" className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white/5 border border-white/5 hover:bg-amber-500/10 hover:border-amber-500/30 text-[10px] font-black text-zinc-500 hover:text-amber-400 uppercase tracking-widest transition-all"><BookOpen className="w-5 h-5" /> Noobs</a>
-                                                                        <Button 
-                                                                            variant="ghost" 
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (entry.coords) copyWithToast(`/travel ${entry.coords.x} ${entry.coords.y}`);
-                                                                            }} 
-                                                                            className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white/5 border border-white/5 hover:bg-emerald-500/10 hover:border-emerald-500/30 p-0 text-[10px] font-black text-zinc-500 hover:text-emerald-400 uppercase tracking-widest transition-all"
-                                                                        >
-                                                                            <Copy className="w-5 h-5" /> Travel
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
+                                                                <QuestActionsBlock
+                                                                    entry={entry}
+                                                                    guildId={guildId}
+                                                                    dofusColor={dofusColor}
+                                                                    initialMembers={synergy[entry.id] ?? []}
+                                                                    lock={lock}
+                                                                    done={done}
+                                                                    onToggle={() => {
+                                                                        if (!done) setSelectedQuestId(null);
+                                                                        onToggleStatus(entry.id, done ? "NOT_STARTED" : "COMPLETED");
+                                                                    }}
+                                                                />
                                                             </div>
                                                         </motion.div>
                                                     )}

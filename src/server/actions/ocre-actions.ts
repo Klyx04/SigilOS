@@ -2288,3 +2288,92 @@ export async function getOcrePublicConfig(guildId: string) {
         return { success: false, error: e.message };
     }
 }
+
+export interface MetamobDirectoryMember {
+    id: string;
+    pseudoDofus: string | null;
+    metamobPseudo: string | null;
+    metamobVerified: boolean;
+    metamobLastSync: Date | null;
+    metamobQuestSlug: string | null;
+    user: {
+        id: string;
+        name: string | null;
+        image: string | null;
+    };
+    progressPercent?: number;
+    currentStep?: number;
+    serverName?: string;
+    remainingCount?: number;
+}
+
+/**
+ * Get all active guild members and their Metamob linking and ocre progress status.
+ */
+export async function getGuildMetamobDirectory(
+    guildId: string
+): Promise<ActionResponse<MetamobDirectoryMember[]>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
+        if (!guard.allowed) return { success: false, error: "Accès non autorisé" };
+
+        const members = await db.userProfile.findMany({
+            where: {
+                guild: { discordGuildId: guildId },
+                status: "ACTIVE",
+            },
+            select: {
+                id: true,
+                pseudoDofus: true,
+                metamobPseudo: true,
+                metamobVerified: true,
+                metamobLastSync: true,
+                metamobQuestSlug: true,
+                ocreProgressSnapshot: true,
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                    }
+                }
+            },
+            orderBy: {
+                user: {
+                    name: "asc"
+                }
+            }
+        });
+
+        const directory: MetamobDirectoryMember[] = members.map(m => {
+            const snapshot = m.ocreProgressSnapshot as any;
+            const hasSnapshot = !!snapshot?.stats;
+
+            return {
+                id: m.id,
+                pseudoDofus: m.pseudoDofus,
+                metamobPseudo: m.metamobPseudo,
+                metamobVerified: m.metamobVerified,
+                metamobLastSync: m.metamobLastSync,
+                metamobQuestSlug: m.metamobQuestSlug,
+                user: {
+                    id: m.user.id,
+                    name: m.user.name,
+                    image: m.user.image,
+                },
+                progressPercent: hasSnapshot ? snapshot.stats.progressPercent : undefined,
+                currentStep: hasSnapshot ? snapshot.questInfo?.currentStep : undefined,
+                serverName: hasSnapshot ? snapshot.questInfo?.serverName : undefined,
+                remainingCount: hasSnapshot ? snapshot.stats.remaining : undefined,
+            };
+        });
+
+        return { success: true, data: directory };
+    } catch (error: any) {
+        console.error("[getGuildMetamobDirectory] Error:", error);
+        return { success: false, error: error.message || "Erreur lors de la récupération de l'annuaire Metamob" };
+    }
+}

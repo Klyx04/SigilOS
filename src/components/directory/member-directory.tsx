@@ -56,9 +56,14 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
         // Alt Pseudos (stored as JSON array) - Safe check
         let altMatch = false;
         if (m.altPseudos && Array.isArray(m.altPseudos)) {
-            altMatch = m.altPseudos.some((alt: any) => 
-                typeof alt === 'string' && alt.toLowerCase().includes(searchTerm)
-            );
+            altMatch = m.altPseudos.some((alt: any) => {
+                if (typeof alt === 'string') {
+                    return alt.toLowerCase().includes(searchTerm);
+                } else if (alt && typeof alt === 'object' && typeof alt.pseudo === 'string') {
+                    return alt.pseudo.toLowerCase().includes(searchTerm);
+                }
+                return false;
+            });
         }
 
         if (!mainMatch && !altMatch) return false;
@@ -85,12 +90,26 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
 
         // 4. Alignment Filter
         if (selectedAlignment) {
-            if (m.alignment !== selectedAlignment) return false;
+            const mainAlignMatch = m.alignment === selectedAlignment;
+            let muleAlignMatch = false;
+            if (m.altPseudos && Array.isArray(m.altPseudos)) {
+                muleAlignMatch = m.altPseudos.some((alt: any) => 
+                    alt && typeof alt === 'object' && alt.alignment === selectedAlignment
+                );
+            }
+            if (!mainAlignMatch && !muleAlignMatch) return false;
         }
 
         // 5. Order Filter
         if (selectedOrder) {
-            if (m.alignmentOrder !== selectedOrder) return false;
+            const mainOrderMatch = m.alignmentOrder === selectedOrder;
+            let muleOrderMatch = false;
+            if (m.altPseudos && Array.isArray(m.altPseudos)) {
+                muleOrderMatch = m.altPseudos.some((alt: any) => 
+                    alt && typeof alt === 'object' && alt.alignmentOrder === selectedOrder
+                );
+            }
+            if (!mainOrderMatch && !muleOrderMatch) return false;
         }
 
         // 6. Legendary Filter

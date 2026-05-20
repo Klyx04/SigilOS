@@ -761,7 +761,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 ? `https://cdn.discordapp.com/guilds/${effectiveGuildId}/users/${discordUserId}/avatars/${member.avatar}.png`
                 : session.user.image || undefined,
         roleName: isGod && roleName === "Membre" ? "Administrateur" : roleName,
-        roleNames: memberRoles.map(rId => (guildInfo as any)?.roles.find((r: any) => r.id === rId)?.name || "Inconnu"),
+        roleNames: memberRoles.map(rId => (guildInfo as any)?.roles?.find((r: any) => r.id === rId)?.name || "Inconnu"),
         roleColor: isGod && roleColor === 0 ? 0x5865F2 : roleColor,
         canViewDashboard: true,
         canViewPresentation: !!applyModule(!!mod?.presentation, !!canViewPresentation),

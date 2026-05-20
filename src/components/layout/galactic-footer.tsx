@@ -18,6 +18,37 @@ export function GalacticFooter({ variant = "standard", isMember = false }: Galac
     const [latency, setLatency] = useState<number | null>(null);
     const [systemStatus, setSystemStatus] = useState<SystemStatus>("online");
     const [mounted, setMounted] = useState(false);
+    const [isVisible, setIsVisible] = useState(true);
+
+    useEffect(() => {
+        if (variant !== "compact") return;
+        
+        let lastScroll = 0;
+        let ticking = false;
+
+        const handleScroll = (e: Event) => {
+            const target = e.target as HTMLElement;
+            if (!target || typeof target.scrollTop !== "number") return;
+            
+            const currentScroll = target.scrollTop;
+            
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    if (currentScroll > lastScroll && currentScroll > 80) {
+                        setIsVisible(false);
+                    } else {
+                        setIsVisible(true);
+                    }
+                    lastScroll = currentScroll;
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        window.addEventListener("scroll", handleScroll, true);
+        return () => window.removeEventListener("scroll", handleScroll, true);
+    }, [variant]);
 
     useEffect(() => {
         setMounted(true);
@@ -48,7 +79,10 @@ export function GalacticFooter({ variant = "standard", isMember = false }: Galac
 
     if (isCompact) {
         return (
-            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-full max-w-5xl px-4 sm:px-6 pointer-events-none">
+            <div className={cn(
+                "fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-full max-w-5xl px-4 sm:px-6 pointer-events-none transition-all duration-500 ease-in-out transform",
+                isVisible ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0 pointer-events-none"
+            )}>
                 <footer className="w-full relative rounded-2xl border border-white/10 bg-[#050505]/80 backdrop-blur-2xl py-3 px-5 sm:px-8 pointer-events-auto shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5 transition-all hover:bg-[#050505]/95 group/footer">
                     <div className="flex items-center justify-between gap-4 sm:gap-8 relative z-10">
                         

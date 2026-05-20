@@ -43,12 +43,12 @@ import { OcreFilterBar, type OcreFilters, type MonsterType, type SortOption } fr
 import { OcreExchangeModal } from "./ocre-exchange-modal";
 import { OcreTradeInbox } from "./ocre-trade-inbox";
 import { OcreSettingsModal } from "./ocre-settings-modal";
+import { OcreGuildDirectory } from "./ocre-guild-directory";
+
 import {
     forceRefreshOcre,
     getGuildExchangeMap,
     findMonsterOwnersAction,
-    getAvailableOcreQuests,
-    switchOcreQuest,
     type OcreProgressData,
     type ExchangePartner,
 } from "@/server/actions/ocre-actions";
@@ -228,38 +228,7 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
         setCurrentPage(1);
     }, [filters]);
 
-    // Quest Switcher State
-    const [showSwitchDialog, setShowSwitchDialog] = useState(false);
-    const [isSwitching, setIsSwitching] = useState(false);
-    const [availableQuests, setAvailableQuests] = useState<OcreProgressData["questInfo"][] | any[]>([]);
-    const [questsLoading, setQuestsLoading] = useState(false);
 
-    // Handlers
-    const handleOpenSwitch = async () => {
-        setQuestsLoading(true);
-        setShowSwitchDialog(true);
-        const result = await getAvailableOcreQuests(guildId);
-        if (result.success && result.data) {
-            setAvailableQuests(result.data.sort((a, b) => b.quest_template.id - a.quest_template.id));
-        } else {
-            toast.error("Impossible de charger les quêtes");
-            setShowSwitchDialog(false);
-        }
-        setQuestsLoading(false);
-    };
-
-    const handleSwitch = async (questSlug: string) => {
-        setIsSwitching(true);
-        const result = await switchOcreQuest(guildId, questSlug);
-        if (result.success) {
-            toast.success("Quête active mise à jour !");
-            setShowSwitchDialog(false);
-            window.location.reload();
-        } else {
-            toast.error(result.error || "Impossible de changer de quête");
-            setIsSwitching(false);
-        }
-    };
 
     // Find exchange partners for a specific monster
     const handleFindExchanges = async (_monsterId: number): Promise<ExchangePartner[]> => {
@@ -300,67 +269,6 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
 
     return (
         <div className="space-y-6">
-            {/* Quest Switcher Dialog */}
-            <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Choisir la quête active</DialogTitle>
-                        <DialogDescription>
-                            Sélectionnez la quête Ocre que vous souhaitez suivre sur SigilOS.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
-                        {questsLoading ? (
-                            <div className="flex justify-center py-8">
-                                <Loader2 className="h-8 w-8 text-amber-500 animate-spin" />
-                            </div>
-                        ) : availableQuests.length === 0 ? (
-                            <div className="text-center py-6 text-muted-foreground">
-                                Aucune quête Ocre trouvée.
-                            </div>
-                        ) : (
-                            availableQuests.map((quest) => (
-                                <div
-                                    key={quest.slug}
-                                    onClick={() => handleSwitch(quest.slug)}
-                                    className="flex flex-col p-4 rounded-2xl border border-border bg-muted/30 hover:bg-accent/20 hover:border-amber-500/30 cursor-pointer transition-all group"
-                                >
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:scale-110 transition-transform">
-                                                <User className="h-5 w-5 text-amber-500" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-foreground">{quest.character_name}</span>
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                    <span>{quest.server.name}</span>
-                                                    <span className="opacity-30">•</span>
-                                                    <Badge variant="secondary" className="text-[9px] h-4 px-1 bg-background/50">
-                                                        {quest.quest_template.id === 1 ? "Unity" : "Rétro"}
-                                                    </Badge>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 px-2 py-0.5 text-[10px] font-bold">
-                                            Étape {quest.current_step}
-                                        </Badge>
-                                    </div>
-
-                                    <Button
-                                        size="sm"
-                                        className="w-full h-9 rounded-xl text-xs font-bold gap-2 bg-background border border-border hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all"
-                                    >
-                                        <Check className="h-3 w-3" />
-                                        Activer cette quête
-                                    </Button>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
-
             {/* Header with Progress (Metamob Style) */}
             <div className="relative overflow-hidden p-6 rounded-2xl bg-card border border-border shadow-xl">
                 {/* Background Decoration */}
@@ -401,18 +309,6 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Progression</span>
                                 <span className="text-lg font-bold text-emerald-500">{data.stats.progressPercent}%</span>
                             </div>
-
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-10 px-4 rounded-xl border-dashed border-border hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group"
-                                onClick={handleOpenSwitch}
-                            >
-                                <ArrowRightLeft className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-amber-500 transition-colors" />
-                                <span className="text-xs font-semibold">Changer de quête / perso</span>
-                            </Button>
-
-                            <OcreSettingsModal data={data} guildId={guildId} />
                         </div>
                     </div>
 
@@ -445,6 +341,12 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                         className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
                     >
                         Échanges
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="membres"
+                        className="flex-1 py-3 px-6 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-500 data-[state=active]:shadow-lg hover:bg-white/5 transition-all font-bold uppercase tracking-widest text-xs border border-transparent data-[state=active]:border-amber-500/20"
+                    >
+                        Membres
                     </TabsTrigger>
                 </TabsList>
 
@@ -624,6 +526,11 @@ export function OcreDashboard({ data, guildId, hasOcreChannel }: OcreDashboardPr
                             }
                         />
                     </div>
+                </TabsContent>
+
+                {/* Tab: Guild Directory (Membres) */}
+                <TabsContent value="membres" className="outline-none mt-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <OcreGuildDirectory guildId={guildId} />
                 </TabsContent>
             </Tabs>
 

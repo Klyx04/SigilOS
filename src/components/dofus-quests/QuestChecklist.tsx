@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useTransition, useMemo, useCallback } from "react";
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Swords, Star, Briefcase, Wand2, ListChecks, Shield, AlertCircle, MapPin, Lock, Copy, BookOpen, Users, Target, Navigation } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -10,6 +10,8 @@ import type { DofusChainWithProgress, DofusEntryWithProgress } from "@/server/ac
 import { DofusQuestStatus } from "@prisma/client";
 import { NpcName, ItemInline, ParsedObjective, copyWithToast, detectRealDungeons, extractObjectiveText } from "./dofus-resolvers";
 import { QuestGuildStatus } from "./QuestGuildStatus";
+import { QuestActionsBlock } from "./QuestActionsBlock";
+
 
 // ─── Icons per quest type ────────────────────────────────────────────────────
 function QuestTypeIcon({ type, className }: { type: string; className?: string }) {
@@ -60,6 +62,21 @@ function QuestEntryRow({
     const isCompleted = completedIds.has(entry.id);
     const [isPending, startTransition] = useTransition();
     const [showDetail, setShowDetail] = useState(false);
+
+    const [members, setMembers] = useState<MemberOnQuest[]>([]);
+    const [loadingMembers, setLoadingMembers] = useState(false);
+
+    useEffect(() => {
+        if (showDetail) {
+            setLoadingMembers(true);
+            getOtherMembersOnQuest(guildId, entry.id).then((res) => {
+                if (res.success && res.data) {
+                    setMembers(res.data);
+                }
+                setLoadingMembers(false);
+            });
+        }
+    }, [showDetail, guildId, entry.id]);
 
     // Lock if any QUEST requirement is not yet in completedIds
     const isLocked = useMemo(() => {
@@ -286,76 +303,15 @@ function QuestEntryRow({
                                     })}
                                 </div>
                             )}
-                            {/* Quick Links */}
-                            <div className="pt-2">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Button
-                                        asChild
-                                        variant="sigil"
-                                        className="h-20 flex-col gap-2 rounded-2xl bg-indigo-500/5 border-indigo-500/10"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <a href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`} target="_blank" rel="noopener noreferrer">
-                                            <Target className="w-5 h-5" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">DofusDB</span>
-                                        </a>
-                                    </Button>
-                                    
-                                    {entry.externalRef ? (
-                                        <Button
-                                            asChild
-                                            variant="sigil"
-                                            className="h-20 flex-col gap-2 rounded-2xl bg-amber-500/5 border-amber-500/10"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <a href={entry.externalRef} target="_blank" rel="noopener noreferrer">
-                                                <BookOpen className="w-5 h-5" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Stratégie</span>
-                                            </a>
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            asChild
-                                            variant="sigil"
-                                            className="h-20 flex-col gap-2 rounded-2xl bg-amber-500/5 border-amber-500/10"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <a href={`https://www.google.com/search?q=site:dofuspourlesnoobs.com+${encodeURIComponent(entry.name)}`} target="_blank" rel="noopener noreferrer">
-                                                <BookOpen className="w-5 h-5" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Noobs</span>
-                                            </a>
-                                        </Button>
-                                    )}
-
-                                    {(entry as any).coords ? (
-                                        <>
-                                            <Button
-                                                variant="sigil-emerald"
-                                                className="h-20 flex-col gap-2 rounded-2xl"
-                                                onClick={(e) => { e.stopPropagation(); const c = (entry as any).coords; copyWithToast(`/travel ${c.x} ${c.y}`); }}
-                                            >
-                                                <Navigation className="w-5 h-5" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Travel</span>
-                                            </Button>
-                                            <QuestGuildStatus 
-                                                guildId={guildId} 
-                                                questId={entry.id} 
-                                                dofusColor={dofusColor} 
-                                                variant="action"
-                                            />
-                                        </>
-                                    ) : (
-                                        <div className="col-span-2">
-                                            <QuestGuildStatus 
-                                                guildId={guildId} 
-                                                questId={entry.id} 
-                                                dofusColor={dofusColor} 
-                                                variant="action"
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <QuestActionsBlock
+                                entry={entry}
+                                guildId={guildId}
+                                dofusColor={dofusColor}
+                                initialMembers={members}
+                                lock={isLocked}
+                                done={isCompleted}
+                                onToggle={handleToggle}
+                            />
                         </div>
                     </motion.div>
                 )}

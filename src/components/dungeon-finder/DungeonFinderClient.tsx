@@ -135,28 +135,34 @@ export function DungeonFinderClient({
                     const isActive = activeTab === tab.id;
                     const colorVariants = {
                         indigo: {
-                            border: "border-indigo-500/40",
-                            icon: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
-                            sub: "text-indigo-400/80",
+                            border: "border-indigo-500/50",
+                            icon: "bg-indigo-500/15 border-indigo-500/30 text-indigo-400",
+                            sub: "text-indigo-300",
                             glow: "bg-indigo-500",
-                            shadow: "shadow-[0_0_15px_rgba(99,102,241,0.3)]",
-                            bg: "bg-indigo-500/5"
+                            shadow: "shadow-[0_0_20px_rgba(99,102,241,0.35)]",
+                            inactiveIcon: "bg-indigo-500/8 border-indigo-500/15 text-indigo-400",
+                            inactiveSub: "text-indigo-400/70",
+                            inactiveBorder: "border-indigo-500/20"
                         },
                         amber: {
-                            border: "border-amber-500/40",
-                            icon: "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                            sub: "text-amber-400/80",
+                            border: "border-amber-500/50",
+                            icon: "bg-amber-500/15 border-amber-500/30 text-amber-400",
+                            sub: "text-amber-300",
                             glow: "bg-amber-500",
-                            shadow: "shadow-[0_0_15px_rgba(245,158,11,0.3)]",
-                            bg: "bg-amber-500/5"
+                            shadow: "shadow-[0_0_20px_rgba(245,158,11,0.35)]",
+                            inactiveIcon: "bg-amber-500/8 border-amber-500/15 text-amber-400",
+                            inactiveSub: "text-amber-400/70",
+                            inactiveBorder: "border-amber-500/20"
                         },
                         emerald: {
-                            border: "border-emerald-500/40",
-                            icon: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-                            sub: "text-emerald-400/80",
+                            border: "border-emerald-500/50",
+                            icon: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400",
+                            sub: "text-emerald-300",
                             glow: "bg-emerald-500",
-                            shadow: "shadow-[0_0_15px_rgba(16,185,129,0.3)]",
-                            bg: "bg-emerald-500/5"
+                            shadow: "shadow-[0_0_20px_rgba(16,185,129,0.35)]",
+                            inactiveIcon: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400",
+                            inactiveSub: "text-emerald-400/70",
+                            inactiveBorder: "border-emerald-500/20"
                         }
                     }[tab.color];
 
@@ -167,8 +173,8 @@ export function DungeonFinderClient({
                             className={cn(
                                 "relative group overflow-hidden flex items-center gap-4 p-5 rounded-2xl border transition-all duration-500",
                                 isActive
-                                    ? cn("bg-zinc-800/80 scale-[1.02] z-10 shadow-2xl", colorVariants.border, colorVariants.shadow)
-                                    : cn("bg-zinc-900/40 border-white/5 opacity-80 hover:opacity-100 hover:bg-zinc-900/80", colorVariants.bg)
+                                    ? cn("bg-zinc-800/90 scale-[1.02] z-10 shadow-2xl", colorVariants.border, colorVariants.shadow)
+                                    : cn("bg-zinc-900/70 hover:bg-zinc-800/70", colorVariants.inactiveBorder)
                             )}
                         >
                             {/* Animated Background Glow */}
@@ -211,7 +217,7 @@ export function DungeonFinderClient({
                                 "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 relative overflow-hidden",
                                 isActive
                                     ? colorVariants.icon + " shadow-lg"
-                                    : "bg-zinc-950 border-white/5 text-zinc-600 group-hover:text-zinc-300 group-hover:border-white/10"
+                                    : colorVariants.inactiveIcon + " group-hover:brightness-125"
                             )}>
                                 {isActive && (
                                     <div className={cn(
@@ -228,13 +234,13 @@ export function DungeonFinderClient({
                             <div className="text-left relative z-10">
                                 <p className={cn(
                                     "font-black text-[10px] uppercase tracking-[0.25em] transition-colors duration-500",
-                                    isActive ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"
+                                    isActive ? "text-white" : "text-zinc-300 group-hover:text-white"
                                 )}>
                                     {tab.label}
                                 </p>
                                 <p className={cn(
                                     "text-[11px] font-bold mt-1 transition-colors duration-500",
-                                    isActive ? colorVariants.sub : "text-zinc-600 group-hover:text-zinc-400"
+                                    isActive ? colorVariants.sub : colorVariants.inactiveSub + " group-hover:" + colorVariants.sub
                                 )}>
                                     {tab.sub}
                                 </p>

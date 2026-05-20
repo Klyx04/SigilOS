@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Upload, Plus, Trash2, Save, Edit3, Users, TreePine, FileJson, 
   Check, X, Loader2, AlertTriangle, ChevronDown, ChevronRight, 
@@ -11,10 +11,11 @@ import {
   deleteSequence, getGuideAdminFull, getGuildProgressSummary, 
   deleteAllMilestones, importSubGuide, listSubGuides, getSubGuideSteps, updateSubGuideStep, deleteSubGuide 
 } from "@/server/actions/optimized-guide-actions";
-import { searchDungeonsLocal, searchItemsDofusDB } from "@/server/actions/dofus-search-actions";
+import { searchDungeonsLocal, searchItemsDofusDB, searchQuestsLocalThenDofusDB, getQuestPrerequisites } from "@/server/actions/dofus-search-actions";
 import { toast } from "sonner";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import { sanitizeHtml } from "@/lib/security";
+import { fixBrokenImages } from "@/lib/ganymede-parser";
 
 type Guide = { id: string; name: string; slug: string; isActive: boolean; milestones: Milestone[] };
 type Milestone = { id: string; title: string; subtitle?: string; description?: string; type: string; accentColor: string; imageUrl?: string; order: number; chapter: number; chapterLabel: string; posX: number; posY: number; isOptional: boolean; sequences: Sequence[] };
@@ -23,42 +24,12 @@ type Sequence = { id: string; milestoneId?: string; subGuideRef: string; subGuid
 // 🧱 Royal Block System
 type ContentBlock = 
   | { type: 'TEXT', content: string }
-  | { type: 'QUEST', title: string, id: string, name: string }
+  | { type: 'QUEST', title: string, id: string, name: string, dofusDbId?: number | null, prerequisites?: any }
   | { type: 'TASK', label: string, checked: boolean }
   | { type: 'TAG', tagType: 'item' | 'dungeon', name: string, id: string, imageUrl?: string, quantity?: string }
   | { type: 'JOB', name: string, iconUrl: string }
   | { type: 'IMAGE', url: string, alt?: string };
 
-// Map shorthand keys and paths to the original Ganymede Dofus icons
-const fixBrokenImages = (html: string | null): string => {
-  if (!html) return "";
-  const parts = html.split(/(<[^>]+>)/g);
-  const processed = parts.map(part => {
-    if (part.startsWith('<') && part.toLowerCase().startsWith('<img')) {
-      return part.replace(/src=["']?([^"']+)["']?/i, (match, src) => {
-        const lowerSrc = src.toLowerCase();
-        if (lowerSrc === 'quest' || lowerSrc.includes('icon_quest.png')) {
-          return `src="https://ganymede-dofus.com/images/icon_quest.png"`;
-        }
-        if (lowerSrc === 'dungeon' || lowerSrc.includes('icon_dungeon.png')) {
-          return `src="https://ganymede-dofus.com/images/icon_dungeon.png"`;
-        }
-        if (lowerSrc === 'guidestep' || lowerSrc.includes('guides.png')) {
-          return `src="https://ganymede-app.com/images/texteditor/guides.png"`;
-        }
-        if (lowerSrc === 'monster' || lowerSrc.includes('icon_monster.png')) {
-          return `src="https://ganymede-dofus.com/images/icon_monster.png"`;
-        }
-        if (lowerSrc.includes('gyazo.com/0a5cd701d47079078cad5f59fe91e700')) {
-          return `src="https://ganymede-app.com/images/ganymede-logo.webp"`;
-        }
-        return match;
-      });
-    }
-    return part;
-  });
-  return processed.join("");
-};
 
 export default function OptimizedGuideAdminClient({ initialGuides }: { initialGuides: Guide[] }) {
   const [tab, setTab] = useState<"import" | "edit" | "progress" | "settings">("edit");
@@ -82,6 +53,11 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // 🔍 Milestone Filter States
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterSearch, setFilterSearch] = useState<string>("");
+  const [filterOptional, setFilterOptional] = useState<string>("all");
 
   const updateCoordinateWorld = (blockIdx: number, matchIdx: number, newWorldId: string) => {
     const n = [...activeBlocks];
@@ -234,11 +210,13 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
         
         // 1. Specialized Royal Blocks
         if (el.dataset.type === 'quest-block' || el.classList.contains('quest-block')) {
+          const dofusDbIdVal = el.getAttribute('dofusdbid') ? parseInt(el.getAttribute('dofusdbid')!, 10) : null;
           blocks.push({ 
             type: 'QUEST', 
             title: el.getAttribute('title') || el.textContent?.trim() || 'Quête', 
             id: el.getAttribute('questid') || el.getAttribute('id') || '', 
-            name: el.getAttribute('questname') || el.getAttribute('name') || '' 
+            name: el.getAttribute('questname') || el.getAttribute('name') || '',
+            dofusDbId: dofusDbIdVal || undefined
           });
           return;
         }
@@ -398,7 +376,7 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
           inTagGroup = false;
         }
 
-        if (b.type === 'QUEST') html += `<div data-type="quest-block" class="quest-block" title="${b.title}" questid="${b.id}" questname="${b.name}"><p>${b.title}</p></div>`;
+        if (b.type === 'QUEST') html += `<div data-type="quest-block" class="quest-block" title="${b.title}" questid="${b.id}" questname="${b.name}" dofusdbid="${b.dofusDbId || ''}"><p>${b.title}</p></div>`;
         else if (b.type === 'TASK') html += `<div class="tactical-step"><span class="bullet">▹</span> ${b.label}</div>`;
         else if (b.type === 'JOB') html += `<span data-type="job-tag" name="${b.name}" iconurl="${b.iconUrl}" class="flex items-center gap-1 text-amber-500 font-bold"><img src="${b.iconUrl}" class="w-4 h-4"> ${b.name}</span>`;
         else if (b.type === 'IMAGE') html += `<img src="${b.url}" alt="${b.alt || ''}" class="guide-image" />`;
@@ -429,8 +407,30 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
     }
   }, [editingSeq?.subGuideRef]);
 
-  const chapters = Array.from(new Set(milestones.map(m => m.chapter))).sort((a, b) => a - b);
-  const byChapter = (ch: number) => milestones.filter(m => m.chapter === ch).sort((a, b) => a.order - b.order);
+  const filteredMilestones = useMemo(() => {
+    return milestones.filter(m => {
+      if (filterType !== "all" && m.type !== filterType) return false;
+      
+      if (filterSearch.trim() !== "") {
+        const query = filterSearch.toLowerCase();
+        const titleMatch = m.title.toLowerCase().includes(query);
+        const descMatch = m.description?.toLowerCase().includes(query) ?? false;
+        const subMatch = m.subtitle?.toLowerCase().includes(query) ?? false;
+        if (!titleMatch && !descMatch && !subMatch) return false;
+      }
+      
+      if (filterOptional === "required" && m.isOptional) return false;
+      if (filterOptional === "optional" && !m.isOptional) return false;
+      
+      return true;
+    });
+  }, [milestones, filterType, filterSearch, filterOptional]);
+
+  const chapters = useMemo(() => {
+    return Array.from(new Set(filteredMilestones.map(m => m.chapter))).sort((a, b) => a - b);
+  }, [filteredMilestones]);
+
+  const byChapter = (ch: number) => filteredMilestones.filter(m => m.chapter === ch).sort((a, b) => a.order - b.order);
 
   const handleImport = async (file: File) => {
     if (!guide) return toast.error("Sélectionne un guide");
@@ -629,6 +629,48 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
                   }} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-emerald-950 rounded-xl text-xs font-black hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
                     <Plus className="w-4 h-4" />Ajouter un Chapitre
                   </button>
+
+                  {/* 🔍 Barre de filtres moderne et compacte */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-zinc-900/60 p-4 rounded-2xl border border-white/5 shadow-lg">
+                    {/* Recherche texte */}
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={filterSearch} 
+                        onChange={e => setFilterSearch(e.target.value)} 
+                        placeholder="Rechercher par mot-clé..." 
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-xs font-bold text-white placeholder-zinc-500 focus:border-emerald-500/50 outline-none transition-colors"
+                      />
+                      {filterSearch && (
+                        <button onClick={() => setFilterSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs">×</button>
+                      )}
+                    </div>
+
+                    {/* Filtre Type */}
+                    <select 
+                      value={filterType} 
+                      onChange={e => setFilterType(e.target.value)} 
+                      className="bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-xs font-bold text-white focus:border-emerald-500/50 outline-none transition-colors"
+                    >
+                      <option value="all">Tous types</option>
+                      <option value="DOFUS">DOFUS</option>
+                      <option value="DONJON">Donjon</option>
+                      <option value="QUETE_SERIE">Quêtes en série</option>
+                      <option value="MONSTRE">Recherche</option>
+                      <option value="AUTRE">Autre</option>
+                    </select>
+
+                    {/* Filtre Optionnel */}
+                    <select 
+                      value={filterOptional} 
+                      onChange={e => setFilterOptional(e.target.value)} 
+                      className="bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-xs font-bold text-white focus:border-emerald-500/50 outline-none transition-colors"
+                    >
+                      <option value="all">Tous (Obligatoire / Bonus)</option>
+                      <option value="required">Obligatoire uniquement</option>
+                      <option value="optional">Bonus uniquement</option>
+                    </select>
+                  </div>
 
                   <div className="space-y-4 max-h-[800px] overflow-y-auto custom-scrollbar pr-2 pb-40">
                   {chapters.map(ch => {
@@ -1119,14 +1161,6 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
                                                            }} className="p-1 bg-red-500 text-white rounded-full"><X className="w-3 h-3" /></button>
                                                         </div>
 
-                                                        {block.type === 'QUEST' && (
-                                                          <div className="space-y-3">
-                                                            <div className="flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest"><Zap className="w-3 h-3" /> Bloc Quête</div>
-                                                            <input value={block.title} onChange={e => { const n = [...activeBlocks]; (n[bIdx] as any).title = e.target.value; setActiveBlocks(n); }} 
-                                                              className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-2 text-white font-bold" placeholder="Titre de la quête..." />
-                                                          </div>
-                                                        )}
-
                                                         {block.type === 'TAG' && (
                                                           <div className="flex items-center gap-6 p-2">
                                                             {/* Mini Tactical Card Preview */}
@@ -1209,6 +1243,50 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
                                                                      <input value={block.quantity || ''} onChange={e => { const n = [...activeBlocks]; (n[bIdx] as any).quantity = e.target.value; setActiveBlocks(n); }} 
                                                                        className="w-full bg-zinc-950 border border-blue-500/30 rounded-lg px-3 py-1.5 text-blue-400 font-black text-xs text-center outline-none" placeholder="Qté" />
                                                                   </div>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          </div>
+                                                        )}
+
+                                                        {block.type === 'QUEST' && (
+                                                          <div className="flex items-center gap-6 p-2">
+                                                            {/* Mini Tactical Card Preview */}
+                                                            <div className="w-24 h-24 bg-zinc-900 rounded-2xl flex flex-col items-center justify-center border border-white/10 relative overflow-hidden flex-shrink-0 group/card">
+                                                              <Package className="w-8 h-8 text-zinc-700" />
+                                                              <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover/card:opacity-100 transition-opacity" />
+                                                            </div>
+
+                                                            <div className="flex-1 space-y-3 relative">
+                                                              <div className="text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit">
+                                                                Quête / Succès
+                                                              </div>
+
+                                                              <div className="flex flex-col gap-2">
+                                                                <input value={block.title} 
+                                                                  onChange={(e) => { 
+                                                                    const n = [...activeBlocks]; 
+                                                                    (n[bIdx] as any).title = e.target.value; 
+                                                                    setActiveBlocks(n); 
+                                                                  }} 
+                                                                  className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-2.5 text-white font-black text-sm focus:border-blue-500/50 outline-none transition-all" placeholder="Titre d'affichage de la quête..." />
+                                                                
+                                                                <div className="flex gap-2">
+                                                                  <input value={block.name} 
+                                                                    onChange={(e) => { 
+                                                                      const n = [...activeBlocks]; 
+                                                                      (n[bIdx] as any).name = e.target.value; 
+                                                                      setActiveBlocks(n); 
+                                                                    }} 
+                                                                    className="flex-1 bg-zinc-950 border border-white/5 rounded-lg px-3 py-1.5 text-white font-bold text-xs outline-none" placeholder="Nom de la quête" />
+                                                                  
+                                                                  <input value={block.id} 
+                                                                    onChange={(e) => { 
+                                                                      const n = [...activeBlocks]; 
+                                                                      (n[bIdx] as any).id = e.target.value; 
+                                                                      setActiveBlocks(n); 
+                                                                    }} 
+                                                                    className="w-32 bg-zinc-950 border border-white/5 rounded-lg px-3 py-1.5 text-zinc-500 font-mono text-[10px] outline-none" placeholder="ID" />
                                                                 </div>
                                                               </div>
                                                             </div>

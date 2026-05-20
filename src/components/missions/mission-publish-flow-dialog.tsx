@@ -62,7 +62,7 @@ export function MissionPublishFlowDialog({
         if (isOpen) {
             setStep("CONFIRM");
             setIsLoadingRoles(true);
-            getDiscordRolesAction(guildId).then(res => {
+            getDiscordRolesAction(guildId, { ignoreWhitelist: true }).then(res => {
                 if (res.success && res.roles) setRoles(res.roles);
                 setIsLoadingRoles(false);
             });

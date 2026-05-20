@@ -97,6 +97,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "ganymede-app.com",
       },
+      {
+        // Unsplash — Raid selection background illustrations
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
   },
   outputFileTracingExcludes: {
@@ -137,6 +142,8 @@ const nextConfig: NextConfig = {
       "https://www.google.com https://*.gstatic.com",
       // Ganymede CDNs for guide quest/dungeon/step icons
       "https://ganymede-dofus.com https://ganymede-app.com",
+      // Unsplash for raid selection illustrations
+      "https://images.unsplash.com",
     ].join(" ");
 
     const connectSrc = [

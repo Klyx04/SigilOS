@@ -114,14 +114,12 @@ export const StepRow = ({ step, isChecked, onToggle, onMapClick, guideRef }: any
         <div 
           className={`text-[11px] leading-relaxed ganymade-step-text transition-all duration-500 ${isChecked ? "text-zinc-600 grayscale opacity-40 italic line-through decoration-emerald-500/30" : "text-zinc-400"}`} 
           onClick={handleTextClick}
-          {...{
-            dangerouslySetInnerHTML: {
-              __html: sanitizeHtml(
+          // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(
                 step.web_text
                   .replace(/<input[^>]*type="checkbox"[^>]*>/g, '')
                   .replace(/\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/g, '<span class="pos-interactive">$&</span>')
               ) ?? ""
-            }
           }}
         />
       </div>

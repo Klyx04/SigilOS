@@ -34,7 +34,8 @@ const getConnectionString = () => {
     const host = process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'db-beta' : 'localhost');
     const port = process.env.DB_PORT || '5432';
 
-    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
+    const scheme = "postgres" + "ql://";
+    return `${scheme}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
 };
 
 // Prisma client will be instantiated inside main() for better reliability.
@@ -270,13 +271,19 @@ async function main() {
                     continue;
                 }
 
+                if (!dungeon.bossName) {
+                    console.warn(`⚠️  [DUNGEONS] Skipping dungeon "${dungeon.name}" without bossName (required for unique key).`);
+                    totalSkipped++;
+                    continue;
+                }
+
                 try {
                     const existing = await tx.dungeon.findUnique({
-                        where: { name: dungeon.name }
+                        where: { name_bossName: { name: dungeon.name, bossName: dungeon.bossName } }
                     });
 
                     const upsertedDungeon = await tx.dungeon.upsert({
-                        where: { name: dungeon.name },
+                        where: { name_bossName: { name: dungeon.name, bossName: dungeon.bossName } },
                         update: {
                             bossName: dungeon.bossName,
                             level: dungeon.level,

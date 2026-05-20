@@ -211,7 +211,6 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
             notifyMembers: true
         });
         setIsSaving(false);
-        setConfirmPublishOpen(false);
 
         if (res.success) {
             toast.success(missionPool === 'CLASSIQUES' ? "Missions classiques sauvegardées !" : "Missions spéciales sauvegardées !");
@@ -836,6 +835,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 missionPool={missionPool}
                 missionsCount={poolMissions.filter(m => m.title).length}
                 onConfirm={handleGlobalPublish}
+                isDiscordConfigured={isDiscordConfigured}
             />
         </div >
     );

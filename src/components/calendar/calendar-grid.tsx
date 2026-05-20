@@ -189,17 +189,18 @@ export function CalendarGrid({
     const currentWeek = getWeek(currentDate, { weekStartsOn: 1 });
 
     return (
-        <div className="space-y-5">
-
-
+        <div className="space-y-6">
             {/* ============ CALENDAR GRID ============ */}
-            <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 overflow-hidden">
-                {/* Days Header - BIGGER */}
-                <div className="grid grid-cols-7 bg-zinc-900 border-b border-zinc-800">
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0d1214] overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.7)] relative">
+                {/* Subtle top ambient glow inside the grid */}
+                <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-amber-500/40 to-transparent pointer-events-none" />
+
+                {/* Days Header - BOLDER, HIGHER CONTRAST & SLATE BACKED */}
+                <div className="grid grid-cols-7 bg-[#1c262a] border-b-2 border-white/[0.08]">
                     {weekDays.map((day, i) => (
                         <div key={day} className={cn(
-                            "py-4 text-center text-sm font-bold tracking-wider",
-                            i >= 5 ? "text-zinc-600" : "text-zinc-400"
+                            "py-4 text-center text-xs font-black tracking-widest uppercase",
+                            i >= 5 ? "text-amber-400" : "text-zinc-100"
                         )}>
                             {day}
                         </div>
@@ -207,23 +208,25 @@ export function CalendarGrid({
                 </div>
 
                 {/* Days Grid */}
-                <div className="grid grid-cols-7">
+                <div className="grid grid-cols-7 bg-[#0b0e10]">
                     {calendarDays.map((day, index) => {
                         const dayKey = format(day, "yyyy-MM-dd");
                         const dayEvents = eventsByDay.get(dayKey) || [];
                         const isCurrentDay = isToday(day);
                         const isWeekend = index % 7 >= 5;
-                        const minHeight = viewMode === "week" ? "min-h-[180px]" : "min-h-[120px]";
+                        const minHeight = viewMode === "week" ? "min-h-[190px]" : "min-h-[130px]";
                         const maxEvents = viewMode === "week" ? 4 : 2;
 
                         return (
                             <div
                                 key={dayKey}
                                 className={cn(
-                                    "relative border-b border-r border-zinc-800/40 p-0 transition-all flex flex-col",
+                                    "group relative border-b border-r border-white/[0.07] p-0 transition-all duration-300 flex flex-col",
                                     minHeight,
                                     canManage ? "cursor-pointer" : "cursor-default",
-                                    isWeekend ? "bg-zinc-950/50" : "bg-zinc-900/40 hover:bg-zinc-800/40",
+                                    isWeekend 
+                                        ? "bg-[#111618] hover:bg-[#161c1f]" 
+                                        : "bg-[#151c1f] hover:bg-[#1a2327]",
                                     index % 7 === 6 && "border-r-0"
                                 )}
                                 onClick={(e) => {
@@ -233,101 +236,106 @@ export function CalendarGrid({
                                     }
                                 }}
                             >
-                                <div className="p-3 flex-1 flex flex-col">
-                                {/* Day Number - BIG */}
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className={cn(
-                                        "h-8 w-8 flex items-center justify-center rounded-full text-base font-bold",
-                                        isCurrentDay
-                                            ? "bg-amber-500 text-zinc-950 shadow-lg shadow-amber-500/30"
-                                            : "text-zinc-300"
-                                    )}>
-                                        {format(day, "d")}
-                                    </span>
-                                    {dayEvents.length > maxEvents && (
-                                        <span className="text-sm text-zinc-400 font-semibold">
-                                            +{dayEvents.length - maxEvents}
+                                {/* Premium Today Highlight Box with High Contrast Amber Border */}
+                                {isCurrentDay && (
+                                    <div className="absolute inset-0 border-2 border-amber-500 bg-amber-500/[0.06] pointer-events-none shadow-[inset_0_0_24px_rgba(245,158,11,0.1)] z-10" />
+                                )}
+
+                                <div className="p-3.5 flex-1 flex flex-col relative z-20">
+                                    {/* Day Number - BIGGER & BRIGHTER */}
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className={cn(
+                                            "h-9 w-9 flex items-center justify-center rounded-xl text-sm font-black transition-all duration-300",
+                                            isCurrentDay
+                                                ? "bg-gradient-to-r from-amber-400 to-amber-600 text-zinc-950 shadow-[0_4px_16px_rgba(245,158,11,0.5)] scale-105"
+                                                : "text-zinc-100 group-hover:text-amber-400 group-hover:scale-110"
+                                        )}>
+                                            {format(day, "d")}
                                         </span>
-                                    )}
-                                </div>
+                                        {dayEvents.length > maxEvents && (
+                                            <span className="text-xs text-zinc-300 font-extrabold bg-[#0d1214] border border-white/10 px-2 py-0.5 rounded-full">
+                                                +{dayEvents.length - maxEvents}
+                                            </span>
+                                        )}
+                                    </div>
 
-                                {/* Events - BIGGER PILLS */}
-                                <div className="space-y-1.5">
-                                    {dayEvents.slice(0, maxEvents).map((event) => {
-                                        const start = event.startDate ? new Date(event.startDate) : null;
-                                        if (!start || isNaN(start.getTime())) return null;
+                                    {/* Events - BIGGER PILLS */}
+                                    <div className="space-y-2 mt-auto">
+                                        {dayEvents.slice(0, maxEvents).map((event) => {
+                                            const start = event.startDate ? new Date(event.startDate) : null;
+                                            if (!start || isNaN(start.getTime())) return null;
 
-                                        const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
-                                        const Icon = config.icon;
-                                        const time = format(start, "HH:mm");
+                                            const config = TYPE_CONFIG[event.type] || TYPE_CONFIG.EVENT_GUILD;
+                                            const Icon = config.icon;
+                                            const time = format(start, "HH:mm");
 
-                                        return (
-                                            <TooltipProvider key={event.id}>
-                                                <Tooltip delayDuration={100}>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                onEventClick(event.id);
-                                                            }}
-                                                            className={cn(
-                                                                "w-full group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-left",
-                                                                "bg-zinc-900/40 backdrop-blur-md border border-zinc-800/50",
-                                                                "hover:bg-zinc-800/60 hover:border-zinc-700/50 hover:shadow-2xl hover:shadow-black/40 hover:-translate-y-0.5",
-                                                                "active:scale-[0.98] active:translate-y-0"
-                                                            )}
+                                            return (
+                                                <TooltipProvider key={event.id}>
+                                                    <Tooltip delayDuration={100}>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    onEventClick(event.id);
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full group/btn relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left",
+                                                                    "bg-zinc-950/70 backdrop-blur-md border border-white/[0.06]",
+                                                                    "hover:bg-[#1c262a] hover:border-white/15 hover:shadow-xl hover:shadow-black/50 hover:-translate-y-0.5",
+                                                                    "active:scale-[0.98] active:translate-y-0"
+                                                                )}
+                                                            >
+                                                                {/* Side Accent Line */}
+                                                                <div className={cn("absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-full transition-all group-hover/btn:top-1 group-hover/btn:bottom-1", config.dot)} />
+                                                                
+                                                                <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center shrink-0 border border-white/5", config.bg)}>
+                                                                    <Icon className={cn("h-3.5 w-3.5", config.color)} />
+                                                                </div>
+                                                                
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="text-[9px] font-black uppercase tracking-wider opacity-60 leading-none mb-0.5">
+                                                                        {time}
+                                                                    </span>
+                                                                    <span className="truncate text-zinc-200 group-hover/btn:text-white transition-colors">
+                                                                        {event.title}
+                                                                    </span>
+                                                                </div>
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent
+                                                            side="right"
+                                                            className="bg-[#0e1417] border-white/10 p-3.5 max-w-[240px] shadow-2xl rounded-xl backdrop-blur-xl"
                                                         >
-                                                            {/* Side Accent Line */}
-                                                            <div className={cn("absolute left-0 top-2 bottom-2 w-1 rounded-r-full transition-all group-hover:top-1 group-hover:bottom-1", config.dot)} />
-                                                            
-                                                            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border border-white/5", config.bg)}>
-                                                                <Icon className={cn("h-4 w-4", config.color)} />
-                                                            </div>
-                                                            
-                                                            <div className="flex flex-col min-w-0">
-                                                                <span className="text-[11px] font-black uppercase tracking-tighter opacity-50 leading-none mb-1">
-                                                                    {time}
-                                                                </span>
-                                                                <span className="truncate text-zinc-100 group-hover:text-white transition-colors">
-                                                                    {event.title}
-                                                                </span>
-                                                            </div>
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent
-                                                        side="right"
-                                                        className="bg-zinc-900 border-zinc-700 p-3 max-w-[220px]"
-                                                    >
-                                                        <p className="font-bold text-zinc-100">{event.title}</p>
-                                                        <p className="text-sm text-zinc-400 mt-1">
-                                                            {time} → {format(new Date(event.endDate), "HH:mm")}
-                                                        </p>
-                                                        {event._count && (
-                                                            <div className="flex items-center gap-1.5 mt-2 text-sm text-zinc-500">
-                                                                <Users className="h-4 w-4" />
-                                                                {event._count.participants}
-                                                                {event.maxParticipants && ` / ${event.maxParticipants}`}
-                                                            </div>
-                                                        )}
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        );
-                                    })}
+                                                            <p className="font-extrabold text-zinc-100 text-sm tracking-tight">{event.title}</p>
+                                                            <p className="text-xs text-zinc-400 mt-1 font-medium">
+                                                                {time} → {format(new Date(event.endDate), "HH:mm")}
+                                                            </p>
+                                                            {event._count && (
+                                                                <div className="flex items-center gap-1.5 mt-2.5 text-xs text-zinc-500 font-bold">
+                                                                    <Users className="h-3.5 w-3.5" />
+                                                                    {event._count.participants}
+                                                                    {event.maxParticipants && ` / ${event.maxParticipants}`}
+                                                                </div>
+                                                            )}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
-        </div>
 
-            {/* ============ LEGEND (BIG) ============ */}
-            <div className="flex items-center justify-center gap-8 py-4">
+            {/* ============ LEGEND (BIG & FRESH) ============ */}
+            <div className="flex flex-wrap items-center justify-center gap-4 py-4 bg-[#0a0f12]/40 border border-white/[0.03] rounded-2xl backdrop-blur-md px-6 shadow-inner">
                 {Object.entries(TYPE_CONFIG).map(([type, config]) => (
-                    <div key={type} className="flex items-center gap-3">
-                        <div className={cn("h-4 w-4 rounded-full", config.dot)} />
-                        <span className="text-base font-medium text-zinc-400">{config.label}</span>
+                    <div key={type} className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/[0.03] hover:border-white/[0.06] hover:bg-white/[0.03] transition-all">
+                        <div className={cn("h-2.5 w-2.5 rounded-full shadow-[0_0_8px_currentColor]", config.dot)} />
+                        <span className="text-xs font-bold text-zinc-400 tracking-wide">{config.label}</span>
                     </div>
                 ))}
             </div>

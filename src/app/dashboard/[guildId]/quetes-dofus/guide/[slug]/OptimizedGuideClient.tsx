@@ -2312,6 +2312,7 @@ export default function OptimizedGuideClient({
               <img
                 src={imageModal}
                 alt="Zoom"
+                referrerPolicy="no-referrer"
                 className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-zinc-700/50"
               />
               <button

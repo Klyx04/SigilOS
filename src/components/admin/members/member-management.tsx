@@ -61,6 +61,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,48 @@ import { DailyReportButton } from "@/components/admin/daily-report-button";
 import { RelanceClient } from "@/components/admin/relance/relance-client";
 import { MemberDiscordCharts } from "@/components/admin/members/member-discord-charts";
 import { MemberBlacklist } from "@/components/admin/members/member-blacklist";
+
+// Static color map to avoid Tailwind CSS purging dynamic class names
+const STAT_COLORS = [
+    {
+        glow: "bg-blue-500/10",
+        label: "text-blue-400",
+        indicator: "bg-blue-500",
+        sublabel: "text-blue-500/70",
+    },
+    {
+        glow: "bg-emerald-500/10",
+        label: "text-emerald-400",
+        indicator: "bg-emerald-500",
+        sublabel: "text-emerald-500/70",
+    },
+    {
+        glow: "bg-amber-500/10",
+        label: "text-amber-400",
+        indicator: "bg-amber-500",
+        sublabel: "text-amber-500/70",
+    },
+    {
+        glow: "bg-purple-500/10",
+        label: "text-purple-400",
+        indicator: "bg-purple-500",
+        sublabel: "text-purple-500/70",
+    },
+];
+
+/** Build the Discord CDN avatar URL for a guild member */
+function getDiscordAvatarUrl(discordId: string, avatar: string | null | undefined): string | undefined {
+    if (!avatar) return undefined;
+    const ext = avatar.startsWith("a_") ? "gif" : "webp";
+    return `https://cdn.discordapp.com/avatars/${discordId}/${avatar}.${ext}?size=80`;
+}
+
+/** Deterministic fallback color based on Discord user ID (matches Discord client) */
+const DISCORD_COLORS = ["bg-violet-600", "bg-indigo-600", "bg-blue-600", "bg-cyan-600", "bg-emerald-600"];
+function getDiscordFallbackColor(discordId: string): string {
+    const hash = parseInt(discordId.slice(-4), 10) || 0;
+    return DISCORD_COLORS[hash % DISCORD_COLORS.length];
+}
 
 interface Member {
     id: string;
@@ -367,36 +410,39 @@ export default function MemberManagement({
             {canManageMembers && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                        { label: "Total Discord", value: data?.members.length || "...", sub: "Membres humains détectés", icon: Users, color: "blue" },
-                        { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${(data && data.members.length > 0) ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, color: "emerald", progress: true },
-                        { label: "Manquants Dashboard", value: missingMebersCount, sub: "Membres à inviter sur le site", icon: ShieldAlert, color: "amber" },
-                        { label: "Rôles Actifs", value: data?.stats.length || 0, sub: "Rôles mappés sur le Dashboard", icon: Trophy, color: "purple" }
-                    ].map((stat, i) => (
-                        <Card key={i} className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-2xl shadow-2xl relative overflow-hidden group">
-                            <div className={`absolute top-0 right-0 w-24 h-24 bg-${stat.color}-500/10 blur-[40px] rounded-full translate-x-12 -translate-y-12`} />
-                            <CardHeader className="pb-3">
-                                <CardDescription className={`flex items-center gap-2 text-${stat.color}-400 font-bold uppercase text-[10px] tracking-[0.2em]`}>
-                                    <stat.icon className="w-3 h-3" />
-                                    {stat.label}
-                                </CardDescription>
-                                <CardTitle className="text-4xl font-black text-white">{stat.value}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {stat.progress ? (
-                                    <div className="space-y-1.5">
-                                        <Progress 
-                                            value={data ? (data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100 : 0} 
-                                            className="h-1.5 bg-white/5"
-                                            indicatorClassName={`bg-${stat.color}-500`}
-                                        />
-                                        <p className={`text-[10px] text-${stat.color}-500/70 font-black uppercase tracking-widest`}>{stat.sub}</p>
-                                    </div>
-                                ) : (
-                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">{stat.sub}</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                    ))}
+                        { label: "Total Discord", value: data?.members.length || "...", sub: "Membres humains détectés", icon: Users, progress: false },
+                        { label: "Inscrits Dashboard", value: data?.members.filter(m => m.hasDashboardProfile).length || 0, sub: `${(data && data.members.length > 0) ? Math.round((data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100) : 0}% de couverture`, icon: CheckCircle2, progress: true },
+                        { label: "Manquants Dashboard", value: missingMebersCount, sub: "Membres à inviter sur le site", icon: ShieldAlert, progress: false },
+                        { label: "Rôles Actifs", value: data?.stats.length || 0, sub: "Rôles mappés sur le Dashboard", icon: Trophy, progress: false }
+                    ].map((stat, i) => {
+                        const colors = STAT_COLORS[i];
+                        return (
+                            <Card key={i} className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-2xl shadow-2xl relative overflow-hidden group">
+                                <div className={`absolute top-0 right-0 w-24 h-24 ${colors.glow} blur-[40px] rounded-full translate-x-12 -translate-y-12`} />
+                                <CardHeader className="pb-3">
+                                    <CardDescription className={`flex items-center gap-2 ${colors.label} font-bold uppercase text-[10px] tracking-[0.2em]`}>
+                                        <stat.icon className="w-3 h-3" />
+                                        {stat.label}
+                                    </CardDescription>
+                                    <CardTitle className="text-4xl font-black text-white">{stat.value}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    {stat.progress ? (
+                                        <div className="space-y-1.5">
+                                            <Progress 
+                                                value={data ? (data.members.filter(m => m.hasDashboardProfile).length / data.members.length) * 100 : 0} 
+                                                className="h-1.5 bg-white/5"
+                                                indicatorClassName={colors.indicator}
+                                            />
+                                            <p className={`text-[10px] ${colors.sublabel} font-black uppercase tracking-widest`}>{stat.sub}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">{stat.sub}</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
 
@@ -652,9 +698,16 @@ export default function MemberManagement({
                                                     <TableCell className="pl-8 py-5">
                                                         <div className="flex items-center gap-4">
                                                             <div className="relative">
-                                                                <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-white/5 flex items-center justify-center font-black text-lg text-zinc-400 group-hover:border-violet-500/50 transition-all uppercase italic rotate-3 group-hover:rotate-0">
-                                                                    {member.displayName.charAt(0)}
-                                                                </div>
+                                                                <Avatar className="w-12 h-12 rounded-2xl border border-white/5 group-hover:border-violet-500/40 transition-all shadow-lg">
+                                                                    <AvatarImage
+                                                                        src={getDiscordAvatarUrl(member.discordId, member.avatar)}
+                                                                        alt={member.displayName}
+                                                                        className="object-cover rounded-2xl"
+                                                                    />
+                                                                    <AvatarFallback className={`rounded-2xl text-white font-black text-lg uppercase ${getDiscordFallbackColor(member.discordId)}`}>
+                                                                        {member.displayName.charAt(0)}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
                                                                 <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg border-2 border-[#030303] flex items-center justify-center shadow-lg ${member.hasDashboardProfile ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}>
                                                                     {member.hasDashboardProfile ? <CheckCircle2 className="w-3 h-3 text-white" /> : <ShieldAlert className="w-3 h-3 text-white" />}
                                                                 </div>

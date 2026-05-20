@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ─── EYE_SVG Constant ────────────────────────────────────────────────────────
 const EYE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye inline-block w-3.5 h-3.5"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
-import { toggleMilestoneProgress, getSubGuideSteps } from "@/server/actions/optimized-guide-actions";
+import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress } from "@/server/actions/optimized-guide-actions";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
@@ -89,10 +89,18 @@ type Milestone = {
   id: string; title: string; subtitle?: string; description?: string;
   type: string; accentColor: string; chapter: number; chapterLabel: string;
   order: number; isOptional: boolean; sequences: Sequence[];
-  playerProgress?: { isCompleted: boolean; completedSteps?: number[] };
+  playerProgress?: { isCompleted: boolean; completedSteps?: string[] };
 };
 type SubStep = { stepNumber: number; plainText?: string; web_text?: string; pos_x?: number; pos_y?: number };
-type GuildMember = { profileId: string; userName: string; userAvatar?: string; milestoneId: string; profileSlug?: string };
+type GuildMember = {
+  profileId: string;
+  userName: string;
+  userAvatar?: string;
+  milestoneId: string;
+  profileSlug?: string;
+  isCompleted?: boolean;
+  completedSteps?: string[];
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const GP_PALETTE = [
@@ -283,7 +291,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, guildProgress, milestones, selectedMilestoneId, guildId }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -294,6 +302,10 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
   onSelectSubGuide?: (name: string) => void;
   bookmarkStepKey: string | null;
   onStepBookmark: (key: string) => void;
+  guildProgress: GuildMember[];
+  milestones: Milestone[];
+  selectedMilestoneId: string;
+  guildId: string;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -591,6 +603,29 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
 
                         const stepIndexInFullList = steps.findIndex(s => s.stepNumber === step.stepNumber);
 
+                        // ── Per-step presence: who validated or is "rendu" here ──
+                        const selectedMs = milestones.find(m => m.id === selectedMilestoneId);
+                        const validatedMembers: GuildMember[] = [];
+                        const activeMembers: GuildMember[] = [];
+                        if (selectedMs) {
+                          guildProgress.forEach(member => {
+                            const memberMs = milestones.find(m => m.id === member.milestoneId);
+                            if (!memberMs) return;
+                            const isOnOrPastMs = memberMs.order > selectedMs.order || member.isCompleted;
+                            const explicitlyValidated = Array.isArray(member.completedSteps) && member.completedSteps.includes(key);
+                            if (explicitlyValidated || isOnOrPastMs) {
+                              validatedMembers.push(member);
+                            } else if (member.milestoneId === selectedMilestoneId) {
+                              // Member is active on this milestone — check if this is their first incomplete step
+                              const memberCheckedKeys = new Set(Array.isArray(member.completedSteps) ? member.completedSteps : []);
+                              const firstIncompleteStep = steps.find(s => !memberCheckedKeys.has(`${seq.subGuideRef}-${s.stepNumber}`));
+                              if (firstIncompleteStep?.stepNumber === step.stepNumber) {
+                                activeMembers.push(member);
+                              }
+                            }
+                          });
+                        }
+
                         return (
                           <div key={step.stepNumber}
                             id={`sgc-step-${seq.subGuideRef}-${step.stepNumber}`}
@@ -620,34 +655,64 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                               onClick={() => handleStepCheckToggle(step.stepNumber, stepIndexInFullList)}>
                               {step.stepNumber}
                             </span>
-                            <div className="sgc-step-content ganymade-step-text"
-                              onClick={onInteractiveClick}
-                              {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
-                            {coords.length > 0 && (
-                              <div className="sgc-step-coords">
-                                {coords.map((c,i) => {
-                                  const cmd = `/travel ${c.x} ${c.y}`;
-                                  return (
-                                    <div key={i} className="flex items-center gap-1.5">
-                                      <button className="coord-btn" onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigator.clipboard.writeText(cmd);
-                                        toast.success("Commande copiée !", { description: cmd });
-                                      }} title="Copier la commande /travel">
-                                        <MapPin size={9}/> {c.x},{c.y}{c.worldId ? ` (Monde ${c.worldId})` : ''}
-                                      </button>
-                                      <button className="p-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all cursor-pointer inline-flex items-center justify-center h-[22px] w-[22px]"
-                                        onClick={(e) => {
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <div className="sgc-step-content ganymade-step-text"
+                                onClick={onInteractiveClick}
+                                {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
+                              {(validatedMembers.length > 0 || activeMembers.length > 0) && (
+                                <div className="sgc-step-presence">
+                                  {validatedMembers.slice(0, 5).map(m => (
+                                    <a
+                                      key={`val-${m.profileId}`}
+                                      href={`/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`}
+                                      className="sgc-step-presence-avatar validated"
+                                      title={`✅ ${m.userName} — a validé cette étape`}
+                                    >
+                                      {m.userAvatar
+                                        ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
+                                        : m.userName.charAt(0).toUpperCase()}
+                                    </a>
+                                  ))}
+                                  {activeMembers.slice(0, 3).map(m => (
+                                    <a
+                                      key={`act-${m.profileId}`}
+                                      href={`/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`}
+                                      className="sgc-step-presence-avatar active"
+                                      title={`📍 ${m.userName} — rendu à cette étape`}
+                                    >
+                                      {m.userAvatar
+                                        ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
+                                        : m.userName.charAt(0).toUpperCase()}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                              {coords.length > 0 && (
+                                <div className="sgc-step-coords">
+                                  {coords.map((c,i) => {
+                                    const cmd = `/travel ${c.x} ${c.y}`;
+                                    return (
+                                      <div key={i} className="flex items-center gap-1.5">
+                                        <button className="coord-btn" onClick={(e) => {
                                           e.stopPropagation();
-                                          onMapClick(c.x, c.y, c.worldId);
-                                        }} title="Voir la carte HD">
-                                        <Eye size={10} />
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                                          navigator.clipboard.writeText(cmd);
+                                          toast.success("Commande copiée !", { description: cmd });
+                                        }} title="Copier la commande /travel">
+                                          <MapPin size={9}/> {c.x},{c.y}{c.worldId ? ` (Monde ${c.worldId})` : ''}
+                                        </button>
+                                        <button className="p-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all cursor-pointer inline-flex items-center justify-center h-[22px] w-[22px]"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onMapClick(c.x, c.y, c.worldId);
+                                          }} title="Voir la carte HD">
+                                          <Eye size={10} />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         );
                       })
@@ -819,7 +884,7 @@ export default function OptimizedGuideClient({
 }: {
   guide: { id: string; name: string; slug: string };
   milestones: Milestone[];
-  userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: number[] }[];
+  userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[] }[];
   guildProgress: GuildMember[];
   guildId: string;
 }) {
@@ -887,7 +952,16 @@ export default function OptimizedGuideClient({
   }, [selected?.id, selected?.chapter]);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
-  const [checkedSteps, setCheckedSteps] = useState<Set<string>>(new Set());
+  // Initialize checkedSteps from userProgress on mount
+  const [checkedSteps, setCheckedSteps] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    userProgress.forEach(p => {
+      if (Array.isArray(p.completedSteps)) {
+        (p.completedSteps as string[]).forEach(k => initial.add(k));
+      }
+    });
+    return initial;
+  });
   const [search, setSearch] = useState("");
   const [validating, setValidating] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -1259,9 +1333,19 @@ export default function OptimizedGuideClient({
     setCheckedSteps(prev => {
       const next = new Set(prev);
       next.has(key) ? next.delete(key) : next.add(key);
+
+      // Persist to DB: gather all checked keys for the current milestone's sequences
+      if (selected) {
+        const milestoneKeys = Array.from(next).filter(k =>
+          selected.sequences.some(s => k.startsWith(`${s.subGuideRef}-`))
+        );
+        // Fire-and-forget: don't block UI
+        updateStepProgress(guildId, selected.id, milestoneKeys).catch(() => {});
+      }
+
       return next;
     });
-  }, []);
+  }, [selected, guildId]);
 
   const handleToggleMs = useCallback(async () => {
     if (!selected) return;
@@ -1958,6 +2042,10 @@ export default function OptimizedGuideClient({
                           seq={activeSeq}
                           checkedSteps={checkedSteps}
                           onStepToggle={handleStepToggle}
+                          guildProgress={guildProgress}
+                          milestones={milestones}
+                          selectedMilestoneId={selected?.id || ""}
+                          guildId={guildId}
                           onMapClick={(x, y, explicitWorld) => {
                             navigator.clipboard.writeText(`/travel ${x} ${y}`);
                             let worldId = 1;

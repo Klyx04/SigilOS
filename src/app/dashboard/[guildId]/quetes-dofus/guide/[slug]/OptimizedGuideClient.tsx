@@ -1333,13 +1333,16 @@ export default function OptimizedGuideClient({
 
     // 2.5 Image Lightbox Click
     if (target.tagName === "IMG") {
-      const src = target.getAttribute("src");
-      if (src) {
-        e.stopPropagation();
-        e.preventDefault();
-        setImageModal(src);
+      const parentInteractive = target.closest(".clickable-entity, .guide-step-link, .coord-chip, .coord-eye-btn, .guide-ref-link");
+      if (!parentInteractive) {
+        const src = target.getAttribute("src");
+        if (src) {
+          e.stopPropagation();
+          e.preventDefault();
+          setImageModal(src);
+        }
+        return;
       }
-      return;
     }
 
     // 3. Clickable Entities (Dungeons, Items, Quests)

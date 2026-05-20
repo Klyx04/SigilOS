@@ -1289,6 +1289,8 @@
   border-radius: 0 !important;
   box-shadow: none !important;
   transform: none !important;
+  cursor: inherit !important;
+  transition: none !important;
 }
 
 /* ── Subguide Controls & Focus Mode ── */
@@ -1624,6 +1626,9 @@
   background: none !important;
   margin: 0 !important;
   vertical-align: middle !important;
+  cursor: inherit !important;
+  transform: none !important;
+  transition: none !important;
 }
 
 /* Premium Layout for Resource lists and Prerequisites: Sleek and Slim Cards Grid */

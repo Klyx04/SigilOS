@@ -4,7 +4,6 @@ import {
     Bar, 
     XAxis, 
     YAxis, 
-    CartesianGrid, 
     Tooltip, 
     ResponsiveContainer, 
     Cell,
@@ -12,7 +11,7 @@ import {
     Pie
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { MessageSquare, Mic, Activity, Ghost, Maximize2, Search, ArrowUpDown, ExternalLink } from "lucide-react";
+import { MessageSquare, Mic, Activity, Maximize2, Search } from "lucide-react";
 import { MemberReconciliationData, RoleStats } from "@/server/actions/member-actions";
 import { 
     Dialog, 
@@ -48,10 +47,11 @@ interface MemberDiscordChartsProps {
 const CustomTooltip = ({ active, payload, label, suffix = "" }: any) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-zinc-950 border border-white/10 p-3 rounded-xl shadow-2xl backdrop-blur-xl">
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">{label}</p>
-                <p className="text-[14px] font-black text-white tabular-nums">
-                    {payload[0].value.toLocaleString()} <span className="text-[10px] text-zinc-400 uppercase">{suffix}</span>
+            <div className="bg-zinc-950/90 border border-violet-500/20 px-4 py-3 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+                <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-1">{label}</p>
+                <p className="text-[18px] font-black text-white tabular-nums leading-none">
+                    {payload[0].value.toLocaleString()}
+                    <span className="text-[10px] text-zinc-400 uppercase font-bold ml-1.5">{suffix}</span>
                 </p>
             </div>
         );
@@ -65,14 +65,12 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
     const [timeframe, setTimeframe] = useState<"weekly" | "monthly" | "total">("weekly");
     const [sortKey, setSortKey] = useState<string>("messages");
     const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
-
     const [selectedRole, setSelectedRole] = useState<string>("all");
 
     React.useEffect(() => {
         setMounted(true);
     }, []);
 
-    // Helper to get dynamic keys based on timeframe
     const getKeys = () => {
         switch (timeframe) {
             case "monthly":
@@ -86,13 +84,12 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
 
     const keys = getKeys();
 
-    // 1. Calculate general activity status
     const activeCount = members.filter(m => ((m as any)[keys.msg] || 0) > 0 || ((m as any)[keys.voice] || 0) > 0).length;
     const silentCount = Math.max(0, members.length - activeCount);
 
     const activityData = [
-        { name: "Actifs", value: activeCount, color: "#8b5cf6" }, // Violet
-        { name: "Silencieux", value: silentCount, color: "#3f3f46" } // Zinc-700
+        { name: "Actifs", value: activeCount, color: "#8b5cf6" },
+        { name: "Silencieux", value: silentCount, color: "#27272a" }
     ];
 
     if (!mounted) {
@@ -105,22 +102,20 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
         );
     }
 
-    // 2. Top Talkers
     const topTalkers = [...members]
         .sort((a, b) => ((b as any)[keys.msg] || 0) - ((a as any)[keys.msg] || 0))
         .slice(0, 5)
         .map(m => ({
-            name: m.displayName.split(" ")[0],
+            name: m.displayName.split(" ")[0].slice(0, 10),
             value: (m as any)[keys.msg] || 0
         }));
 
-    // 3. Top Vocal
     const topVocal = [...members]
         .sort((a, b) => ((b as any)[keys.voice] || 0) - ((a as any)[keys.voice] || 0))
         .slice(0, 5)
         .map(m => ({
-            name: m.displayName.split(" ")[0],
-            value: Math.round(((m as any)[keys.voice] || 0) / 60) // Convert to hours for chart
+            name: m.displayName.split(" ")[0].slice(0, 10),
+            value: Math.round(((m as any)[keys.voice] || 0) / 60)
         }));
 
     const sortedMembers = [...members]
@@ -148,11 +143,15 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
 
     const timeframeLabel = timeframe === "weekly" ? "cette semaine" : timeframe === "monthly" ? "ce mois-ci" : "all-time";
 
+    // Bar chart gradient colors per index
+    const MSG_GRADIENT_ID = "msgGradient";
+    const VOICE_GRADIENT_ID = "voiceGradient";
+
     return (
         <div className="space-y-6">
             {/* Global Timeframe Selector */}
             <div className="flex justify-end">
-                <div className="bg-zinc-900/50 p-1 rounded-2xl border border-white/5 flex gap-1">
+                <div className="bg-zinc-900/60 p-1 rounded-2xl border border-white/5 backdrop-blur-xl flex gap-1">
                     {[
                         { id: "weekly", label: "Semaine" },
                         { id: "monthly", label: "Mois" },
@@ -163,7 +162,7 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                             onClick={() => setTimeframe(t.id as any)}
                             className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                                 timeframe === t.id 
-                                ? "bg-violet-600 text-white shadow-[0_0_20px_rgba(139,92,246,0.3)]" 
+                                ? "bg-violet-600 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]" 
                                 : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                             }`}
                         >
@@ -174,16 +173,15 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Activity Overview */}
+                {/* Activity Overview — Donut */}
                 <Card className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-violet-400" />
-                                État d&apos;activité
-                            </CardTitle>
-                            <CardDescription className="text-[10px] uppercase font-bold text-zinc-500">Membres actifs {timeframeLabel}</CardDescription>
-                        </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-violet-400" />
+                            État d&apos;activité
+                        </CardTitle>
+                        <CardDescription className="text-[10px] uppercase font-bold text-zinc-500">Membres actifs {timeframeLabel}</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[250px] relative min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>
@@ -192,27 +190,46 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                                     data={activityData}
                                     cx="50%"
                                     cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
+                                    innerRadius={62}
+                                    outerRadius={84}
+                                    paddingAngle={4}
                                     dataKey="value"
+                                    strokeWidth={0}
                                 >
                                     {activityData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                                        <Cell 
+                                            key={`cell-${index}`} 
+                                            fill={entry.color} 
+                                            stroke="none"
+                                            style={{ filter: index === 0 ? "drop-shadow(0 0 12px rgba(139,92,246,0.5))" : "none" }}
+                                        />
                                     ))}
                                 </Pie>
                                 <Tooltip content={<CustomTooltip suffix="membres" />} />
                             </PieChart>
                         </ResponsiveContainer>
+                        {/* Center label */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-4">
                             <span className="text-3xl font-black text-white">{members.length > 0 ? Math.round((activeCount / members.length) * 100) : 0}%</span>
                             <span className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Actif</span>
                         </div>
                     </CardContent>
+                    {/* Legend */}
+                    <div className="px-6 pb-5 flex items-center justify-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Actifs <span className="text-white">{activeCount}</span></span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Silencieux <span className="text-white">{silentCount}</span></span>
+                        </div>
+                    </div>
                 </Card>
 
                 {/* Top Messages */}
                 <Card className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <CardHeader className="pb-2 flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
@@ -238,7 +255,7 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                                     <DialogDescription className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Breakdown complet des statistiques Discord de la guilde</DialogDescription>
                                 </DialogHeader>
                                 
-                                <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                                <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
                                     <div className="flex flex-col md:flex-row gap-4">
                                         <div className="relative flex-1 group">
                                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-violet-500 transition-colors" />
@@ -270,18 +287,24 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                                                 <TableRow className="border-white/5 hover:bg-transparent">
                                                     <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Membre</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Rôles Mappés</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-widest text-center cursor-pointer hover:text-white transition-colors" onClick={() => { setSortKey("messages"); setSortOrder(prev => prev === "desc" ? "asc" : "desc"); }}>
-                                                        Messages {sortKey === "messages" && (sortOrder === "desc" ? "↓" : "↑")}
+                                                    <TableHead
+                                                        className="text-[10px] font-black uppercase text-zinc-500 tracking-widest text-center cursor-pointer hover:text-blue-400 transition-colors"
+                                                        onClick={() => { setSortKey("messages"); setSortOrder(prev => prev === "desc" ? "asc" : "desc"); }}
+                                                    >
+                                                        Messages {sortKey === "messages" && <span className="text-blue-400">{sortOrder === "desc" ? "↓" : "↑"}</span>}
                                                     </TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-widest text-center cursor-pointer hover:text-white transition-colors" onClick={() => { setSortKey("vocal"); setSortOrder(prev => prev === "desc" ? "asc" : "desc"); }}>
-                                                        Vocal {sortKey === "vocal" && (sortOrder === "desc" ? "↓" : "↑")}
+                                                    <TableHead
+                                                        className="text-[10px] font-black uppercase text-zinc-500 tracking-widest text-center cursor-pointer hover:text-emerald-400 transition-colors"
+                                                        onClick={() => { setSortKey("vocal"); setSortOrder(prev => prev === "desc" ? "asc" : "desc"); }}
+                                                    >
+                                                        Vocal {sortKey === "vocal" && <span className="text-emerald-400">{sortOrder === "desc" ? "↓" : "↑"}</span>}
                                                     </TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase text-zinc-500 tracking-widest text-right">Dashboard</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {sortedMembers.map(m => (
-                                                    <TableRow key={m.discordId} className="border-white/5 hover:bg-white/[0.01]">
+                                                    <TableRow key={m.discordId} className="border-white/[0.03] hover:bg-white/[0.02]">
                                                         <TableCell className="font-bold text-white text-[13px]">
                                                             {m.displayName}
                                                             <p className="text-[10px] text-zinc-600 font-medium">@{m.username}</p>
@@ -318,9 +341,15 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                             </DialogContent>
                         </Dialog>
                     </CardHeader>
-                    <CardContent className="h-[250px] pt-4 min-h-[250px]">
+                    <CardContent className="h-[250px] pt-2 min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>
-                            <BarChart data={topTalkers} margin={{ top: 0, right: 30, left: -20, bottom: 0 }}>
+                            <BarChart data={topTalkers} margin={{ top: 8, right: 16, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id={MSG_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
+                                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.4} />
+                                    </linearGradient>
+                                </defs>
                                 <XAxis 
                                     dataKey="name" 
                                     axisLine={false} 
@@ -328,12 +357,13 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                                     tick={{ fill: "#71717a", fontSize: 10, fontWeight: "bold" }} 
                                 />
                                 <YAxis hide />
-                                <Tooltip cursor={{ fill: "rgba(255,255,255,0.03)" }} content={<CustomTooltip suffix="messages" />} />
+                                <Tooltip cursor={{ fill: "rgba(255,255,255,0.02)", radius: 8 }} content={<CustomTooltip suffix="msgs" />} />
                                 <Bar 
                                     dataKey="value" 
-                                    fill="#3b82f6" 
-                                    radius={[8, 8, 8, 8]} 
-                                    barSize={25}
+                                    fill={`url(#${MSG_GRADIENT_ID})`}
+                                    radius={[8, 8, 4, 4]} 
+                                    barSize={28}
+                                    style={{ filter: "drop-shadow(0 4px 12px rgba(59,130,246,0.3))" }}
                                 />
                             </BarChart>
                         </ResponsiveContainer>
@@ -342,18 +372,23 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
 
                 {/* Top Vocal */}
                 <Card className="bg-zinc-900/30 border-white/5 backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative group">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
-                                <Mic className="w-4 h-4 text-emerald-400" />
-                                Top Vidéo/Vocal
-                            </CardTitle>
-                            <CardDescription className="text-[10px] uppercase font-bold text-zinc-500">Temps parole {timeframeLabel}</CardDescription>
-                        </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-white italic flex items-center gap-2">
+                            <Mic className="w-4 h-4 text-emerald-400" />
+                            Top Vocal
+                        </CardTitle>
+                        <CardDescription className="text-[10px] uppercase font-bold text-zinc-500">Temps parole {timeframeLabel}</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[250px] pt-4 min-h-[250px]">
+                    <CardContent className="h-[250px] pt-2 min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>
-                            <BarChart data={topVocal} margin={{ top: 0, right: 30, left: -20, bottom: 0 }}>
+                            <BarChart data={topVocal} margin={{ top: 8, right: 16, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id={VOICE_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.4} />
+                                    </linearGradient>
+                                </defs>
                                 <XAxis 
                                     dataKey="name" 
                                     axisLine={false} 
@@ -361,12 +396,13 @@ export function MemberDiscordCharts({ members, roleStats }: MemberDiscordChartsP
                                     tick={{ fill: "#71717a", fontSize: 10, fontWeight: "bold" }} 
                                 />
                                 <YAxis hide />
-                                <Tooltip cursor={{ fill: "rgba(255,255,255,0.03)" }} content={<CustomTooltip suffix="heures" />} />
+                                <Tooltip cursor={{ fill: "rgba(255,255,255,0.02)", radius: 8 }} content={<CustomTooltip suffix="heures" />} />
                                 <Bar 
                                     dataKey="value" 
-                                    fill="#10b981" 
-                                    radius={[8, 8, 8, 8]} 
-                                    barSize={25}
+                                    fill={`url(#${VOICE_GRADIENT_ID})`}
+                                    radius={[8, 8, 4, 4]} 
+                                    barSize={28}
+                                    style={{ filter: "drop-shadow(0 4px 12px rgba(16,185,129,0.3))" }}
                                 />
                             </BarChart>
                         </ResponsiveContainer>

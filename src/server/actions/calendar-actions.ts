@@ -988,9 +988,21 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, name: true, calendarNotifyChannelId: true }
+            select: { id: true, name: true, calendarNotifyChannelId: true, calendarPingRoleIds: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        // SECURITY: Validate pingRoleId against the admin-configured whitelist
+        if (pingRoleId && pingRoleId !== "everyone") {
+            const allowedRoleIds: string[] = guildConfig.calendarPingRoleIds ?? [];
+            if (!allowedRoleIds.includes(pingRoleId)) {
+                return { success: false, error: "Ce rôle n'est pas autorisé pour les mentions de calendrier" };
+            }
+        }
+        // Block @everyone unless explicitly whitelisted via special sentinel value
+        if (pingRoleId === "everyone" && !(guildConfig.calendarPingRoleIds ?? []).includes("everyone")) {
+            return { success: false, error: "@everyone n'est pas autorisé pour les rappels de calendrier" };
+        }
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
@@ -1247,11 +1259,24 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
             select: {
                 id: true,
                 calendarNotifyChannelId: true,
-                name: true
+                name: true,
+                calendarPingRoleIds: true
             }
         });
 
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        // SECURITY: Validate pingRoleId against the admin-configured whitelist
+        if (pingRoleId && pingRoleId !== "everyone") {
+            const allowedRoleIds: string[] = guildConfig.calendarPingRoleIds ?? [];
+            if (!allowedRoleIds.includes(pingRoleId)) {
+                return { success: false, error: "Ce rôle n'est pas autorisé pour les notifications de calendrier" };
+            }
+        }
+        // Block @everyone unless explicitly whitelisted via special sentinel value
+        if (pingRoleId === "everyone" && !(guildConfig.calendarPingRoleIds ?? []).includes("everyone")) {
+            return { success: false, error: "@everyone n'est pas autorisé pour les notifications de calendrier" };
+        }
         if (!guildConfig.calendarNotifyChannelId) {
             return { success: false, error: "Salon Discord non configuré. Allez dans Admin > Calendrier." };
         }
@@ -1300,17 +1325,24 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
         const typeConfig = { emoji: "📅", color: 0x5865F2 };
 
         // Resolve Mentions
+        // SECURITY: All role IDs — whether from param or metadata — must be in the whitelist
+        const allowedRoleIds: string[] = guildConfig.calendarPingRoleIds ?? [];
         let mentionContent = "";
         const meta = event.metadata as any;
-        
+
         if (pingRoleId) {
+            // Already validated above — safe to use directly
             if (pingRoleId === "everyone") mentionContent = "@everyone";
             else mentionContent = `<@&${pingRoleId}>`;
         } else if (meta?.mentionRoleIds && Array.isArray(meta.mentionRoleIds)) {
-            mentionContent = meta.mentionRoleIds.map((id: string) => `<@&${id}>`).join(" ");
-        } else if (meta?.mentionType === "EVERYONE") {
+            // SECURITY: Filter metadata role IDs through whitelist
+            const safeIds = (meta.mentionRoleIds as string[]).filter((id) => allowedRoleIds.includes(id));
+            mentionContent = safeIds.map((id) => `<@&${id}>`).join(" ");
+        } else if (meta?.mentionType === "EVERYONE" && allowedRoleIds.includes("everyone")) {
+            // SECURITY: Only allow @everyone if explicitly in whitelist
             mentionContent = "@everyone";
-        } else if (meta?.mentionType === "ROLE" && meta?.mentionRoleId) {
+        } else if (meta?.mentionType === "ROLE" && meta?.mentionRoleId && allowedRoleIds.includes(meta.mentionRoleId)) {
+            // SECURITY: Validate single stored mentionRoleId against whitelist
             mentionContent = `<@&${meta.mentionRoleId}>`;
         }
 

@@ -26,6 +26,7 @@ import {
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
@@ -449,34 +450,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                             Mois
                                         </button>
                                     </div>
-
-                                    {/* Prev/Auj/Next */}
-                                    <div className="flex items-center bg-zinc-950/50 border border-zinc-800 rounded-full">
-                                        <button
-                                            onClick={() => {
-                                                const date = gridType === "week" ? subWeeks(currentDate, 1) : subMonths(currentDate, 1);
-                                                setCurrentDate(date);
-                                            }}
-                                            className="p-2 hover:bg-zinc-800 rounded-l-full"
-                                        >
-                                            <ChevronLeft className="h-4 w-4 text-zinc-400" />
-                                        </button>
-                                        <button
-                                            onClick={() => setCurrentDate(new Date())}
-                                            className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 hover:text-zinc-100"
-                                        >
-                                            Auj.
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                const date = gridType === "week" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
-                                                setCurrentDate(date);
-                                            }}
-                                            className="p-2 hover:bg-zinc-800 rounded-r-full"
-                                        >
-                                            <ChevronRight className="h-4 w-4 text-zinc-400" />
-                                        </button>
-                                    </div>
                                 </div>
                             )}
 
@@ -559,6 +532,75 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         })}
                     </div>
                 )}
+            </div>
+
+            {/* ============ ACTIVE PERIOD BANNER (FRESH & ELEGANT) ============ */}
+            <div className="relative overflow-hidden rounded-2xl border border-white/[0.04] bg-[#0c1012]/60 backdrop-blur-xl p-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                {/* Decorative background ambient lights */}
+                <div className="absolute -top-12 -left-12 w-48 h-48 bg-amber-500/10 rounded-full blur-[60px] pointer-events-none" />
+                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-orange-500/10 rounded-full blur-[60px] pointer-events-none" />
+
+                <div className="relative flex items-center gap-4">
+                    <div className="h-11 w-11 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">
+                        <Sparkles className="h-5 w-5 text-amber-400" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl md:text-2xl font-black uppercase tracking-wider text-zinc-100 flex items-center gap-3">
+                            <span className="bg-gradient-to-r from-zinc-100 via-amber-200 to-amber-400 bg-clip-text text-transparent">
+                                {(() => {
+                                    const monthStr = format(currentDate, "MMMM yyyy", { locale: fr });
+                                    return monthStr.charAt(0).toUpperCase() + monthStr.slice(1);
+                                })()}
+                            </span>
+                            {displayMode === "grid" && (
+                                <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase px-2 py-0.5 tracking-wider shrink-0">
+                                    Semaine {format(currentDate, "I", { locale: fr })}
+                                </Badge>
+                            )}
+                        </h3>
+                        <p className="text-xs text-zinc-400 font-bold tracking-tight mt-0.5">
+                            {displayMode === "grid" 
+                                ? (gridType === "week" ? "Agenda hebdomadaire complet" : "Agenda mensuel de la guilde") 
+                                : "Liste chronologique des événements"}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="relative flex items-center gap-3">
+                    {/* Fast Navigation Controls */}
+                    <div className="flex bg-[#070b0c]/90 border border-white/5 rounded-xl p-1 shadow-inner">
+                        <button
+                            onClick={() => {
+                                const date = displayMode === "list"
+                                    ? subMonths(currentDate, 1)
+                                    : (gridType === "week" ? subWeeks(currentDate, 1) : subMonths(currentDate, 1));
+                                setCurrentDate(date);
+                            }}
+                            className="p-2 hover:bg-white/5 rounded-lg transition-all active:scale-95"
+                            title="Période précédente"
+                        >
+                            <ChevronLeft className="h-4.5 w-4.5 text-zinc-300" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentDate(new Date())}
+                            className="px-4 py-1.5 text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white rounded-lg hover:bg-white/5 transition-all"
+                        >
+                            Aujourd'hui
+                        </button>
+                        <button
+                            onClick={() => {
+                                const date = displayMode === "list"
+                                    ? addMonths(currentDate, 1)
+                                    : (gridType === "week" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1));
+                                setCurrentDate(date);
+                            }}
+                            className="p-2 hover:bg-white/5 rounded-lg transition-all active:scale-95"
+                            title="Période suivante"
+                        >
+                            <ChevronRight className="h-4.5 w-4.5 text-zinc-300" />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* ============ MAIN CONTENT AREA (Stable) ============ */}

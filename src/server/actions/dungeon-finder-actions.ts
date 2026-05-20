@@ -548,9 +548,18 @@ export async function createDjPost(
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, djPingRoleIds: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // SECURITY: Validate every mentionRoleId against the admin-configured whitelist
+        if (mentionRoleIds.length > 0) {
+            const allowedRoleIds: string[] = guildConfig.djPingRoleIds ?? [];
+            const invalidRoles = mentionRoleIds.filter((id) => !allowedRoleIds.includes(id));
+            if (invalidRoles.length > 0) {
+                return { success: false, error: "Un ou plusieurs rôles mentionnés ne sont pas autorisés" };
+            }
+        }
 
         // Anti-spam: max 3 active posts per user
         const activeCount = await (db as any).djSearchPost.count({

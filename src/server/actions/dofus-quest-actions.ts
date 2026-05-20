@@ -948,7 +948,8 @@ export async function toggleDofusObtained(
     guildId: string,
     dofusId: string,
     obtained: boolean,
-    characterName: string = "PRINCIPAL"
+    characterName: string = "PRINCIPAL",
+    syncAllMules: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
@@ -962,72 +963,85 @@ export async function toggleDofusObtained(
     if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
     try {
-        await (db as any).playerDofusProgress.upsert({
-            where: {
-                profileId_dofusId_characterName: {
-                    profileId: ctx.profileId,
-                    dofusId,
-                    characterName,
-                },
-            },
-            update: {
-                isObtained: obtained,
-                obtainedAt: obtained ? new Date() : null,
-            },
-            create: {
-                profileId: ctx.profileId,
-                guildId: guildConfig.id,
-                dofusId,
-                characterName,
-                isObtained: obtained,
-                obtainedAt: obtained ? new Date() : null,
-            },
-        });
-
-        // Si marqué comme obtenu, marquer toutes ses quêtes comme COMPLETED
-        if (obtained) {
-            const chains = await (db as any).dofusQuestChain.findMany({
-                where: { dofusId },
-                include: { entries: { select: { id: true } } },
+        let charactersToUpdate = [characterName];
+        if (syncAllMules) {
+            const profile = await db.userProfile.findUnique({
+                where: { id: ctx.profileId },
+                select: { altPseudos: true }
             });
-            const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
+            const altPseudosList = Array.isArray(profile?.altPseudos) ? (profile.altPseudos as any[]) : [];
+            const muleNames = altPseudosList.map(m => typeof m === 'string' ? m : m.pseudo).filter(Boolean);
+            charactersToUpdate = Array.from(new Set(["PRINCIPAL", ...muleNames]));
+        }
 
-            if (allEntryIds.length > 0) {
-                // Use a transaction for bulk update
-                await db.$transaction(
-                    allEntryIds.map((questId: string) =>
-                        (db as any).playerDofusQuestProgress.upsert({
-                            where: {
-                                profileId_questId_characterName: { 
-                                    profileId: ctx.profileId!, 
-                                    questId,
-                                    characterName 
-                                },
-                            },
-                            update: { status: "COMPLETED", completedAt: new Date() },
-                            create: {
-                                profileId: ctx.profileId!,
-                                guildId: guildConfig.id,
-                                questId,
-                                characterName,
-                                status: "COMPLETED",
-                                completedAt: new Date(),
-                            },
-                        })
-                    )
-                );
-            }
-            // Also update the completion percentage to 100
-            await (db as any).playerDofusProgress.update({
+        for (const charName of charactersToUpdate) {
+            await (db as any).playerDofusProgress.upsert({
                 where: {
                     profileId_dofusId_characterName: {
                         profileId: ctx.profileId,
                         dofusId,
-                        characterName,
+                        characterName: charName,
                     },
                 },
-                data: { completionPercent: 100 }
+                update: {
+                    isObtained: obtained,
+                    obtainedAt: obtained ? new Date() : null,
+                },
+                create: {
+                    profileId: ctx.profileId,
+                    guildId: guildConfig.id,
+                    dofusId,
+                    characterName: charName,
+                    isObtained: obtained,
+                    obtainedAt: obtained ? new Date() : null,
+                },
             });
+
+            // Si marqué comme obtenu, marquer toutes ses quêtes comme COMPLETED
+            if (obtained) {
+                const chains = await (db as any).dofusQuestChain.findMany({
+                    where: { dofusId },
+                    include: { entries: { select: { id: true } } },
+                });
+                const allEntryIds = chains.flatMap((c: any) => c.entries.map((e: any) => e.id));
+
+                if (allEntryIds.length > 0) {
+                    // Use a transaction for bulk update
+                    await db.$transaction(
+                        allEntryIds.map((questId: string) =>
+                            (db as any).playerDofusQuestProgress.upsert({
+                                where: {
+                                    profileId_questId_characterName: { 
+                                        profileId: ctx.profileId!, 
+                                        questId,
+                                        characterName: charName 
+                                    },
+                                },
+                                update: { status: "COMPLETED", completedAt: new Date() },
+                                create: {
+                                    profileId: ctx.profileId!,
+                                    guildId: guildConfig.id,
+                                    questId,
+                                    characterName: charName,
+                                    status: "COMPLETED",
+                                    completedAt: new Date(),
+                                },
+                            })
+                        )
+                    );
+                }
+                // Also update the completion percentage to 100
+                await (db as any).playerDofusProgress.update({
+                    where: {
+                        profileId_dofusId_characterName: {
+                            profileId: ctx.profileId,
+                            dofusId,
+                            characterName: charName,
+                        },
+                    },
+                    data: { completionPercent: 100 }
+                });
+            }
         }
 
         revalidatePath(`/dashboard/${guildId}/quetes-dofus`);

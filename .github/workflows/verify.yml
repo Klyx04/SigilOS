@@ -83,13 +83,23 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: 🔒 Lockfile Integrity Check
+        run: |
+          # Verify lockfile wasn't tampered — npm ci should not modify it
+          if [ -n "$(git diff --name-only package-lock.json)" ]; then
+            echo "::error::package-lock.json was modified by npm ci — possible supply chain tampering!"
+            git diff package-lock.json
+            exit 1
+          fi
+          echo "✅ Lockfile integrity verified"
+
       - name: 💎 Generate Prisma Client
         run: npx prisma generate
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
 
       - name: 🛡️ Security Audit
-        run: npm audit --audit-level=critical
+        run: npm audit --audit-level=high
 
       - name: 🔬 SAST Scan (Semgrep)
         uses: semgrep/semgrep-action@v1
@@ -153,6 +163,15 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
+
+      - name: 🔒 Lockfile Integrity Check
+        run: |
+          if [ -n "$(git diff --name-only package-lock.json)" ]; then
+            echo "::error::package-lock.json was modified by npm ci — possible supply chain tampering!"
+            git diff package-lock.json
+            exit 1
+          fi
+          echo "✅ Lockfile integrity verified"
 
       - name: 🛡️ Full Security Audit
         run: npm audit --audit-level=high

@@ -884,7 +884,9 @@ const AltPseudoObjectSchema = z.object({
         .max(20, "Pseudo trop long")
         .regex(/^[A-Z\u00C0-\u017F][a-zA-Z\u00C0-\u017F]*(-[a-zA-Z\u00C0-\u017F]+)*$/, "Format invalide (Ex: Pseudo, Pseudo-mule - Pas de chiffres ni caractères spéciaux)"),
     classe: z.string().optional(),
-    level: z.number().min(0).max(200).optional()
+    level: z.number().min(0).max(200).optional(),
+    alignment: z.string().nullable().optional(),
+    alignmentOrder: z.string().nullable().optional(),
 });
 
 const UpdateAltPseudosSchema = z.object({

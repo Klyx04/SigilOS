@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
 import { getUserContext } from "@/server/actions/user-actions";
 import { OcreDashboard, KralamoureWidget, NotLinkedState, OcreSyncButton } from "@/components/ocre";
+import { MetamobLink } from "@/components/profile/metamob-link";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,6 +91,16 @@ export default async function QueteOcrePage({
 
                     {/* Sidebar */}
                     <aside className="hidden lg:block space-y-6">
+                        {ocreResponse.success && ocreResponse.data && (
+                            <MetamobLink 
+                                guildId={guildId}
+                                metamobPseudo={profile?.metamobPseudo}
+                                metamobVerified={profile?.metamobVerified}
+                                metamobLastSync={profile?.metamobLastSync}
+                                progressData={ocreResponse.data}
+                            />
+                        )}
+
                         <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
                             <KralamoureWidget guildId={guildId} canManageCalendar={user.canManageCalendar} />
                         </Suspense>
@@ -123,3 +134,4 @@ export default async function QueteOcrePage({
         </div>
     );
 }
+

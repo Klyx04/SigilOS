@@ -158,7 +158,7 @@ async function expireOldPosts(guildId: string) {
 
 async function sendDiscordNotification(
     guildId: string,
-    postId: string,
+    post: any,
     embed: any,
     mentionRoleId?: string | null,
     creatorDiscordId?: string | null
@@ -179,13 +179,20 @@ async function sendDiscordNotification(
         const isForumChannel = channelData.type === 15;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
 
-        const components = [{
-            type: 1, components: [
-                { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${postId}` },
-                { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${postId}` },
-                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: embed.url || `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
-            ]
-        }];
+        const buttonComponents: any[] = [
+            { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${post.id}` },
+            { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${post.id}` },
+            { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: embed.url || `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+        ];
+
+        if (post.questUrl && post.questUrl.includes("dofuspourlesnoobs")) {
+            buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.questUrl });
+        }
+        if (post.questId && post.questId !== -1) {
+            buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
+        }
+
+        const components = [{ type: 1, components: buttonComponents }];
 
         let discordMessageId: string | null = null;
         let discordChannelId: string | null = null;
@@ -249,7 +256,7 @@ async function sendDiscordNotification(
 
         if (discordChannelId && discordMessageId) {
             await (db as any).djSearchPost.update({
-                where: { id: postId },
+                where: { id: post.id },
                 data: { discordMessageId, discordChannelId },
             });
         }
@@ -282,17 +289,22 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
         const embed = await buildPostEmbed(post, authorName, guildId, post.participants);
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
         const isOpen = post.status === "OPEN" || post.status === "FULL";
-        const components = isOpen ? [{
-            type: 1, components: [
-                { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${postId}` },
-                { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${postId}` },
-                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
-            ]
-        }] : [{
-            type: 1, components: [
-                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
-            ]
-        }];
+        const buttonComponents: any[] = isOpen ? [
+            { type: 2, style: 1, label: "S'inscrire", emoji: { name: "⚔️" }, custom_id: `dj:join:${postId}` },
+            { type: 2, style: 4, label: "Se désinscrire", emoji: { name: "🚪" }, custom_id: `dj:leave:${postId}` },
+            { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+        ] : [
+            { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
+        ];
+
+        if (post.questUrl && post.questUrl.includes("dofuspourlesnoobs")) {
+            buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.questUrl });
+        }
+        if (post.questId && post.questId !== -1) {
+            buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
+        }
+
+        const components = [{ type: 1, components: buttonComponents }];
         const patchRes = await fetch(
             `https://discord.com/api/v10/channels/${post.discordChannelId}/messages/${post.discordMessageId}`,
             { method: "PATCH", headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ embeds: [embed], components }) }
@@ -552,9 +564,16 @@ export async function createDjPost(
             return { success: false, error: "Tu as déjà 3 posts actifs. Ferme-en un pour en créer un nouveau." };
         }
 
+        let finalQuestUrl = rest.questUrl;
+        if (rest.mode === "QUETE" && !finalQuestUrl && rest.questName) {
+            const { getVerifiedDPLNUrl } = await import("@/lib/dofus-noobs-helper");
+            finalQuestUrl = await getVerifiedDPLNUrl(rest.questName);
+        }
+
         const post = await (db as any).djSearchPost.create({
             data: {
                 ...rest,
+                questUrl: finalQuestUrl,
                 guildId: guildConfig.id,
                 profileId: user.profileId,
                 mentionRoleId,
@@ -579,7 +598,7 @@ export async function createDjPost(
             const authorName = user.name || "Membre";
             const embed = await buildPostEmbed(post, authorName, guildId);
             const creatorDiscordId = await getDiscordId(user.id || "");
-            await sendDiscordNotification(guildId, post.id, embed, mentionRoleId, creatorDiscordId);
+            await sendDiscordNotification(guildId, post, embed, mentionRoleId, creatorDiscordId);
         }
 
 
@@ -1188,9 +1207,17 @@ export async function getDjPosts(
             },
         });
 
-        const data = posts.map((p: any) => ({
-            ...p,
-            _acceptedCount: p.participants.filter((part: any) => part.status === "ACCEPTED").length,
+        const data = await Promise.all(posts.map(async (p: any) => {
+            let questUrl = p.questUrl;
+            if (p.mode === "QUETE" && !questUrl && p.questName) {
+                const { getVerifiedDPLNUrl } = await import("@/lib/dofus-noobs-helper");
+                questUrl = await getVerifiedDPLNUrl(p.questName);
+            }
+            return {
+                ...p,
+                questUrl,
+                _acceptedCount: p.participants.filter((part: any) => part.status === "ACCEPTED").length,
+            };
         }));
 
         return { success: true, data: data as any };

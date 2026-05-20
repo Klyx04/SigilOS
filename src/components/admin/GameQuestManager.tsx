@@ -17,7 +17,7 @@ import {
     updateGameQuest,
     deleteGameQuest,
 } from "@/server/actions/game-data-admin-actions";
-import { Map, Trash2, Edit2, Plus, Search, MoreHorizontal, ExternalLink } from "lucide-react";
+import { Map, Trash2, Edit2, Plus, Search, MoreHorizontal, ExternalLink, Loader2, ChevronDown, ChevronUp, BookOpen, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
     DropdownMenu,
@@ -25,6 +25,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getQuestPrerequisites } from "@/server/actions/dofus-search-actions";
 
 interface GameQuest {
     id: string;
@@ -47,6 +48,35 @@ export default function GameQuestManager() {
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+
+    // Advanced Filters state
+    const [selectedCategory, setSelectedCategory] = useState<string>("");
+    const [minLevel, setMinLevel] = useState<string>("");
+    const [maxLevel, setMaxLevel] = useState<string>("");
+    const [selectedSource, setSelectedSource] = useState<string>("ALL");
+
+    // Prerequisites dynamic loader state
+    const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null);
+    const [loadedPrereqs, setLoadedPrereqs] = useState<Record<number, any>>({});
+    const [loadingPrereqs, setLoadingPrereqs] = useState<Record<number, boolean>>({});
+
+    const togglePrerequisites = useCallback(async (questId: string, dofusDbId: number) => {
+        if (expandedQuestId === questId) {
+            setExpandedQuestId(null);
+            return;
+        }
+        setExpandedQuestId(questId);
+        if (loadedPrereqs[dofusDbId]) return;
+
+        setLoadingPrereqs(prev => ({ ...prev, [dofusDbId]: true }));
+        const res = await getQuestPrerequisites(dofusDbId);
+        if (res.success && res.data) {
+            setLoadedPrereqs(prev => ({ ...prev, [dofusDbId]: res.data }));
+        } else {
+            toast.error(res.error || "Impossible de charger les prérequis");
+        }
+        setLoadingPrereqs(prev => ({ ...prev, [dofusDbId]: false }));
+    }, [expandedQuestId, loadedPrereqs]);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -118,33 +148,136 @@ export default function GameQuestManager() {
         setIsDialogOpen(true);
     }
 
-    const filtered = quests.filter(q =>
-        q.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (q.category || "").toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Dynamically build all categories from all quests
+    const allCategories = [...new Set(quests.map(q => q.category).filter(Boolean))].sort() as string[];
+
+    const filtered = quests.filter(q => {
+        // Search query
+        const matchSearch = searchQuery === "" ||
+            q.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (q.category || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (q.dofusDbId?.toString() || "").includes(searchQuery);
+
+        // Category/Zone
+        const matchCategory = selectedCategory === "" || q.category === selectedCategory;
+
+        // Level bounds
+        const qMin = q.levelMin ?? 1;
+        const passMin = minLevel === "" || qMin >= Number(minLevel);
+        const passMax = maxLevel === "" || qMin <= Number(maxLevel);
+
+        // Source filter
+        const isDofusDb = q.dofusDbId !== null && q.dofusDbId !== undefined;
+        const matchSource = selectedSource === "ALL" ||
+            (selectedSource === "DOFUSDB" && isDofusDb) ||
+            (selectedSource === "MANUAL" && !isDofusDb);
+
+        return matchSearch && matchCategory && passMin && passMax && matchSource;
+    });
+
+    const hasActiveFilters = selectedCategory !== "" || minLevel !== "" || maxLevel !== "" || selectedSource !== "ALL" || searchQuery !== "";
 
     // Group by category
     const categories = [...new Set(filtered.map(q => q.category || "Non classé"))].sort();
 
     return (
         <div className="space-y-4">
-            {/* Toolbar */}
-            <div className="flex flex-col md:flex-row items-center gap-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
-                <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input
-                        placeholder="Rechercher une quête..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500"
-                    />
+            {/* Toolbar & Filters */}
+            <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 space-y-4">
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                    <div className="relative flex-1 w-full">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <Input
+                            placeholder="Rechercher une quête par nom ou catégorie..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
+                    </div>
+                    <Button
+                        onClick={() => { resetForm(); setIsDialogOpen(true); }}
+                        className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 shrink-0"
+                    >
+                        <Plus className="w-4 h-4 mr-2" /> Nouvelle Quête
+                    </Button>
                 </div>
-                <Button
-                    onClick={() => { resetForm(); setIsDialogOpen(true); }}
-                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 font-medium"
-                >
-                    <Plus className="w-4 h-4 mr-2" /> Nouvelle Quête
-                </Button>
+
+                {/* Advanced Filters */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-slate-800/60">
+                    {/* Zone/Category dropdown */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Zone / Catégorie</label>
+                        <select
+                            value={selectedCategory}
+                            onChange={e => setSelectedCategory(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700/60 rounded-md px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500 cursor-pointer"
+                        >
+                            <option value="">Toutes les zones</option>
+                            {allCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Min Level */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Niveau Min</label>
+                        <Input
+                            type="number"
+                            placeholder="1"
+                            min={1}
+                            max={200}
+                            value={minLevel}
+                            onChange={e => setMinLevel(e.target.value)}
+                            className="h-8 bg-slate-800 border-slate-700/60 text-xs text-slate-200 placeholder:text-slate-600 focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500"
+                        />
+                    </div>
+
+                    {/* Max Level */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Niveau Max</label>
+                        <Input
+                            type="number"
+                            placeholder="200"
+                            min={1}
+                            max={200}
+                            value={maxLevel}
+                            onChange={e => setMaxLevel(e.target.value)}
+                            className="h-8 bg-slate-800 border-slate-700/60 text-xs text-slate-200 placeholder:text-slate-600 focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500"
+                        />
+                    </div>
+
+                    {/* Source */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Source</label>
+                        <select
+                            value={selectedSource}
+                            onChange={e => setSelectedSource(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700/60 rounded-md px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500 cursor-pointer"
+                        >
+                            <option value="ALL">Toutes les sources</option>
+                            <option value="DOFUSDB">DofusDB uniquement</option>
+                            <option value="MANUAL">Manuelle uniquement</option>
+                        </select>
+                    </div>
+                </div>
+
+                {hasActiveFilters && (
+                    <div className="flex justify-end pt-1">
+                        <button
+                            onClick={() => {
+                                setSearchQuery("");
+                                setSelectedCategory("");
+                                setMinLevel("");
+                                setMaxLevel("");
+                                setSelectedSource("ALL");
+                            }}
+                            className="text-xs text-rose-400 hover:text-rose-300 font-semibold transition-all underline decoration-dotted underline-offset-4 cursor-pointer"
+                        >
+                            Réinitialiser les filtres
+                        </button>
+                    </div>
+                )}
             </div>
 
             {loading ? (
@@ -166,51 +299,154 @@ export default function GameQuestManager() {
                                     {items.map(quest => (
                                         <div
                                             key={quest.id}
-                                            className="group relative bg-slate-900/40 border border-slate-800 rounded-xl p-4 hover:border-indigo-500/30 transition-all flex items-start gap-3"
+                                            className="group relative bg-slate-900/40 border border-slate-800 rounded-xl p-4 hover:border-indigo-500/30 transition-all flex flex-col gap-3"
                                         >
-                                            <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
-                                                {quest.imageUrl
-                                                    ? <img src={quest.imageUrl} alt={quest.name} className="w-full h-full object-contain rounded-lg" />
-                                                    : <Map className="w-5 h-5 text-slate-600" />
-                                                }
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-semibold text-slate-200 text-sm truncate">{quest.name}</h4>
-                                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                    {(quest.levelMin || quest.levelMax) && (
-                                                        <span className="text-[10px] text-slate-500">
-                                                            Niv. {quest.levelMin ?? "?"}{quest.levelMax && quest.levelMax !== quest.levelMin ? `–${quest.levelMax}` : ""}
-                                                        </span>
-                                                    )}
-                                                    {quest.dofusDbId && (
-                                                        <a
-                                                            href={`https://dofusdb.fr/fr/database/quest/${quest.dofusDbId}`}
-                                                            target="_blank" rel="noopener noreferrer"
-                                                            onClick={e => e.stopPropagation()}
-                                                            className="text-[10px] text-cyan-500 hover:text-cyan-400 flex items-center gap-0.5"
-                                                        >
-                                                            <ExternalLink className="w-2.5 h-2.5" /> DofusDB
-                                                        </a>
-                                                    )}
+                                            <div className="flex items-start gap-3 w-full">
+                                                <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                                                    {quest.imageUrl
+                                                        ? <img src={quest.imageUrl} alt={quest.name} className="w-full h-full object-contain rounded-lg" />
+                                                        : <Map className="w-5 h-5 text-slate-600" />
+                                                    }
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-semibold text-slate-200 text-sm truncate">{quest.name}</h4>
+                                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                        {(quest.levelMin || quest.levelMax) && (
+                                                            <span className="text-[10px] text-slate-500">
+                                                                Niv. {quest.levelMin ?? "?"}{quest.levelMax && quest.levelMax !== quest.levelMin ? `–${quest.levelMax}` : ""}
+                                                            </span>
+                                                        )}
+                                                        {quest.dofusDbId ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <a
+                                                                    href={`https://dofusdb.fr/fr/database/quest/${quest.dofusDbId}`}
+                                                                    target="_blank" rel="noopener noreferrer"
+                                                                    onClick={e => e.stopPropagation()}
+                                                                    className="text-[10px] text-cyan-500 hover:text-cyan-400 flex items-center gap-0.5"
+                                                                >
+                                                                    <ExternalLink className="w-2.5 h-2.5" /> DofusDB
+                                                                </a>
+                                                                <button
+                                                                    onClick={() => togglePrerequisites(quest.id, quest.dofusDbId!)}
+                                                                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 transition-colors"
+                                                                >
+                                                                    {loadingPrereqs[quest.dofusDbId] ? (
+                                                                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                                                    ) : expandedQuestId === quest.id ? (
+                                                                        <ChevronUp className="w-2.5 h-2.5" />
+                                                                    ) : (
+                                                                        <ChevronDown className="w-2.5 h-2.5" />
+                                                                    )}
+                                                                    Prérequis
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] text-amber-500 font-medium">Manuel</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6 bg-slate-950/80 hover:bg-slate-800 text-slate-400">
+                                                                <MoreHorizontal className="w-3 h-3" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
+                                                            <DropdownMenuItem onClick={() => startEdit(quest)} className="text-slate-300 focus:bg-slate-800 cursor-pointer">
+                                                                <Edit2 className="w-3 h-3 mr-2 text-indigo-400" /> Modifier
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleDelete(quest.id)} className="text-red-400 focus:bg-red-950/30 cursor-pointer">
+                                                                <Trash2 className="w-3 h-3 mr-2" /> Supprimer
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </div>
                                             </div>
-                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6 bg-slate-950/80 hover:bg-slate-800 text-slate-400">
-                                                            <MoreHorizontal className="w-3 h-3" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
-                                                        <DropdownMenuItem onClick={() => startEdit(quest)} className="text-slate-300 focus:bg-slate-800 cursor-pointer">
-                                                            <Edit2 className="w-3 h-3 mr-2 text-indigo-400" /> Modifier
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDelete(quest.id)} className="text-red-400 focus:bg-red-950/30 cursor-pointer">
-                                                            <Trash2 className="w-3 h-3 mr-2" /> Supprimer
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
+
+                                            {/* Prerequisites Section */}
+                                            {quest.dofusDbId && expandedQuestId === quest.id && (
+                                                <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-2.5 animate-fadeIn">
+                                                    {loadingPrereqs[quest.dofusDbId] ? (
+                                                        <div className="flex items-center justify-center py-4">
+                                                            <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                                                        </div>
+                                                    ) : loadedPrereqs[quest.dofusDbId] ? (
+                                                        (() => {
+                                                            const prereqs = loadedPrereqs[quest.dofusDbId];
+                                                            const hasConditions = prereqs.conditions && prereqs.conditions.length > 0;
+                                                            const hasQuests = prereqs.prerequisiteQuests && prereqs.prerequisiteQuests.length > 0;
+                                                            const hasAchievements = prereqs.prerequisiteAchievements && prereqs.prerequisiteAchievements.length > 0;
+
+                                                            if (!hasConditions && !hasQuests && !hasAchievements) {
+                                                                return (
+                                                                    <div className="text-[10px] text-slate-500 italic py-1">
+                                                                        Aucun prérequis spécifique enregistré pour cette quête.
+                                                                    </div>
+                                                                );
+                                                            }
+
+                                                            return (
+                                                                <div className="space-y-2 text-left">
+                                                                    {hasConditions && (
+                                                                        <div className="space-y-0.5">
+                                                                            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Conditions de départ</span>
+                                                                            <ul className="space-y-0.5">
+                                                                                {prereqs.conditions.map((cond: string, idx: number) => (
+                                                                                    <li key={idx} className="text-[10px] text-slate-300 flex items-center gap-1">
+                                                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/85 shrink-0" />
+                                                                                        <span>{cond}</span>
+                                                                                    </li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {hasQuests && (
+                                                                        <div className="space-y-1">
+                                                                            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Quêtes requises ({prereqs.prerequisiteQuests.length})</span>
+                                                                            <div className="flex flex-wrap gap-1">
+                                                                                {prereqs.prerequisiteQuests.map((pq: any) => (
+                                                                                    <a
+                                                                                        key={pq.id}
+                                                                                        href={`https://dofusdb.fr/fr/database/quest/${pq.id}`}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="text-[9px] px-1.5 py-0.5 bg-indigo-950/40 border border-indigo-900/60 text-indigo-300 rounded hover:bg-indigo-900/50 hover:text-indigo-200 transition-all flex items-center gap-1 max-w-full"
+                                                                                    >
+                                                                                        <BookOpen className="w-2.5 h-2.5 shrink-0 text-indigo-400" />
+                                                                                        <span className="truncate">{pq.name}</span>
+                                                                                    </a>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {hasAchievements && (
+                                                                        <div className="space-y-1">
+                                                                            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Succès requis ({prereqs.prerequisiteAchievements.length})</span>
+                                                                            <div className="flex flex-wrap gap-1">
+                                                                                {prereqs.prerequisiteAchievements.map((pa: any) => (
+                                                                                    <a
+                                                                                        key={pa.id}
+                                                                                        href={`https://dofusdb.fr/fr/database/achievement/${pa.id}`}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="text-[9px] px-1.5 py-0.5 bg-amber-950/40 border border-amber-900/60 text-amber-300 rounded hover:bg-amber-900/50 hover:text-amber-200 transition-all flex items-center gap-1 max-w-full"
+                                                                                    >
+                                                                                        <Award className="w-2.5 h-2.5 shrink-0 text-amber-400" />
+                                                                                        <span className="truncate">{pa.name}</span>
+                                                                                    </a>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()
+                                                    ) : null}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

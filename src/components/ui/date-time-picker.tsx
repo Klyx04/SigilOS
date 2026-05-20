@@ -104,9 +104,9 @@ export function DateTimePicker({
                 <button
                     type="button"
                     className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm transition-all text-left",
-                        "bg-slate-900 border-white/5 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-inner",
-                        !value && "text-slate-500",
+                        "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border text-sm transition-all text-left",
+                        "bg-zinc-900/60 hover:bg-zinc-900/80 border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 hover:border-zinc-700 shadow-xl",
+                        !value && "text-zinc-500",
                         className
                     )}
                 >

@@ -172,7 +172,7 @@ export default async function DashboardLayout({
                                 <AnnouncementBanner />
                             </Suspense>
 
-                            <div className="container max-w-[1536px] mx-auto p-4 sm:p-6 lg:p-8 min-h-full flex flex-col">
+                            <div className="container max-w-[1536px] mx-auto p-4 sm:p-6 lg:p-8 pb-28 min-h-full flex flex-col">
                                 {/* Pseudo issues (sync) banner */}
                                 {user.hasPseudoIssue && (
                                     <PseudoWarningBanner guildId={guildId} pseudoDofus={user.pseudoDofus} />

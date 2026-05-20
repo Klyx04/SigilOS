@@ -56,12 +56,13 @@ interface DjPostCreateModalProps {
     guildId: string;
     isOpen: boolean;
     initialDungeonId?: string;
+    initialQuestName?: string;
     isDiscordConfigured?: boolean;
     onClose: () => void;
     onCreated: () => void;
 }
 
-export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscordConfigured, onClose, onCreated }: DjPostCreateModalProps) {
+export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQuestName, isDiscordConfigured, onClose, onCreated }: DjPostCreateModalProps) {
     // Top-Level Mode
     const [step, setStep] = useState(1);
     const [mode, setMode] = useState<"DONJON" | "QUETE">("DONJON");
@@ -105,11 +106,11 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
     useEffect(() => {
         if (isOpen) {
             setStep(1);
-            setMode("DONJON");
+            setMode(initialQuestName ? "QUETE" : "DONJON");
             setDungeonSearch("");
             setSelectedDungeon(null);
             setSelectedAchievements([]);
-            setQuestSearchQuery("");
+            setQuestSearchQuery(initialQuestName || "");
             setQuestSearchResults([]);
             setSelectedQuest(null);
             setQuestUrl("");
@@ -124,7 +125,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
             setIsDiscordPublished(isDiscordConfigured === true);
             setMentionRoleIds([]);
         }
-    }, [isOpen, isDiscordConfigured]);
+    }, [isOpen, isDiscordConfigured, initialQuestName]);
 
     // Fetch Discord Roles
     useEffect(() => {
@@ -191,15 +192,24 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
         setIsSearchingQuests(true);
 
         const timer = setTimeout(() => {
-            fetch(`https://api.dofusdb.fr/quests?name.fr[$regex]=${encodeURIComponent(questSearchQuery)}&$limit=8`, {
-                signal: controller.signal
-            })
+            const proxyUrl = `/api/dofusdb/quests?q=${encodeURIComponent(questSearchQuery.trim())}&limit=8`;
+            fetch(proxyUrl, { signal: controller.signal })
                 .then(res => {
-                    if (!res.ok) throw new Error("API DofusDB indisponible");
+                    if (!res.ok) throw new Error("Proxy DofusDB indisponible");
                     return res.json();
                 })
                 .then(data => {
-                    if (data.data) setQuestSearchResults(data.data);
+                    if (data.data) {
+                        setQuestSearchResults(data.data);
+                        
+                        // Casing & accent-insensitive exact matching
+                        const cleanStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                        const targetClean = cleanStr(questSearchQuery);
+                        const match = data.data.find((q: any) => cleanStr(q.name?.fr || "") === targetClean);
+                        if (match) {
+                            setSelectedQuest({ id: match.id, name: match.name?.fr || "" });
+                        }
+                    }
                 })
                 .catch(err => {
                     if (err.name !== "AbortError") console.error("Erreur DofusDB:", err);
@@ -222,9 +232,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
         const controller = new AbortController();
         setIsSearchingLinkedQuest(true);
         const timer = setTimeout(() => {
-            fetch(`https://api.dofusdb.fr/quests?name.fr[$regex]=${encodeURIComponent(linkedQuestSearch)}&$limit=6`, {
-                signal: controller.signal
-            })
+            const linkedProxyUrl = `/api/dofusdb/quests?q=${encodeURIComponent(linkedQuestSearch.trim())}&limit=6`;
+            fetch(linkedProxyUrl, { signal: controller.signal })
                 .then(res => res.json())
                 .then(data => { if (data.data) setLinkedQuestResults(data.data); })
                 .catch(err => { if (err.name !== "AbortError") console.error(err); })
@@ -365,7 +374,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                 value={dungeonSearch}
                                                 onChange={(e) => setDungeonSearch(e.target.value)}
                                                 placeholder="Rechercher un donjon ou un boss..."
-                                                className="w-full bg-zinc-900 border border-white/5 rounded-2xl pl-11 pr-4 py-4 text-sm text-white focus:outline-none focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/5 transition-all placeholder:text-zinc-600 shadow-xl"
+                                                className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-amber-500/50 rounded-2xl pl-11 pr-4 py-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500/10 transition-all placeholder:text-zinc-500 shadow-xl"
                                             />
                                         </div>
 
@@ -434,7 +443,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                             value={questSearchQuery}
                                                             onChange={(e) => setQuestSearchQuery(e.target.value)}
                                                             placeholder="Ex: L'Étoile du Gerbé..."
-                                                            className="w-full bg-slate-900 border border-white/5 rounded-lg pl-9 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all placeholder:text-slate-600 shadow-inner"
+                                                            className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-cyan-500/50 rounded-xl pl-9 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/10 transition-all placeholder:text-zinc-500 shadow-xl"
                                                         />
 
                                                         {questSearchQuery.trim().length > 0 && (
@@ -556,7 +565,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                 value={questUrl}
                                                 onChange={(e) => setQuestUrl(e.target.value)}
                                                 placeholder="Ex: https://www.dofuspourlesnoobs.com/..."
-                                                className="w-full bg-zinc-900 border border-white/5 rounded-xl pl-11 pr-4 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all placeholder:text-zinc-700 shadow-xl"
+                                                className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-emerald-500/50 rounded-xl pl-11 pr-4 py-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all placeholder:text-zinc-500 shadow-xl"
                                             />
                                         </div>
                                     </div>
@@ -590,7 +599,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                             value={linkedQuestSearch}
                                                             onChange={e => setLinkedQuestSearch(e.target.value)}
                                                             placeholder="Rechercher une quête sur DofusDB..."
-                                                            className="w-full bg-slate-900 border border-white/5 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all placeholder:text-slate-600 shadow-inner"
+                                                            className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-cyan-500/50 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/10 transition-all placeholder:text-zinc-500 shadow-xl"
                                                         />
                                                         {isSearchingLinkedQuest && <p className="text-xs text-slate-500 animate-pulse">Recherche...</p>}
                                                         {linkedQuestResults.length > 0 && (
@@ -674,7 +683,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                         onChange={(e) => setMessage(e.target.value)}
                                         rows={3}
                                         placeholder="Ex: On cherche un tank pour clean les succès du premier coup..."
-                                        className="w-full bg-zinc-900 border border-white/5 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/5 transition-all resize-none shadow-xl placeholder:text-zinc-700"
+                                        className="w-full bg-zinc-900/60 hover:bg-zinc-900/80 border border-zinc-800 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none transition-all resize-none shadow-xl placeholder:text-zinc-500"
                                     />
                                 </div>
 
@@ -695,7 +704,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                     : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
                                             }`}
                                             onClick={() => setStep(3)}
-                                            disabled={isPending || (mode === "DONJON" && !selectedDungeon) || (mode === "QUETE" && !selectedQuest)}
+                                            disabled={isPending || (mode === "DONJON" && !selectedDungeon) || (mode === "QUETE" && !selectedQuest) || !targetDate}
                                         >
                                             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
                                             <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
@@ -871,7 +880,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, isDiscord
                                                     : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
                                             }`}
                                             onClick={handleSubmit}
-                                            disabled={isPending}
+                                            disabled={isPending || !targetDate}
                                         >
                                             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
                                             <div className="flex items-center justify-center gap-3 relative z-10 uppercase">

@@ -282,3 +282,47 @@ function extractStepNumbers(text: string): [number | undefined, number | undefin
   if (m) return [parseInt(m[1]), parseInt(m[2])];
   return [nums[0], nums[nums.length - 1] !== nums[0] ? nums[nums.length - 1] : undefined];
 }
+
+/**
+ * Normalise les chemins d'images et force referrerpolicy="no-referrer" pour contourner le hotlinking
+ */
+export function fixBrokenImages(html: string | null): string {
+  if (!html) return "";
+  const parts = html.split(/(<[^>]+>)/g);
+  const processed = parts.map(part => {
+    if (part.startsWith('<') && part.toLowerCase().startsWith('<img')) {
+      let tagContent = part;
+      // Force referrerpolicy="no-referrer" to bypass hotlinking protection on imgur/dofuspourlesnoobs
+      if (!/referrerpolicy=/i.test(tagContent)) {
+        tagContent = tagContent.replace(/<img/i, '<img referrerpolicy="no-referrer"');
+      }
+      return tagContent.replace(/src=["']?([^"']+)["']?/i, (match, src) => {
+        const lowerSrc = src.toLowerCase();
+        let targetSrc = src;
+
+        if (lowerSrc === 'quest' || lowerSrc.includes('icon_quest.png')) {
+          targetSrc = "https://ganymede-dofus.com/images/icon_quest.png";
+        } else if (lowerSrc === 'dungeon' || lowerSrc.includes('icon_dungeon.png')) {
+          targetSrc = "https://ganymede-dofus.com/images/icon_dungeon.png";
+        } else if (lowerSrc === 'guidestep' || lowerSrc.includes('guides.png')) {
+          targetSrc = "https://ganymede-app.com/images/texteditor/guides.png";
+        } else if (lowerSrc === 'monster' || lowerSrc.includes('icon_monster.png')) {
+          targetSrc = "https://ganymede-dofus.com/images/icon_monster.png";
+        } else if (lowerSrc.includes('gyazo.com/0a5cd701d47079078cad5f59fe91e700')) {
+          targetSrc = "https://ganymede-app.com/images/ganymede-logo.webp";
+        }
+
+        // Proxy external hosts known to block hotlinking
+        const targetLower = targetSrc.toLowerCase();
+        if (targetLower.includes("imgur.com") || targetLower.includes("dofuspourlesnoobs.com")) {
+          return `src="/api/proxy-image?url=${encodeURIComponent(targetSrc)}"`;
+        }
+
+        return `src="${targetSrc}"`;
+      });
+    }
+    return part;
+  });
+  return processed.join("");
+}
+

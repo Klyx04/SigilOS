@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { getUserContext } from "@/server/actions/user-actions";
 import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
@@ -539,6 +540,80 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
             }
         }
 
+        // 1. Scan for triggered spell IDs
+        const triggeredSpellIds: number[] = [];
+        spellsArr.forEach(s => {
+            const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
+            const level = spellLevelsMap[levelId];
+            if (level && Array.isArray(level.effects)) {
+                level.effects.forEach((eff: any) => {
+                    if (eff.effectId === 1160 || eff.effectId === 2160 || eff.effectId === 2161) {
+                        const tid = eff.diceNum || eff.value;
+                        if (tid && typeof tid === 'number') {
+                            triggeredSpellIds.push(tid);
+                        }
+                    }
+                });
+            }
+        });
+
+        // Deduplicate triggeredSpellIds and remove any that are already in spellIds
+        const uniqueTriggeredIds = Array.from(new Set(triggeredSpellIds)).filter((id: number) => !spellIds.includes(id));
+        const subSpellsMap: Record<number, { name: string, effects: any[] }> = {};
+
+        // Also add main spells to subSpellsMap in case they trigger each other
+        spellsArr.forEach(s => {
+            const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
+            const level = spellLevelsMap[levelId];
+            subSpellsMap[s.id] = {
+                name: s.name?.fr || "Sort",
+                effects: level?.effects || []
+            };
+        });
+
+        if (uniqueTriggeredIds.length > 0) {
+            try {
+                // Fetch sub-spells
+                const subSpellQuery = uniqueTriggeredIds.map((id: number) => `id[$in][]=${id}`).join('&');
+                const subSpellsRes = await fetch(`https://api.dofusdb.fr/spells?${subSpellQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
+                if (subSpellsRes.ok) {
+                    const subSpellsData = await subSpellsRes.json();
+                    const subSpellsArr = subSpellsData.data || [];
+
+                    // Fetch sub-spells levels
+                    const subLevelsToFetch = subSpellsArr.flatMap((s: any) => {
+                        const levels = s.spellLevels || [];
+                        return levels.length > 0 ? levels[levels.length - 1] : null;
+                    }).filter(Boolean);
+
+                    if (subLevelsToFetch.length > 0) {
+                        const subLevelQuery = subLevelsToFetch.map((id: any) => `id[$in][]=${id}`).join('&');
+                        const subLevelRes = await fetch(`https://api.dofusdb.fr/spell-levels?${subLevelQuery}&$limit=50&lang=fr`, { cache: 'no-store' });
+                        if (subLevelRes.ok) {
+                            const subLevelData = await subLevelRes.json();
+                            const subLevelsMap: Record<number, any> = {};
+                            if (subLevelData && Array.isArray(subLevelData.data)) {
+                                subLevelData.data.forEach((l: any) => {
+                                    subLevelsMap[l.id] = l;
+                                });
+                            }
+
+                            subSpellsArr.forEach((s: any) => {
+                                const levelId = s.spellLevels?.length > 0 ? s.spellLevels[s.spellLevels.length - 1] : s.spellLevels?.[0];
+                                const level = subLevelsMap[levelId];
+                                subSpellsMap[s.id] = {
+                                    name: s.name?.fr || "Effet secondaire",
+                                    effects: level?.effects || []
+                                };
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                logger.error("[getMonsterStats] Failed to fetch triggered sub-spells:", { error: err });
+            }
+        }
+
         // Final monster grade for scaling calculations
         const g5 = monster.grades?.[monster.grades.length - 1] || {};
         const monsterStats = {
@@ -550,7 +625,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
         };
 
         // Mapping effect types for description with Stat Scaling
-        const parseEffects = (effects: any[]) => {
+        const parseEffects = (effects: any[], isSubSpell = false): string | null => {
             if (!effects || effects.length === 0) return null;
             return effects.map(eff => {
                 const id = eff.effectId;
@@ -560,62 +635,130 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
 
                 // Helper to scale damage
                 const scale = (val: number, stat: number) => Math.floor(val * (1 + stat / 100));
+                // Format a damage value: show single value when fixed (diceSide=0), range otherwise
+                const dmg = (scaledMin: number, scaledMax: number) =>
+                    scaledMax > 0 ? `${scaledMin}-${scaledMax}` : `${scaledMin}`;
 
-                // Real Dofus Damage & Utility IDs mapping
-                if (id === 100) {
-                    text = `⚪ Dommages Neutre : ${scale(min, monsterStats.neutral)}-${scale(max, monsterStats.neutral)}`;
+                // Element-based direct damage IDs — effectElement: 1=Terre 2=Feu 3=Eau 4=Air 5+=Neutre
+                const elementDamageIds = [91, 92, 93, 94, 95, 112, 113, 117];
+                if (elementDamageIds.includes(id) && min > 0) {
+                    const elem = eff.effectElement;
+                    if (elem === 1)      text = `Dommages Terre : ${dmg(scale(min, monsterStats.earth),   scale(max, monsterStats.earth))}`;
+                    else if (elem === 2) text = `Dommages Feu   : ${dmg(scale(min, monsterStats.fire),    scale(max, monsterStats.fire))}`;
+                    else if (elem === 3) text = `Dommages Eau   : ${dmg(scale(min, monsterStats.water),   scale(max, monsterStats.water))}`;
+                    else if (elem === 4) text = `Dommages Air   : ${dmg(scale(min, monsterStats.air),     scale(max, monsterStats.air))}`;
+                    else                text = `Dommages Neutre : ${dmg(scale(min, monsterStats.neutral), scale(max, monsterStats.neutral))}`;
+                // Vol de vie / classic steal-damage IDs
+                } else if (id === 100) {
+                    text = `Vol de vie Neutre : ${dmg(scale(min, monsterStats.neutral), scale(max, monsterStats.neutral))}`;
                 } else if (id === 97) {
-                    text = `🌿 Dommages Terre : ${scale(min, monsterStats.earth)}-${scale(max, monsterStats.earth)}`;
+                    text = `Dommages Terre : ${dmg(scale(min, monsterStats.earth), scale(max, monsterStats.earth))}`;
                 } else if (id === 96) {
-                    text = `💧 Dommages Eau : ${scale(min, monsterStats.water)}-${scale(max, monsterStats.water)}`;
+                    text = `Dommages Eau : ${dmg(scale(min, monsterStats.water), scale(max, monsterStats.water))}`;
                 } else if (id === 99) {
-                    text = `🔥 Dommages Feu : ${scale(min, monsterStats.fire)}-${scale(max, monsterStats.fire)}`;
+                    text = `Dommages Feu : ${dmg(scale(min, monsterStats.fire), scale(max, monsterStats.fire))}`;
                 } else if (id === 98) {
-                    text = `🍃 Dommages Air : ${scale(min, monsterStats.air)}-${scale(max, monsterStats.air)}`;
+                    text = `Dommages Air : ${dmg(scale(min, monsterStats.air), scale(max, monsterStats.air))}`;
                 } else if (id === 6 || id === 8) {
-                    text = `🧲 Attire de ${min} case${min > 1 ? "s" : ""}`;
+                    text = `Attire de ${min} case${min > 1 ? "s" : ""}`;
                 } else if (id === 5 || id === 4) {
-                    text = `💥 Repousse de ${min} case${min > 1 ? "s" : ""}`;
+                    text = `Repousse de ${min} case${min > 1 ? "s" : ""}`;
+                } else if (id === 1103) {
+                    const val = eff.value || min;
+                    text = val > 0 ? `Repousse différée de ${val} case${val > 1 ? "s" : ""}` : `Repousse (effet différé)`;
+                } else if (id === 753) {
+                    text = `+${min} Tacle`;
+                } else if (id === 754) {
+                    text = `+${min} Tacle (buff)`;
+                } else if (id === 132) {
+                    text = `Immobilise la cible`;
                 } else if (id === 293 || id === 294) {
-                    text = `✨ +${eff.diceSide || eff.value || 5} dégâts de base (Buff)`;
+                    text = `+${eff.diceSide || eff.value || 5} dégâts de base (Buff)`;
                 } else if (id === 138 || id === 114) {
-                    text = `💪 +${min} Puissance`;
+                    text = `+${min} Puissance`;
                 } else if (id === 1160 || id === 2160 || id === 2161) {
-                    const triggeredId = eff.diceNum || eff.value;
-                    // Specialized mapping for famous bosses like Vortex (5063)
-                    if (triggeredId === 5063) {
-                        text = `⚡ Applique la Contamination (Vortex)`;
-                    } else if (triggeredId === 6797) {
-                        text = `⚡ Applique Appel des Fonds Marins`;
-                    } else if (triggeredId === 3585) {
-                        text = `⚡ Fraction de molaire : repousse les ennemis`;
-                    } else if (triggeredId === 3587) {
-                        text = `⚡ Liqueur de Fée Ling : soin ou malus tactique`;
+                    if (isSubSpell) {
+                        text = `Déclenche effet (Sort ID:${eff.diceNum || eff.value})`;
                     } else {
-                        text = `⚡ Déclenche un effet secondaire (Sort ID:${triggeredId})`;
+                        const triggeredId = eff.diceNum || eff.value;
+                        const subSpell = subSpellsMap[triggeredId];
+                        if (subSpell) {
+                            const subEffectsParsed = parseEffects(subSpell.effects, true);
+                            if (subEffectsParsed) {
+                                text = `Déclenche ${subSpell.name} (${subEffectsParsed})`;
+                            } else {
+                                text = `Déclenche ${subSpell.name}`;
+                            }
+                        } else {
+                            if (triggeredId === 5063) {
+                                text = `Applique la Contamination (Vortex)`;
+                            } else if (triggeredId === 6797) {
+                                text = `Applique Appel des Fonds Marins`;
+                            } else if (triggeredId === 3585) {
+                                text = `Fraction de molaire : repousse les ennemis`;
+                            } else if (triggeredId === 3587) {
+                                text = `Liqueur de Fée Ling : soin ou malus tactique`;
+                            } else {
+                                text = `Déclenche un effet secondaire (Sort ID:${triggeredId})`;
+                            }
+                        }
                     }
                 } else if (id === 623) {
-                    text = `➕ Invoque une entité`;
+                    text = `Invoque une entité`;
                 } else if (id === 82) {
-                    text = `💖 Soigne : ${min}-${max} PV`;
+                    text = `Soigne : ${min}-${max} PV`;
                 } else if (id === 1) {
-                    text = `🏃 Transpose de ${min} cases`;
+                    text = `Transpose de ${min} cases`;
                 } else if (id === 140) {
-                    text = `💀 Retrait PV directs : ${min}`;
+                    text = `Retrait PV directs : ${min}`;
                 } else if (id === 126) {
-                    text = `💀 Retrait PV directs : ${min}`;
+                    text = `Retrait PV directs : ${min}`;
                 } else if (id === 950 || id === 951 || id === 952) {
-                    text = `🌀 Applique un État (Mécanique Boss)`;
+                    text = `Applique un État (Mécanique Boss)`;
                 } else if (id === 168) {
-                    text = `📉 Retrait PA : ${min}`;
+                    text = `Retrait PA : ${min}`;
                 } else if (id === 169) {
-                    text = `📉 Retrait PM : ${min}`;
+                    text = `Retrait PM : ${min}`;
                 } else if (id === 174) {
-                    text = `📉 Retrait Portée : ${min}`;
+                    text = `Retrait Portée : ${min}`;
                 } else if (id === 160) {
-                    text = `🏃 Téléporte la cible`;
+                    text = `Téléporte la cible`;
                 } else if (id === 121) {
-                    text = `📉 Dommages subis : +${min}%`;
+                    text = `Dommages subis : +${min}%`;
+                } else if (id === 1122) {
+                    text = `Applique Érosion : +${min}%`;
+                }
+
+                // Prefix icons only for the top-level effects to keep nested sub-effects clean
+                if (text && !isSubSpell) {
+                    const elem = eff.effectElement;
+                    if (elementDamageIds.includes(id)) {
+                        if (elem === 1)      text = `🌿 ${text}`;
+                        else if (elem === 2) text = `🔥 ${text}`;
+                        else if (elem === 3) text = `💧 ${text}`;
+                        else if (elem === 4) text = `🍃 ${text}`;
+                        else                text = `⚪ ${text}`;
+                    } else if (id === 100) text = `⚪ ${text}`;
+                    else if (id === 97) text = `🌿 ${text}`;
+                    else if (id === 96) text = `💧 ${text}`;
+                    else if (id === 99) text = `🔥 ${text}`;
+                    else if (id === 98) text = `🍃 ${text}`;
+                    else if (id === 6 || id === 8) text = `🧲 ${text}`;
+                    else if (id === 5 || id === 4 || id === 1103) text = `💥 ${text}`;
+                    else if (id === 753 || id === 754) text = `🛡️ ${text}`;
+                    else if (id === 132) text = `⛓️ ${text}`;
+                    else if (id === 293 || id === 294) text = `✨ ${text}`;
+                    else if (id === 138 || id === 114) text = `💪 ${text}`;
+                    else if (id === 1160 || id === 2160 || id === 2161) text = `⚡ ${text}`;
+                    else if (id === 623) text = `➕ ${text}`;
+                    else if (id === 82) text = `💖 ${text}`;
+                    else if (id === 1) text = `🏃 ${text}`;
+                    else if (id === 140 || id === 126) text = `💀 ${text}`;
+                    else if (id === 950 || id === 951 || id === 952) text = `🌀 ${text}`;
+                    else if (id === 168 || id === 169 || id === 174) text = `📉 ${text}`;
+                    else if (id === 160) text = `🏃 ${text}`;
+                    else if (id === 121) text = `📉 ${text}`;
+                    else if (id === 1122) text = `📉 ${text}`;
                 }
 
                 return text;
@@ -904,6 +1047,145 @@ export async function getQuestsAndGuidesByPosition(x: number, y: number): Promis
     } catch (error) {
         console.error('[getQuestsAndGuidesByPosition] Error:', error);
         return { success: false, error: 'Erreur lors de la récupération des quêtes et guides' };
+    }
+}
+
+export async function checkDungeonExists(name: string, dofusdbId?: number | null): Promise<ActionResponse<{ exists: boolean; dungeon?: any }>> {
+    try {
+        const queryName = name.trim();
+        const clauses: any[] = [
+            { name: { equals: queryName, mode: 'insensitive' } },
+            { bossName: { equals: queryName, mode: 'insensitive' } }
+        ];
+        if (dofusdbId) {
+            clauses.push({ dofusdbId: Number(dofusdbId) });
+        }
+        
+        const dungeon = await db.dungeon.findFirst({
+            where: {
+                OR: clauses
+            }
+        });
+        
+        if (dungeon) {
+            return { success: true, data: { exists: true, dungeon } };
+        }
+        return { success: true, data: { exists: false } };
+    } catch (error) {
+        logger.error('[checkDungeonExists] Error:', { error });
+        return { success: false, error: 'Erreur lors de la vérification du donjon' };
+    }
+}
+
+export async function createDungeonAction(
+    guildId: string,
+    data: {
+        name: string;
+        bossName: string;
+        level: number;
+        dofusdbId?: number | null;
+        dpnlUrl?: string | null;
+        dofuspourlesnoobsUrl?: string | null;
+        dofensiveUrl?: string | null;
+        imageUrl?: string | null;
+    }
+): Promise<ActionResponse<any>> {
+    try {
+        const user = await getUserContext(guildId);
+        if (!user.isAuthenticated) {
+            return { success: false, error: "Non authentifié" };
+        }
+        if (!user.isAdmin) {
+            return { success: false, error: "Accès refusé: Admin requis" };
+        }
+        
+        // Input validation
+        if (!data.name?.trim() || !data.bossName?.trim() || !data.level) {
+            return { success: false, error: "Données du donjon incomplètes (nom, boss, niveau requis)" };
+        }
+        
+        const existing = await db.dungeon.findUnique({
+            where: {
+                name_bossName: {
+                    name: data.name.trim(),
+                    bossName: data.bossName.trim()
+                }
+            }
+        });
+        
+        if (existing) {
+            return { success: false, error: "Ce donjon existe déjà." };
+        }
+        
+        const dungeon = await db.dungeon.create({
+            data: {
+                name: data.name.trim(),
+                bossName: data.bossName.trim(),
+                level: Number(data.level),
+                dofusdbId: data.dofusdbId ? Number(data.dofusdbId) : null,
+                dpnlUrl: data.dpnlUrl || null,
+                dofuspourlesnoobsUrl: data.dofuspourlesnoobsUrl || null,
+                dofensiveUrl: data.dofensiveUrl || null,
+                imageUrl: data.imageUrl || null,
+            }
+        });
+        
+        return { success: true, data: dungeon };
+    } catch (error) {
+        logger.error('[createDungeonAction] Error:', { error });
+        return { success: false, error: 'Erreur lors de la création du donjon' };
+    }
+}
+
+export async function updateDungeonNoobsUrl(
+    guildId: string,
+    dungeonName: string,
+    dofusdbId: number | null,
+    noobsUrlOrSlug: string
+): Promise<ActionResponse<any>> {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.isMember) return { success: false, error: "Accès refusé" };
+    if (!ctx.isAdmin) return { success: false, error: "Admin requis" };
+
+    try {
+        const queryName = dungeonName.trim();
+        const clauses: any[] = [
+            { name: { equals: queryName, mode: 'insensitive' } },
+            { bossName: { equals: queryName, mode: 'insensitive' } }
+        ];
+        if (dofusdbId) {
+            clauses.push({ dofusdbId: Number(dofusdbId) });
+        }
+
+        let dungeon = await db.dungeon.findFirst({
+            where: { OR: clauses }
+        });
+
+        // Format the URL properly: if it's just a slug, expand it. Otherwise keep it as is.
+        let finalUrl = noobsUrlOrSlug.trim();
+        if (finalUrl && !finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+            // It's a slug, build the full URL
+            let slug = finalUrl;
+            if (slug.endsWith(".html")) {
+                slug = slug.substring(0, slug.length - 5);
+            }
+            finalUrl = `https://www.dofuspourlesnoobs.com/${slug}.html`;
+        }
+
+        if (!dungeon) {
+            return { success: false, error: "Donjon introuvable dans la base de données. Le lien n'a pas pu être sauvegardé." };
+        } else {
+            dungeon = await db.dungeon.update({
+                where: { id: dungeon.id },
+                data: { dofuspourlesnoobsUrl: finalUrl || null }
+            });
+        }
+
+        return { success: true, data: dungeon };
+    } catch (error) {
+        logger.error('[updateDungeonNoobsUrl] Error:', { error });
+        return { success: false, error: 'Erreur lors de la mise à jour du lien' };
     }
 }
 

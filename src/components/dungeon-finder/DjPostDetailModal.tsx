@@ -211,13 +211,13 @@ export function DjPostDetailModal({
                                     {post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && (
                                         <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
                                             className="text-[11px] font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
-                                            <Link2 className="w-3.5 h-3.5" /> Tutoriel
+                                            <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
                                         </a>
                                     )}
                                     {post.questId && post.questId !== -1 && (
                                         <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
                                             className="text-[11px] font-bold text-slate-300 hover:text-white border border-white/5 hover:border-white/10 bg-white/5 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
-                                            <Map className="w-3.5 h-3.5" /> DofusDB
+                                            <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" /> DofusDB
                                         </a>
                                     )}
                                 </div>

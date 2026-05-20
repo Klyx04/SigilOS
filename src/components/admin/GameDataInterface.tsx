@@ -8,6 +8,8 @@ import DungeonManager from "./DungeonManager";
 import ZoneManager from "./ZoneManager";
 import DataExportImport from "./DataExportImport";
 import LegendaryManager from "./LegendaryManager";
+import GameQuestManager from "./GameQuestManager";
+import QuestSyncPanel from "./QuestSyncPanel";
 import { Sparkles, ChevronRight, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,6 +31,9 @@ export default function GameDataInterface() {
                     </TabsTrigger>
                     <TabsTrigger value="dungeons" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
                         🏰 Donjons
+                    </TabsTrigger>
+                    <TabsTrigger value="quests" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
+                        📜 Quêtes
                     </TabsTrigger>
                     <TabsTrigger value="import-export" className="data-[state=active]:bg-indigo-600 flex-1 min-w-[100px]">
                         📦 Import/Export
@@ -52,6 +57,11 @@ export default function GameDataInterface() {
 
                 <TabsContent value="dungeons" className="space-y-4">
                     <DungeonManager />
+                </TabsContent>
+
+                <TabsContent value="quests" className="space-y-6">
+                    <QuestSyncPanel />
+                    <GameQuestManager />
                 </TabsContent>
 
                 <TabsContent value="import-export" className="space-y-4">

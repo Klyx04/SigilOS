@@ -19,6 +19,7 @@ export type MemberReconciliationData = {
     hasDashboardProfile: boolean;
     profileId?: string;
     ankamaId?: string | null;
+    avatar?: string | null;
     discordMessageCountWeekly?: number;
     discordVoiceTimeWeekly?: number;
     discordMessageCountMonthly?: number;
@@ -122,6 +123,7 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
                 hasDashboardProfile: profileByDiscordId.has(m.user.id),
                 profileId: profileByDiscordId.get(m.user.id)?.id,
                 ankamaId: profileByDiscordId.get(m.user.id)?.ankamaId,
+                avatar: m.user.avatar || null,
                 discordMessageCountWeekly: profileByDiscordId.get(m.user.id)?.discordMessageCountWeekly || 0,
                 discordVoiceTimeWeekly: profileByDiscordId.get(m.user.id)?.discordVoiceTimeWeekly || 0,
                 discordMessageCountMonthly: profileByDiscordId.get(m.user.id)?.discordMessageCountMonthly || 0,

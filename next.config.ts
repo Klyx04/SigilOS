@@ -97,6 +97,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "ganymede-app.com",
       },
+      {
+        // Unsplash — Raid selection background illustrations
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
   },
   outputFileTracingExcludes: {
@@ -137,6 +142,8 @@ const nextConfig: NextConfig = {
       "https://www.google.com https://*.gstatic.com",
       // Ganymede CDNs for guide quest/dungeon/step icons
       "https://ganymede-dofus.com https://ganymede-app.com",
+      // Unsplash for raid selection illustrations
+      "https://images.unsplash.com",
     ].join(" ");
 
     const connectSrc = [
@@ -145,13 +152,21 @@ const nextConfig: NextConfig = {
       "wss://*.sigilos.fr wss://localhost:*",
     ].join(" ");
 
+    const isProd = process.env.NODE_ENV === "production";
+    const scriptSrc = [
+      "'self'",
+      "'unsafe-inline'",
+      ...(isProd ? [] : ["'unsafe-eval'"]),
+      "https://cdn.sentry.io",
+    ].join(" ");
+
     const cspDirectives = [
       "default-src 'self'",
       // Next.js requires unsafe-inline for its runtime style injection
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       // Next.js + Sentry require unsafe-inline for script chunks; nonce-based CSP would require custom server
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.sentry.io",
+      `script-src ${scriptSrc}`,
       `img-src ${imgSrc}`,
       `connect-src ${connectSrc}`,
       "media-src 'self' blob:",

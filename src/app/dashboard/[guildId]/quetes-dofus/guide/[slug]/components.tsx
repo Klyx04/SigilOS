@@ -3,6 +3,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Check, MapPin, Skull, Target, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { sanitizeHtml } from "@/lib/security";
 
 export const GlassCard = ({ children, className = "", style = {} }: any) => (
   <div className={`bg-zinc-950/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden shadow-2xl ${className}`} style={style}>
@@ -113,10 +114,15 @@ export const StepRow = ({ step, isChecked, onToggle, onMapClick, guideRef }: any
         <div 
           className={`text-[11px] leading-relaxed ganymade-step-text transition-all duration-500 ${isChecked ? "text-zinc-600 grayscale opacity-40 italic line-through decoration-emerald-500/30" : "text-zinc-400"}`} 
           onClick={handleTextClick}
-          dangerouslySetInnerHTML={{ __html: step.web_text
-            .replace(/<input[^>]*type="checkbox"[^>]*>/g, '')
-            .replace(/\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/g, '<span class="pos-interactive">$&</span>') 
-          }} 
+          {...{
+            dangerouslySetInnerHTML: {
+              __html: sanitizeHtml(
+                step.web_text
+                  .replace(/<input[^>]*type="checkbox"[^>]*>/g, '')
+                  .replace(/\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/g, '<span class="pos-interactive">$&</span>')
+              ) ?? ""
+            }
+          }}
         />
       </div>
     </motion.div>

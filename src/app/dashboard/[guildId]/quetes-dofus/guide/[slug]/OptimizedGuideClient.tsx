@@ -474,7 +474,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                           </span>
                           <div className="sgc-step-content ganymade-step-text"
                             onClick={onInteractiveClick}
-                            dangerouslySetInnerHTML={{ __html: processHtml(step.web_text ?? step.plainText ?? "") }}/>
+                            {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
                           {coords.length > 0 && (
                             <div className="sgc-step-coords">
                               {coords.map((c,i) => {
@@ -535,7 +535,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                             </span>
                             <div className="sgc-step-content ganymade-step-text"
                               onClick={onInteractiveClick}
-                              dangerouslySetInnerHTML={{ __html: processHtml(step.web_text ?? step.plainText ?? "") }}/>
+                              {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
                             {coords.length > 0 && (
                               <div className="sgc-step-coords">
                                 {coords.map((c,i) => {
@@ -589,7 +589,7 @@ function NarrativeBlock({ html }: { html: string }) {
         {type === 'info'    && <Info size={14}/>}
       </div>
       <div className="narrative-body ganymade-step-text"
-        dangerouslySetInnerHTML={{ __html: processHtml(html) }}/>
+        {...{ dangerouslySetInnerHTML: { __html: processHtml(html) } }}/>
     </div>
   );
 }

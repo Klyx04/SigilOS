@@ -1,112 +1,109 @@
 "use client";
 import {
     Zap,
-    Shield,
     Calendar,
     Target,
     Sparkles,
     Trophy,
-    Layout,
-    Activity,
-    ChevronRight,
     Gamepad2,
     Map as MapIcon,
     BarChart3,
     Library,
-    Compass,
-    Network
+    Network,
+    ShieldAlert,
+    ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 const FEATURES = [
     {
-        title: "Missions de Guilde & OCR",
-        description: "Gestion des missions hebdomadaires avec validation par capture d'écran via IA.",
+        title: "Missions de Guilde",
+        description: "Gérez et suivez les objectifs hebdomadaires de vos membres. Un cockpit centralisé pour coordonner l'effort collectif et booster votre progression.",
         icon: Target,
         color: "text-emerald-400",
         className: "lg:col-span-2",
-        tags: ["OCR Auto", "Validation IA"]
+        tags: ["Gestion", "Tracking"]
     },
     {
-        title: "Calendrier & Raids",
-        description: "Planifiez vos sorties donjons, percepteurs et sessions XP communautaires.",
+        title: "Calendrier & Coordination",
+        description: "Synchronisez vos sorties donjons, percepteurs et sessions XP. Planification intelligente pour maximiser la participation.",
         icon: Calendar,
         color: "text-amber-400",
         className: "lg:col-span-1",
-        tags: ["Coordination"]
-    },
-    {
-        title: "Quête Ocre (Metamob)",
-        description: "Synchronisation Metamob et matching de doublons automatisé entre membres.",
-        icon: Sparkles,
-        color: "text-blue-400",
-        className: "lg:col-span-1",
-        tags: ["Metamob API"]
-    },
-    {
-        title: "Module Ressources & Actus",
-        description: "Encyclopédie, Almanax, flux Streamers et actus Ankama centralisés.",
-        icon: Library,
-        color: "text-indigo-400",
-        className: "lg:col-span-2",
-        tags: ["Encyclopédie", "Almanax"]
-    },
-    {
-        title: "Mini-Jeux Sigil",
-        description: "Animez votre guilde avec SigilGuesser, Skribbl et d'autres jeux exclusifs.",
-        icon: Gamepad2,
-        color: "text-rose-400",
-        className: "lg:col-span-1",
-        tags: ["Divertissement"]
+        tags: ["Raids", "Events"]
     },
     {
         title: "Map Interactive V2",
-        description: "Explorez le Monde des Douze avec recherche avancée et switch de monde.",
+        description: "Navigation HD avec recherche de zones, positions d'avis de recherche et switch de mondes (Enutrosor, Srambad...).",
         icon: MapIcon,
         color: "text-cyan-400",
         className: "lg:col-span-1",
-        tags: ["Navigation"]
+        tags: ["Navigation HD"]
     },
     {
-        title: "Songes Infinis",
-        description: "Optimisez vos runs de songes et suivez l'évolution de vos services.",
-        icon: Compass,
-        color: "text-fuchsia-400",
+        title: "Encyclopédie & Ressources",
+        description: "Accès instantané aux monstres, items et ressources. Intégration Almanax et flux d'actualités communautaires.",
+        icon: Library,
+        color: "text-indigo-400",
+        className: "lg:col-span-2",
+        tags: ["Data Explorer", "Almanax"]
+    },
+    {
+        title: "Chasse aux Avis & Archis",
+        description: "Tracker collaboratif pour les avis de recherche et archimonstres. Partagez les positions et optimisez vos captures.",
+        icon: ShieldAlert,
+        color: "text-rose-500",
         className: "lg:col-span-1",
-        tags: ["Stratégies"]
+        tags: ["Tracking", "Bounties"]
+    },
+    {
+        title: "Quête Ocre (Metamob)",
+        description: "Synchronisation bidirectionnelle avec Metamob. Matching automatique des doublons pour faciliter les échanges.",
+        icon: Sparkles,
+        color: "text-blue-400",
+        className: "lg:col-span-1",
+        tags: ["Metamob Sync"]
+    },
+    {
+        title: "Mini-Jeux de Guilde",
+        description: "Divertissez vos membres avec le SigilGuesser et d'autres activités ludiques intégrées au dashboard.",
+        icon: Gamepad2,
+        color: "text-amber-500",
+        className: "lg:col-span-1",
+        tags: ["Engagement"]
     },
     {
         title: "GPS Narratif (Bêta)",
-        description: "Graphe de quêtes dynamique et UI neuronale pour tracker vos séries de quêtes.",
+        description: "Visualisez vos séries de quêtes sous forme de graphes dynamiques. Ne perdez plus jamais le fil de votre progression.",
         icon: Network,
         color: "text-emerald-400",
         className: "lg:col-span-1",
         tags: ["Graph", "Quêtes"]
     },
     {
-        title: "Sondages & Vote",
-        description: "Prenez des décisions collectives avec des sondages intégrés au dashboard.",
+        title: "Bot Discord & Alertes",
+        description: "Notifications push, commandes slash avancées et monitoring de guilde directement sur votre serveur Discord.",
+        icon: Zap,
+        color: "text-yellow-400",
+        className: "lg:col-span-1",
+        tags: ["Integrations"]
+    },
+    {
+        title: "Gouvernance & Votes",
+        description: "Prenez des décisions démocratiques pour votre guilde via un système de sondages et de votes sécurisés.",
         icon: BarChart3,
         color: "text-orange-400",
         className: "lg:col-span-1",
-        tags: ["Gouvernance"]
-    },
-    {
-        title: "Bot Discord & Alertes",
-        description: "Notifications intelligentes, commandes slash et alertes temps réel.",
-        icon: Zap,
-        color: "text-amber-400",
-        className: "lg:col-span-1",
-        tags: ["Intégration Pro"]
+        tags: ["Sondages"]
     },
     {
         title: "Ladder & Annuaire",
-        description: "Ladder succès temps réel et vitrine premium pour booster vos recrutements.",
+        description: "Mise en avant de vos succès et vitrine de recrutement premium pour attirer les meilleurs joueurs.",
         icon: Trophy,
         color: "text-emerald-500",
         className: "lg:col-span-2",
-        tags: ["Recrutement"]
+        tags: ["Ranking", "Recrutement"]
     }
 ];
 

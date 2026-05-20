@@ -92,7 +92,11 @@ const CreateRunSchema = z.object({
     publishToDiscord: z.boolean().optional(),
     epreuveCode: z.string().optional(), // Code épreuve (FONSOCAC, REVERSED, etc.) — null = run standard
     scheduledAt: z.date().optional().nullable(),
-    mentionRoleId: z.string().nullable().optional(),
+    mentionRoleIds: z.array(z.string()).default([]),
+    linkedStuffId: z.string().nullable().optional(),
+    linkedStuffName: z.string().nullable().optional(),
+    linkedStuffThumbnail: z.string().nullable().optional(),
+    linkedStuffUrl: z.string().nullable().optional(),
 }).refine((data) => {
     if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
@@ -184,7 +188,7 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
             objective: validated.data.objectives[0], // Init legacy field
             epreuveCode: validated.data.epreuveCode ?? null,
             scheduledAt: validated.data.scheduledAt ?? null,
-            mentionRoleId: validated.data.mentionRoleId ?? null,
+            mentionRoleId: validated.data.mentionRoleIds.length > 0 ? validated.data.mentionRoleIds.join(",") : null,
             status: "IN_PROGRESS",
             currentFloor: 1,
             startedAt: new Date(),
@@ -192,6 +196,10 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
                 create: {
                     userId: ctx.userId,
                     slot: 1, // Leader takes slot 1
+                    linkedStuffId: validated.data.linkedStuffId ?? null,
+                    linkedStuffName: validated.data.linkedStuffName ?? null,
+                    linkedStuffThumbnail: validated.data.linkedStuffThumbnail ?? null,
+                    linkedStuffUrl: validated.data.linkedStuffUrl ?? null,
                 },
             },
         },
@@ -206,6 +214,24 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
 
     return { success: true, runId: run.id };
+}
+
+/**
+ * Lightweight public config fetch for Songes (no admin required)
+ */
+export async function getSongesPublicConfig(guildId: string) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié" };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { songesNotifyChannelId: true },
+        });
+        return { success: true, data: { songesNotifyChannelId: config?.songesNotifyChannelId || null } };
+    } catch (error) {
+        return { success: false, error: "Erreur serveur" };
+    }
 }
 
 // ============================================
@@ -651,6 +677,10 @@ const SendJoinRequestSchema = z.object({
     runId: z.string(),
     classe: z.string().min(1),
     message: z.string().optional(),
+    linkedStuffId: z.string().nullable().optional(),
+    linkedStuffName: z.string().nullable().optional(),
+    linkedStuffThumbnail: z.string().nullable().optional(),
+    linkedStuffUrl: z.string().nullable().optional(),
 });
 
 export async function sendJoinRequest(guildId: string, data: z.infer<typeof SendJoinRequestSchema>) {
@@ -772,6 +802,10 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
             userId: ctx.id!,
             classe: validated.data.classe,
             message: validated.data.message,
+            linkedStuffId: validated.data.linkedStuffId ?? null,
+            linkedStuffName: validated.data.linkedStuffName ?? null,
+            linkedStuffThumbnail: validated.data.linkedStuffThumbnail ?? null,
+            linkedStuffUrl: validated.data.linkedStuffUrl ?? null,
         },
     });
 
@@ -964,6 +998,10 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
                     runId: request.runId,
                     userId: request.userId,
                     slot: nextSlot,
+                    linkedStuffId: request.linkedStuffId,
+                    linkedStuffName: request.linkedStuffName,
+                    linkedStuffThumbnail: request.linkedStuffThumbnail,
+                    linkedStuffUrl: request.linkedStuffUrl,
                 },
             }),
         ]);
@@ -1716,4 +1754,43 @@ export async function getMemberDreamRuns(guildId: string, userId?: string) {
     });
 
     return { success: true, runs };
+}
+
+// ============================================
+// UPDATE STUFF
+// ============================================
+
+const UpdateStuffSchema = z.object({
+    runId: z.string(),
+    linkedStuffId: z.string().nullable(),
+    linkedStuffName: z.string().nullable(),
+    linkedStuffThumbnail: z.string().nullable(),
+    linkedStuffUrl: z.string().nullable(),
+});
+
+export async function updateMemberStuff(guildId: string, data: z.infer<typeof UpdateStuffSchema>) {
+    const ctx = await getGuildUserContext(guildId);
+    if (!ctx) return { success: false, error: "Non authentifié" };
+
+    const validated = UpdateStuffSchema.safeParse(data);
+    if (!validated.success) return { success: false, error: "Données invalides" };
+
+    // Update the member record for this user in this run
+    await db.dreamRunMember.update({
+        where: {
+            runId_userId: {
+                runId: validated.data.runId,
+                userId: ctx.userId
+            }
+        },
+        data: {
+            linkedStuffId: validated.data.linkedStuffId,
+            linkedStuffName: validated.data.linkedStuffName,
+            linkedStuffThumbnail: validated.data.linkedStuffThumbnail,
+            linkedStuffUrl: validated.data.linkedStuffUrl
+        }
+    });
+
+    revalidatePath(`/dashboard/${guildId}/songes/${validated.data.runId}`);
+    return { success: true };
 }

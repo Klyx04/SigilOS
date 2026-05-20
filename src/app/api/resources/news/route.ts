@@ -290,7 +290,7 @@ export async function GET(req: NextRequest) {
             const sigilItems = sigilEntries.slice(0, 5).map(entry => ({
                 title: `[SigilOS] ${entry.title}`,
                 link: `${baseUrl}/changelog`,
-                imageUrl: `${baseUrl}/assets/ui/logo-v2.png`, // SigilOS Logo
+                imageUrl: `/module-dofus/Dofus_Emeraude.png`, // User requested Emerald Dofus
                 pubDate: entry.publishedAt,
                 description: entry.summary || `Version ${entry.version} de votre plateforme.`,
                 category: "App Update"

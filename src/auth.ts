@@ -126,6 +126,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 if ((token as any).error) {
                     anySession.error = (token as any).error;
                 }
+                // GOD bypass flag — stored in session for use by middleware cookie
+                const superAdminIds = (process.env.SUPER_ADMIN_IDS || "")
+                    .split(",")
+                    .map((id) => id.trim())
+                    .filter(Boolean);
+                anySession.isGod = !!(token.discordId && superAdminIds.includes(token.discordId as string));
             }
             return session;
         }

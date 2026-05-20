@@ -39,50 +39,35 @@ export async function getOptimizedGuides(guildId?: string) {
   return { success: true, guides };
 }
 
-/**
- * Récupère un guide spécifique avec les détails de toutes les quêtes référencées.
- */
 export async function getOptimizedGuideDetail(slug: string, guildId: string) {
+
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+
+  const profileId = ctx.profileId;
 
   const guide = await db.optimizedGuide.findUnique({
     where: { slug },
     include: {
-      steps: {
+      milestones: {
         orderBy: { order: "asc" },
-      },
+        include: {
+          sequences: {
+            orderBy: { order: "asc" },
+            include: { dungeon: true }
+          },
+          // Only filter by profile if one exists (SuperAdmins may not have one)
+          playerProgress: profileId
+            ? { where: { profileId } }
+            : { where: { profileId: "__NONE__" } },
+        }
+      }
     },
   });
 
   if (!guide) return { success: false, error: "Guide introuvable" };
 
-  // Collect all DofusQuestEntry IDs from all steps (looking at both questIds legacy and objectives)
-  const allQuestIds = guide.steps.flatMap((step: any) => {
-    const qids = step.questIds || [];
-    const objQids = (step.objectives as any[])?.filter(o => o.type === 'QUEST').map(o => o.id) || [];
-    return [...new Set([...qids, ...objQids])];
-  });
-  
-  // Fetch detailed quests with their respective Dofus chain information
-  const questsDetail = await db.dofusQuestEntry.findMany({
-    where: { id: { in: allQuestIds } },
-    include: {
-      chain: {
-        include: {
-          dofus: true,
-        },
-      },
-      playerProgress: {
-        where: {
-          profileId: ctx.id,
-          characterName: "PRINCIPAL",
-        },
-      },
-    },
-  });
-
-  return { success: true, guide, questsDetail };
+  return { success: true, guide };
 }
 
 /**
@@ -144,7 +129,7 @@ export async function upsertOptimizedGuide(
     }
 
     revalidatePath(`/god/dofus-guides`);
-    if (guildId) revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/${guideData.slug}`);
+    if (guildId) revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guideData.slug}`);
     return { success: true, guide };
   } else {
     // Create
@@ -188,6 +173,7 @@ export async function deleteOptimizedGuide(guildId: string | undefined, guideId:
 
 /**
  * Calcule à quelle étape de la route se trouve chaque membre de la guilde.
+ * Basé sur les PlayerGuideProgress.
  */
 export async function getGuildOptimizedGuideProgress(slug: string, guildId: string) {
   const ctx = await getUserContext(guildId);
@@ -195,86 +181,783 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
 
   const guide = await db.optimizedGuide.findUnique({
     where: { slug },
-    include: {
-      steps: { orderBy: { order: "asc" } },
-    },
+    select: { id: true }
   });
 
   if (!guide) return { success: false, error: "Guide introuvable" };
 
-  const allQuestIds = guide.steps.flatMap((step: any) => {
-    const qids = step.questIds || [];
-    const objQids = (step.objectives as any[])?.filter(o => o.type === 'QUEST').map(o => o.id) || [];
-    return [...new Set([...qids, ...objQids])];
-  });
-  if (allQuestIds.length === 0) return { success: true, memberProgress: [] };
-
-  // Récupérer toutes les quêtes complétées pour ce guide
-  const allCompletedQuests = await db.playerDofusQuestProgress.findMany({
+  // Récupérer toutes les progressions des membres pour ce guide
+  const allProgress = await db.playerGuideProgress.findMany({
     where: {
-      guildId,
-      questId: { in: allQuestIds },
-      characterName: "PRINCIPAL",
-      status: "COMPLETED",
+      milestone: { guideId: guide.id }
     },
     include: {
       profile: {
-        include: { user: true },
+        include: { user: true }
+      }
+    }
+  });
+
+  return { success: true, allProgress };
+}
+
+/**
+ * Marquer un milestone comme terminé/non terminé pour l'utilisateur courant.
+ */
+export async function toggleMilestoneProgress(guildId: string, milestoneId: string, isCompleted: boolean) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.id) throw new Error("Profile ID manquant");
+
+  const profileId: string = ctx.profileId!;
+
+  const progress = await db.playerGuideProgress.upsert({
+    where: {
+      profileId_milestoneId: { profileId, milestoneId }
+    },
+    update: {
+      isCompleted,
+      completedAt: isCompleted ? new Date() : null
+    },
+    create: {
+      profileId,
+      milestoneId,
+      isCompleted,
+      completedAt: isCompleted ? new Date() : null
+    }
+  });
+
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  return { success: true, progress };
+}
+
+/**
+ * Met à jour les étapes individuelles cochées pour un milestone.
+ */
+export async function updateStepProgress(guildId: string, milestoneId: string, completedSteps: string[]) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  const profileId: string = ctx.profileId!;
+
+  const progress = await db.playerGuideProgress.upsert({
+    where: {
+      profileId_milestoneId: { profileId, milestoneId }
+    },
+    update: {
+      completedSteps: completedSteps 
+    },
+    create: {
+      profileId,
+      milestoneId,
+      completedSteps: completedSteps,
+      isCompleted: false
+    }
+  });
+
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  return { success: true, progress };
+}
+
+// ===========================================================================
+// GOD-SIDE ADMIN ACTIONS
+// ===========================================================================
+
+/**
+ * Récupère le guide complet avec ses milestones et séquences pour l'admin.
+ */
+export async function getGuideAdminFull(guideId: string) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  const guide = await db.optimizedGuide.findUnique({
+    where: { id: guideId },
+    include: {
+      milestones: {
+        orderBy: { order: "asc" },
+        include: {
+          sequences: { orderBy: { order: "asc" } },
+          playerProgress: {
+            include: { profile: { include: { user: true } } }
+          }
+        }
+      }
+    }
+  });
+
+  if (!guide) return { success: false, error: "Guide introuvable" };
+  return { success: true, guide };
+}
+
+/**
+ * Récupère la progression de tous les membres pour un guide (côté God).
+ */
+export async function getGuildProgressSummary(guideId: string) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  const allProgress = await db.playerGuideProgress.findMany({
+    where: { milestone: { guideId } },
+    include: {
+      profile: { include: { user: true } },
+      milestone: { select: { id: true, title: true, order: true, accentColor: true } }
+    },
+    orderBy: { completedAt: "desc" }
+  });
+
+  return { success: true, allProgress };
+}
+
+/**
+ * Crée ou met à jour un milestone.
+ */
+export async function upsertMilestone(data: {
+  id?: string;
+  guideId: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  chapter?: number;
+  chapterLabel?: string;
+  type?: string;
+  accentColor?: string;
+  imageUrl?: string;
+  order: number;
+  posX?: number;
+  posY?: number;
+  isOptional?: boolean;
+}) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  const { id, guideId, ...rest } = data;
+
+  // Ensure required fields have defaults
+  const milestoneData = {
+    ...rest,
+    chapter: rest.chapter ?? 1,
+    chapterLabel: rest.chapterLabel ?? `Chapitre ${rest.chapter ?? 1}`,
+    type: (rest.type as any) ?? "DOFUS",
+  };
+
+  const milestone = id
+    ? await db.guideMilestone.update({ where: { id }, data: milestoneData })
+    : await db.guideMilestone.create({ data: { guideId, ...milestoneData } });
+
+  revalidatePath("/god/dofus-guides");
+  return { success: true, milestone };
+}
+
+/**
+ * Supprime un milestone (et ses séquences en cascade).
+ */
+export async function deleteMilestone(milestoneId: string) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  await db.guideMilestone.delete({ where: { id: milestoneId } });
+  revalidatePath("/god/dofus-guides");
+  return { success: true };
+}
+
+/**
+ * Crée ou met à jour une séquence.
+ */
+export async function upsertSequence(data: {
+  id?: string;
+  milestoneId: string;
+  subGuideRef: string;
+  subGuideName: string;
+  stepFrom?: number;
+  stepTo?: number;
+  note?: string;
+  isOptional?: boolean;
+  order: number;
+}) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  const { id, milestoneId, ...seqData } = data;
+
+  const sequence = id
+    ? await db.guideSequence.update({ where: { id }, data: seqData })
+    : await db.guideSequence.create({ data: { milestoneId, ...seqData } });
+
+  revalidatePath("/god/dofus-guides");
+  return { success: true, sequence };
+}
+
+/**
+ * Supprime une séquence.
+ */
+export async function deleteSequence(sequenceId: string) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  await db.guideSequence.delete({ where: { id: sequenceId } });
+  revalidatePath("/god/dofus-guides");
+  return { success: true };
+}
+
+/**
+ * Supprime TOUS les milestones d'un guide (reset avant import).
+ */
+export async function deleteAllMilestones(guideId: string) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  await db.guideMilestone.deleteMany({ where: { guideId } });
+  revalidatePath("/god/dofus-guides");
+  return { success: true };
+}
+
+/**
+ * Importe et stocke un sous-guide Ganymède (GP1, GP2...) en base.
+ * Le JSON contient { id, name, steps: [{ id, web_text, pos_x, pos_y }] }
+ */
+export async function importSubGuide(jsonData: any) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  const { parseSubGuideSteps } = await import("@/lib/ganymede-parser");
+
+  const ganymadeId: number = jsonData.id;
+  const guideName: string = jsonData.name ?? `Guide #${ganymadeId}`;
+  const rawSteps: any[] = jsonData.steps ?? [];
+
+  const refMatch = guideName.match(/\[(GP\d+)\]/i);
+  const guideRef = refMatch ? refMatch[1].toUpperCase() : `GP${ganymadeId}`;
+
+  // Parse enrichi : chaque step contient maintenant pos_x/y, map, dungeons, guideRefs, plainText
+  const enrichedSteps = parseSubGuideSteps(rawSteps);
+
+  const subGuide = await db.subGuideData.upsert({
+    where: { guideRef },
+    update: { ganymadeId, guideName, totalSteps: rawSteps.length, steps: enrichedSteps },
+    create: { ganymadeId, guideName, guideRef, totalSteps: rawSteps.length, steps: enrichedSteps },
+  });
+
+  revalidatePath("/god/dofus-guides");
+  return { success: true, guideRef, guideName, totalSteps: rawSteps.length, subGuide };
+}
+
+
+/**
+ * Récupère les étapes d'un sous-guide pour une plage donnée.
+ */
+export async function getSubGuideSteps(guideRef: string, stepFrom?: number, stepTo?: number) {
+  const subGuide = await db.subGuideData.findUnique({ where: { guideRef } });
+  if (!subGuide) return { success: false, error: `Sous-guide ${guideRef} non importé` };
+
+  const allSteps = (subGuide.steps as any[]);
+  let from = stepFrom ?? 1;
+  let to = stepTo ?? allSteps.length;
+  
+  // Sécurité : si les numéros d'étape demandés dépassent la taille actuelle du guide, on les capte
+  if (from > allSteps.length) from = allSteps.length;
+  if (to > allSteps.length) to = allSteps.length;
+  if (from > to) from = to;
+
+  const filtered = allSteps.filter((s: any) => s.stepNumber >= from && s.stepNumber <= to);
+
+  return { success: true, guideRef, guideName: subGuide.guideName, steps: filtered, totalSteps: subGuide.totalSteps };
+}
+
+/**
+ * Liste tous les sous-guides importés.
+ */
+export async function listSubGuides() {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  const subs = await db.subGuideData.findMany({
+    select: { id: true, guideRef: true, guideName: true, ganymadeId: true, totalSteps: true, createdAt: true },
+    orderBy: { guideRef: "asc" },
+  });
+
+  return { success: true, subs };
+}
+
+/**
+ * Supprime un sous-guide importé et ses références dans les séquences.
+ */
+export async function deleteSubGuide(guideRef: string) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  // Supprimer le sous-guide de la bibliothèque
+  await db.subGuideData.delete({ where: { guideRef } });
+
+  revalidatePath("/god/dofus-guides");
+  return { success: true, message: `Sous-guide ${guideRef} supprimé.` };
+}
+
+/**
+ * Trouve le guide (slug) qui contient un sous-guide donné (ref = "GP24" etc.)
+ * Utilisé pour la navigation cross-guide depuis les liens guide-step.
+ */
+export async function findGuideBySubRef(subGuideRef: string): Promise<{ success: boolean; slug?: string; guideName?: string }> {
+  const seq = await db.guideSequence.findFirst({
+    where: { subGuideRef },
+    include: {
+      milestone: {
+        include: {
+          guide: { select: { slug: true, name: true } },
+        },
       },
     },
   });
+  if (!seq) return { success: false };
+  const guide = (seq as any).milestone?.guide;
+  return guide ? { success: true, slug: guide.slug, guideName: guide.name } : { success: false };
+}
 
-  // Grouper par profile
-  const progressByProfile = new Map<string, { profile: any; completedIds: Set<string> }>();
-  for (const progress of allCompletedQuests) {
-    if (!progressByProfile.has(progress.profileId)) {
-      progressByProfile.set(progress.profileId, {
-        profile: progress.profile,
-        completedIds: new Set(),
+
+
+/**
+ * Met à jour une étape spécifique dans un sous-guide.
+ */
+export async function updateSubGuideStep(guideRef: string, stepNumber: number, newData: any) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  const subGuide = await db.subGuideData.findUnique({ where: { guideRef } });
+  if (!subGuide) return { success: false, error: "Sous-guide introuvable" };
+
+  const steps = [...(subGuide.steps as any[])];
+  const idx = steps.findIndex((s: any) => s.stepNumber === stepNumber);
+  if (idx === -1) return { success: false, error: "Étape introuvable" };
+
+  steps[idx] = { ...steps[idx], ...newData };
+
+  await db.subGuideData.update({
+    where: { guideRef },
+    data: { steps }
+  });
+
+  return { success: true };
+}
+
+/**
+ * Met à jour les positions X/Y des nœuds après un drag-and-drop.
+ */
+export async function updateMilestonePositions(
+  positions: { id: string; posX: number; posY: number }[]
+) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  await Promise.all(
+    positions.map((p) =>
+      db.guideMilestone.update({
+        where: { id: p.id },
+        data: { posX: p.posX, posY: p.posY }
+      })
+    )
+  );
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// PARSER GANYMÈDE JSON
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse un JSON Ganymède (GP0) et crée/remplace les milestones.
+ * FIXES:
+ * - Titre : utilise step.name (champ natif Ganymède) au lieu du regex fragile
+ * - subGuideRef : extrait [GPX] depuis guideName au lieu de l'ID interne Ganymède
+ * - Type : détection DOFUS / DONJON / QUETE_SERIE / PREREQUIS
+ * - Chapitre : groupé par numéro GP de la première séquence
+ */
+export async function importGanymedeGuide(guideId: string, jsonData: any) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Super-admin requis");
+
+  const guide = await db.optimizedGuide.findUnique({ where: { id: guideId } });
+  if (!guide) return { success: false, error: "Guide introuvable" };
+
+  const steps: any[] = jsonData.steps ?? [];
+
+  await db.guideMilestone.deleteMany({ where: { guideId } });
+
+  // Pré-charger les sous-guides importés pour résoudre ganymadeId → "GP1", "GP2"...
+  const importedSubs = await db.subGuideData.findMany({
+    select: { ganymadeId: true, guideRef: true }
+  });
+  const idToRefMap = new Map<number, string>();
+  importedSubs.forEach(s => idToRefMap.set(s.ganymadeId, s.guideRef));
+
+  let created = 0;
+  let skipped = 0;
+  let noProperTitle = 0;
+  let order = 1;
+
+  // Helper: extract [GPX] prefix from any string
+  const extractGpRef = (...sources: string[]): string | null => {
+    for (const src of sources) {
+      const m = src.match(/\[GP(\d+)\]/i);
+      if (m) return `GP${m[1]}`;
+    }
+    return null;
+  };
+
+  // Helper: is this a garbage auto-generated Ganymède title?
+  const isGarbageTitle = (t: string): boolean => {
+    // "Étape 522097", "Step 1234", purely numeric, or < 3 chars
+    if (/^[ÉEé]tape\s+\d+$/i.test(t.trim())) return true;
+    if (/^Step\s+\d+$/i.test(t.trim())) return true;
+    if (/^\d+$/.test(t.trim())) return true;
+    if (t.trim().length < 3) return true;
+    if (t.includes("Vous trouverez ici")) return true;
+    if (t.includes("placeholder")) return true;
+    return false;
+  };
+
+  for (const step of steps) {
+    const html: string = step.web_text ?? "";
+
+    // ── SKIP: Étapes tutoriel Ganymède ─────────────────────────────────────
+    // La première étape de GP0 est toujours le tuto interne "Guide utilisateur Ganymède"
+    const isGanymedeTuto = html.includes("Guide utilisateur Ganymède") ||
+      html.includes("guide-utilisateur-ganymede") ||
+      (step.name ?? "").includes("Guide utilisateur");
+    if (isGanymedeTuto) { skipped++; continue; }
+
+    // ── 1. TITRE ─────────────────────────────────────────────────────────────
+    let rawTitle: string | null = null;
+
+    // P1: step.name si non-garbage
+    const stepName = (step.name as string | undefined)?.trim() ?? "";
+    if (stepName && !isGarbageTitle(stepName)) rawTitle = stepName;
+
+    // P2: Texte "Objectifs :" dans le HTML (zone rouge Ganymède)
+    if (!rawTitle) {
+      const m = html.match(/Objectifs?\s*:\s*<[^>]*>([^<]{3,100})/i)
+        ?? html.match(/Objectifs?\s*:\s*([^<]{3,100})/i);
+      if (m) rawTitle = m[1].replace(/&amp;/g, "&").replace(/\s+/g, " ").trim().substring(0, 120);
+    }
+
+    // P3: Premier texte en <strong> (souvent le titre réel de la phase)
+    if (!rawTitle) {
+      const m = html.match(/<strong[^>]*>\s*([^<]{4,100})\s*<\/strong>/i);
+      if (m) {
+        const candidate = m[1].replace(/&amp;/g, "&").trim();
+        if (!isGarbageTitle(candidate)) rawTitle = candidate;
+      }
+    }
+
+    // P4: Premier <h1>/<h2>/<h3> dans le HTML
+    if (!rawTitle) {
+      const m = html.match(/<h[123][^>]*>\s*([^<]{4,100})\s*<\/h[123]>/i);
+      if (m) rawTitle = m[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim();
+    }
+
+    // Fallback séquentiel propre (PAS l'ID Ganymède)
+    if (!rawTitle || isGarbageTitle(rawTitle)) {
+      noProperTitle++;
+      rawTitle = null; // On va chercher depuis la séquence plus bas
+    }
+
+    // ── 2. PARSE DES SOUS-GUIDES RÉFÉRENCÉS ─────────────────────────────────
+    // Le regex doit capturer tous les attributs même si l'ordre varie
+    const guideStepPattern = /data-type="guide-step"[^>]*>/gi;
+    const attrExtract = (tag: string, attr: string): string => {
+      const m = tag.match(new RegExp(`${attr}="([^"]*)"`));
+      return m?.[1] ?? "";
+    };
+
+    const sequences: {
+      ref: string; name: string; stepFrom?: number; stepTo?: number;
+      note?: string; isResume?: boolean
+    }[] = [];
+    const seenRefs = new Set<string>();
+
+    let tagMatch: RegExpExecArray | null;
+    guideStepPattern.lastIndex = 0;
+    while ((tagMatch = guideStepPattern.exec(html)) !== null) {
+      const fullTag = tagMatch[0];
+      const ganymadeId = attrExtract(fullTag, "guideid");
+      const guideName  = attrExtract(fullTag, "guidename");
+      const label      = attrExtract(fullTag, "label");
+
+      // Résolution de la référence GPX:
+      // 1. Cache des sous-guides importés (le plus fiable)
+      let ref = ganymadeId ? idToRefMap.get(parseInt(ganymadeId)) ?? null : null;
+      // 2. Extraction [GPX] depuis guideName
+      if (!ref) ref = extractGpRef(guideName, label);
+      // 3. Fallback sur l'ID brut (éviter GP1074 en cherchant dans le texte environnant)
+      if (!ref && ganymadeId) {
+        // Chercher dans les 500 chars autour du tag
+        const tagIdx = tagMatch.index;
+        const ctx = html.substring(Math.max(0, tagIdx - 100), tagIdx + 600);
+        ref = extractGpRef(ctx);
+      }
+      if (!ref && ganymadeId) ref = `GP_ID${ganymadeId}`; // Dernier recours, clairement marqué comme inconnu
+
+      if (!ref || seenRefs.has(ref)) continue;
+      seenRefs.add(ref);
+
+      const cleanName = (guideName || label)
+        .replace(/^\[GP\d+\]\s*/i, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .trim() || ref;
+
+      // Extraire les bornes d'étapes depuis le label + texte environnant
+      const tagIdx = tagMatch.index;
+      const surrounding = html
+        .substring(Math.max(0, tagIdx - 300), tagIdx + 600)
+        .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+      const fullCtx = label + " " + surrounding;
+
+      const rangeM = fullCtx.match(/de l['']?[eé]tape\s+(\d+)\s+(?:[àa]|jusqu['']?[àa])\s+(?:l['']?[eé]tape\s+)?(\d+)/i);
+      const toOnlyM = fullCtx.match(/jusqu['']?[àa]\s+l['']?[eé]tape\s+(\d+)/i);
+
+      const stepFrom = rangeM ? parseInt(rangeM[1]) : undefined;
+      const stepTo   = rangeM ? parseInt(rangeM[2]) : (toOnlyM ? parseInt(toOnlyM[1]) : undefined);
+      const isResume = /reprenez|reprendre/i.test(fullCtx);
+
+      const noteM = surrounding.match(/SANS\s+([^<.]{5,60})/i);
+      const note = noteM ? `⚠️ SANS ${noteM[1].trim()}` : undefined;
+
+      sequences.push({ ref, name: cleanName, stepFrom, stepTo, note, isResume });
+    }
+
+    // Si toujours pas de titre, utiliser le premier sous-guide comme titre
+    if (!rawTitle && sequences.length > 0) {
+      const s = sequences[0];
+      rawTitle = s.stepTo
+        ? `${s.name} (étapes ${s.stepFrom ?? 1}→${s.stepTo})`
+        : s.name;
+    }
+
+    // ── DESCRIPTION (HTML nettoyé) ────────────────────────────────────────────
+    let description = html
+      .replace(/<input[^>]*type="checkbox"[^>]*>/g, "")
+      .replace(/<p[^>]*>\s*<\/p>/g, "")
+      .trim();
+
+    if (description.includes("Vous trouverez ici") || description.length < 10) {
+      description = "";
+    }
+
+    // Skip si vraiment rien (ni titre, ni contenu, ni séquence)
+    if (!rawTitle && !description && sequences.length === 0) {
+      skipped++;
+      continue;
+    }
+
+    if (!rawTitle) rawTitle = `Étape ${order}`;
+
+    // ── TYPE & COULEUR ────────────────────────────────────────────────────────
+    const isBonus   = /[ée]tape\s+bonus|partie\s+bonus/i.test(html + " " + (step.name ?? ""));
+    const isDofus   = /\bdofus\b/i.test(rawTitle + " " + html.substring(0, 500));
+    const isDonjon  = /\bdonjon\b/i.test(rawTitle) || html.includes("tag-dungeon");
+
+    const type        = isDofus ? "DOFUS" : isDonjon ? "DONJON" : isBonus ? "PREREQUIS" : "QUETE_SERIE";
+    const accentColor = isDofus ? "#f59e0b" : isDonjon ? "#8b5cf6" : isBonus ? "#a855f7" : "#10b981";
+
+    // ── CHAPITRE ──────────────────────────────────────────────────────────────
+    const firstSeq   = sequences[0];
+    // Chapitre = numéro du premier GP référencé, ou 0 pour les étapes d'intro
+    const gpNumMatch  = firstSeq?.ref.match(/\d+/);
+    const chapterNum  = gpNumMatch ? parseInt(gpNumMatch[0]) : 0;
+    const chapterLabel = firstSeq ? `[${firstSeq.ref}] ${firstSeq.name}` : "Introduction";
+
+    // ── CRÉATION EN BASE ──────────────────────────────────────────────────────
+    const milestone = await db.guideMilestone.create({
+      data: {
+        guideId,
+        title: rawTitle,
+        description: description || null,
+        type,
+        chapter: chapterNum,
+        chapterLabel,
+        accentColor,
+        order,
+        posX: (order % 4) * 220,
+        posY: Math.floor((order - 1) / 4) * 160,
+        isOptional: isBonus,
+      },
+    });
+
+    for (let i = 0; i < sequences.length; i++) {
+      const seq = sequences[i];
+      await db.guideSequence.create({
+        data: {
+          milestoneId: milestone.id,
+          subGuideRef: seq.ref,
+          subGuideName: seq.name,
+          stepFrom: seq.stepFrom,
+          stepTo: seq.stepTo,
+          note: seq.note,
+          isResume: seq.isResume,
+          isOptional: isBonus,
+          order: i + 1,
+        },
       });
     }
-    progressByProfile.get(progress.profileId)!.completedIds.add(progress.questId);
+
+    order++;
+    created++;
   }
 
-  // Déterminer l'étape pour chaque profile
-  const memberProgress: {
-    profile: any;
-    currentStepIndex: number; // 0 = Etape 1, -1 = Fini
-    isFinished: boolean;
-  }[] = [];
+  revalidatePath("/god/dofus-guides");
+  return {
+    success: true,
+    created,
+    skipped,
+    noProperTitle,
+    message: `✅ ${created} milestones importés. ${skipped} ignorés (tutoriels). ${noProperTitle} sans titre propre (titre auto-généré).`,
+  };
+}
 
-  for (const [_, data] of progressByProfile.entries()) {
-    let currentStepIndex = 0;
-    let isFinished = false;
+// ---------------------------------------------------------------------------
+// PIXEL-PERFECT WORLD MAP RESOLVER
+// ---------------------------------------------------------------------------
 
-    // Itérer sur les étapes dans l'ordre pour trouver la première non complétée à 100%
-    for (const [idx, step] of guide.steps.entries()) {
-      const stepQuestIds = [
-        ...(step.questIds || []),
-        ...((step.objectives as any[])?.filter(o => o.type === 'QUEST').map(o => o.id) || [])
-      ];
-      const uniqueStepQuests = [...new Set(stepQuestIds)];
-      if (uniqueStepQuests.length === 0) continue;
+let cachedWorldMap: any = null;
+let cachedWorlds: any[] = [];
 
-      const hasMissingQuest = uniqueStepQuests.some((qid) => !data.completedIds.has(qid));
-      if (hasMissingQuest) {
-        currentStepIndex = idx;
-        break;
+function loadMapData() {
+  if (cachedWorldMap && cachedWorlds && cachedWorlds.length > 0) {
+    return { worldMap: cachedWorldMap, worlds: cachedWorlds };
+  }
+
+  try {
+    const fs = require("fs");
+    const path = require("path");
+
+    const worldMapPath = path.join(process.cwd(), "public", "game-data", "worldmap.json");
+    const worldsPath = path.join(process.cwd(), "public", "game-data", "worlds.json");
+
+    if (fs.existsSync(worldMapPath) && fs.existsSync(worldsPath)) {
+      cachedWorldMap = JSON.parse(fs.readFileSync(worldMapPath, "utf8"));
+      cachedWorlds = JSON.parse(fs.readFileSync(worldsPath, "utf8"));
+    }
+  } catch (e) {
+    console.error("Failed to load map data on server side:", e);
+  }
+
+  return { worldMap: cachedWorldMap, worlds: cachedWorlds };
+}
+
+/**
+ * Resolves the precise world map ID for a given coordinate [x, y] using context matching to avoid false positives.
+ */
+export async function resolveMapWorldAction(x: number, y: number, textContext?: string): Promise<{ success: boolean; worldId: number }> {
+  try {
+    const { worldMap, worlds } = loadMapData();
+    if (!worldMap || !worldMap.maps) {
+      return { success: true, worldId: 1 }; // Default fallback
+    }
+
+    // Find all candidate maps matching coordinates
+    const candidateMaps = worldMap.maps.filter((m: any) => m.x === x && m.y === y);
+
+    if (candidateMaps.length === 0) {
+      return { success: true, worldId: 1 };
+    }
+
+    if (candidateMaps.length === 1) {
+      return { success: true, worldId: candidateMaps[0].worldMap };
+    }
+
+    // Multiple maps exist at [x, y]! Resolve ambiguity via semantic context
+    const txt = (textContext || "").toLowerCase();
+
+    // If all maps are from the same world, no ambiguity
+    const candidateWorldIds = Array.from(new Set(candidateMaps.map((m: any) => m.worldMap))) as number[];
+    if (candidateWorldIds.length === 1) {
+      return { success: true, worldId: candidateWorldIds[0] };
+    }
+
+    let bestWorldId = candidateWorldIds[0];
+    let bestScore = -1;
+
+    for (const map of candidateMaps) {
+      let score = 0;
+
+      // 1. Subarea name matching
+      const subarea = worldMap.subareas?.find((s: any) => s.id === map.subAreaId);
+      if (subarea) {
+        const subareaNameFr = (typeof subarea.name === "string" ? subarea.name : subarea.name?.fr || "").toLowerCase();
+        const subareaNameEn = (subarea.name?.en || "").toLowerCase();
+
+        if (subareaNameFr && txt.includes(subareaNameFr)) {
+          score += 150; // Exact subarea name is a highly confident match
+        } else if (subareaNameFr) {
+          const words = subareaNameFr.split(/\s+/).filter((w: string) => w.length > 3);
+          for (const w of words) {
+            if (txt.includes(w)) {
+              score += 30; // Partial word matching
+            }
+          }
+        }
+
+        if (subareaNameEn && txt.includes(subareaNameEn)) {
+          score += 80;
+        }
       }
 
-      // Si on arrive à la dernière étape et pas de missing quests, c'est fini
-      if (idx === guide.steps.length - 1 && !hasMissingQuest) {
-        currentStepIndex = idx;
-        isFinished = true;
+      // 2. World name matching
+      const worldObj = worlds?.find((w: any) => w.id === map.worldMap);
+      if (worldObj) {
+        const worldNameFr = (worldObj.name?.fr || "").toLowerCase();
+        const worldNameEn = (worldObj.name?.en || "").toLowerCase();
+
+        if (worldNameFr && txt.includes(worldNameFr)) {
+          score += 200; // Perfect world name match
+        }
+        if (worldNameEn && txt.includes(worldNameEn)) {
+          score += 100;
+        }
+      }
+
+      // 3. Coordinate world ID mapping helper keywords
+      if (map.worldMap === 2 && (txt.includes("incarnam") || txt.includes("débutant") || txt.includes("ganymède"))) {
+        score += 180;
+      }
+      if (map.worldMap === 4 && (txt.includes("minotoror") || txt.includes("labyrinthe"))) {
+        score += 180;
+      }
+      if (map.worldMap === 5 && (txt.includes("dragon cochon") || txt.includes("dragon-cochon") || txt.includes("porcos"))) {
+        score += 180;
+      }
+      if (map.worldMap === 6 && (txt.includes("corbac") || txt.includes("bibliothèque"))) {
+        score += 180;
+      }
+      if (map.worldMap === 7 && (txt.includes("givrefoux") || txt.includes("frigost") || txt.includes("caverne"))) {
+        score += 180;
+      }
+      if (map.worldMap === 8 && (txt.includes("méphitique") || txt.includes("canal") || txt.includes("canaux"))) {
+        score += 180;
+      }
+      if (map.worldMap === 9 && (txt.includes("brâkmar") || txt.includes("brakmar") || txt.includes("entrailles"))) {
+        score += 180;
+      }
+      if (map.worldMap === 10 && (txt.includes("canopée") || txt.includes("canopee") || txt.includes("arbre klip"))) {
+        score += 180;
+      }
+
+      // Default slight bias to World of Twelve if no clear match exists
+      if (map.worldMap === 1) {
+        score += 2;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestWorldId = map.worldMap;
       }
     }
 
-    memberProgress.push({
-      profile: data.profile,
-      currentStepIndex,
-      isFinished,
-    });
+    return { success: true, worldId: bestWorldId };
+  } catch (err) {
+    console.error("Failed to resolve map world:", err);
+    return { success: false, worldId: 1 };
   }
-
-  return { success: true, memberProgress };
 }
+
+
+

@@ -1,13 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ExternalLink, Newspaper, Zap, Scroll, Shield, Sparkles, Globe2, ChevronDown, RefreshCw, Rss, Send, Globe, CheckCircle2, XCircle, Bell, Megaphone } from "lucide-react";
+import { ExternalLink, Newspaper, Zap, Scroll, Shield, Sparkles, Globe2, ChevronDown, RefreshCw, Rss, Send, Globe, CheckCircle2, XCircle, Bell, Megaphone, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KralamoureWidget } from "@/components/ressources/KralamoureWidget";
 import { useParams } from "next/navigation";
 import { getUserContext, type UserContext } from "@/server/actions/user-actions";
 import { sendNewsToDiscord, broadcastNewsToAllGuilds, type DiscordNewsItem } from "@/server/actions/news-discord-actions";
 import { toast } from "sonner";
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogFooter,
+    DialogDescription
+} from "@/components/ui/dialog";
+import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -351,7 +360,11 @@ function ListCard({
                     />
                 ) : (
                     <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-500/10 to-transparent">
-                        <Scroll className="w-6 h-6" style={{ color: currentFeed.color, opacity: 0.5 }} />
+                        {currentFeed.key === "changelog" ? (
+                            <img src="/module-dofus/Dofus_Emeraude.png" alt="" className="w-10 h-10 object-contain opacity-80" />
+                        ) : (
+                            <Scroll className="w-6 h-6" style={{ color: currentFeed.color, opacity: 0.5 }} />
+                        )}
                         <Zap className="absolute top-2 right-2 w-3 h-3 text-amber-500 animate-pulse" />
                     </div>
                 )}
@@ -428,19 +441,44 @@ export function NewsGrid({
     const [userCtx, setUserCtx] = useState<UserContext | null>(null);
     const [sending, setSending] = useState<string | null>(null); // URL of item being sent
     const [broadcasting, setBroadcasting] = useState(false);
+    const [previewItem, setPreviewItem] = useState<{ item: NewsItem, type: "SEND" | "BROADCAST" } | null>(null);
+    const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
 
     const params = useParams();
     const discordGuildId = params.guildId as string;
 
     useEffect(() => {
         getUserContext(discordGuildId).then(setUserCtx);
+        
+        // Fetch News Target Channel (System)
+        fetch(`/api/dashboard/${discordGuildId}/config`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.systemNotifyChannelId) {
+                    getDiscordChannelInfo(discordGuildId, data.systemNotifyChannelId).then(chanRes => {
+                        if (chanRes.success && chanRes.data) {
+                            setTargetChannelName(chanRes.data.name);
+                        }
+                    });
+                }
+            })
+            .catch(() => {});
     }, [discordGuildId]);
 
     const currentFeed = FEEDS.find(f => f.key === activeFeed) ?? FEEDS[0];
 
     const handleSendToDiscord = async (item: NewsItem) => {
+        setPreviewItem({ item, type: "SEND" });
+    };
+
+    const handleBroadcast = async (item: NewsItem) => {
+        setPreviewItem({ item, type: "BROADCAST" });
+    };
+
+    const confirmSendToDiscord = async (item: NewsItem) => {
         if (!discordGuildId) return;
         setSending(item.link);
+        setPreviewItem(null);
         
         try {
             const res = await sendNewsToDiscord(discordGuildId, {
@@ -464,11 +502,11 @@ export function NewsGrid({
         }
     };
 
-    const handleBroadcast = async (item: NewsItem) => {
+    const confirmBroadcast = async (item: NewsItem) => {
         if (!userCtx?.isSuperAdmin) return;
-        if (!confirm(`Voulez-vous vraiment diffuser cette annonce à TOUTES les guildes actives (${item.title}) ?`)) return;
-        
         setBroadcasting(true);
+        setPreviewItem(null);
+        
         try {
             const res = await broadcastNewsToAllGuilds({
                 title: item.title,
@@ -617,8 +655,7 @@ export function NewsGrid({
                 </div>
             ) : layout === "list" ? (
                 <div className="flex flex-col gap-2 relative">
-                    {/* Vertical line connector */}
-                    <div className="absolute left-[31px] top-6 bottom-6 w-px bg-white/5" />
+                    {/* Vertical line connector removed */}
                     
                     {items.slice(0, maxItems).map((item, i) => (
                         <ListCard 
@@ -667,6 +704,91 @@ export function NewsGrid({
                     </div>
                 </div>
             )}
+
+            {/* PREVIEW MODAL */}
+            <Dialog open={!!previewItem} onOpenChange={(open) => !open && setPreviewItem(null)}>
+                <DialogContent className="max-w-2xl bg-zinc-950 border-white/10 rounded-[2rem] p-0 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
+                    
+                    <DialogHeader className="p-8 pb-4">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className={cn(
+                                "p-3 rounded-2xl border flex items-center justify-center",
+                                previewItem?.type === "BROADCAST" ? "bg-amber-500/10 border-amber-500/20" : "bg-indigo-500/10 border-indigo-500/20"
+                            )}>
+                                {previewItem?.type === "BROADCAST" ? <Megaphone className="w-5 h-5 text-amber-500" /> : <Bell className="w-5 h-5 text-indigo-400" />}
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl font-black uppercase tracking-tight text-white italic">
+                                    {previewItem?.type === "BROADCAST" ? "Diffusion Mondiale" : "Notification de Guilde"}
+                                </DialogTitle>
+                                <DialogDescription className="text-zinc-500 font-medium">
+                                    {previewItem?.type === "BROADCAST" 
+                                        ? "Vous êtes sur le point de diffuser cette annonce à toutes les guildes actives." 
+                                        : "Vérifiez le rendu visuel avant l'envoi dans votre salon de notifications."}
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    <div className="px-8 py-4 pb-8">
+                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                            <div className={cn(
+                                "flex items-center gap-4 p-5 rounded-3xl border shadow-inner transition-all",
+                                previewItem?.type === "BROADCAST" ? "bg-amber-500/5 border-amber-500/20" : "bg-indigo-500/5 border-indigo-500/20"
+                            )}>
+                                <div className={cn(
+                                    "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-sm",
+                                    previewItem?.type === "BROADCAST" ? "bg-amber-500/10 border-amber-500/20" : "bg-indigo-500/10 border-indigo-500/20"
+                                )}>
+                                    <Hash className={cn("w-6 h-6", previewItem?.type === "BROADCAST" ? "text-amber-500" : "text-indigo-400")} />
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Destination de publication</span>
+                                    <span className="text-sm font-bold text-white flex items-center gap-2">
+                                        Posté dans 
+                                        <span className={cn(
+                                            "italic font-black",
+                                            previewItem?.type === "BROADCAST" ? "text-amber-500" : "text-indigo-400"
+                                        )}>
+                                            #{previewItem?.type === "BROADCAST" ? "annonces-globales" : targetChannelName}
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed italic">
+                                    {previewItem?.type === "BROADCAST" 
+                                        ? "⚠️ Cette action est irréversible. Le message sera envoyé simultanément à toutes les guildes ayant configuré SigilOS."
+                                        : "Le post inclura le titre, la description et l'image de l'article avec un lien direct vers la source officielle."}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="p-8 pt-4 bg-white/[0.02] border-t border-white/5 flex items-center gap-4">
+                        <button
+                            onClick={() => setPreviewItem(null)}
+                            className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            onClick={() => previewItem?.type === "BROADCAST" ? confirmBroadcast(previewItem.item) : confirmSendToDiscord(previewItem!.item)}
+                            className={cn(
+                                "flex-[2] h-12 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3",
+                                previewItem?.type === "BROADCAST" 
+                                    ? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20" 
+                                    : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20"
+                            )}
+                        >
+                            {previewItem?.type === "BROADCAST" ? <Megaphone className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                            {previewItem?.type === "BROADCAST" ? "Diffuser Maintenant" : "Envoyer sur Discord"}
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

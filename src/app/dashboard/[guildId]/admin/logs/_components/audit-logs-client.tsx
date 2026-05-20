@@ -43,8 +43,6 @@ const ACTION_COLORS: Record<string, string> = {
     POLL_CLOSED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     POLL_DELETED: "bg-rose-500/20 text-rose-400 border-rose-500/30",
     POLL_CREATOR_ROLE_ACQUIRED: "bg-cyan-400/10 text-cyan-300 border-cyan-400/20 shadow-[0_0_10px_rgba(34,211,238,0.1)]",
-    // Chat
-    CHAT_BLOCKED_ATTEMPT: "bg-red-500/20 text-red-400 border-red-500/30",
     // GDPR
     USER_GDPR_DELETE: "bg-red-600/20 text-red-300 border-red-600/30",
 };
@@ -63,6 +61,7 @@ const ACTION_LABELS: Record<string, string> = {
     MEMBER_PURGED: "Données purgées",
     WEBHOOK_MEMBER_ADD: "Arrivée membre (Bot)",
     WEBHOOK_MEMBER_REMOVE: "Départ membre (Bot)",
+    WEBHOOK_MEMBER_UPDATE: "MàJ membre (Bot)",
     PLATFORM_ARRIVAL: "🚀 Arrivée Plateforme",
     PLATFORM_DEPARTURE: "👋 Départ Plateforme",
     PROFILE_ARCHIVED: "📁 Profil Archivé",
@@ -82,8 +81,6 @@ const ACTION_LABELS: Record<string, string> = {
     POLL_CLOSED: "🔒 Sondage clôturé",
     POLL_DELETED: "🗑️ Sondage supprimé",
     POLL_CREATOR_ROLE_ACQUIRED: "🎤 Micro acquis",
-    // Chat
-    CHAT_BLOCKED_ATTEMPT: "🚫 Message Chat Bloqué",
     // GDPR
     USER_GDPR_DELETE: "🗑️ Suppression RGPD",
 };
@@ -98,7 +95,6 @@ const ACTION_OPTIONS = [
     { value: "MEMBER_PURGED,MEMBER_BANNED,MEMBER_ARCHIVED,MEMBER_LEFT,WEBHOOK_MEMBER_ADD,WEBHOOK_MEMBER_REMOVE,PLATFORM_ARRIVAL,PLATFORM_DEPARTURE,PROFILE_ARCHIVED,PROFILE_REACTIVATED,MEMBER_PSEUDO_UPDATE,MEMBER_ANKAMA_ID_UPDATE", label: "🔄 Mouvements" },
     { value: "CONFIG_UPDATED,SETTINGS_UPDATED", label: "⚙️ Configuration" },
     { value: "ADMIN_FULL_DENIED,SECURITY_ALERT", label: "🛡️ Sécurité" },
-    { value: "CHAT_BLOCKED_ATTEMPT", label: "💬 Modération Chat" },
     { value: "USER_GDPR_DELETE", label: "🗑️ Suppressions RGPD" },
 ];
 
@@ -118,13 +114,10 @@ type AuditMetadata = {
     fileName?: string;
     missionTitle?: string;
     scores?: any[];
-    // Chat
-    message?: string;
-    strikes?: number;
-    threshold?: number;
     // GDPR
     discordId?: string;
     guildName?: string;
+    message?: string;
 };
 
 // ... (inside component render)
@@ -371,10 +364,6 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                         {logs.map((log) => {
                             const metadata = (log.metadata || {}) as AuditMetadata;
 
-                            // Format message for display (truncation)
-                            const displayMsg = metadata.message && metadata.message.length > 100
-                                ? metadata.message.substring(0, 100) + "..."
-                                : metadata.message;
 
                             return (
                                 <div key={log.id} className="relative pl-6 border-l-2 border-white/10 pb-4 last:pb-0">
@@ -527,26 +516,6 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
 
                                             {log.action === "RBAC_UPDATE" && metadata.changes && (
                                                 <PermissionChangesDisplay metadata={metadata} roleNames={roleNames} />
-                                            )}
-
-                                            {log.action === "CHAT_BLOCKED_ATTEMPT" && (
-                                                <div className="mt-2 bg-red-950/20 border border-red-500/10 rounded-lg p-2.5 text-xs">
-                                                    <div className="flex items-center justify-between mb-1.5">
-                                                        <span className="text-red-300/80 font-medium">Contenu bloqué détecté</span>
-                                                        <Badge variant="outline" className="text-[10px] h-4 bg-red-500/5 text-red-400 border-red-500/20 uppercase tracking-tighter">
-                                                            {metadata.strikes} / {metadata.threshold} strikes
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="bg-black/20 rounded border border-white/5 p-2 italic text-red-200/60 break-all">
-                                                        "{displayMsg}"
-                                                    </div>
-                                                    {metadata.strikes === metadata.threshold && (
-                                                        <div className="mt-1.5 text-[10px] text-red-400 font-bold flex items-center gap-1">
-                                                            <Shield className="w-2.5 h-2.5" />
-                                                            UTILISATEUR BANNI TEMPORAIREMENT (15 MIN)
-                                                        </div>
-                                                    )}
-                                                </div>
                                             )}
                                         </div>
                                         <div className="text-xs text-muted-foreground whitespace-nowrap">

@@ -139,14 +139,14 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
     const refreshData = () => fetchData();
 
     const handleValidateWeek = async () => {
-        if (!confirm("Voulez-vous valider la semaine en cours ? Cela créera un point d'historique pour tous les membres pour permettre de voir leur évolution.")) return;
+        if (!confirm("Voulez-vous valider la semaine en cours ? Cela cr├®era un point d'historique pour tous les membres pour permettre de voir leur ├®volution.")) return;
         
         setValidating(true);
         const res = await validateWeeklyGuildaton(guildId);
         setValidating(false);
         
         if (res.success) {
-            toast.success("Semaine validée !");
+            toast.success("Semaine valid├®e !");
             fetchData();
         } else {
             toast.error(res.error || "Erreur lors de la validation");
@@ -158,7 +158,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
         const res = await sendManualGuildatonReport(guildId);
         setSending(false);
         if (res.success) {
-            toast.success("Rapport Discord envoyé !");
+            toast.success("Rapport Discord envoy├® !");
         } else {
             toast.error(res.error || "Erreur lors de l'envoi");
         }
@@ -177,7 +177,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
             });
 
             if (res.success) {
-                toast.success(`Guildaton mis à jour pour ${m.displayName}`);
+                toast.success(`Guildaton mis ├á jour pour ${m.displayName}`);
                 // Optimistic update
                 setData(prev => ({
                     ...prev,
@@ -252,10 +252,10 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
             }).filter(r => r.username && r.username.length > 1 && !r.username.toLowerCase().includes("pseudo") && !r.username.toLowerCase().includes("name"));
 
             if (parsed.length === 0) {
-                toast.error("Format de données non reconnu (Pseudo + Points attendus).");
+                toast.error("Format de donn├®es non reconnu (Pseudo + Points attendus).");
             } else {
                 setImportData(parsed);
-                toast.success(`${parsed.length} membres détectés.`);
+                toast.success(`${parsed.length} membres d├®tect├®s.`);
             }
         };
         reader.onerror = () => toast.error("Erreur lors de la lecture du fichier.");
@@ -315,10 +315,10 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
             }).filter(r => r.username && r.username.length > 1 && !r.username.toLowerCase().includes("pseudo") && !r.username.toLowerCase().includes("name"));
 
             if (parsed.length === 0) {
-                toast.error("Format de données non reconnu (Pseudo + Points attendus).");
+                toast.error("Format de donn├®es non reconnu (Pseudo + Points attendus).");
             } else {
                 setImportData(parsed);
-                toast.success(`${parsed.length} membres détectés.`);
+                toast.success(`${parsed.length} membres d├®tect├®s.`);
             }
         };
         reader.readAsText(file);
@@ -329,7 +329,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
         setSending(true);
         const res = await importGuildatonCsv(guildId, importData);
         if (res.success) {
-            toast.success(`${importData.length} records importés avec succès`);
+            toast.success(`${importData.length} records import├®s avec succ├¿s`);
             setImportOpen(false);
             fetchData();
         } else {
@@ -346,7 +346,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
         setSending(true);
         const res = await updateGuildatonValue(guildId, { ...manualForm, discordId: idToLog });
         if (res.success) {
-            toast.success("Membre ajouté");
+            toast.success("Membre ajout├®");
             setManualOpen(false);
             fetchData();
             setManualForm({ discordId: "", username: "", ankamaId: "", value: 0 });
@@ -358,13 +358,13 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
 
 
     const handleDeleteRecord = async (discordId: string) => {
-        if (!confirm("Supprimer ce membre du Guildaton ? Les points et l'historique seront effacés.")) return;
+        if (!confirm("Supprimer ce membre du Guildaton ? Les points et l'historique seront effac├®s.")) return;
         
         setLoading(true);
         try {
             const res = await deleteGuildatonRecord(guildId, discordId);
             if (res.success) {
-                toast.success("Enregistrement supprimé");
+                toast.success("Enregistrement supprim├®");
                 fetchData();
             } else {
                 toast.error(res.error);
@@ -403,7 +403,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                     <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 blur-[40px] rounded-full translate-x-12 -translate-y-12" />
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2.5 bg-violet-600/10 rounded-xl">
-                            <img src="/guildaton.png" alt="Guildaton" className="w-5 h-5 object-contain" />
+                            <img src="/guildatons.png" alt="Guildaton" className="w-5 h-5 object-contain" />
                         </div>
                         <span className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">Total Guilde</span>
                     </div>
@@ -411,7 +411,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                         <span className="text-4xl font-black text-white">{totalGuildatons.toLocaleString()}</span>
                         <span className="text-[10px] font-black text-violet-500 mb-2 uppercase italic font-black">Points</span>
                     </div>
-                    <p className="text-[10px] text-zinc-500 font-bold mt-2 uppercase tracking-widest italic opacity-60">Volume cumulé des membres</p>
+                    <p className="text-[10px] text-zinc-500 font-bold mt-2 uppercase tracking-widest italic opacity-60">Volume cumul├® des membres</p>
                 </Card>
 
                 <Card className="bg-zinc-900/40 border-white/5 backdrop-blur-xl rounded-[24px] p-6 relative group">
@@ -431,7 +431,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] flex items-center gap-2">
                             <Clock className="w-4 h-4 text-indigo-400" />
-                            Évolution (15 jours)
+                            ├ëvolution (15 jours)
                         </span>
                         <Badge variant="outline" className="text-[8px] border-white/5 text-zinc-500 uppercase font-black">Analyses site</Badge>
                     </div>
@@ -501,7 +501,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                             className="h-10 bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl px-6 shadow-[0_0_20px_rgba(139,92,246,0.2)] hover:scale-105 transition-all"
                             onClick={() => window.open('https://download.sigilos.fr/sigilocr-latest.exe', '_blank')}
                         >
-                            <Download className="w-4 h-4 mr-2" /> Télécharger (Win)
+                            <Download className="w-4 h-4 mr-2" /> T├®l├®charger (Win)
                         </Button>
                     </div>
                 </CardContent>
@@ -528,7 +528,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                             onChange={(e) => setRoleFilter(e.target.value)}
                             className="h-12 px-4 rounded-2xl bg-black/40 border border-white/5 text-white text-xs font-bold focus:outline-none"
                         >
-                            <option value="ALL">Tous les rôles</option>
+                            <option value="ALL">Tous les r├┤les</option>
                             {Array.from(new Set(data.members.map(m => m.discordRoleName))).filter(Boolean).map(rn => (
                                 <option key={rn} value={rn!}>{rn}</option>
                             ))}
@@ -563,7 +563,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                             <DialogContent className="bg-zinc-950 border-white/10 rounded-[32px] max-w-md text-white">
                                 <DialogHeader>
                                     <DialogTitle className="text-xl font-black uppercase italic italic text-white">Ajout <span className="text-violet-500">Manuel</span></DialogTitle>
-                                    <DialogDescription className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Inscrire un membre non présent sur le site.</DialogDescription>
+                                    <DialogDescription className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Inscrire un membre non pr├®sent sur le site.</DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-4 py-4">
                                     <div className="space-y-2">
@@ -626,7 +626,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                         <FileJson className="w-6 h-6 text-indigo-400" />
                                         Importation <span className="text-indigo-400">OCR Bot</span>
                                     </DialogTitle>
-                                    <DialogDescription className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Uploadez le fichier généré par votre bot OCR.</DialogDescription>
+                                    <DialogDescription className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Uploadez le fichier g├®n├®r├® par votre bot OCR.</DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-6 py-6" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
                                     <div className="p-8 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.02] flex flex-col items-center justify-center gap-4 text-center group hover:border-indigo-500/30 hover:bg-white/[0.05] transition-all relative">
@@ -634,7 +634,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                             <Upload className="w-8 h-8 text-indigo-400" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-black text-white italic">Cliquez Libre ou Glissez-Déposez</p>
+                                            <p className="text-sm font-black text-white italic">Cliquez Libre ou Glissez-D├®posez</p>
                                             <p className="text-[10px] text-zinc-500 font-bold mt-1 uppercase tracking-tighter">Le robot trouvera automatiquement les fautes dans les noms.</p>
                                         </div>
                                         <Input type="file" accept=".csv" title="Upload" onChange={handleCsvImport} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-50 block" />
@@ -643,7 +643,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                     {importData.length > 0 && (
                                         <div className="max-h-[300px] overflow-y-auto rounded-2xl border border-white/5 p-4 space-y-2 bg-black/40">
                                             <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/5 text-[10px] font-black uppercase text-zinc-500 tracking-widest">
-                                                <span>Aperçu des données ({importData.length} lignes)</span>
+                                                <span>Aper├ºu des donn├®es ({importData.length} lignes)</span>
                                             </div>
                                             {importData.slice(0, 10).map((row, i) => (
                                                 <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-white/[0.02] last:border-none">
@@ -691,7 +691,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                 </TableRow>
                             ) : filteredMembers.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-32 text-center text-zinc-500 text-xs font-bold uppercase italic">Aucun membre trouvé</TableCell>
+                                    <TableCell colSpan={5} className="h-32 text-center text-zinc-500 text-xs font-bold uppercase italic">Aucun membre trouv├®</TableCell>
                                 </TableRow>
                             ) : (
                                 filteredMembers.map(m => (
@@ -712,7 +712,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                                     </span>
                                                     <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">{m.discordRoleName || "Membre de guilde"}</span>
                                                     
-                                                    {/* Petit graphique d'évolution */}
+                                                    {/* Petit graphique d'├®volution */}
                                                     <div className="h-8 w-32 mt-2 opacity-30 group-hover:opacity-100 transition-opacity">
                                                         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                                             <AreaChart data={data.history?.filter(h => h.discordId === m.discordId).map(h => ({ value: h.value })) || []}>
@@ -760,7 +760,7 @@ export function GuildatonManagement({ guildId }: GuildatonManagementProps) {
                                         <TableCell>
                                             <div className="relative w-[140px] group/input">
                                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-md bg-zinc-800/50">
-                                                    <img src="/guildaton.png" alt="Icon" className="w-3 h-3 object-contain opacity-70 group-focus-within/input:opacity-100 transition-opacity" />
+                                                    <img src="/guildatons.png" alt="Icon" className="w-3 h-3 object-contain opacity-70 group-focus-within/input:opacity-100 transition-opacity" />
                                                 </div>
                                                 <Input 
                                                     type="number" 

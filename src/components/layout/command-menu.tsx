@@ -14,7 +14,18 @@ import {
     LogOut,
     Home,
     Loader2,
-    Users
+    Users,
+    LayoutDashboard,
+    BookOpen,
+    Compass,
+    Shield,
+    Database,
+    Package,
+    Handshake,
+    Calendar,
+    Zap,
+    Rocket,
+    History
 } from "lucide-react";
 import { useDebounce } from "use-debounce";
 import { globalSearch, SearchResult } from "@/server/actions/search-actions";
@@ -30,11 +41,15 @@ import {
     CommandShortcut,
 } from "@/components/ui/command";
 
+import { type UserContext } from "@/server/actions/user-actions";
+import { PERMISSIONS } from "@/lib/permissions";
+
 interface CommandMenuProps {
     guildId: string;
+    user: UserContext;
 }
 
-export function CommandMenu({ guildId }: CommandMenuProps) {
+export function CommandMenu({ guildId, user }: CommandMenuProps) {
     const [open, setOpen] = React.useState(false);
     const [query, setQuery] = React.useState("");
     const [debouncedQuery] = useDebounce(query, 300);
@@ -86,10 +101,45 @@ export function CommandMenu({ guildId }: CommandMenuProps) {
         command();
     }, []);
 
-    // Filter results by type
     const memberResults = results.filter(r => r.type === "MEMBER");
     const missionResults = results.filter(r => r.type === "MISSION");
     const pageResults = results.filter(r => r.type === "PAGE");
+    const gameDataResults = results.filter(r => r.type === "GAME_DATA");
+    const serviceResults = results.filter(r => r.type === "SERVICE");
+    const vaultResults = results.filter(r => r.type === "VAULT");
+    const loanResults = results.filter(r => r.type === "LOAN");
+    const skinResults = results.filter(r => r.type === "SKIN");
+    const eventResults = results.filter(r => r.type === "EVENT");
+    const actionResults = results.filter(r => r.type === "ACTION");
+
+    const searchItems = React.useMemo(() => [
+        { title: "Dashboard", href: `/dashboard/${guildId}`, icon: LayoutDashboard, category: "Général", color: "text-zinc-400", bg: "bg-white/5", border: "border-white/5" },
+        { title: "Documentation", href: `/docs`, icon: BookOpen, category: "Général", color: "text-zinc-400", bg: "bg-white/5", border: "border-white/5" },
+        
+        { title: "Annuaire des membres", href: `/dashboard/${guildId}/members`, icon: Users, category: "Informations", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+        { title: "La Guilde (Hub)", href: `/dashboard/${guildId}/guild-hub`, icon: Sparkles, category: "Informations", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+        { title: "Ressources communautaires", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, category: "Informations", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+        
+        { title: "Missions hebdomadaires", href: `/dashboard/${guildId}/missions`, icon: ScrollText, category: "Progression", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        { title: "Songes Infinis", href: `/dashboard/${guildId}/songes`, icon: Sparkles, category: "Progression", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        { title: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Trophy, category: "Progression", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        { title: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, icon: Trophy, category: "Progression", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        
+        { title: "Galerie de Stuff", href: `/dashboard/${guildId}/stuff-hub`, icon: Sparkles, category: "Outils", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+        { title: "Services & Artisans", href: `/dashboard/${guildId}/services`, icon: Sparkles, category: "Outils", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+        { title: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, category: "Outils", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+        { title: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Sparkles, category: "Outils", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+        
+        { title: "Validation", href: `/dashboard/${guildId}/admin/validation`, icon: CheckSquare, category: "Supervision", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", visible: user?.canValidateMissions },
+        { title: "Paramètres Admin", href: `/dashboard/${guildId}/admin/settings`, icon: Settings, category: "Supervision", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", visible: user?.canViewSettings },
+        
+        { title: "Roadmap Plateforme", href: `/roadmap`, icon: Rocket, category: "Plateforme", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        { title: "Mises à jour / Changelog", href: `/changelog`, icon: History, category: "Plateforme", color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
+    ], [guildId, user]);
+
+    const filteredSearchItems = React.useMemo(() => 
+        searchItems.filter(item => (item as any).visible !== false),
+    [searchItems]);
 
     return (
         <CommandDialog
@@ -178,45 +228,206 @@ export function CommandMenu({ guildId }: CommandMenuProps) {
                                     ))}
                                 </CommandGroup>
                             )}
+
+                            {gameDataResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-emerald-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Monde des Douze</span>}>
+                                    {gameDataResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-emerald-500/20 bg-emerald-500/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Database className="h-4 w-4 text-emerald-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-emerald-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {serviceResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-amber-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Services & Artisans</span>}>
+                                    {serviceResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-amber-500/20 bg-amber-500/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Sparkles className="h-4 w-4 text-amber-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-amber-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {(vaultResults.length > 0 || loanResults.length > 0) && (
+                                <CommandGroup heading={<span className="text-indigo-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Coffre & Prêts</span>}>
+                                    {vaultResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-indigo-500/20 bg-indigo-500/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Package className="h-4 w-4 text-indigo-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-indigo-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                    {loanResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-indigo-500/20 bg-indigo-500/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Handshake className="h-4 w-4 text-indigo-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-indigo-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {skinResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-pink-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Galerie de Skins</span>}>
+                                    {skinResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-pink-500/20 bg-pink-500/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Sparkles className="h-4 w-4 text-pink-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-pink-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {eventResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-purple-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Événements</span>}>
+                                    {eventResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-purple-500/20 bg-purple-500/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Calendar className="h-4 w-4 text-purple-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-purple-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {actionResults.length > 0 && (
+                                <CommandGroup heading={<span className="text-cyan-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Actions Rapides</span>}>
+                                    {actionResults.map((r) => (
+                                        <CommandItem 
+                                            key={r.id} 
+                                            onSelect={() => runCommand(() => router.push(r.href))}
+                                            className="group mx-1 my-0.5 p-2.5 rounded-xl data-[selected=true]:bg-white/5 border border-transparent transition-all"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg border border-cyan-500/20 bg-cyan-500/10 flex items-center justify-center mr-3 shrink-0">
+                                                <Zap className="h-4 w-4 text-cyan-400" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-bold text-zinc-200 truncate text-sm group-hover:text-cyan-400 transition-colors">{r.title}</span>
+                                                {r.subtitle && <span className="text-[10px] text-zinc-500 truncate">{r.subtitle}</span>}
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
                             <CommandSeparator className="bg-white/5 my-2" />
                         </>
                     )}
 
-                    <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Navigation</span>}>
-                        <CommandItem 
-                            onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}`))}
-                            className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
-                        >
-                            <Home className="mr-3 h-3.5 w-3.5 text-zinc-500" />
-                            <span className="font-semibold text-sm">Tableau de bord</span>
-                        </CommandItem>
-                        <CommandItem 
-                            onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/missions`))}
-                            className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
-                        >
-                            <ScrollText className="mr-3 h-3.5 w-3.5 text-zinc-500" />
-                            <span className="font-semibold text-sm">Missions</span>
-                        </CommandItem>
-                        <CommandItem 
-                            onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/ladder`))}
-                            className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
-                        >
-                            <Trophy className="mr-3 h-3.5 w-3.5 text-zinc-500" />
-                            <span className="font-semibold text-sm">Ladder</span>
-                        </CommandItem>
-                    </CommandGroup>
+                    {/* --- DEFAULT SUGGESTIONS --- */}
+                    {debouncedQuery.length < 2 && (
+                        <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Suggestions</span>}>
+                            {filteredSearchItems.map((item) => (
+                                <CommandItem
+                                    key={item.href + item.title}
+                                    value={item.title}
+                                    onSelect={() => runCommand(() => router.push(item.href))}
+                                    className="flex items-center gap-3 px-3 py-2.5 cursor-pointer rounded-xl data-[selected=true]:bg-white/5 transition-all mb-1 group"
+                                >
+                                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${item.bg} ${item.border}`}>
+                                        <item.icon className={`h-4 w-4 ${item.color}`} />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">{item.title}</span>
+                                        <span className={`text-[9px] font-black uppercase tracking-widest ${item.color} opacity-70`}>{item.category}</span>
+                                    </div>
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    )}
 
-                    <CommandSeparator className="bg-white/5 my-2" />
+                    {debouncedQuery.length < 2 && (
+                        <>
+                            <CommandGroup heading={<span className="text-zinc-500 font-black tracking-widest uppercase text-[9px] px-2 mb-2 block">Navigation</span>}>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}`))}
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                                >
+                                    <Home className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                                    <span className="font-semibold text-sm">Tableau de bord</span>
+                                </CommandItem>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/missions`))}
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                                >
+                                    <ScrollText className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                                    <span className="font-semibold text-sm">Missions</span>
+                                </CommandItem>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push(`/dashboard/${guildId}/ladder`))}
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-white/5 transition-all p-2.5"
+                                >
+                                    <Trophy className="mr-3 h-3.5 w-3.5 text-zinc-500" />
+                                    <span className="font-semibold text-sm">Ladder</span>
+                                </CommandItem>
+                            </CommandGroup>
 
-                    <CommandGroup>
-                        <CommandItem 
-                            onSelect={() => runCommand(() => router.push("/api/auth/signout"))}
-                            className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-red-500/10 text-red-500/80 transition-all p-2.5"
-                        >
-                            <LogOut className="mr-3 h-3.5 w-3.5" />
-                            <span className="font-bold text-sm">Déconnexion</span>
-                        </CommandItem>
-                    </CommandGroup>
+                            <CommandSeparator className="bg-white/5 my-2" />
+
+                            <CommandGroup>
+                                <CommandItem 
+                                    onSelect={() => runCommand(() => router.push("/api/auth/signout"))}
+                                    className="mx-1 my-0.5 rounded-xl data-[selected=true]:bg-red-500/10 text-red-500/80 transition-all p-2.5"
+                                >
+                                    <LogOut className="mr-3 h-3.5 w-3.5" />
+                                    <span className="font-bold text-sm">Déconnexion</span>
+                                </CommandItem>
+                            </CommandGroup>
+                        </>
+                    )}
                 </CommandList>
 
                 <div className="p-3 bg-white/[0.02] border-t border-white/5 flex items-center justify-between text-[9px] font-black text-zinc-700 uppercase tracking-widest px-6">

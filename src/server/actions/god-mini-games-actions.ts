@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "./super-admin-actions";
 import { revalidatePath } from "next/cache";
 import { WorldMapService } from "../games/SigilGuesser/WorldMapService";
+import { logger } from "@/lib/logger";
 
 export async function getMiniGamesStatus() {
     // This action doesn't strictly need superadmin check if we want to show status on public/member pages,
@@ -41,7 +42,7 @@ export async function getPlatformConfig() {
     if (!config) {
         config = await db.platformConfig.create({ data: { id: "singleton" } });
     }
-    console.log(`[PlatformConfig] Fetching singleton: ${(config.geoguesserReportedMaps as any[])?.length || 0} reported maps, ${config.geoguesserBlacklist?.length || 0} blacklisted.`);
+    logger.debug(`[PlatformConfig] Fetching singleton: ${(config.geoguesserReportedMaps as any[])?.length || 0} reported maps, ${config.geoguesserBlacklist?.length || 0} blacklisted.`);
     return config;
 }
 

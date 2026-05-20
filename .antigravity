@@ -506,18 +506,57 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - **Tickets Overhaul** : Modale pro, Rejets avec motifs, auto-archive/verrouillage threads Discord.
 - **Onboarding Bot (Zéro-clic)** : Redirection OAuth vers page succès + rafraîchissement auto tabs.
 - **God Shield** : Radar suspects et maintenance des fantômes.
+- **Sigil-Invader** : Moteur d'arcade complet, Tactical Shop, HUD Boss dynamique.
+- **Profil Bento V2** : Layout harmonisé, validation Ladder temps-réel, liaison Metamob Premium.
+- **World Map HUD** : Coordonnées Néon, Autopilote, filtrage Bounties/Archis.
 
 ---
 
-## 📋 TODO Prioritaire (Backlog)
+### Session — World Map HUD & Autopilote (2026-04-15)
+
+- ✅ **Tactical Map HUD** : Implémentation d'un HUD flottant style néon affichant les coordonnées [X,Y] en haute visibilité lors du survol.
+- ✅ **Système Autopilote** : Ajout d'un bouton "Copier Autopilote" générant instantanément la commande `/travel` pour le client Dofus.
+- ✅ **Map Cleanup** : Suppression des marqueurs hardcodés au profit d'un fetching dynamique basé sur la catégorie (Bounties vs Archimonstres).
+- ✅ **Toggle Auto-Copy** : Option persistante dans le header de la map pour activer/désactiver le copier-coller automatique des coordonnées.
+
+---
+
+### Session — Sigil-Invader — Tactical Terminal & Boss HUD (2026-04-20)
+
+- ✅ **Terminal Tactique (Shop)** : Refonte totale du shop en une interface de commandement militaire (scanlines, glassmorphism, grid structurée).
+- ✅ **Boss HUD V2** : Correction de l'alignement des noms et du mapping des IDs d'entités pour une clarté absolue durant les combats.
+- ✅ **Collision Engine** : Optimisation du moteur de collisions pour les obstacles (astéroïdes/mines) avec feedbacks visuels (flashs de dégâts).
+
+---
+
+### Session — Onboarding Admin & Compliance (2026-04-25)
+
+- ✅ **Compliance Onboarding** : Mise en place de bannières d'avertissement et blocage des modules secondaires tant que le serveur Dofus n'est pas configuré.
+- ✅ **Technical Guards** : Vérification stricte du mapping des rôles Admin/Modo avant d'autoriser l'accès aux outils de modération Discord.
+
+---
+
+### Session — Profil Bento V2 & Vérification Ladder (2026-04-30)
+
+- ✅ **Harmonisation Bento** : Refonte des 3 briques de l'onglet Général (Identité, Metamob, Alignement) en un layout cohérent et premium.
+- ✅ **Vérification Ladder Dofus** : Server Action `verifyDofusPseudo` utilisant le worker Ladder officiel avec :
+  - **Rate Limiting** : 10 req/min par utilisateur.
+  - **Caching** : 1h via Redis (`ladder:pseudo:${pseudo}`).
+  - **Validation UX** : Icône loupe, état "Vérifié" persistant, blocage du "Save" si le pseudo a changé sans être validé.
+- ✅ **Metamob Link Premium** : Refonte du composant avec Dropdown d'actions (Synchro, Switch quête, Délier) et état visuel synchronisé.
+- ✅ **Solicitation Hardening** : Limitation des messages à 500 caractères et rate-limit Redis (1h) entre deux solicitations pour éviter le spam.
+
+---
+
+### 📋 TODO Prioritaire (Backlog)
 
 ### 🔴 P0 — Critiques
-- [x] Merge `feat/module-carte` -> `dev` et deploy VPS Beta.
-- [ ] Vérifier les pings Discord sur le nouveau module Prêts (Loans).
+- [ ] Implémenter le mode Multilingue (i18n) via `next-intl`.
+- [ ] Audit logs pour toutes les solicitations réussies.
 
 ### 🎯 P2 — Features Core
-- [ ] Système d'échange Ocre interne (Trade Request Link).
-- [ ] **Module Donation Premium** : Bouton discret "Soutenir l'Évolution" (Stripe/Ko-fi) avec Glassmorphism et Orb flottant.
+- [ ] Système de Full Sync automatique des métiers lors de la validation Ladder réussie.
+- [ ] Visualisation de la progression via les nouveaux modèles `GuideMilestone`.
 
 ### 🎨 P3 — Polish UI/UX
 - [ ] Dark Mode Harmonization (certains fonds God Dashboard encore trop clairs).

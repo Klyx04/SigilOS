@@ -5,6 +5,7 @@ import { getSuperAdminIds, isSuperAdmin } from "@/server/actions/super-admin-act
 import { SystemIssueType, SystemIssueStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { logger } from "@/lib/logger";
 
 const SUPER_ADMINS = process.env.SUPER_ADMIN_IDS?.split(",") || [];
 
@@ -18,7 +19,7 @@ async function isGod() {
 
 export async function getSystemIssues() {
     const adminId = await isGod();
-    if (!adminId) return { success: false, error: "Non autorisÃ©" };
+    if (!adminId) return { success: false, error: "Non autorisé" };
 
     try {
         const issues = await db.systemIssue.findMany({
@@ -33,6 +34,54 @@ export async function getSystemIssues() {
     }
 }
 
+export async function getMemberSystemIssues(guildId: string) {
+    const start = Date.now();
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+    try {
+        // 1. Resolve internal guild ID from Discord ID
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+
+        if (!guildConfig) {
+            logger.error(`[Tracker] Guild config not found for Discord ID: ${guildId}`);
+            return { success: false, error: "Guilde introuvable" };
+        }
+
+        const internalGuildId = guildConfig.id;
+
+        // 2. Double check membership for security
+        const membership = await db.userProfile.findFirst({
+            where: {
+                guildId: internalGuildId,
+                userId: session.user.id,
+                status: "ACTIVE"
+            }
+        });
+
+        if (!membership) {
+            logger.error(`[Tracker] Access denied for user ${session.user.id} in guild ${internalGuildId}`);
+            return { success: false, error: "Accès refusé" };
+        }
+
+        const issues = await db.systemIssue.findMany({
+            orderBy: [
+                { status: 'asc' },
+                { createdAt: 'desc' },
+            ],
+        });
+        
+        logger.debug(`[PERF] getMemberSystemIssues took ${Date.now() - start}ms`);
+        return { success: true, data: issues };
+    } catch (e: any) {
+        logger.error(`[Tracker] Error:`, { error: e });
+        return { success: false, error: e.message };
+    }
+}
+
 export async function createSystemIssue(data: {
     type: SystemIssueType;
     category: string;
@@ -41,7 +90,7 @@ export async function createSystemIssue(data: {
     forumLink?: string;
 }) {
     const adminId = await isGod();
-    if (!adminId) return { success: false, error: "Non autorisÃ©" };
+    if (!adminId) return { success: false, error: "Non autorisé" };
 
     try {
         await db.systemIssue.create({
@@ -81,7 +130,7 @@ export async function updateSystemIssue(id: number, data: {
 
 export async function updateSystemIssueStatus(id: number, status: SystemIssueStatus) {
     const adminId = await isGod();
-    if (!adminId) return { success: false, error: "Non autorisÃ©" };
+    if (!adminId) return { success: false, error: "Non autorisé" };
 
     try {
         await db.systemIssue.update({
@@ -97,7 +146,7 @@ export async function updateSystemIssueStatus(id: number, status: SystemIssueSta
 
 export async function deleteSystemIssue(id: number) {
     const adminId = await isGod();
-    if (!adminId) return { success: false, error: "Non autorisÃ©" };
+    if (!adminId) return { success: false, error: "Non autorisé" };
 
     try {
         await db.systemIssue.delete({

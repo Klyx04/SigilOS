@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, AlertTriangle, Hash, Calendar, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { getCalendarConfig, updateCalendarChannel } from "@/server/actions/admin-actions";
+import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
+import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 
 interface CalendarSettingsClientProps {
     guildId: string;
@@ -23,13 +25,23 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
+    
+    const [calendarPingRoleIds, setCalendarPingRoleIds] = useState<string[]>([]);
+    const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
 
     useEffect(() => {
         async function loadConfig() {
-            const result = await getCalendarConfig(guildId);
+            const [result, rolesRes] = await Promise.all([
+                getCalendarConfig(guildId),
+                getDiscordRolesAction(guildId, { ignoreWhitelist: true })
+            ]);
             if (result.success && result.data) {
                 setChannelId(result.data.calendarChannelId || "");
                 setIsConfigured(!!result.data.calendarChannelId);
+                setCalendarPingRoleIds(result.data.calendarPingRoleIds || []);
+            }
+            if (rolesRes.success && rolesRes.roles) {
+                setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
             }
             setIsLoading(false);
         }
@@ -39,11 +51,13 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     const handleSave = () => {
         startTransition(async () => {
             const result = await updateCalendarChannel(guildId, channelId.trim() || null);
-            if (result.success) {
+            const pingRolesResult = await updateAllowedPingRolesAction(guildId, calendarPingRoleIds, "calendar");
+
+            if (result.success && pingRolesResult.success) {
                 toast.success("Configuration sauvegardée !");
                 setIsConfigured(!!channelId.trim());
             } else {
-                toast.error(result.error || "Erreur lors de la sauvegarde");
+                toast.error(result.error || pingRolesResult.error || "Erreur lors de la sauvegarde");
             }
         });
     };
@@ -136,6 +150,24 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+
+                        {/* Step 3 - Pings */}
+                        <div className="relative pl-6 border-l-2 border-transparent">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                            </div>
+                            <h3 className="text-sm font-medium text-white mb-2">3. Rôles de Ping Autorisés (Whitelist)</h3>
+                            <p className="text-xs text-zinc-500 mb-4">
+                                Définissez quels rôles Discord les membres peuvent mentionner lors de la création d'événements Calendrier.
+                            </p>
+                            <PingRolesSelector 
+                                value={calendarPingRoleIds} 
+                                onChange={setCalendarPingRoleIds} 
+                                roles={discordRoles} 
+                                description="Si la liste est vide, aucun rôle Discord ne sera disponible pour le ping/sélection dans les modales de création (seuls les administrateurs verront toujours tous les rôles)." 
+                            />
                         </div>
                     </CardContent>
                 </Card>

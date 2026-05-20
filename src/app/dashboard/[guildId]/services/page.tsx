@@ -7,6 +7,7 @@ import { getLoans } from "@/server/actions/loan-actions";
 import { getVaultEntries, getVaultBalance } from "@/server/actions/vault-actions";
 import { getServicesStatusConfig } from "@/server/actions/admin-actions";
 import { PassagesClient } from "./_components/passages-client";
+import { db } from "@/lib/prisma";
 
 export default async function ServicesPage({ params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
@@ -22,13 +23,19 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
     }
 
     // Fetch all data in parallel
-    const [listingsRes, loansRes, vaultRes, vaultBalanceRes, statusRes] = await Promise.all([
+    const [listingsRes, loansRes, vaultRes, vaultBalanceRes, statusRes, guildConfig] = await Promise.all([
         getServiceListings(guildId),
         getLoans(guildId),
         getVaultEntries(guildId),
         getVaultBalance(guildId),
         getServicesStatusConfig(guildId),
+        db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { loansNotifyChannelId: true },
+        }),
     ]);
+
+    const isDiscordConfigured = !!guildConfig?.loansNotifyChannelId;
 
     return (
         <PassagesClient
@@ -41,6 +48,7 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
             vaultEntries={vaultRes.success ? (vaultRes.data || []) : []}
             vaultSummary={vaultBalanceRes.success ? (vaultBalanceRes.data || []) : []}
             maintenance={statusRes.success ? statusRes.data : undefined}
+            isDiscordConfigured={isDiscordConfigured}
         />
     );
 }

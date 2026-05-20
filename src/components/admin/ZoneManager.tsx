@@ -27,6 +27,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { motion } from "framer-motion";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select";
 
 interface Zone {
     id: string;
@@ -44,6 +51,7 @@ export default function ZoneManager() {
     const [editing, setEditing] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedLevel, setSelectedLevel] = useState<string>("all");
 
     const [formData, setFormData] = useState({
         name: "",
@@ -54,18 +62,34 @@ export default function ZoneManager() {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [selectedLevel]);
 
     async function loadData() {
         setLoading(true);
+
+        const filters: any = {};
+        if (selectedLevel !== "all") {
+            if (selectedLevel === "200") {
+                filters.minLevel = 200;
+                filters.maxLevel = 1000;
+            } else {
+                const [min, max] = selectedLevel.split("-").map(Number);
+                if (!isNaN(min)) filters.minLevel = min;
+                if (!isNaN(max)) filters.maxLevel = max;
+            }
+        }
+
         const [zonesRes, familiesRes, dungeonsRes] = await Promise.all([
-            getAdminZones(),
+            getAdminZones(filters),
             getMonsterFamilies(),
             getDungeons()
         ]);
 
         if (zonesRes.success && zonesRes.data) {
             setZones(zonesRes.data);
+            if (selectedLevel !== "all") {
+                toast.info(`${zonesRes.data.length} zones trouvées`);
+            }
         }
         if (familiesRes.success && familiesRes.data) {
             setFamilies(familiesRes.data);
@@ -133,6 +157,23 @@ export default function ZoneManager() {
                         onChange={e => setSearchQuery(e.target.value)}
                         className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-indigo-500/50"
                     />
+                </div>
+
+                {/* Level Filter */}
+                <div className="w-full md:w-48">
+                    <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-200">
+                            <SelectValue placeholder="Filtrer par niveau" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700">
+                            <SelectItem value="all">Tous les niveaux</SelectItem>
+                            <SelectItem value="1-50">Niveau 1 - 50</SelectItem>
+                            <SelectItem value="51-100">Niveau 51 - 100</SelectItem>
+                            <SelectItem value="101-150">Niveau 101 - 150</SelectItem>
+                            <SelectItem value="151-199">Niveau 151 - 199</SelectItem>
+                            <SelectItem value="200">Niveau 200</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 <Button
                     onClick={() => { resetForm(); setIsDialogOpen(true); }}

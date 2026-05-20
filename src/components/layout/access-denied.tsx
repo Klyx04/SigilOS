@@ -8,10 +8,22 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { useSession } from "next-auth/react";
 import { RefreshCcw } from "lucide-react";
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { revalidateUserContext } from "@/server/actions/user-actions";
 import { requestProfileReactivation } from "@/server/actions/lifecycle-actions";
 import { toast } from "sonner";
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogDescription, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogTrigger,
+    DialogFooter
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface AccessDeniedProps {
     title?: string;
@@ -20,6 +32,7 @@ interface AccessDeniedProps {
     action?: React.ReactNode;
     countdownDate?: string | null;
     guildId?: string; // Optional, to help re-sync specific guild
+    hasPendingReactivation?: boolean;
 }
 
 import { useState, useEffect } from "react";
@@ -74,17 +87,24 @@ export function AccessDenied({
     variant = "lock",
     action,
     countdownDate,
-    guildId
+    guildId,
+    hasPendingReactivation = false
 }: AccessDeniedProps) {
     const { data: session } = useSession();
     const [isPending, startTransition] = useTransition();
     const [isRequesting, setIsRequesting] = useState(false);
-    const [hasRequested, setHasRequested] = useState(false);
+    const [hasRequested, setHasRequested] = useState(hasPendingReactivation);
+    const [showModal, setShowModal] = useState(false);
+    const [pseudo, setPseudo] = useState("");
+    const [reason, setReason] = useState("");
     const router = useRouter();
+    const params = useParams();
+
+    const effectiveGuildId = guildId || (params?.guildId as string);
 
     const handleSync = () => {
         startTransition(async () => {
-            const res = await revalidateUserContext(guildId);
+            const res = await revalidateUserContext(effectiveGuildId);
             if (res.success) {
                 toast.success("Synchronisation effectuée. Vérification en cours...");
                 // Reload the current page to pick up fresh data
@@ -95,14 +115,17 @@ export function AccessDenied({
         });
     };
 
-    const handleRequestReactivation = async () => {
-        if (!guildId) return;
+    const handleRequestReactivation = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!effectiveGuildId || !reason.trim()) return;
+        
         setIsRequesting(true);
         try {
-            const res = await requestProfileReactivation(guildId);
+            const res = await requestProfileReactivation(effectiveGuildId, pseudo, reason);
             if (res.success) {
                 toast.success("Demande envoyée au Staff ! Vous recevrez une notification sur le Dashboard dès validation.");
                 setHasRequested(true);
+                setShowModal(false);
             } else {
                 toast.error(res.error || "Erreur lors de la demande");
             }
@@ -115,7 +138,7 @@ export function AccessDenied({
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-center relative overflow-hidden">
-            <PublicHeader user={session?.user} />
+            <PublicHeader user={session?.user} isMember={false} clientId={effectiveGuildId} />
             <AuroraBackground className="absolute inset-0 z-0 pointer-events-none opacity-40" />
 
             {/* Ambient Noise Overlay */}
@@ -168,14 +191,72 @@ export function AccessDenied({
                     </div>
 
                     {variant === "archive" && !hasRequested && (
-                        <Button 
-                            onClick={handleRequestReactivation}
-                            disabled={isRequesting}
-                            className="h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-600/20 animate-in fade-in zoom-in"
-                        >
-                            <RefreshCcw className={`w-4 h-4 mr-2 ${isRequesting ? 'animate-spin' : ''}`} />
-                            {isRequesting ? "Envoi en cours..." : "Demander ma réintégration"}
-                        </Button>
+                        <Dialog open={showModal} onOpenChange={setShowModal}>
+                            <DialogTrigger asChild>
+                                <Button 
+                                    className="h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-600/20 animate-in fade-in zoom-in"
+                                >
+                                    <RefreshCcw className="w-4 h-4 mr-2" />
+                                    Demander ma réintégration
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-zinc-900 border-white/10 text-white sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Demande de Réintégration</DialogTitle>
+                                    <DialogDescription className="text-zinc-400">
+                                        Expliquez brièvement pourquoi vous souhaitez revenir parmi nous. Un membre du Staff étudiera votre demande.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleRequestReactivation} className="space-y-6 pt-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="pseudo" className="text-xs font-bold uppercase tracking-widest text-zinc-500">Pseudo Dofus (Optionnel)</Label>
+                                        <Input 
+                                            id="pseudo"
+                                            placeholder="Ex: Mon-Pseudo"
+                                            value={pseudo}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                // Only allow letters, spaces and hyphens
+                                                const cleaned = val.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-]/g, "");
+                                                setPseudo(cleaned);
+                                            }}
+                                            className="bg-black/40 border-white/10 h-12 rounded-xl focus:ring-emerald-500/50"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="reason" className="text-xs font-bold uppercase tracking-widest text-zinc-500">Votre Message (Obligatoire)</Label>
+                                        <Textarea 
+                                            id="reason"
+                                            required
+                                            maxLength={1000}
+                                            placeholder="Expliquez vos motivations..."
+                                            value={reason}
+                                            onChange={(e) => setReason(e.target.value)}
+                                            className="min-h-[120px] bg-black/40 border-white/10 rounded-xl focus:ring-emerald-500/50 resize-none"
+                                        />
+                                        <p className="text-[10px] text-right text-zinc-600 font-medium">
+                                            {reason.length} / 1000 caractères
+                                        </p>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button 
+                                            type="submit" 
+                                            disabled={isRequesting || !reason.trim()}
+                                            className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-xs"
+                                        >
+                                            {isRequesting ? (
+                                                <>
+                                                    <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+                                                    Envoi en cours...
+                                                </>
+                                            ) : (
+                                                "Envoyer la demande"
+                                            )}
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
                     )}
 
                     {variant === "archive" && hasRequested && (

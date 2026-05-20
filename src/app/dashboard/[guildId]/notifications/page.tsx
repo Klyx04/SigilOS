@@ -5,7 +5,7 @@ import { getUnreadNotifications, markAsRead, markAllAsRead } from "@/server/acti
 import { NotificationType, NotificationCategory } from "@prisma/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck } from "lucide-react";
+import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck, Swords, Gem } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,9 +65,6 @@ export default function NotificationsPage() {
             if (activeTab === "ALL") {
                 await markAllAsRead();
             } else {
-                // Future: add markCategoryAsRead if needed, for now individual marks or all
-                // Simulating markAll for filtered if we wanted, but action doesn't support filter yet.
-                // For simplicity, we mark all in UI but only call global markAll or loop marks.
                 await markAllAsRead();
             }
             toast.success("Notifications marquées comme lues");
@@ -84,6 +81,8 @@ export default function NotificationsPage() {
             case "EVENT": return <Calendar className="w-5 h-5 text-purple-400" />;
             case "POLL": return <PieChart className="w-5 h-5 text-orange-400" />;
             case "ADMIN_ALERT": return <ShieldCheck className="w-5 h-5 text-rose-400" />;
+            case "DONJONS": return <Swords className="w-5 h-5 text-indigo-400" />;
+            case "OCRE": return <Gem className="w-5 h-5 text-emerald-500" />;
             default: return <Bell className="w-5 h-5 text-zinc-400" />;
         }
     };
@@ -96,6 +95,8 @@ export default function NotificationsPage() {
             case "EVENT": return "Événements";
             case "POLL": return "Sondages";
             case "ADMIN_ALERT": return "Administration";
+            case "DONJONS": return "Donjons";
+            case "OCRE": return "Ocre";
             default: return "Système";
         }
     };
@@ -109,8 +110,10 @@ export default function NotificationsPage() {
         { id: "MISSION", label: "Missions" },
         { id: "SUCCESS", label: "Succès" },
         { id: "SONGES", label: "Songes" },
+        { id: "DONJONS", label: "Donjons" },
         { id: "EVENT", label: "Events" },
         { id: "POLL", label: "Sondages" },
+        { id: "OCRE", label: "Ocre" },
         { id: "ADMIN_ALERT", label: "Admin" },
     ];
 
@@ -218,6 +221,8 @@ export default function NotificationsPage() {
                                 notif.category === "EVENT" && "bg-purple-500",
                                 notif.category === "POLL" && "bg-orange-500",
                                 notif.category === "ADMIN_ALERT" && "bg-rose-500",
+                                notif.category === "DONJONS" && "bg-indigo-500",
+                                notif.category === "OCRE" && "bg-emerald-600",
                                 notif.category === "SYSTEM" && "bg-zinc-500",
                             )} />
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Swords, ShieldAlert, CheckCircle2, XCircle, ChevronDown, Loader2, MapPin, Ghost, Sparkles, Info, ChevronUp, Coins, ExternalLink } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { DocContent } from '../doc/doc-content';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -81,19 +81,22 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent showCloseButton={false} className="w-[95vw] max-w-6xl bg-[#080a10]/98 backdrop-blur-3xl border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[3rem] text-white p-0 overflow-hidden flex flex-col h-[85vh]">
+            <DialogContent 
+                showCloseButton={false} 
+                className="w-[95vw] max-w-6xl bg-[#080a10] border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[2.5rem] md:rounded-[3rem] text-white p-0 overflow-hidden flex flex-col h-[min(850px,90vh)]"
+            >
                 {/* Header */}
-                <div className="relative h-44 bg-white/5 border-b border-white/5 shrink-0 overflow-hidden">
+                <div className="relative h-32 md:h-44 bg-white/5 border-b border-white/5 shrink-0 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 via-transparent to-amber-500/10" />
                     <button 
                         onClick={onClose}
-                        className="absolute top-8 right-8 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 hover:text-white transition-all z-20"
+                        className="absolute top-6 right-6 md:top-8 md:right-8 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 hover:text-white transition-all z-20"
                     >
                         <X size={24} />
                     </button>
 
-                    <div className="absolute bottom-8 left-10 flex items-end gap-8 z-10">
-                        <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/20 shadow-inner">
+                    <div className="absolute bottom-6 left-6 md:bottom-8 md:left-10 flex items-end gap-6 md:gap-8 z-10">
+                        <div className="hidden md:flex w-16 h-16 rounded-2xl bg-emerald-500/20 items-center justify-center border border-emerald-500/20 shadow-inner">
                             <MapPin size={28} className="text-emerald-500" />
                         </div>
                         <div>
@@ -102,7 +105,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                     GPS [{position.displayX}, {position.displayY}]
                                 </span>
                             </div>
-                            <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none drop-shadow-2xl">
+                            <h2 className="text-2xl md:text-3xl font-black text-white uppercase italic tracking-tighter leading-none drop-shadow-2xl">
                                 {zoneName}
                             </h2>
                         </div>
@@ -120,7 +123,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                              <p className="text-[14px] font-black uppercase tracking-[0.5em] text-white italic">Analyse de la faune locale...</p>
                         </div>
                     ) : (
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-10 pt-6">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 pt-6">
                             <Tabs defaultValue={(worldId === undefined || worldId === 1) ? "archis" : "bounties"} className="w-full flex flex-col gap-8">
                                 <div className="flex items-center justify-between border-b border-white/10 pb-4 sticky top-0 bg-[#080a10] z-20 pt-4">
                                     <TabsList className="bg-white/5 p-1.5 rounded-2xl gap-1">
@@ -131,6 +134,9 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                         )}
                                         <TabsTrigger value="bounties" className="rounded-xl px-6 py-3 font-black uppercase italic text-[12px] tracking-widest data-[state=active]:bg-rose-500 data-[state=active]:text-white transition-all">
                                             ⚔ Avis de Recherche
+                                        </TabsTrigger>
+                                        <TabsTrigger value="families" className="rounded-xl px-6 py-3 font-black uppercase italic text-[12px] tracking-widest data-[state=active]:bg-purple-500 data-[state=active]:text-white transition-all">
+                                            🦇 Familles
                                         </TabsTrigger>
                                         <TabsTrigger value="quetes" className="rounded-xl px-6 py-3 font-black uppercase italic text-[12px] tracking-widest data-[state=active]:bg-indigo-500 data-[state=active]:text-white transition-all">
                                             📜 Quêtes Dofus
@@ -295,6 +301,17 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                                         {bounty.subarea}
                                                                     </span>
                                                                 )}
+                                                                {bounty.position && (
+                                                                    <button 
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            navigator.clipboard.writeText(`/travel ${bounty.position}`);
+                                                                        }}
+                                                                        className="px-3 py-1 rounded-xl bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest italic hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
+                                                                    >
+                                                                        <MapPin size={10} /> {bounty.position}
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -358,12 +375,25 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
 
                                                             {/* 4. STRAT */}
                                                             <div className="relative p-6 rounded-[1.5rem] bg-rose-500/5 border border-rose-500/15">
-                                                                <div className="absolute top-0 left-8 -translate-y-1/2 px-3 py-0.5 bg-[#0a0a0f] border border-rose-500/30 rounded-full">
-                                                                    <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">⚔ Stratégie</span>
-                                                                </div>
-                                                                <div className="prose prose-invert prose-sm max-w-none text-[13px] text-white/80 leading-relaxed">
-                                                                    <ReactMarkdown>{bounty.mechanics || "Aucun résumé tactique disponible pour le moment."}</ReactMarkdown>
-                                                                </div>
+                                                                 <div className="absolute top-0 left-8 -translate-y-1/2 px-3 py-0.5 bg-[#0a0a0f] border border-rose-500/30 rounded-full flex items-center gap-2">
+                                                                     <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">⚔ Stratégie</span>
+                                                                     {bounty.dpnlUrl && (
+                                                                         <>
+                                                                             <div className="w-[1px] h-2 bg-rose-500/30" />
+                                                                             <a 
+                                                                                 href={bounty.dpnlUrl} 
+                                                                                 target="_blank" 
+                                                                                 rel="noopener noreferrer"
+                                                                                 className="text-[9px] font-black text-amber-500 hover:text-amber-400 uppercase tracking-widest flex items-center gap-1 transition-colors"
+                                                                             >
+                                                                                 Guide DPNL <ExternalLink size={8} />
+                                                                             </a>
+                                                                         </>
+                                                                     )}
+                                                                 </div>
+                                                                 <div className="prose prose-invert prose-sm max-w-none text-[13px] text-white/80 leading-relaxed prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
+                                                                     <DocContent content={bounty.mechanics || "Aucun résumé tactique disponible pour le moment."} />
+                                                                 </div>
                                                             </div>
                                                         </div>
 
@@ -380,6 +410,101 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                                     <h3 className="text-xl font-black text-white uppercase italic tracking-widest">Zone Sécurisée</h3>
                                                     <p className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] italic max-w-md mx-auto">
                                                         Pas d'avis de recherche signalé dans cette zone.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </TabsContent>
+
+                                {/* TAB: FAMILLES DE MONSTRES */}
+                                <TabsContent value="families" className="m-0">
+                                    <div className="space-y-12">
+                                        {monsters?.families?.length > 0 ? (
+                                            <div className="flex flex-col gap-12">
+                                                {monsters.families.map((family: any) => {
+                                                    const familyMonsters = monsters.normalMonsters.filter((m: any) => m.familyName === family.name);
+                                                    
+                                                    return (
+                                                        <div key={family.id} className="group relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-purple-500/10 via-black/40 to-transparent border border-purple-500/20 shadow-2xl p-10 md:p-14">
+                                                            {/* Background Glow */}
+                                                            <div className="absolute -top-24 -right-24 w-96 h-96 bg-purple-500/10 blur-[120px] rounded-full pointer-events-none" />
+                                                            <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500/5 blur-[120px] rounded-full pointer-events-none" />
+
+                                                            <div className="relative z-10 flex flex-col lg:flex-row gap-12 items-center lg:items-start">
+                                                                {/* Family Image - MEGA SIZE */}
+                                                                <div className="relative group/img shrink-0">
+                                                                    <div className="absolute -inset-4 bg-purple-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                                                                    <div className="w-48 h-48 md:w-64 md:h-64 rounded-[2.5rem] bg-black/60 border border-purple-500/30 flex items-center justify-center p-6 shadow-inner relative overflow-hidden">
+                                                                        <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent opacity-50" />
+                                                                        {family.imageUrl ? (
+                                                                            <img src={family.imageUrl} alt={family.name} className="w-full h-full object-contain drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] group-hover:scale-110 transition-transform duration-700" />
+                                                                        ) : (
+                                                                            <Ghost className="text-purple-500/20 w-32 h-32" />
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Family Info */}
+                                                                <div className="flex-1 text-center lg:text-left space-y-8">
+                                                                    <div>
+                                                                        <div className="flex items-center justify-center lg:justify-start gap-4 mb-4">
+                                                                            <span className="px-4 py-1.5 rounded-full bg-purple-500 text-white text-[10px] font-black uppercase tracking-[0.3em] italic shadow-lg shadow-purple-500/20">
+                                                                                Famille de Monstres
+                                                                            </span>
+                                                                        </div>
+                                                                        <h4 className="text-5xl md:text-7xl font-black text-white uppercase italic tracking-tighter leading-none mb-4 drop-shadow-2xl">
+                                                                            {family.name}
+                                                                        </h4>
+                                                                        {familyMonsters.length > 0 && (
+                                                                            <p className="text-[14px] font-black text-purple-400/60 uppercase tracking-[0.4em] italic">
+                                                                                {familyMonsters.length} espèces détectées
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Monstres List - PREMIUM GRID */}
+                                                                    {familyMonsters.length > 0 && (
+                                                                        <div className="space-y-6">
+                                                                            <h5 className="text-[11px] font-black text-white/30 uppercase tracking-[0.5em] italic flex items-center gap-4 justify-center lg:justify-start">
+                                                                                <div className="h-[1px] w-8 bg-white/10" />
+                                                                                Membres de la famille
+                                                                                <div className="h-[1px] w-8 bg-white/10" />
+                                                                            </h5>
+                                                                            
+                                                                            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                                                                                {familyMonsters.map((m: any) => (
+                                                                                    <div key={m.id} className="group/monster flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-default">
+                                                                                        <div className="w-10 h-10 rounded-xl bg-black/40 flex items-center justify-center p-1 border border-white/5 group-hover/monster:border-purple-500/20 transition-colors">
+                                                                                            {m.imageUrl ? (
+                                                                                                <img src={m.imageUrl} alt={m.name} className="w-full h-full object-contain group-hover/monster:scale-110 transition-transform" />
+                                                                                            ) : (
+                                                                                                <Ghost size={16} className="text-white/10" />
+                                                                                            )}
+                                                                                        </div>
+                                                                                        <span className="text-[11px] font-bold text-white/60 group-hover/monster:text-white transition-colors uppercase italic truncate">
+                                                                                            {m.name}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="py-24 rounded-[3rem] bg-white/[0.02] border border-dashed border-white/10 flex flex-col items-center justify-center gap-6">
+                                                <div className="w-20 h-20 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-inner">
+                                                    <Ghost className="text-purple-500" size={32} />
+                                                </div>
+                                                <div className="text-center space-y-2">
+                                                    <h3 className="text-xl font-black text-white uppercase italic tracking-widest">Aucune Famille</h3>
+                                                    <p className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] italic max-w-md mx-auto">
+                                                        Aucune famille de monstre n'est référencée pour cette zone dans la base de données GOD.
                                                     </p>
                                                 </div>
                                             </div>

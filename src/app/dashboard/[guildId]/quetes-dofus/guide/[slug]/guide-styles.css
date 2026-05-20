@@ -1,0 +1,2320 @@
+/* SigilOS — Guide Ops Center Styles */
+/* ── Shell & Layout ── */
+.guide-shell {
+  display: flex;
+  height: calc(100vh - 80px);
+  width: 100%;
+  margin: 0;
+  gap: 0;
+  padding: 0;
+}
+
+/* ── Sidebar ── */
+.guide-sidebar {
+  flex: 0 0 450px;
+  background: #090a0f;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.25);
+}
+
+.sidebar-header {
+  padding: 1.5rem;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.04), transparent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-super {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: #10b981;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin: 0 0 0.25rem 0;
+}
+
+.sidebar-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #fff;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.sidebar-ring-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-pct {
+  position: absolute;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.sidebar-stats {
+  font-size: 0.75rem;
+  color: #c8c8cf;
+  font-weight: 600;
+}
+
+.sidebar-search {
+  margin: 1.25rem 1rem 0.5rem 1rem;
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a1a1aa;
+}
+
+.search-input {
+  width: 100%;
+  background: linear-gradient(145deg, rgba(0, 0, 0, 0.4), rgba(20, 22, 31, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem 0.85rem 2.5rem;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.search-input:focus {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.05), rgba(0, 0, 0, 0.6));
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+.search-clear {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a1a1aa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem;
+}
+.search-clear:hover { color: #fff; }
+
+/* ── Guild Radar ── */
+.sidebar-radar {
+  margin: 0 1rem 1rem 1rem;
+  padding: 1rem;
+  background: linear-gradient(145deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.01) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.radar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #93c5fd;
+}
+
+.radar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.radar-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.radar-val {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.radar-lab {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #71717a;
+  margin-top: 0.2rem;
+}
+
+.sidebar-chapters {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 1rem 1rem 1rem;
+}
+
+.sidebar-chapters::-webkit-scrollbar { width: 4px; }
+.sidebar-chapters::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* ── Chapters ── */
+.chapter-group {
+  margin-bottom: 0.5rem;
+}
+
+.chapter-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(0,0,0,0.2));
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  text-align: left;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.chapter-header:hover {
+  background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(0,0,0,0.1));
+  border-color: rgba(255,255,255,0.1);
+  transform: translateX(2px);
+}
+
+.chapter-header.active {
+  background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05));
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2), inset 0 0 10px rgba(59, 130, 246, 0.1);
+  transform: translateX(4px);
+}
+
+.chapter-header.active .chapter-name {
+  color: #fff;
+  text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+.chapter-header.all-done {
+  opacity: 0.6;
+}
+
+.chapter-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chapter-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chapter-name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #e4e4e7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.1rem;
+}
+
+.chapter-count {
+  font-size: 0.65rem;
+  color: #71717a;
+  font-weight: 600;
+}
+
+.chapter-presence {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  color: #3b82f6;
+  font-weight: 800;
+}
+
+.chapter-items {
+  padding: 0.5rem 0 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-left: 1px solid rgba(255,255,255,0.05);
+  margin-left: 1.5rem;
+}
+
+.ms-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.ms-row:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.ms-row.active {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.ms-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+}
+
+.state-todo { color: #52525b; }
+.state-done { color: #10b981; }
+.state-active {
+  width: 8px; height: 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(59,130,246,0.5);
+}
+
+.ms-row.done .ms-num, .ms-row.done .ms-title {
+  color: #71717a;
+}
+
+.ms-num {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: #52525b;
+  min-width: 14px;
+}
+
+.ms-title {
+  flex: 1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #a1a1aa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-row.active .ms-title {
+  color: #fff;
+  font-weight: 800;
+}
+
+.ms-presence-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  padding: 0.1rem 0.4rem;
+  border-radius: 2rem;
+  font-size: 0.6rem;
+  font-weight: 900;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.ms-seqs {
+  font-size: 0.6rem;
+  font-weight: 800;
+  background: rgba(255,255,255,0.05);
+  color: #a1a1aa;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.ms-optional {
+  font-size: 0.55rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #d946ef;
+  border: 1px solid rgba(217, 70, 239, 0.3);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+
+/* ── Main Content ── */
+.guide-main {
+  flex: 1;
+  background: #09090b;
+  overflow-y: auto;
+  position: relative;
+}
+
+.guide-main::-webkit-scrollbar { width: 6px; }
+.guide-main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 6px; }
+
+.guide-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #71717a;
+  font-weight: 600;
+}
+
+.guide-content {
+  padding: 2rem 4rem;
+  width: 100%;
+  max-width: none;
+}
+
+/* Step Navigator (Ganymède Style) */
+.step-navigator {
+  background: rgba(20, 22, 31, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Focused Guide View HUD - High visual fidelity */
+.step-navigator.focused {
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.06), inset 0 0 12px rgba(16, 185, 129, 0.02);
+  background: linear-gradient(135deg, rgba(20, 22, 31, 0.85) 0%, rgba(16, 185, 129, 0.03) 100%);
+}
+
+.step-navigator.focused::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(to right, #10b981, #3b82f6);
+}
+
+.step-nav-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.step-nav-ref {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.step-navigator.focused .step-nav-ref {
+  color: #34d399; /* soft glowing green when focused */
+  text-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
+}
+
+.step-nav-ref::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 12px;
+  background: linear-gradient(to bottom, #002395 33%, #fff 33%, #fff 66%, #ed2939 66%); /* French flag placeholder icon */
+  border-radius: 2px;
+}
+
+.step-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.nav-step-btn {
+  padding: 0.4rem;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.nav-step-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.nav-step-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.nav-step-count {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #fff;
+  padding: 0 0.5rem;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Step Header */
+.step-header {
+  margin-bottom: 2.5rem;
+}
+
+.step-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.step-status .lucide-check-circle-2 {
+  color: #10b981 !important;
+  filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.6));
+  stroke-width: 3px;
+}
+.step-status .lucide-circle {
+  color: #3f3f46 !important;
+  opacity: 0.6;
+}
+
+.step-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.step-phase-badge {
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #71717a;
+  background: rgba(255,255,255,0.05);
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.5rem;
+}
+
+.step-type-badge {
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+}
+
+.step-optional-badge {
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #d946ef;
+  background: rgba(217, 70, 239, 0.1);
+  border: 1px solid rgba(217, 70, 239, 0.2);
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.5rem;
+}
+
+.step-position {
+  margin-left: auto;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #52525b;
+  font-weight: bold;
+}
+
+.step-title {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.1;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.step-subtitle {
+  font-size: 1.1rem;
+  color: #a1a1aa;
+  margin: 0;
+  font-weight: 500;
+}
+
+
+/* Narrative Block */
+.narrative {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  margin-bottom: 2rem;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.narrative-lore { background: rgba(139, 92, 246, 0.05); border-color: rgba(139, 92, 246, 0.2); }
+.narrative-lore .narrative-icon { color: #a78bfa; }
+.narrative-lore .narrative-body { font-style: italic; color: #d8b4fe; }
+
+.narrative-tip { background: rgba(245, 158, 11, 0.03); border-color: rgba(245, 158, 11, 0.15); }
+.narrative-tip .narrative-icon { color: #f59e0b; }
+.narrative-tip .narrative-body { color: #e4e4e7; }
+
+.narrative-warning { background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2); }
+.narrative-warning .narrative-icon { color: #f87171; }
+.narrative-warning .narrative-body { color: #fca5a5; font-weight: 600; }
+
+.narrative-counsel { background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); }
+.narrative-counsel .narrative-icon { color: #34d399; }
+.narrative-counsel .narrative-body { color: #6ee7b7; }
+
+.narrative-info .narrative-icon { color: #60a5fa; }
+.narrative-info .narrative-body { color: #e4e4e7; }
+
+.narrative-icon {
+  margin-top: 0.2rem;
+}
+
+.narrative-body {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.narrative-body p { margin: 0 0 0.5rem 0; }
+.narrative-body p:last-child { margin: 0; }
+
+
+/* Subguides Section */
+.subguides-section {
+  margin-top: 3rem;
+}
+
+.subguides-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff;
+}
+
+.subguides-count {
+  background: rgba(255,255,255,0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.65rem;
+  color: #a1a1aa;
+}
+
+.subguides-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+
+/* Sub-Guide Card (Accordion) */
+.sgc {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Colored Left Border */
+.sgc::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--sgc-color);
+}
+
+.sgc-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.sgc-header:hover {
+  background: rgba(255,255,255,0.02);
+}
+
+.sgc-badge {
+  font-size: 0.7rem;
+  font-weight: 900;
+  background: color-mix(in srgb, var(--sgc-color) 20%, transparent);
+  color: var(--sgc-color);
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--sgc-color) 40%, transparent);
+}
+
+.sgc-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sgc-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.sgc-range {
+  font-size: 0.75rem;
+  color: #71717a;
+  font-weight: 600;
+}
+
+.sgc-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sgc-progress-text {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fff;
+  width: 3ch;
+  text-align: right;
+}
+
+.sgc-chevron {
+  color: #71717a;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sgc-chevron.open {
+  transform: rotate(180deg);
+}
+
+.sgc-flags {
+  padding: 0 1.5rem 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sgc-flag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+}
+
+.sgc-flag.resume { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+.sgc-flag.warn { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px dashed rgba(239, 68, 68, 0.3); }
+
+
+/* Steps List */
+.sgc-steps {
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.3);
+}
+
+.sgc-loading, .sgc-empty {
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: #71717a;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sgc-link {
+  color: #3b82f6;
+  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sgc-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem 1.5rem 1.5rem 1.5rem;
+}
+
+.sgc-step {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border-left: 4px solid transparent;
+}
+
+.sgc-step:last-child {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.sgc-step:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: #10b981;
+  transform: translateX(6px);
+}
+
+.sgc-step.done .sgc-step-content {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,0.15);
+}
+
+.sgc-step-check {
+  margin-top: 0.15rem;
+}
+.sgc-step-check svg {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.unchecked-icon { 
+  color: #a1a1aa; 
+  opacity: 0.7;
+}
+.sgc-step:hover .unchecked-icon {
+  color: #10b981;
+  opacity: 1;
+  transform: scale(1.22);
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
+}
+.sgc-step:hover .checked-icon {
+  transform: scale(1.22);
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
+}
+.checked-icon { 
+  color: #10b981; 
+}
+
+.sgc-step-num {
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #52525b;
+  min-width: 20px;
+}
+
+.sgc-step-content {
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #e4e4e7;
+}
+
+.sgc-step-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.coord-btn {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.4rem;
+  font-size: 0.65rem;
+  font-family: monospace;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.coord-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* Inline Coordinate Chip */
+.coord-chip {
+  display: inline-block;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  padding: 0 0.3rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.85em;
+  font-weight: bold;
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(96, 165, 250, 0.5);
+  transition: all 0.2s;
+}
+.coord-chip:hover {
+  background: rgba(59, 130, 246, 0.25);
+}
+.coord-chip.copied {
+  background: #10b981;
+  color: #000;
+  border-bottom-color: transparent;
+}
+
+/* Clickable Entities (Dungeons, Items) */
+.clickable-entity {
+  cursor: pointer;
+  color: #a78bfa; /* Violet/Purple for entities */
+  font-weight: 700;
+  border-bottom: 2px solid rgba(167, 139, 250, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0 0.15rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.clickable-entity:hover {
+  background: rgba(167, 139, 250, 0.1);
+  color: #c4b5fd;
+  border-bottom-color: #a78bfa;
+  transform: translateY(-1px);
+}
+
+.clickable-entity.quest {
+  color: #3b82f6;
+  border-bottom-color: rgba(59, 130, 246, 0.2);
+}
+.clickable-entity.quest:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-bottom-color: #3b82f6;
+}
+
+/* Guide References [GPx] */
+.guide-ref-link {
+  cursor: pointer;
+  color: #3b82f6;
+  font-weight: 900;
+  background: rgba(59, 130, 246, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  transition: all 0.2s;
+}
+.guide-ref-link:hover {
+  background: #3b82f6;
+  color: #fff;
+}
+
+
+/* Members Radar */
+.members-here {
+  margin-top: 3rem;
+  padding: 1rem;
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px dashed rgba(59, 130, 246, 0.2);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #93c5fd;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.member-avatars {
+  display: flex;
+  margin-left: auto;
+}
+
+.member-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1e1e24;
+  border: 2px solid #000;
+  margin-left: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: bold;
+  color: #fff;
+  overflow: hidden;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
+}
+.member-avatar:first-child { margin-left: 0; }
+.member-avatar:hover {
+  transform: scale(1.22);
+  z-index: 10;
+  border-color: #3b82f6;
+}
+.member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+
+/* Footer Nav */
+.step-footer {
+  position: sticky;
+  bottom: 0;
+  padding: 1.5rem 0 1.5rem 0;
+  margin-top: 4rem;
+  background: linear-gradient(to top, #09090b 70%, transparent);
+  border-top: none;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.step-nav {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(20, 22, 31, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 100px;
+  width: max-content;
+  margin: 0 auto;
+}
+
+.nav-btn {
+  background: transparent;
+  border: none;
+  border-radius: 100px;
+  color: #a1a1aa;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.nav-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+.nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.step-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0.5rem;
+}
+
+.validate-btn {
+  background: linear-gradient(145deg, #10b981, #059669);
+  color: #fff;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  border-radius: 100px;
+  font-weight: 900;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.validate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.validate-btn.validated {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: none;
+}
+
+.validate-btn.validated:hover {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.bookmark-btn {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 100px;
+  font-weight: 800;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bookmark-btn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.bookmark-btn.active {
+  background: #f59e0b;
+  color: #000;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+/* ── Guide Name Banner ── */
+.guide-name-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.12);
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #71717a;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.guide-name-label {
+  font-weight: 900;
+  color: #10b981;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.guide-name-sep {
+  color: #52525b;
+  font-size: 0.9rem;
+}
+.guide-name-step {
+  color: #d4d4d8;
+  font-weight: 700;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Hide Completed Toggle ── */
+.hide-completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 1rem 1rem 1rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(to bottom, #1a1d27, #13151c);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  color: #c8c8cf;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+.hide-completed-toggle:hover {
+  background: linear-gradient(to bottom, #202430, #171922);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.hide-completed-toggle.active {
+  background: linear-gradient(to bottom, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+  border-color: #10b981;
+  color: #10b981;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.hide-badge {
+  margin-left: auto;
+  background: #10b981;
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 0.2rem 0.5rem;
+  border-radius: 2rem;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+/* ── Bookmark in sidebar rows ── */
+.state-bookmark { color: #f59e0b; }
+.ms-row.bookmarked {
+  border-left: 2px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+/* ── Step Actions (footer button group) ── */
+.step-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  flex: 2;
+}
+
+/* Fix step-nav responsive — wrap on small viewports */
+.step-nav {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  min-height: 3.5rem;
+}
+.step-nav .nav-btn { min-width: 100px; }
+
+/* ── Bookmark Button ── */
+.bookmark-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 1rem;
+  color: #f59e0b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.bookmark-btn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.bookmark-btn.active {
+  background: #f59e0b;
+  color: #000;
+  border-color: #f59e0b;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+/* ── Guide-step cross-guide link ── */
+.guide-step-link {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  color: #a5b4fc; /* beautiful soft lavender */
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 0.15rem !important;
+  transition: all 0.2s;
+  vertical-align: middle;
+}
+.guide-step-link:hover {
+  color: #c7d2fe;
+  text-decoration-style: solid;
+  background: rgba(99, 102, 241, 0.1) !important;
+  border-radius: 0.25rem;
+}
+.guide-step-link img {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  max-width: 14px !important;
+  border: none !important;
+  background: none !important;
+  margin: 0 0.15rem 0 0 !important;
+  vertical-align: middle !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ── Subguide Controls & Focus Mode ── */
+.sgc-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sgc-ctrl-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: #14161f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sgc-ctrl-btn:hover {
+  background: #191c27;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.sgc-ctrl-btn.active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.sgc-focus-wrap {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.sgc-focus-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #14161f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.6rem 1rem;
+  border-radius: 0.75rem;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.sgc-focus-nav-btn {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 0.4rem;
+  transition: all 0.2s;
+}
+
+.sgc-focus-nav-btn:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sgc-focus-nav-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.sgc-focus-indicator {
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.sgc-step-focus {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 1.5rem !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+
+
+.map-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-modal {
+  background: #18181b;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 320px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+
+.map-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 1.5rem;
+}
+
+.map-modal-header button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+}
+.map-modal-header button:hover { color: #fff; }
+
+.map-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.map-action-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.map-action-btn.primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* Legacy Ganymède formatting fallbacks & Premium Enhancements */
+.ganymade-step-text {
+  font-family: inherit;
+  color: #d1d5db;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.ganymade-step-text a { 
+  color: #60a5fa; 
+  text-decoration: underline; 
+  transition: color 0.2s;
+}
+.ganymade-step-text a:hover {
+  color: #93c5fd;
+}
+
+/* Perfect alignment for all inline images/icons */
+.ganymade-step-text img { 
+  display: inline-block !important;
+  vertical-align: middle !important;
+  border-radius: 0.375rem; 
+  margin: 0.15rem 0.35rem;
+  max-width: 100%; 
+  max-height: 250px; /* Restrict large screenshot heights */
+  border: 1px solid rgba(255, 255, 255, 0.08); 
+  height: auto;
+  transition: transform 0.2s;
+  cursor: zoom-in;
+}
+.ganymade-step-text img:hover {
+  transform: scale(1.05);
+}
+
+/* Interactive Clickable Entities (Dungeons, Quests, Items) - Borderless & Premium */
+.clickable-entity {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 0.375rem;
+  font-weight: 700;
+  font-size: 0.8rem !important;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  vertical-align: middle;
+  text-decoration: none !important;
+  margin: 0.1rem 0.15rem;
+  border: none !important; /* Stripped border completely! */
+}
+
+/* Dissociate Quests (Golden Amber Theme) */
+.clickable-entity[data-dbtype="quests"], 
+.clickable-entity.tag-quest,
+.clickable-entity.tag-quests {
+  background: transparent !important;
+  color: #fbbf24 !important;
+  padding: 0.1rem 0.2rem;
+}
+.clickable-entity[data-dbtype="quests"]:hover, 
+.clickable-entity.tag-quest:hover,
+.clickable-entity.tag-quests:hover {
+  background: transparent !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  transform: translateY(-1px);
+}
+
+/* Dissociate Normal Monsters (Orange Coral Theme) */
+.clickable-entity[data-dbtype="monsters"], 
+.clickable-entity.tag-monster,
+.clickable-entity.tag-monsters {
+  background: transparent !important;
+  color: #f97316 !important; /* Elegant Coral Orange */
+  padding: 0.1rem 0.2rem;
+}
+.clickable-entity[data-dbtype="monsters"]:hover, 
+.clickable-entity.tag-monster:hover,
+.clickable-entity.tag-monsters:hover {
+  background: transparent !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  transform: translateY(-1px);
+}
+
+/* Dissociate Dungeon Bosses (Fiery Rose Crimson Theme) */
+.clickable-entity[data-dbtype="bosses"],
+.clickable-entity.tag-boss,
+.clickable-entity.tag-bosses {
+  background: transparent !important;
+  color: #f43f5e !important; /* Fiery Rose Crimson */
+  text-shadow: 0 0 8px rgba(244, 63, 94, 0.2);
+  padding: 0.1rem 0.2rem;
+  font-weight: 800 !important; /* Extra emphasis on dungeon bosses */
+}
+.clickable-entity[data-dbtype="bosses"]:hover,
+.clickable-entity.tag-boss:hover,
+.clickable-entity.tag-bosses:hover {
+  background: transparent !important;
+  color: #fff !important;
+  text-shadow: 0 0 12px rgba(244, 63, 94, 0.4);
+  box-shadow: none !important;
+  transform: translateY(-1px);
+}
+
+/* Dissociate Dungeons (Mystic Purple Theme) */
+.clickable-entity[data-dbtype="dungeons"], 
+.clickable-entity.tag-dungeon {
+  background: transparent !important;
+  color: #c084fc !important;
+  padding: 0.1rem 0.2rem;
+}
+.clickable-entity[data-dbtype="dungeons"]:hover, 
+.clickable-entity.tag-dungeon:hover {
+  background: transparent !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  transform: translateY(-1px);
+}
+
+/* Dissociate Harvestable Resources (Leaf Green Theme) */
+.clickable-entity[data-dbtype="resources"],
+.clickable-entity.tag-resource,
+.clickable-entity.tag-resources {
+  background: transparent !important;
+  color: #34d399 !important; /* Leaf Green for Cawotte, Wheat, Iron, etc. */
+  padding: 0.1rem 0.2rem;
+}
+.clickable-entity[data-dbtype="resources"]:hover,
+.clickable-entity.tag-resource:hover,
+.clickable-entity.tag-resources:hover {
+  background: transparent !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+}
+
+/* Dissociate Items, NPCs & Others (Slate / Silver Theme) */
+.clickable-entity[data-dbtype="items"], 
+.clickable-entity[data-dbtype="npcs"],
+.clickable-entity.tag-item,
+.clickable-entity.tag-npc {
+  background: transparent !important;
+  color: #cbd5e1 !important;
+  padding: 0.1rem 0.2rem;
+}
+.clickable-entity[data-dbtype="items"]:hover, 
+.clickable-entity[data-dbtype="npcs"]:hover,
+.clickable-entity.tag-item:hover,
+.clickable-entity.tag-npc:hover {
+  background: transparent !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+}
+
+/* Standardize Quest, Monster, Dungeon and Item Icons Inside Entity Tags */
+.ganymade-step-text img[src*="icon"], 
+.ganymade-step-text img[src*="book"], 
+.ganymade-step-text img[src*="skull"],
+.ganymade-step-text img[width="20"],
+.ganymade-step-text img[height="20"],
+.ganymade-step-text .tag-item img,
+.ganymade-step-text .tag-quest img,
+.ganymade-step-text .tag-monster img,
+.ganymade-step-text .tag-dungeon img,
+.clickable-entity img {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  object-fit: contain;
+  border: none !important;
+  background: none !important;
+  margin: 0 !important;
+  vertical-align: middle !important;
+}
+
+/* Premium Layout for Resource lists and Prerequisites: Sleek and Slim Cards Grid */
+.ganymade-step-text ul,
+.ganymade-step-text ol {
+  padding-left: 1.25rem;
+  margin: 0.75rem 0;
+}
+
+/* Only style the specific custom-tag card items as grids, leaving standard text items to flow naturally */
+.ganymade-step-text ul:has(.tag-item),
+.ganymade-step-text ol:has(.tag-item),
+.ganymade-step-text ul:has(.tag-monster),
+.ganymade-step-text ol:has(.tag-monster) {
+  list-style: none !important;
+  padding-left: 0 !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+/* Slim Card list items - Strictly borderless with a clean accent left line */
+.ganymade-step-text li.tag-item,
+.ganymade-step-text li.tag-monster,
+.ganymade-step-text li.tag-dungeon,
+.ganymade-step-text li.tag-quest {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.6rem !important;
+  background: rgba(255, 255, 255, 0.015) !important;
+  border: none !important; /* Stripped container border completely! */
+  border-left: 3px solid rgba(255, 255, 255, 0.1) !important; /* Simple accent line */
+  border-radius: 0.5rem !important;
+  padding: 0.35rem 0.65rem !important;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  min-height: 2.4rem !important;
+  position: relative !important;
+  font-size: 0.85rem !important;
+}
+
+/* Hide default bullets for our cards */
+.ganymade-step-text li.tag-item::before,
+.ganymade-step-text li.tag-monster::before,
+.ganymade-step-text li.tag-dungeon::before,
+.ganymade-step-text li.tag-quest::before {
+  display: none !important;
+}
+
+/* Colorize specific card categories based on class list names */
+.ganymade-step-text li.tag-quest,
+.ganymade-step-text li.tag-quests {
+  border-left-color: #f59e0b !important;
+  background: rgba(245, 158, 11, 0.02) !important;
+}
+.ganymade-step-text li.tag-monster,
+.ganymade-step-text li.tag-monsters {
+  border-left-color: #f97316 !important; /* Coral Orange */
+  background: rgba(249, 115, 22, 0.02) !important;
+}
+.ganymade-step-text li.tag-boss,
+.ganymade-step-text li.tag-bosses {
+  border-left-color: #f43f5e !important; /* Rose Red */
+  background: rgba(244, 63, 94, 0.02) !important;
+}
+.ganymade-step-text li.tag-dungeon {
+  border-left-color: #8b5cf6 !important;
+  background: rgba(139, 92, 246, 0.02) !important;
+}
+.ganymade-step-text li.tag-resource,
+.ganymade-step-text li.tag-resources {
+  border-left-color: #34d399 !important; /* Leaf Green */
+  background: rgba(52, 211, 153, 0.02) !important;
+}
+.ganymade-step-text li.tag-item,
+.ganymade-step-text li.tag-items {
+  border-left-color: #cbd5e1 !important;
+  background: rgba(255, 255, 255, 0.01) !important;
+}
+
+/* Hover effects with transform and subtle shadow */
+.ganymade-step-text li.tag-item:hover,
+.ganymade-step-text li.tag-items:hover,
+.ganymade-step-text li.tag-monster:hover,
+.ganymade-step-text li.tag-monsters:hover,
+.ganymade-step-text li.tag-boss:hover,
+.ganymade-step-text li.tag-bosses:hover,
+.ganymade-step-text li.tag-dungeon:hover,
+.ganymade-step-text li.tag-quest:hover,
+.ganymade-step-text li.tag-quests:hover,
+.ganymade-step-text li.tag-resource:hover,
+.ganymade-step-text li.tag-resources:hover {
+  background: rgba(255, 255, 255, 0.035) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ganymade-step-text li.tag-quest:hover,
+.ganymade-step-text li.tag-quests:hover { box-shadow: 0 4px 10px rgba(245, 158, 11, 0.06); }
+.ganymade-step-text li.tag-monster:hover,
+.ganymade-step-text li.tag-monsters:hover { box-shadow: 0 4px 10px rgba(249, 115, 22, 0.06); }
+.ganymade-step-text li.tag-boss:hover,
+.ganymade-step-text li.tag-bosses:hover { box-shadow: 0 4px 10px rgba(244, 63, 94, 0.06); }
+.ganymade-step-text li.tag-dungeon:hover { box-shadow: 0 4px 10px rgba(139, 92, 246, 0.06); }
+.ganymade-step-text li.tag-resource:hover,
+.ganymade-step-text li.tag-resources:hover { box-shadow: 0 4px 10px rgba(52, 211, 153, 0.06); }
+
+/* Sleek inline quantity indicator - Borderless */
+.ganymade-step-text li strong,
+.ganymade-step-text li b {
+  font-size: 0.8rem;
+  color: #fbbf24 !important;
+  font-family: monospace;
+  background: rgba(245, 158, 11, 0.08);
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  margin-right: 0.2rem;
+  border: none !important; /* Stripped border! */
+}
+
+/* Sleek Medium/Large images - Borderless */
+.ganymade-step-text img[width="100"],
+.ganymade-step-text img[height="100"],
+.ganymade-step-text img[src*="dofus"],
+.ganymade-step-text .img-large {
+  width: 54px !important;
+  height: 54px !important;
+  display: inline-block !important;
+  margin: 0.3rem !important;
+  object-fit: contain;
+  vertical-align: middle !important;
+  border: none !important;
+  background: none !important;
+}
+
+/* Step validation checked items - Keep borders & checkboxes fully bright, only fade text */
+.sgc-step.done {
+  opacity: 1 !important; /* Container does NOT fade! */
+  background: rgba(16, 185, 129, 0.01) !important;
+  border-left-color: #10b981 !important; /* Solid bright green left border! */
+}
+
+.sgc-step.done .sgc-step-content {
+  opacity: 0.45; /* Only fade the text! */
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,0.15);
+}
+
+.sgc-step.done .checked-icon {
+  opacity: 1 !important; /* Checkbox is fully bright! */
+}
+
+/* High Contrast Step left-border default state */
+.sgc-step {
+  border-left: 4px solid rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Sub-guide Pagination HUD Styles */
+.subguides-pagination-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.subguide-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.4rem 0.85rem;
+  background: rgba(255, 255, 255, 0.01);
+  border: none !important;
+  border-radius: 0.5rem;
+  color: #71717a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.subguide-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: #a1a1aa;
+}
+
+.subguide-tab-btn.active {
+  background: rgba(16, 185, 129, 0.08);
+  color: #10b981;
+}
+
+.subguide-tab-btn .tab-num {
+  font-weight: 900 !important;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.subguide-tab-btn.active .tab-num {
+  color: #34d399;
+}
+
+.subguide-tab-btn .tab-ref {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.subguides-pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.subguide-pag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.02);
+  border: none !important;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.subguide-pag-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.subguide-pag-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.subguide-pag-indicator {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #71717a;
+}
+
+/* Selector Pills Filter Bar (Ganymede progression guide filter scope) */
+.step-nav-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.8rem 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0.75rem;
+}
+
+.filter-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.filter-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.filter-pill-btn.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.1);
+}
+
+.global-hide-steps-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #71717a;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.global-hide-steps-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.global-hide-steps-btn.active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.08);
+}
+
+.filter-select-dropdown {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #71717a;
+  background: rgba(255, 255, 255, 0.02);
+  border: none !important;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  max-width: 140px;
+}
+
+.filter-select-dropdown:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #a1a1aa;
+}
+
+.filter-select-dropdown option {
+  background: #09090b;
+  color: #a1a1aa;
+  font-weight: bold;
+}
+
+/* Checklist taskItem layout */
+.ganymade-step-text ul[data-type="taskList"] { 
+  list-style: none; 
+  padding-left: 0; 
+  margin: 1rem 0; 
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.ganymade-step-text li[data-type="taskItem"] { 
+  position: relative; 
+  padding-left: 1.5rem; 
+  margin-bottom: 0; 
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.ganymade-step-text li[data-type="taskItem"]::before { 
+  content: "✦"; 
+  position: absolute; 
+  left: 0.25rem; 
+  top: 50%;
+  transform: translateY(-50%);
+  color: #3b82f6; 
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.ganymade-step-text strong,
+.ganymade-step-text b { 
+  color: #fff; 
+  font-weight: 800; 
+}
+
+/* ── Comprehensive Responsive & Grid Pass ── */
+@media (max-width: 1200px) {
+  .guide-shell {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+  .guide-sidebar {
+    flex: 1 0 auto;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    max-height: 450px;
+  }
+  .guide-main {
+    height: auto;
+    overflow: visible;
+  }
+  .guide-content {
+    padding: 1.5rem 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .guide-content {
+    padding: 1rem;
+  }
+  .step-title {
+    font-size: 1.75rem;
+  }
+  .ganymade-step-text ul:has(.tag-item),
+  .ganymade-step-text ol:has(.tag-item) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Enhanced Step validation check & numbers styling */
+.sgc-step {
+  cursor: default !important; /* Cancel click pointer on the whole container */
+}
+
+.sgc-step-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer !important;
+  border-radius: 0.375rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #71717a;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  align-self: flex-start;
+  margin-top: 0.15rem;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.sgc-step-check:hover {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  transform: scale(1.18);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.sgc-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 0.75rem;
+  color: #52525b;
+  background: rgba(255, 255, 255, 0.01);
+  min-width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  cursor: pointer !important;
+  transition: all 0.2s;
+  user-select: none;
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.sgc-step-num:hover {
+  background: rgba(16, 185, 129, 0.08) !important;
+  color: #34d399 !important;
+  transform: scale(1.1);
+}
+
+.sgc-step.done .sgc-step-check {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+.sgc-step.done .sgc-step-num {
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: #10b981 !important;
+}
+
+/* Pulsing highlight animation to draw attention to unchecked steps check indicators */
+.unchecked-icon {
+  animation: pulse-border 2.5s infinite ease-in-out;
+}
+
+@keyframes pulse-border {
+  0% {
+    filter: drop-shadow(0 0 0px rgba(255,255,255,0));
+    opacity: 0.7;
+  }
+  50% {
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.45));
+    opacity: 1;
+    color: rgba(16, 185, 129, 0.85);
+  }
+  100% {
+    filter: drop-shadow(0 0 0px rgba(255,255,255,0));
+    opacity: 0.7;
+  }
+}
+
+/* Sidebar Member Avatars */
+.ms-member-avatars {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  padding-left: 0.5rem;
+}
+
+.ms-member-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #1e1e24;
+  border: 1.5px solid #090a0f;
+  margin-left: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.ms-member-avatar:first-child {
+  margin-left: 0;
+}
+
+.ms-member-avatar:hover {
+  transform: scale(1.25);
+  z-index: 10;
+  border-color: #3b82f6;
+}
+
+.ms-member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ms-member-avatar-more {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #27272a;
+  border: 1.5px solid #090a0f;
+  margin-left: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #a1a1aa;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* ── Quest Hub Embedded Overrides ── */
+.quest-hub-guide-wrapper .guide-shell {
+  height: 100%;
+  border-radius: 1.5rem;
+  background: transparent;
+}
+.quest-hub-guide-wrapper .guide-sidebar {
+  flex: 0 0 320px;
+  background: rgba(9, 10, 15, 0.4);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+.quest-hub-guide-wrapper .guide-main {
+  background: rgba(9, 9, 11, 0.2);
+}
+.quest-hub-guide-wrapper .guide-content {
+  padding: 1.5rem 2rem;
+}
+.quest-hub-guide-wrapper .step-title {
+  font-size: 1.75rem;
+}
+.quest-hub-guide-wrapper .step-subtitle {
+  font-size: 0.95rem;
+}
+.quest-hub-guide-wrapper .step-navigator {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+.quest-hub-guide-wrapper .narrative {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Active Guide Dynamic Sidebar Highlight ── */
+.chapter-header.active {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent-color, #3b82f6) 18%, transparent), color-mix(in srgb, var(--accent-color, #3b82f6) 4%, transparent)) !important;
+  border-color: color-mix(in srgb, var(--accent-color, #3b82f6) 40%, transparent) !important;
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--accent-color, #3b82f6) 15%, transparent), inset 0 0 10px color-mix(in srgb, var(--accent-color, #3b82f6) 10%, transparent) !important;
+}
+
+.chapter-header.active .chapter-name {
+  color: #fff !important;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent-color, #3b82f6) 60%, transparent) !important;
+}
+
+.ms-row.active {
+  background: color-mix(in srgb, var(--accent-color, #3b82f6) 15%, transparent) !important;
+  border-left: 3px solid var(--accent-color, #3b82f6) !important;
+  padding-left: calc(0.5rem - 3px) !important;
+}
+
+.ms-row.active .ms-title {
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+
+.ms-row.active .state-active {
+  background: var(--accent-color, #3b82f6) !important;
+  box-shadow: 0 0 8px var(--accent-color, #3b82f6) !important;
+}
+
+/* Compact Command Center Actions in Step Navigator */
+.validate-btn-compact {
+  background: linear-gradient(145deg, #10b981, #059669);
+  color: #fff;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.validate-btn-compact:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.validate-btn-compact.validated {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.2);
+  box-shadow: none;
+}
+
+.validate-btn-compact.validated:hover {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.bookmark-btn-compact {
+  background: rgba(255, 255, 255, 0.05);
+  color: #a1a1aa;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bookmark-btn-compact:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.bookmark-btn-compact.active {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.1);
+}
+
+/* Floating Actions Enhancements */
+.step-nav {
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+}
+
+.step-nav:hover {
+  transform: scale(1);
+}
+
+

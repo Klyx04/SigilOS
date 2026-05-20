@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { getDofusConfig, updateGuildGameConfig } from "@/server/actions/admin-actions";
 import { DOFUS_UNITY_SERVERS } from "@/lib/presentation-constants";
 import { Button } from "@/components/ui/button";
-import { Globe, Save, Loader2, CheckCircle2, Server, Target } from "lucide-react";
+import { Globe, Save, Loader2, CheckCircle2, Server, Target, Home, ChevronDown, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { MapViewer } from "@/components/worldmap/map-viewer";
+import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 
 interface DofusSettingsClientProps {
     guildId: string;
@@ -14,6 +16,9 @@ interface DofusSettingsClientProps {
 
 export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
     const [serverId, setServerId] = useState<string | null>(null);
+    const [guildHallPosX, setGuildHallPosX] = useState<number | null>(null);
+    const [guildHallPosY, setGuildHallPosY] = useState<number | null>(null);
+    const [guildHallWorldId, setGuildHallWorldId] = useState<number | null>(1);
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -23,6 +28,9 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
             const result = await getDofusConfig(guildId);
             if (result.success && result.data) {
                 setServerId(result.data.dofusServerId);
+                setGuildHallPosX(result.data.guildHallPosX);
+                setGuildHallPosY(result.data.guildHallPosY);
+                setGuildHallWorldId(result.data.guildHallWorldId ?? 1);
             }
             setIsLoading(false);
         }
@@ -32,7 +40,12 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const result = await updateGuildGameConfig(guildId, { serverId });
+            const result = await updateGuildGameConfig(guildId, { 
+                serverId,
+                guildHallPosX,
+                guildHallPosY,
+                guildHallWorldId
+            });
             if (result.success) {
                 toast.success("Configuration enregistrée");
             } else {
@@ -85,7 +98,7 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* --- MISSION INFO --- */}
+                {/* --- MISSION INFO & GUILD HALL --- */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
@@ -108,6 +121,84 @@ export function DofusSettingsClient({ guildId }: DofusSettingsClientProps) {
                                 Il est automatiquement sauvegardé en base à chaque publication.
                             </p>
                         </div>
+                    </div>
+
+                    {/* --- GUILD HALL --- */}
+                    <div className="border border-white/5 bg-zinc-900/20 backdrop-blur-md rounded-2xl p-6 space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                                <Home className="w-5 h-5 text-cyan-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Hall de Guilde</h3>
+                                <p className="text-sm text-zinc-400">Position du Palais / Hall de Guilde pour les membres.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Position X</label>
+                                <input
+                                    type="number"
+                                    value={guildHallPosX ?? ""}
+                                    onChange={(e) => setGuildHallPosX(e.target.value ? Number(e.target.value) : null)}
+                                    placeholder="0"
+                                    className="w-full bg-zinc-950/60 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm font-bold text-white text-center outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Position Y</label>
+                                <input
+                                    type="number"
+                                    value={guildHallPosY ?? ""}
+                                    onChange={(e) => setGuildHallPosY(e.target.value ? Number(e.target.value) : null)}
+                                    placeholder="0"
+                                    className="w-full bg-zinc-950/60 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm font-bold text-white text-center outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block mb-1.5">Monde</label>
+                                <div className="relative">
+                                    <select
+                                        value={guildHallWorldId ?? 1}
+                                        onChange={(e) => setGuildHallWorldId(Number(e.target.value))}
+                                        className="w-full bg-zinc-950/60 hover:bg-zinc-950 border border-white/10 hover:border-cyan-500/30 focus:border-cyan-500 rounded-xl pl-3 pr-8 py-2 text-xs font-bold text-white outline-none appearance-none transition-all cursor-pointer"
+                                    >
+                                        {DOFUS_WORLDS.map(world => (
+                                            <option key={world.id} value={world.id} className="bg-zinc-950 text-white">
+                                                {world.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                                        <ChevronDown size={14} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {guildHallPosX !== null && guildHallPosY !== null ? (
+                            <div className="space-y-2">
+                                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block">Aperçu Satellite HD</span>
+                                <div className="w-full h-48 rounded-xl overflow-hidden border border-white/10 relative">
+                                    <MapViewer 
+                                        initialX={guildHallPosX} 
+                                        initialY={guildHallPosY} 
+                                        initialZoom={6} 
+                                        initialWorldId={guildHallWorldId ?? 1} 
+                                        hideUI={true} 
+                                    />
+                                    <div className="absolute top-2 right-2 bg-black/85 border border-cyan-500/30 rounded-lg px-2.5 py-1.5 backdrop-blur-md pointer-events-none z-10 text-[10px] font-mono font-black text-cyan-400">
+                                        [{guildHallPosX}, {guildHallPosY}]
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center p-8 bg-zinc-950/40 border border-dashed border-white/5 rounded-xl text-center text-xs text-zinc-500">
+                                <MapPin className="w-8 h-8 text-zinc-600 mb-2 opacity-50" />
+                                Renseignez des coordonnées pour activer l'aperçu satellite HD.
+                            </div>
+                        )}
                     </div>
                 </div>
 

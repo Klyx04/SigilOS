@@ -400,11 +400,17 @@ function GuildRow({ guild, selected, onSelect }: {
     };
 
     const statusConfig = guild.isWhitelistOnly
-        ? {
-            label: '🛡️ Whitelist',
-            color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-            tooltip: 'Guilde autorisée mais pas encore connectée (Onboarding en attente).'
-        }
+        ? guild.tier === 'PENDING'
+            ? {
+                label: '⏳ En attente',
+                color: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/30',
+                tooltip: "Demande d'accès en attente d'approbation via ticket."
+            }
+            : {
+                label: '🛡️ Approuvée',
+                color: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+                tooltip: 'Guilde autorisée mais pas encore connectée (Onboarding en attente).'
+            }
         : guild.deletedAt
             ? {
                 label: '🗑️ Supprimée',

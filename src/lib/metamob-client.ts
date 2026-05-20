@@ -145,6 +145,11 @@ const QuestDetailsSchema = z.object({
     quest_template: QuestTemplateSchema,
     monsters: z.array(QuestMonsterSchema),
     pagination: PaginationSchema,
+    // Expert Settings
+    trade_mode: z.number().optional(),
+    trade_offer_threshold: z.number().nullable().optional(),
+    trade_want_threshold: z.number().nullable().optional(),
+    show_trades: z.boolean().optional(),
 });
 
 const MatchMonsterSchema = z.object({
@@ -208,6 +213,22 @@ const KralamoureEventDetailsSchema = KralamoureEventSchema.extend({
     })).optional(),
 });
 
+const QuestSettingsSchema = z.object({
+    character_name: z.string().max(200).optional(),
+    parallel_quests: z.number().min(1).max(20).optional(),
+    current_step: z.number().min(1).max(34).optional(),
+    show_trades: z.boolean().optional(),
+    trade_mode: z.number().min(0).max(1).optional(),
+    trade_offer_threshold: z.number().min(0).max(30).nullable().optional(),
+    trade_want_threshold: z.number().min(0).max(30).nullable().optional(),
+    never_offer_normal: z.boolean().optional(),
+    never_want_normal: z.boolean().optional(),
+    never_offer_boss: z.boolean().optional(),
+    never_want_boss: z.boolean().optional(),
+    never_offer_arch: z.boolean().optional(),
+    never_want_arch: z.boolean().optional(),
+});
+
 // -----------------------------------------------------------------------------
 // EXPORTED TYPES
 // -----------------------------------------------------------------------------
@@ -227,6 +248,7 @@ export type MatchMonster = z.infer<typeof MatchMonsterSchema>;
 export type Zone = z.infer<typeof ZoneSchema>;
 export type KralamoureEvent = z.infer<typeof KralamoureEventSchema>;
 export type KralamoureEventDetails = z.infer<typeof KralamoureEventDetailsSchema>;
+export type QuestSettings = z.infer<typeof QuestSettingsSchema>;
 export type MonsterState = "MANQUANT" | "POSSEDE" | "DOUBLON";
 
 /** Legacy Compatibility Types */
@@ -264,6 +286,8 @@ export interface OcreMonster {
     state: MonsterState;
     zone?: string;
     subzone?: string;
+    trade_offer?: number | null;
+    trade_want?: number | null;
 }
 
 // -----------------------------------------------------------------------------
@@ -318,12 +342,10 @@ async function fetchApi<T>(
 
     // 1. [PERF] Cache-First Strategy
     // For non-user resources (public), we prioritize speed.
-    if (!isUserResource && options.cacheFirst !== false) {
+    if (!isUserResource && options.cacheFirst !== false && options.revalidate !== 0) {
         try {
             const cached = await redis.get(cacheKey);
             if (cached) {
-                // Return cached data immediately to unblock layout
-                // We don't verify JSON here for speed, trust the setter or handle parse errors
                 return JSON.parse(cached);
             }
         } catch (e) {
@@ -401,7 +423,7 @@ async function fetchApi<T>(
         
         // --- FALLBACK CACHE LOGIC ---
         const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
-        if (!isUserResource) {
+        if (!isUserResource && options.revalidate !== 0) {
             try {
                 const cached = await redis.get(`metamob:cache:${endpoint}`);
                 if (cached) {
@@ -453,7 +475,7 @@ async function fetchPaginatedApi<T>(
     const cacheKey = `metamob:cache:${fullEndpoint}`;
 
     // 1. [PERF] Cache-First Strategy
-    if (!isUserResource && options.cacheFirst !== false) {
+    if (!isUserResource && options.cacheFirst !== false && options.revalidate !== 0) {
         try {
             const cached = await redis.get(cacheKey);
             if (cached) return JSON.parse(cached);
@@ -532,7 +554,7 @@ async function fetchPaginatedApi<T>(
 
         // --- FALLBACK CACHE LOGIC ---
         const isUserResource = endpoint.includes("/quests/") || endpoint.includes("/users/");
-        if (!isUserResource) {
+        if (!isUserResource && options.revalidate !== 0) {
             try {
                 const cached = await redis.get(`metamob:cache:${fullEndpoint}`);
                 if (cached) {
@@ -711,6 +733,78 @@ export async function getKralamoureEventDetails(eventId: number, options?: Fetch
     };
 }
 
+export async function updateQuestSettings(
+    slug: string,
+    settings: QuestSettings,
+    options: FetchOptions & { guildApiKey: string }
+): Promise<QuestSettings> {
+    if (!options.guildApiKey) {
+        throw new MetamobApiError("UNAUTHORIZED", "Une clé API personnelle est requise pour modifier les paramètres.");
+    }
+
+    const headers: Record<string, string> = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${options.guildApiKey}`
+    };
+
+    try {
+        const response = await fetch(`${METAMOB_API_BASE}/v1/quests/${encodeURIComponent(slug)}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(settings)
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                throw new MetamobApiError("UNAUTHORIZED", "Accès refusé. Vérifiez votre clé API personnelle.");
+            }
+            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour des paramètres`);
+        }
+
+        const json = await response.json();
+        return QuestSettingsSchema.parse(json.data || json);
+    } catch (error) {
+        if (error instanceof MetamobApiError) throw error;
+        throw new MetamobApiError("API_ERROR", "Erreur réseau lors de la mise à jour des paramètres");
+    }
+}
+
+export async function updateMonsterTradeParams(
+    slug: string,
+    monsterId: number,
+    params: { trade_offer?: number | null; trade_want?: number | null },
+    options: FetchOptions & { guildApiKey: string }
+): Promise<void> {
+    if (!options.guildApiKey) {
+        throw new MetamobApiError("UNAUTHORIZED", "Une clé API personnelle est requise.");
+    }
+
+    const headers: Record<string, string> = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${options.guildApiKey}`
+    };
+
+    try {
+        const response = await fetch(`${METAMOB_API_BASE}/v1/quests/${encodeURIComponent(slug)}/monsters/${monsterId}/trade`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(params)
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                throw new MetamobApiError("UNAUTHORIZED", "Accès refusé.");
+            }
+            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour du trade`);
+        }
+    } catch (error) {
+        if (error instanceof MetamobApiError) throw error;
+        throw new MetamobApiError("API_ERROR", "Erreur réseau");
+    }
+}
+
 export async function updateMonsterQuantity(
     username: string,
     questSlug: string,
@@ -718,19 +812,19 @@ export async function updateMonsterQuantity(
     quantity: number,
     options: FetchOptions & { guildApiKey: string }
 ): Promise<void> {
+    return bulkUpdateMonsters(questSlug, [{ monster_id: monsterId, quantity }], options);
+}
+
+export async function bulkUpdateMonsters(
+    questSlug: string,
+    monsters: { monster_id: number; quantity: number }[],
+    options: FetchOptions & { guildApiKey: string }
+): Promise<void> {
     if (!options.guildApiKey) {
         throw new MetamobApiError("UNAUTHORIZED", "Une clé API personnelle est requise pour modifier les quantités.");
     }
-    // We use the bulk endpoint because the single-monster endpoint throws a 404
-    // if the user doesn't own any of this monster yet. The bulk endpoint handles upserts.
-    const payload = {
-        monsters: [
-            {
-                monster_id: monsterId,
-                quantity: quantity
-            }
-        ]
-    };
+    
+    const payload = { monsters };
 
     const headers: Record<string, string> = {
         "Accept": "application/json",
@@ -752,18 +846,16 @@ export async function updateMonsterQuantity(
                 throw new MetamobApiError("UNAUTHORIZED", "Accès refusé. Vérifiez votre clé API personnelle.");
             }
             if (response.status === 404) {
-                throw new MetamobApiError("NOT_FOUND", "Monstre introuvable dans cette quête.");
+                throw new MetamobApiError("NOT_FOUND", "Quête introuvable.");
             }
             if (response.status === 429) {
                 throw new MetamobApiError("RATE_LIMIT", "Trop de requêtes. Veuillez patienter.");
             }
-            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour du monstre`);
+            throw new MetamobApiError("API_ERROR", `Erreur ${response.status} lors de la mise à jour bulk`);
         }
-
-        // Success: 204 No Content usually, or 200 OK
     } catch (error) {
         if (error instanceof MetamobApiError) throw error;
-        throw new MetamobApiError("API_ERROR", "Erreur réseau lors de la mise à jour du monstre");
+        throw new MetamobApiError("API_ERROR", "Erreur réseau lors de la mise à jour bulk");
     }
 }
 
@@ -911,6 +1003,8 @@ export function normalizeQuestMonster(monster: QuestMonster, parallelQuests: num
         status: monster.status ?? 0,
         state: computeMonsterState(owned, pq),
         zone: zoneName,
+        trade_offer: monster.offer,
+        trade_want: monster.want,
     };
 }
 

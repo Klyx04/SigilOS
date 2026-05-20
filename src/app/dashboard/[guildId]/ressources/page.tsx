@@ -11,8 +11,8 @@ import { NewsGrid } from "@/components/ressources/NewsGrid";
 import { UsefulLinksGrid } from "@/components/ressources/UsefulLinksGrid";
 import { ItemSearchPanel } from "@/components/ressources/ItemSearchPanel";
 import { CreatorsWidget } from "@/components/ressources/CreatorsWidget";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Library, Flame, BookOpen, Link2, Tv } from "lucide-react";
+import { ResourcesTabs } from "@/components/ressources/ResourcesTabs";
 
 export const metadata = {
     title: "Ressources Dofus | SigilOS",
@@ -96,63 +96,19 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
                 backHref={`/dashboard/${guildId}`}
             />
 
-            <Tabs defaultValue={initialTab} className="w-full">
-                <div className="overflow-x-auto pb-4 custom-scrollbar">
-                    <TabsList className="inline-flex h-auto w-max min-w-full justify-start md:justify-center p-1.5 bg-zinc-950/50 border border-white/5 rounded-2xl gap-1 font-mono backdrop-blur-xl">
-                        <TabsTrigger
-                            value="almanax"
-                            className="relative px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-500 data-[state=active]:border-amber-500/20 border border-transparent shadow-none transition-all duration-300 group
-                                     after:absolute after:right-[-0.5px] after:top-[25%] after:h-[50%] after:w-px after:bg-white/5 last:after:hidden data-[state=active]:after:hidden"
-                        >
-                            <Flame className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
-                            Almanax
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="news"
-                            className="relative px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-500 data-[state=active]:border-blue-500/20 border border-transparent shadow-none transition-all duration-300 group
-                                     after:absolute after:right-[-0.5px] after:top-[25%] after:h-[50%] after:w-px after:bg-white/5 last:after:hidden data-[state=active]:after:hidden"
-                        >
-                            <BookOpen className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
-                            Actualités
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="encyclopedia"
-                            className="relative px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-400 data-[state=active]:border-purple-500/20 border border-transparent shadow-none transition-all duration-300 group
-                                     after:absolute after:right-[-0.5px] after:top-[25%] after:h-[50%] after:w-px after:bg-white/5 last:after:hidden data-[state=active]:after:hidden"
-                        >
-                            <Library className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
-                            Encyclopédie
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="creators"
-                            className="relative px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-red-500/10 data-[state=active]:text-red-400 data-[state=active]:border-red-500/20 border border-transparent shadow-none transition-all duration-300 group
-                                     after:absolute after:right-[-0.5px] after:top-[25%] after:h-[50%] after:w-px after:bg-white/5 last:after:hidden data-[state=active]:after:hidden"
-                        >
-                            <Tv className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
-                            Créateurs
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="links"
-                            className="px-6 py-3 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 data-[state=active]:border-emerald-500/20 border border-transparent shadow-none transition-all duration-300 group"
-                        >
-                            <Link2 className="w-4 h-4 mr-2 group-data-[state=active]:animate-pulse" />
-                            Liens & Outils
-                        </TabsTrigger>
-                    </TabsList>
-                </div>
-
-                {/* ── Almanax ─────────────────────────────────────────────── */}
-                <TabsContent value="almanax" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+            <ResourcesTabs 
+                initialTab={initialTab}
+                guildId={guildId}
+                isSuperAdmin={user.isSuperAdmin}
+                almanaxSection={
                     <section>
                         <SectionHeader icon={Flame} color="#f59e0b" label="Almanax — Hub Temporel" />
                         <Suspense fallback={<GenericSkeleton height="350px" />}>
                             <AlmanaxSection />
                         </Suspense>
                     </section>
-                </TabsContent>
-
-                {/* ── Actualités News ────────────────────────────────────── */}
-                <TabsContent value="news" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                }
+                newsSection={
                     <section>
                         <SectionHeader icon={BookOpen} color="#3b82f6" label="Actualités des Mondes — Ankama & DPLN" />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -167,32 +123,26 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
                             <NewsGrid defaultFeed="changelog" title="Dofus Patch Notes & Correctifs" maxItems={5} layout="list" />
                         </div>
                     </section>
-                </TabsContent>
-
-                {/* ── Encyclopédie Full Width ────────────────────────────── */}
-                <TabsContent value="encyclopedia" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                }
+                encyclopediaSection={
                     <section>
                         <SectionHeader icon={Library} color="#a855f7" label="Nexus Encyclopédique — Multi-Sources" />
                         <ItemSearchPanel />
                     </section>
-                </TabsContent>
-
-                {/* ── Créateurs de Contenu ────────────────────────────────── */}
-                <TabsContent value="creators" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                }
+                creatorsSection={
                     <section>
                         <SectionHeader icon={Tv} color="#ef4444" label="Elite Creators Hub — Live & Replay" />
                         <CreatorsWidget guildId={guildId} isSuperAdmin={user.isSuperAdmin} />
                     </section>
-                </TabsContent>
-
-                {/* ── Liens Rapides ────────────────────────────────────────── */}
-                <TabsContent value="links" className="mt-6 border-none p-0 outline-none animate-in fade-in zoom-in-95 duration-200">
+                }
+                linksSection={
                     <section>
                         <SectionHeader icon={Link2} color="#10b981" label="Bibliothèque de Liens & Outils" />
                         <UsefulLinksGrid guildId={guildId} isSuperAdmin={user.isSuperAdmin} />
                     </section>
-                </TabsContent>
-            </Tabs>
+                }
+            />
         </div>
     );
 }

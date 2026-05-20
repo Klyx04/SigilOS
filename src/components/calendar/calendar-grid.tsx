@@ -124,7 +124,8 @@ interface CalendarGridProps {
     onEventClick: (eventId: string) => void;
     onDayClick?: (date: Date) => void;
     canManage?: boolean;
-    onCreateClick?: () => void;
+    viewMode: ViewMode;
+    onViewModeChange: (mode: ViewMode) => void;
 }
 
 // ============================================
@@ -138,16 +139,12 @@ export function CalendarGrid({
     onEventClick,
     onDayClick,
     canManage = false,
-    onCreateClick
+    viewMode,
+    onViewModeChange
 }: CalendarGridProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>("week");
-    const [activeFilter, setActiveFilter] = useState<string | null>(null);
+    // Calendar days
 
-    // Filter events
-    const filteredEvents = useMemo(() => {
-        if (!activeFilter) return events;
-        return events.filter(e => e.type === activeFilter);
-    }, [events, activeFilter]);
+
 
     // Calendar days
     const calendarDays = useMemo(() => {
@@ -167,21 +164,16 @@ export function CalendarGrid({
     // Events by day
     const eventsByDay = useMemo(() => {
         const map = new Map<string, CalendarEvent[]>();
-        filteredEvents.forEach(event => {
+        events.forEach(event => {
             const eventDate = new Date(event.startDate);
             const key = format(eventDate, "yyyy-MM-dd");
             const existing = map.get(key) || [];
             map.set(key, [...existing, event]);
         });
         return map;
-    }, [filteredEvents]);
-
-    // Type counts
-    const typeCounts = useMemo(() => {
-        const counts: Record<string, number> = {};
-        events.forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
-        return counts;
     }, [events]);
+
+
 
     const handlePrev = () => {
         if (viewMode === "week") onDateChange(subWeeks(currentDate, 1));
@@ -198,142 +190,7 @@ export function CalendarGrid({
 
     return (
         <div className="space-y-5">
-            {/* ============ BIG HEADER ============ */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-4 sm:p-6 p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/50">
-                {/* Left - Title */}
-                <div className="flex items-center gap-4 min-w-0">
-                    <div className="h-12 w-12 md:h-14 md:w-14 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-600/20 flex items-center justify-center border border-amber-500/30 shrink-0">
-                        <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-amber-400" />
-                    </div>
-                    <div className="min-w-0">
-                        <h2 className="text-xl md:text-2xl font-bold text-zinc-100 truncate">
-                            {viewMode === "week"
-                                ? `Semaine ${currentWeek}`
-                                : format(currentDate, "MMMM yyyy", { locale: fr })
-                            }
-                        </h2>
-                        <p className="text-xs md:text-base text-zinc-400 truncate">
-                            {format(startOfWeek(currentDate, { weekStartsOn: 1 }), "d", { locale: fr })}
-                            {" - "}
-                            {format(endOfWeek(currentDate, { weekStartsOn: 1 }), "d MMMM yyyy", { locale: fr })}
-                        </p>
-                    </div>
-                </div>
 
-                {/* Right - Controls */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    {/* View Toggle */}
-                    <div className="flex items-center bg-zinc-950 border border-zinc-700 rounded-xl p-1 shrink-0">
-                        <button
-                            onClick={() => setViewMode("week")}
-                            className={cn(
-                                "flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all",
-                                viewMode === "week"
-                                    ? "bg-amber-500 text-zinc-950"
-                                    : "text-zinc-400 hover:text-zinc-200"
-                            )}
-                        >
-                            <CalendarDays className="h-4 w-4 md:h-5 md:w-5" />
-                            <span>Semaine</span>
-                        </button>
-                        <button
-                            onClick={() => setViewMode("month")}
-                            className={cn(
-                                "flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all",
-                                viewMode === "month"
-                                    ? "bg-amber-500 text-zinc-950"
-                                    : "text-zinc-400 hover:text-zinc-200"
-                            )}
-                        >
-                            <LayoutGrid className="h-4 w-4 md:h-5 md:w-5" />
-                            <span>Mois</span>
-                        </button>
-                    </div>
-
-                    {/* Navigation */}
-                    <div className="flex items-center bg-zinc-950 border border-zinc-700 rounded-xl shrink-0">
-                        <button
-                            onClick={handlePrev}
-                            className="p-2.5 md:p-3 hover:bg-zinc-800 rounded-l-xl transition-colors"
-                        >
-                            <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-zinc-300" />
-                        </button>
-                        <button
-                            onClick={() => onDateChange(new Date())}
-                            className="flex-1 sm:flex-none px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
-                        >
-                            Auj.
-                        </button>
-                        <button
-                            onClick={handleNext}
-                            className="p-2.5 md:p-3 hover:bg-zinc-800 rounded-r-xl transition-colors"
-                        >
-                            <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-zinc-300" />
-                        </button>
-                    </div>
-
-                    {/* Create Button */}
-                    {canManage && onCreateClick && (
-                        <Button
-                            onClick={onCreateClick}
-                            size="lg"
-                            className="h-10 md:h-12 px-4 md:px-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-sm md:text-base shadow-lg shadow-amber-500/25 shrink-0"
-                        >
-                            <Plus className="h-4 w-4 md:h-5 md:w-5 mr-2" />
-                            Créer
-                        </Button>
-                    )}
-                </div>
-            </div>
-
-            {/* ============ FILTER BAR (BIG PILLS) ============ */}
-            <div className="flex items-center gap-3 flex-wrap">
-                <button
-                    onClick={() => setActiveFilter(null)}
-                    className={cn(
-                        "flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all border-2",
-                        !activeFilter
-                            ? "bg-zinc-100 text-zinc-900 border-zinc-100"
-                            : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-600 hover:text-zinc-200"
-                    )}
-                >
-                    Tous
-                    <span className={cn(
-                        "px-2 py-0.5 rounded-md text-xs font-bold",
-                        !activeFilter ? "bg-zinc-800 text-zinc-100" : "bg-zinc-800 text-zinc-400"
-                    )}>
-                        {events.length}
-                    </span>
-                </button>
-
-                {Object.entries(TYPE_CONFIG).map(([type, config]) => {
-                    const count = typeCounts[type] || 0;
-                    const Icon = config.icon;
-                    const isActive = activeFilter === type;
-
-                    return (
-                        <button
-                            key={type}
-                            onClick={() => setActiveFilter(isActive ? null : type)}
-                            className={cn(
-                                "flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all border-2",
-                                isActive
-                                    ? cn(config.bg, config.color, config.border)
-                                    : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-600"
-                            )}
-                        >
-                            <Icon className="h-5 w-5" />
-                            {config.label}
-                            <span className={cn(
-                                "px-2 py-0.5 rounded-md text-xs font-bold",
-                                isActive ? "bg-white/10" : "bg-zinc-800"
-                            )}>
-                                {count}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
 
             {/* ============ CALENDAR GRID ============ */}
             <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 overflow-hidden">
@@ -414,14 +271,27 @@ export function CalendarGrid({
                                                                 onEventClick(event.id);
                                                             }}
                                                             className={cn(
-                                                                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all text-left border",
-                                                                config.bg, config.color, config.border,
-                                                                "hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+                                                                "w-full group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-left",
+                                                                "bg-zinc-900/40 backdrop-blur-md border border-zinc-800/50",
+                                                                "hover:bg-zinc-800/60 hover:border-zinc-700/50 hover:shadow-2xl hover:shadow-black/40 hover:-translate-y-0.5",
+                                                                "active:scale-[0.98] active:translate-y-0"
                                                             )}
                                                         >
-                                                            <Icon className="h-4 w-4 shrink-0" />
-                                                            <span className="font-bold">{time}</span>
-                                                            <span className="truncate">{event.title}</span>
+                                                            {/* Side Accent Line */}
+                                                            <div className={cn("absolute left-0 top-2 bottom-2 w-1 rounded-r-full transition-all group-hover:top-1 group-hover:bottom-1", config.dot)} />
+                                                            
+                                                            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border border-white/5", config.bg)}>
+                                                                <Icon className={cn("h-4 w-4", config.color)} />
+                                                            </div>
+                                                            
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-[11px] font-black uppercase tracking-tighter opacity-50 leading-none mb-1">
+                                                                    {time}
+                                                                </span>
+                                                                <span className="truncate text-zinc-100 group-hover:text-white transition-colors">
+                                                                    {event.title}
+                                                                </span>
+                                                            </div>
                                                         </button>
                                                     </TooltipTrigger>
                                                     <TooltipContent

@@ -12,6 +12,146 @@
         "updatedAt": "2026-04-12T23:06:59.565Z",
         "eventZoneKey": null,
         "isEventZone": false
+      },
+      {
+        "id": "seed-zone-abîme-de-r'lyugluglu",
+        "name": "Abîme de R'lyugluglu",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.090Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-carrière-chocolatée",
+        "name": "Carrière Chocolatée",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-caserne-du-jour-sans-fin",
+        "name": "Caserne du Jour sans fin",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-forêt-enneigée",
+        "name": "Forêt enneigée",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-galeries-d'ereboria",
+        "name": "Galeries d'Ereboria",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-gorge-des-vents-hurlants",
+        "name": "Gorge des Vents Hurlants",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-jardin-à-la-crème",
+        "name": "Jardin à la crème",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-laboratoires-des-chocomanciens",
+        "name": "Laboratoires des Chocomanciens",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-lande-poilue",
+        "name": "Lande Poilue",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-marches-magmatiques",
+        "name": "Marches Magmatiques",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-massif-de-cania",
+        "name": "Massif de cania",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-royaume-d'encre",
+        "name": "Royaume d'Encre",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-royaume-de-papier",
+        "name": "Royaume de papier",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
+      },
+      {
+        "id": "seed-zone-île-de-pwâk",
+        "name": "Île de Pwâk",
+        "level": 200,
+        "dpnlUrl": null,
+        "createdAt": "2026-04-27T18:12:12.091Z",
+        "updatedAt": "2026-04-27T18:12:12.091Z",
+        "eventZoneKey": null,
+        "isEventZone": false
       }
     ],
     "families": [
@@ -634,8 +774,3022 @@
         ]
       }
     ],
-    "challenges": [],
-    "dungeons": [],
+    "challenges": [
+      {
+        "id": "seed-challenge-barbare",
+        "slug": "barbare",
+        "name": "Barbare",
+        "description": "Les personnages alliés doivent achever les ennemis avec une arme.\n",
+        "iconUrl": "/game-data/achievements/barbare.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-blitzkrieg",
+        "slug": "blitzkrieg",
+        "name": "Blitzkrieg",
+        "description": "Lorsqu'un ennemi est attaqué, il doit être achevé avant le début de son tour de jeu.\n",
+        "iconUrl": "/game-data/achievements/blitzkrieg.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-chrono",
+        "slug": "chrono",
+        "name": "Chrono",
+        "description": "Vaincre tel boss dans son donjon en moins de X tours.\n",
+        "iconUrl": "/game-data/achievements/chrono.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-circulez",
+        "slug": "circulez",
+        "name": "Circulez",
+        "description": "Ne pas retirer de PM aux adversaires",
+        "iconUrl": "/game-data/achievements/circulez.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-collant",
+        "slug": "collant",
+        "name": "Collant",
+        "description": "Les combattants alliés doivent finir leur tour sur une cellule adjacente à celle d'un autre combattant allié.\n",
+        "iconUrl": "/game-data/achievements/collant.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-compagnon",
+        "slug": "compagnon",
+        "name": "Compagnon",
+        "description": "Vaincre Tel Boss dans son donjon avec 4 personnes minimum, dont au moins un des compagnons éligibles à la réalisation de ce succès",
+        "iconUrl": "/game-data/achievements/compagnon.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-dernier",
+        "slug": "dernier",
+        "name": "Dernier",
+        "description": "La cible désignée doit être achevée en dernier.\n",
+        "iconUrl": "/game-data/achievements/dernier.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-duel",
+        "slug": "duel",
+        "name": "Duel",
+        "description": "Lorsqu'un combattant allié attaque un ennemi, aucun autre combattant allié ne doit attaquer cet ennemi pendant toute la durée du combat.\n",
+        "iconUrl": "/game-data/achievements/duel.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-duo",
+        "slug": "duo",
+        "name": "Duo",
+        "description": "Vaincre tous les monstres avec 2 personnages maximum et en moins de X tours.",
+        "iconUrl": "/game-data/achievements/duo.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-focus",
+        "slug": "focus",
+        "name": "Focus",
+        "description": "Lorsqu'un ennemi est attaqué par un allié, il doit être achevé avant qu'un autre ennemi ne soit attaqué.\n",
+        "iconUrl": "/game-data/achievements/focus.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-hardi",
+        "slug": "hardi",
+        "name": "Hardi",
+        "description": "Les combattants alliés doivent finir leur tour sur une cellule adjacente à celle d'un ennemi.\n",
+        "iconUrl": "/game-data/achievements/hardi.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-liberte",
+        "slug": "liberte",
+        "name": "Liberte",
+        "description": "Challenge généré automatiquement",
+        "iconUrl": "/game-data/achievements/liberte.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-libert",
+        "slug": "libert",
+        "name": "Liberté",
+        "description": "Ne pas retirer de PM ni de portée aux adversaires.",
+        "iconUrl": "/game-data/achievements/liberte.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-mains-propres",
+        "slug": "mains-propres",
+        "name": "Mains Propres",
+        "description": "Les personnages alliés doivent achever les ennemis sans leur occasionner de dommages directs. \n",
+        "iconUrl": "/game-data/achievements/mains-propres.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-misanthrope",
+        "slug": "misanthrope",
+        "name": "Misanthrope",
+        "description": "Les combattants alliés ne doivent jamais finir leur tour sur une cellule adjacente à celle d'un autre combattant allié.\n",
+        "iconUrl": "/game-data/achievements/misanthrope.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-mystique",
+        "slug": "mystique",
+        "name": "Mystique",
+        "description": "Vaincre tel boss dans son donjon en validant le challenge Mystique.",
+        "iconUrl": "/game-data/achievements/mystique.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-nomade",
+        "slug": "nomade",
+        "name": "Nomade",
+        "description": "Les combattants alliés doivent utiliser tous leurs points de mouvement à chaque tour pendant toute la durée du combat.\n",
+        "iconUrl": "/game-data/achievements/nomade.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-premier",
+        "slug": "premier",
+        "name": "Premier",
+        "description": "La cible désignée doit être achevée en premier.\n",
+        "iconUrl": "/game-data/achievements/premier.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-prudent",
+        "slug": "prudent",
+        "name": "Prudent",
+        "description": "Les combattants alliés ne doivent jamais finir leur tour sur une cellule adjacente à celle d'un ennemi.\n",
+        "iconUrl": "/game-data/achievements/prudent.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-quatuor",
+        "slug": "quatuor",
+        "name": "Quatuor",
+        "description": "Vaincre tel boss dans son donjon en validant le challenge Quatuor.",
+        "iconUrl": "/game-data/achievements/quatuor.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-sp-cial",
+        "slug": "sp-cial",
+        "name": "Spécial",
+        "description": "Vaincre tel boss dans son donjon en validant le challenge dédié.",
+        "iconUrl": "/game-data/achievements/spécial.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-statue",
+        "slug": "statue",
+        "name": "Statue",
+        "description": "Les combattants alliés doivent finir leur tour sur la même case que celle où ils l'ont commencé, pendant toute la durée du combat.\n",
+        "iconUrl": "/game-data/achievements/statue.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-survivant",
+        "slug": "survivant",
+        "name": "Survivant",
+        "description": "Aucun combattant allié ne doit mourir.\n",
+        "iconUrl": "/game-data/achievements/survivant.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-trio",
+        "slug": "trio",
+        "name": "Trio",
+        "description": "Vaincre tel boss dans son donjon en validant le challenge Trio.",
+        "iconUrl": "/game-data/achievements/trio.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-versatile",
+        "slug": "versatile",
+        "name": "Versatile",
+        "description": "Les combattants alliés ne doivent utiliser qu'une seule fois une même action pendant leurs tours de jeu.\n",
+        "iconUrl": "/game-data/achievements/versatile.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-zombie",
+        "slug": "zombie",
+        "name": "Zombie",
+        "description": "Les combattants alliés doivent utiliser exactement un point de mouvement par tour de jeu.\n",
+        "iconUrl": "/game-data/achievements/zombie.png",
+        "conditions": null
+      },
+      {
+        "id": "seed-challenge-conqu-rant",
+        "slug": "conqu-rant",
+        "name": "conquérant",
+        "description": "Lorsqu'un combattant allié tue un ou plusieurs ennemis, il doit finir son tour sur la case qu'occupait l'un de ce ou ces ennemis",
+        "iconUrl": "/game-data/achievements/conquerant.png",
+        "conditions": null
+      }
+    ],
+    "dungeons": [
+      {
+        "id": "seed-dungeon-grange-du-tournesol-affamé",
+        "name": "Grange du Tournesol Affamé",
+        "bossName": "Tournesol Affamé",
+        "level": 20,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/grange-du-tournesol-affam.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/grange-du-tournesol-affame.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-grange-du-tournesol-affamé-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grange-du-tournesol-affamé-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grange-du-tournesol-affamé-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grange-du-tournesol-affamé-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-château-ensablé",
+        "name": "Château Ensablé",
+        "bossName": "Mob l'Éponge",
+        "level": 20,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/ch-teau-ensabl.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/chateau-ensable.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-château-ensablé-misanthrope",
+            "challengeId": "seed-challenge-misanthrope",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-château-ensablé-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-château-ensablé-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-château-ensablé-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-cour-du-bouftou-royal",
+        "name": "Cour du Bouftou Royal",
+        "bossName": "Bouftou Royal",
+        "level": 30,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/cour-du-bouftou-royal.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "http://dofuspourlesnoobs.com/cour-du-bouftou-royal.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-cour-du-bouftou-royal-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cour-du-bouftou-royal-blitzkrieg",
+            "challengeId": "seed-challenge-blitzkrieg",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cour-du-bouftou-royal-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cour-du-bouftou-royal-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-donjon-des-squelettes",
+        "name": "Donjon des Squelettes",
+        "bossName": "Chafer Rōnin",
+        "level": 40,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/donjon-des-squelettes.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-des-squelettes.html#fonctionnement-expedition",
+        "achievements": [
+          {
+            "id": "seed-ach-donjon-des-squelettes-nomade",
+            "challengeId": "seed-challenge-nomade",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-squelettes-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-squelettes-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-squelettes-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-squelettes-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-donjon-des-scarafeuilles",
+        "name": "Donjon des Scarafeuilles",
+        "bossName": "Scarabosse Doré",
+        "level": 40,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/donjon-des-scarafeuilles.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-des-scarafeuilles.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-donjon-des-scarafeuilles-zombie",
+            "challengeId": "seed-challenge-zombie",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-scarafeuilles-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-scarafeuilles-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-scarafeuilles-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-donjon-des-forgerons",
+        "name": "Donjon des Forgerons",
+        "bossName": "Coffre des Forgerons",
+        "level": 50,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/donjon-des-forgerons.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-des-forgerons.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-donjon-des-forgerons-nomade",
+            "challengeId": "seed-challenge-nomade",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-forgerons-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-forgerons-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-forgerons-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-forgerons-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-donjon-des-bworks",
+        "name": "Donjon des Bworks",
+        "bossName": "Bworkette",
+        "level": 50,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/donjon-des-bworks.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-des-bworks.html#fonctionnement-expedition",
+        "achievements": [
+          {
+            "id": "seed-ach-donjon-des-bworks-misanthrope",
+            "challengeId": "seed-challenge-misanthrope",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-bworks-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-bworks-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-bworks-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-des-bworks-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-fonderie-des-waddicts",
+        "name": "Fonderie des Waddicts",
+        "bossName": "Mawabouaino",
+        "level": 60,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/fonderie-des-waddicts.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-fonderie-des-waddicts-chrono",
+            "challengeId": "seed-challenge-chrono",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-fonderie-des-waddicts-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-fonderie-des-waddicts-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-fonderie-des-waddicts-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-fonderie-des-waddicts-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-pitons-rocheux-des-craqueleurs",
+        "name": "Pitons Rocheux des Craqueleurs",
+        "bossName": "Craqueleur Légendaire",
+        "level": 70,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/pitons-rocheux-des-craqueleurs.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/pitons-rocheux-des-craqueleurs.html",
+        "achievements": [
+          {
+            "id": "seed-ach-pitons-rocheux-des-craqueleurs-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-pitons-rocheux-des-craqueleurs-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-pitons-rocheux-des-craqueleurs-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-pitons-rocheux-des-craqueleurs-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-arbre-de-moon",
+        "name": "Arbre de Moon",
+        "bossName": "Moon",
+        "level": 100,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/arbre-de-moon.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/arbre-de-moon.html",
+        "achievements": [
+          {
+            "id": "seed-ach-arbre-de-moon-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-arbre-de-moon-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-arbre-de-moon-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-arbre-de-moon-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-arbre-de-moon-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-tanière-du-meulou",
+        "name": "Tanière du Meulou",
+        "bossName": "Meulou",
+        "level": 100,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tani-re-du-meulou.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/taniere-du-meulou.html",
+        "achievements": [
+          {
+            "id": "seed-ach-tanière-du-meulou-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tanière-du-meulou-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tanière-du-meulou-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tanière-du-meulou-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tanière-du-meulou-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-caverne-du-koulosse",
+        "name": "Caverne du Koulosse",
+        "bossName": "Koulosse ",
+        "level": 100,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/caverne-du-koulosse.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/caverne-du-koulosse.html",
+        "achievements": [
+          {
+            "id": "seed-ach-caverne-du-koulosse-zombie",
+            "challengeId": "seed-challenge-zombie",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-caverne-du-koulosse-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-caverne-du-koulosse-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-caverne-du-koulosse-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-garde-manger-du-rat-blanc",
+        "name": "Garde-manger du Rat Blanc",
+        "bossName": "Rat Blanc",
+        "level": 110,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/garde-manger-du-rat-blanc.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/garde-manger-du-rat-blanc.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-garde-manger-du-rat-blanc-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-garde-manger-du-rat-blanc-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-garde-manger-du-rat-blanc-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-garde-manger-du-rat-blanc-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-salle-de-lecture-du-maître-corbac",
+        "name": "Salle de lecture du Maître Corbac",
+        "bossName": "Maître Corbac",
+        "level": 110,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/salle-de-lecture-du-ma-tre-corbac.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/bibliotheque-du-maitre-corbac.html",
+        "achievements": [
+          {
+            "id": "seed-ach-salle-de-lecture-du-maître-corbac-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-salle-de-lecture-du-maître-corbac-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-salle-de-lecture-du-maître-corbac-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-salle-de-lecture-du-maître-corbac-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-antre-du-dragon-cochon",
+        "name": "Antre du Dragon Cochon",
+        "bossName": "Dragon Cochon",
+        "level": 110,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/antre-du-dragon-cochon.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/antre-du-dragon-cochon.html",
+        "achievements": [
+          {
+            "id": "seed-ach-antre-du-dragon-cochon-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-dragon-cochon-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-dragon-cochon-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-dragon-cochon-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-dragon-cochon-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-sousouricière-du-rat-noir",
+        "name": "Sousouricière du Rat Noir",
+        "bossName": "Rat Noir",
+        "level": 110,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/sousourici-re-du-rat-noir.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/sousouriciere-du-rat-noir.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-sousouricière-du-rat-noir-blitzkrieg",
+            "challengeId": "seed-challenge-blitzkrieg",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-sousouricière-du-rat-noir-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-sousouricière-du-rat-noir-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-sousouricière-du-rat-noir-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-antre-du-blop-multicolore-royal",
+        "name": "Antre du Blop Multicolore Royal",
+        "bossName": "Blop Multicolore Royal",
+        "level": 120,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/antre-du-blop-multicolore-royal.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "http://dofuspourlesnoobs.com/antre-du-blop-multicolore-royal.html",
+        "achievements": [
+          {
+            "id": "seed-ach-antre-du-blop-multicolore-royal-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-blop-multicolore-royal-duel",
+            "challengeId": "seed-challenge-duel",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-blop-multicolore-royal-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-blop-multicolore-royal-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-tofulailler-royal",
+        "name": "Tofulailler Royal",
+        "bossName": "Tofu Royal",
+        "level": 120,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tofulailler-royal.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/tofulailler-royal.html",
+        "achievements": [
+          {
+            "id": "seed-ach-tofulailler-royal-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tofulailler-royal-dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tofulailler-royal-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tofulailler-royal-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tofulailler-royal-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-centre-du-labyrinthe-du-minotoror-(2)",
+        "name": "Centre du labyrinthe du Minotoror (2)",
+        "bossName": "Minotoror",
+        "level": 120,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/centre-du-labyrinthe-du-minotoror-2.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/centre-du-labyrinthe-du-minotoror.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-centre-du-labyrinthe-du-minotoror-(2)-misanthrope",
+            "challengeId": "seed-challenge-misanthrope",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-centre-du-labyrinthe-du-minotoror-(2)-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-centre-du-labyrinthe-du-minotoror-(2)-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-centre-du-labyrinthe-du-minotoror-(2)-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-antre-de-crocabulia",
+        "name": "Antre de Crocabulia",
+        "bossName": "Crocabulia",
+        "level": 120,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/antre-de-crocabulia.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/antre-de-crocabulia.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-antre-de-crocabulia-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-de-crocabulia-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-de-crocabulia-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-de-crocabulia-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-croquanterie",
+        "name": "Croquanterie",
+        "bossName": "Croqueleur",
+        "level": 130,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/croquanterie.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-croquanterie-chrono",
+            "challengeId": "seed-challenge-chrono",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-croquanterie-circulez",
+            "challengeId": "seed-challenge-circulez",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-croquanterie-blitzkrieg",
+            "challengeId": "seed-challenge-blitzkrieg",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-croquanterie-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-croquanterie-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-clairière-du-chêne-mou",
+        "name": "Clairière du Chêne Mou",
+        "bossName": "Chêne Mou",
+        "level": 140,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/clairi-re-du-ch-ne-mou.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "NORMAL"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/clairiegravere-du-checircne-mou.html#fonctionnement-expedition",
+        "achievements": [
+          {
+            "id": "seed-ach-clairière-du-chêne-mou-libert",
+            "challengeId": "seed-challenge-libert",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-clairière-du-chêne-mou-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-clairière-du-chêne-mou-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-clairière-du-chêne-mou-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-galerie-du-phossile",
+        "name": "Galerie du Phossile",
+        "bossName": "Phossile ",
+        "level": 150,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/galerie-du-phossile.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "AUDACE",
+          "BRAVOURE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/galerie-du-phossile.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-galerie-du-phossile-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-galerie-du-phossile-libert",
+            "challengeId": "seed-challenge-libert",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-galerie-du-phossile-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-galerie-du-phossile-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-centre-du-labyrinthe-du-minotoror",
+        "name": "Centre du labyrinthe du Minotoror",
+        "bossName": "Minotot",
+        "level": 160,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/centre-du-labyrinthe-du-minotoror.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/minotot.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-centre-du-labyrinthe-du-minotoror-circulez",
+            "challengeId": "seed-challenge-circulez",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-centre-du-labyrinthe-du-minotoror-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-centre-du-labyrinthe-du-minotoror-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-centre-du-labyrinthe-du-minotoror-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-hypogée-de-l'obsidiantre",
+        "name": "Hypogée de l'Obsidiantre",
+        "bossName": "Obsidiantre",
+        "level": 160,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/hypog-e-de-l-obsidiantre.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-hypogée-de-l'obsidiantre-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-hypogée-de-l'obsidiantre-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-hypogée-de-l'obsidiantre-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-hypogée-de-l'obsidiantre-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-plateau-de-ush",
+        "name": "Plateau de Ush",
+        "bossName": "Ush Galesh",
+        "level": 160,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/plateau-de-ush.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-plateau-de-ush-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-plateau-de-ush-zombie",
+            "challengeId": "seed-challenge-zombie",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-plateau-de-ush-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-plateau-de-ush-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-canopée-du-kimbo",
+        "name": "Canopée du Kimbo",
+        "bossName": "Kimbo",
+        "level": 160,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/canop-e-du-kimbo.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-canopée-du-kimbo-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-canopée-du-kimbo-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-canopée-du-kimbo-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-canopée-du-kimbo-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-grotte-de-kanigroula",
+        "name": "Grotte de Kanigroula",
+        "bossName": "Kanigroula",
+        "level": 160,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/kanigroula.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/grotte-de-kanigroula.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-grotte-de-kanigroula-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grotte-de-kanigroula-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grotte-de-kanigroula-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grotte-de-kanigroula-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grotte-de-kanigroula-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-tombe-du-shogun-tofugawa",
+        "name": "Tombe du Shogun Tofugawa",
+        "bossName": "Shogun Tofugawa",
+        "level": 160,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tombe-du-shogun-tofugawa.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-tombe-du-shogun-tofugawa-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tombe-du-shogun-tofugawa-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tombe-du-shogun-tofugawa-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tombe-du-shogun-tofugawa-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-tanière-givrefoux",
+        "name": "Tanière Givrefoux",
+        "bossName": "Tengu Givrefoux",
+        "level": 170,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tani-re-givrefoux.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-tanière-givrefoux-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tanière-givrefoux-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tanière-givrefoux-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tanière-givrefoux-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-poste-de-contrôle-du-supervizœuf",
+        "name": "Poste de contrôle du Supervizœuf",
+        "bossName": "Supervizœuf ",
+        "level": 170,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/poste-de-contr-le-du-superviz-uf.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-poste-de-contrôle-du-supervizœuf-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-poste-de-contrôle-du-supervizœuf-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-poste-de-contrôle-du-supervizœuf-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-poste-de-contrôle-du-supervizœuf-conqu-rant",
+            "challengeId": "seed-challenge-conqu-rant",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-demeure-des-esprits",
+        "name": "Demeure des Esprits",
+        "bossName": "Koumiho",
+        "level": 170,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/demeure-des-esprits.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-demeure-des-esprits-focus",
+            "challengeId": "seed-challenge-focus",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-demeure-des-esprits-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-demeure-des-esprits-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-demeure-des-esprits-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-horologium-de-xlii",
+        "name": "Horologium de XLII",
+        "bossName": "XLII",
+        "level": 170,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/horologium-de-xlii.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/horologium-de-xlii.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-horologium-de-xlii-barbare",
+            "challengeId": "seed-challenge-barbare",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-horologium-de-xlii-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-horologium-de-xlii-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-horologium-de-xlii-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-boyau-du-père-ver",
+        "name": "Boyau du Père Ver",
+        "bossName": "Père Ver",
+        "level": 170,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/boyau-du-p-re-ver.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-boyau-du-père-ver-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-boyau-du-père-ver-zombie",
+            "challengeId": "seed-challenge-zombie",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-boyau-du-père-ver-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-boyau-du-père-ver-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-antre-du-kralamoure-géant",
+        "name": "Antre du Kralamoure Géant",
+        "bossName": "Kralamoure Géant",
+        "level": 180,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/antre-du-kralamoure-g-ant.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-antre-du-kralamoure-géant-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-kralamoure-géant-nomade",
+            "challengeId": "seed-challenge-nomade",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-kralamoure-géant-blitzkrieg",
+            "challengeId": "seed-challenge-blitzkrieg",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-kralamoure-géant-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-kralamoure-géant-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-cave-du-toxoliath",
+        "name": "Cave du Toxoliath",
+        "bossName": "Toxoliath",
+        "level": 180,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/cave-du-toxoliath.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/cave-du-toxoliath.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-cave-du-toxoliath-circulez",
+            "challengeId": "seed-challenge-circulez",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cave-du-toxoliath-misanthrope",
+            "challengeId": "seed-challenge-misanthrope",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cave-du-toxoliath-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cave-du-toxoliath-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-grotte-du-bworker",
+        "name": "Grotte du Bworker",
+        "bossName": "Bworker",
+        "level": 180,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/grotte-du-bworker.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "AUDACE",
+          "BRAVOURE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/grotte-du-bworker.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-grotte-du-bworker-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grotte-du-bworker-blitzkrieg",
+            "challengeId": "seed-challenge-blitzkrieg",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grotte-du-bworker-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-grotte-du-bworker-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-antre-du-korriandre",
+        "name": "Antre du Korriandre",
+        "bossName": "Korriandre",
+        "level": 180,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/antre-du-korriandre.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-antre-du-korriandre-mystique",
+            "challengeId": "seed-challenge-mystique",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-korriandre-zombie",
+            "challengeId": "seed-challenge-zombie",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-korriandre-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antre-du-korriandre-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-temple-du-grand-ougah",
+        "name": "Temple du Grand Ougah",
+        "bossName": "Ougah",
+        "level": 180,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/temple-du-grand-ougah.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-temple-du-grand-ougah-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-du-grand-ougah-dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-du-grand-ougah-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-du-grand-ougah-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-bastion-des-marteaux-aigris",
+        "name": "Bastion des Marteaux-Aigris",
+        "bossName": "Barbéryl Clochecuivre",
+        "level": 190,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/bastion-des-marteaux-aigris.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-bastion-des-marteaux-aigris-dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-bastion-des-marteaux-aigris-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-bastion-des-marteaux-aigris-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-bastion-des-marteaux-aigris-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-antichambre-des-gloursons",
+        "name": "Antichambre des Gloursons",
+        "bossName": "Glourséleste",
+        "level": 190,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/antichambre-des-gloursons.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-antichambre-des-gloursons-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antichambre-des-gloursons-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antichambre-des-gloursons-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antichambre-des-gloursons-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-antichambre-des-gloursons-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-camp-du-comte-razof",
+        "name": "Camp du Comte Razof",
+        "bossName": "Comte Razof",
+        "level": 190,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/camp-du-comte-razof.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-camp-du-comte-razof-libert",
+            "challengeId": "seed-challenge-libert",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-camp-du-comte-razof-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-camp-du-comte-razof-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-camp-du-comte-razof-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-pyramide-d'ombre",
+        "name": "Pyramide d'Ombre",
+        "bossName": "Ombre",
+        "level": 190,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/pyramide-d-ombre.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "AUDACE",
+          "BRAVOURE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/pyramide-dombre.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-pyramide-d'ombre-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-pyramide-d'ombre-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-pyramide-d'ombre-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-pyramide-d'ombre-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-mine-abandonnée-de-sakaï",
+        "name": "Mine abandonnée de Sakaï",
+        "bossName": "Grolloum",
+        "level": 190,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/mine-abandonn-e-de-saka.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-de-la-mine-de-sakaiuml.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-mine-abandonnée-de-sakaï-compagnon",
+            "challengeId": "seed-challenge-compagnon",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-mine-abandonnée-de-sakaï-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-mine-abandonnée-de-sakaï-blitzkrieg",
+            "challengeId": "seed-challenge-blitzkrieg",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-mine-abandonnée-de-sakaï-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-mine-abandonnée-de-sakaï-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-cavernes-des-givrefoux",
+        "name": "Cavernes des Givrefoux",
+        "bossName": "Fuji Givrefoux",
+        "level": 190,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/cavernes-des-givrefoux.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-cavernes-des-givrefoux-dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cavernes-des-givrefoux-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cavernes-des-givrefoux-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cavernes-des-givrefoux-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-cavernes-du-kolosso",
+        "name": "Cavernes du Kolosso",
+        "bossName": "Kolosso",
+        "level": 190,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/cavernes-du-kolosso.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-cavernes-du-kolosso-dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cavernes-du-kolosso-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cavernes-du-kolosso-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-cavernes-du-kolosso-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-temple-de-koutoulou",
+        "name": "Temple de Koutoulou",
+        "bossName": "Larve de Koutoulou",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/temple-de-koutoulou.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/temple-de-koutoulou.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-temple-de-koutoulou-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-de-koutoulou-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-de-koutoulou-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-de-koutoulou-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-vaisseau-du-capitaine-meno",
+        "name": "Vaisseau du Capitaine Meno",
+        "bossName": "Capitaine Meno",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/capitaine-meno.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/vaisseau-du-capitaine-meno.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-vaisseau-du-capitaine-meno-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-vaisseau-du-capitaine-meno-blitzkrieg",
+            "challengeId": "seed-challenge-blitzkrieg",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-vaisseau-du-capitaine-meno-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-vaisseau-du-capitaine-meno-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-œil-de-vortex",
+        "name": "Œil de Vortex",
+        "bossName": "Vortex ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/il-de-vortex.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-œil-de-vortex-focus",
+            "challengeId": "seed-challenge-focus",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-œil-de-vortex-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-œil-de-vortex-trio",
+            "challengeId": "seed-challenge-trio",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-œil-de-vortex-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-ventre-de-la-baleine",
+        "name": "Ventre de la Baleine",
+        "bossName": "Protozorreur ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/ventre-de-la-baleine.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/ventre-de-la-baleine.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-ventre-de-la-baleine-barbare",
+            "challengeId": "seed-challenge-barbare",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-ventre-de-la-baleine-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-ventre-de-la-baleine-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-ventre-de-la-baleine-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-trône-de-la-cour-sombre",
+        "name": "Trône de la Cour Sombre",
+        "bossName": "Reine des Voleurs",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tr-ne-de-la-cour-sombre.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-trône-de-la-cour-sombre-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-trône-de-la-cour-sombre-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-trône-de-la-cour-sombre-trio",
+            "challengeId": "seed-challenge-trio",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-trône-de-la-cour-sombre-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-palais-du-roi-nidas",
+        "name": "Palais du roi Nidas",
+        "bossName": "Roi Nidas",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/palais-du-roi-nidas.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-palais-du-roi-nidas-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-palais-du-roi-nidas-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-palais-du-roi-nidas-trio",
+            "challengeId": "seed-challenge-trio",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-palais-du-roi-nidas-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-donjon-du-comte-harebour",
+        "name": "Donjon du Comte Harebour",
+        "bossName": "Comte Harebourg",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/donjon-du-comte-harebour.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/donjon-du-comte-harebourg.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-donjon-du-comte-harebour-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-du-comte-harebour-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-du-comte-harebour-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-donjon-du-comte-harebour-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-autel-de-la-déchireuse",
+        "name": "Autel de la Déchireuse",
+        "bossName": "Déchireuse",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/autel-de-la-d-chireuse.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": []
+      },
+      {
+        "id": "seed-dungeon-laboratoire-de-nileza",
+        "name": "Laboratoire de Nileza",
+        "bossName": "Nileza",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/laboratoire-de-nileza.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-laboratoire-de-nileza-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-laboratoire-de-nileza-dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-laboratoire-de-nileza-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-laboratoire-de-nileza-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-temple-du-dieu-kao",
+        "name": "Temple du dieu Kao",
+        "bossName": "Prêtresse de Kao",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/temple-du-dieu-kao.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-temple-du-dieu-kao-chrono",
+            "challengeId": "seed-challenge-chrono",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-du-dieu-kao-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-du-dieu-kao-libert",
+            "challengeId": "seed-challenge-libert",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-du-dieu-kao-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-temple-du-dieu-kao-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-salons-privés-de-klime",
+        "name": "Salons privés de Klime",
+        "bossName": "Klime ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/salons-priv-s-de-klime.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/salons-priveacutes-de-klime.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-salons-privés-de-klime-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-salons-privés-de-klime-nomade",
+            "challengeId": "seed-challenge-nomade",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-salons-privés-de-klime-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-salons-privés-de-klime-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-transporteur-de-sylargh",
+        "name": "Transporteur de Sylargh",
+        "bossName": "Sylargh",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/transporteur-de-sylargh.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-transporteur-de-sylargh-misanthrope",
+            "challengeId": "seed-challenge-misanthrope",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-transporteur-de-sylargh-barbare",
+            "challengeId": "seed-challenge-barbare",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-transporteur-de-sylargh-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-transporteur-de-sylargh-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-forgefroide-de-missiz-frizz",
+        "name": "Forgefroide de Missiz Frizz",
+        "bossName": "Missiz Frizz",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/forgefroide-de-missiz-frizz.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/forgefroide-de-missiz-frizz.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-forgefroide-de-missiz-frizz-nomade",
+            "challengeId": "seed-challenge-nomade",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-forgefroide-de-missiz-frizz-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-forgefroide-de-missiz-frizz-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-forgefroide-de-missiz-frizz-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-aquadôme-de-merkator",
+        "name": "Aquadôme de Merkator",
+        "bossName": "Merkator ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/aquad-me-de-merkator.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/aquadocircme-de-merkator.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-aquadôme-de-merkator-dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-aquadôme-de-merkator-mystique",
+            "challengeId": "seed-challenge-mystique",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-aquadôme-de-merkator-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-aquadôme-de-merkator-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-breuil-du-vénérable",
+        "name": "Breuil du Vénérable",
+        "bossName": "Vénérable Endormi",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/breuil-du-v-n-rable.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-breuil-du-vénérable-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-breuil-du-vénérable-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-breuil-du-vénérable-trio",
+            "challengeId": "seed-challenge-trio",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-breuil-du-vénérable-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-mémoire-d'orukam",
+        "name": "Mémoire d'Orukam",
+        "bossName": "Roi Imagami",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/m-moire-d-orukam.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-mémoire-d'orukam-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-mémoire-d'orukam-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-mémoire-d'orukam-trio",
+            "challengeId": "seed-challenge-trio",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-mémoire-d'orukam-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-tempête-de-l’eliocalypse",
+        "name": "Tempête de l’Eliocalypse",
+        "bossName": "Sanctuaire du dernier espoir",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/temp-te-de-l-eliocalypse.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-tempête-de-l’eliocalypse-libert",
+            "challengeId": "seed-challenge-libert",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tempête-de-l’eliocalypse-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tempête-de-l’eliocalypse-quatuor",
+            "challengeId": "seed-challenge-quatuor",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-sentence-de-la-balance",
+        "name": "Sentence de la Balance",
+        "bossName": "Misère ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/sentence-de-la-balance.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-sentence-de-la-balance-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-sentence-de-la-balance-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-sentence-de-la-balance-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-sentence-de-la-balance-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-fers-de-la-tyrannie",
+        "name": "Fers de la Tyrannie",
+        "bossName": "Servitude",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/fers-de-la-tyrannie.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-fers-de-la-tyrannie-focus",
+            "challengeId": "seed-challenge-focus",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-fers-de-la-tyrannie-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-fers-de-la-tyrannie-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-fers-de-la-tyrannie-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-trône-de-sang-",
+        "name": "Trône de sang ",
+        "bossName": "Guerre",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tr-ne-de-sang.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/trone-de-sang.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-trône-de-sang--zombie",
+            "challengeId": "seed-challenge-zombie",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-trône-de-sang--misanthrope",
+            "challengeId": "seed-challenge-misanthrope",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-trône-de-sang--duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-trône-de-sang--sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-arbre-de-mort",
+        "name": "Arbre de mort",
+        "bossName": "Corruption",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/arbre-de-mort.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-arbre-de-mort-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-arbre-de-mort-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-arbre-de-mort-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-arbre-de-mort-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-torkélonia-",
+        "name": "Torkélonia ",
+        "bossName": "Torkélonia",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tork-lonia.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-torkélonia--dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-torkélonia--statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-torkélonia--duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-torkélonia--sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-belvédère-d'ilyzaelle",
+        "name": "Belvédère d'Ilyzaelle",
+        "bossName": "Ilyzaelle",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/belv-d-re-d-ilyzaelle.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/belvedere-d-ilyzaelle.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-belvédère-d'ilyzaelle-libert",
+            "challengeId": "seed-challenge-libert",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-belvédère-d'ilyzaelle-focus",
+            "challengeId": "seed-challenge-focus",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-belvédère-d'ilyzaelle-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-belvédère-d'ilyzaelle-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-tour-de-solar",
+        "name": "Tour de Solar",
+        "bossName": "Solar ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tour-de-solar.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/tour-de-solar.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-tour-de-solar-versatile",
+            "challengeId": "seed-challenge-versatile",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tour-de-solar-focus",
+            "challengeId": "seed-challenge-focus",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tour-de-solar-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tour-de-solar-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-manoir-des-katrepat",
+        "name": "Manoir des Katrepat",
+        "bossName": "Anerice la Shushess",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/manoir-des-katrepat.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-manoir-des-katrepat-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-manoir-des-katrepat-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-manoir-des-katrepat-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-manoir-des-katrepat-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-palais-de-dantinéa",
+        "name": "Palais de Dantinéa",
+        "bossName": "Dantinéa ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/palais-de-dantin-a.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/palais-de-dantineacutea.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-palais-de-dantinéa-dernier",
+            "challengeId": "seed-challenge-dernier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-palais-de-dantinéa-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-palais-de-dantinéa-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-palais-de-dantinéa-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-défi-du-chalœil",
+        "name": "Défi du Chalœil",
+        "bossName": "Chalœil ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/d-fi-du-chal-il.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-défi-du-chalœil-libert",
+            "challengeId": "seed-challenge-libert",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-défi-du-chalœil-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-défi-du-chalœil-trio",
+            "challengeId": "seed-challenge-trio",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-défi-du-chalœil-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-brasserie-du-roi-dazak",
+        "name": "Brasserie du roi Dazak",
+        "bossName": "Dazak Martegel",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/brasserie-du-roi-dazak.webp",
+        "isExpedition": true,
+        "expeditionModes": [
+          "BRAVOURE",
+          "AUDACE"
+        ],
+        "expeditionMechanics": "https://www.dofuspourlesnoobs.com/brasserie-du-roi-dazak.html#expeditions",
+        "achievements": [
+          {
+            "id": "seed-ach-brasserie-du-roi-dazak-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-brasserie-du-roi-dazak-libert",
+            "challengeId": "seed-challenge-libert",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-brasserie-du-roi-dazak-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-brasserie-du-roi-dazak-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-tour-de-bethel",
+        "name": "Tour de Bethel",
+        "bossName": "Bethel Akarna",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/tour-de-bethel.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-tour-de-bethel-mystique",
+            "challengeId": "seed-challenge-mystique",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tour-de-bethel-zombie",
+            "challengeId": "seed-challenge-zombie",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tour-de-bethel-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-tour-de-bethel-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-chambre-de-tal-kasha",
+        "name": "Chambre de Tal Kasha",
+        "bossName": "Tal Kasha",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/chambre-de-tal-kasha.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-chambre-de-tal-kasha-statue",
+            "challengeId": "seed-challenge-statue",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-chambre-de-tal-kasha-focus",
+            "challengeId": "seed-challenge-focus",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-chambre-de-tal-kasha-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-chambre-de-tal-kasha-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-chambre-des-maléfices",
+        "name": "Chambre des maléfices",
+        "bossName": "Belladone ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/chambre-des-mal-fices.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-chambre-des-maléfices-collant",
+            "challengeId": "seed-challenge-collant",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-chambre-des-maléfices-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-chambre-des-maléfices-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-chambre-des-maléfices-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-souvenir-d'imagiro",
+        "name": "Souvenir d'Imagiro",
+        "bossName": "Reine Amirukam",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/souvenir-d-imagiro.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-souvenir-d'imagiro-prudent",
+            "challengeId": "seed-challenge-prudent",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-souvenir-d'imagiro-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-souvenir-d'imagiro-trio",
+            "challengeId": "seed-challenge-trio",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-souvenir-d'imagiro-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-rituel-de-kabahal",
+        "name": "Rituel de Kabahal",
+        "bossName": "Kabahal ",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/rituel-de-kabahal.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-rituel-de-kabahal-hardi",
+            "challengeId": "seed-challenge-hardi",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-rituel-de-kabahal-mains-propres",
+            "challengeId": "seed-challenge-mains-propres",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-rituel-de-kabahal-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-rituel-de-kabahal-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-bataille-de-l'aurore-pourpre",
+        "name": "Bataille de l'Aurore Pourpre",
+        "bossName": "L'Éternel Conflit",
+        "level": 200,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/bataille-de-l-aurore-pourpre.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": [
+          {
+            "id": "seed-ach-bataille-de-l'aurore-pourpre-zombie",
+            "challengeId": "seed-challenge-zombie",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-bataille-de-l'aurore-pourpre-premier",
+            "challengeId": "seed-challenge-premier",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-bataille-de-l'aurore-pourpre-duo",
+            "challengeId": "seed-challenge-duo",
+            "points": 10
+          },
+          {
+            "id": "seed-ach-bataille-de-l'aurore-pourpre-sp-cial",
+            "challengeId": "seed-challenge-sp-cial",
+            "points": 10
+          }
+        ]
+      },
+      {
+        "id": "seed-dungeon-caverne-de-cire-momore",
+        "name": "Caverne de Cire Momore",
+        "bossName": "Cire Momore",
+        "level": 900,
+        "dpnlUrl": null,
+        "imageUrl": "/game-data/dungeons/cire-momore.webp",
+        "isExpedition": false,
+        "expeditionModes": null,
+        "expeditionMechanics": null,
+        "achievements": []
+      }
+    ],
     "bounties": [
       {
         "id": "cmo1p5p49000ftsogb5ggr9j4",

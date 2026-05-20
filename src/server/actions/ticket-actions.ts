@@ -229,15 +229,16 @@ export async function closeSupportTicket(
         if (!ticket) return { success: false, error: "Ticket introuvable." };
         if (ticket.status === "CLOSED") return { success: false, error: "Ticket déjà fermé." };
 
-        // RESTRICTION: Only dev (Super Admin from web), Discord dev, or System can close
+        // RESTRICTION: Only dev (Super Admin from web), Discord dev, System, or the CREATOR can close
         const isWebAdmin = await isSuperAdmin();
         const isDiscordDev = await isDiscordSuperAdmin(closedByDiscordId);
         const isSystem = closedByDiscordId === "SYSTEM";
+        const isCreator = closedByDiscordId === ticket.creatorDiscordId;
 
-        if (!isWebAdmin && !isDiscordDev && !isSystem) {
+        if (!isWebAdmin && !isDiscordDev && !isSystem && !isCreator) {
             return { 
                 success: false, 
-                error: "🔒 Seule l'équipe technique SigilOS peut fermer ce ticket." 
+                error: "🔒 Seule l'équipe technique SigilOS ou l'auteur du ticket peuvent fermer ce ticket." 
             };
         }
 
@@ -412,7 +413,7 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
                         "Bonne nouvelle ! Votre demande d'accès à **SigilOS** a été validée par notre équipe technique.",
                         "",
                         "**📖 Mini-Guide d'Activation :**",
-                        "1️⃣ Connectez-vous sur [sigilos.fr](https://sigilos.fr) via Discord.",
+                        `1️⃣ Connectez-vous sur [sigilos.fr](${getAppBaseUrl()}) via Discord.`,
                         "2️⃣ Sur ton Dashboard, clique sur **'Inviter le Bot'** (sur la carte de ta guilde).",
                         "3️⃣ Une fois le bot sur ton serveur, clique sur **'Déployer'** pour installer l'architecture.",
                         "",
@@ -422,7 +423,7 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
                         `> ${notes || "Votre serveur a été ajouté à la whitelist. Bon jeu !"}`
                     ].join("\n"),
                     embedFooter: `Validé par ${session?.user?.name || "L'Équipe SigilOS"}`,
-                    embedThumbnail: "https://sigilos.fr/assets/ui/logo-v2.png"
+                    embedThumbnail: `${getAppBaseUrl()}/assets/ui/logo-v2.png`
                 });
             } catch (discordErr) {
                 console.error("[Tickets] Discord notification failed (non-blocking):", discordErr);

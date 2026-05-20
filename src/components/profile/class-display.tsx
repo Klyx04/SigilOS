@@ -4,19 +4,21 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
-import { Pencil, Info, Plus, UserCircle } from "lucide-react";
 import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
 import { cn, formatDofusPseudo } from "@/lib/utils";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { verifyDofusPseudo } from "@/server/actions/profile-actions";
+import { Loader2, Search, UserCheck, AlertTriangle, Pencil, Info, Plus, UserCircle } from "lucide-react";
 
 interface ClassDisplayProps {
     pseudoDofus?: string | null;
     mainClass?: string | null;
     onSave?: (mainClass: string, pseudoDofus: string) => void;
     readOnly?: boolean;
+    guildId?: string;
 }
 
 export function ClassDisplay({
@@ -24,11 +26,14 @@ export function ClassDisplay({
     mainClass,
     onSave,
     readOnly = false,
+    guildId,
 }: ClassDisplayProps) {
     const searchParams = useSearchParams();
     const [isOpen, setIsOpen] = useState(false);
     const [selectedMain, setSelectedMain] = useState<string>(mainClass || "");
     const [localPseudo, setLocalPseudo] = useState<string>(pseudoDofus || "");
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [verifyStatus, setVerifyStatus] = useState<"idle" | "success" | "error">("idle");
 
     // Auto-open if redirected with ?edit=identity (Security: check readOnly)
     useEffect(() => {
@@ -41,6 +46,16 @@ export function ClassDisplay({
     const mainClassData = getClass(mainClass || "");
 
     const handleSave = () => {
+        if (!localPseudo) {
+            toast.error("Le pseudo est obligatoire");
+            return;
+        }
+
+        if (localPseudo !== (pseudoDofus || "") && verifyStatus !== "success") {
+            toast.error("Veuillez vérifier votre pseudo avec la loupe avant de confirmer.");
+            return;
+        }
+
         onSave?.(selectedMain, localPseudo);
         setIsOpen(false);
     };
@@ -48,6 +63,27 @@ export function ClassDisplay({
     const handleOpen = () => {
         setSelectedMain(mainClass || "");
         setLocalPseudo(pseudoDofus || "");
+        setVerifyStatus("idle");
+    };
+
+    const handleVerify = async () => {
+        if (!localPseudo || localPseudo.length < 2 || !guildId) return;
+        setIsVerifying(true);
+        setVerifyStatus("idle");
+        try {
+            const res = await verifyDofusPseudo(localPseudo, guildId);
+            if (res.success) {
+                setVerifyStatus("success");
+                toast.success("Pseudo trouvé sur le ladder !");
+            } else {
+                setVerifyStatus("error");
+                toast.error(res.error || "Pseudo introuvable");
+            }
+        } catch (e) {
+            setVerifyStatus("error");
+        } finally {
+            setIsVerifying(false);
+        }
     };
 
     return (
@@ -147,22 +183,54 @@ export function ClassDisplay({
                                 Pseudo Dofus Exact
                             </label>
                             <div className="relative">
-                                <Input
-                                    value={localPseudo}
-                                    onChange={(e) => {
-                                        setLocalPseudo(formatDofusPseudo(e.target.value));
-                                    }}
-                                    placeholder="Votre pseudo en jeu..."
-                                    className="bg-zinc-900/50 border-white/10 h-14 focus:ring-primary/20 pr-16 text-lg font-semibold"
-                                    maxLength={50}
-                                />
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-mono text-zinc-500">
-                                    {localPseudo.length}/50
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <Input
+                                            value={localPseudo}
+                                            onChange={(e) => {
+                                                setLocalPseudo(formatDofusPseudo(e.target.value));
+                                                setVerifyStatus("idle");
+                                            }}
+                                            placeholder="Votre pseudo en jeu..."
+                                            className={cn(
+                                                "bg-zinc-900/50 border-white/10 h-14 focus:ring-primary/20 pr-12 text-lg font-semibold transition-all",
+                                                verifyStatus === "success" && "border-emerald-500/50",
+                                                verifyStatus === "error" && "border-rose-500/50"
+                                            )}
+                                            maxLength={50}
+                                        />
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono text-zinc-600">
+                                            {localPseudo.length}/50
+                                        </div>
+                                        {verifyStatus === "success" && (
+                                            <div className="absolute left-[-2px] top-[-2px] bottom-[-2px] w-1 bg-emerald-500 rounded-l-md" />
+                                        )}
+                                    </div>
+                                    <Button 
+                                        variant="outline"
+                                        className={cn(
+                                            "h-14 w-14 shrink-0 bg-zinc-900/50 border-white/10 transition-all",
+                                            verifyStatus === "success" && "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
+                                        )}
+                                        onClick={handleVerify}
+                                        disabled={isVerifying || localPseudo.length < 2}
+                                    >
+                                        {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                                    </Button>
                                 </div>
+                                <p className="text-[11px] leading-relaxed text-zinc-500 pl-1 mt-3">
+                                    {verifyStatus === "success" ? (
+                                        <span className="text-emerald-500 font-bold italic flex items-center gap-2">
+                                            <UserCheck className="w-3.5 h-3.5" />
+                                            Pseudo trouvé et validé sur le ladder officiel.
+                                        </span>
+                                    ) : (
+                                        <>
+                                            Le pseudo doit être <strong className="text-zinc-300 uppercase tracking-tighter">EXACT</strong> (Majuscules, tirets, etc.) pour que la synchronisation fonctionne. Utilisez la loupe <Search className="inline w-3 h-3 mb-0.5" /> pour vérifier.
+                                        </>
+                                    )}
+                                </p>
                             </div>
-                            <p className="text-sm text-zinc-500 pl-1">
-                                Ce pseudo doit être <strong className="text-zinc-300">unique</strong> dans la guilde. Caractères autorisés : lettres, espaces et tirets (-).
-                            </p>
                         </div>
                     </div>
 

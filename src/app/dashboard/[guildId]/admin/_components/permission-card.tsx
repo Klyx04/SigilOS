@@ -68,7 +68,7 @@ export function PermissionCard({
             )}
 
             <div className="flex items-start justify-between gap-3 relative z-10">
-                <div className="space-y-1.5">
+                <div className="space-y-3">
                     <div className="flex items-center gap-2.5">
                         <div
                             className="w-2.5 h-2.5 rounded-full shadow-lg"
@@ -84,6 +84,22 @@ export function PermissionCard({
                     <p className="text-[11px] text-zinc-300 font-medium leading-relaxed max-w-[240px]">
                         {details.description}
                     </p>
+                    
+                    {/* Explicit Modules List */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                        {details.modules.map((mod, i) => (
+                            <span 
+                                key={i}
+                                className="px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-[9px] font-bold text-white/50 uppercase tracking-tighter"
+                                style={{ 
+                                    borderColor: isConfigured && !locked ? `${moduleColor}20` : undefined,
+                                    color: isConfigured && !locked ? `${moduleColor}cc` : undefined
+                                }}
+                            >
+                                {mod}
+                            </span>
+                        ))}
+                    </div>
                 </div>
 
                 {isConfigured && !locked && (

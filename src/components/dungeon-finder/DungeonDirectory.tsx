@@ -16,6 +16,8 @@ import {
   Map as MapIcon,
   Globe,
   Copy,
+  ArrowUpDown,
+  ExternalLink,
 } from "lucide-react";
 import {
   getDungeonsWithAchievements,
@@ -61,6 +63,10 @@ interface Dungeon {
   bossName: string;
   level: number;
   imageUrl?: string | null;
+  isExpedition: boolean;
+  dofuspourlesnoobsUrl?: string | null;
+  dpnlUrl?: string | null;
+  dofensiveUrl?: string | null;
 }
 
 interface AchievementDirectory {
@@ -106,6 +112,8 @@ export function DungeonDirectory({
   const [loadingDb, setLoadingDb] = useState(true);
   const [loadingDir, setLoadingDir] = useState(false);
   const [expandedAchv, setExpandedAchv] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<"pseudo" | "classe">("pseudo");
+  const [selectedDrop, setSelectedDrop] = useState<any | null>(null);
 
   useEffect(() => {
     getDungeonsWithAchievements().then((res) => {
@@ -165,22 +173,25 @@ export function DungeonDirectory({
 
   const filteredDirectory = useMemo(() => {
     const term = memberSearch.toLowerCase();
-    if (!term) return directoryData;
 
-    return directoryData.map((achv) => ({
-      ...achv,
-      missing: achv.missing.filter(
-        (m) =>
+    const sortFn = (a: any, b: any) =>
+      sortMode === "classe"
+        ? (a.classe || "").localeCompare(b.classe || "") || a.name.localeCompare(b.name)
+        : a.name.localeCompare(b.name);
+
+    return directoryData
+      .map((achv) => {
+        const filterFn = (m: any) =>
+          !term ||
           m.name.toLowerCase().includes(term) ||
-          (m.classe && m.classe.toLowerCase().includes(term)),
-      ),
-      hasCompleted: achv.hasCompleted.filter(
-        (m) =>
-          m.name.toLowerCase().includes(term) ||
-          (m.classe && m.classe.toLowerCase().includes(term)),
-      ),
-    }));
-  }, [directoryData, memberSearch]);
+          (m.classe && m.classe.toLowerCase().includes(term));
+        return {
+          ...achv,
+          missing: achv.missing.filter(filterFn).sort(sortFn),
+          hasCompleted: achv.hasCompleted.filter(filterFn).sort(sortFn),
+        };
+      });
+  }, [directoryData, memberSearch, sortMode]);
 
   if (loadingDb) {
     return (
@@ -286,6 +297,11 @@ export function DungeonDirectory({
                           <Search className="w-5 h-5 text-slate-600" />
                         </div>
                       )}
+                      {dungeon.isExpedition && (
+                        <div className="absolute top-0 right-0 bg-indigo-600 text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg rounded-tr-lg shadow-lg uppercase tracking-tighter z-10">
+                          Expédition
+                        </div>
+                      )}
                     </div>
 
                     <div className="w-full">
@@ -338,20 +354,69 @@ export function DungeonDirectory({
                       </div>
                     )}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-md text-[9px] font-black tracking-widest uppercase">
-                          Niveau {selectedDungeon.level}
-                        </span>
-                        <span className="text-[9px] text-zinc-500 font-bold flex items-center gap-1.5 uppercase tracking-tighter">
-                          <MapIcon className="w-2.5 h-2.5" /> Donjon Classique
-                        </span>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-950 border border-white/10 rounded-lg shadow-inner">
+                          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                            Niveau {selectedDungeon.level}
+                          </span>
+                        </div>
+                        {selectedDungeon.isExpedition && (
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg shadow-sm">
+                            <Sword className="w-3 h-3 text-emerald-400" />
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                              Expédition
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 border border-white/5 rounded-lg">
+                          <MapIcon className="w-3 h-3 text-zinc-500" />
+                          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                            Classique
+                          </span>
+                        </div>
                       </div>
                       <h2 className="text-2xl md:text-3xl font-black text-white drop-shadow-lg tracking-tight truncate">
                         {selectedDungeon.name}
                       </h2>
-                      <p className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
-                        Boss : <span className="text-white font-bold">{selectedDungeon.bossName}</span>
-                      </p>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2 pt-4 border-t border-white/5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">Boss</span>
+                          <span className="text-sm font-black text-white bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+                            {selectedDungeon.bossName}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {(selectedDungeon.dofuspourlesnoobsUrl || selectedDungeon.dpnlUrl) && (
+                            <a 
+                              href={selectedDungeon.dofuspourlesnoobsUrl || selectedDungeon.dpnlUrl || "#"} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="group/link flex items-center gap-2 px-3 py-2 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/20 hover:border-indigo-500 rounded-xl transition-all shadow-lg active:scale-95"
+                            >
+                              <div className="w-5 h-5 rounded-lg bg-indigo-500/20 group-hover/link:bg-white/20 flex items-center justify-center transition-colors">
+                                <Globe className="w-3 h-3" />
+                              </div>
+                              <span className="text-xs font-black uppercase tracking-wider">Guide DPNL</span>
+                              <ExternalLink className="w-3 h-3 opacity-50 group-hover/link:opacity-100" />
+                            </a>
+                          )}
+                          {selectedDungeon.dofensiveUrl && (
+                            <a 
+                              href={selectedDungeon.dofensiveUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="group/link flex items-center gap-2 px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 hover:border-emerald-500 rounded-xl transition-all shadow-lg active:scale-95"
+                            >
+                              <div className="w-5 h-5 rounded-lg bg-emerald-500/20 group-hover/link:bg-white/20 flex items-center justify-center transition-colors">
+                                <Sword className="w-3 h-3" />
+                              </div>
+                              <span className="text-xs font-black uppercase tracking-wider">Dofensive</span>
+                              <ExternalLink className="w-3 h-3 opacity-50 group-hover/link:opacity-100" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -366,13 +431,11 @@ export function DungeonDirectory({
                         </div>
                         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-2 pt-1.5 custom-scrollbar">
                           {bossStats.drops.map((drop: any, idx: number) => (
-                            <a
+                            <button
                               key={idx}
-                              href={`https://dofusdb.fr/fr/database/item/${drop.objectId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              onClick={() => setSelectedDrop(drop)}
                               className="group/drop relative bg-white/5 border border-white/5 rounded-md p-1 hover:bg-white/10 transition-all cursor-pointer flex items-center justify-center w-7 h-7 md:w-8 md:h-8 shrink-0"
-                              title={`${drop.name} (Clic pour voir sur DofusDB) - Drop: ${drop.percent}%`}
+                              title={`${drop.name} - Drop: ${drop.percent}%`}
                             >
                               <img
                                 src={drop.imageUrl}
@@ -382,7 +445,7 @@ export function DungeonDirectory({
                               <div className="absolute -top-1.5 -right-1 bg-indigo-600 text-[7px] font-black px-1.5 py-0.5 rounded-sm shadow-xl opacity-0 group-hover/drop:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none origin-bottom-right">
                                 {drop.percent}%
                               </div>
-                            </a>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -572,16 +635,30 @@ export function DungeonDirectory({
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Member Search */}
-                <div className="relative max-w-sm ml-auto">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="text"
-                    value={memberSearch}
-                    onChange={(e) => setMemberSearch(e.target.value)}
-                    placeholder="Chercher un membre (pseudo, classe)..."
-                    className="w-full bg-slate-900 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-inner h-10 transition-all"
-                  />
+                {/* Member Search + Sort */}
+                <div className="flex items-center gap-2 ml-auto">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="text"
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      placeholder="Chercher un membre…"
+                      className="w-full bg-slate-900 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-inner h-10 transition-all"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setSortMode(m => m === "pseudo" ? "classe" : "pseudo")}
+                    title={sortMode === "pseudo" ? "Trier par classe" : "Trier par pseudo"}
+                    className={`flex items-center gap-1.5 px-3 h-10 rounded-xl border text-[11px] font-black uppercase tracking-wider transition-all ${
+                      sortMode === "classe"
+                        ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
+                        : "bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    {sortMode === "classe" ? "Classe" : "Pseudo"}
+                  </button>
                 </div>
 
                 {filteredDirectory.map((achv) => {
@@ -598,7 +675,11 @@ export function DungeonDirectory({
                   return (
                     <div
                       key={achv.achievementId}
-                      className={`rounded-2xl transition-all duration-300 overflow-hidden border ${isExpanded ? "bg-slate-900/90 border-indigo-500/30 shadow-2xl shadow-indigo-900/10" : "bg-slate-900/40 border-white/5 hover:bg-slate-900/60 shadow-sm"}`}
+                      className={`group/card rounded-2xl transition-all duration-300 overflow-hidden border ${
+                        isExpanded
+                          ? "bg-slate-900/90 border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.08)]"
+                          : "bg-slate-900/30 border-white/5 hover:border-white/12 hover:bg-slate-900/50 hover:shadow-lg shadow-sm"
+                      }`}
                     >
                       <button
                         onClick={() =>
@@ -606,40 +687,78 @@ export function DungeonDirectory({
                             isExpanded ? null : achv.achievementId,
                           )
                         }
-                        className="w-full flex items-center justify-between p-4 md:p-5 text-left focus:outline-none"
+                        className="w-full flex flex-col md:flex-row md:items-center justify-between p-4 md:p-5 gap-4 text-left focus:outline-none"
                       >
                         <div className="flex items-center gap-4 flex-1 min-w-0">
-                          <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 border border-white/5 shadow-inner">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-inner transition-all duration-300 ${
+                            isExpanded
+                              ? "bg-indigo-600/10 border-indigo-500/30"
+                              : "bg-slate-900 border-white/5 group-hover/card:scale-105"
+                          }`}>
                             {achv.iconUrl ? (
                               <img
                                 src={achv.iconUrl}
                                 alt=""
-                                className="w-7 h-7 object-contain"
+                                className="w-8 h-8 object-contain"
                               />
                             ) : (
                               <Trophy className="w-6 h-6 text-indigo-400" />
                             )}
                           </div>
-                          <div>
-                            <h4 className="text-base font-bold text-white leading-snug">
+                          <div className="min-w-0">
+                            <h4 className="text-base font-extrabold text-white leading-snug tracking-tight">
                               {achv.achievementName}
                             </h4>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-slate-500">
-                                {completionRate}% de la guilde l'ont validé
+                            <div className="flex items-center gap-2 mt-1">
+                              {completionRate === 100 ? (
+                                <span className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  Terminé
+                                </span>
+                              ) : completionRate > 0 ? (
+                                <span className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                  En Cours
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700/50">
+                                  Non Commencé
+                                </span>
+                              )}
+                              <span className="text-xs text-slate-400">
+                                {achv.hasCompleted.length} / {totalMembers} membres
                               </span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4 shrink-0">
+                        {/* Progress Bar */}
+                        <div className="flex flex-col gap-1 w-full md:w-48 shrink-0">
+                          <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                            <span>Progression</span>
+                            <span className={completionRate === 100 ? "text-emerald-400 font-extrabold" : "text-indigo-400 font-extrabold"}>{completionRate}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner relative">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                completionRate === 100
+                                  ? "bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                                  : completionRate > 0
+                                  ? "bg-gradient-to-r from-indigo-500 to-violet-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]"
+                                  : "bg-slate-850"
+                              }`}
+                              style={{ width: `${completionRate}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 mt-2 md:mt-0 border-t border-white/5 pt-2.5 md:pt-0 md:border-none">
                           {/* Avatars Preview */}
                           {!isExpanded && achv.missing.length > 0 && (
-                            <div className="hidden sm:flex -space-x-2 mr-2">
-                              {achv.missing.slice(0, 3).map((m, i) => (
+                            <div className="flex -space-x-2">
+                              {achv.missing.slice(0, 4).map((m, i) => (
                                 <div
                                   key={i}
-                                  className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-800 overflow-hidden relative"
+                                  className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-850 overflow-hidden relative shadow-md"
+                                  title={`${m.name} cherche encore`}
                                 >
                                   {m.imageUrl ? (
                                     <img
@@ -652,16 +771,20 @@ export function DungeonDirectory({
                                   )}
                                 </div>
                               ))}
-                              {achv.missing.length > 3 && (
-                                <div className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-400 z-10">
-                                  +{achv.missing.length - 3}
+                              {achv.missing.length > 4 && (
+                                <div className="w-7 h-7 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-400 z-10 shadow-md">
+                                  +{achv.missing.length - 4}
                                 </div>
                               )}
                             </div>
                           )}
 
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? "bg-indigo-500/20 text-indigo-300" : "bg-white/5 text-slate-400 border border-white/5"}`}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                              isExpanded
+                                ? "bg-indigo-500/20 text-indigo-300 shadow-[0_0_8px_rgba(99,102,241,0.2)]"
+                                : "bg-white/5 text-slate-400 border border-white/5 hover:bg-white/10"
+                            }`}
                           >
                             <ChevronDown
                               className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
@@ -678,10 +801,10 @@ export function DungeonDirectory({
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden border-t border-white/5"
                           >
-                            <div className="p-5 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-slate-900/20 shadow-inner">
+                            <div className="p-5 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-slate-950/20 shadow-inner">
                               {/* Col 1: MISSING */}
-                              <div className="bg-slate-900/60 border border-rose-900/20 rounded-2xl p-4">
-                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                              <div className="bg-slate-950/40 border border-rose-500/10 rounded-2xl p-5 shadow-[inset_0_1px_4px_rgba(244,63,94,0.05)]">
+                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
                                   <div className="flex items-center gap-2 font-bold text-sm">
                                     <div className="w-6 h-6 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
                                       <Circle className="w-3.5 h-3.5 text-rose-400" />
@@ -696,7 +819,7 @@ export function DungeonDirectory({
                                 </div>
 
                                 {achv.missing.length > 0 ? (
-                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
                                     {achv.missing.map((member) => (
                                       <MemberPill
                                         key={member.id}
@@ -713,8 +836,8 @@ export function DungeonDirectory({
                               </div>
 
                               {/* Col 2: HAS COMPLETED */}
-                              <div className="bg-emerald-950/10 border border-emerald-900/10 shadow-sm rounded-2xl p-4">
-                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-emerald-900/20">
+                              <div className="bg-slate-950/40 border border-emerald-500/10 rounded-2xl p-5 shadow-[inset_0_1px_4px_rgba(16,185,129,0.05)]">
+                                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
                                   <div className="flex items-center gap-2 font-bold text-sm">
                                     <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shadow-inner flex items-center justify-center">
                                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -723,13 +846,13 @@ export function DungeonDirectory({
                                       Déjà validé
                                     </span>
                                   </div>
-                                  <span className="text-xs font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                  <span className="text-xs font-black bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">
                                     {achv.hasCompleted.length}
                                   </span>
                                 </div>
 
                                 {achv.hasCompleted.length > 0 ? (
-                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
                                     {achv.hasCompleted.map((member) => (
                                       <MemberPill
                                         key={member.id}
@@ -756,6 +879,58 @@ export function DungeonDirectory({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Drop Modal */}
+      <AnimatePresence>
+        {selectedDrop && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedDrop(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-[320px] bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 flex flex-col items-center text-center space-y-4">
+                <div className="w-20 h-20 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-center p-3 shadow-inner relative overflow-hidden group">
+                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-50" />
+                   <img src={selectedDrop.imageUrl} alt={selectedDrop.name} className="w-full h-full object-contain relative z-10 drop-shadow-md" />
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-black text-white leading-tight mb-1">{selectedDrop.name}</h3>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-wider">
+                    Taux de drop : {selectedDrop.percent}%
+                  </div>
+                </div>
+
+                <div className="w-full grid grid-cols-2 gap-2 pt-2">
+                  <button 
+                    onClick={() => setSelectedDrop(null)}
+                    className="px-4 py-2.5 rounded-xl border border-white/5 bg-white/5 text-slate-400 text-xs font-bold hover:bg-white/10 hover:text-white transition-all"
+                  >
+                    Fermer
+                  </button>
+                  <a 
+                    href={`https://dofusdb.fr/fr/database/item/${selectedDrop.objectId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/20 transition-all active:scale-95"
+                  >
+                    DofusDB <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -768,45 +943,61 @@ function MemberPill({
   variant: "missing" | "completed";
 }) {
   const isMissing = variant === "missing";
+  const cls = member.classe ? getClass(member.classe) : null;
 
   return (
     <div
-      className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border transition-colors ${
+      className={`group flex items-center justify-between p-2 rounded-xl border transition-all duration-200 ${
         isMissing
-          ? "bg-slate-900/60 hover:bg-slate-900/80 border-white/5 hover:border-white/10 text-slate-200"
-          : "bg-black/20 border-white/5 text-slate-400"
+          ? "bg-slate-950/40 hover:bg-slate-900/80 border-rose-500/10 hover:border-rose-500/30 text-rose-100 shadow-[0_2px_8px_rgba(244,63,94,0.02)]"
+          : "bg-emerald-950/20 hover:bg-emerald-900/30 border-emerald-500/10 hover:border-emerald-500/30 text-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.02)]"
       }`}
     >
-      <div
-        className={`w-6 h-6 rounded-full overflow-hidden shrink-0 ${!member.imageUrl && "bg-slate-800 flex items-center justify-center border border-white/5"}`}
-      >
-        {member.imageUrl ? (
-          <img
-            src={member.imageUrl}
-            alt={member.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <Users className="w-3 h-3 text-slate-400" />
-        )}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className={`w-7 h-7 rounded-lg overflow-hidden shrink-0 border transition-transform duration-200 group-hover:scale-105 ${
+            isMissing
+              ? "border-rose-500/20 bg-rose-950/30"
+              : "border-emerald-500/20 bg-emerald-950/30"
+          } flex items-center justify-center`}
+        >
+          {member.imageUrl ? (
+            <img
+              src={member.imageUrl}
+              alt={member.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Users className={`w-3.5 h-3.5 ${isMissing ? "text-rose-400/60" : "text-emerald-400/60"}`} />
+          )}
+        </div>
+
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-bold truncate text-slate-100 leading-tight">
+            {member.name}
+          </span>
+          {member.classe && (
+            <span className="text-[10px] text-slate-400 font-medium truncate capitalize">
+              {member.classe}
+            </span>
+          )}
+        </div>
       </div>
 
-      <span className="text-xs font-medium truncate max-w-[100px]">
-        {member.name}
-      </span>
-
-      {member.classe &&
-        (() => {
-          const cls = getClass(member.classe);
-          return cls ? (
-            <img
-              src={cls.icon}
-              alt={member.classe}
-              className={`w-3.5 h-3.5 object-contain opacity-60 ${isMissing ? "grayscale-0" : "grayscale"}`}
-              title={member.classe}
-            />
-          ) : null;
-        })()}
+      {cls && (
+        <div className="shrink-0 pl-1.5 flex items-center">
+          <img
+            src={cls.icon}
+            alt={member.classe}
+            className={`w-5 h-5 object-contain transition-all duration-300 group-hover:scale-110 ${
+              isMissing
+                ? "drop-shadow-[0_0_4px_rgba(244,63,94,0.2)] opacity-80 group-hover:opacity-100"
+                : "drop-shadow-[0_0_4px_rgba(16,185,129,0.2)] opacity-80 group-hover:opacity-100"
+            }`}
+            title={member.classe}
+          />
+        </div>
+      )}
     </div>
   );
 }

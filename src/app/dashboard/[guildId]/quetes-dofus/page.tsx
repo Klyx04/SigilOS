@@ -6,9 +6,10 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { Gem } from "lucide-react";
 import { getDofusListWithProgress, getGuildDofusStats } from "@/server/actions/dofus-quest-actions";
-import { getOptimizedGuides } from "@/server/actions/optimized-guide-actions";
+import { getOptimizedGuides, getOptimizedGuideDetail, getGuildOptimizedGuideProgress } from "@/server/actions/optimized-guide-actions";
 import { DofusQuestHub } from "@/components/dofus-quests/DofusQuestHub";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
+import { db } from "@/lib/prisma";
 
 import { ActivitiesNav } from "@/components/layout/activities-nav";
 import { AuroraBackground } from "@/components/ui/aurora-background";
@@ -23,7 +24,8 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
     if (!session?.user) redirect("/");
 
     const { guildId } = await params;
-    const character = (await searchParams)?.character as string || "PRINCIPAL";
+    const resolvedSearchParams = await searchParams;
+    const character = resolvedSearchParams?.character as string || "PRINCIPAL";
 
     const user = await getUserContext(guildId);
     if (!user.canViewQuests) return <AccessDenied />;
@@ -41,6 +43,56 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
     const dofusList = dofusResult.success ? (dofusResult.data ?? []) : [];
     const guildStats = guildStatsResult.success ? guildStatsResult.data ?? null : null;
     const guides = guidesResult.success ? guidesResult.guides ?? [] : [];
+
+    // Fetch user profile for Metamob sync status
+    const profile = user.profileId ? await db.userProfile.findUnique({
+        where: { id: user.profileId },
+        select: {
+            metamobPseudo: true,
+            metamobVerified: true,
+            metamobLastSync: true,
+            metamobQuestSlug: true,
+        }
+    }) : null;
+
+    const userProfile = profile ? {
+        metamobPseudo: profile.metamobPseudo,
+        metamobVerified: profile.metamobVerified,
+        metamobLastSync: profile.metamobLastSync?.toISOString() || null,
+        metamobQuestSlug: profile.metamobQuestSlug,
+    } : null;
+
+    const guideSlug = resolvedSearchParams?.guide as string || (guides.length > 0 ? guides[0].slug : null);
+
+    let guideDetail = null;
+    let guideUserProgress = null;
+    let guideGuildProgress = null;
+
+    if (guideSlug) {
+        try {
+            const detailRes = await getOptimizedGuideDetail(guideSlug, guildId);
+            if (detailRes.success && detailRes.guide) {
+                guideDetail = detailRes.guide;
+                guideUserProgress = detailRes.guide.milestones.flatMap((m: any) => m.playerProgress || []);
+                
+                const membersContext = await getGuildOptimizedGuideProgress(guideSlug, guildId);
+                guideGuildProgress = (membersContext.allProgress || []).map((p: any) => ({
+                    profileId: p.profileId,
+                    milestoneId: p.milestoneId,
+                    userName: p.profile?.displayName || p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
+                    userAvatar: p.profile?.user?.image || undefined,
+                    profileSlug: p.profile?.pseudoDofus || p.profileId
+                }));
+            }
+        } catch (e) {
+            console.error("[Quest Page] Error fetching guide details:", e);
+        }
+    }
+
+    const serializedGuides = JSON.parse(JSON.stringify(guides));
+    const serializedGuideDetail = guideDetail ? JSON.parse(JSON.stringify(guideDetail)) : null;
+    const serializedGuideUserProgress = guideUserProgress ? JSON.parse(JSON.stringify(guideUserProgress)) : null;
+    const serializedGuideGuildProgress = guideGuildProgress ? JSON.parse(JSON.stringify(guideGuildProgress)) : null;
 
     return (
         <div className="relative min-h-[calc(100vh-4rem)] pb-12">
@@ -60,7 +112,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                     <div className="flex-shrink-0 lg:mb-1">
                         <CharacterQuestSelector 
                             mainCharacter={{ 
-                                pseudo: user.pseudoDofus || session.user.name || "Principal", 
+                                pseudo: user.pseudoDofus || user.name || "Principal", 
                                 classe: user.classe 
                              }}
                             mules={user.altPseudos as any || []}
@@ -74,9 +126,14 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                     <DofusQuestHub
                         dofusList={dofusList}
                         guildStats={guildStats}
-                        guides={guides}
+                        guides={serializedGuides}
                         guildId={guildId}
                         selectedCharacter={character}
+                        userProfile={userProfile}
+                        selectedGuideSlug={guideSlug}
+                        selectedGuideDetail={serializedGuideDetail}
+                        selectedGuideUserProgress={serializedGuideUserProgress}
+                        selectedGuideGuildProgress={serializedGuideGuildProgress}
                     />
                 )}
             </div>

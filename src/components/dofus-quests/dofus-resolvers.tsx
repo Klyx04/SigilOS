@@ -190,16 +190,29 @@ export function copyWithToast(text: string, message = "Copié dans le presse-pap
 
 // ─── Map Link Component ───────────────────────────────────────────────────────
 export function MapLink({ x, y, guildId, zone, worldId }: { x: string; y: string; guildId: string; zone?: string; worldId?: number }) {
-    // Dynamic worldId detection if not provided
-    const resolvedWorldId = typeof worldId === 'number' ? worldId : (zone?.toLowerCase().includes("incarnam") ? 1 : 0);
+    const [resolvedWorldId, setResolvedWorldId] = useState<number>(
+        typeof worldId === 'number' ? worldId : (zone?.toLowerCase().includes("incarnam") ? 2 : 1)
+    );
+    
+    useEffect(() => {
+        if (typeof worldId === 'number') return;
+        const xNum = parseInt(x);
+        const yNum = parseInt(y);
+        if (isNaN(xNum) || isNaN(yNum)) return;
+        
+        // Dynamically resolve precise worldId using server action
+        import("@/server/actions/optimized-guide-actions").then((mod) => {
+            mod.resolveMapWorldAction(xNum, yNum, zone || "").then((res) => {
+                if (res.success && res.worldId) {
+                    setResolvedWorldId(res.worldId);
+                }
+            });
+        });
+    }, [x, y, zone, worldId]);
     
     return (
         <Link
             href={`/dashboard/${guildId}/worldmap?x=${x}&y=${y}&zoom=4&world=${resolvedWorldId}`}
-            onClick={(e) => {
-                // If it's the current page's minimap, we want to just center it.
-                // But since it's a separate route, we'll let Next.js handle navigation.
-            }}
             className="text-emerald-400 font-bold italic hover:text-emerald-300 underline decoration-emerald-400/30 transition-colors"
         >
             📍 [{x}, {y}]

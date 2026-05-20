@@ -9,6 +9,20 @@ import { redis } from "./redis";
 type Fetcher<T> = () => Promise<T>;
 
 /**
+ * BigInt-safe JSON serializer.
+ * Prisma can return BigInt for Discord snowflake IDs.
+ * JSON.stringify crashes on BigInt — we convert to Number when safe, or String if > MAX_SAFE_INTEGER.
+ */
+function safeStringify(data: unknown): string {
+    return JSON.stringify(data, (_key, value) => {
+        if (typeof value === "bigint") {
+            return value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : value.toString();
+        }
+        return value;
+    });
+}
+
+/**
  * withCache - Wraps a data-fetching function with Redis caching
  * 
  * @param key The unique string key for this cache entry
@@ -42,7 +56,7 @@ export async function withCache<T>(
 
         // 4. Store in Cache (Background)
         // We don't await this to keep response time fast
-        redis.set(key, JSON.stringify(data), "EX", ttlSeconds).catch((err) => {
+        redis.set(key, safeStringify(data), "EX", ttlSeconds).catch((err) => {
             console.error(`[Cache] Failed to set key ${key}:`, err);
         });
 

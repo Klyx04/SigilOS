@@ -162,15 +162,17 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                                 )}
                             </div>
                         )}
-                        <div className="space-y-2">
-                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Titre *</Label>
-                            <Input
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className="bg-white/5 border-white/10"
-                                maxLength={100}
-                            />
-                        </div>
+                        {listing.category !== "PASSAGE_DONJON" && (
+                            <div className="space-y-2">
+                                <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Titre *</Label>
+                                <Input
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    className="bg-white/5 border-white/10"
+                                    maxLength={100}
+                                />
+                            </div>
+                        )}
 
 
 

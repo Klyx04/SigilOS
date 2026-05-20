@@ -26,7 +26,8 @@ const PORT = 3001;
 
 // Create standalone HTTP server for WebSockets
 const httpServer = createServer((req, res) => {
-    console.log(`[HTTP] 📥 Requête reçue: ${req.method} ${req.url}`);
+    // Only log in dev — HTTP requests in prod pollute container logs
+    logger.debug(`[HTTP] 📥 ${req.method} ${req.url}`);
     if (req.url === "/health") {
         res.writeHead(200);
         res.end("OK");
@@ -40,6 +41,11 @@ const subClient = redis.duplicate();
 const isProd = process.env.NODE_ENV === "production";
 
 const io = new Server(httpServer, {
+    // 🔒 [SECURITY] Limit payload size to 1MB — prevents OOM from oversized canvas events
+    maxHttpBufferSize: 1e6,
+    // Socket timeouts — detect dead connections faster
+    pingTimeout: 20_000,
+    pingInterval: 25_000,
     cors: {
         origin: (origin, callback) => {
             // [AUDIT 2026] MED-04: Strict origin validation to prevent Cross-Site WebSocket Hijacking

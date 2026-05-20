@@ -1,0 +1,186 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, MessageSquare, Swords, ScrollText, CheckCircle2 } from "lucide-react";
+import { contactPasseurAction } from "@/server/actions/service-actions";
+import { type ServiceListingWithProfile } from "@/server/actions/service-actions";
+import { toast } from "sonner";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+
+interface ServiceContactDialogProps {
+    listing: ServiceListingWithProfile;
+    guildId: string;
+}
+
+export function ServiceContactDialog({ listing, guildId }: ServiceContactDialogProps) {
+    const [open, setOpen] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const [message, setMessage] = useState("");
+    const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+
+    // Determine the available options based on listing data
+    const getAvailableOptions = () => {
+        if (listing.priceTiers && (listing.priceTiers as any[]).length > 0) {
+            return (listing.priceTiers as any[]).map(t => `${t.label} (${t.price})`);
+        }
+        if (listing.category === "PASSAGE_DONJON" && (listing.selectedAchievementNames as string[] | null)?.length) {
+            return (listing.selectedAchievementNames as string[]).map(name => `${name}`);
+        }
+        return ["Passage classique seul"];
+    };
+
+    const options = getAvailableOptions();
+
+    const handleOpen = () => {
+        setMessage("");
+        setSelectedOptions([]);
+        setOpen(true);
+    };
+
+    const handleOptionToggle = (option: string) => {
+        setSelectedOptions(prev =>
+            prev.includes(option)
+                ? prev.filter(o => o !== option)
+                : [...prev, option]
+        );
+    };
+
+    const handleSubmit = () => {
+        startTransition(async () => {
+            // If no options selected, default to the first one
+            const finalOptions = selectedOptions.length > 0 ? selectedOptions : [options[0]];
+            const res = await contactPasseurAction(guildId, listing.id, finalOptions, message.trim() || null);
+            if (res.success) {
+                toast.success("Demande envoyée ! Le passeur a été notifié sur Discord.");
+                setOpen(false);
+            } else {
+                toast.error(res.error || "Impossible d'envoyer la demande.");
+            }
+        });
+    };
+
+    const name = listing.profile.pseudoDofus || listing.profile.discordNickname || listing.profile.user?.name || "Passeur";
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button
+                    onClick={handleOpen}
+                    className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-wider text-xs rounded-xl shadow-lg shadow-cyan-900/20 h-9 px-4 transition-all"
+                >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Contacter
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg bg-zinc-950 border border-white/10 shadow-2xl rounded-3xl text-white p-0 gap-0 overflow-hidden backdrop-blur-xl">
+                <div className="p-5 pb-4 border-b border-white/5 bg-slate-900/30">
+                    <DialogTitle className="text-base font-black flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                            <MessageSquare className="w-4 h-4 text-cyan-400" strokeWidth={2.5} />
+                        </div>
+                        Contacter {name}
+                    </DialogTitle>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    {/* Readonly Context Box */}
+                    <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4 space-y-3">
+                        <div className="flex items-center gap-3">
+                            {listing.category === "PASSAGE_DONJON" && listing.dungeonImageUrl ? (
+                                <div className="relative h-10 w-10 rounded-xl shrink-0 overflow-hidden border border-cyan-500/20 shadow-inner">
+                                    <Image src={listing.dungeonImageUrl} alt={listing.dungeonName || ""} fill className="object-cover" />
+                                </div>
+                            ) : listing.category === "PASSAGE_DONJON" ? (
+                                <div className="h-10 w-10 rounded-xl shrink-0 bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shadow-inner">
+                                    <Swords className="h-5 w-5 text-cyan-400" />
+                                </div>
+                            ) : (
+                                <div className="h-10 w-10 rounded-xl shrink-0 bg-violet-500/10 flex items-center justify-center border border-violet-500/20 shadow-inner">
+                                    <ScrollText className="h-5 w-5 text-violet-400" />
+                                </div>
+                            )}
+                            <div>
+                                <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider leading-none">Service demandé</p>
+                                <p className="text-sm font-black text-white mt-1 leading-tight">{listing.title}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Options Selection */}
+                    <div className="space-y-3">
+                        <Label className="text-zinc-400 text-xs font-black uppercase tracking-widest">Options du service (Sélectionnez)</Label>
+                        <div className="grid grid-cols-1 gap-2.5">
+                            {options.map((option) => {
+                                const isChecked = selectedOptions.includes(option);
+                                return (
+                                    <button
+                                        key={option}
+                                        type="button"
+                                        onClick={() => handleOptionToggle(option)}
+                                        className={cn(
+                                            "flex items-center justify-between rounded-xl border p-3.5 text-left transition-all duration-300",
+                                            isChecked
+                                                ? "border-cyan-500/40 bg-cyan-500/5 text-white"
+                                                : "border-white/5 bg-white/[0.02] text-zinc-400 hover:border-white/10 hover:text-white"
+                                        )}
+                                    >
+                                        <span className="text-xs font-bold leading-tight">{option}</span>
+                                        <div className={cn(
+                                            "h-5 w-5 rounded-lg border flex items-center justify-center transition-all shrink-0",
+                                            isChecked
+                                                ? "border-cyan-500 bg-cyan-500 text-black"
+                                                : "border-white/20 bg-black/20"
+                                        )}>
+                                            {isChecked && <CheckCircle2 className="h-3.5 w-3.5 text-zinc-950" strokeWidth={3} />}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Custom Message */}
+                    <div className="space-y-2">
+                        <Label className="text-zinc-400 text-xs font-black uppercase tracking-widest">Votre message (Optionnel)</Label>
+                        <Textarea
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Ex: Salut ! Je suis dispo ce soir à 21h, j'ai mes clés. Merci !"
+                            className="bg-black/30 border-white/10 text-white rounded-xl placeholder:text-zinc-600 focus:border-cyan-500/50 resize-none h-24 text-xs leading-relaxed"
+                            maxLength={1000}
+                        />
+                    </div>
+                </div>
+
+                <div className="px-6 pb-6 flex gap-3 border-t border-white/5 pt-5 bg-slate-900/30">
+                    <Button
+                        variant="ghost"
+                        onClick={() => setOpen(false)}
+                        className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all rounded-xl"
+                    >
+                        Annuler
+                    </Button>
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={isPending}
+                        className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black h-12 shadow-lg shadow-cyan-900/20 rounded-xl transition-all"
+                    >
+                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Envoyer la demande"}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}

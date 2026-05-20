@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, Clock, ChevronsUpDown, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, Clock, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -30,6 +31,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createDreamRun } from "@/server/actions/songes/dream-run-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
+import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
+import { getStuffGalleryPage, type GalleryBuild } from "@/server/actions/gallery-actions";
 import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, type DifficultyKey, type ObjectiveKey, type EpreuveCode } from "@/lib/songes/types";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -52,7 +55,14 @@ function getDifficultyBadgeColor(diffKey: DifficultyKey) {
 // ─────────────────────────────────────────────────────────
 export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: string; isDiscordConfigured?: boolean }) {
     const [open, setOpen] = useState(false);
+    const [step, setStep] = useState(1);
     const [mode, setMode] = useState<"standard" | "epreuve">("standard");
+
+    useEffect(() => {
+        if (open) {
+            setStep(1);
+        }
+    }, [open]);
 
     // Standard mode
     const [difficulty, setDifficulty] = useState<DifficultyKey>("REVE_III");
@@ -66,13 +76,17 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     const [isScheduled, setIsScheduled] = useState(false);
     const [scheduledDate, setScheduledDate] = useState<Date | undefined>(new Date());
     const [scheduledTime, setScheduledTime] = useState("20:00");
+    const [stuffs, setStuffs] = useState<GalleryBuild[]>([]);
+    const [selectedStuffId, setSelectedStuffId] = useState<string>("none");
+    const [customStuffName, setCustomStuffName] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [rateLimitReset, setRateLimitReset] = useState<number | null>(null); // timestamp ms
     const [countdown, setCountdown] = useState<string | null>(null);
-    const [mentionRoleId, setMentionRoleId] = useState<string | null>(null);
+    const [mentionRoleIds, setMentionRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [roleOpen, setRoleOpen] = useState(false);
+    const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
@@ -91,22 +105,48 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
         return () => clearInterval(id);
     }, [rateLimitReset]);
 
-    // Fetch Discord Roles
+    // Fetch Discord Roles & Stuffs
     useEffect(() => {
-        if (open && publishToDiscord && discordRoles.length === 0) {
-            setIsLoadingRoles(true);
-            getDiscordRolesAction(guildId)
-                .then(res => {
-                    if (res.success && res.roles) {
-                        setDiscordRoles(res.roles.filter(r => r.name !== "@everyone") as any);
+        if (open) {
+            if (publishToDiscord && discordRoles.length === 0) {
+                setIsLoadingRoles(true);
+                getDiscordRolesAction(guildId, { context: "songes" })
+                    .then(res => { if (res.success && res.roles) setDiscordRoles(res.roles.filter(r => r.name !== "@everyone") as any); })
+                    .catch(console.error)
+                    .finally(() => setIsLoadingRoles(false));
+            }
+            if (stuffs.length === 0) {
+                Promise.all([
+                    getStuffGalleryPage(guildId),
+                    import("@/server/actions/user-actions").then(m => m.getUserContext(guildId))
+                ]).then(([res, userCtx]) => {
+                    if (res.success && res.data && userCtx.profileId) {
+                        setStuffs(res.data.builds.filter(s => s.author.id === userCtx.profileId));
                     }
-                })
-                .catch(console.error)
-                .finally(() => setIsLoadingRoles(false));
+                });
+            }
         }
-    }, [open, publishToDiscord, guildId, discordRoles.length]);
+    }, [open, publishToDiscord, guildId, discordRoles.length, stuffs.length]);
+
+    // Fetch Target Channel Name
+    useEffect(() => {
+        if (open && publishToDiscord) {
+            import("@/server/actions/songes/dream-run-actions").then(m => {
+                m.getSongesPublicConfig(guildId).then(res => {
+                    if (res.success && res.data?.songesNotifyChannelId) {
+                        getDiscordChannelInfo(guildId, res.data.songesNotifyChannelId).then(chanRes => {
+                            if (chanRes.success && chanRes.data) {
+                                setTargetChannelName(chanRes.data.name);
+                            }
+                        });
+                    }
+                });
+            });
+        }
+    }, [open, publishToDiscord, guildId]);
 
     const handleCreate = () => {
+        const selectedStuff = stuffs.find(s => s.id === selectedStuffId);
         if (mode === "standard") {
             if (objectives.length === 0) {
                 setError("Veuillez sélectionner au moins un objectif.");
@@ -126,7 +166,11 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     objectives, 
                     publishToDiscord,
                     scheduledAt,
-                    mentionRoleId
+                    mentionRoleIds,
+                    linkedStuffId: selectedStuffId === "none" ? null : selectedStuffId,
+                    linkedStuffName: customStuffName || selectedStuff?.name || null,
+                    linkedStuffThumbnail: selectedStuff?.previewData?.thumbnail || null,
+                    linkedStuffUrl: selectedStuff?.url || null
                 });
                 if (result.success) {
                     toast.success("Run créée avec succès !");
@@ -162,7 +206,11 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     publishToDiscord,
                     epreuveCode: epreuve.code,
                     scheduledAt,
-                    mentionRoleId
+                    mentionRoleIds,
+                    linkedStuffId: selectedStuffId === "none" ? null : selectedStuffId,
+                    linkedStuffName: customStuffName || selectedStuff?.name || null,
+                    linkedStuffThumbnail: selectedStuff?.previewData?.thumbnail || null,
+                    linkedStuffUrl: selectedStuff?.url || null
                 });
                 if (result.success) {
                     toast.success(`Épreuve ${epreuve.code} lancée !`);
@@ -202,18 +250,21 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="bg-[#0c0514] border-white/10 text-white max-w-lg shadow-2xl shadow-black/60">
+            <DialogContent className="bg-zinc-950 border-white/10 text-white max-w-lg shadow-2xl shadow-black/60 premium-scrollbar">
                 <DialogHeader>
                     <DialogTitle className="text-xl flex items-center gap-2 text-white">
                         🌙 Nouvelle Run Songes
                     </DialogTitle>
                 </DialogHeader>
 
-                <Tabs value={mode} onValueChange={(v) => { setMode(v as "standard" | "epreuve"); setError(null); }} className="pt-2">
+                <AnimatePresence mode="wait">
+                    {step === 1 && (
+                        <motion.div key="step1" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-4 pt-2">
+                            <Tabs value={mode} onValueChange={(v) => { setMode(v as "standard" | "epreuve"); setError(null); }}>
                     <TabsList className="w-full bg-white/5 border border-white/8 p-1 rounded-lg mb-4">
                         <TabsTrigger
                             value="standard"
-                            className="flex-1 gap-2 data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_15px_rgba(147,51,234,0.4)] text-white/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
+                            className="flex-1 gap-2 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_15px_rgba(79,70,229,0.4)] text-white/50 font-bold uppercase tracking-wide text-xs transition-all rounded"
                         >
                             <Swords className="w-3.5 h-3.5" />
                             Run Standard
@@ -242,7 +293,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                 <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/8 transition-colors">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#0c0514] border-white/10">
+                                <SelectContent className="bg-zinc-950 border-white/10">
                                     {Object.entries(DIFFICULTIES).map(([key, value]) => (
                                         <SelectItem key={key} value={key} className="text-white focus:bg-white/10">
                                             <div className="flex items-center gap-2">
@@ -269,14 +320,14 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             className={cn(
                                                 "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
                                                 isSelected
-                                                    ? "bg-purple-600/25 border-purple-500/60 text-purple-100"
+                                                    ? "bg-indigo-600/25 border-indigo-500/60 text-indigo-100"
                                                     : "bg-white/3 border-white/8 text-white/50 hover:bg-white/6 hover:text-white/70"
                                             )}
                                         >
                                             <div className="text-lg">{value.icon}</div>
                                             <div className="text-sm font-medium">{value.label}</div>
                                             {isSelected && (
-                                                <div className="ml-auto w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
+                                                <div className="ml-auto w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
                                             )}
                                         </div>
                                     );
@@ -290,7 +341,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         <p className="text-xs text-white/30 mb-3 leading-relaxed">
                             Parcours prédéfinis liés à des succès en jeu. La difficulté et le mode sont imposés par l'épreuve choisie.
                         </p>
-                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1 premium-scrollbar">
                             {EPREUVES_SONGE.map((epreuve) => {
                                 const isSelected = selectedEpreuve === epreuve.code;
                                 const badgeColor = getDifficultyBadgeColor(epreuve.difficulty);
@@ -355,217 +406,338 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     </TabsContent>
                 </Tabs>
 
-                {/* ─── DISCORD TOGGLE (commun aux 2 modes) ─── */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/8 bg-white/3">
-                        <div className="flex items-center gap-3">
-                            <MessageSquare className="w-5 h-5 text-[#5865F2]" />
-                            <div>
-                                <p className="text-sm font-medium text-white/80">Publier sur Discord</p>
-                                <p className="text-xs text-white/35">Embed avec boutons rejoindre/quitter</p>
+                    {/* SCHEDULE & STUFF (Step 1 Shared) */}
+                    {/* ─── SCHEDULE TOGGLE ─── */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-white/8 bg-white/3">
+                            <div className="flex items-center gap-3">
+                                <CalendarIcon className="w-5 h-5 text-purple-400" />
+                                <div>
+                                    <p className="text-sm font-medium text-white/80">Planifier la Run</p>
+                                    <p className="text-xs text-white/35">Définir une date et une heure</p>
+                                </div>
                             </div>
+                            <Switch
+                                checked={isScheduled}
+                                onCheckedChange={setIsScheduled}
+                                className="data-[state=checked]:bg-purple-600"
+                            />
                         </div>
-                        <Switch
-                            checked={publishToDiscord}
-                            onCheckedChange={setPublishToDiscord}
-                            disabled={!isDiscordConfigured}
-                            className="data-[state=checked]:bg-[#5865F2]"
-                        />
+
+                        {isScheduled && (
+                            <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] text-white/40 uppercase font-bold ml-1">Date</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className={cn(
+                                                    "w-full h-10 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/8",
+                                                    !scheduledDate && "text-white/40"
+                                                )}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-purple-400" />
+                                                {scheduledDate ? format(scheduledDate, "d MMM yyyy", { locale: fr }) : "Choisir une date"}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0 bg-zinc-950 border-white/10" align="center">
+                                            <Calendar
+                                                mode="single"
+                                                selected={scheduledDate}
+                                                onSelect={setScheduledDate}
+                                                disabled={(date) => date < new Date() && date.toDateString() !== new Date().toDateString()}
+                                                initialFocus
+                                                className="bg-transparent text-white"
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] text-white/40 uppercase font-bold ml-1">Heure</Label>
+                                    <div className="relative">
+                                        <Clock className="absolute left-3 top-3 h-4 w-4 text-purple-400" />
+                                        <Input
+                                            type="time"
+                                            value={scheduledTime}
+                                            onChange={(e) => setScheduledTime(e.target.value)}
+                                            className="h-10 pl-10 bg-white/5 border-white/10 text-white focus:border-purple-500/50"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    {!isDiscordConfigured && (
-                        <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-tight italic px-2">
-                            ⚠️ Salon Discord non configuré par l'admin. Publication impossible.
+
+                    {/* Note épreuve */}
+                    {mode === "epreuve" && selectedEpreuve && (
+                        <p className="text-[10px] text-white/25 flex items-center gap-1.5">
+                            <Trophy className="w-3 h-3 text-amber-500/40" />
+                            Pas de butin ni d&apos;expérience pour les Épreuves.
                         </p>
                     )}
-                </div>
 
-                {/* ─── ROLE MENTION ─── */}
-                {publishToDiscord && discordRoles.length > 0 && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <Label className="text-white/60 text-[10px] uppercase tracking-widest font-bold ml-1">Rôle Discord à notifier</Label>
-                        <Popover open={roleOpen} onOpenChange={setRoleOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={roleOpen}
-                                    className="w-full justify-between bg-white/5 border-white/10 text-white hover:bg-white/8 transition-colors font-medium h-10"
-                                >
-                                    <div className="flex items-center gap-2 truncate">
-                                        {mentionRoleId ? (
-                                            <>
-                                                <div 
-                                                    className="w-2 h-2 rounded-full shrink-0" 
-                                                    style={{ backgroundColor: discordRoles.find(r => r.id === mentionRoleId)?.color === "#000000" ? "#9ca3af" : discordRoles.find(r => r.id === mentionRoleId)?.color }} 
-                                                />
-                                                <span className="truncate">{discordRoles.find(r => r.id === mentionRoleId)?.name}</span>
-                                            </>
-                                        ) : (
-                                            <span className="text-white/40 italic">Aucun ping</span>
-                                        )}
-                                    </div>
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-[#0c0514] border-white/10" align="start">
-                                <Command className="bg-transparent text-white">
-                                    <CommandInput placeholder="Rechercher un rôle..." className="h-9 border-none focus:ring-0" />
-                                    <CommandList className="max-h-[280px] custom-scrollbar">
-                                        <CommandEmpty>Aucun rôle trouvé.</CommandEmpty>
-                                        <CommandGroup>
-                                            <CommandItem
-                                                onSelect={() => {
-                                                    setMentionRoleId(null);
-                                                    setRoleOpen(false);
-                                                }}
-                                                className="text-white/50 italic focus:bg-white/10 cursor-pointer"
-                                            >
-                                                <Check
-                                                    className={cn(
-                                                        "mr-2 h-4 w-4",
-                                                        !mentionRoleId ? "opacity-100" : "opacity-0"
-                                                    )}
-                                                />
-                                                Aucun ping
-                                            </CommandItem>
-                                            {discordRoles.map((role) => (
-                                                <CommandItem
-                                                    key={role.id}
-                                                    onSelect={() => {
-                                                        setMentionRoleId(role.id);
-                                                        setRoleOpen(false);
-                                                    }}
-                                                    className="text-white focus:bg-white/10 cursor-pointer"
-                                                >
-                                                    <Check
-                                                        className={cn(
-                                                            "mr-2 h-4 w-4",
-                                                            mentionRoleId === role.id ? "opacity-100" : "opacity-0"
-                                                        )}
-                                                    />
-                                                    <div className="flex items-center gap-2 flex-1 truncate">
-                                                        <div 
-                                                            className="w-2 h-2 rounded-full shrink-0" 
-                                                            style={{ backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color }} 
-                                                        />
-                                                        <span className="truncate">{role.name}</span>
-                                                    </div>
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
+                    {/* STUFF SELECTION (Lead) */}
+                    <div className="space-y-3 pt-2 border-t border-white/5">
+                        <Label className="text-sm font-bold text-white flex items-center gap-2">
+                            🛡️ Ton Stuff pour cette Run
+                        </Label>
+                        
+                        <Select value={selectedStuffId} onValueChange={setSelectedStuffId}>
+                            <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/8 transition-colors">
+                                <SelectValue placeholder="Choisir un stuff (Optionnel)" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-950 border-white/10">
+                                <SelectItem value="none" className="text-zinc-500 italic">Aucun stuff</SelectItem>
+                                {stuffs.map((stuff) => (
+                                    <SelectItem key={stuff.id} value={stuff.id} className="text-white focus:bg-white/10">
+                                        <div className="flex items-center gap-2">
+                                            {stuff.previewData?.thumbnail && (
+                                                <img src={stuff.previewData.thumbnail} className="w-5 h-5 rounded object-cover border border-white/10" alt="" />
+                                            )}
+                                            <span className="truncate max-w-[250px]">{stuff.name}</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        {selectedStuffId !== "none" && (
+                            <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+                                <input
+                                    type="text"
+                                    placeholder="Nom personnalisé du stuff..."
+                                    value={customStuffName}
+                                    onChange={(e) => setCustomStuffName(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-white/20"
+                                />
+                            </div>
+                        )}
                     </div>
+
+                    {!countdown && error && (
+                        <div className="text-red-400 text-sm bg-red-900/15 p-3 rounded-lg border border-red-500/25">
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Submit Step 1 */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setOpen(false)}
+                            className="h-12 px-8 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                if (mode === "standard" && objectives.length === 0) {
+                                    setError("Veuillez sélectionner au moins un objectif.");
+                                    return;
+                                }
+                                if (mode === "epreuve" && !selectedEpreuve) {
+                                    setError("Veuillez sélectionner une épreuve.");
+                                    return;
+                                }
+                                setError(null);
+                                setStep(2);
+                            }}
+                            className={cn(
+                                "flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2",
+                                mode === "epreuve"
+                                    ? "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-zinc-950"
+                                    : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white"
+                            )}
+                        >
+                            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                            <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
+                                <ChevronRight className="w-4 h-4" />
+                                SUIVANT
+                            </div>
+                        </Button>
+                    </div>
+                </motion.div>
                 )}
 
-                {/* ─── SCHEDULE TOGGLE ─── */}
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-white/8 bg-white/3">
-                        <div className="flex items-center gap-3">
-                            <CalendarIcon className="w-5 h-5 text-purple-400" />
-                            <div>
-                                <p className="text-sm font-medium text-white/80">Planifier la Run</p>
-                                <p className="text-xs text-white/35">Définir une date et une heure</p>
-                            </div>
+                {step === 2 && (
+                <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                    <div className="text-center space-y-3 mb-8 pt-4">
+                        <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)]">
+                            <Hash className="w-8 h-8 text-indigo-400" />
                         </div>
-                        <Switch
-                            checked={isScheduled}
-                            onCheckedChange={setIsScheduled}
-                            className="data-[state=checked]:bg-purple-600"
-                        />
+                        <h3 className="text-xl font-black uppercase tracking-tight text-white">Configuration Discord</h3>
+                        <p className="text-sm text-zinc-500 max-w-xs mx-auto font-medium">Notifier la guilde de votre run Songes ?</p>
                     </div>
 
-                    {isScheduled && (
-                        <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] text-white/40 uppercase font-bold ml-1">Date</Label>
-                                <Popover>
+                    <div className={`p-6 rounded-3xl border transition-all duration-500 ${publishToDiscord ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-zinc-900/50 border-white/5'}`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                                <span className={`text-sm font-black uppercase tracking-widest ${publishToDiscord ? 'text-indigo-400' : 'text-zinc-300'}`}>Synchro Automatique</span>
+                                {publishToDiscord ? (
+                                    <div className="flex items-center gap-1 mt-1 animate-in fade-in">
+                                        <Hash className="w-3 h-3 text-indigo-400/70" />
+                                        <span className="text-[10px] text-indigo-400/70 font-bold uppercase tracking-widest">Sera posté dans #{targetChannelName}</span>
+                                    </div>
+                                ) : (
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Désactivé</span>
+                                )}
+                            </div>
+                            <Switch
+                                checked={publishToDiscord && isDiscordConfigured}
+                                onCheckedChange={setPublishToDiscord}
+                                disabled={!isDiscordConfigured}
+                                className="data-[state=checked]:bg-indigo-500 scale-125 origin-right"
+                            />
+                        </div>
+
+                        {!isDiscordConfigured && (
+                            <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+                                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                                <p className="text-[10px] text-amber-200/70 font-bold uppercase tracking-wider">
+                                    Discord non configuré pour ce module. Contactez un admin.
+                                </p>
+                            </div>
+                        )}
+
+                        {publishToDiscord && discordRoles.length > 0 && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-indigo-500/20 space-y-3">
+                                <span className="text-[10px] font-black text-indigo-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
+                                <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant="outline"
-                                            className={cn(
-                                                "w-full h-10 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/8",
-                                                !scheduledDate && "text-white/40"
-                                            )}
+                                            role="combobox"
+                                            aria-expanded={roleOpen}
+                                            className="h-14 bg-zinc-950/50 border-white/10 text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-zinc-950 px-4"
                                         >
-                                            <CalendarIcon className="mr-2 h-4 w-4 text-purple-400" />
-                                            {scheduledDate ? format(scheduledDate, "d MMM yyyy", { locale: fr }) : "Choisir une date"}
+                                            <div className="flex items-center gap-3 truncate">
+                                                {mentionRoleIds.length > 0 ? (
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {mentionRoleIds.map(id => {
+                                                            const role = discordRoles.find(r => r.id === id);
+                                                            if (!role) return null;
+                                                            const roleColor = role.color === "#000000" ? "#9ca3af" : role.color;
+                                                            return (
+                                                                <div 
+                                                                    key={id} 
+                                                                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all"
+                                                                    style={{ 
+                                                                        backgroundColor: `${roleColor}15`, 
+                                                                        borderColor: `${roleColor}40`,
+                                                                        color: roleColor 
+                                                                    }}
+                                                                >
+                                                                    <div 
+                                                                        className="w-1.5 h-1.5 rounded-full shrink-0 shadow-[0_0_5px_currentColor]" 
+                                                                        style={{ backgroundColor: roleColor }} 
+                                                                    />
+                                                                    <span className="text-[10px] font-bold uppercase truncate max-w-[80px]">{role.name}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setMentionRoleIds(prev => prev.filter(rid => rid !== id));
+                                                                        }}
+                                                                        className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                                                    >
+                                                                        <X className="h-2.5 w-2.5" />
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
+                                                )}
+                                            </div>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#0c0514] border-white/10" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={scheduledDate}
-                                            onSelect={setScheduledDate}
-                                            disabled={(date) => date < new Date() && date.toDateString() !== new Date().toDateString()}
-                                            initialFocus
-                                            className="bg-transparent text-white"
-                                        />
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
+                                        <Command className="bg-transparent text-white">
+                                            <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
+                                            <CommandList className="max-h-[320px] premium-scrollbar p-2">
+                                                <CommandEmpty>Aucun rôle.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandItem
+                                                        onSelect={() => {
+                                                            setMentionRoleIds([]);
+                                                        }}
+                                                        className="text-zinc-500 italic focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
+                                                    >
+                                                        <span className="font-bold uppercase tracking-widest">Aucun ping</span>
+                                                        {mentionRoleIds.length === 0 && <Check className="h-4 w-4 text-zinc-400" />}
+                                                    </CommandItem>
+                                                    {discordRoles.map((role) => (
+                                                        <CommandItem
+                                                            key={role.id}
+                                                            onSelect={() => {
+                                                                setMentionRoleIds(prev => 
+                                                                    prev.includes(role.id) 
+                                                                        ? prev.filter(id => id !== role.id) 
+                                                                        : [...prev, role.id]
+                                                                );
+                                                            }}
+                                                            className="text-white focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group mt-1"
+                                                        >
+                                                            <div className="flex items-center gap-3 flex-1 truncate font-black tracking-tight uppercase">
+                                                                <div 
+                                                                    className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_8px_-2px_currentColor]" 
+                                                                    style={{ 
+                                                                        backgroundColor: role.color === "#000000" ? "#9ca3af" : role.color,
+                                                                        color: role.color === "#000000" ? "#9ca3af" : role.color
+                                                                    }} 
+                                                                />
+                                                                <span className="truncate group-hover:translate-x-1 transition-transform">{role.name}</span>
+                                                            </div>
+                                                            {mentionRoleIds.includes(role.id) && <Check className="h-4 w-4 text-indigo-400 shrink-0" />}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
                                     </PopoverContent>
                                 </Popover>
-                            </div>
+                            </motion.div>
+                        )}
+                    </div>
 
-                            <div className="space-y-1.5">
-                                <Label className="text-[10px] text-white/40 uppercase font-bold ml-1">Heure</Label>
-                                <div className="relative">
-                                    <Clock className="absolute left-3 top-3 h-4 w-4 text-purple-400" />
-                                    <Input
-                                        type="time"
-                                        value={scheduledTime}
-                                        onChange={(e) => setScheduledTime(e.target.value)}
-                                        className="h-10 pl-10 bg-white/5 border-white/10 text-white focus:border-purple-500/50"
-                                    />
+                    <div className="pt-8 border-t border-white/5 mt-4">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setStep(1)}
+                                className="h-12 px-8 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-[0.2em] border border-white/5 hover:bg-white/5 order-2 sm:order-1"
+                            >
+                                Retour
+                            </Button>
+                            <Button
+                                className={cn(
+                                    "flex-1 h-12 px-10 rounded-xl font-black text-[11px] tracking-[0.2em] transition-all active:scale-95 shadow-xl relative group overflow-hidden order-1 sm:order-2",
+                                    mode === "epreuve" 
+                                        ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-900/20" 
+                                        : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-900/20"
+                                )}
+                                onClick={handleCreate}
+                                disabled={isPending}
+                            >
+                                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                                <div className="flex items-center justify-center gap-3 relative z-10 uppercase">
+                                    {isPending ? (
+                                        <div className="w-4 h-4 border-2 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />
+                                    ) : (
+                                        <Check className="w-4 h-4" />
+                                    )}
+                                    {isPending ? "PUBLICATION..." : "CONFIRMER & LANCER"}
                                 </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Note épreuve */}
-                {mode === "epreuve" && selectedEpreuve && (
-                    <p className="text-[10px] text-white/25 flex items-center gap-1.5">
-                        <Trophy className="w-3 h-3 text-amber-500/40" />
-                        Pas de butin ni d&apos;expérience pour les Épreuves.
-                    </p>
-                )}
-
-                {/* Error / Rate Limit countdown */}
-                {countdown && (
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-500/25 bg-amber-950/30 text-sm">
-                        <Timer className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
-                        <div className="flex-1">
-                            <p className="text-amber-300 font-bold text-sm">Limite de création atteinte</p>
-                            <p className="text-amber-500/70 text-xs mt-0.5">Disponible dans <span className="font-mono font-black text-amber-300">{countdown}</span></p>
+                            </Button>
                         </div>
                     </div>
+                </motion.div>
                 )}
-                {!countdown && error && (
-                    <div className="text-red-400 text-sm bg-red-900/15 p-3 rounded-lg border border-red-500/25">
-                        {error}
-                    </div>
-                )}
-
-                {/* Submit */}
-                <Button
-                    onClick={handleCreate}
-                    disabled={isPending}
-                    className={cn(
-                        "w-full font-bold",
-                        mode === "epreuve"
-                            ? "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500"
-                            : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500"
-                    )}
-                >
-                    {isPending ? (
-                        <><Loader2 className="w-4 h-4 animate-spin mr-2" />Création...</>
-                    ) : mode === "epreuve" ? (
-                        <><Trophy className="w-4 h-4 mr-2" />Lancer l&apos;Épreuve</>
-                    ) : (
-                        "Créer la Run"
-                    )}
-                </Button>
+                </AnimatePresence>
             </DialogContent>
         </Dialog>
     );

@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parse, addHours, isBefore } from "date-fns";
 import { fr } from "date-fns/locale";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -22,7 +23,16 @@ import {
     Wheat,
     Info,
     AlertTriangle,
-    Diamond
+    Diamond,
+    Shield,
+    Globe,
+    Lock,
+    Crown,
+    Swords as SwordsIcon,
+    ChevronsUpDown,
+    Check,
+    Hash,
+    X
 } from "lucide-react";
 import {
     Form,
@@ -43,6 +53,16 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { MissionPicker } from "./mission-picker";
+import { getDiscordRolesAction } from "@/server/actions/user-actions";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
 
 // ============================================
 // 4 EVENT TYPES (Almanax removed)
@@ -61,6 +81,33 @@ interface TypeConfig {
         maxParticipants?: number;
     };
 }
+
+// ============================================
+// RAID SUBTYPES
+// ============================================
+
+const RAID_TYPES = [
+    {
+        id: "jardin",
+        label: "Sanctuaire des Jardins Éternels",
+        short: "Jardins Éternels",
+        min: 8,
+        max: 16,
+        icon: "🌿",
+        image: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=1000&auto=format&fit=crop", // Mystical Garden
+        thumbnail: "https://static.ankama.com/dofus/www/game/monsters/200/5131.png",
+    },
+    {
+        id: "gigalodon",
+        label: "Gouffre du Gigalodon",
+        short: "Gigalodon",
+        min: 8,
+        max: 12,
+        icon: "🦈",
+        image: "https://images.unsplash.com/photo-1551244072-5d12893278ab?q=80&w=1000&auto=format&fit=crop", // Deep Ocean
+        thumbnail: "https://static.ankama.com/dofus/www/game/monsters/200/5129.png",
+    },
+] as const;
 
 const TYPE_CONFIG: Record<string, TypeConfig> = {
     RAID_OFFICIAL: {
@@ -130,6 +177,7 @@ const eventFormSchema = z.object({
     endTime: z.string().min(5, "Heure requise"),
     maxParticipants: z.coerce.number().min(1).optional().nullable(),
     publishOnDiscord: z.boolean().optional(),
+    mentionRoleIds: z.array(z.string()).optional(),
 }).refine((data) => {
     // Validate end time is after start time
     const start = parse(data.startTime, "HH:mm", new Date());
@@ -149,16 +197,74 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 // ============================================
 
 interface EventFormProps {
+    guildId: string;
     initialData?: any;
     onSubmit: (data: any) => Promise<void>;
     isDiscordConfigured?: boolean;
+    canManageRaid?: boolean;
+    userPseudo?: string;
+    discordRoles?: { id: string, name: string, color?: string | number }[];
 }
 
-export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventFormProps) {
+export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured, canManageRaid, userPseudo, discordRoles: providedRoles }: EventFormProps) {
+    const [step, setStep] = useState<1 | 2>(1);
     const [submitting, setSubmitting] = useState(false);
+    
+    // Helper to normalize discord role colors
+    const normalizeRoles = (roles: any[]) => roles.map(r => ({
+        ...r,
+        color: typeof r.color === 'number' 
+            ? `#${r.color.toString(16).padStart(6, '0')}` 
+            : r.color
+    }));
+
+    const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color?: string }[]>(
+        providedRoles ? normalizeRoles(providedRoles) : []
+    );
+    const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+    const [roleOpen, setRoleOpen] = useState(false);
+    const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
+
+    // Fetch Target Channel Name
+    useEffect(() => {
+        if (isDiscordConfigured && guildId) {
+            import("@/server/actions/calendar-actions").then(m => {
+                m.getCalendarPublicConfig(guildId).then(res => {
+                    if (res.success && res.data?.calendarNotifyChannelId) {
+                        import("@/server/actions/discord-actions").then(d => {
+                            d.getDiscordChannelInfo(guildId, res.data!.calendarNotifyChannelId!).then(chanRes => {
+                                if (chanRes.success && chanRes.data) {
+                                    setTargetChannelName(chanRes.data.name);
+                                }
+                            });
+                        });
+                    }
+                });
+            });
+        }
+    }, [isDiscordConfigured, guildId]);
+
+    // Fetch roles if not provided
+    useEffect(() => {
+        if (!providedRoles && isDiscordConfigured) {
+            setIsLoadingRoles(true);
+            getDiscordRolesAction(guildId, { context: "calendar" }).then(res => {
+                if (res.success && res.roles) {
+                    setDiscordRoles(normalizeRoles(res.roles.filter((r: any) => r.name !== "@everyone")));
+                }
+            }).finally(() => setIsLoadingRoles(false));
+        } else if (providedRoles) {
+            setDiscordRoles(normalizeRoles(providedRoles));
+        }
+    }, [providedRoles, guildId, isDiscordConfigured]);
     // Fallback to EVENT_GUILD for unknown types
     const validType = initialData?.type && TYPE_CONFIG[initialData.type] ? initialData.type : "EVENT_GUILD";
     const [selectedType, setSelectedType] = useState<string>(validType);
+    const [selectedMissions, setSelectedMissions] = useState<string[]>(initialData?.metadata?.missionIds || []);
+    // Raid-specific state
+    const [raidType, setRaidType] = useState<"jardin" | "gigalodon">(initialData?.metadata?.raidType || "gigalodon");
+    const [raidCaptain, setRaidCaptain] = useState<string>(initialData?.metadata?.raidCaptain || userPseudo || "");
+    const [openToExternal, setOpenToExternal] = useState<boolean>(initialData?.metadata?.openToExternal ?? false);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
@@ -175,6 +281,7 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                 : "22:00",
             maxParticipants: initialData.maxParticipants || undefined,
             publishOnDiscord: false, // Default to false when editing
+            mentionRoleIds: initialData.metadata?.mentionRoleIds || [],
         } : {
             title: "",
             description: "",
@@ -184,6 +291,7 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
             endTime: "22:00",
             maxParticipants: undefined,
             publishOnDiscord: !!isDiscordConfigured,
+            mentionRoleIds: [],
         },
     });
 
@@ -205,6 +313,13 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
         }
     };
 
+    // When raid subtype changes, auto-set max participants
+    const handleRaidTypeChange = (rt: "jardin" | "gigalodon") => {
+        setRaidType(rt);
+        const raidDef = RAID_TYPES.find(r => r.id === rt);
+        if (raidDef) form.setValue("maxParticipants", raidDef.max);
+    };
+
     // Helper to update end time
     const updateEndTime = (start: string, durationHours: number) => {
         if (start) {
@@ -218,13 +333,19 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
 
     // Update end time when start time changes (only if not editing)
     useEffect(() => {
-        if (!initialData && startTime) {
+        if (selectedType === "RAID_OFFICIAL") {
+            const raidDef = RAID_TYPES.find(r => r.id === raidType);
+            if (raidDef) {
+                form.setValue("title", `Raid : ${raidDef.short}`);
+                form.clearErrors("title");
+            }
+        } else if (!initialData && startTime) {
             const config = TYPE_CONFIG[selectedType];
             if (config) {
                 updateEndTime(startTime, config.preset.defaultDuration);
             }
         }
-    }, [startTime, selectedType, initialData]);
+    }, [startTime, selectedType, initialData, raidType]);
 
     const handleFormSubmit = async (values: EventFormValues) => {
         setSubmitting(true);
@@ -239,6 +360,7 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                 endDate.setDate(endDate.getDate() + 1);
             }
 
+            const raidDef = RAID_TYPES.find(r => r.id === raidType);
             const submissionData = {
                 title: values.title,
                 description: values.description,
@@ -247,6 +369,16 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                 endDate,
                 maxParticipants: values.maxParticipants || null,
                 publishOnDiscord: values.publishOnDiscord,
+                mentionRoleIds: values.mentionRoleIds || [],
+                missionIds: values.type === "SESSION_MISSIONS" ? selectedMissions : [],
+                metadata: values.type === "RAID_OFFICIAL" ? {
+                    raidType,
+                    raidLabel: raidDef?.label,
+                    raidMin: raidDef?.min,
+                    raidMax: raidDef?.max,
+                    raidCaptain: raidCaptain.trim() || null,
+                    openToExternal,
+                } : undefined,
             };
 
             await onSubmit(submissionData);
@@ -257,18 +389,59 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
         }
     };
 
+    const handleNextStep = async () => {
+        // Trigger validation for step 1 fields before proceeding
+        const fieldsToValidate: (keyof EventFormValues)[] = ["title", "type", "date", "startTime", "endTime", "description"];
+        const isValid = await form.trigger(fieldsToValidate);
+        
+        if (isValid) {
+            setStep(2);
+        }
+    };
+
+    const handleMissionSelect = (ids: string[], titles: string[]) => {
+        setSelectedMissions(ids);
+        
+        if (selectedType === "SESSION_MISSIONS") {
+            let newTitle = "";
+            if (titles.length === 0) {
+                newTitle = ""; // Let user type or keep empty
+            } else if (titles.length === 1) {
+                newTitle = `Mission : ${titles[0]}`;
+            } else if (titles.length === 2) {
+                newTitle = `Missions : ${titles[0]} & ${titles[1]}`;
+            } else {
+                newTitle = `Session Missions : ${titles[0]} + ${titles.length - 1} autres`;
+            }
+            
+            if (newTitle) {
+                form.setValue("title", newTitle);
+                form.clearErrors("title");
+            }
+        }
+    };
+
     const currentConfig = TYPE_CONFIG[selectedType] || TYPE_CONFIG.EVENT_GUILD;
 
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-5">
-                {/* ============ TYPE SELECTOR (4 types) ============ */}
-                <div className="space-y-3">
+                <AnimatePresence mode="wait">
+                    {step === 1 && (
+                        <motion.div
+                            key="step1"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="space-y-5"
+                        >
+                            {/* ============ TYPE SELECTOR (4 types) ============ */}
+                            <div className="space-y-3">
                     <FormLabel className="text-sm font-medium text-zinc-300">
                         Type d'événement
                     </FormLabel>
                     <div className="grid grid-cols-5 gap-2">
-                        {EVENT_TYPES.map((type) => {
+                        {EVENT_TYPES.filter(t => t !== "RAID_OFFICIAL" || canManageRaid).map((type) => {
                             const config = TYPE_CONFIG[type];
                             const Icon = config.icon;
                             const isSelected = selectedType === type;
@@ -314,7 +487,7 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                     </div>
 
                     {/* Preset badge */}
-                    {currentConfig.preset.maxParticipants && (
+                    {currentConfig.preset.maxParticipants && selectedType !== "RAID_OFFICIAL" && (
                         <div className={cn(
                             "flex items-center gap-2 px-3 py-2 rounded-lg text-xs",
                             currentConfig.bg, currentConfig.border, "border"
@@ -325,26 +498,149 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                             </span>
                         </div>
                     )}
+
+                    {/* ========== RAID SPECIFIC PANEL ========== */}
+                    {selectedType === "RAID_OFFICIAL" && (
+                        <div className="space-y-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Swords className="h-4 w-4 text-red-400" />
+                                <span className="text-xs font-black text-red-400 uppercase tracking-widest">Options Raid 3.6</span>
+                            </div>
+
+                            {/* Raid Subtype */}
+                            <div className="space-y-2">
+                                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Type de Raid</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {RAID_TYPES.map(rt => (
+                                        <button
+                                            key={rt.id}
+                                            type="button"
+                                            onClick={() => handleRaidTypeChange(rt.id as "jardin" | "gigalodon")}
+                                            className={cn(
+                                                "relative flex flex-col items-start gap-1.5 p-3 rounded-xl border-2 text-left transition-all group overflow-hidden h-24",
+                                                raidType === rt.id
+                                                    ? "border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                                                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-600"
+                                            )}
+                                        >
+                                            {/* Background Art */}
+                                            {rt.image && (
+                                                <div className="absolute inset-0 z-0">
+                                                    <img 
+                                                        src={rt.image} 
+                                                        alt={rt.short}
+                                                        className={cn(
+                                                            "w-full h-full object-cover opacity-25 transition-all duration-700 group-hover:scale-110",
+                                                            raidType === rt.id ? "opacity-60 saturate-[1.2] scale-105" : "group-hover:opacity-40"
+                                                        )}
+                                                    />
+                                                    {/* Color Overlay for contrast */}
+                                                    <div className={cn(
+                                                        "absolute inset-0 bg-gradient-to-br from-zinc-950 via-zinc-950/60 to-transparent transition-opacity",
+                                                        raidType === rt.id ? "opacity-40" : "opacity-80"
+                                                    )} />
+                                                    
+                                                    {/* Selection Glow */}
+                                                    {raidType === rt.id && (
+                                                        <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <div className="relative z-10">
+                                                <span className="text-2xl block mb-1 drop-shadow-md">{rt.icon}</span>
+                                                <div className="flex flex-col">
+                                                    <span className={cn(
+                                                        "text-[12px] font-black leading-tight uppercase tracking-tight drop-shadow-lg",
+                                                        raidType === rt.id ? "text-white" : "text-zinc-200"
+                                                    )}>{rt.short}</span>
+                                                    <span className={cn(
+                                                        "text-[10px] font-bold uppercase tracking-widest mt-0.5 drop-shadow-md",
+                                                        raidType === rt.id ? "text-red-400" : "text-zinc-400"
+                                                    )}>{rt.min}–{rt.max} joueurs</span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Captain */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Crown className="h-3.5 w-3.5 text-yellow-500" />
+                                    Capitaine du Raid
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Pseudo Dofus du capitaine..."
+                                    value={raidCaptain}
+                                    onChange={e => setRaidCaptain(e.target.value)}
+                                    className="w-full h-10 px-3 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-red-500/50 shadow-inner"
+                                />
+                            </div>
+
+                            {/* Open to external */}
+                            <button
+                                type="button"
+                                onClick={() => setOpenToExternal(v => !v)}
+                                className={cn(
+                                    "w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all",
+                                    openToExternal
+                                        ? "bg-emerald-500/10 border-emerald-500/40"
+                                        : "bg-zinc-900/50 border-zinc-800"
+                                )}
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    {openToExternal
+                                        ? <Globe className="h-4 w-4 text-emerald-400" />
+                                        : <Lock className="h-4 w-4 text-zinc-500" />}
+                                    <div className="text-left">
+                                        <p className={cn(
+                                            "text-xs font-black uppercase tracking-wider",
+                                            openToExternal ? "text-emerald-400" : "text-zinc-400"
+                                        )}>
+                                            {openToExternal ? "Ouvert aux extérieurs" : "Guilde uniquement"}
+                                        </p>
+                                        <p className="text-[10px] text-zinc-500">
+                                            {openToExternal ? "Joueurs hors guilde autorisés" : "Réservé aux membres"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className={cn(
+                                    "w-10 h-5 rounded-full transition-all relative",
+                                    openToExternal ? "bg-emerald-500" : "bg-zinc-700"
+                                )}>
+                                    <div className={cn(
+                                        "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all",
+                                        openToExternal ? "left-5" : "left-0.5"
+                                    )} />
+                                </div>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                {/* ============ TITLE ============ */}
-                <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-zinc-300">Titre</FormLabel>
-                            <FormControl>
-                                <Input
-                                    placeholder="Ex: Raid Bethel - Farm clés"
-                                    {...field}
-                                    className="h-11 bg-zinc-900/50 border-zinc-800 text-zinc-100 focus:border-amber-500/50"
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                {/* ============ TITLE (Hidden for raids) ============ */}
+                {selectedType !== "RAID_OFFICIAL" && (
+                    <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-zinc-300">Titre</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        placeholder="Ex: Raid Bethel - Farm clés"
+                                        {...field}
+                                        className="h-11 bg-zinc-950 border border-zinc-800 text-zinc-100 focus:border-amber-500/50 shadow-inner"
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
 
                 {/* ============ DATE & TIME (unified row) ============ */}
                 <div className="space-y-2">
@@ -361,7 +657,7 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                                                 <Button
                                                     variant="outline"
                                                     className={cn(
-                                                        "h-11 w-full justify-start text-left font-normal bg-zinc-900/50 border-zinc-800 text-zinc-100 hover:bg-zinc-800/80",
+                                                        "h-11 w-full justify-start text-left font-normal bg-zinc-950 border border-zinc-800 text-zinc-100 hover:bg-zinc-900 shadow-inner",
                                                         !field.value && "text-muted-foreground"
                                                     )}
                                                 >
@@ -397,7 +693,7 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                                             <Input
                                                 type="time"
                                                 {...field}
-                                                className="h-11 pl-10 bg-zinc-900/50 border-zinc-800 text-zinc-100"
+                                                className="h-11 pl-10 bg-zinc-950 border border-zinc-800 text-zinc-100 shadow-inner"
                                             />
                                         </div>
                                     </FormControl>
@@ -417,7 +713,7 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                                             <Input
                                                 type="time"
                                                 {...field}
-                                                className="h-11 pl-10 bg-zinc-900/50 border-zinc-800 text-zinc-100"
+                                                className="h-11 pl-10 bg-zinc-950 border border-zinc-800 text-zinc-100 shadow-inner"
                                             />
                                         </div>
                                     </FormControl>
@@ -457,7 +753,7 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
 
                                             field.onChange(numValue);
                                         }}
-                                        className="h-11 pl-10 bg-zinc-900/50 border-zinc-800 text-zinc-100"
+                                        className="h-11 pl-10 bg-zinc-950 border border-zinc-800 text-zinc-100 shadow-inner"
                                     />
                                 </div>
                             </FormControl>
@@ -466,20 +762,110 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                     )}
                 />
 
+                {/* ============ DESCRIPTION ============ */}
+                {selectedType !== "SESSION_MISSIONS" && (
+                    <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-zinc-300">Description</FormLabel>
+                                <FormControl>
+                                    <Textarea
+                                        placeholder="Détails, objectifs, pré-requis..."
+                                        className="min-h-[70px] bg-zinc-950 border border-zinc-800 text-zinc-100 resize-none shadow-inner"
+                                        {...field}
+                                        value={field.value || ""}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+
+                {/* ============ MISSION PICKER (Conditional) ============ */}
+                {selectedType === "SESSION_MISSIONS" && (
+                    <div className="pt-2 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <MissionPicker
+                            guildId={guildId}
+                            selectedIds={selectedMissions}
+                            onSelect={handleMissionSelect}
+                        />
+                    </div>
+                )}
+
+                {/* ============ NEXT BUTTON ============ */}
+                <Button
+                    type="button"
+                    onClick={handleNextStep}
+                    className={cn(
+                        "w-full h-12 font-bold text-base transition-all mt-4",
+                        "bg-gradient-to-r from-amber-500 to-orange-500",
+                        "hover:from-amber-400 hover:to-orange-400",
+                        "shadow-lg shadow-amber-500/20",
+                        "text-zinc-950"
+                    )}
+                >
+                    Suivant
+                </Button>
+            </motion.div>
+        )}
+
+        {step === 2 && (
+            <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="space-y-6"
+            >
+                {/* Header Recap */}
+                <div className="flex items-center gap-4 bg-zinc-900/60 rounded-3xl p-5 border border-white/10 shadow-xl relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border relative z-10 bg-zinc-950 border-white/10">
+                        {currentConfig && <currentConfig.icon className="w-6 h-6 text-zinc-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0 relative z-10">
+                        <p className="font-black text-white text-lg tracking-tight truncate leading-tight">
+                            {form.watch("title") || currentConfig.shortLabel}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                {format(form.watch("date"), "d MMM", { locale: fr })}
+                            </span>
+                            <span className="text-[11px] font-medium text-zinc-500 truncate">
+                                {form.watch("startTime")} - {form.watch("endTime")}
+                            </span>
+                        </div>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setStep(1)} className="h-9 px-4 rounded-xl text-xs font-black text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 shrink-0 relative z-10">
+                        RETOUR
+                    </Button>
+                </div>
+
                 {/* ============ PUBLISH OPTION ============ */}
                 <FormField
                     control={form.control}
                     name="publishOnDiscord"
                     render={({ field }) => (
                         <FormItem className="space-y-3">
-                            <div className="flex flex-row items-center justify-between rounded-lg border border-border bg-background/50 p-4">
+                            <div className="flex flex-row items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900 p-4">
                                 <div className="space-y-0.5">
-                                    <FormLabel className="text-base text-zinc-100">
+                                    <FormLabel className="text-base text-zinc-100 flex items-center gap-2">
                                         Publier sur Discord
                                     </FormLabel>
                                     <div className="text-sm text-zinc-400">
-                                        Envoie immédiatement l'annonce dans le canal configuré.
+                                        Envoie l'annonce sur le serveur.
                                     </div>
+                                    {field.value && isDiscordConfigured && (
+                                        <div className="flex items-center gap-1 mt-2 animate-in fade-in">
+                                            <Hash className="w-3.5 h-3.5 text-indigo-400/80" />
+                                            <span className="text-[11px] text-indigo-400/90 font-bold uppercase tracking-widest">
+                                                Sera posté dans #{targetChannelName}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                                 <FormControl>
                                     <div className="flex items-center space-x-2">
@@ -500,51 +886,149 @@ export function EventForm({ initialData, onSubmit, isDiscordConfigured }: EventF
                     )}
                 />
 
-                {/* ============ DESCRIPTION ============ */}
-                <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-zinc-300">Description</FormLabel>
-                            <FormControl>
-                                <Textarea
-                                    placeholder="Détails, objectifs, pré-requis..."
-                                    className="min-h-[70px] bg-zinc-900/50 border-zinc-800 text-zinc-100 resize-none"
-                                    {...field}
-                                    value={field.value || ""}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                {/* ============ DISCORD ROLE MENTION (Conditional) ============ */}
+                {form.watch("publishOnDiscord") && discordRoles.length > 0 && (
+                    <FormField
+                        control={form.control}
+                        name="mentionRoleIds"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center gap-2 mb-1 ml-1">
+                                    <Hash className="h-3.5 w-3.5 text-indigo-400" />
+                                    <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest">Mentionner un rôle (Ping)</span>
+                                </div>
+                                <Popover open={roleOpen} onOpenChange={setRoleOpen}>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={roleOpen}
+                                                className="h-14 bg-zinc-950/50 border-white/10 text-sm font-bold rounded-2xl justify-between group/role w-full hover:bg-zinc-950 px-4"
+                                            >
+                                                <div className="flex items-center gap-3 truncate">
+                                                    {field.value && field.value.length > 0 ? (
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            {field.value.map(id => {
+                                                                const role = discordRoles.find(r => r.id === id);
+                                                                if (!role) return null;
+                                                                const roleColor = role.color === "#000000" ? "#9ca3af" : (role.color || "#9ca3af");
+                                                                return (
+                                                                    <div 
+                                                                        key={id} 
+                                                                        className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all"
+                                                                        style={{ 
+                                                                            backgroundColor: `${roleColor}15`, 
+                                                                            borderColor: `${roleColor}40`,
+                                                                            color: roleColor 
+                                                                        }}
+                                                                    >
+                                                                        <div 
+                                                                            className="w-1.5 h-1.5 rounded-full shrink-0 shadow-[0_0_5px_currentColor]" 
+                                                                            style={{ backgroundColor: roleColor }} 
+                                                                        />
+                                                                        <span className="text-[10px] font-bold uppercase truncate max-w-[80px]">{role.name}</span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                field.onChange(field.value?.filter((rid: string) => rid !== id));
+                                                                            }}
+                                                                            className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                                                        >
+                                                                            <X className="h-2.5 w-2.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
+                                                    )}
+                                                </div>
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-950 border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="center" sideOffset={8}>
+                                        <Command className="bg-transparent text-white">
+                                            <CommandInput placeholder="Rechercher un rôle..." className="h-12 border-none focus:ring-0 text-sm" />
+                                            <CommandList className="max-h-[320px] premium-scrollbar p-2">
+                                                <CommandEmpty>Aucun rôle.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandItem
+                                                        onSelect={() => {
+                                                            field.onChange([]);
+                                                        }}
+                                                        className="text-zinc-500 italic focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
+                                                    >
+                                                        <span>Aucun ping</span>
+                                                        {(!field.value || field.value.length === 0) && <Check className="h-4 w-4 text-amber-500" />}
+                                                    </CommandItem>
+                                                    {discordRoles.map((role) => (
+                                                        <CommandItem
+                                                            key={role.id}
+                                                            value={role.name}
+                                                            onSelect={() => {
+                                                                const current = field.value || [];
+                                                                const next = current.includes(role.id)
+                                                                    ? current.filter(id => id !== role.id)
+                                                                    : [...current, role.id];
+                                                                field.onChange(next);
+                                                            }}
+                                                            className="focus:bg-white/5 cursor-pointer text-xs py-3 px-3 rounded-xl flex items-center justify-between group"
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div 
+                                                                    className="w-3 h-3 rounded-full shrink-0 shadow-sm" 
+                                                                    style={{ backgroundColor: role.color === "#000000" ? "#9ca3af" : (role.color || "#9ca3af") }} 
+                                                                />
+                                                                <span className="font-bold text-zinc-300 group-hover:text-white transition-colors uppercase tracking-tight">{role.name}</span>
+                                                            </div>
+                                                            {field.value?.includes(role.id) && <Check className="h-4 w-4 text-amber-500" />}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
 
                 {/* ============ SUBMIT ============ */}
-                <Button
-                    type="submit"
-                    disabled={submitting}
-                    className={cn(
-                        "w-full h-12 font-bold text-base transition-all",
-                        "bg-gradient-to-r from-amber-500 to-orange-500",
-                        "hover:from-amber-400 hover:to-orange-400",
-                        "shadow-lg shadow-amber-500/20",
-                        "text-zinc-950"
-                    )}
-                >
-                    {submitting ? (
-                        <>
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            Création...
-                        </>
-                    ) : (
-                        <>
-                            {currentConfig && <currentConfig.icon className="mr-2 h-5 w-5" />}
-                            {initialData ? "Enregistrer" : "Créer l'événement"}
-                        </>
-                    )}
-                </Button>
-            </form>
-        </Form>
+                <div className="flex items-center gap-3 mt-4">
+                    <Button
+                        type="submit"
+                        disabled={submitting}
+                        className={cn(
+                            "w-full h-12 font-bold text-base transition-all",
+                            "bg-gradient-to-r from-amber-500 to-orange-500",
+                            "hover:from-amber-400 hover:to-orange-400",
+                            "shadow-lg shadow-amber-500/20",
+                            "text-zinc-950"
+                        )}
+                    >
+                        {submitting ? (
+                            <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                Création...
+                            </>
+                        ) : (
+                            <>
+                                {currentConfig && <currentConfig.icon className="mr-2 h-5 w-5" />}
+                                {initialData ? "Enregistrer" : "Créer l'événement"}
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </motion.div>
+        )}
+        </AnimatePresence>
+    </form>
+</Form>
     );
 }

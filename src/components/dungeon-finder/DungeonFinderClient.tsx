@@ -6,6 +6,7 @@ import { io } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { Plus, Search, Trophy, Sword, RefreshCw, Frown, Users, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { DjPostCard } from "./DjPostCard";
 import { DjPostCreateModal } from "./DjPostCreateModal";
 import { DjFiltersBar, type DjFiltersState } from "./DjFiltersBar";
@@ -119,8 +120,8 @@ export function DungeonFinderClient({
     const myActivePosts = posts.filter((p) => p.profileId === currentProfileId && p.status === "OPEN");
     const canCreate = myActivePosts.length < 3;
 
-    const TABS: { id: Tab; label: string; sub: string; icon: React.ElementType; color: string }[] = [
-        { id: "posts", label: "Recherche DJ", sub: "Trouver un groupe", icon: Search, color: "zinc" },
+    const TABS: { id: Tab; label: string; sub: string; icon: React.ElementType; color: "indigo" | "amber" | "emerald" }[] = [
+        { id: "posts", label: "Recherche DJ", sub: "Trouver un groupe", icon: Search, color: "indigo" },
         { id: "tracker", label: "Mes Succès", sub: "Ma progression", icon: Trophy, color: "amber" },
         { id: "directory", label: "Succès Commun", sub: "La guilde", icon: Users, color: "emerald" },
     ];
@@ -133,73 +134,124 @@ export function DungeonFinderClient({
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
                     const colorVariants = {
-                        zinc: {
-                            border: "border-white/20",
-                            icon: "bg-white/10 border-white/20 text-white",
-                            sub: "text-zinc-400",
-                            glow: "bg-white",
-                            shadow: "shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                        indigo: {
+                            border: "border-indigo-500/50",
+                            icon: "bg-indigo-500/15 border-indigo-500/30 text-indigo-400",
+                            sub: "text-indigo-300",
+                            glow: "bg-indigo-500",
+                            shadow: "shadow-[0_0_20px_rgba(99,102,241,0.35)]",
+                            inactiveIcon: "bg-indigo-500/8 border-indigo-500/15 text-indigo-400",
+                            inactiveSub: "text-indigo-400/70",
+                            inactiveBorder: "border-indigo-500/20"
                         },
                         amber: {
-                            border: "border-amber-500/40",
-                            icon: "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                            sub: "text-amber-400/80",
+                            border: "border-amber-500/50",
+                            icon: "bg-amber-500/15 border-amber-500/30 text-amber-400",
+                            sub: "text-amber-300",
                             glow: "bg-amber-500",
-                            shadow: "shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+                            shadow: "shadow-[0_0_20px_rgba(245,158,11,0.35)]",
+                            inactiveIcon: "bg-amber-500/8 border-amber-500/15 text-amber-400",
+                            inactiveSub: "text-amber-400/70",
+                            inactiveBorder: "border-amber-500/20"
                         },
                         emerald: {
-                            border: "border-emerald-500/40",
-                            icon: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-                            sub: "text-emerald-400/80",
+                            border: "border-emerald-500/50",
+                            icon: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400",
+                            sub: "text-emerald-300",
                             glow: "bg-emerald-500",
-                            shadow: "shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                            shadow: "shadow-[0_0_20px_rgba(16,185,129,0.35)]",
+                            inactiveIcon: "bg-emerald-500/8 border-emerald-500/15 text-emerald-400",
+                            inactiveSub: "text-emerald-400/70",
+                            inactiveBorder: "border-emerald-500/20"
                         }
-                    }[tab.color] || {
-                        border: "border-white/20",
-                        icon: "bg-white/10 border-white/20 text-white",
-                        sub: "text-zinc-400",
-                        glow: "bg-white",
-                        shadow: "shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-                    };
+                    }[tab.color];
 
                     return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`relative group overflow-hidden flex items-center gap-4 p-5 rounded-2xl border transition-all duration-300 ${isActive
-                                ? `bg-zinc-800/80 ${colorVariants.border} shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] scale-[1.02]`
-                                : "bg-zinc-900/20 border-white/5 hover:border-white/10 hover:bg-zinc-900/40"
-                                }`}
+                            className={cn(
+                                "relative group overflow-hidden flex items-center gap-4 p-5 rounded-2xl border transition-all duration-500",
+                                isActive
+                                    ? cn("bg-zinc-800/90 scale-[1.02] z-10 shadow-2xl", colorVariants.border, colorVariants.shadow)
+                                    : cn("bg-zinc-900/70 hover:bg-zinc-800/70", colorVariants.inactiveBorder)
+                            )}
                         >
+                            {/* Animated Background Glow */}
+                            <AnimatePresence>
+                                {isActive && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className={cn(
+                                            "absolute inset-0 bg-gradient-to-br opacity-[0.03] pointer-events-none",
+                                            tab.color === 'indigo' ? 'from-indigo-500 to-transparent' :
+                                            tab.color === 'amber' ? 'from-amber-500 to-transparent' :
+                                            'from-emerald-500 to-transparent'
+                                        )}
+                                    />
+                                )}
+                            </AnimatePresence>
+
                             {/* Top Indicator */}
                             {isActive && (
                                 <motion.div 
                                     layoutId="active-pill"
-                                    className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-${tab.color === 'zinc' ? 'white' : tab.color + '-500'} to-transparent`} 
+                                    className={cn(
+                                        "absolute top-0 inset-x-0 h-[2px] z-20",
+                                        tab.color === 'indigo' ? 'bg-indigo-500' :
+                                        tab.color === 'amber' ? 'bg-amber-500' :
+                                        'bg-emerald-500'
+                                    )}
+                                    style={{ 
+                                        boxShadow: `0 0 15px ${tab.color === 'indigo' ? 'rgba(99,102,241,0.5)' : 
+                                                     tab.color === 'amber' ? 'rgba(245,158,11,0.5)' : 
+                                                     'rgba(16,185,129,0.5)'}` 
+                                    }}
                                 />
                             )}
 
                             {/* Icon Box */}
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-300 ${isActive
-                                ? colorVariants.icon
-                                : "bg-white/5 border-white/5 text-zinc-600 group-hover:text-zinc-400"
-                                }`}>
-                                <Icon className="w-5 h-5" />
+                            <div className={cn(
+                                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-500 relative overflow-hidden",
+                                isActive
+                                    ? colorVariants.icon + " shadow-lg"
+                                    : colorVariants.inactiveIcon + " group-hover:brightness-125"
+                            )}>
+                                {isActive && (
+                                    <div className={cn(
+                                        "absolute inset-0 opacity-20 bg-gradient-to-br",
+                                        tab.color === 'indigo' ? 'from-indigo-400 to-indigo-700' :
+                                        tab.color === 'amber' ? 'from-amber-400 to-amber-700' :
+                                        'from-emerald-400 to-emerald-700'
+                                    )} />
+                                )}
+                                <Icon className={cn("w-5 h-5 relative z-10", isActive ? "scale-110" : "scale-100 transition-transform duration-500 group-hover:scale-110")} />
                             </div>
 
                             {/* Labels */}
-                            <div className="text-left">
-                                <p className={`font-black text-xs uppercase tracking-[0.2em] transition-colors ${isActive ? "text-white" : "text-zinc-500"}`}>
+                            <div className="text-left relative z-10">
+                                <p className={cn(
+                                    "font-black text-[10px] uppercase tracking-[0.25em] transition-colors duration-500",
+                                    isActive ? "text-white" : "text-zinc-300 group-hover:text-white"
+                                )}>
                                     {tab.label}
                                 </p>
-                                <p className={`text-[10px] font-bold mt-0.5 transition-colors ${isActive ? colorVariants.sub : "text-zinc-600"}`}>
+                                <p className={cn(
+                                    "text-[11px] font-bold mt-1 transition-colors duration-500",
+                                    isActive ? colorVariants.sub : colorVariants.inactiveSub + " group-hover:" + colorVariants.sub
+                                )}>
                                     {tab.sub}
                                 </p>
                             </div>
 
-                            {/* Accent Glow */}
+                            {/* Corner Accent */}
                             {isActive && (
-                                <div className={`absolute -bottom-2 -right-2 w-16 h-16 ${colorVariants.glow}/10 blur-2xl rounded-full`} />
+                                <div className={cn(
+                                    "absolute -bottom-6 -right-6 w-20 h-20 blur-3xl rounded-full opacity-20",
+                                    colorVariants.glow
+                                )} />
                             )}
                         </button>
                     );

@@ -160,8 +160,33 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     parseGameRooms(garticRooms, 'GARTIC');
     parseGameRooms(geoRooms, 'GEOGUESSER');
 
-    // 7. Combine, Sort, and Limit (Prioritize live games)
-    const allEvents = [...sessions, ...normalizedDbEvents].sort((a, b) => {
+    // 7. Combine, Deduplicate and Sort (Prioritize live games)
+    // Map DB events by their Metamob ID for easy lookup
+    const dbMetamobIds = new Set(
+        normalizedDbEvents
+            .filter(e => (e as any).metadata?.metamobId)
+            .map(e => (e as any).metadata.metamobId.toString())
+    );
+
+    // Merge: Include live games, all DB events, and ONLY non-imported Kralamoure events
+    const allEvents = [
+        ...sessions,
+        ...normalizedDbEvents.map(dbEv => {
+            // If it's an imported Krala event, try to find the live version to update count
+            const meta = (dbEv as any).metadata;
+            if (meta?.isKralamoure && meta?.metamobId) {
+                const liveMatch = normalizedKralaEvents.find(k => k.id === `krala-${meta.metamobId}`);
+                if (liveMatch) {
+                    return { ...dbEv, participantsCount: liveMatch.participantsCount };
+                }
+            }
+            return dbEv;
+        }),
+        ...normalizedKralaEvents.filter(k => {
+            const id = k.id.replace("krala-", "");
+            return !dbMetamobIds.has(id);
+        })
+    ].sort((a, b) => {
         // Priority to live games
         const aLive = (a.metadata as any)?.isLive;
         const bLive = (b.metadata as any)?.isLive;
@@ -176,7 +201,7 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
 
 import { logger } from "@/lib/logger";
 
-export async function getExternalKralamoureDetails(kralaId: number, guildId: string) {
+export async function getExternalKralamoureDetails(kralaId: number, guildId: string, revalidate?: number) {
     const session = await auth();
     if (!session?.user?.id) return null;
 
@@ -187,7 +212,10 @@ export async function getExternalKralamoureDetails(kralaId: number, guildId: str
 
     // We need an API key. Try user's key first, then any member's key.
     const userProfile = await db.userProfile.findFirst({
-        where: { userId: session.user.id, guildId: ctx.guildId },
+        where: { 
+            userId: session.user.id, 
+            metamobApiKey: { not: null }
+        },
         select: { metamobApiKey: true }
     });
 
@@ -215,7 +243,10 @@ export async function getExternalKralamoureDetails(kralaId: number, guildId: str
     if (!apiKey) return null; // No key anywhere — can't fetch
 
     try {
-        const details = await getKralamoureEventDetails(kralaId, { guildApiKey: apiKey });
+        const details = await getKralamoureEventDetails(kralaId, { 
+            guildApiKey: apiKey,
+            revalidate: revalidate ?? 3600 // Default to 1h if not specified
+        });
         logger.error("[getExternalKralamoureDetails] SUCCESS:", {
             kralaId,
             participantsCount: details.participants_count,

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  /* removed scrollbar-gutter to fix double scrollbar track issues */
+}
+
 :root, .dark {
   --sigil-bg: #0E1110;
   --sigil-fg: #FAFBFC;
@@ -111,6 +115,22 @@
 
   .magic-glow:hover::after {
     opacity: 0.2;
+  }
+
+  /* --- HUD SCANLINES --- */
+  .bg-scanlines {
+    background: linear-gradient(
+      rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.1) 50%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.02),
+      rgba(0, 255, 0, 0.01),
+      rgba(0, 0, 255, 0.02)
+    );
+    background-size: 100% 2px, 3px 100%;
+    pointer-events: none;
   }
 
   /* --- MODERN PARCHMENT GLASS --- */
@@ -240,21 +260,28 @@
   }
 
   body {
-    height: 100%;
     background-color: var(--background);
     color: var(--foreground);
-    overflow: hidden; /* Forced for dashboard */
   }
 
-  /* Allow scrolling for landing pages and public docs */
+  /* --- DASHBOARD MODE: Restricted & Locked --- */
+  html:has(.dashboard-layout),
+  html:has(.dashboard-layout) body {
+    overflow: hidden !important;
+    height: 100% !important;
+  }
+
+  /* --- PUBLIC MODE: Clean & Scrollable --- */
   html:not(:has(.dashboard-layout)) {
+    overflow-x: hidden;
     overflow-y: auto !important;
-    height: auto !important;
+    height: auto;
   }
-
+  
   html:not(:has(.dashboard-layout)) body {
-    overflow-y: visible !important;
-    height: auto !important;
+    overflow: visible !important;
+    height: auto;
+    margin: 0;
   }
 }
 
@@ -643,5 +670,43 @@
 
 .reduce-motion .magic-glow::after {
   display: none !important;
+}
+
+/* --- GANYMEDE STEP STYLES --- */
+.ganymade-step-text input[type="checkbox"] {
+  display: none !important;
+}
+
+.ganymade-step-text a {
+  @apply text-emerald-400 font-bold hover:underline transition-all;
+}
+
+.ganymade-step-text span[style*="color"] {
+  @apply font-bold;
+}
+
+.ganymade-step-text b, .ganymade-step-text strong {
+  @apply text-white font-black;
+}
+
+/* Custom Scrollbar Utility */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  transition: all 0.3s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 

@@ -30,6 +30,8 @@ export default async function OptimizedGuideUserPage({ params }: { params: Promi
         allProgress = (membersContext.allProgress || []).map((p: any) => ({
             profileId: p.profileId,
             milestoneId: p.milestoneId,
+            isCompleted: p.isCompleted || false,
+            completedSteps: Array.isArray(p.completedSteps) ? p.completedSteps : [],
             userName: p.profile?.displayName || p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
             userAvatar: p.profile?.user?.image || undefined,
             profileSlug: p.profile?.pseudoDofus || p.profileId

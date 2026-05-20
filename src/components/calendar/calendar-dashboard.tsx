@@ -697,7 +697,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     if (!open) setPrefilledDate(null);
                 }}
             >
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800 shadow-2xl">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ring-1 ring-orange-500/25 shadow-[0_0_50px_rgba(249,115,22,0.2)]">
                     <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
                         Créer un événement
                     </DialogTitle>
@@ -750,7 +750,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
             {/* ============ EDIT DIALOG ============ */}
             <Dialog open={!!editingEvent} onOpenChange={(open) => !open && setEditingEvent(null)}>
-                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800 shadow-2xl">
+                <DialogContent draggable className="max-w-2xl max-h-[90vh] overflow-y-auto bg-zinc-950/98 border border-white/10 ring-1 ring-orange-500/25 shadow-[0_0_50px_rgba(249,115,22,0.2)]">
                     <DialogTitle className="text-xl font-black uppercase italic tracking-tighter text-foreground">
                         Modifier l'événement
                     </DialogTitle>

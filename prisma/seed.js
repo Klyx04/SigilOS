@@ -2682,11 +2682,10 @@ var require_buffer_reader = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BufferReader = void 0;
-    var emptyBuffer = Buffer.allocUnsafe(0);
     var BufferReader = class {
       constructor(offset = 0) {
         this.offset = offset;
-        this.buffer = emptyBuffer;
+        this.buffer = Buffer.allocUnsafe(0);
         this.encoding = "utf-8";
       }
       setBuffer(offset, buffer) {
@@ -3331,8 +3330,8 @@ var require_split2 = __commonJS({
     "use strict";
     var { Transform } = require("stream");
     var { StringDecoder } = require("string_decoder");
-    var kLast = Symbol("last");
-    var kDecoder = Symbol("decoder");
+    var kLast = /* @__PURE__ */ Symbol("last");
+    var kDecoder = /* @__PURE__ */ Symbol("decoder");
     function transform(chunk, enc, cb) {
       let list;
       if (this.overflow) {
@@ -3621,7 +3620,6 @@ var require_lib = __commonJS({
 // node_modules/pg/lib/client.js
 var require_client = __commonJS({
   "node_modules/pg/lib/client.js"(exports2, module2) {
-    "use strict";
     var EventEmitter = require("events").EventEmitter;
     var utils = require_utils();
     var nodeUtils = require("util");
@@ -3635,22 +3633,27 @@ var require_client = __commonJS({
     var activeQueryDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
-      "Client.activeQuery is deprecated and will be removed in a future version."
+      "Client.activeQuery is deprecated and will be removed in pg@9.0"
     );
     var queryQueueDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
-      "Client.queryQueue is deprecated and will be removed in a future version."
+      "Client.queryQueue is deprecated and will be removed in pg@9.0."
     );
     var pgPassDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
-      "pgpass support is deprecated and will be removed in a future version. You can provide an async function as the password property to the Client/Pool constructor that returns a password instead. Within this funciton you can call the pgpass module in your own code."
+      "pgpass support is deprecated and will be removed in pg@9.0. You can provide an async function as the password property to the Client/Pool constructor that returns a password instead. Within this function you can call the pgpass module in your own code."
     );
     var byoPromiseDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
-      "Passing a custom Promise implementation to the Client/Pool constructor is deprecated and will be removed in a future version."
+      "Passing a custom Promise implementation to the Client/Pool constructor is deprecated and will be removed in pg@9.0."
+    );
+    var queryQueueLengthDeprecationNotice = nodeUtils.deprecate(
+      () => {
+      },
+      "Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead."
     );
     var Client2 = class extends EventEmitter {
       constructor(config) {
@@ -3822,7 +3825,7 @@ var require_client = __commonJS({
       _getPassword(cb) {
         const con = this.connection;
         if (typeof this.password === "function") {
-          this._Promise.resolve().then(() => this.password()).then((pass) => {
+          this._Promise.resolve().then(() => this.password(this.connectionParameters)).then((pass) => {
             if (pass !== void 0) {
               if (typeof pass !== "string") {
                 con.emit("error", new TypeError("Password must be a string"));
@@ -4128,8 +4131,12 @@ var require_client = __commonJS({
         } else if (typeof config.submit === "function") {
           readTimeout = config.query_timeout || this.connectionParameters.query_timeout;
           result = query = config;
-          if (typeof values === "function") {
-            query.callback = query.callback || values;
+          if (!query.callback) {
+            if (typeof values === "function") {
+              query.callback = values;
+            } else if (callback) {
+              query.callback = callback;
+            }
           }
         } else {
           readTimeout = config.query_timeout || this.connectionParameters.query_timeout;
@@ -4144,7 +4151,8 @@ var require_client = __commonJS({
           }
         }
         if (readTimeout) {
-          queryCallback = query.callback;
+          queryCallback = query.callback || (() => {
+          });
           readTimeoutTimer = setTimeout(() => {
             const error = new Error("Query read timeout");
             process.nextTick(() => {
@@ -4181,6 +4189,9 @@ var require_client = __commonJS({
             query.handleError(new Error("Client was closed and is not queryable"), this.connection);
           });
           return result;
+        }
+        if (this._queryQueue.length > 0) {
+          queryQueueLengthDeprecationNotice();
         }
         this._queryQueue.push(query);
         this._pulseQueryQueue();
@@ -4316,6 +4327,13 @@ var require_pg_pool = __commonJS({
         this.ending = false;
         this.ended = false;
       }
+      _promiseTry(f) {
+        const Promise2 = this.Promise;
+        if (typeof Promise2.try === "function") {
+          return Promise2.try(f);
+        }
+        return new Promise2((resolve) => resolve(f()));
+      }
       _isFull() {
         return this._clients.length >= this.options.max;
       }
@@ -4419,9 +4437,15 @@ var require_pg_pool = __commonJS({
         let timeoutHit = false;
         if (this.options.connectionTimeoutMillis) {
           tid = setTimeout(() => {
-            this.log("ending client due to timeout");
-            timeoutHit = true;
-            client.connection ? client.connection.stream.destroy() : client.end();
+            if (client.connection) {
+              this.log("ending client due to timeout");
+              timeoutHit = true;
+              client.connection.stream.destroy();
+            } else if (!client.isConnected()) {
+              this.log("ending client due to timeout");
+              timeoutHit = true;
+              client.end();
+            }
           }, this.options.connectionTimeoutMillis);
         }
         this.log("connecting new client");
@@ -4442,26 +4466,46 @@ var require_pg_pool = __commonJS({
             }
           } else {
             this.log("new client connected");
-            if (this.options.maxLifetimeSeconds !== 0) {
-              const maxLifetimeTimeout = setTimeout(() => {
-                this.log("ending client due to expired lifetime");
-                this._expired.add(client);
-                const idleIndex = this._idle.findIndex((idleItem) => idleItem.client === client);
-                if (idleIndex !== -1) {
-                  this._acquireClient(
-                    client,
-                    new PendingItem((err2, client2, clientRelease) => clientRelease()),
-                    idleListener,
-                    false
-                  );
+            if (this.options.onConnect) {
+              this._promiseTry(() => this.options.onConnect(client)).then(
+                () => {
+                  this._afterConnect(client, pendingItem, idleListener);
+                },
+                (hookErr) => {
+                  this._clients = this._clients.filter((c) => c !== client);
+                  client.end(() => {
+                    this._pulseQueue();
+                    if (!pendingItem.timedOut) {
+                      pendingItem.callback(hookErr, void 0, NOOP);
+                    }
+                  });
                 }
-              }, this.options.maxLifetimeSeconds * 1e3);
-              maxLifetimeTimeout.unref();
-              client.once("end", () => clearTimeout(maxLifetimeTimeout));
+              );
+              return;
             }
-            return this._acquireClient(client, pendingItem, idleListener, true);
+            return this._afterConnect(client, pendingItem, idleListener);
           }
         });
+      }
+      _afterConnect(client, pendingItem, idleListener) {
+        if (this.options.maxLifetimeSeconds !== 0) {
+          const maxLifetimeTimeout = setTimeout(() => {
+            this.log("ending client due to expired lifetime");
+            this._expired.add(client);
+            const idleIndex = this._idle.findIndex((idleItem) => idleItem.client === client);
+            if (idleIndex !== -1) {
+              this._acquireClient(
+                client,
+                new PendingItem((err, client2, clientRelease) => clientRelease()),
+                idleListener,
+                false
+              );
+            }
+          }, this.options.maxLifetimeSeconds * 1e3);
+          maxLifetimeTimeout.unref();
+          client.once("end", () => clearTimeout(maxLifetimeTimeout));
+        }
+        return this._acquireClient(client, pendingItem, idleListener, true);
       }
       // acquire a client for a pending work item
       _acquireClient(client, pendingItem, idleListener, isNew) {
@@ -4761,7 +4805,7 @@ var require_query2 = __commonJS({
 // node_modules/pg/lib/native/client.js
 var require_client2 = __commonJS({
   "node_modules/pg/lib/native/client.js"(exports2, module2) {
-    "use strict";
+    var nodeUtils = require("util");
     var Native;
     try {
       Native = require("pg-native");
@@ -4773,6 +4817,11 @@ var require_client2 = __commonJS({
     var util = require("util");
     var ConnectionParameters = require_connection_parameters();
     var NativeQuery = require_query2();
+    var queryQueueLengthDeprecationNotice = nodeUtils.deprecate(
+      () => {
+      },
+      "Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead."
+    );
     var Client2 = module2.exports = function(config) {
       EventEmitter.call(this);
       config = config || {};
@@ -4894,7 +4943,8 @@ var require_client2 = __commonJS({
         }
       }
       if (readTimeout) {
-        queryCallback = query.callback;
+        queryCallback = query.callback || (() => {
+        });
         readTimeoutTimer = setTimeout(() => {
           const error = new Error("Query read timeout");
           process.nextTick(() => {
@@ -4928,6 +4978,9 @@ var require_client2 = __commonJS({
         });
         return result;
       }
+      if (this._queryQueue.length > 0) {
+        queryQueueLengthDeprecationNotice();
+      }
       this._queryQueue.push(query);
       this._pulseQueryQueue();
       return result;
@@ -4945,6 +4998,7 @@ var require_client2 = __commonJS({
         });
       }
       this.native.end(function() {
+        self._connected = false;
         self._errorAllQueries(new Error("Connection terminated"));
         process.nextTick(() => {
           self.emit("end");
@@ -4994,6 +5048,9 @@ var require_client2 = __commonJS({
     };
     Client2.prototype.getTypeParser = function(oid, format) {
       return this._types.getTypeParser(oid, format);
+    };
+    Client2.prototype.isConnected = function() {
+      return this._connected;
     };
   }
 });
@@ -5164,6 +5221,371 @@ var require_postgres_array2 = __commonJS({
     }
     var parseArray2 = makeParseArrayWithTransform();
     exports2.parse = (source, transform) => transform != null ? makeParseArrayWithTransform(transform)(source) : parseArray2(source);
+  }
+});
+
+// node_modules/dotenv/lib/main.js
+var require_main = __commonJS({
+  "node_modules/dotenv/lib/main.js"(exports2, module2) {
+    var fs2 = require("fs");
+    var path2 = require("path");
+    var os = require("os");
+    var crypto = require("crypto");
+    var TIPS = [
+      "\u25C8 encrypted .env [www.dotenvx.com]",
+      "\u25C8 secrets for agents [www.dotenvx.com]",
+      "\u2301 auth for agents [www.vestauth.com]",
+      "\u2318 custom filepath { path: '/custom/path/.env' }",
+      "\u2318 enable debugging { debug: true }",
+      "\u2318 override existing { override: true }",
+      "\u2318 suppress logs { quiet: true }",
+      "\u2318 multiple files { path: ['.env.local', '.env'] }"
+    ];
+    function _getRandomTip() {
+      return TIPS[Math.floor(Math.random() * TIPS.length)];
+    }
+    function parseBoolean(value) {
+      if (typeof value === "string") {
+        return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
+      }
+      return Boolean(value);
+    }
+    function supportsAnsi() {
+      return process.stdout.isTTY;
+    }
+    function dim2(text) {
+      return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
+    }
+    var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
+    function parse(src) {
+      const obj = {};
+      let lines = src.toString();
+      lines = lines.replace(/\r\n?/mg, "\n");
+      let match;
+      while ((match = LINE.exec(lines)) != null) {
+        const key = match[1];
+        let value = match[2] || "";
+        value = value.trim();
+        const maybeQuote = value[0];
+        value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
+        if (maybeQuote === '"') {
+          value = value.replace(/\\n/g, "\n");
+          value = value.replace(/\\r/g, "\r");
+        }
+        obj[key] = value;
+      }
+      return obj;
+    }
+    function _parseVault(options) {
+      options = options || {};
+      const vaultPath = _vaultPath(options);
+      options.path = vaultPath;
+      const result = DotenvModule.configDotenv(options);
+      if (!result.parsed) {
+        const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
+        err.code = "MISSING_DATA";
+        throw err;
+      }
+      const keys = _dotenvKey(options).split(",");
+      const length = keys.length;
+      let decrypted;
+      for (let i = 0; i < length; i++) {
+        try {
+          const key = keys[i].trim();
+          const attrs = _instructions(result, key);
+          decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
+          break;
+        } catch (error) {
+          if (i + 1 >= length) {
+            throw error;
+          }
+        }
+      }
+      return DotenvModule.parse(decrypted);
+    }
+    function _warn(message) {
+      console.error(`\u26A0 ${message}`);
+    }
+    function _debug(message) {
+      console.log(`\u2506 ${message}`);
+    }
+    function _log(message) {
+      console.log(`\u25C7 ${message}`);
+    }
+    function _dotenvKey(options) {
+      if (options && options.DOTENV_KEY && options.DOTENV_KEY.length > 0) {
+        return options.DOTENV_KEY;
+      }
+      if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
+        return process.env.DOTENV_KEY;
+      }
+      return "";
+    }
+    function _instructions(result, dotenvKey) {
+      let uri;
+      try {
+        uri = new URL(dotenvKey);
+      } catch (error) {
+        if (error.code === "ERR_INVALID_URL") {
+          const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
+          err.code = "INVALID_DOTENV_KEY";
+          throw err;
+        }
+        throw error;
+      }
+      const key = uri.password;
+      if (!key) {
+        const err = new Error("INVALID_DOTENV_KEY: Missing key part");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      }
+      const environment = uri.searchParams.get("environment");
+      if (!environment) {
+        const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      }
+      const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
+      const ciphertext = result.parsed[environmentKey];
+      if (!ciphertext) {
+        const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
+        err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
+        throw err;
+      }
+      return { ciphertext, key };
+    }
+    function _vaultPath(options) {
+      let possibleVaultPath = null;
+      if (options && options.path && options.path.length > 0) {
+        if (Array.isArray(options.path)) {
+          for (const filepath of options.path) {
+            if (fs2.existsSync(filepath)) {
+              possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
+            }
+          }
+        } else {
+          possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
+        }
+      } else {
+        possibleVaultPath = path2.resolve(process.cwd(), ".env.vault");
+      }
+      if (fs2.existsSync(possibleVaultPath)) {
+        return possibleVaultPath;
+      }
+      return null;
+    }
+    function _resolveHome(envPath) {
+      return envPath[0] === "~" ? path2.join(os.homedir(), envPath.slice(1)) : envPath;
+    }
+    function _configVault(options) {
+      const debug3 = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
+      const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
+      if (debug3 || !quiet) {
+        _log("loading env from encrypted .env.vault");
+      }
+      const parsed = DotenvModule._parseVault(options);
+      let processEnv2 = process.env;
+      if (options && options.processEnv != null) {
+        processEnv2 = options.processEnv;
+      }
+      DotenvModule.populate(processEnv2, parsed, options);
+      return { parsed };
+    }
+    function configDotenv(options) {
+      const dotenvPath = path2.resolve(process.cwd(), ".env");
+      let encoding = "utf8";
+      let processEnv2 = process.env;
+      if (options && options.processEnv != null) {
+        processEnv2 = options.processEnv;
+      }
+      let debug3 = parseBoolean(processEnv2.DOTENV_CONFIG_DEBUG || options && options.debug);
+      let quiet = parseBoolean(processEnv2.DOTENV_CONFIG_QUIET || options && options.quiet);
+      if (options && options.encoding) {
+        encoding = options.encoding;
+      } else {
+        if (debug3) {
+          _debug("no encoding is specified (UTF-8 is used by default)");
+        }
+      }
+      let optionPaths = [dotenvPath];
+      if (options && options.path) {
+        if (!Array.isArray(options.path)) {
+          optionPaths = [_resolveHome(options.path)];
+        } else {
+          optionPaths = [];
+          for (const filepath of options.path) {
+            optionPaths.push(_resolveHome(filepath));
+          }
+        }
+      }
+      let lastError;
+      const parsedAll = {};
+      for (const path3 of optionPaths) {
+        try {
+          const parsed = DotenvModule.parse(fs2.readFileSync(path3, { encoding }));
+          DotenvModule.populate(parsedAll, parsed, options);
+        } catch (e) {
+          if (debug3) {
+            _debug(`failed to load ${path3} ${e.message}`);
+          }
+          lastError = e;
+        }
+      }
+      const populated = DotenvModule.populate(processEnv2, parsedAll, options);
+      debug3 = parseBoolean(processEnv2.DOTENV_CONFIG_DEBUG || debug3);
+      quiet = parseBoolean(processEnv2.DOTENV_CONFIG_QUIET || quiet);
+      if (debug3 || !quiet) {
+        const keysCount = Object.keys(populated).length;
+        const shortPaths = [];
+        for (const filePath of optionPaths) {
+          try {
+            const relative = path2.relative(process.cwd(), filePath);
+            shortPaths.push(relative);
+          } catch (e) {
+            if (debug3) {
+              _debug(`failed to load ${filePath} ${e.message}`);
+            }
+            lastError = e;
+          }
+        }
+        _log(`injected env (${keysCount}) from ${shortPaths.join(",")} ${dim2(`// tip: ${_getRandomTip()}`)}`);
+      }
+      if (lastError) {
+        return { parsed: parsedAll, error: lastError };
+      } else {
+        return { parsed: parsedAll };
+      }
+    }
+    function config(options) {
+      if (_dotenvKey(options).length === 0) {
+        return DotenvModule.configDotenv(options);
+      }
+      const vaultPath = _vaultPath(options);
+      if (!vaultPath) {
+        _warn(`you set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}`);
+        return DotenvModule.configDotenv(options);
+      }
+      return DotenvModule._configVault(options);
+    }
+    function decrypt(encrypted, keyStr) {
+      const key = Buffer.from(keyStr.slice(-64), "hex");
+      let ciphertext = Buffer.from(encrypted, "base64");
+      const nonce = ciphertext.subarray(0, 12);
+      const authTag = ciphertext.subarray(-16);
+      ciphertext = ciphertext.subarray(12, -16);
+      try {
+        const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
+        aesgcm.setAuthTag(authTag);
+        return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
+      } catch (error) {
+        const isRange = error instanceof RangeError;
+        const invalidKeyLength = error.message === "Invalid key length";
+        const decryptionFailed = error.message === "Unsupported state or unable to authenticate data";
+        if (isRange || invalidKeyLength) {
+          const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
+          err.code = "INVALID_DOTENV_KEY";
+          throw err;
+        } else if (decryptionFailed) {
+          const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
+          err.code = "DECRYPTION_FAILED";
+          throw err;
+        } else {
+          throw error;
+        }
+      }
+    }
+    function populate(processEnv2, parsed, options = {}) {
+      const debug3 = Boolean(options && options.debug);
+      const override = Boolean(options && options.override);
+      const populated = {};
+      if (typeof parsed !== "object") {
+        const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
+        err.code = "OBJECT_REQUIRED";
+        throw err;
+      }
+      for (const key of Object.keys(parsed)) {
+        if (Object.prototype.hasOwnProperty.call(processEnv2, key)) {
+          if (override === true) {
+            processEnv2[key] = parsed[key];
+            populated[key] = parsed[key];
+          }
+          if (debug3) {
+            if (override === true) {
+              _debug(`"${key}" is already defined and WAS overwritten`);
+            } else {
+              _debug(`"${key}" is already defined and was NOT overwritten`);
+            }
+          }
+        } else {
+          processEnv2[key] = parsed[key];
+          populated[key] = parsed[key];
+        }
+      }
+      return populated;
+    }
+    var DotenvModule = {
+      configDotenv,
+      _configVault,
+      _parseVault,
+      config,
+      decrypt,
+      parse,
+      populate
+    };
+    module2.exports.configDotenv = DotenvModule.configDotenv;
+    module2.exports._configVault = DotenvModule._configVault;
+    module2.exports._parseVault = DotenvModule._parseVault;
+    module2.exports.config = DotenvModule.config;
+    module2.exports.decrypt = DotenvModule.decrypt;
+    module2.exports.parse = DotenvModule.parse;
+    module2.exports.populate = DotenvModule.populate;
+    module2.exports = DotenvModule;
+  }
+});
+
+// node_modules/dotenv/lib/env-options.js
+var require_env_options = __commonJS({
+  "node_modules/dotenv/lib/env-options.js"(exports2, module2) {
+    var options = {};
+    if (process.env.DOTENV_CONFIG_ENCODING != null) {
+      options.encoding = process.env.DOTENV_CONFIG_ENCODING;
+    }
+    if (process.env.DOTENV_CONFIG_PATH != null) {
+      options.path = process.env.DOTENV_CONFIG_PATH;
+    }
+    if (process.env.DOTENV_CONFIG_QUIET != null) {
+      options.quiet = process.env.DOTENV_CONFIG_QUIET;
+    }
+    if (process.env.DOTENV_CONFIG_DEBUG != null) {
+      options.debug = process.env.DOTENV_CONFIG_DEBUG;
+    }
+    if (process.env.DOTENV_CONFIG_OVERRIDE != null) {
+      options.override = process.env.DOTENV_CONFIG_OVERRIDE;
+    }
+    if (process.env.DOTENV_CONFIG_DOTENV_KEY != null) {
+      options.DOTENV_KEY = process.env.DOTENV_CONFIG_DOTENV_KEY;
+    }
+    module2.exports = options;
+  }
+});
+
+// node_modules/dotenv/lib/cli-options.js
+var require_cli_options = __commonJS({
+  "node_modules/dotenv/lib/cli-options.js"(exports2, module2) {
+    var re = /^dotenv_config_(encoding|path|quiet|debug|override|DOTENV_KEY)=(.+)$/;
+    module2.exports = function optionMatcher(args) {
+      const options = args.reduce(function(acc, cur) {
+        const matches = cur.match(re);
+        if (matches) {
+          acc[matches[1]] = matches[2];
+        }
+        return acc;
+      }, {});
+      if (!("quiet" in options)) {
+        options.quiet = "true";
+      }
+      return options;
+    };
   }
 });
 
@@ -5899,11 +6321,13 @@ function mapDriverError(error) {
         kind: "TableDoesNotExist",
         table: error.message.split(" ").at(1)?.split('"').at(1)
       };
-    case "42703":
+    case "42703": {
+      const rawColumn = error.message.match(/^column (.+) does not exist$/)?.at(1);
       return {
         kind: "ColumnNotFound",
-        column: error.message.split(" ").at(1)?.split('"').at(1)
+        column: rawColumn?.replace(/"((?:""|[^"])*)"/g, (_, id) => id.replaceAll('""', '"'))
       };
+    }
     case "42P04":
       return {
         kind: "DatabaseAlreadyExists",
@@ -6029,22 +6453,11 @@ var PgQueryable = class {
     try {
       const result = await this.client.query(
         {
+          name: this.pgOptions?.statementNameGenerator?.(query),
           text: sql,
           values,
           rowMode: "array",
           types: {
-            // This is the error expected:
-            // No overload matches this call.
-            // The last overload gave the following error.
-            // Type '(oid: number, format?: any) => (json: string) => unknown' is not assignable to type '{ <T>(oid: number): TypeParser<string, string | T>; <T>(oid: number, format: "text"): TypeParser<string, string | T>; <T>(oid: number, format: "binary"): TypeParser<...>; }'.
-            //   Type '(json: string) => unknown' is not assignable to type 'TypeParser<Buffer, any>'.
-            //     Types of parameters 'json' and 'value' are incompatible.
-            //       Type 'Buffer' is not assignable to type 'string'.ts(2769)
-            //
-            // Because pg-types types expect us to handle both binary and text protocol versions,
-            // where as far we can see, pg will ever pass only text version.
-            //
-            // @ts-expect-error
             getTypeParser: (oid, format) => {
               if (format === "text" && customParsers[oid]) {
                 return customParsers[oid];
@@ -6081,6 +6494,15 @@ var PgTransaction = class extends PgQueryable {
     debug2(`[js::rollback]`);
     this.cleanup?.();
     this.client.release();
+  }
+  async createSavepoint(name2) {
+    await this.executeRaw({ sql: `SAVEPOINT ${name2}`, args: [], argTypes: [] });
+  }
+  async rollbackToSavepoint(name2) {
+    await this.executeRaw({ sql: `ROLLBACK TO SAVEPOINT ${name2}`, args: [], argTypes: [] });
+  }
+  async releaseSavepoint(name2) {
+    await this.executeRaw({ sql: `RELEASE SAVEPOINT ${name2}`, args: [], argTypes: [] });
   }
 };
 var PrismaPgAdapter = class extends PgQueryable {
@@ -6150,6 +6572,9 @@ var PrismaPgAdapterFactory = class {
     if (poolOrConfig instanceof esm_default.Pool) {
       this.externalPool = poolOrConfig;
       this.config = poolOrConfig.options;
+    } else if (typeof poolOrConfig === "string") {
+      this.externalPool = null;
+      this.config = { connectionString: poolOrConfig };
     } else {
       this.externalPool = null;
       this.config = poolOrConfig;
@@ -6194,19 +6619,54 @@ var PrismaPgAdapterFactory = class {
 // prisma/seed.ts
 var fs = __toESM(require("fs"));
 var path = __toESM(require("path"));
+
+// node_modules/dotenv/config.js
+(function() {
+  require_main().config(
+    Object.assign(
+      {},
+      require_env_options(),
+      require_cli_options()(process.argv)
+    )
+  );
+})();
+
+// prisma/seed-data/legendary-items.ts
+var legendaryItems = [
+  { name: "Clairvoyance de M\xE9riana", category: "Bottes", jobRequired: "Cordonnier", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6691.png" },
+  { name: "Ponctualit\xE9 d'Henual", category: "Anneau", jobRequired: "Bijoutier", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6690.png" },
+  { name: "Amour d'Hels\xE9phine", category: "Amulette", jobRequired: "Bijoutier", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6689.png" },
+  { name: "Bouclier Miroir", category: "Bouclier", jobRequired: "Fa\xE7onneur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6688.png" },
+  { name: "Ardeur d'Oto Mustam", category: "Chapeau", jobRequired: "Tailleur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6687.png" },
+  { name: "\xC9treinte de Servitude", category: "Ceinture", jobRequired: "Cordonnier", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6686.png" },
+  { name: "Pestilence de Corruption", category: "Cape", jobRequired: "Tailleur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6685.png" },
+  { name: "Courage de Dame Jhessica", category: "Ceinture", jobRequired: "Cordonnier", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6179.png" },
+  { name: "Audace de Dodge", category: "Ceinture", jobRequired: "Cordonnier", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6178.png" },
+  { name: "Bottes du Cul Bott\xE9", category: "Bottes", jobRequired: "Cordonnier", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6177.png" },
+  { name: "Bottes de Mille Lieues", category: "Bottes", jobRequired: "Cordonnier", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6176.png" },
+  { name: "Noblesse de Jahash Jurgen", category: "Cape", jobRequired: "Tailleur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6175.png" },
+  { name: "Bravoure de Rykke Errel", category: "Cape", jobRequired: "Tailleur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6174.png" },
+  { name: "Diad\xE8me de Ganym\xE8de", category: "Chapeau", jobRequired: "Tailleur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6173.png" },
+  { name: "Couronne de Br\xE2m Barbe-Monde", category: "Chapeau", jobRequired: "Tailleur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/6172.png" },
+  { name: "Trompe-la-Mort", category: "Bouclier", jobRequired: "Fa\xE7onneur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/5475.png" },
+  { name: "Droiture de Fallanster", category: "Bouclier", jobRequired: "Fa\xE7onneur", imageUrl: "https://static.dofusbook.net/fr/encyclopedie/items/5474.png" }
+];
+
+// prisma/seed.ts
 var cleanEnv = (val) => {
   if (!val) return "";
   return val.replace(/^['"]|['"]$/g, "").trim();
 };
 var getConnectionString = () => {
-  if (process.env.DATABASE_URL && !process.env.POSTGRES_USER) {
+  if (process.env.DATABASE_URL) {
     return cleanEnv(process.env.DATABASE_URL);
   }
   const user = cleanEnv(process.env.POSTGRES_USER) || "sigiluser";
   const pwd = cleanEnv(process.env.POSTGRES_PASSWORD);
   const db_name = cleanEnv(process.env.POSTGRES_DB) || "sigilos";
   const host = process.env.DB_HOST || (process.env.NODE_ENV === "production" ? "db-beta" : "localhost");
-  return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
+  const protocol = "postgresql";
+  return `${protocol}://${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:5432/${db_name}?schema=public`;
 };
 var connectionString = getConnectionString();
 var pool = new Pool({ connectionString });
@@ -6224,6 +6684,76 @@ async function seed() {
   console.error("  - Exported:", seedData.exportedAt);
   console.error("  - Version:", seedData.version);
   console.error("");
+  console.error("\u{1F6E1}\uFE0F  Seeding Dev environment...");
+  const testGuildId = "1290442961380835451";
+  const superAdminDiscordId = "403000342167420929";
+  await prisma.allowedGuild.upsert({
+    where: { discordGuildId: testGuildId },
+    update: { isActive: true },
+    create: {
+      discordGuildId: testGuildId,
+      name: "SigilOS Test Guild",
+      isActive: true,
+      tier: "LEGACY_PREMIUM",
+      addedBy: "SYSTEM_SEED"
+    }
+  });
+  const guildConfig = await prisma.guildConfig.upsert({
+    where: { discordGuildId: testGuildId },
+    update: { isActive: true },
+    create: {
+      discordGuildId: testGuildId,
+      name: "SigilOS Test Guild",
+      isActive: true
+    }
+  });
+  const devUsers = [
+    { id: "403000342167420929", name: "Wylan (Dev)", role: "Boss / Dev", color: 16096779 },
+    { id: "1130064714001563718", name: "Sigil-Member (Test)", role: "Beta-Tester", color: 1096065 }
+  ];
+  for (const devUser of devUsers) {
+    const account = await prisma.account.findFirst({
+      where: { provider: "discord", providerAccountId: devUser.id }
+    });
+    let userId;
+    if (!account) {
+      console.error(`\u{1F6E0}\uFE0F Seeding dev user ${devUser.name}...`);
+      const newUser = await prisma.user.create({
+        data: {
+          name: devUser.name,
+          image: `https://cdn.discordapp.com/embed/avatars/${Math.floor(Math.random() * 5)}.png`,
+          accounts: {
+            create: {
+              provider: "discord",
+              type: "oauth",
+              providerAccountId: devUser.id
+            }
+          }
+        }
+      });
+      userId = newUser.id;
+    } else {
+      userId = account.userId;
+    }
+    await prisma.userProfile.upsert({
+      where: {
+        userId_guildId: {
+          userId,
+          guildId: guildConfig.id
+        }
+      },
+      update: { status: "ACTIVE" },
+      create: {
+        userId,
+        guildId: guildConfig.id,
+        status: "ACTIVE",
+        discordNickname: devUser.name,
+        discordRoleName: devUser.role,
+        discordRoleColor: devUser.color
+      }
+    });
+  }
+  console.error(`\u2705 Dev environment authorized and configured`);
   const zoneIdMap = /* @__PURE__ */ new Map();
   const challengeIdMap = /* @__PURE__ */ new Map();
   console.error("\u{1F5FA}\uFE0F  Seeding Zones...");
@@ -6289,7 +6819,12 @@ async function seed() {
   console.error("\u{1F3F0} Seeding Dungeons...");
   for (const dungeon of seedData.data.dungeons) {
     const upsertedDungeon = await prisma.dungeon.upsert({
-      where: { name: dungeon.name },
+      where: {
+        name_bossName: {
+          name: dungeon.name,
+          bossName: dungeon.bossName
+        }
+      },
       update: {
         bossName: dungeon.bossName,
         level: dungeon.level,
@@ -6332,6 +6867,15 @@ async function seed() {
     }
   }
   console.error(`\u2705 ${seedData.data.dungeons.length} dungeons seeded`);
+  console.error("\u2728 Seeding Legendary Items...");
+  for (const item of legendaryItems) {
+    await prisma.legendaryItem.upsert({
+      where: { name: item.name },
+      update: item,
+      create: item
+    });
+  }
+  console.error("\u2705 Legendary items seeded");
   console.error("");
   console.error("\u{1F389} Database seeding completed successfully!");
 }

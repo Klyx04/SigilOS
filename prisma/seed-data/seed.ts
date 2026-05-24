@@ -15,6 +15,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import 'dotenv/config';
+import { legendaryItems } from './legendary-items';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -415,6 +416,27 @@ async function main() {
                     throw error;
                 }
             }
+        }
+
+        // === LEGENDARY ITEMS ===
+        console.log(`\n✨ [LEGENDARY] Seeding ${legendaryItems.length} legendary items...`);
+        for (const item of legendaryItems) {
+            const existing = await tx.legendaryItem.findUnique({
+                where: { name: item.name }
+            });
+
+            await tx.legendaryItem.upsert({
+                where: { name: item.name },
+                update: item,
+                create: item
+            });
+
+            if (existing) {
+                totalUpdated++;
+            } else {
+                totalCreated++;
+            }
+            totalProcessed++;
         }
     }, {
         maxWait: 10000, // 10s max wait for transaction lock

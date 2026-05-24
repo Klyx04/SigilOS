@@ -13,7 +13,7 @@ export async function GET(req: Request) {
         }
 
         const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
-        const workerSecret = process.env.DOFUS_LADDER_WORKER_SECRET;
+        const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
 
         if (!workerUrl) {
             return new NextResponse("Worker URL not configured", { status: 500 });

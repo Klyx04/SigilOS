@@ -35,7 +35,7 @@ export function LegendaryCrafting({ guildId, profileId, readOnly = false }: Lege
         if (res.success && res.data) {
             setItems(res.data.items);
             setJobsAt200(res.data.jobsAt200);
-            setHasPrerequisites(res.data.items.some((i: any) => i.canCraft));
+            setHasPrerequisites(!!res.data.hasLegendaryPrerequisites);
         }
         setLoading(false);
     };

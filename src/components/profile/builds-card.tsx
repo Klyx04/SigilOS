@@ -345,17 +345,19 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                     >
                                         <Copy className="w-3.5 h-3.5" />
                                     </button>
-                                    <button
-                                        onClick={async () => {
-                                            const res = await shareGalleryItemOnDiscord(guildId, link.id, "STUFF", undefined /*targetUserId || "unknown"*/);
-                                            if (res.success) toast.success("Partagé sur Discord !");
-                                            else toast.error(res.error || "Erreur lors du partage");
-                                        }}
-                                        className="p-2 bg-zinc-900/80 hover:bg-indigo-500 text-indigo-400 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all"
-                                        title="Partager sur Discord"
-                                    >
-                                        <Megaphone className="w-3.5 h-3.5" />
-                                    </button>
+                                    {!readOnly && (
+                                        <button
+                                            onClick={async () => {
+                                                const res = await shareGalleryItemOnDiscord(guildId, link.id, "STUFF", undefined /*targetUserId || "unknown"*/);
+                                                if (res.success) toast.success("Partagé sur Discord !");
+                                                else toast.error(res.error || "Erreur lors du partage");
+                                            }}
+                                            className="p-2 bg-zinc-900/80 hover:bg-indigo-500 text-indigo-400 hover:text-white rounded-xl border border-white/5 hover:border-white/10 shadow-lg transition-all"
+                                            title="Partager sur Discord"
+                                        >
+                                            <Megaphone className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
                                     {!readOnly && (
                                         <>
                                             <button

@@ -1933,7 +1933,7 @@ export async function refreshUserSuccessPoints(guildId: string): Promise<ActionR
 
         // 3. Call CF Worker Scraper
         const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
-        const workerSecret = process.env.DOFUS_LADDER_WORKER_SECRET;
+        const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
 
         if (!workerUrl) {
             return { success: false, error: "Service de synchronisation non configuré." };
@@ -2015,7 +2015,7 @@ export async function getLadderPreview(guildId: string): Promise<ActionResponse<
         if (!profile || !profile.pseudoDofus) return { success: false, error: "Pseudo manquant." };
 
         const workerUrl = process.env.DOFUS_LADDER_WORKER_URL;
-        const workerSecret = process.env.DOFUS_LADDER_WORKER_SECRET;
+        const workerSecret = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
 
         if (!workerUrl) return { success: false, error: "Service indisponible." };
 

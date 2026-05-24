@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as fs from 'fs';
 import * as path from 'path';
 import 'dotenv/config';
+import { legendaryItems } from './seed-data/legendary-items';
 
 // Clean helper for environment variables
 const cleanEnv = (val: string | undefined) => {
@@ -310,6 +311,17 @@ async function seed() {
         }
     }
     console.error(`✅ ${seedData.data.dungeons.length} dungeons seeded`);
+
+    // 5. Seed Legendary Items
+    console.error('✨ Seeding Legendary Items...');
+    for (const item of legendaryItems) {
+        await prisma.legendaryItem.upsert({
+            where: { name: item.name },
+            update: item,
+            create: item
+        });
+    }
+    console.error('✅ Legendary items seeded');
 
     console.error('');
     console.error('🎉 Database seeding completed successfully!');

@@ -496,6 +496,7 @@ model UserProfile {
   userDungeonAchievements    UserDungeonAchievement[]
   dungeonProgress            UserDungeonProgress[]
   legendaryCrafts            LegendaryItem[]            @relation("LegendaryCrafters")
+  hasLegendaryPrerequisites  Boolean                    @default(false)
   playerGuideProgress        PlayerGuideProgress[]
   guild                      GuildConfig                @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1960,6 +1961,7 @@ model PlayerGuideProgress {
   isCompleted Boolean        @default(false)
   completedAt DateTime?
   completedSteps Json?       @default("[]")
+  currentStep String?        // Active/bookmarked step key (e.g., "GP1-5")
   notes       String?        // Note personnelle du membre
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt

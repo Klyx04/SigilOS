@@ -186,10 +186,11 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
 
   if (!guide) return { success: false, error: "Guide introuvable" };
 
-  // Récupérer toutes les progressions des membres pour ce guide
+  // Récupérer toutes les progressions des membres pour ce guide (avec isolation de guilde)
   const allProgress = await db.playerGuideProgress.findMany({
     where: {
-      milestone: { guideId: guide.id }
+      milestone: { guideId: guide.id },
+      profile: { guildId }
     },
     include: {
       profile: {
@@ -227,6 +228,14 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     }
   });
 
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: { guide: { select: { slug: true } } }
+  });
+  if (milestone?.guide?.slug) {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+  }
+
   revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
   return { success: true, progress };
 }
@@ -254,7 +263,49 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     }
   });
 
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: { guide: { select: { slug: true } } }
+  });
+  if (milestone?.guide?.slug) {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+  }
+
   revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  return { success: true, progress };
+}
+
+/**
+ * Met à jour l'étape active/marque-page pour un milestone (J'en suis là).
+ */
+export async function updateBookmarkedStep(guildId: string, milestoneId: string, stepKey: string | null) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  const profileId: string = ctx.profileId!;
+
+  const progress = await db.playerGuideProgress.upsert({
+    where: {
+      profileId_milestoneId: { profileId, milestoneId }
+    },
+    update: {
+      currentStep: stepKey 
+    },
+    create: {
+      profileId,
+      milestoneId,
+      currentStep: stepKey,
+      isCompleted: false
+    }
+  });
+
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: { guide: { select: { slug: true } } }
+  });
+  if (milestone?.guide?.slug) {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+  }
+
   return { success: true, progress };
 }
 

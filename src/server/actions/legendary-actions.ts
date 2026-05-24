@@ -66,7 +66,8 @@ export async function getLegendaryCraftingData(guildId: string, targetProfileId?
             success: true,
             data: {
                 items,
-                jobsAt200
+                jobsAt200,
+                hasLegendaryPrerequisites: profile.hasLegendaryPrerequisites
             }
         };
     } catch (error) {
@@ -122,6 +123,7 @@ export async function syncLegendaryCrafts(guildId: string, hasPrerequisites: boo
             await db.userProfile.update({
                 where: { id: profile.id },
                 data: {
+                    hasLegendaryPrerequisites: true,
                     legendaryCrafts: {
                         set: eligibleItems.map(item => ({ id: item.id }))
                     }
@@ -132,6 +134,7 @@ export async function syncLegendaryCrafts(guildId: string, hasPrerequisites: boo
             await db.userProfile.update({
                 where: { id: profile.id },
                 data: {
+                    hasLegendaryPrerequisites: false,
                     legendaryCrafts: {
                         set: []
                     }

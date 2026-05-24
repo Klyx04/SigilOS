@@ -7,7 +7,7 @@
   "description": "Terminer l'arc narratif complet de l'Eliocalypse et obtenir le Dofus du Cauchemar.",
   "dofusItemId": 26066,
   "iconId": null,
-  "imageUrl": "https://api.dofusdb.fr/img/items/26066.png",
+  "imageUrl": "/module-dofus/Dofus_Du_Cauchemar.png",
   "compiledAt": "2026-04-09T19:05:42.426Z",
   "compilerVersion": "3.0",
   "chains": [

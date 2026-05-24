@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ─── EYE_SVG Constant ────────────────────────────────────────────────────────
 const EYE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye inline-block w-3.5 h-3.5"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
-import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress } from "@/server/actions/optimized-guide-actions";
+import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep } from "@/server/actions/optimized-guide-actions";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
@@ -100,6 +100,17 @@ type GuildMember = {
   profileSlug?: string;
   isCompleted?: boolean;
   completedSteps?: string[];
+  currentStep?: string | null;
+};
+type UniqueGuildMember = {
+  profileId: string;
+  userName: string;
+  userAvatar?: string;
+  profileSlug?: string;
+  completedSteps: Set<string>;
+  completedMilestoneIds: Set<string>;
+  currentMilestoneId: string | null;
+  bookmarkedSteps: Map<string, string>; // milestoneId -> stepKey
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -291,7 +302,7 @@ function ProgressRing({ pct, size=36, stroke=3, color="#10b981" }:{pct:number;si
 }
 
 // ─── Sub-Guide Accordion Card ──────────────────────────────────────────────────
-function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, guildProgress, milestones, selectedMilestoneId, guildId }: {
+function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteractiveClick, defaultExpanded = false, hideCompletedGlobal = false, onSelectSubGuide, bookmarkStepKey, onStepBookmark, uniqueGuildMembers, milestones, selectedMilestoneId, guildId, onShowStepPresenceModal }: {
   seq: Sequence;
   checkedSteps: Set<string>;
   onStepToggle: (ref: string, n: number) => void;
@@ -302,10 +313,16 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
   onSelectSubGuide?: (name: string) => void;
   bookmarkStepKey: string | null;
   onStepBookmark: (key: string) => void;
-  guildProgress: GuildMember[];
+  uniqueGuildMembers: UniqueGuildMember[];
   milestones: Milestone[];
   selectedMilestoneId: string;
   guildId: string;
+  onShowStepPresenceModal: (
+    stepNumber: number,
+    stepTitle: string,
+    validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[],
+    activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[]
+  ) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [steps, setSteps] = useState<SubStep[]>([]);
@@ -552,8 +569,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                               <Bookmark size={18} />
                             )}
                           </button>
-                          <span className="sgc-step-num"
-                            onClick={() => handleStepCheckToggle(step.stepNumber, currentStepIndex)}>
+                          <span className="sgc-step-num">
                             {step.stepNumber}
                           </span>
                           <div className="sgc-step-content ganymade-step-text"
@@ -605,22 +621,39 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
 
                         // ── Per-step presence: who validated or is "rendu" here ──
                         const selectedMs = milestones.find(m => m.id === selectedMilestoneId);
-                        const validatedMembers: GuildMember[] = [];
-                        const activeMembers: GuildMember[] = [];
+                        const validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[] = [];
+                        const activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[] = [];
                         if (selectedMs) {
-                          guildProgress.forEach(member => {
-                            const memberMs = milestones.find(m => m.id === member.milestoneId);
-                            if (!memberMs) return;
-                            const isOnOrPastMs = memberMs.order > selectedMs.order || member.isCompleted;
-                            const explicitlyValidated = Array.isArray(member.completedSteps) && member.completedSteps.includes(key);
+                          uniqueGuildMembers.forEach(member => {
+                            const isMsCompleted = member.completedMilestoneIds.has(selectedMilestoneId);
+                            let isPastMs = false;
+                            if (member.currentMilestoneId) {
+                              const memberActiveMs = milestones.find(m => m.id === member.currentMilestoneId);
+                              if (memberActiveMs && memberActiveMs.order > selectedMs.order) {
+                                isPastMs = true;
+                              }
+                            } else {
+                              isPastMs = true; // Completed the guide
+                            }
+
+                            const isOnOrPastMs = isPastMs || isMsCompleted;
+                            const explicitlyValidated = member.completedSteps.has(key);
+
                             if (explicitlyValidated || isOnOrPastMs) {
                               validatedMembers.push(member);
-                            } else if (member.milestoneId === selectedMilestoneId) {
-                              // Member is active on this milestone — check if this is their first incomplete step
-                              const memberCheckedKeys = new Set(Array.isArray(member.completedSteps) ? member.completedSteps : []);
-                              const firstIncompleteStep = steps.find(s => !memberCheckedKeys.has(`${seq.subGuideRef}-${s.stepNumber}`));
-                              if (firstIncompleteStep?.stepNumber === step.stepNumber) {
-                                activeMembers.push(member);
+                            } else {
+                              // Check if member has a bookmarked step for this milestone
+                              const bookmarkedStep = member.bookmarkedSteps.get(selectedMilestoneId);
+                              if (bookmarkedStep) {
+                                if (bookmarkedStep === key) {
+                                  activeMembers.push(member);
+                                }
+                              } else if (member.currentMilestoneId === selectedMilestoneId) {
+                                // Fallback: member is active on their first incomplete step of this milestone
+                                const firstIncompleteStep = steps.find(s => !member.completedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
+                                if (firstIncompleteStep?.stepNumber === step.stepNumber) {
+                                  activeMembers.push(member);
+                                }
                               }
                             }
                           });
@@ -650,9 +683,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                 <Bookmark size={16} />
                               )}
                             </button>
-                            <span className="sgc-step-num"
-                              title={checked ? "Désactiver cette étape" : "Valider cette étape"}
-                              onClick={() => handleStepCheckToggle(step.stepNumber, stepIndexInFullList)}>
+                            <span className="sgc-step-num">
                               {step.stepNumber}
                             </span>
                             <div className="flex flex-col flex-1 min-w-0">
@@ -660,30 +691,53 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                                 onClick={onInteractiveClick}
                                 {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
                               {(validatedMembers.length > 0 || activeMembers.length > 0) && (
-                                <div className="sgc-step-presence">
+                                <div 
+                                  role="button"
+                                  tabIndex={0}
+                                  className="sgc-step-presence cursor-pointer hover:opacity-80 active:scale-95 transition-all select-none"
+                                  title="Cliquer pour voir la liste des membres ayant validé ou en cours sur cette étape"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onShowStepPresenceModal(
+                                      step.stepNumber,
+                                      step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                                      validatedMembers,
+                                      activeMembers
+                                    );
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      onShowStepPresenceModal(
+                                        step.stepNumber,
+                                        step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                                        validatedMembers,
+                                        activeMembers
+                                      );
+                                    }
+                                  }}
+                                >
                                   {validatedMembers.slice(0, 5).map(m => (
-                                    <a
+                                    <div
                                       key={`val-${m.profileId}`}
-                                      href={`/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`}
                                       className="sgc-step-presence-avatar validated"
                                       title={`✅ ${m.userName} — a validé cette étape`}
                                     >
                                       {m.userAvatar
                                         ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
                                         : m.userName.charAt(0).toUpperCase()}
-                                    </a>
+                                    </div>
                                   ))}
                                   {activeMembers.slice(0, 3).map(m => (
-                                    <a
+                                    <div
                                       key={`act-${m.profileId}`}
-                                      href={`/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`}
                                       className="sgc-step-presence-avatar active"
                                       title={`📍 ${m.userName} — rendu à cette étape`}
                                     >
                                       {m.userAvatar
                                         ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
                                         : m.userName.charAt(0).toUpperCase()}
-                                    </a>
+                                    </div>
                                   ))}
                                 </div>
                               )}
@@ -884,7 +938,7 @@ export default function OptimizedGuideClient({
 }: {
   guide: { id: string; name: string; slug: string };
   milestones: Milestone[];
-  userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[] }[];
+  userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[]; currentStep?: string | null }[];
   guildProgress: GuildMember[];
   guildId: string;
 }) {
@@ -903,9 +957,25 @@ export default function OptimizedGuideClient({
   });
 
   const [bookmarkStepKey, setBookmarkStepKey] = useState<string | null>(() => {
+    const activeProgress = userProgress.find(p => p.milestoneId === selected?.id);
+    if (activeProgress?.currentStep) return activeProgress.currentStep;
     if (typeof window !== "undefined") return localStorage.getItem(`guide-bm-step-${guide.slug}`) ?? null;
     return null;
   });
+
+  // Sync bookmarkStepKey with userProgress on load or selected milestone change
+  useEffect(() => {
+    if (selected) {
+      const activeProgress = userProgress.find(p => p.milestoneId === selected.id);
+      if (activeProgress?.currentStep) {
+        setBookmarkStepKey(activeProgress.currentStep);
+        localStorage.setItem(`guide-bm-step-${guide.slug}`, activeProgress.currentStep);
+      } else {
+        setBookmarkStepKey(null);
+        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+      }
+    }
+  }, [selected, userProgress, guide.slug]);
 
   const handleStepBookmark = useCallback((stepKey: string) => {
     setBookmarkStepKey(prev => {
@@ -917,9 +987,17 @@ export default function OptimizedGuideClient({
         localStorage.removeItem(`guide-bm-step-${guide.slug}`);
         toast.info("Marque-page d'étape retiré");
       }
+
+      // Persist step bookmark to database (J'en suis là / en cours)
+      if (selected) {
+        updateBookmarkedStep(guildId, selected.id, next).catch((e) => {
+          console.error("Failed to update bookmarked step in DB:", e);
+        });
+      }
+
       return next;
     });
-  }, [guide.slug]);
+  }, [guide.slug, selected, guildId]);
 
   const handleCollapseAll = useCallback(() => {
     setOpenChapters({});
@@ -992,6 +1070,29 @@ export default function OptimizedGuideClient({
     milestoneId: string;
     milestoneTitle: string;
   } | null>(null);
+
+  const [stepPresenceModal, setStepPresenceModal] = useState<{
+    isOpen: boolean;
+    stepNumber: number;
+    stepTitle: string;
+    validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[];
+    activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[];
+  } | null>(null);
+
+  const handleShowStepPresenceModal = useCallback((
+    stepNumber: number,
+    stepTitle: string,
+    validatedMembers: any[],
+    activeMembers: any[]
+  ) => {
+    setStepPresenceModal({
+      isOpen: true,
+      stepNumber,
+      stepTitle,
+      validatedMembers,
+      activeMembers
+    });
+  }, []);
 
   // handleBackToMainGuideCurrentStep is declared after bookmarkId to avoid TDZ
 
@@ -1244,15 +1345,71 @@ export default function OptimizedGuideClient({
     }
   }, [activeGuideFilter, milestones, selected]);
 
-  // Presence mapping
+  // Unique Guild Members logic (aggregates multiple playerGuideProgress rows per profileId)
+  const uniqueGuildMembers = useMemo(() => {
+    const map = new Map<string, {
+      profileId: string;
+      userName: string;
+      userAvatar?: string;
+      profileSlug?: string;
+      completedSteps: Set<string>;
+      completedMilestoneIds: Set<string>;
+      bookmarkedSteps: Map<string, string>;
+    }>();
+
+    guildProgress.forEach(p => {
+      let existing = map.get(p.profileId);
+      if (!existing) {
+        existing = {
+          profileId: p.profileId,
+          userName: p.userName,
+          userAvatar: p.userAvatar,
+          profileSlug: p.profileSlug,
+          completedSteps: new Set<string>(),
+          completedMilestoneIds: new Set<string>(),
+          bookmarkedSteps: new Map<string, string>()
+        };
+        map.set(p.profileId, existing);
+      }
+      if (p.completedSteps) {
+        p.completedSteps.forEach(s => existing!.completedSteps.add(s));
+      }
+      if (p.isCompleted) {
+        existing.completedMilestoneIds.add(p.milestoneId);
+      }
+      if (p.currentStep) {
+        existing.bookmarkedSteps.set(p.milestoneId, p.currentStep);
+      }
+    });
+
+    const sortedM = [...milestones].sort((a, b) => a.order - b.order);
+
+    return Array.from(map.values()).map(m => {
+      const currentMs = sortedM.find(ms => !m.completedMilestoneIds.has(ms.id));
+      return {
+        profileId: m.profileId,
+        userName: m.userName,
+        userAvatar: m.userAvatar,
+        profileSlug: m.profileSlug,
+        completedSteps: m.completedSteps,
+        completedMilestoneIds: m.completedMilestoneIds,
+        currentMilestoneId: currentMs ? currentMs.id : null,
+        bookmarkedSteps: m.bookmarkedSteps
+      };
+    });
+  }, [guildProgress, milestones]);
+
+  // Presence mapping (maps current milestone ID to unique active members)
   const presenceMap = useMemo(() => {
-    const map: Record<string, GuildMember[]> = {};
-    guildProgress.forEach(m => {
-      if (!map[m.milestoneId]) map[m.milestoneId] = [];
-      map[m.milestoneId].push(m);
+    const map: Record<string, any[]> = {};
+    uniqueGuildMembers.forEach(m => {
+      if (m.currentMilestoneId) {
+        if (!map[m.currentMilestoneId]) map[m.currentMilestoneId] = [];
+        map[m.currentMilestoneId].push(m);
+      }
     });
     return map;
-  }, [guildProgress]);
+  }, [uniqueGuildMembers]);
 
   // Build chapters
   const chapters = useMemo(() => {
@@ -1325,8 +1482,8 @@ export default function OptimizedGuideClient({
 
   // Removed JS-based layout DOM adjustment in favor of declarative <style> injection in render  // Guild members on current step
   const membersHere = useMemo(() =>
-    selected ? guildProgress.filter(m => m.milestoneId === selected.id) : [],
-  [selected, guildProgress]);
+    selected ? (presenceMap[selected.id] || []) : [],
+  [selected, presenceMap]);
 
   const handleStepToggle = useCallback((ref: string, n: number) => {
     const key = `${ref}-${n}`;
@@ -2042,10 +2199,11 @@ export default function OptimizedGuideClient({
                           seq={activeSeq}
                           checkedSteps={checkedSteps}
                           onStepToggle={handleStepToggle}
-                          guildProgress={guildProgress}
+                          uniqueGuildMembers={uniqueGuildMembers}
                           milestones={milestones}
                           selectedMilestoneId={selected?.id || ""}
                           guildId={guildId}
+                          onShowStepPresenceModal={handleShowStepPresenceModal}
                           onMapClick={(x, y, explicitWorld) => {
                             navigator.clipboard.writeText(`/travel ${x} ${y}`);
                             let worldId = 1;
@@ -2843,6 +3001,134 @@ export default function OptimizedGuideClient({
                     </button>
                   );
                 })
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step Presence Modal Dialog */}
+      <Dialog 
+        open={stepPresenceModal?.isOpen ?? false} 
+        onOpenChange={(open) => setStepPresenceModal(prev => prev ? { ...prev, isOpen: open } : null)}
+      >
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
+              <Users size={14} className="text-emerald-400" />
+              Progression Étape
+            </DialogTitle>
+            <div className="text-lg font-black italic tracking-tight text-white uppercase mt-1">
+              Étape {stepPresenceModal?.stepNumber}
+            </div>
+            {stepPresenceModal?.stepTitle && (
+              <div 
+                className="text-xs text-zinc-400 mt-1 line-clamp-2 ganymade-step-text animate-in fade-in slide-in-from-top-1 duration-300"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(stepPresenceModal.stepTitle) || "" }}
+              />
+            )}
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[350px] pr-2 no-scrollbar">
+            <div className="space-y-4 pb-2">
+              {/* Active / Jalon members */}
+              {stepPresenceModal?.activeMembers && stepPresenceModal.activeMembers.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-amber-500 mb-2 flex items-center gap-1.5 animate-in fade-in duration-300">
+                    <BookmarkCheck size={12} className="fill-amber-500/10" />
+                    En cours à cette étape ({stepPresenceModal.activeMembers.length})
+                  </div>
+                  <div className="space-y-2">
+                    {stepPresenceModal.activeMembers.map((m) => {
+                      const profileUrl = `/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`;
+                      return (
+                        <Link
+                          key={m.profileId}
+                          href={profileUrl}
+                          className="flex items-center justify-between p-3 rounded-2xl border border-amber-500/10 bg-amber-500/[0.01] hover:bg-amber-500/5 hover:border-amber-500/20 transition-all group cursor-pointer"
+                          onClick={() => {
+                            setStepPresenceModal(prev => prev ? { ...prev, isOpen: false } : null);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-zinc-800 border border-amber-500/20 overflow-hidden flex items-center justify-center shrink-0">
+                              {m.userAvatar ? (
+                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-500" />
+                              ) : (
+                                <span className="text-sm font-bold text-zinc-400">
+                                  {m.userName.charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-zinc-200 group-hover:text-amber-400 transition-colors">
+                                {m.userName}
+                              </span>
+                              <span className="text-[9px] text-zinc-500">
+                                Voir la fiche de membre
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronRight size={14} className="text-zinc-600 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Validated members */}
+              {stepPresenceModal?.validatedMembers && stepPresenceModal.validatedMembers.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-1.5 animate-in fade-in duration-300">
+                    <CheckCircle2 size={12} />
+                    Validé ({stepPresenceModal.validatedMembers.length})
+                  </div>
+                  <div className="space-y-2">
+                    {stepPresenceModal.validatedMembers.map((m) => {
+                      const profileUrl = `/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`;
+                      return (
+                        <Link
+                          key={m.profileId}
+                          href={profileUrl}
+                          className="flex items-center justify-between p-3 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-all group cursor-pointer"
+                          onClick={() => {
+                            setStepPresenceModal(prev => prev ? { ...prev, isOpen: false } : null);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                              {m.userAvatar ? (
+                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-500" />
+                              ) : (
+                                <span className="text-sm font-bold text-zinc-400">
+                                  {m.userName.charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors">
+                                {m.userName}
+                              </span>
+                              <span className="text-[9px] text-zinc-500">
+                                Voir la fiche de membre
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronRight size={14} className="text-zinc-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {(!stepPresenceModal?.validatedMembers || stepPresenceModal.validatedMembers.length === 0) &&
+               (!stepPresenceModal?.activeMembers || stepPresenceModal.activeMembers.length === 0) && (
+                <div className="flex flex-col items-center justify-center py-8 text-zinc-500 italic text-sm animate-in fade-in duration-300">
+                  <Info size={16} className="mb-2 opacity-40" />
+                  <span>Aucun membre n&apos;a validé ou n&apos;est en cours sur cette étape</span>
+                </div>
               )}
             </div>
           </ScrollArea>

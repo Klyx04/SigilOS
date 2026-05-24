@@ -41,8 +41,14 @@ export default async function QueteOcrePage({
     const ocreResponse = await getMyOcreProgress(guildId);
 
     // Fetch user profile for Metamob info (required for linking state)
+    // Note: use guild.discordGuildId (not guildId: user.id which is the userId) so the query
+    // resolves correctly via the GuildConfig relation, identical to getMyOcreProgress.
     const profile = await db.userProfile.findFirst({
-        where: { userId: session.user.id, guildId: user.id }, // user.id here is the internal guildConfig.id from getUserContext
+        where: {
+            userId: session.user.id,
+            guild: { discordGuildId: guildId },
+            status: "ACTIVE"
+        },
         select: {
             metamobPseudo: true,
             metamobVerified: true,

@@ -32,6 +32,7 @@ export default async function OptimizedGuideUserPage({ params }: { params: Promi
             milestoneId: p.milestoneId,
             isCompleted: p.isCompleted || false,
             completedSteps: Array.isArray(p.completedSteps) ? p.completedSteps : [],
+            currentStep: p.currentStep || null,
             userName: p.profile?.displayName || p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
             userAvatar: p.profile?.user?.image || undefined,
             profileSlug: p.profile?.pseudoDofus || p.profileId

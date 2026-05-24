@@ -607,7 +607,12 @@ export async function getQuestDetails(username: string, slug: string, options?: 
     if (options?.offset) params.set("offset", options.offset.toString());
     const query = params.toString() ? `?${params}` : '';
 
-    return fetchApi(`/v1/users/${encodeURIComponent(username)}/quests/${encodeURIComponent(slug)}${query}`, QuestDetailsSchema, options);
+    return fetchApi(`/v1/users/${encodeURIComponent(username)}/quests/${encodeURIComponent(slug)}${query}`, QuestDetailsSchema, {
+        ...options,
+        // Tag the request so that revalidateTag(`metamob-user-${username}`) properly busts
+        // the Next.js Data Cache when forceRefreshOcre() is called.
+        tags: [...(options?.tags || []), `metamob-user-${username.toLowerCase()}`]
+    });
 }
 
 export async function getQuestZones(slug: string, options?: FetchOptions): Promise<z.infer<typeof ZoneSchema>[]> {

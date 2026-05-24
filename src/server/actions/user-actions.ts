@@ -979,7 +979,7 @@ export async function getGuildsSeparated() {
         .filter(g => {
             const inDiscord = userGuildIds.has(g.discordGuildId);
             const status = statusMap.get(g.discordGuildId);
-            return inDiscord && allowedIdsWhitelist.has(g.discordGuildId) && status === "ACTIVE";
+            return inDiscord && allowedIdsWhitelist.has(g.discordGuildId) && (status === "ACTIVE" || status === undefined);
         })
         .map(g => {
             const userGuild = userGuilds.find(ug => ug.id === g.discordGuildId);

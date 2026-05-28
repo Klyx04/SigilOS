@@ -14,20 +14,14 @@
  *   node scripts/siphon-guide-images.js
  */
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../src/lib/prisma";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import sharp from "sharp";
 
-// Initialize PrismaClient with standard options referencing the environment datasource
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL
-    }
-  }
-});
+// The local pre-configured 'prisma' instance is imported directly.
+// This preserves all multi-tenant pool configuration and encryption middleware.
 
 const TARGET_HOSTS = new Set([
   "i.imgur.com",

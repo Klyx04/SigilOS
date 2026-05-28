@@ -47,6 +47,9 @@ RUN npm run build:seeds
 # Build maintenance scripts
 RUN npm run build:maintenance
 
+# Build siphon script (guide image downloader)
+RUN npm run build:siphon
+
 # Build worker script
 RUN npm run build:worker
 

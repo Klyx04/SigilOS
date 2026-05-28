@@ -1,28 +1,33 @@
+/**
+ * Script de siphonnage et compression des images de guides
+ * 
+ * Télécharge les captures d'écran hébergées sur des services tiers
+ * (Imgur, Gyazo, Dofuspourlesnoobs, Ganymède) et les stocke localement
+ * en WebP compressé. Met à jour la base de données pour pointer vers
+ * les copies locales.
+ * 
+ * Usage:
+ *   # En local (dev)
+ *   npx tsx scripts/siphon-guide-images.ts
+ * 
+ *   # Dans Docker (prod/beta) — utiliser le bundle compilé :
+ *   node scripts/siphon-guide-images.js
+ */
+
 import { PrismaClient } from "@prisma/client";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
-import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import sharp from "sharp";
 
-// Clean helper for environment variables
-const cleanEnv = (val: string | undefined) => {
-  if (!val) return "";
-  return val.replace(/^['"]|['"]$/g, "").trim();
-};
-
-const getConnectionString = () => {
-  if (process.env.DATABASE_URL) return cleanEnv(process.env.DATABASE_URL);
-  const user = cleanEnv(process.env.POSTGRES_USER) || "sigiluser";
-  const pwd = cleanEnv(process.env.POSTGRES_PASSWORD);
-  const db_name = cleanEnv(process.env.POSTGRES_DB) || "sigilos";
-  const host = process.env.DB_HOST || "localhost";
-  const port = process.env.DB_PORT || "5433";
-  const protocol = "postgres" + "ql://";
-  return `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
-};
+// Initialize PrismaClient with standard options referencing the environment datasource
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  }
+});
 
 const TARGET_HOSTS = new Set([
   "i.imgur.com",
@@ -43,12 +48,6 @@ async function main() {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
     console.log(`📁 Dossier créé : ${UPLOADS_DIR}`);
   }
-
-  // Setup DB client
-  const connectionString = getConnectionString();
-  const pool = new Pool({ connectionString });
-  const adapter = new PrismaPg(pool);
-  const prisma = new PrismaClient({ adapter });
 
   console.log("📚 Récupération des guides en base de données...");
   const guides = await prisma.subGuideData.findMany();
@@ -101,7 +100,7 @@ async function main() {
   let skippedCount = 0;
   let failedCount = 0;
 
-  console.log("⚡ Démarrage du siphonnage (par groupes de 5)...");
+  console.log("⚡ Démarrage du siphonnage (par groupes de 8)...");
 
   async function processBatch(urls: string[], concurrency: number) {
     let index = 0;
@@ -184,15 +183,14 @@ async function main() {
       while ((match = imgRegex.exec(stepText)) !== null) {
         const src = match[1];
         if (urlToLocalMap.has(src)) {
-          const localPath = urlToLocalMap.get(src)!;
+          const localRelPath = urlToLocalMap.get(src)!;
           // Verify if local image was actually successfully downloaded/exists before replacing
-          const localFilename = path.basename(localPath);
+          const localFilename = path.basename(localRelPath);
           const fullLocalPath = path.join(UPLOADS_DIR, localFilename);
 
           if (fs.existsSync(fullLocalPath)) {
             // Replace external URL with local one in HTML
-            // Using a simple split/join to replace all occurrences of this precise src
-            stepText = stepText.split(src).join(localPath);
+            stepText = stepText.split(src).join(localRelPath);
             stepModified = true;
             totalReplacementsCount++;
           }
@@ -223,7 +221,6 @@ async function main() {
   console.log(`- URL d'images remplacées dans les étapes : ${totalReplacementsCount}`);
 
   await prisma.$disconnect();
-  await pool.end();
   console.log("✨ Opération de siphonnage et compression terminée avec succès !");
 }
 

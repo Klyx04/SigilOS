@@ -20,9 +20,14 @@ import path from "path";
 import crypto from "crypto";
 import sharp from "sharp";
 
-// The PrismaClient without adapter uses DATABASE_URL env var directly.
-// This works both in dev (via dotenv) and in Docker (env var set by compose).
-const prisma = new PrismaClient();
+// Initialize PrismaClient with standard options referencing the environment datasource
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  }
+});
 
 const TARGET_HOSTS = new Set([
   "i.imgur.com",

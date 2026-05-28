@@ -94,63 +94,77 @@ async function main() {
   let skippedCount = 0;
   let failedCount = 0;
 
-  console.log("⚡ Démarrage du siphonnage (par groupes de 8)...");
+  console.log("⚡ Démarrage du siphonnage séquentiel avec retry (Imgur rate-limit protection)...");
 
-  async function processBatch(urls: string[], concurrency: number) {
-    let index = 0;
+  async function downloadWithRetry(url: string, localPath: string, maxRetries = 4): Promise<boolean> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Progressive delay: 1.5s base + 0-1s jitter, doubles on retry
+        const baseDelay = attempt === 0 ? 1500 : 2000 * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, baseDelay + Math.random() * 1000));
 
-    async function worker() {
-      while (index < urls.length) {
-        const url = urls[index++];
-        const localPath = path.join(UPLOADS_DIR, path.basename(urlToLocalMap.get(url)!));
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Referer": "https://www.google.com/",
+            "Cache-Control": "no-cache"
+          }
+        });
 
-        // Skip downloading if already exists
-        if (fs.existsSync(localPath)) {
-          skippedCount++;
+        if (res.status === 429) {
+          // Rate limited — wait longer before retry
+          const waitMs = 5000 * Math.pow(2, attempt);
+          console.log(`  ⏳ Rate limit (429) pour ${url}. Attente ${waitMs / 1000}s avant retry ${attempt + 1}/${maxRetries}...`);
+          if (attempt === maxRetries) return false;
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
           continue;
         }
 
-        try {
-          // Slight delay between worker startups to be polite
-          await new Promise((resolve) => setTimeout(resolve, Math.random() * 200 + 50));
-
-          const res = await fetch(url, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-              "Accept-Language": "fr,en-US;q=0.9,en;q=0.8"
-            }
-          });
-
-          if (!res.ok) {
-            throw new Error(`HTTP Status ${res.status}`);
-          }
-
-          const arrayBuffer = await res.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-
-          // Compress to WebP via sharp
-          await sharp(buffer)
-            .webp({ quality: 65, effort: 6 })
-            .toFile(localPath);
-
-          downloadedCount++;
-          if (downloadedCount % 50 === 0 || downloadedCount === 1) {
-            console.log(`  [Téléchargement] ${downloadedCount} images siphonnées avec succès...`);
-          }
-        } catch (err: any) {
-          console.error(`  ❌ Échec pour ${url}: ${err.message}`);
-          failedCount++;
+        if (!res.ok) {
+          throw new Error(`HTTP Status ${res.status}`);
         }
+
+        const arrayBuffer = await res.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        await sharp(buffer)
+          .webp({ quality: 65, effort: 6 })
+          .toFile(localPath);
+
+        return true;
+      } catch (err: any) {
+        if (attempt === maxRetries) {
+          console.error(`  ❌ Échec définitif pour ${url}: ${err.message}`);
+          return false;
+        }
+        console.error(`  ⚠️  Tentative ${attempt + 1} échouée pour ${url}: ${err.message}`);
       }
     }
-
-    const workers = Array.from({ length: concurrency }, worker);
-    await Promise.all(workers);
+    return false;
   }
 
-  await processBatch(urlList, 8);
+  // Sequential processing (concurrency 1) to avoid Imgur rate limiting
+  for (const url of urlList) {
+    const localPath = path.join(UPLOADS_DIR, path.basename(urlToLocalMap.get(url)!));
+
+    if (fs.existsSync(localPath)) {
+      skippedCount++;
+      continue;
+    }
+
+    const success = await downloadWithRetry(url, localPath);
+    if (success) {
+      downloadedCount++;
+      if (downloadedCount % 10 === 0 || downloadedCount === 1) {
+        console.log(`  ✅ [${downloadedCount}/${urlList.length}] images téléchargées...`);
+      }
+    } else {
+      failedCount++;
+    }
+  }
 
   console.log("\n📊 Bilan du siphonnage :");
   console.log(`- Téléchargées & compressées : ${downloadedCount}`);

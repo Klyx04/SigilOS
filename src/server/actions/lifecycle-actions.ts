@@ -754,8 +754,8 @@ export async function requestProfileReactivation(guildId: string, pseudo?: strin
             return { success: false, error: "Une demande de réintégration est déjà en cours de traitement par le Staff." };
         }
 
-        // Validation stricte du pseudo (pas de chiffres ni caractères spéciaux)
-        if (pseudo && /[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-]/.test(pseudo)) {
+        // Validation stricte du pseudo (pas de chiffres ni caractères spéciaux sauf crochets)
+        if (pseudo && /[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-\[\]]/.test(pseudo)) {
             return { success: false, error: "Le pseudo contient des caractères invalides (chiffres ou symboles)." };
         }
 

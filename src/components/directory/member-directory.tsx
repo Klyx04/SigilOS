@@ -644,7 +644,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                                 >
                                                     <div className="relative w-10 h-10 flex items-center justify-center bg-black/40 rounded-xl border border-white/10 overflow-hidden shadow-inner shrink-0">
                                                         {item.imageUrl ? (
-                                                            <Image src={item.imageUrl} alt={item.name} width={32} height={32} className="object-contain" />
+                                                            <img src={item.imageUrl.startsWith("/") ? item.imageUrl : `/api/proxy-image?url=${encodeURIComponent(item.imageUrl)}`} alt={item.name} width={32} height={32} className="object-contain" />
                                                         ) : (
                                                             <Sparkles className="w-5 h-5 text-purple-500/50" />
                                                         )}

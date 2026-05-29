@@ -133,27 +133,7 @@ const createPostSchema = z.object({
 // ---------------------------------------------------------------------------
 
 async function expireOldPosts(guildId: string) {
-    try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true },
-        });
-        if (!guildConfig) return;
-
-        const expireDate = new Date();
-        expireDate.setHours(expireDate.getHours() - 48);
-
-        await (db as any).djSearchPost.updateMany({
-            where: {
-                guildId: guildConfig.id,
-                status: { in: ["OPEN", "FULL"] },
-                createdAt: { lt: expireDate },
-            },
-            data: { status: "EXPIRED" },
-        });
-    } catch (error) {
-        console.error("[expireOldPosts]", error);
-    }
+    // Les posts ne s'expirent plus automatiquement. Ils restent actifs jusqu'à fermeture manuelle.
 }
 
 async function sendDiscordNotification(
@@ -319,9 +299,23 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
 async function disableDjDiscordEmbed(guildId: string, discordChannelId: string | null, discordMessageId: string | null) {
     if (!discordChannelId || !discordMessageId) return;
     try {
-        await deleteChannelMessage(discordChannelId, discordMessageId);
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { djNotifyChannelId: true }
+        });
+        
+        const { deleteChannel, deleteChannelMessage } = await import("@/server/discord");
+        
+        // Si le discordChannelId de ce post n'est pas le salon général de notification des donjons,
+        // c'est que c'est un thread/salon créé spécifiquement pour ce post (ex: forum). On supprime donc le salon entier.
+        if (guildConfig?.djNotifyChannelId && discordChannelId !== guildConfig.djNotifyChannelId) {
+            await deleteChannel(discordChannelId);
+        } else {
+            // Sinon, c'est un message classique dans le salon principal, on supprime juste le message.
+            await deleteChannelMessage(discordChannelId, discordMessageId);
+        }
     } catch (error) { 
-        console.error("[disableDjDiscordEmbed] Failed to delete Discord message:", error); 
+        console.error("[disableDjDiscordEmbed] Failed to clean up Discord message/channel:", error); 
     }
 }
 
@@ -586,7 +580,7 @@ export async function createDjPost(
                 guildId: guildConfig.id,
                 profileId: user.profileId,
                 mentionRoleId,
-                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                expiresAt: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000),
                 // Note: creator is NOT added as a participant — they occupy 1 slot implicitly
             },
             include: {
@@ -1131,6 +1125,56 @@ export async function internalLeaveDjPost(
     } catch (error) {
         console.error("[internalLeaveDjPost]", error);
         return { success: false, error: "Erreur lors du départ" };
+    }
+}
+
+/**
+ * Ferme ou supprime un post si son message Discord associé est supprimé.
+ */
+export async function handleDiscordDjPostDelete(discordGuildId: string, messageId: string) {
+    try {
+        const post = await (db as any).djSearchPost.findFirst({
+            where: { discordMessageId: messageId },
+            include: { guild: { select: { discordGuildId: true } } }
+        });
+
+        if (!post) return;
+
+        // On ferme le post en DB (on le marque CLOSED) car son message a été supprimé sur Discord
+        await (db as any).djSearchPost.update({
+            where: { id: post.id },
+            data: { status: "CLOSED" }
+        });
+
+        revalidatePath(`/dashboard/${discordGuildId}/donjons-et-quetes`);
+        await notifyDjUpdate(discordGuildId);
+    } catch (err) {
+        console.error("[handleDiscordDjPostDelete] Error:", err);
+    }
+}
+
+/**
+ * Ferme ou supprime un post si son salon/thread Discord associé est supprimé.
+ */
+export async function handleDiscordDjChannelDelete(discordGuildId: string, channelId: string) {
+    try {
+        const post = await (db as any).djSearchPost.findFirst({
+            where: { discordChannelId: channelId },
+            include: { guild: { select: { discordGuildId: true } } }
+        });
+
+        if (!post) return;
+
+        // On ferme le post en DB
+        await (db as any).djSearchPost.update({
+            where: { id: post.id },
+            data: { status: "CLOSED" }
+        });
+
+        revalidatePath(`/dashboard/${discordGuildId}/donjons-et-quetes`);
+        await notifyDjUpdate(discordGuildId);
+    } catch (err) {
+        console.error("[handleDiscordDjChannelDelete] Error:", err);
     }
 }
 

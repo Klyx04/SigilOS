@@ -886,7 +886,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                           title={m.userName}
                         >
                           {m.userAvatar ? (
-                            <img src={m.userAvatar} alt={m.userName} />
+                            <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
                           ) : (
                             <span className="text-[10px] font-bold text-zinc-400">
                               {m.userName.slice(0, 1).toUpperCase()}
@@ -1355,6 +1355,8 @@ export default function OptimizedGuideClient({
       completedSteps: Set<string>;
       completedMilestoneIds: Set<string>;
       bookmarkedSteps: Map<string, string>;
+      // Track which milestoneIds have any activity (steps OR bookmark OR completed)
+      activeMilestoneIds: Set<string>;
     }>();
 
     guildProgress.forEach(p => {
@@ -1367,25 +1369,65 @@ export default function OptimizedGuideClient({
           profileSlug: p.profileSlug,
           completedSteps: new Set<string>(),
           completedMilestoneIds: new Set<string>(),
-          bookmarkedSteps: new Map<string, string>()
+          bookmarkedSteps: new Map<string, string>(),
+          activeMilestoneIds: new Set<string>()
         };
         map.set(p.profileId, existing);
       }
-      if (p.completedSteps) {
+      if (p.completedSteps && p.completedSteps.length > 0) {
         p.completedSteps.forEach(s => existing!.completedSteps.add(s));
+        existing.activeMilestoneIds.add(p.milestoneId);
       }
       if (p.isCompleted) {
         existing.completedMilestoneIds.add(p.milestoneId);
+        existing.activeMilestoneIds.add(p.milestoneId);
       }
       if (p.currentStep) {
         existing.bookmarkedSteps.set(p.milestoneId, p.currentStep);
+        existing.activeMilestoneIds.add(p.milestoneId);
       }
     });
 
     const sortedM = [...milestones].sort((a, b) => a.order - b.order);
 
     return Array.from(map.values()).map(m => {
-      const currentMs = sortedM.find(ms => !m.completedMilestoneIds.has(ms.id));
+      // Strategy: find the furthest-order milestone where the member has any activity
+      // (has completed steps, has a bookmark, or has marked as completed)
+      // then set currentMilestoneId = the next uncompleted milestone after that point
+      // OR the active milestone itself if it's not yet completed
+      let bestActiveMilestoneOrder = -1;
+      let bestActiveMilestoneId: string | null = null;
+
+      sortedM.forEach(ms => {
+        const hasActivity = m.activeMilestoneIds.has(ms.id);
+        if (hasActivity && ms.order > bestActiveMilestoneOrder) {
+          bestActiveMilestoneOrder = ms.order;
+          bestActiveMilestoneId = ms.id;
+        }
+      });
+
+      let currentMilestoneId: string | null = null;
+      if (bestActiveMilestoneId) {
+        // If the best active milestone is completed, move to the next uncompleted one
+        if (m.completedMilestoneIds.has(bestActiveMilestoneId)) {
+          const nextMs = sortedM.find(ms => ms.order > bestActiveMilestoneOrder && !m.completedMilestoneIds.has(ms.id));
+          currentMilestoneId = nextMs ? nextMs.id : null; // null = guide fully completed
+        } else {
+          // Member is actively on this milestone
+          currentMilestoneId = bestActiveMilestoneId;
+        }
+      } else if (m.completedMilestoneIds.size > 0) {
+        // Has completed some milestones but no active steps — find next after last completed
+        let maxCompletedOrder = -1;
+        m.completedMilestoneIds.forEach(id => {
+          const ms = sortedM.find(s => s.id === id);
+          if (ms && ms.order > maxCompletedOrder) maxCompletedOrder = ms.order;
+        });
+        const nextMs = sortedM.find(ms => ms.order > maxCompletedOrder && !m.completedMilestoneIds.has(ms.id));
+        currentMilestoneId = nextMs ? nextMs.id : null;
+      }
+      // If no activity at all: don't show in presenceMap (currentMilestoneId stays null)
+
       return {
         profileId: m.profileId,
         userName: m.userName,
@@ -1393,13 +1435,13 @@ export default function OptimizedGuideClient({
         profileSlug: m.profileSlug,
         completedSteps: m.completedSteps,
         completedMilestoneIds: m.completedMilestoneIds,
-        currentMilestoneId: currentMs ? currentMs.id : null,
+        currentMilestoneId,
         bookmarkedSteps: m.bookmarkedSteps
       };
     });
   }, [guildProgress, milestones]);
 
-  // Presence mapping (maps current milestone ID to unique active members)
+  // Presence mapping (maps milestone ID to members currently active there)
   const presenceMap = useMemo(() => {
     const map: Record<string, any[]> = {};
     uniqueGuildMembers.forEach(m => {
@@ -2111,7 +2153,7 @@ export default function OptimizedGuideClient({
                             className="inline-block h-7 w-7 rounded-full ring-2 ring-zinc-950 bg-zinc-900 overflow-hidden"
                           >
                             {m.userAvatar ? (
-                              <img src={m.userAvatar} alt={m.userName} className="h-full w-full object-cover" />
+                              <img src={m.userAvatar} alt={m.userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
                               <span className="flex h-full w-full items-center justify-center text-xs font-bold text-zinc-400 bg-zinc-800">
                                 {m.userName.slice(0, 1).toUpperCase()}
@@ -2974,7 +3016,7 @@ export default function OptimizedGuideClient({
                                 title={member.userName}
                               >
                                 {member.userAvatar ? (
-                                  <img src={member.userAvatar} alt="" className="w-full h-full object-cover" />
+                                  <img src={member.userAvatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                 ) : (
                                   <span className="text-[8px] font-bold text-zinc-400">
                                     {member.userName.charAt(0).toUpperCase()}
@@ -3053,7 +3095,7 @@ export default function OptimizedGuideClient({
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-zinc-800 border border-amber-500/20 overflow-hidden flex items-center justify-center shrink-0">
                               {m.userAvatar ? (
-                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-500" />
+                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-500" referrerPolicy="no-referrer" />
                               ) : (
                                 <span className="text-sm font-bold text-zinc-400">
                                   {m.userName.charAt(0).toUpperCase()}
@@ -3099,7 +3141,7 @@ export default function OptimizedGuideClient({
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                               {m.userAvatar ? (
-                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-500" />
+                                <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover animate-in fade-in duration-500" referrerPolicy="no-referrer" />
                               ) : (
                                 <span className="text-sm font-bold text-zinc-400">
                                   {m.userName.charAt(0).toUpperCase()}
@@ -3177,7 +3219,7 @@ export default function OptimizedGuideClient({
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                           {m.userAvatar ? (
-                            <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
+                            <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
                             <span className="text-sm font-bold text-zinc-400">
                               {m.userName.charAt(0).toUpperCase()}

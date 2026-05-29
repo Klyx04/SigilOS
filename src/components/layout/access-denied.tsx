@@ -216,8 +216,8 @@ export function AccessDenied({
                                             value={pseudo}
                                             onChange={(e) => {
                                                 const val = e.target.value;
-                                                // Only allow letters, spaces and hyphens
-                                                const cleaned = val.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-]/g, "");
+                                                // Only allow letters, spaces, hyphens and square brackets
+                                                const cleaned = val.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-\[\]]/g, "");
                                                 setPseudo(cleaned);
                                             }}
                                             className="bg-black/40 border-white/10 h-12 rounded-xl focus:ring-emerald-500/50"

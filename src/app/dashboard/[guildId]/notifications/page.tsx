@@ -2,17 +2,26 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { getUnreadNotifications, markAsRead, markAllAsRead } from "@/server/actions/notification-actions";
+import { replyToServiceRequestAction } from "@/server/actions/service-actions";
 import { NotificationType, NotificationCategory } from "@prisma/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck, Swords, Gem } from "lucide-react";
+import { Bell, CheckCircle2, Info, AlertTriangle, Shield, X, Check, Target, Trophy, Flame, Calendar, PieChart, ShieldCheck, Swords, Gem, MessageSquare, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 // Type definition tailored for UI
 type Notification = {
@@ -32,6 +41,50 @@ export default function NotificationsPage() {
     const [loading, setLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
+    const params = useParams();
+    const guildId = params?.guildId as string;
+
+    const [replyNotif, setReplyNotif] = useState<Notification | null>(null);
+    const [replyText, setReplyText] = useState("");
+    const [replyPending, setReplyPending] = useState(false);
+
+    const handleSendReply = async () => {
+        if (!replyNotif || !replyText.trim()) return;
+        setReplyPending(true);
+        try {
+            const url = new URL(replyNotif.link || "", window.location.origin);
+            const replyTo = url.searchParams.get("replyTo") || "";
+            const listingId = url.searchParams.get("listingId") || "";
+
+            if (!replyTo || !listingId) {
+                toast.error("Données de notification invalides.");
+                setReplyPending(false);
+                return;
+            }
+
+            const res = await replyToServiceRequestAction(
+                guildId,
+                replyTo,
+                listingId,
+                replyText.trim(),
+                ""
+            );
+
+            if (res.success) {
+                toast.success("Votre réponse a été envoyée !");
+                setReplyNotif(null);
+                setReplyText("");
+                // Mark this request notification as read
+                handleDismiss(replyNotif.id);
+            } else {
+                toast.error(res.error || "Impossible d'envoyer la réponse.");
+            }
+        } catch (error) {
+            toast.error("Erreur serveur.");
+        } finally {
+            setReplyPending(false);
+        }
+    };
 
     async function loadNotifications() {
         setLoading(true);
@@ -248,17 +301,34 @@ export default function NotificationsPage() {
                                     {notif.message}
                                 </p>
 
-                                {notif.link && (
-                                    <Link
-                                        href={notif.link}
-                                        className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 mt-3 hover:text-indigo-300 transition-colors"
-                                    >
-                                        Accéder
-                                        <div className="w-4 h-4 rounded-full bg-indigo-500/10 flex items-center justify-center">
-                                            <Check className="w-2.5 h-2.5" />
+                                {notif.link && (() => {
+                                    const isServiceReply = notif.link.includes("replyTo=") && notif.link.includes("listingId=");
+                                    return (
+                                        <div className="flex items-center gap-3 mt-3">
+                                            <Link
+                                                href={notif.link}
+                                                className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                                            >
+                                                Accéder
+                                                <div className="w-4 h-4 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                                                    <Check className="w-2.5 h-2.5" />
+                                                </div>
+                                            </Link>
+                                            {isServiceReply && (
+                                                <Button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setReplyNotif(notif);
+                                                    }}
+                                                    className="h-7 px-3 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-all"
+                                                >
+                                                    <MessageSquare className="w-3.5 h-3.5" />
+                                                    Répondre
+                                                </Button>
+                                            )}
                                         </div>
-                                    </Link>
-                                )}
+                                    );
+                                })()}
                             </div>
 
                             {/* Actions (Hover) */}
@@ -277,6 +347,55 @@ export default function NotificationsPage() {
                     ))}
                 </div>
             )}
+
+            <Dialog open={!!replyNotif} onOpenChange={(open) => !open && setReplyNotif(null)}>
+                <DialogContent className="max-w-md bg-zinc-950 border border-white/10 shadow-2xl rounded-3xl text-white p-6 backdrop-blur-xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-black flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                                <MessageSquare className="w-4 h-4 text-cyan-400" />
+                            </div>
+                            Répondre à la demande
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {replyNotif && (
+                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-zinc-400 italic">
+                                "{replyNotif.message}"
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <Label className="text-zinc-400 text-xs font-black uppercase tracking-widest">Votre réponse</Label>
+                            <Textarea
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                placeholder="Saisissez votre message pour le client..."
+                                className="bg-black/30 border-white/10 text-white rounded-xl placeholder:text-zinc-600 focus:border-cyan-500/50 resize-none h-28 text-xs leading-relaxed"
+                                maxLength={500}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setReplyNotif(null)}
+                            className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-10 transition-all rounded-xl"
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={handleSendReply}
+                            disabled={replyPending || !replyText.trim()}
+                            className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black h-10 shadow-lg shadow-cyan-900/20 rounded-xl transition-all"
+                        >
+                            {replyPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Envoyer"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

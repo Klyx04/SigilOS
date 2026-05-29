@@ -354,8 +354,18 @@ export async function logAdminAccessDenied(
         const headersList = await headers();
         
         // 🛡️ SECURITY: Detect and ignore prefetch attempts (avoid spamming logs with false positives)
-        const isPrefetch = headersList.get("Next-Router-Prefetch") === "1" || headersList.get("Purpose") === "prefetch";
+        const isPrefetch = 
+            headersList.get("Next-Router-Prefetch") === "1" || 
+            headersList.get("Purpose") === "prefetch" ||
+            headersList.get("x-middleware-prefetch") === "1" ||
+            headersList.get("sec-purpose") === "prefetch";
         if (isPrefetch) return;
+
+        // 🛡️ SECURITY: Avoid false positives for legitimate guild members during standard page navigation (GET).
+        // We only log access denied for external users (potential scan/intrusion) or active mutations (Server Actions).
+        if (isMember && targetPage.startsWith("/")) {
+            return;
+        }
 
         const userAgent = headersList.get("user-agent") || "Inconnu";
         const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";

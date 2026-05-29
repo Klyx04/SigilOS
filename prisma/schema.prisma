@@ -59,8 +59,7 @@ model User {
   dreamRunMembers      DreamRunMember[]
   dreamWaitlists       DreamWaitlist[]
   eventParticipations  EventParticipant[]
-  garticStats          GarticPlayerStats?
-  garticSessions       GarticSession[]
+
   guildEvents          GuildEvent[]
   notifications        Notification[]
   administeredRelances Relance[]          @relation("RelanceAdmin")
@@ -260,7 +259,7 @@ model GuildConfig {
   blacklistEntries                 BlacklistEntry[]
   contentCreators                  ContentCreator[]
   djSearchPosts                    DjSearchPost[]
-  garticRooms                      GarticRoom[]
+
   guildActivities                  GuildActivity[]
   guildBonuses                     GuildBonus[]
   guildEvents                      GuildEvent[]
@@ -1479,7 +1478,7 @@ model ContentCreator {
   @@index([guildId])
 }
 
-model SkribblRank {
+model BombRank {
   id          String   @id @default(cuid())
   guildId     String
   userId      String
@@ -1494,7 +1493,7 @@ model SkribblRank {
   @@index([guildId, bestScore])
 }
 
-model SkribblScore {
+model BombScore {
   id         String   @id @default(cuid())
   guildId    String
   userId     String
@@ -1567,65 +1566,6 @@ model GeoguesserSessionPlayer {
   session    GeoguesserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, userId])
-}
-
-model GarticRoom {
-  id         String          @id @default(cuid())
-  guildId    String
-  hostId     String
-  mode       String          @default("NORMAL")
-  maxPlayers Int             @default(8)
-  maxRounds  Int             @default(3)
-  drawTime   Int             @default(60)
-  status     String          @default("WAITING")
-  createdAt  DateTime        @default(now())
-  finishedAt DateTime?
-  albums     GarticAlbum[]
-  guild      GuildConfig     @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  sessions   GarticSession[]
-}
-
-model GarticSession {
-  id       String     @id @default(cuid())
-  roomId   String
-  userId   String
-  score    Int        @default(0)
-  rank     Int?
-  joinedAt DateTime   @default(now())
-  room     GarticRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([roomId, userId])
-}
-
-model GarticAlbum {
-  id      String             @id @default(cuid())
-  roomId  String
-  ownerId String
-  room    GarticRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  entries GarticAlbumEntry[]
-}
-
-model GarticAlbumEntry {
-  id        String      @id @default(cuid())
-  albumId   String
-  authorId  String
-  type      String
-  content   String
-  round     Int
-  createdAt DateTime    @default(now())
-  album     GarticAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
-}
-
-model GarticPlayerStats {
-  id              String @id @default(cuid())
-  userId          String @unique
-  totalGames      Int    @default(0)
-  totalWins       Int    @default(0)
-  totalPoints     Int    @default(0)
-  correctGuesses  Int    @default(0)
-  drawingsCreated Int    @default(0)
-  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model OcreMonsterTemplate {

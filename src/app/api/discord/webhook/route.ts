@@ -530,6 +530,14 @@ export async function POST(request: NextRequest) {
                     await handleDiscordBlacklistDelete(data.guild_id, data.id);
                     const { handleDiscordGalleryDelete } = await import("@/server/actions/gallery-actions");
                     await handleDiscordGalleryDelete(data.guild_id, data.id);
+                    const { handleDiscordDjPostDelete } = await import("@/server/actions/dungeon-finder-actions");
+                    await handleDiscordDjPostDelete(data.guild_id, data.id);
+                    break;
+
+                case "CHANNEL_DELETE":
+                case "THREAD_DELETE":
+                    const { handleDiscordDjChannelDelete } = await import("@/server/actions/dungeon-finder-actions");
+                    await handleDiscordDjChannelDelete(data.guild_id, data.id);
                     break;
 
                 default:

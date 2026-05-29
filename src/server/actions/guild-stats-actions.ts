@@ -73,7 +73,7 @@ interface MiniGameGlobalStats {
     totalGamesPlayed: number;
     totalPointsRanked: number;
     records: {
-        skribbl: { name: string; score: number };
+        bomb: { name: string; score: number };
         geoguesser: { name: string; score: number };
     };
 }
@@ -288,7 +288,7 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { discordMessageCountWeekly: "desc" },
                 take: 100, // For aggregation + top talkers
             }),
-            db.skribblScore.count({ where: { guildId } }),
+            db.bombScore.count({ where: { guildId } }),
             db.geoguesserScore.count({ where: { guildId } }),
         ]);
 
@@ -306,7 +306,7 @@ export async function getGuildStats(guildId: string): Promise<{
         ] = resultsBatch2 as any[];
 
         const socialProfiles = resultsBatch2[10] as any[];
-        const skribblCount = resultsBatch2[11] as number;
+        const bombCount = resultsBatch2[11] as number;
         const geoCount = resultsBatch2[12] as number;
 
         // --- BATCH 3: Services, Kama & Top Achievers ---
@@ -381,7 +381,7 @@ export async function getGuildStats(guildId: string): Promise<{
                 orderBy: { createdAt: "asc" },
             }),
             // NEW: Mini Game Records
-            db.skribblRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
+            db.bombRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
             db.geoguesserRank.findFirst({ where: { guildId }, orderBy: { bestScore: "desc" }, select: { userName: true, bestScore: true } }),
             // NEW: Quest Stats Batching
             db.playerDofusProgress.groupBy({
@@ -430,7 +430,7 @@ export async function getGuildStats(guildId: string): Promise<{
 
         const performanceData = resultsBatch3[10] as { createdAt: Date, updatedAt: Date }[];
         const retentionData = resultsBatch3[11] as { createdAt: Date, archivedAt: Date | null }[];
-        const recordSkribbl = resultsBatch3[12] as any;
+        const recordBomb = resultsBatch3[12] as any;
         const recordGeo = resultsBatch3[13] as any;
 
         // ===== PRE-PROCESS IN-MEMORY (no DB calls) =====
@@ -661,10 +661,10 @@ export async function getGuildStats(guildId: string): Promise<{
                 })),
             },
             miniGames: {
-                totalGamesPlayed: skribblCount + geoCount,
+                totalGamesPlayed: bombCount + geoCount,
                 totalPointsRanked: 0, // Simplified for now
                 records: {
-                    skribbl: { name: recordSkribbl?.userName || "N/A", score: recordSkribbl?.bestScore || 0 },
+                    bomb: { name: recordBomb?.userName || "N/A", score: recordBomb?.bestScore || 0 },
                     geoguesser: { name: recordGeo?.userName || "N/A", score: recordGeo?.bestScore || 0 },
                 }
             },

@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { validateChannelBelongsToGuild } from "@/server/discord";
 
 export async function getDirectorySettings(guildId: string) {
     const session = await auth();
@@ -32,6 +33,13 @@ export async function saveDirectorySettings(guildId: string, channelId: string |
 
     const context = await getUserContext(guildId);
     if (!context.isAdmin) return { success: false, error: "Forbidden" };
+
+    if (channelId) {
+        const belongs = await validateChannelBelongsToGuild(channelId, guildId);
+        if (!belongs) {
+            return { success: false, error: "Le salon sélectionné n'appartient pas à ce serveur Discord." };
+        }
+    }
 
     try {
         await db.guildConfig.update({

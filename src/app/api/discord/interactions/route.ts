@@ -297,6 +297,54 @@ export async function POST(request: NextRequest) {
                             data: { content: lines.join("\n"), flags: 64 },
                         });
                     }
+                } else if (action === "reply") {
+                    const parts = custom_id.split(":");
+                    const requesterUserId = parts[2];
+                    const listingId = parts[3];
+
+                    const listing = await db.serviceListing.findUnique({
+                        where: { id: listingId },
+                        select: { profile: { select: { userId: true } } }
+                    });
+
+                    if (!listing) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Ce service n'existe plus.", flags: 64 },
+                        });
+                    }
+
+                    if (listing.profile.userId !== account!.userId) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Seul le prestataire de ce service peut répondre à la demande.", flags: 64 },
+                        });
+                    }
+
+                    return NextResponse.json({
+                        type: 9, // MODAL
+                        data: {
+                            custom_id: `svc:submit_reply:${requesterUserId}:${listingId}`,
+                            title: "💬 Répondre au client",
+                            components: [
+                                {
+                                    type: 1,
+                                    components: [
+                                        {
+                                            type: 4,
+                                            custom_id: "reply_message",
+                                            label: "Votre message",
+                                            style: 2, // Paragraph style
+                                            placeholder: "Ex: Salut ! C'est d'accord pour ce soir 21h ! MP moi en jeu.",
+                                            required: true,
+                                            min_length: 5,
+                                            max_length: 500,
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    });
                 }
             } else if (prefix === "validate") {
                 // =========================================================
@@ -748,6 +796,42 @@ export async function POST(request: NextRequest) {
                     return NextResponse.json({
                         type: 4,
                         data: { content: `❌ ${result?.error || "Erreur inconnue"}`, flags: 64 },
+                    });
+                }
+            } else if (prefix === "svc" && action === "submit_reply") {
+                const account = await findUserByDiscordId(member.user.id);
+                if (!account) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "❌ Tu dois t'être connecté au moins une fois sur le site.", flags: 64 },
+                    });
+                }
+
+                const parts = custom_id.split(":");
+                const requesterUserId = parts[2];
+                const listingId = parts[3];
+
+                let replyMessage = "";
+                for (const row of components) {
+                    for (const comp of row.components) {
+                        if (comp.custom_id === "reply_message") {
+                            replyMessage = comp.value?.trim() || "";
+                        }
+                    }
+                }
+
+                const { replyToServiceRequestAction } = await import("@/server/actions/service-actions");
+                const res = await replyToServiceRequestAction(guild_id, requesterUserId, listingId, replyMessage, account.userId);
+
+                if (res.success) {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: "✅ Votre réponse a été envoyée au client !", flags: 64 },
+                    });
+                } else {
+                    return NextResponse.json({
+                        type: 4,
+                        data: { content: `❌ ${res.error || "Impossible d'envoyer la réponse."}`, flags: 64 },
                     });
                 }
             }

@@ -61,6 +61,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
                         isDiscordConfigured={isDiscordConfigured}
                         canManageRaid={ctx.canManageRaid}
                         userPseudo={ctx.pseudoDofus || ctx.name}
+                        isAdmin={ctx.isAdmin}
                     />
                 </div>
             </main>

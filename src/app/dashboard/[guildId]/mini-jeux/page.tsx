@@ -6,6 +6,7 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { getGeoguesserLadder } from "@/server/actions/geoguesser-actions";
+import { getBombLadder } from "@/server/actions/bomb-actions";
 import { getMiniGamesStatus } from "@/server/actions/god-mini-games-actions";
 import { Trophy } from "lucide-react";
 
@@ -25,15 +26,18 @@ export default async function MiniJeuxPage({ params }: Props) {
     const enabled = await isModuleEnabled(guildId, "worldmap");
     if (!enabled) return <AccessDenied />;
 
-    const ladder = await getGeoguesserLadder(guildId);
-    const gameStatuses = await getMiniGamesStatus();
+    const [ladder, bombLadder, gameStatuses] = await Promise.all([
+        getGeoguesserLadder(guildId),
+        getBombLadder(guildId),
+        getMiniGamesStatus()
+    ]);
 
     return (
         <div className="fixed top-[64px] md:top-[88px] bottom-[76px] left-0 md:left-[280px] right-0 z-[40] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-500 rounded-b-3xl border-b border-white/5 mx-2">
             <div className="flex-shrink-0 px-4 md:px-6 pt-3 pb-1 border-b border-white/5 bg-black/20 backdrop-blur-md">
                 <UnifiedModuleHeader
                     title="Mini-Jeux"
-                    description="Défiez vos amis sur SigilGuesser et Sigil-Gartic"
+                    description="Sigil-Guesser & Sigil-Bomb : Défiez vos alliés !"
                     icon={Trophy}
                     backHref={`/dashboard/${guildId}`}
                     middleContent={<div id="sigil-geoguesser-header-hud" className="w-full flex justify-center" />}

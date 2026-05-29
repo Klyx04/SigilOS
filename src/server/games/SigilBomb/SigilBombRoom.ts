@@ -1,6 +1,7 @@
 
 import { Server, Socket } from "socket.io";
 import { logger } from "@/lib/logger";
+import { db } from "@/lib/prisma";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -703,6 +704,47 @@ export class SigilBombRoom {
                 }));
 
             logger.info(`[SigilBomb:${this.id}] Game Ended. Winner: ${winner?.userName || 'None'}`);
+
+            // ── Persist scores to DB (fire-and-forget, don't block the game loop) ──
+            const guildId = this.guildId;
+            const humanPlayers = participants.filter(p => !p.isBot && p.userId && p.userId !== 'bot');
+            if (humanPlayers.length > 0) {
+                Promise.all(humanPlayers.map(async (p) => {
+                    const score = p.wordsFound;
+                    const userId = p.userId!;
+                    try {
+                        const rank = await db.bombRank.upsert({
+                            where: { guildId_userId: { guildId, userId } },
+                            create: {
+                                guildId,
+                                userId,
+                                userName: p.userName,
+                                userAvatar: p.userAvatar,
+                                bestScore: score,
+                                totalPoints: score,
+                                gamesPlayed: 1,
+                            },
+                            update: {
+                                totalPoints: { increment: score },
+                                gamesPlayed: { increment: 1 },
+                                userName: p.userName,
+                                userAvatar: p.userAvatar,
+                            },
+                        });
+                        if (score > rank.bestScore) {
+                            await db.bombRank.update({
+                                where: { id: rank.id },
+                                data: { bestScore: score },
+                            });
+                        }
+                        await db.bombScore.create({
+                            data: { guildId, userId, userName: p.userName, userAvatar: p.userAvatar, score },
+                        });
+                    } catch (dbErr) {
+                        logger.error(`[SigilBomb:${this.id}] Failed to save score for ${p.userName}:`, dbErr as any);
+                    }
+                })).catch(err => logger.error(`[SigilBomb:${this.id}] Score persistence error:`, err));
+            }
 
             // Emit explicit event then sync full state
             this.io.to(this.id).emit("bomb:game-end", {

@@ -6,6 +6,9 @@ import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { z } from "zod";
+import { downloadExternalImage } from "@/lib/image-downloader";
+import { join, normalize } from "path";
+
 
 export type ActionResponse<T = null> = {
     success: boolean;
@@ -184,8 +187,25 @@ export async function createLegendaryItem(data: z.infer<typeof LegendaryItemSche
     const validation = LegendaryItemSchema.safeParse(data);
     if (!validation.success) return { success: false, error: "Données invalides" };
 
+    const itemData = { ...validation.data };
+
+    // Siphon image si externe
+    if (itemData.imageUrl && (itemData.imageUrl.startsWith("http://") || itemData.imageUrl.startsWith("https://"))) {
+        try {
+            const slug = itemData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+            const root = process.cwd();
+            const destination = normalize(join(root, "public", "game-data", "legendary", `${slug}.webp`));
+            const downloadResult = await downloadExternalImage(itemData.imageUrl, destination, "legendary");
+            if (downloadResult.success && downloadResult.path) {
+                itemData.imageUrl = downloadResult.path;
+            }
+        } catch (e) {
+            logger.error("Auto-siphoning on create failed", { error: e });
+        }
+    }
+
     try {
-        const item = await db.legendaryItem.create({ data: validation.data });
+        const item = await db.legendaryItem.create({ data: itemData });
         return { success: true, data: item };
     } catch (error) {
         logger.error("Create Legendary Item Error", { error });
@@ -200,8 +220,25 @@ export async function updateLegendaryItem(id: string, data: z.infer<typeof Legen
     const validation = LegendaryItemSchema.safeParse(data);
     if (!validation.success) return { success: false, error: "Données invalides" };
 
+    const itemData = { ...validation.data };
+
+    // Siphon image si externe
+    if (itemData.imageUrl && (itemData.imageUrl.startsWith("http://") || itemData.imageUrl.startsWith("https://"))) {
+        try {
+            const slug = itemData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+            const root = process.cwd();
+            const destination = normalize(join(root, "public", "game-data", "legendary", `${slug}.webp`));
+            const downloadResult = await downloadExternalImage(itemData.imageUrl, destination, "legendary");
+            if (downloadResult.success && downloadResult.path) {
+                itemData.imageUrl = downloadResult.path;
+            }
+        } catch (e) {
+            logger.error("Auto-siphoning on update failed", { error: e });
+        }
+    }
+
     try {
-        const item = await db.legendaryItem.update({ where: { id }, data: validation.data });
+        const item = await db.legendaryItem.update({ where: { id }, data: itemData });
         revalidatePath("/god/game-data");
         return { success: true, data: item };
     } catch (error) {

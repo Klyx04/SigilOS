@@ -5,7 +5,8 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { logServiceActivity } from "./activity-log-actions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ServiceCategory, ServiceStatus } from "@prisma/client";
+import { ServiceCategory, ServiceStatus, NotificationType, NotificationCategory } from "@prisma/client";
+import { validateChannelBelongsToGuild } from "@/server/discord";
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -613,6 +614,13 @@ export async function updateServiceSettings(
             return { success: false, error: "Admin requis" };
         }
 
+        if (servicesNotifyChannelId) {
+            const belongs = await validateChannelBelongsToGuild(servicesNotifyChannelId, guildId);
+            if (!belongs) {
+                return { success: false, error: "Le salon sélectionné n'appartient pas à ce serveur Discord." };
+            }
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: { servicesNotifyChannelId: servicesNotifyChannelId ? servicesNotifyChannelId.trim() : null },
@@ -709,12 +717,20 @@ export async function contactPasseurAction(
             footer: { text: "SigilOS Services" },
         };
 
+        const components = [{
+            type: 1, components: [
+                { type: 2, style: 1, label: "Répondre", emoji: { name: "💬" }, custom_id: `svc:reply:${user.id}:${listing.id}` },
+                { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/services?replyTo=${user.id}&listingId=${listing.id}` },
+            ]
+        }];
+
         const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
             body: JSON.stringify({
                 content: `🔔 ${providerMention}, tu as une nouvelle demande de service de la part de ${requesterMention} !`,
                 embeds: [embed],
+                components,
             }),
         });
 
@@ -722,6 +738,22 @@ export async function contactPasseurAction(
             const err = await res.json();
             console.error("[contactPasseurAction] Discord API error:", JSON.stringify(err));
             return { success: false, error: "Impossible d'envoyer la notification Discord" };
+        }
+
+        // 🔔 Dashboard notification to the provider/seller
+        try {
+            await db.notification.create({
+                data: {
+                    userId: listing.profile.userId,
+                    title: "Nouvelle demande de service",
+                    message: `${user.name || "Un membre"} vous demande pour "${listing.title}". Message : "${customMessage || "aucun"}"`,
+                    type: NotificationType.SYSTEM_INFO,
+                    category: NotificationCategory.SYSTEM,
+                    link: `/dashboard/${guildId}/services?replyTo=${user.id}&listingId=${listing.id}`,
+                }
+            });
+        } catch (notifErr) {
+            console.error("[contactPasseurAction] Dashboard notification failed:", notifErr);
         }
 
         // Log activity
@@ -741,4 +773,105 @@ export async function contactPasseurAction(
         return { success: false, error: "Erreur interne" };
     }
 }
+
+export async function replyToServiceRequestAction(
+    guildId: string,
+    requesterUserId: string,
+    listingId: string,
+    replyMessage: string,
+    providerUserId: string
+): Promise<ActionResponse> {
+    try {
+        const { auth } = await import("@/auth");
+        const session = await auth();
+        const effectiveProviderId = session?.user?.id || providerUserId;
+
+        if (!effectiveProviderId) return { success: false, error: "Non authentifié" };
+
+        const listing = await db.serviceListing.findUnique({
+            where: { id: listingId },
+            include: {
+                profile: {
+                    select: {
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        userId: true,
+                        user: { select: { name: true } }
+                    }
+                }
+            }
+        });
+
+        if (!listing) return { success: false, error: "Annonce introuvable" };
+        if (listing.profile.userId !== effectiveProviderId) {
+            return { success: false, error: "Non autorisé" };
+        }
+
+        const providerName = getName(listing.profile);
+
+        // 1. Dashboard Notification to client (requesterUserId)
+        await db.notification.create({
+            data: {
+                userId: requesterUserId,
+                title: `Réponse pour le service : ${listing.title}`,
+                message: `${providerName} a répondu : "${replyMessage}"`,
+                type: NotificationType.SYSTEM_INFO,
+                category: NotificationCategory.SYSTEM,
+                link: `/dashboard/${guildId}/services`,
+            }
+        });
+
+        // 2. Discord Notification (DM / channel fallback)
+        const clientAccount = await db.account.findFirst({
+            where: { userId: requesterUserId, provider: "discord" },
+            select: { providerAccountId: true }
+        });
+
+        if (clientAccount?.providerAccountId) {
+            const token = process.env.DISCORD_BOT_TOKEN;
+            const guildConfig = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { servicesNotifyChannelId: true }
+            });
+
+            if (token && guildConfig?.servicesNotifyChannelId) {
+                try {
+                    const dmRes = await fetch(`https://discord.com/api/v10/users/@me/channels`, {
+                        method: "POST",
+                        headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+                        body: JSON.stringify({ recipient_id: clientAccount.providerAccountId })
+                    });
+                    if (dmRes.ok) {
+                        const dmChannel = await dmRes.json() as { id: string };
+                        await fetch(`https://discord.com/api/v10/channels/${dmChannel.id}/messages`, {
+                            method: "POST",
+                            headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                content: `✉️ **${providerName}** a répondu à ta demande de service pour **${listing.title}** :\n> ${replyMessage}`
+                            })
+                        });
+                    } else {
+                        // Fallback: channel ping
+                        await fetch(`https://discord.com/api/v10/channels/${guildConfig.servicesNotifyChannelId}/messages`, {
+                            method: "POST",
+                            headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                content: `🔔 <@${clientAccount.providerAccountId}>, **${providerName}** a répondu à ta demande pour **${listing.title}** :\n> ${replyMessage}`
+                            })
+                        });
+                    }
+                } catch (discordErr) {
+                    console.error("[replyToServiceRequestAction] Discord notification failed:", discordErr);
+                }
+            }
+        }
+
+        revalidatePath(`/dashboard/${guildId}/services`);
+        return { success: true };
+    } catch (err) {
+        console.error("[replyToServiceRequestAction]", err);
+        return { success: false, error: "Erreur interne" };
+    }
+}
+
 

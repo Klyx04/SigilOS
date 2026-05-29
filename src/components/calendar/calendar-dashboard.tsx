@@ -59,6 +59,7 @@ interface CalendarDashboardProps {
     canManageRaid?: boolean;
     userPseudo?: string;
     isDiscordConfigured?: boolean;
+    isAdmin?: boolean;
 }
 
 type ViewMode = "grid" | "list";
@@ -114,7 +115,7 @@ const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg
     },
 };
 
-export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, isDiscordConfigured }: CalendarDashboardProps) {
+export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, isDiscordConfigured, isAdmin = false }: CalendarDashboardProps) {
     const [displayMode, setDisplayMode] = useState<ViewMode>("grid");
     const [gridType, setGridType] = useState<"week" | "month">("week");
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -145,6 +146,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
     // Discord roles for notifications
     const [discordRoles, setDiscordRoles] = useState<DiscordRole[]>([]);
+    const [everyoneAllowed, setEveryoneAllowed] = useState<boolean>(false);
 
     // Filter state
     const [selectedFilter, setSelectedFilter] = useState<string | "ALL">("ALL");
@@ -208,7 +210,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         fetchEvents();
         // Fetch Discord roles if user can manage
         if (canManage) {
-            getDiscordRolesForCalendar(guildId).then(setDiscordRoles);
+            getDiscordRolesForCalendar(guildId).then(res => {
+                setDiscordRoles(res.roles || []);
+                setEveryoneAllowed(res.everyoneAllowed || false);
+            });
         }
     }, [currentDate, guildId, canManage]);
 
@@ -732,8 +737,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 currentUserId={currentUserId}
                 guildId={guildId}
                 canManage={canManage}
+                isAdmin={isAdmin}
                 isDiscordConfigured={isDiscordConfigured}
                 discordRoles={discordRoles}
+                everyoneAllowed={everyoneAllowed}
                 hasMetamobKey={hasMetamobKey}
                 onRegister={handleRegister}
                 onUnregister={handleUnregister}

@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, MessageSquare, Swords, ScrollText, CheckCircle2 } from "lucide-react";
 import { contactPasseurAction } from "@/server/actions/service-actions";
 import { type ServiceListingWithProfile } from "@/server/actions/service-actions";
+import { getAchievementIconUrl } from "@/lib/achievement-icon";
 import { toast } from "sonner";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -78,7 +79,7 @@ export function ServiceContactDialog({ listing, guildId }: ServiceContactDialogP
             <DialogTrigger asChild>
                 <Button
                     onClick={handleOpen}
-                    className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-wider text-xs rounded-xl shadow-lg shadow-cyan-900/20 h-9 px-4 transition-all"
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-wider text-[10px] sm:text-xs rounded-xl shadow-lg shadow-cyan-900/20 h-9 px-4 sm:px-5 transition-all shrink-0 w-fit"
                 >
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Contacter
@@ -124,19 +125,46 @@ export function ServiceContactDialog({ listing, guildId }: ServiceContactDialogP
                         <div className="grid grid-cols-1 gap-2.5">
                             {options.map((option) => {
                                 const isChecked = selectedOptions.includes(option);
+                                // Resolve achievement icon if category is PASSAGE_DONJON
+                                let achievementIcon: string | null = null;
+                                if (listing.category === "PASSAGE_DONJON") {
+                                    const matchName = (listing.selectedAchievementNames as string[] | null)?.find(
+                                        name => name === option || option.startsWith(name)
+                                    );
+                                    if (matchName) {
+                                        const slug = matchName.toLowerCase()
+                                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                                            .replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+                                        achievementIcon = getAchievementIconUrl(slug);
+                                    }
+                                }
+
                                 return (
                                     <button
                                         key={option}
                                         type="button"
                                         onClick={() => handleOptionToggle(option)}
                                         className={cn(
-                                            "flex items-center justify-between rounded-xl border p-3.5 text-left transition-all duration-300",
+                                            "flex items-center gap-3 justify-between rounded-xl border p-3.5 text-left transition-all duration-300",
                                             isChecked
                                                 ? "border-cyan-500/40 bg-cyan-500/5 text-white"
                                                 : "border-white/5 bg-white/[0.02] text-zinc-400 hover:border-white/10 hover:text-white"
                                         )}
                                     >
-                                        <span className="text-xs font-bold leading-tight">{option}</span>
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            {achievementIcon && (
+                                                <div className="relative h-6 w-6 shrink-0">
+                                                    <Image 
+                                                        src={achievementIcon} 
+                                                        alt={option} 
+                                                        fill 
+                                                        className="object-contain"
+                                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                    />
+                                                </div>
+                                            )}
+                                            <span className="text-xs font-bold leading-tight truncate">{option}</span>
+                                        </div>
                                         <div className={cn(
                                             "h-5 w-5 rounded-lg border flex items-center justify-center transition-all shrink-0",
                                             isChecked

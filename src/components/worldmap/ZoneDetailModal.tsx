@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Swords, ShieldAlert, CheckCircle2, XCircle, ChevronDown, Loader2, MapPin, Ghost, Sparkles, Info, ChevronUp, Coins, ExternalLink } from 'lucide-react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { DocContent } from '../doc/doc-content';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { getZoneMonsters, getBountiesForZone, searchDungeonsAdvanced, getQuestsByZone } from '@/server/actions/game-data-actions';
+import { getZoneMonsters, getBountiesForZone, searchDungeonsAdvanced } from '@/server/actions/game-data-actions';
 import { getZoneArchmonsters } from '@/server/actions/ocre-actions';
 
 interface ZoneDetailModalProps {
@@ -26,7 +27,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
     const [bounties, setBounties] = useState<any[]>([]);
     const [expandedBounties, setExpandedBounties] = useState<Record<string, boolean>>({});
     const [dungeons, setDungeons] = useState<any[]>([]);
-    const [quests, setQuests] = useState<any[]>([]);
+
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -37,8 +38,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                 (worldId === undefined || worldId === 1) ? getZoneArchmonsters(guildId, zoneName) : Promise.resolve({ success: true, data: [] }),
                 getBountiesForZone(zoneName),
                 searchDungeonsAdvanced({ query: zoneName }),
-                getQuestsByZone(zoneName),
-            ]).then(([mRes, aRes, bRes, dRes, qRes]) => {
+            ]).then(([mRes, aRes, bRes, dRes]) => {
                 const localAvis = (mRes.success && mRes.data) ? mRes.data.avisDeRecherche : [];
                 const dbAvis = bRes.success ? bRes.data || [] : [];
                 
@@ -69,7 +69,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                     guideUrl: `https://duffus.fr/avis-de-recherche/${b.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/['\s]/g, '-')}`
                 })));
                 if (dRes.success) setDungeons(dRes.data || []);
-                if (qRes.success) setQuests(qRes.data || []);
+
                 setLoading(false);
             }).catch(() => {
                 setError("Erreur de connexion");
@@ -138,9 +138,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                         <TabsTrigger value="families" className="rounded-xl px-6 py-3 font-black uppercase italic text-[12px] tracking-widest data-[state=active]:bg-purple-500 data-[state=active]:text-white transition-all">
                                             🦇 Familles
                                         </TabsTrigger>
-                                        <TabsTrigger value="quetes" className="rounded-xl px-6 py-3 font-black uppercase italic text-[12px] tracking-widest data-[state=active]:bg-indigo-500 data-[state=active]:text-white transition-all">
-                                            📜 Quêtes Dofus
-                                        </TabsTrigger>
+
                                     </TabsList>
 
                                     {/* Capture Stats (Only relevant for Archis, but can show generally) */}
@@ -512,51 +510,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                     </div>
                                 </TabsContent>
 
-                                {/* TAB: QUÊTES DOFUS */}
-                                <TabsContent value="quetes" className="m-0">
-                                    {quests.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {quests.map((q: any) => (
-                                                <div key={q.id} className="group flex items-center gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 hover:border-indigo-500/40 transition-all">
-                                                    {q.chain?.dofus?.imageUrl && (
-                                                        <img 
-                                                            src={
-                                                                (q.chain.dofus.imageUrl.length < 5 || q.chain.dofus.imageUrl.includes('❄')) 
-                                                                    ? (q.chain.dofus.name.toLowerCase().includes('glace') ? 'https://static.dofusdb.fr/items/11756.png' : q.chain.dofus.imageUrl)
-                                                                    : q.chain.dofus.imageUrl
-                                                            } 
-                                                            alt="" 
-                                                            className="w-10 h-10 object-contain shrink-0" 
-                                                        />
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-black text-white truncate uppercase italic tracking-tight">{q.name}</p>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            {q.chain?.dofus && (
-                                                                <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest italic border" style={{ color: q.chain.dofus.color || '#6366f1', borderColor: `${q.chain.dofus.color || '#6366f1'}40`, background: `${q.chain.dofus.color || '#6366f1'}10` }}>
-                                                                    {q.chain.dofus.nameShort}
-                                                                </span>
-                                                            )}
-                                                            {q.chain?.sectionName && <span className="text-[9px] text-white/20 italic">{q.chain.sectionName}</span>}
-                                                            {q.npcSubArea && <span className="text-[10px] text-indigo-400/60 italic">· {q.npcSubArea}</span>}
-                                                            {q.isDungeon && <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[9px] font-black text-amber-500 uppercase">Donjon</span>}
-                                                        </div>
-                                                    </div>
-                                                    {(q.posX !== 0 || q.posY !== 0) && (
-                                                        <span className="text-[10px] font-black text-indigo-400/60 italic shrink-0">[{q.posX},{q.posY}]</span>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="py-24 rounded-[3rem] bg-white/[0.02] border border-dashed border-white/10 flex flex-col items-center justify-center gap-6">
-                                            <div className="w-20 h-20 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                                                <span className="text-3xl">📜</span>
-                                            </div>
-                                            <p className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] italic">Aucune quête Dofus liée à cette zone.</p>
-                                        </div>
-                                    )}
-                                </TabsContent>
+
                             </Tabs>
                         </div>
                     )}

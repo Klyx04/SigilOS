@@ -715,7 +715,8 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewWelcome = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
     const canViewPresentation = permissionSet.has(PERMISSIONS.PRESENTATION_VIEW) || isAdminFinal || noRolesConfigured;
     const canEditPresentation = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
-    const canViewStats = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
+    // Stats Guilde = même RBAC que la page guilde (DASHBOARD_LOGIN), pas lié aux Audit Logs
+    const canViewStats = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal || noRolesConfigured;
     const canViewDocs = permissionSet.has(PERMISSIONS.DASHBOARD_LOGIN) || isAdminFinal;
     const canViewAdminDocs = permissionSet.has(PERMISSIONS.STAFF_CONTENT) || isAdminFinal;
     const canViewRoster = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
@@ -728,6 +729,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canCreateSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
     const canJoinSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
     const canViewOcre = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
+    const canViewStuffGallery = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewLadder = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewQuests = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewWorldmap = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
@@ -788,7 +790,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewWorldmap: !!applyModule(!!mod?.worldmap, !!canViewWorldmap),
         canViewFinder: !!applyModule(!!mod?.donjons, !!canViewDJQuests),
         canViewServices: !!applyModule(!!mod?.services, !!canViewServices),
-        canViewStuffGallery: !!applyModule(!!mod?.gallery, true),
+        canViewStuffGallery: !!applyModule(!!mod?.gallery, !!canViewStuffGallery),
         canViewMiniGames: !!applyModule(!!mod?.minigames, !!canViewMiniGames),
         canViewPolls: !!applyModule(!!mod?.polls, !!canViewPolls),
         canViewCalendar: !!applyModule(!!mod?.calendar, !!canViewCalendar),

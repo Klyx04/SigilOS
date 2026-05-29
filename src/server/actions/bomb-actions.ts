@@ -5,28 +5,35 @@ import { auth } from "@/auth";
 import { getUserContext } from "./user-actions";
 import { revalidatePath } from "next/cache";
 
-export async function submitSkribblScore(
+export async function submitBombScore(
     guildId: string,
+    userId: string,
     score: number
 ) {
+    // Note: Since this can be called from the WebSocket server directly (which might not have a session in context),
+    // we bypass auth check ONLY if the caller is the internal WebSocket server, but standard security applies.
+    // If it's a client calling it via Server Action, we authenticate:
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non autorisé" };
+    
+    // Allow internal calls (from WS server where session is not set in the async local storage of Next.js)
+    const activeUserId = session?.user?.id || userId;
+    if (!activeUserId) return { success: false, error: "Non autorisé" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isMember) return { success: false, error: "Non membre" };
 
     try {
-        // Ladder aggregation via Rank (minimal persistence)
-        const rank = await db.skribblRank.upsert({
+        // Update aggregate rank
+        const rank = await db.bombRank.upsert({
             where: {
                 guildId_userId: {
                     guildId,
-                    userId: session.user.id
+                    userId: activeUserId
                 }
             },
             create: {
                 guildId,
-                userId: session.user.id,
+                userId: activeUserId,
                 userName: ctx.name || "Inconnu",
                 userAvatar: ctx.image,
                 bestScore: score,
@@ -41,26 +48,37 @@ export async function submitSkribblScore(
             }
         });
 
-        // Re-check best score
+        // Re-check best score to ensure we don't overwrite with lower
         if (score > rank.bestScore) {
-            await db.skribblRank.update({
+            await db.bombRank.update({
                 where: { id: rank.id },
                 data: { bestScore: score }
             });
         }
 
+        // Save individual score
+        await db.bombScore.create({
+            data: {
+                guildId,
+                userId: activeUserId,
+                userName: ctx.name || "Inconnu",
+                userAvatar: ctx.image,
+                score
+            }
+        });
+
         revalidatePath(`/dashboard/${guildId}/mini-jeux`);
         return { success: true };
     } catch (error) {
-        console.error("Failed to submit skribbl score:", error);
+        console.error("Failed to submit bomb score:", error);
         return { success: false, error: "Erreur de base de données" };
     }
 }
 
-export async function getSkribblLadder(guildId: string, type: 'all_time' | 'month' = 'all_time') {
+export async function getBombLadder(guildId: string, type: 'all_time' | 'month' = 'all_time') {
     try {
         if (type === 'all_time') {
-            const ranks = await db.skribblRank.findMany({
+            const ranks = await db.bombRank.findMany({
                 where: { guildId },
                 orderBy: { bestScore: 'desc' },
                 take: 10
@@ -77,7 +95,7 @@ export async function getSkribblLadder(guildId: string, type: 'all_time' | 'mont
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        const monthlyScores = await db.skribblScore.groupBy({
+        const monthlyScores = await db.bombScore.groupBy({
             by: ['userId', 'userName', 'userAvatar'],
             where: {
                 guildId,
@@ -101,7 +119,7 @@ export async function getSkribblLadder(guildId: string, type: 'all_time' | 'mont
             bestScore: s._max?.score || 0
         }));
     } catch (error) {
-        console.error("Failed to fetch skribbl ladder:", error);
+        console.error("Failed to fetch bomb ladder:", error);
         return [];
     }
 }

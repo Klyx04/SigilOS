@@ -3,21 +3,15 @@ import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { redis } from "../../lib/redis";
-import { GameManager as GarticGameManager } from "../games/SigilGartic/GameManager";
-import { SkribblManager } from "../games/SigilSkribbl/SkribblManager";
 import { GeoguesserManager } from "../games/SigilGuesser/GeoguesserManager";
 import { WorldMapService } from "../games/SigilGuesser/WorldMapService";
 import { BombManager } from "../games/SigilBomb/BombManager";
-import { InvaderManager } from "../games/SigilInvaderManager";
 import { rateLimit } from "../../lib/ratelimit";
 import { DiscordVoiceService } from "../discord/voice-service";
 import { logger as AppLogger } from "../../lib/logger";
 
 // Fallback if logger is not correctly initialized
 const logger = AppLogger || console;
-
-// Load Geoguesser data
-WorldMapService.getInstance().loadData();
 
 // Load Geoguesser data
 WorldMapService.getInstance().loadData();
@@ -93,11 +87,8 @@ io.use(async (socket, next) => {
 });
 
 
-const garticManager = new GarticGameManager(io);
-const skribblManager = new SkribblManager(io);
 const geoguesserManager = new GeoguesserManager(io);
 const bombManager = new BombManager(io);
-const invaderManager = new InvaderManager(io);
 
 // === DISCORD VOICE MONITORING ===
 const voiceService = DiscordVoiceService.getInstance();
@@ -151,14 +142,6 @@ io.on("connection", (socket: Socket) => {
     logger.info(`[WS] 🟢 Client connecté: ${socket.id}`);
     socket.emit("test:heartbeat", { time: Date.now() });
 
-    // === GARTIC PHONE ===
-    logger.info(`[WS] Initialisation Gartic pour ${socket.id}`);
-    garticManager.registerSocket(socket);
-
-    // === SKRIBBL.IO (Sigil-Draw) ===
-    logger.info(`[WS] Initialisation Skribbl pour ${socket.id}`);
-    skribblManager.registerSocket(socket);
-
     // === SIGIL-GUESSER ===
     logger.info(`[WS] Initialisation Geoguesser pour ${socket.id}`);
     geoguesserManager.registerSocket(socket);
@@ -175,18 +158,11 @@ io.on("connection", (socket: Socket) => {
         logger.info(`[WS] 🎤 Manual Voice Sync (${residents.length} users) for ${socket.id}`);
     });
 
-    // === SIGIL INVADER ===
-    logger.info(`[WS] Initialisation SigilInvader pour ${socket.id}`);
-    invaderManager.registerSocket(socket);
-
     // Gestion de la déconnexion
     socket.on("disconnect", (reason) => {
         logger.info(`[WS] 🔴 Client déconnecté: ${socket.id} (Raison: ${reason})`);
-        garticManager.handleDisconnect(socket);
-        skribblManager.handleDisconnect(socket, reason);
         geoguesserManager.handleDisconnect(socket, reason);
         bombManager.handleDisconnect(socket);
-        invaderManager.handleDisconnect(socket);
     });
 });
 

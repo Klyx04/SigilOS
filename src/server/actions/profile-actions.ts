@@ -43,7 +43,7 @@ const UpdateProfileSchema = z.object({
     guildId: z.string(),
     pseudoDofus: z.string()
         .max(50, "Le pseudo ne peut pas dépasser 50 caractères")
-        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s]*$/, "Le pseudo ne doit contenir que des lettres, espaces et tirets (pas de chiffres ni de caractères spéciaux)")
+        .regex(/^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s\[\]]*$/, "Le pseudo ne doit contenir que des lettres, espaces, tirets et crochets (pas de chiffres ni d'autres caractères spéciaux)")
         .optional(),
     classe: z.string().optional(),
     metiers: z.array(z.string()).optional(),
@@ -125,6 +125,36 @@ const ToggleHiddenNavItemSchema = z.object({
 // ============================================================================
 // PROFILE CRUD
 // ============================================================================
+
+/**
+ * Internal helper: check if a pseudo exists on the Dofus ladder.
+ * Not rate-limited — only called server-side during save operations.
+ * Returns true if found, false if not found, null if service unavailable (fail-open).
+ */
+async function checkPseudoExistsOnLadder(pseudo: string, serverId: string): Promise<boolean | null> {
+    const WORKER_URL = process.env.DOFUS_LADDER_WORKER_URL;
+    const WORKER_SECRET = process.env.DOFUS_LADDER_WORKER_KEY || process.env.DOFUS_LADDER_WORKER_SECRET;
+
+    if (!WORKER_URL) return null; // Service unavailable → fail-open (don't block)
+
+    try {
+        const headers: Record<string, string> = { "Accept": "application/json" };
+        if (WORKER_SECRET) headers["X-SigilOS-Key"] = WORKER_SECRET;
+
+        const url = `${WORKER_URL}?server_id=${encodeURIComponent(serverId)}&name=${encodeURIComponent(pseudo)}&type=general`;
+        const res = await fetch(url, {
+            headers,
+            signal: AbortSignal.timeout(5000),
+            cache: "no-store",
+        });
+
+        if (!res.ok) return null; // Network error → fail-open
+        const data = await res.json().catch(() => null);
+        return !!(data?.success || data?.found);
+    } catch {
+        return null; // Timeout/crash → fail-open
+    }
+}
 
 /**
  * Verify a Dofus pseudo using the ladder API.
@@ -255,6 +285,14 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 showPresence: profile.showPresence,
                 pinnedNavItems: profile.pinnedNavItems,
                 hiddenNavItems: profile.hiddenNavItems,
+                alignment: profile.alignment,
+                alignmentOrder: profile.alignmentOrder,
+                alignmentLevel: profile.alignmentLevel,
+                altPseudos: profile.altPseudos,
+                metamobPseudo: profile.metamobPseudo,
+                metamobVerified: profile.metamobVerified,
+                metamobLastSync: profile.metamobLastSync,
+                dofusBookLinks: profile.dofusBookLinks,
                 sigilRoles: profile.roleGrants.map(rg => ({
                     id: rg.role.id,
                     slug: rg.role.slug,
@@ -506,6 +544,14 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 vacationReason: profile.vacationReason || null,
                 user: { id: profile.user.id, name: profile.user.name, image: profile.user.image },
                 introduction: profile.introduction,
+                alignment: profile.alignment,
+                alignmentOrder: profile.alignmentOrder,
+                alignmentLevel: profile.alignmentLevel,
+                altPseudos: profile.altPseudos,
+                metamobPseudo: profile.metamobPseudo,
+                metamobVerified: profile.metamobVerified,
+                metamobLastSync: profile.metamobLastSync,
+                dofusBookLinks: profile.dofusBookLinks,
                 discordInfo,
                 sigilRoles: profile.roleGrants.map(rg => ({
                     id: rg.role.id,
@@ -593,7 +639,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
     try {
         const guildConfig = await db.guildConfig.findUnique({ 
             where: { discordGuildId: guildId },
-            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
@@ -623,6 +669,17 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
             if (existing) {
                 return { success: false, error: `Le pseudo "${pseudoDofus}" est déjà utilisé par un autre membre.` };
+            }
+
+            // 🛡️ ANKAMA LADDER CHECK: Le pseudo doit exister sur les pages officielles Ankama
+            // SuperAdmins sont exemptés (bypass pour les overrides admin)
+            if (!isGod) {
+                const serverId = (guildConfig as any).dofusServerId || "295";
+                const existsOnLadder = await checkPseudoExistsOnLadder(pseudoDofus, serverId);
+                if (existsOnLadder === false) {
+                    return { success: false, error: `Le pseudo "${pseudoDofus}" est introuvable sur le ladder officiel Ankama. Vérifiez l'orthographe exacte (majuscules, tirets...).` };
+                }
+                // null = service indisponible → on laisse passer (fail-open)
             }
         }
 
@@ -914,14 +971,9 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
     try {
         const guildConfig = await db.guildConfig.findUnique({ 
             where: { discordGuildId: guildId },
-            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true }
+            select: { id: true, discordGuildId: true, rolesMapping: true, missionNotifyChannelId: true, missionValidationNotifyRoleId: true, dofusServerId: true }
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
-
-        const cleanedPseudos = altPseudos.slice(0, 10).map(p => ({
-            ...p,
-            pseudo: formatDofusPseudo(p.pseudo)
-        }));
 
         // --- SECURITY: RBAC / OWNERSHIP CHECK ---
         const effectiveUserId = (user.isSuperAdmin && targetUserId) ? targetUserId : session.user.id;
@@ -931,6 +983,25 @@ export async function updateAltPseudos(rawData: z.infer<typeof UpdateAltPseudosS
         if (!isOwner && !isGod) {
             logger.warn(`[Security] Unauthorized alt pseudos update attempt by ${session.user.id} on ${effectiveUserId} (God: ${isGod})`);
             return { success: false, error: "Vous n'avez pas la permission de modifier ces pseudos secondaires." };
+        }
+
+        const cleanedPseudos = altPseudos.slice(0, 10).map(p => ({
+            ...p,
+            pseudo: formatDofusPseudo(p.pseudo)
+        }));
+
+        // 🛡️ ANKAMA LADDER CHECK: Chaque mule doit exister sur le ladder officiel Ankama
+        // SuperAdmins sont exemptés
+        if (!isGod) {
+            const serverId = (guildConfig as any).dofusServerId || "295";
+            const ladderChecks = await Promise.all(
+                cleanedPseudos.map(p => checkPseudoExistsOnLadder(p.pseudo, serverId))
+            );
+            for (let i = 0; i < cleanedPseudos.length; i++) {
+                if (ladderChecks[i] === false) {
+                    return { success: false, error: `La mule "${cleanedPseudos[i].pseudo}" est introuvable sur le ladder officiel Ankama. Vérifiez l'orthographe exacte.` };
+                }
+            }
         }
 
         logger.info(`[Dofusbook] Profile ${effectiveUserId} in guild ${guildConfig.id} -> Saving`, { cleanedPseudos });
@@ -1387,7 +1458,11 @@ export async function getGuildMembers(
                 displayName: p.discordNickname || p.pseudoDofus || p.user.name,
                 roleColor: p.discordRoleColor || 0,
                 roleName: p.discordRoleName || "Membre",
-                isAdmin
+                isAdmin,
+                alignment: p.alignment,
+                alignmentOrder: p.alignmentOrder,
+                alignmentLevel: p.alignmentLevel,
+                altPseudos: p.altPseudos
             };
         });
 

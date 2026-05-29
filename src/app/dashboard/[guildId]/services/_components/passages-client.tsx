@@ -243,22 +243,44 @@ export function PassagesClient({
 
                 <div className="flex items-center gap-3">
                     {tab === "services" && canCreate && !isMarketplaceDisabled && (
-                        <Button onClick={() => setShowServiceForm(true)} className="bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-all">
+                        <Button 
+                            disabled={!isDiscordConfigured}
+                            onClick={() => setShowServiceForm(true)} 
+                            className="bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-cyan-600 disabled:shadow-none"
+                        >
                             <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Publier une offre
                         </Button>
                     )}
                     {tab === "prets" && canCreate && !isLoansDisabled && (
-                        <Button onClick={() => setShowLoanForm(true)} className="bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.3)] transition-all">
+                        <Button 
+                            disabled={!isDiscordConfigured}
+                            onClick={() => setShowLoanForm(true)} 
+                            className="bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-amber-600 disabled:shadow-none"
+                        >
                             <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Nouveau prêt
                         </Button>
                     )}
                     {tab === "coffre" && canCreate && !isVaultDisabled && (
-                        <Button onClick={() => setShowVaultForm(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all">
+                        <Button 
+                            disabled={!isDiscordConfigured}
+                            onClick={() => setShowVaultForm(true)} 
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600 disabled:shadow-none"
+                        >
                             <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Enregistrer un item
                         </Button>
                     )}
                 </div>
             </div>
+
+            {!isDiscordConfigured && (
+                <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold animate-in fade-in duration-300">
+                    <AlertTriangle className="w-5 h-5 shrink-0" />
+                    <div>
+                        <p className="font-black uppercase tracking-wider text-[11px]">Salon Discord non configuré</p>
+                        <p className="text-zinc-400 font-medium mt-0.5">Le salon pour les notifications n&apos;est pas configuré dans l&apos;administration de la guilde (Paramètres &gt; Prêts/Services). Les créations d&apos;offres, de prêts et d&apos;enregistrements sont désactivées.</p>
+                    </div>
+                </div>
+            )}
 
             {/* TAB: Services */}
             <div className={tab === "services" ? "block" : "hidden"}>
@@ -380,7 +402,11 @@ export function PassagesClient({
                         )}
                         <div className="flex items-center justify-end gap-3">
                             {canCreate ? (
-                                <Button onClick={() => setShowVaultForm(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-9">
+                                <Button 
+                                    disabled={!isDiscordConfigured}
+                                    onClick={() => setShowVaultForm(true)} 
+                                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-9 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600 disabled:shadow-none"
+                                >
                                     <Plus className="h-4 w-4 mr-1" /> Enregistrer
                                 </Button>
                             ) : (

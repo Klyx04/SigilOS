@@ -8,6 +8,7 @@ import { z } from "zod";
 import { createAuditLog } from "./audit-actions";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { validateChannelBelongsToGuild } from "@/server/discord";
 
 const GuildatonRecordSchema = z.object({
     discordId: z.string().regex(/^(\d{17,20}|manual_[\w\d_\.\-]+)$/, "ID Discord ou manuel invalide"),
@@ -457,12 +458,21 @@ export async function importGuildatonCsv(guildId: string, rows: any[]): Promise<
 
 export async function updateGuildatonSettings(guildId: string, settings: GuildatonSettings): Promise<ActionResponse> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "Non authentifi├®" };
+    if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin && !ctx.canManageMembers) return { success: false, error: "Permission requise" };
 
     try {
+        if (settings.notifyChannelId) {
+            const belongs = await validateChannelBelongsToGuild(settings.notifyChannelId, guildId);
+            if (!belongs) return { success: false, error: "Le salon de notification n'appartient pas à ce serveur Discord." };
+        }
+        if (settings.adminNotifyChannelId) {
+            const belongs = await validateChannelBelongsToGuild(settings.adminNotifyChannelId, guildId);
+            if (!belongs) return { success: false, error: "Le salon d'administration n'appartient pas à ce serveur Discord." };
+        }
+
         await db.guildConfig.update({
             where: { discordGuildId: guildId },
             data: {

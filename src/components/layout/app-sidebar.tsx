@@ -208,7 +208,7 @@ export function AppSidebar({
     // 4. OUTILS
     const NAV_TOOLS: any[] = [
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo", visible: user.canViewSonges && modules.songes },
-        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", visible: user.canViewStuffGallery && modules.resources },
+        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", visible: user.canViewStuffGallery && modules.gallery },
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", visible: user.canViewQuests && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", visible: user.canViewServices && modules.services },
     ];

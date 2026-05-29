@@ -230,12 +230,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
                                 )}
                             </div>
                             
-                            {/* Role Badge if available */}
-                            {profile.roleName && (
-                                <Badge variant="outline" className="text-[9px] px-2 py-0 uppercase font-black tracking-widest bg-zinc-900/80 border-white/5" style={roleColor ? { color: roleColor } : { color: "#a1a1aa" }}>
-                                    {profile.roleName}
-                                </Badge>
-                            )}
+
                         </div>
                         
                         <div className="flex items-center justify-center gap-1.5 pt-1">

@@ -25,6 +25,7 @@ interface CalendarDiscordDialogProps {
     guildId: string;
     eventId: string;
     roles: DiscordRole[];
+    everyoneAllowed?: boolean;
     mode: "REMINDER" | "SHARE";
     onConfirm: (roleId?: string | "everyone") => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; error?: string }>;
 }
@@ -37,6 +38,7 @@ export function CalendarDiscordDialog({
     guildId,
     eventId,
     roles,
+    everyoneAllowed = false,
     mode,
     onConfirm
 }: CalendarDiscordDialogProps) {
@@ -92,7 +94,7 @@ export function CalendarDiscordDialog({
 
                 <div className="px-5 py-4 space-y-4">
                     {/* Mode: 2 compact buttons */}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className={cn("grid gap-2", everyoneAllowed ? "grid-cols-2" : "grid-cols-1")}>
                         {/* Option 1: Sans ping / Participants seulement */}
                         <button
                             onClick={() => { setPingType("NONE"); setSelectedRoleId(null); }}
@@ -113,23 +115,25 @@ export function CalendarDiscordDialog({
                             {pingType === "NONE" && <Check className={cn("w-3.5 h-3.5 ml-auto", isReminder ? "text-amber-400" : "text-indigo-400")} />}
                         </button>
 
-                        {/* Option 2: @everyone */}
-                        <button
-                            onClick={() => { setPingType("EVERYONE"); setSelectedRoleId(null); }}
-                            className={cn(
-                                "flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left",
-                                pingType === "EVERYONE"
-                                    ? "bg-red-500/10 border-red-500/40 text-red-300"
-                                    : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-                            )}
-                        >
-                            <AtSign className="w-4 h-4 shrink-0" />
-                            <div>
-                                <div className="text-xs font-black">@everyone</div>
-                                <div className="text-[10px] text-zinc-600 font-medium">{isReminder ? "App + Discord" : "Toute la guilde"}</div>
-                            </div>
-                            {pingType === "EVERYONE" && <Check className="w-3.5 h-3.5 ml-auto text-red-400" />}
-                        </button>
+                        {/* Option 2: @everyone — ONLY if whitelisted */}
+                        {everyoneAllowed && (
+                            <button
+                                onClick={() => { setPingType("EVERYONE"); setSelectedRoleId(null); }}
+                                className={cn(
+                                    "flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left",
+                                    pingType === "EVERYONE"
+                                        ? "bg-red-500/10 border-red-500/40 text-red-300"
+                                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                                )}
+                            >
+                                <AtSign className="w-4 h-4 shrink-0" />
+                                <div>
+                                    <div className="text-xs font-black">@everyone</div>
+                                    <div className="text-[10px] text-zinc-600 font-medium">{isReminder ? "App + Discord" : "Toute la guilde"}</div>
+                                </div>
+                                {pingType === "EVERYONE" && <Check className="w-3.5 h-3.5 ml-auto text-red-400" />}
+                            </button>
+                        )}
                     </div>
 
                     {/* Role list */}

@@ -418,7 +418,7 @@ describe("getUserContext — calcul des permissions RBAC", () => {
         expect(ctx.canViewMissions).toBe(false);
     });
 
-    it("accorde canManageMissions à un officier mais pas canViewStats", async () => {
+    it("accorde canManageMissions à un officier", async () => {
         mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-officier"] }));
         mockFetchRoles.mockResolvedValue([
             { id: "role-officier", permissions: "0", name: "Officier" },
@@ -439,7 +439,7 @@ describe("getUserContext — calcul des permissions RBAC", () => {
 
         expect(ctx.canManageMissions).toBe(true);
         expect(ctx.canValidateMissions).toBe(true);
-        expect(ctx.canViewStats).toBe(false); // pas STAFF_AUDIT
+        expect(ctx.canViewStats).toBe(true); // Stats Guilde a le même RBAC que la page guilde (DASHBOARD_LOGIN)
     });
 
     it("accorde toutes les perms à un user avec SYSTEM_GOD dans le rolesMapping", async () => {

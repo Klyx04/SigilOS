@@ -139,6 +139,9 @@ export default async function MemberProfilePage({
                     successPoints: profile.successPoints,
                     lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
                     roleGrants: profile.roleGrants || [],
+                    alignment: profile.alignment,
+                    alignmentOrder: profile.alignmentOrder,
+                    alignmentLevel: profile.alignmentLevel,
                 }}
                 user={{
                     name: profile.user.name,

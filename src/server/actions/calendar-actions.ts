@@ -669,6 +669,12 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
+        const event = await db.guildEvent.findUnique({ where: { id: eventId }, select: { creatorId: true } });
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.creatorId !== ctx.id && !ctx.isAdmin) {
+            return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le modifier." };
+        }
+
         // Exclude virtual fields
         const { publishOnDiscord, missionIds, mentionRoleIds, ...updateData } = validated.data;
 
@@ -717,8 +723,13 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { discordChannelId: true, discordMessageId: true }
+            select: { creatorId: true, discordChannelId: true, discordMessageId: true }
         });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.creatorId !== ctx.id && !ctx.isAdmin) {
+            return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le supprimer." };
+        }
 
         if (event?.discordChannelId && event?.discordMessageId) {
             deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
@@ -1415,24 +1426,33 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
 export async function getDiscordRolesForCalendar(guildId: string) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.canManageCalendar) {
-        return [];
+        return { roles: [], everyoneAllowed: false };
     }
 
     try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { calendarPingRoleIds: true }
+        });
+        const allowedRoleIds: string[] = config?.calendarPingRoleIds ?? [];
+        const everyoneAllowed = allowedRoleIds.includes("everyone");
+
         const { fetchGuildRoles } = await import("@/server/discord");
         const roles = await fetchGuildRoles(guildId, { excludeManaged: true });
 
-        // Filter out @everyone (role with id === guildId) and return mentionable roles
-        return roles
-            .filter(role => role.id !== guildId && role.name !== "@everyone")
+        // Filter by whitelist configuration
+        const filtered = roles
+            .filter(role => allowedRoleIds.includes(role.id))
             .map(role => ({
                 id: role.id,
                 name: role.name,
                 color: role.color
             }));
+
+        return { roles: filtered, everyoneAllowed };
     } catch (error) {
         console.error("[Calendar] getDiscordRolesForCalendar Error:", error);
-        return [];
+        return { roles: [], everyoneAllowed: false };
     }
 }
 

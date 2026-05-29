@@ -208,6 +208,8 @@ interface EventDetailModalProps {
     currentUserId: string;
     guildId: string;
     canManage?: boolean;
+    isAdmin?: boolean;
+    everyoneAllowed?: boolean;
     discordRoles?: DiscordRole[];
     onRegister?: (data: { classe?: string; comment?: string }) => Promise<void>;
     onUnregister?: () => Promise<void>;
@@ -232,6 +234,8 @@ export function EventDetailModal({
     currentUserId,
     guildId,
     canManage = false,
+    isAdmin = false,
+    everyoneAllowed = false,
     discordRoles = [],
     onRegister,
     onUnregister,
@@ -409,8 +413,8 @@ export function EventDetailModal({
                             {/* Move Complete Button Here */}
                             {canManage && (
                                 <div className="flex items-center gap-2 ml-4">
-                                    {/* Edit button (Disabled for Kralamoure as they are synced) */}
-                                    {onEdit && event.type !== "KRALAMOURE" && (
+                                    {/* Edit button — only creator or admin, disabled for Kralamoure */}
+                                    {onEdit && event.type !== "KRALAMOURE" && (isCreator || isAdmin) && (
                                         <Button
                                             size="sm"
                                             variant="ghost"
@@ -422,8 +426,8 @@ export function EventDetailModal({
                                         </Button>
                                     )}
 
-                                    {/* Delete button for imported Kralamoure events */}
-                                    {isImportedKralamoure && onDelete && (
+                                    {/* Delete button — only creator or admin */}
+                                    {onDelete && (isCreator || isAdmin) && (
                                         <Button
                                             size="sm"
                                             variant={isDeleteConfirming ? "destructive" : "ghost"}
@@ -902,8 +906,8 @@ export function EventDetailModal({
                             )}
                         </div>
 
-                        {/* Admin Actions */}
-                        {canManage && !isExternal && (
+                        {/* Admin Actions — only Rappel Discord (creator or admin) */}
+                        {canManage && !isExternal && (isCreator || isAdmin) && (
                             <div className="flex items-center justify-between gap-2 flex-wrap pt-4 mt-2 border-t border-zinc-800/30">
                                 <div className="flex items-center gap-2 ml-auto">
                                     {event.status === "PUBLISHED" && onSendReminder && event.participants.length > 0 && isDiscordConfigured === true && (
@@ -918,35 +922,7 @@ export function EventDetailModal({
                                                 className="text-amber-400 hover:bg-amber-500/10 font-bold px-4"
                                             >
                                                 <Bell className="h-4 w-4 mr-2" />
-                                                Rappel
-                                            </Button>
-                                    )}
-
-                                    {event.status === "PUBLISHED" && onShareDiscord && isDiscordConfigured === true && (
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                disabled={isLoading}
-                                                onClick={() => {
-                                                    setDiscordDialogMode("SHARE");
-                                                    setDiscordDialogOpen(true);
-                                                }}
-                                                className="text-indigo-400 hover:bg-indigo-500/10 font-bold px-4"
-                                            >
-                                                <Share2 className="h-4 w-4 mr-2" />
-                                                Reposter
-                                            </Button>
-                                    )}
-
-                                    {canManage && !event.discordMessageId && onPublish && isDiscordConfigured === true && (
-                                            <Button
-                                                size="sm"
-                                                onClick={() => handleAction(onPublish)}
-                                                disabled={isLoading}
-                                                className="bg-green-600 hover:bg-green-500 font-bold"
-                                            >
-                                                <Share2 className="w-3.5 h-3.5 mr-2" />
-                                                Publier
+                                                Rappel Discord
                                             </Button>
                                     )}
                                 </div>
@@ -1104,6 +1080,7 @@ export function EventDetailModal({
                 guildId={guildId}
                 eventId={event.id}
                 roles={discordRoles}
+                everyoneAllowed={everyoneAllowed}
                 mode={discordDialogMode}
                 onConfirm={async (roleId) => {
                     if (discordDialogMode === "REMINDER" && onSendReminder) {

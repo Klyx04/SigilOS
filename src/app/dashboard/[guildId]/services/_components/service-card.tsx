@@ -16,6 +16,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { FM_JOBS } from "./service-form";
 import { getAchievementIconUrl } from "@/lib/achievement-icon";
+import { getJob } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -315,6 +316,25 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
                         return (
                             <span key={prof} className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 font-bold">
                                 {jobDef && <div className="relative h-5 w-5 shrink-0"><Image src={jobDef.iconUrl} alt={prof} fill className="object-contain" /></div>}
+                                {prof}
+                            </span>
+                        );
+                    })}
+                </div>
+            ) : null}
+
+            {/* ── METIER Professions ── */}
+            {listing.category === "METIER" && (listing.professions as string[] | null)?.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                    {(listing.professions as string[]).map((prof) => {
+                        const jobDef = getJob(prof);
+                        return (
+                            <span key={prof} className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-bold">
+                                {jobDef?.icon && (
+                                    <div className="relative h-5 w-5 shrink-0">
+                                        <Image src={jobDef.icon} alt={prof} fill className="object-contain" />
+                                    </div>
+                                )}
                                 {prof}
                             </span>
                         );

@@ -81,7 +81,7 @@ export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettings
 
     try {
         // SECURITY: Validate that the channel belongs to the guild
-        if (data.channelId && data.discordEnabled) {
+        if (data.channelId) {
             const isValid = await validateChannelBelongsToGuild(data.channelId, data.guildId);
             if (!isValid) {
                 return { success: false, error: "Le salon Discord saisi n'appartient pas à ce serveur." };

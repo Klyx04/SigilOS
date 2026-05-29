@@ -28,8 +28,8 @@ export function getAppBaseUrl() {
 export function formatDofusPseudo(pseudo: string): string {
   if (!pseudo) return "";
   
-  // On autorise : lettres (incluant accents), tirets et espaces.
-  const cleaned = pseudo.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-]/g, "");
+  // On autorise : lettres (incluant accents), tirets, espaces et crochets.
+  const cleaned = pseudo.replace(/[^a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\s-\[\]]/g, "");
   
   const parts = cleaned.split(/([-\s])/);
   let firstWordFound = false;
@@ -37,6 +37,11 @@ export function formatDofusPseudo(pseudo: string): string {
   return parts
     .map((part) => {
       if (part === "-" || part === " " || part.length === 0) return part;
+      
+      // Si la partie est une balise/crochet (ex: [Jhh]), on la garde intacte sans la reformater
+      if (part.startsWith("[") && part.endsWith("]")) {
+        return part;
+      }
       
       if (!firstWordFound) {
         firstWordFound = true;

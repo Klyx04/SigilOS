@@ -281,7 +281,7 @@ export function ItemSearchPanel() {
     const [recipe, setRecipe] = useState<DofusRecipe | null>(null);
     const [source, setSource] = useState<"dofusdb" | "dofusbook">("dofusdb");
 
-    // Search DofusDB
+    // Search DofusDB — via proxy serveur pour éviter CORS
     const searchDB = useCallback(async (q: string) => {
         if (!q.trim() || q.trim().length < 2) {
             setDbResults([]);
@@ -289,8 +289,7 @@ export function ItemSearchPanel() {
         }
         setDbLoading(true);
         try {
-            const url = `https://api.dofusdb.fr/items?slug.fr[$search]=${encodeURIComponent(q)}&$limit=8&$skip=0`;
-            const res = await fetch(url, { headers: { Accept: "application/json" } });
+            const res = await fetch(`/api/dofusdb/search?q=${encodeURIComponent(q)}&limit=8`);
             const data = await res.json();
             setDbResults(data.data ?? []);
         } catch {
@@ -347,13 +346,20 @@ export function ItemSearchPanel() {
         setLoadingDetail(true);
         setRecipe(null);
         try {
-            const res = await fetch(`https://api.dofusdb.fr/items/${item.id}`, { headers: { Accept: "application/json" } });
+            const res = await fetch(`/api/dofusdb/items/${item.id}`);
             if (res.ok) {
                 const detailed = await res.json();
-                setSelectedItem(detailed);
-                if (detailed.hasRecipe) {
-                    const recRes = await fetch(`https://api.dofusdb.fr/recipes/${item.id}`);
-                    if (recRes.ok) setRecipe(await recRes.json());
+                if (!detailed.error) {
+                    setSelectedItem(detailed);
+                    if (detailed.hasRecipe) {
+                        const recRes = await fetch(`/api/dofusdb/recipes/${item.id}`);
+                        if (recRes.ok) {
+                            const rec = await recRes.json();
+                            if (!rec.error) setRecipe(rec);
+                        }
+                    }
+                } else {
+                    setSelectedItem(item);
                 }
             } else {
                 setSelectedItem(item);

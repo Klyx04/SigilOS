@@ -8,7 +8,8 @@ import { createAuditLog } from "./audit-actions";
 import { 
     sendChannelMessage, 
     updateChannelMessage, 
-    deleteChannelMessage 
+    deleteChannelMessage,
+    validateChannelBelongsToGuild
 } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { getAppBaseUrl } from "@/lib/utils";
@@ -52,6 +53,11 @@ export async function updateBlacklistSettings(guildId: string, channelId: string
 
     const ctx = await getUserContext(guildId);
     if (!ctx.isAdmin) return { success: false, error: "Permission Administrateur requise" };
+
+    if (channelId) {
+        const belongs = await validateChannelBelongsToGuild(channelId, guildId);
+        if (!belongs) return { success: false, error: "Le salon sélectionné n'appartient pas à ce serveur Discord." };
+    }
 
     try {
         await db.guildConfig.update({

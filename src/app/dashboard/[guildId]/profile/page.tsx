@@ -103,6 +103,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
                         roleGrants: profile.roleGrants || [],
                         skins: profile.skins || [],
+                        alignment: profile.alignment,
+                        alignmentOrder: profile.alignmentOrder,
+                        alignmentLevel: profile.alignmentLevel,
                     }}
                     user={{
                         name: profile.user.name,

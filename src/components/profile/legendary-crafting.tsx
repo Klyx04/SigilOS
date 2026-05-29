@@ -161,13 +161,13 @@ export function LegendaryCrafting({ guildId, profileId, readOnly = false }: Lege
                                         <div className="flex items-center gap-4">
                                             <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center p-2">
                                                 {item.imageUrl ? (
-                                                    <Image 
-                                                        src={item.imageUrl} 
-                                                        alt={item.name} 
-                                                        width={48} 
-                                                        height={48}
-                                                        className="object-contain group-hover:scale-110 transition-transform duration-500"
-                                                    />
+                                                     <img 
+                                                         src={item.imageUrl.startsWith("/") ? item.imageUrl : `/api/proxy-image?url=${encodeURIComponent(item.imageUrl)}`} 
+                                                         alt={item.name} 
+                                                         width={48} 
+                                                         height={48}
+                                                         className="object-contain group-hover:scale-110 transition-transform duration-500"
+                                                     />
                                                 ) : (
                                                     <Sparkles className="w-8 h-8 text-zinc-700" />
                                                 )}

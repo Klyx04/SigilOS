@@ -51,7 +51,7 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
         label: "Accès Dashboard", 
         description: "Accès de base au Cockpit. Permet la connexion et la consultation des ressources fondamentales.", 
         module: "access",
-        modules: ["Accueil", "Docs", "Wiki Membre", "Resources"]
+        modules: ["Accueil", "Docs", "Wiki Membre", "Resources", "Stats Guilde"]
     },
     
     // Info
@@ -77,9 +77,9 @@ export const PERMISSION_DETAILS: Record<PermissionId, { label: string; descripti
     },
     [PERMISSIONS.STAFF_AUDIT]: { 
         label: "Supervision & Analytics", 
-        description: "Accès aux Audit Logs détaillés et aux graphiques/statistiques avancées d'activité.", 
+        description: "Accès aux Audit Logs administrateurs (actions sensibles, historique des modifications).", 
         module: "admin",
-        modules: ["Audit Logs", "Statistiques"]
+        modules: ["Audit Logs"]
     },
     [PERMISSIONS.SYSTEM_CONFIG]: { 
         label: "Paramétrage Technique", 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Gem, Users, Search, Crown, Sparkles, RefreshCw, AlertTriangle, CheckCircle2, Compass, BookOpen, ChevronDown } from "lucide-react";
+import { Gem, Users, Search, Crown, Sparkles, RefreshCw, AlertTriangle, CheckCircle2, Compass, BookOpen, ChevronDown, Trophy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DofusGemCard } from "./DofusGemCard";
 import { GuildDofusOverview } from "./GuildDofusOverview";
@@ -51,6 +51,7 @@ export function DofusQuestHub({
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<"Tous" | "Obtenus" | "En cours" | "À faire">("Tous");
     const [isSyncing, setIsSyncing] = useState(false);
+    const [guildSubTab, setGuildSubTab] = useState<"dofus" | "guide">("dofus");
 
     const handleTabChange = (tab: Tab) => {
         setActiveTab(tab);
@@ -170,6 +171,64 @@ export function DofusQuestHub({
         return { total, completed, percent };
     }, [selectedGuideDetail, selectedGuideUserProgress]);
 
+    const membersGuideProgress = useMemo(() => {
+        if (!selectedGuideDetail || !selectedGuideDetail.milestones || !selectedGuideGuildProgress) return [];
+        
+        const totalMilestones = selectedGuideDetail.milestones.length;
+        if (totalMilestones === 0) return [];
+        
+        const progressByProfile: Record<string, {
+            profileId: string;
+            userName: string;
+            userAvatar?: string;
+            profileSlug: string;
+            completedCount: number;
+            completedMilestoneIds: Set<string>;
+        }> = {};
+        
+        selectedGuideGuildProgress.forEach((p: any) => {
+            if (!progressByProfile[p.profileId]) {
+                progressByProfile[p.profileId] = {
+                    profileId: p.profileId,
+                    userName: p.userName,
+                    userAvatar: p.userAvatar,
+                    profileSlug: p.profileSlug,
+                    completedCount: 0,
+                    completedMilestoneIds: new Set<string>()
+                };
+            }
+            if (p.isCompleted) {
+                progressByProfile[p.profileId].completedCount++;
+                progressByProfile[p.profileId].completedMilestoneIds.add(p.milestoneId);
+            }
+        });
+        
+        return Object.values(progressByProfile)
+            .map(member => {
+                const percent = Math.round((member.completedCount / totalMilestones) * 100);
+                
+                // Le tableau des milestones est ordonné, on cherche le premier non complété
+                const activeMilestone = selectedGuideDetail.milestones.find((m: any) => 
+                    !member.completedMilestoneIds.has(m.id)
+                );
+                
+                return {
+                    profileId: member.profileId,
+                    userName: member.userName,
+                    userAvatar: member.userAvatar,
+                    profileSlug: member.profileSlug,
+                    completedCount: member.completedCount,
+                    percent,
+                    activeMilestone: activeMilestone ? {
+                        id: activeMilestone.id,
+                        title: activeMilestone.title,
+                        order: activeMilestone.order
+                    } : null
+                };
+            })
+            .sort((a, b) => b.completedCount - a.completedCount);
+    }, [selectedGuideDetail, selectedGuideGuildProgress]);
+
     return (
         <div className="flex flex-col gap-8">
             {/* ── PERSISTENT COMMAND HEADER ── */}
@@ -200,7 +259,7 @@ export function DofusQuestHub({
                         onClick={() => handleTabChange("guide")}
                         className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "guide" ? "bg-zinc-800 text-white shadow-xl shadow-black/60 ring-1 ring-white/10" : "text-zinc-500 hover:text-zinc-300"}`}
                     >
-                        🗺️ Feuille de Route
+                        🗺️ Guide Complet
                     </button>
                     <button
                         onClick={() => handleTabChange("guilde")}
@@ -321,7 +380,7 @@ export function DofusQuestHub({
                             <div className="flex flex-col gap-6 max-w-4xl mx-auto">
                                 {/* Guide selector header */}
                                 <div className="flex items-center justify-between gap-4">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Feuille de Route</span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Guide Complet</span>
                                     {guides.length > 0 && (
                                         <div className="relative shrink-0">
                                             <select
@@ -452,7 +511,7 @@ export function DofusQuestHub({
                                             <div>
                                                 <h4 className="text-white/60 font-black uppercase text-sm tracking-widest mb-1">Aucune feuille de route active</h4>
                                                 <p className="text-zinc-600 text-xs leading-relaxed max-w-xs">
-                                                    Sélectionnez ou activez un guide optimisé ci-dessus pour charger votre progression.
+                                                    Sélectionnez ou activez un guide complet ci-dessus pour charger votre progression.
                                                 </p>
                                             </div>
                                         </div>
@@ -462,13 +521,156 @@ export function DofusQuestHub({
                         )}
 
                         {activeTab === "guilde" && (
-                            <div className="bg-zinc-950/20 rounded-[3rem] p-1 border border-white/5 shadow-2xl">
-                                <GuildDofusOverview 
-                                    stats={guildStats?.stats || []} 
-                                    topMembers={guildStats?.topMembers || []}
-                                    totalMembers={guildStats?.totalMembers || 0}
-                                    guildId={guildId}
-                                />
+                            <div className="flex flex-col gap-6">
+                                {/* Sub-navigation for Progression Commune */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+                                    <div className="flex items-center gap-1.5 p-1 bg-black/60 border border-white/5 rounded-2xl shadow-xl">
+                                        <button
+                                            onClick={() => setGuildSubTab("dofus")}
+                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${guildSubTab === "dofus" ? "bg-zinc-800 text-white shadow" : "text-zinc-500 hover:text-zinc-300"}`}
+                                        >
+                                            👑 Quêtes par Dofus
+                                        </button>
+                                        <button
+                                            onClick={() => setGuildSubTab("guide")}
+                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${guildSubTab === "guide" ? "bg-zinc-800 text-white shadow" : "text-zinc-500 hover:text-zinc-300"}`}
+                                        >
+                                            🗺️ Progression des Guides
+                                        </button>
+                                    </div>
+
+                                    {guildSubTab === "guide" && guides.length > 0 && (
+                                        <div className="relative shrink-0">
+                                            <select
+                                                value={selectedGuideSlug || ""}
+                                                onChange={(e) => handleGuideChange(e.target.value)}
+                                                className="appearance-none bg-black/60 border border-white/5 rounded-2xl pl-4 pr-10 py-2 text-xs text-white font-black uppercase tracking-wider focus:outline-none focus:border-indigo-500/50 cursor-pointer shadow-xl shadow-black/40 min-w-[200px]"
+                                            >
+                                                {guides.map((g) => (
+                                                    <option key={g.slug} value={g.slug}>
+                                                        {g.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {guildSubTab === "dofus" ? (
+                                    <div className="bg-zinc-950/20 rounded-[3rem] p-1 border border-white/5 shadow-2xl">
+                                        <GuildDofusOverview 
+                                            stats={guildStats?.stats || []} 
+                                            topMembers={guildStats?.topMembers || []}
+                                            totalMembers={guildStats?.totalMembers || 0}
+                                            guildId={guildId}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                                        {/* Left Column: Leaderboard of Guide Progress */}
+                                        <div className="lg:col-span-8 flex flex-col gap-4">
+                                            <div className="flex items-center gap-3 px-4">
+                                                <Trophy className="w-5 h-5 text-indigo-400" />
+                                                <h3 className="text-base font-black text-white italic uppercase tracking-tighter">
+                                                    Progression - {selectedGuideDetail?.name || "Guide"}
+                                                </h3>
+                                                <div className="h-px flex-1 bg-white/5" />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {membersGuideProgress.length === 0 ? (
+                                                    <div className="col-span-full py-16 text-center bg-zinc-950/20 border border-white/5 rounded-3xl">
+                                                        <p className="text-white/20 font-black uppercase tracking-[0.2em] text-[10px]">Aucun membre n'a commencé ce guide</p>
+                                                    </div>
+                                                ) : (
+                                                    membersGuideProgress.map((member, index) => (
+                                                        <div
+                                                            key={member.profileId}
+                                                            className="flex items-center gap-3 p-4 rounded-2xl bg-zinc-950/40 border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all duration-300"
+                                                        >
+                                                            <div className="w-6 flex-shrink-0 flex items-center justify-center">
+                                                                <span className="text-xs font-black italic text-zinc-600">
+                                                                    #{index + 1}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                                {member.userAvatar ? (
+                                                                    <img src={member.userAvatar} alt={member.userName} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <span className="text-xs font-black text-indigo-400 italic">{member.userName.charAt(0).toUpperCase()}</span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between mb-1">
+                                                                    <span className="text-[11px] font-black text-white italic uppercase truncate tracking-tight">{member.userName}</span>
+                                                                    <span className="text-[10px] font-black italic" style={{ color: guideColor }}>
+                                                                        {member.percent}%
+                                                                    </span>
+                                                                </div>
+                                                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                                                    <div
+                                                                        className="h-full rounded-full transition-all duration-300"
+                                                                        style={{
+                                                                            width: `${member.percent}%`,
+                                                                            backgroundColor: guideColor
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex items-center justify-between mt-2 gap-2">
+                                                                    <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest shrink-0">
+                                                                        {member.completedCount} / {selectedGuideDetail?.milestones?.length || 0} étapes
+                                                                    </p>
+                                                                    {member.activeMilestone ? (
+                                                                        <div className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded text-[8px] font-bold text-indigo-300 max-w-[150px] truncate" title={`En cours : ${member.activeMilestone.title}`}>
+                                                                            <span className="shrink-0 text-[7px]">📍</span>
+                                                                            <span className="truncate">{member.activeMilestone.title}</span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-black text-emerald-400 uppercase tracking-wider shrink-0">
+                                                                            <span>🏆 TERMINÉ</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Right Column: Guide Info card */}
+                                        <div className="lg:col-span-4 flex flex-col gap-4">
+                                            <div className="flex items-center gap-3 px-4">
+                                                <Sparkles className="w-5 h-5 text-amber-400" />
+                                                <h3 className="text-base font-black text-white italic uppercase tracking-tighter">
+                                                    Infos Guide
+                                                </h3>
+                                                <div className="h-px flex-1 bg-white/5" />
+                                            </div>
+
+                                            <div className="p-6 rounded-3xl bg-zinc-950/40 border border-white/5 shadow-xl flex flex-col gap-4">
+                                                <h4 className="text-sm font-black text-white uppercase tracking-wider">{selectedGuideDetail?.name}</h4>
+                                                <p className="text-xs text-zinc-400 leading-relaxed font-semibold">
+                                                    {selectedGuideDetail?.description || "Suivi de la progression collective de la guilde sur ce guide optimisé."}
+                                                </p>
+
+                                                <div className="h-px bg-white/5 my-2" />
+
+                                                <div className="flex items-center justify-between text-xs font-bold">
+                                                    <span className="text-zinc-500">Membres engagés :</span>
+                                                    <span className="text-white font-black">{membersGuideProgress.length}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs font-bold">
+                                                    <span className="text-zinc-500">Total d'étapes :</span>
+                                                    <span className="text-white font-black">{selectedGuideDetail?.milestones?.length || 0}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </motion.div>

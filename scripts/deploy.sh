@@ -30,6 +30,10 @@ cd "$(dirname "$0")/.."
 
 # 2. Mise à jour du code
 echo "📦 Récupération du code..."
+if [ -d "public/uploads/guides" ]; then
+    echo "🧹 Nettoyage temporaire des guides pour éviter les conflits de pull..."
+    rm -rf public/uploads/guides
+fi
 git pull origin $(git rev-parse --abbrev-ref HEAD)
 
 # 3. Mise à jour de l'infrastructure de monitoring (Prometheus, Grafana, etc)

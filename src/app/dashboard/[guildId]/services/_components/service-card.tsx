@@ -172,9 +172,10 @@ interface ServiceCardProps {
     guildId: string;
     currentProfileId?: string;
     isAdmin?: boolean;
+    isDiscordConfigured?: boolean;
 }
 
-export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: ServiceCardProps) {
+export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, isDiscordConfigured = false }: ServiceCardProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const isOwner = listing.profileId === currentProfileId;
@@ -444,7 +445,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin }: Ser
                         </Button>
                     </div>
                 ) : (
-                    <ServiceContactDialog listing={listing} guildId={guildId} />
+                    <ServiceContactDialog listing={listing} guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
                 )}
             </div>
             </div>

@@ -35,11 +35,40 @@ export async function invalidateUserContextCache(userId: string, guildId: string
 }
 
 /**
- * Invalidate cache for a whole guild configuration
+ * Invalidate cache for a whole guild configuration.
+ * Clears BOTH Redis AND in-memory config cache to prevent stale rolesMapping.
  */
 export async function invalidateGuildCache(guildId: string) {
-    // Invalidate a generic guild config cache if needed
+    // 1. Redis cache
     await redis.del(`config:${guildId}`).catch(() => {});
+    // 2. In-memory configCache — CRITICAL: without this, the stale rolesMapping
+    //    persists in the Node.js process for up to 60s after an RBAC update,
+    //    causing noRolesConfigured=true even when roles ARE configured.
+    configCache.delete(`config:${guildId}`);
+}
+
+/**
+ * Flush ALL user context caches for an entire guild.
+ * MUST be called after any RBAC change so stale permissions
+ * don't persist in Redis across all members.
+ *
+ * Uses SCAN to avoid blocking Redis with KEYS *.
+ */
+export async function flushGuildUserContextCache(discordGuildId: string) {
+    try {
+        // Pattern covers both key formats: user:ctx:{userId}:{discordGuildId} and user:ctx:{userId}:{internalId}
+        const pattern = `user:ctx:*:${discordGuildId}`;
+        let cursor = "0";
+        do {
+            const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+            cursor = nextCursor;
+            if (keys.length > 0) {
+                await redis.del(...keys).catch(() => {});
+            }
+        } while (cursor !== "0");
+    } catch (e) {
+        console.error("[RBAC] flushGuildUserContextCache failed:", e);
+    }
 }
 
 /**
@@ -145,6 +174,7 @@ export type UserContext = {
     hiddenNavItems?: string[];
     newsBroadcastEnabled?: boolean;
     hasPendingReactivation?: boolean;
+    isOnboardingComplete: boolean;
 };
 
 export type ActionResponse<T = any> = {
@@ -255,6 +285,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         roleNames: [],
         newsBroadcastEnabled: true,
         metamobPseudo: null,
+        isOnboardingComplete: true,
     };
 
     if (!session?.user?.id) return { ...baseContext, isAuthenticated: false };
@@ -550,6 +581,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const rolesMapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
     const individualMapping = (guildConfig?.usersMapping as Record<string, PermissionId[]>) || {};
     
+    const isRbacConfigured = Object.values(rolesMapping).some(perms => 
+        Array.isArray(perms) && (
+            perms.includes("dashboard:login" as PermissionId) || 
+            perms.includes("dashboard:access" as PermissionId) ||
+            perms.includes(PERMISSIONS.DASHBOARD_LOGIN)
+        )
+    );
+    const isOnboardingComplete = !!guildConfig?.dofusServerId && isRbacConfigured;
+    
     const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions || 0) & 0x8n) === 0x8n);
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
     const hasDiscordAdmin = hasDiscordAdminRole || isOwner;
@@ -827,6 +867,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         altPseudos: (profile?.altPseudos as any[]) || [],
         pinnedNavItems: profile?.pinnedNavItems || [],
         hiddenNavItems: profile?.hiddenNavItems || [],
+        isOnboardingComplete: !!isOnboardingComplete,
     };
 
     // Store in Redis before returning
@@ -1267,17 +1308,28 @@ export async function getGuildMembers(guildId: string) {
 /**
  * Manually update a member's status (Archive/Reactivate/Ban)
  */
+
+
 export async function updateMemberProfileStatus(
     profileId: string,
     status: "ACTIVE" | "ARCHIVED" | "BANNED",
     reason?: string,
     durationMonths?: number,
     adminMessage?: string
-) {
+): Promise<{ success: boolean; error?: string; data?: any }> {
     const session = await auth();
-    if (!session?.user) throw new Error("Unauthorized");
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    return internalUpdateMemberProfileStatus(profileId, status, reason, durationMonths, adminMessage, session.user.id);
+    try {
+        const res = await internalUpdateMemberProfileStatus(profileId, status, reason, durationMonths, adminMessage, session.user.id);
+        if (res && 'error' in res) {
+            return res as any;
+        }
+        return { success: true, data: res };
+    } catch (e: any) {
+        console.error("[updateMemberProfileStatus] Unexpected error:", e);
+        return { success: false, error: e?.message || "Erreur interne" };
+    }
 }
 
 /**
@@ -1307,14 +1359,32 @@ export async function internalUpdateMemberProfileStatus(
     // If actorUserId is provided, we assume the caller handled security
     if (!actorUserId) {
         const session = await auth();
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
         actorUserId = session.user.id;
     }
 
-    // 3. Prevent self-archiving (if we have an actor ID)
+    // 3. 🔒 Prevent self-ban/self-archive — admin cannot lock themselves out
     if (status !== "ACTIVE" && profile.userId === actorUserId) {
-        throw new Error("Vous ne pouvez pas modifier votre propre statut (Protection anti-lockout)");
+        return { success: false, error: "Vous ne pouvez pas modifier votre propre statut (Protection anti-lockout)" };
     }
+
+    // 4. 🔒 Prevent banning/archiving the Discord guild OWNER
+    // Fetch the guild owner to make sure we're not targeting them
+    try {
+        const guildOwnerCheck = await db.guildConfig.findFirst({
+            where: {
+                OR: [
+                    { id: profile.guildId },
+                    { discordGuildId: profile.guild?.discordGuildId || "" }
+                ]
+            },
+            select: { ownerId: true }
+        });
+        const targetDiscordId = profile.user?.accounts?.find((a: any) => a.provider === "discord")?.providerAccountId;
+        if (guildOwnerCheck?.ownerId && targetDiscordId && guildOwnerCheck.ownerId === targetDiscordId && status !== "ACTIVE") {
+            return { success: false, error: "Le propriétaire du serveur Discord ne peut pas être banni ou archivé depuis SigilOS." };
+        }
+    } catch { /* non-blocking: skip owner check on error */ }
 
     // 4. Update with retention policy
     let scheduledDeletion = null;

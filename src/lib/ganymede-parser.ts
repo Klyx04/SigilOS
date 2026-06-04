@@ -314,7 +314,13 @@ export function fixBrokenImages(html: string | null): string {
 
         // Proxy external hosts known to block hotlinking
         const targetLower = targetSrc.toLowerCase();
-        if (targetLower.includes("imgur.com") || targetLower.includes("dofuspourlesnoobs.com")) {
+        if (
+          targetLower.includes("imgur.com") ||
+          targetLower.includes("dofuspourlesnoobs.com") ||
+          targetLower.includes("dofusbook.net") ||
+          targetLower.includes("d-bk.net") ||
+          targetLower.includes("ankama.com")
+        ) {
           return `src="/api/proxy-image?url=${encodeURIComponent(targetSrc)}"`;
         }
 

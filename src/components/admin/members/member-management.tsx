@@ -168,6 +168,7 @@ interface MemberManagementProps {
     initialHistory: any[];
     canManageMembers: boolean;
     canManageRelance: boolean;
+    currentUserId: string;
 }
 
 // Sub-component for individual role audit trigger
@@ -220,7 +221,8 @@ export default function MemberManagement({
     roles,
     initialHistory,
     canManageMembers,
-    canManageRelance
+    canManageRelance,
+    currentUserId
 }: MemberManagementProps) {
     const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState(() => {
@@ -845,6 +847,7 @@ export default function MemberManagement({
                             isSuperAdmin={isSuperAdmin}
                             isAdmin={canManageMembers}
                             ownerId={memberList.ownerId}
+                            currentUserId={currentUserId}
                         />
                     </div>
                 </TabsContent>

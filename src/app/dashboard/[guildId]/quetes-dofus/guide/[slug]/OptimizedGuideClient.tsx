@@ -632,7 +632,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                               if (memberActiveMs && memberActiveMs.order > selectedMs.order) {
                                 isPastMs = true;
                               }
-                            } else {
+                            } else if (member.completedMilestoneIds.size > 0) {
                               isPastMs = true; // Completed the guide
                             }
 
@@ -947,6 +947,7 @@ export default function OptimizedGuideClient({
   const [completedIds, setCompletedIds] = useState<Set<string>>(
     new Set(userProgress.filter(p => p.isCompleted).map(p => p.milestoneId))
   );
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const [openChapters, setOpenChapters] = useState<Record<number, boolean>>(() => {
     const initial: Record<number, boolean> = {};
@@ -2069,14 +2070,53 @@ export default function OptimizedGuideClient({
               className="guide-content"
             >
               {/* Guide name banner */}
-              <div className="guide-name-banner">
-                <BookOpen size={13} className="text-emerald-400"/>
-                <span className="guide-name-label">{guide.name}</span>
-                <span className="guide-name-sep">›</span>
-                <span className="guide-name-step">{selected.title}</span>
-                {bookmarkId === selected.id && (
-                  <span title="Votre position actuelle"><BookmarkCheck size={13} className="text-amber-400"/></span>
-                )}
+              <div className="guide-name-banner mb-6 p-4 rounded-2xl bg-gradient-to-r from-zinc-950/80 via-emerald-950/20 to-zinc-950/80 border border-emerald-500/20 shadow-2xl flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BookOpen size={14} className="text-emerald-400"/>
+                  <span className="guide-name-label font-black text-xs uppercase tracking-widest text-emerald-400">{guide.name}</span>
+                  <span className="guide-name-sep text-zinc-600">›</span>
+                  <span className="guide-name-step text-xs font-semibold text-zinc-300">{selected.title}</span>
+                  {bookmarkId === selected.id && (
+                    <span title="Votre position actuelle"><BookmarkCheck size={14} className="text-amber-400 ml-1.5"/></span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Guild Presence Overview */}
+                  {uniqueGuildMembers.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
+                      <div className="flex -space-x-1.5 overflow-hidden">
+                        {uniqueGuildMembers.slice(0, 4).map((member) => (
+                          <div
+                            key={member.profileId}
+                            className="inline-block h-5 w-5 rounded-full ring-2 ring-zinc-950 bg-zinc-900 overflow-hidden"
+                            title={member.userName}
+                          >
+                            {member.userAvatar ? (
+                              <img src={member.userAvatar} alt={member.userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-[9px] font-bold text-zinc-400 bg-zinc-800">
+                                {member.userName.slice(0, 1).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-bold text-zinc-400">
+                        {uniqueGuildMembers.length} {uniqueGuildMembers.length > 1 ? "membres" : "membre"}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Help Button */}
+                  <button 
+                    onClick={() => setIsHelpOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 hover:text-emerald-300 text-[10px] font-black uppercase tracking-wider transition-all"
+                  >
+                    <HelpCircle size={12} />
+                    Comment utiliser ?
+                  </button>
+                </div>
               </div>
 
               {/* Step header with Navigator */}
@@ -3240,6 +3280,41 @@ export default function OptimizedGuideClient({
                   );
                 });
               })()}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+      {/* How to Use Modal Dialog */}
+      <Dialog 
+        open={isHelpOpen} 
+        onOpenChange={setIsHelpOpen}
+      >
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
+              <BookOpen size={14} />
+              Comment utiliser les guides ?
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[400px] pr-2 no-scrollbar text-zinc-300 text-xs leading-relaxed space-y-4">
+            <div className="space-y-4 pb-2 font-medium">
+              <div>
+                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">🗺️ Progression pas-à-pas</h4>
+                <p>Suivez la feuille de route optimisée. Les étapes s&apos;enchaînent logiquement pour réduire les allers-retours.</p>
+              </div>
+              <div>
+                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">📍 Marque-page (J&apos;en suis là)</h4>
+                <p>Utilisez l&apos;icône de marque-page pour indiquer précisément votre position actuelle à la guilde sans pour autant marquer l&apos;étape comme terminée.</p>
+              </div>
+              <div>
+                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">✅ Validation d&apos;étapes</h4>
+                <p>Cochez les étapes secondaires ou validez la milestone principale une fois terminée. Votre progression est enregistrée en temps réel.</p>
+              </div>
+              <div>
+                <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">👥 Synchronisation & Entraide</h4>
+                <p>Les avatars des membres s&apos;affichent sur les étapes où ils sont rendus. Pratique pour s&apos;organiser et faire des donjons à plusieurs !</p>
+              </div>
             </div>
           </ScrollArea>
         </DialogContent>

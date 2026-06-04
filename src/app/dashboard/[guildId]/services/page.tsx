@@ -5,9 +5,10 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getServiceListings } from "@/server/actions/service-actions";
 import { getLoans } from "@/server/actions/loan-actions";
 import { getVaultEntries, getVaultBalance } from "@/server/actions/vault-actions";
-import { getServicesStatusConfig } from "@/server/actions/admin-actions";
+import { getServicesStatusPublic } from "@/server/actions/admin-actions";
 import { PassagesClient } from "./_components/passages-client";
 import { db } from "@/lib/prisma";
+
 
 export default async function ServicesPage({ params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
@@ -28,7 +29,7 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
         getLoans(guildId),
         getVaultEntries(guildId),
         getVaultBalance(guildId),
-        getServicesStatusConfig(guildId),
+        getServicesStatusPublic(guildId),
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             select: { loansNotifyChannelId: true },

@@ -340,60 +340,43 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
 export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const anomalieType = payload.type || 'ZONE';
     const levelRange = payload.levelRange || '200';
-    const fragmentLevel: 1 | 2 | 3 = payload.fragmentLevel || 1;
 
-    const handleTypeChange = (type: 'ZONE' | 'BOSS' | 'GARDIENS' | 'COLLECTE') => {
+    const handleTypeChange = (type: 'ZONE' | 'BOSS') => {
         const newPayload: AnomaliePayload = {
             type,
             levelRange,
-            ...(type === 'COLLECTE' ? { fragmentLevel: fragmentLevel } : {})
         };
         onPayloadChange(newPayload);
-        updateTitle(type, levelRange, type === 'COLLECTE' ? fragmentLevel : undefined);
+        updateTitle(type, levelRange);
     };
 
     const handleLevelChange = (range: string) => {
         const newPayload: AnomaliePayload = {
             type: anomalieType,
             levelRange: range as AnomaliePayload['levelRange'],
-            ...(anomalieType === 'COLLECTE' ? { fragmentLevel } : {})
         };
         onPayloadChange(newPayload);
-        updateTitle(anomalieType, range, anomalieType === 'COLLECTE' ? fragmentLevel : undefined);
+        updateTitle(anomalieType, range);
     };
 
-    const handleFragmentChange = (level: number) => {
-        const fl = level as 1 | 2 | 3;
-        onPayloadChange({ type: 'COLLECTE', levelRange, fragmentLevel: fl });
-        updateTitle('COLLECTE', levelRange, fl);
-    };
-
-    const updateTitle = (type: string, range: string, frag?: number) => {
+    const updateTitle = (type: string, range: string) => {
         if (type === 'ZONE') {
             onTitleChange(`Zone Anomalie ${range}`);
         } else if (type === 'BOSS') {
             onTitleChange(`Gardien Anomalie ${range}`);
-        } else if (type === 'GARDIENS') {
-            onTitleChange(`3 Gardiens Anomalie ${range}`);
-        } else {
-            onTitleChange(`Collecte Fragments Anomalie ${frag ?? 1} (Niv. ${range})`);
         }
     };
 
-    const TYPES: { value: 'ZONE' | 'BOSS' | 'GARDIENS' | 'COLLECTE'; label: string; desc: string }[] = [
+    const TYPES: { value: 'ZONE' | 'BOSS'; label: string; desc: string }[] = [
         { value: 'ZONE', label: 'Zone', desc: '50 monstres' },
         { value: 'BOSS', label: 'Gardien', desc: 'Gardien d\'anomalie' },
-        { value: 'GARDIENS', label: '3 Gardiens', desc: 'Vaincre 3 gardiens' },
-        { value: 'COLLECTE', label: 'Collecte', desc: 'Fragments d\'anomalie' },
     ];
 
     // Anomalie Artwork
     const getAnomalieArtwork = () => {
         switch(anomalieType) {
-            case 'BOSS': return "https://static.sigilos.fr/game/assets/anomalie_boss.png";
-            case 'GARDIENS': return "https://static.sigilos.fr/game/assets/anomalie_trio.png";
-            case 'COLLECTE': return "https://static.sigilos.fr/game/assets/temporal_fragment.png";
-            default: return "https://static.sigilos.fr/game/assets/anomalie_zone.png";
+            case 'BOSS': return "/assets/missions/ano1.png";
+            default: return "/assets/missions/anomalie.png";
         }
     };
 
@@ -417,44 +400,19 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 </RadioGroup>
             </div>
 
-            {anomalieType === 'COLLECTE' && (
-                <div className="space-y-2">
-                    <Label className="text-xs text-zinc-400 font-bold uppercase tracking-widest text-[9px]">Niveau de collecte (Fragments Ankama 3.5)</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                        {([1, 2, 3] as const).map(lvl => (
-                            <button
-                                key={lvl}
-                                type="button"
-                                onClick={() => handleFragmentChange(lvl)}
-                                className={cn(
-                                    "py-2.5 rounded-xl border text-[11px] font-black tracking-widest transition-all",
-                                    fragmentLevel === lvl
-                                        ? "bg-fuchsia-500/20 border-fuchsia-500/50 text-fuchsia-300 shadow-xl shadow-fuchsia-500/10"
-                                        : "bg-zinc-950 border-zinc-900 text-zinc-600 hover:border-zinc-700"
-                                )}
-                            >
-                                FRAGMENT {lvl}
-                            </button>
+            <div className="space-y-2">
+                <Label className="text-xs text-zinc-400">Tranche de niveau</Label>
+                <Select value={levelRange} onValueChange={handleLevelChange}>
+                    <SelectTrigger className="bg-zinc-950 border-zinc-900 rounded-xl">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-950 border-white/5">
+                        {ANOMALIE_LEVEL_RANGES.map(range => (
+                            <SelectItem key={range} value={range}>{range}</SelectItem>
                         ))}
-                    </div>
-                </div>
-            )}
-
-            {anomalieType !== 'COLLECTE' && (
-                <div className="space-y-2">
-                    <Label className="text-xs text-zinc-400">Tranche de niveau</Label>
-                    <Select value={levelRange} onValueChange={handleLevelChange}>
-                        <SelectTrigger className="bg-zinc-950 border-zinc-900 rounded-xl">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-950 border-white/5">
-                            {ANOMALIE_LEVEL_RANGES.map(range => (
-                                <SelectItem key={range} value={range}>{range}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
+                    </SelectContent>
+                </Select>
+            </div>
 
             {/* Visual Preview Card for Anomalie */}
             <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -469,12 +427,6 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                     )}
                     {anomalieType === 'BOSS' && (
                         <>Vaincre un <span className="text-white font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-white font-black">{levelRange}</span> avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
-                    )}
-                    {anomalieType === 'GARDIENS' && (
-                        <>Vaincre <span className="text-white font-black text-xs">3 Gardiens</span> de niveau <span className="text-white font-black">{levelRange}</span> avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
-                    )}
-                    {anomalieType === 'COLLECTE' && (
-                        <>Collecter des <span className="text-white font-black">Fragments d'anomalie</span> — palier <span className="text-fuchsia-300 font-black text-sm">{fragmentLevel}</span> <span className="text-zinc-600">(Maj 3.5)</span></>
                     )}
                 </div>
             </div>

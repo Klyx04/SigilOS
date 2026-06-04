@@ -358,12 +358,15 @@ export async function logAdminAccessDenied(
             headersList.get("Next-Router-Prefetch") === "1" || 
             headersList.get("Purpose") === "prefetch" ||
             headersList.get("x-middleware-prefetch") === "1" ||
-            headersList.get("sec-purpose") === "prefetch";
+            headersList.get("sec-purpose") === "prefetch" ||
+            headersList.get("rsc") === "1"; // RSC fetch (React Server Components streaming)
         if (isPrefetch) return;
 
-        // 🛡️ SECURITY: Avoid false positives for legitimate guild members during standard page navigation (GET).
-        // We only log access denied for external users (potential scan/intrusion) or active mutations (Server Actions).
-        if (isMember && targetPage.startsWith("/")) {
+        // 🛡️ SECURITY: Avoid false positives for legitimate guild members.
+        // Members can have partial permissions (canValidateMissions, canManageMembers, etc.)
+        // without being Discord admins. This is NOT a security threat — only log for
+        // external users (potential intruders/scanners) attempting to access admin resources.
+        if (isMember) {
             return;
         }
 

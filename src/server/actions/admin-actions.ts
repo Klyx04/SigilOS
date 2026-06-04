@@ -141,13 +141,12 @@ export async function updateRBACMapping(
             }
         });
 
-        const { invalidateGuildCache, invalidateUserContextCache } = await import("./user-actions");
+        const { invalidateGuildCache, flushGuildUserContextCache } = await import("./user-actions");
         await invalidateGuildCache(guildId);
 
-        const userId = session.user.id;
-        if (userId && currentConfig?.id) {
-            await invalidateUserContextCache(userId, currentConfig.id, guildId);
-        }
+        // 🔒 SECURITY FIX: Flush ALL user context caches for this guild, not just the admin's.
+        // Without this, members retain stale cached permissions for up to 60s after an RBAC change.
+        await flushGuildUserContextCache(guildId);
 
         // Create audit log entry
         const { createAuditLog } = await import("./audit-actions");
@@ -1104,6 +1103,56 @@ export async function getPendingValidationsCount(guildId: string) {
 // ============================================================================
 // SERVICES MAINTENANCE CONFIGURATION
 // ============================================================================
+
+/**
+ * Public version — accessible to all guild members (no admin guard).
+ * Used by the /services page to enforce maintenance locks for regular users.
+ */
+export async function getServicesStatusPublic(guildId: string): Promise<{
+    success: boolean;
+    error?: string;
+    data?: {
+        serviceMarketplaceEnabled: boolean;
+        serviceMarketplaceMessage: string | null;
+        serviceLoansEnabled: boolean;
+        serviceLoansMessage: string | null;
+        serviceVaultEnabled: boolean;
+        serviceVaultMessage: string | null;
+    }
+}> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                serviceMarketplaceEnabled: true,
+                serviceMarketplaceMessage: true,
+                serviceLoansEnabled: true,
+                serviceLoansMessage: true,
+                serviceVaultEnabled: true,
+                serviceVaultMessage: true,
+            }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+        return {
+            success: true,
+            data: {
+                serviceMarketplaceEnabled: config.serviceMarketplaceEnabled,
+                serviceMarketplaceMessage: config.serviceMarketplaceMessage,
+                serviceLoansEnabled: config.serviceLoansEnabled,
+                serviceLoansMessage: config.serviceLoansMessage,
+                serviceVaultEnabled: config.serviceVaultEnabled,
+                serviceVaultMessage: config.serviceVaultMessage,
+            }
+        };
+    } catch (error) {
+        console.error("Get Services Status Public Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
 
 export async function getServicesStatusConfig(guildId: string): Promise<{
     success: boolean;

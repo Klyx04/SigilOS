@@ -190,7 +190,7 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
   const allProgress = await db.playerGuideProgress.findMany({
     where: {
       milestone: { guideId: guide.id },
-      profile: { guildId }
+      profile: { guild: { discordGuildId: guildId } }
     },
     include: {
       profile: {
@@ -630,7 +630,11 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
 
   const steps: any[] = jsonData.steps ?? [];
 
-  await db.guideMilestone.deleteMany({ where: { guideId } });
+  // load existing milestones to do smart upsert and avoid deleting player progress cascades
+  const existingMilestones = await db.guideMilestone.findMany({
+    where: { guideId },
+    include: { sequences: true }
+  });
 
   // Pré-charger les sous-guides importés pour résoudre ganymadeId → "GP1", "GP2"...
   const importedSubs = await db.subGuideData.findMany({
@@ -640,6 +644,7 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
   importedSubs.forEach(s => idToRefMap.set(s.ganymadeId, s.guideRef));
 
   let created = 0;
+  let updated = 0;
   let skipped = 0;
   let noProperTitle = 0;
   let order = 1;
@@ -664,6 +669,8 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
     if (t.includes("placeholder")) return true;
     return false;
   };
+
+  const activeMilestoneIds = new Set<string>();
 
   for (const step of steps) {
     const html: string = step.web_text ?? "";
@@ -711,7 +718,6 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
     }
 
     // ── 2. PARSE DES SOUS-GUIDES RÉFÉRENCÉS ─────────────────────────────────
-    // Le regex doit capturer tous les attributs même si l'ordre varie
     const guideStepPattern = /data-type="guide-step"[^>]*>/gi;
     const attrExtract = (tag: string, attr: string): string => {
       const m = tag.match(new RegExp(`${attr}="([^"]*)"`));
@@ -732,19 +738,14 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
       const guideName  = attrExtract(fullTag, "guidename");
       const label      = attrExtract(fullTag, "label");
 
-      // Résolution de la référence GPX:
-      // 1. Cache des sous-guides importés (le plus fiable)
       let ref = ganymadeId ? idToRefMap.get(parseInt(ganymadeId)) ?? null : null;
-      // 2. Extraction [GPX] depuis guideName
       if (!ref) ref = extractGpRef(guideName, label);
-      // 3. Fallback sur l'ID brut (éviter GP1074 en cherchant dans le texte environnant)
       if (!ref && ganymadeId) {
-        // Chercher dans les 500 chars autour du tag
         const tagIdx = tagMatch.index;
         const ctx = html.substring(Math.max(0, tagIdx - 100), tagIdx + 600);
         ref = extractGpRef(ctx);
       }
-      if (!ref && ganymadeId) ref = `GP_ID${ganymadeId}`; // Dernier recours, clairement marqué comme inconnu
+      if (!ref && ganymadeId) ref = `GP_ID${ganymadeId}`;
 
       if (!ref || seenRefs.has(ref)) continue;
       seenRefs.add(ref);
@@ -755,7 +756,6 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
         .replace(/&lt;/g, "<")
         .trim() || ref;
 
-      // Extraire les bornes d'étapes depuis le label + texte environnant
       const tagIdx = tagMatch.index;
       const surrounding = html
         .substring(Math.max(0, tagIdx - 300), tagIdx + 600)
@@ -775,7 +775,6 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
       sequences.push({ ref, name: cleanName, stepFrom, stepTo, note, isResume });
     }
 
-    // Si toujours pas de titre, utiliser le premier sous-guide comme titre
     if (!rawTitle && sequences.length > 0) {
       const s = sequences[0];
       rawTitle = s.stepTo
@@ -783,7 +782,6 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
         : s.name;
     }
 
-    // ── DESCRIPTION (HTML nettoyé) ────────────────────────────────────────────
     let description = html
       .replace(/<input[^>]*type="checkbox"[^>]*>/g, "")
       .replace(/<p[^>]*>\s*<\/p>/g, "")
@@ -793,7 +791,6 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
       description = "";
     }
 
-    // Skip si vraiment rien (ni titre, ni contenu, ni séquence)
     if (!rawTitle && !description && sequences.length === 0) {
       skipped++;
       continue;
@@ -801,7 +798,6 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
 
     if (!rawTitle) rawTitle = `Étape ${order}`;
 
-    // ── TYPE & COULEUR ────────────────────────────────────────────────────────
     const isBonus   = /[ée]tape\s+bonus|partie\s+bonus/i.test(html + " " + (step.name ?? ""));
     const isDofus   = /\bdofus\b/i.test(rawTitle + " " + html.substring(0, 500));
     const isDonjon  = /\bdonjon\b/i.test(rawTitle) || html.includes("tag-dungeon");
@@ -809,35 +805,62 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
     const type        = isDofus ? "DOFUS" : isDonjon ? "DONJON" : isBonus ? "PREREQUIS" : "QUETE_SERIE";
     const accentColor = isDofus ? "#f59e0b" : isDonjon ? "#8b5cf6" : isBonus ? "#a855f7" : "#10b981";
 
-    // ── CHAPITRE ──────────────────────────────────────────────────────────────
     const firstSeq   = sequences[0];
-    // Chapitre = numéro du premier GP référencé, ou 0 pour les étapes d'intro
     const gpNumMatch  = firstSeq?.ref.match(/\d+/);
     const chapterNum  = gpNumMatch ? parseInt(gpNumMatch[0]) : 0;
     const chapterLabel = firstSeq ? `[${firstSeq.ref}] ${firstSeq.name}` : "Introduction";
 
-    // ── CRÉATION EN BASE ──────────────────────────────────────────────────────
-    const milestone = await db.guideMilestone.create({
-      data: {
-        guideId,
-        title: rawTitle,
-        description: description || null,
-        type,
-        chapter: chapterNum,
-        chapterLabel,
-        accentColor,
-        order,
-        posX: (order % 4) * 220,
-        posY: Math.floor((order - 1) / 4) * 160,
-        isOptional: isBonus,
-      },
-    });
+    // SMART MATCHING: Find if a milestone already exists at this order, or with a similar title
+    const existing = existingMilestones.find(
+      m => m.order === order || m.title.toLowerCase() === rawTitle?.toLowerCase()
+    );
+
+    let milestoneId: string;
+    if (existing) {
+      milestoneId = existing.id;
+      await db.guideMilestone.update({
+        where: { id: milestoneId },
+        data: {
+          title: rawTitle,
+          description: description || null,
+          type,
+          chapter: chapterNum,
+          chapterLabel,
+          accentColor,
+          order,
+          isOptional: isBonus,
+        }
+      });
+      // Delete old sequences to refresh them
+      await db.guideSequence.deleteMany({ where: { milestoneId } });
+      updated++;
+    } else {
+      const newMilestone = await db.guideMilestone.create({
+        data: {
+          guideId,
+          title: rawTitle,
+          description: description || null,
+          type,
+          chapter: chapterNum,
+          chapterLabel,
+          accentColor,
+          order,
+          posX: (order % 4) * 220,
+          posY: Math.floor((order - 1) / 4) * 160,
+          isOptional: isBonus,
+        },
+      });
+      milestoneId = newMilestone.id;
+      created++;
+    }
+
+    activeMilestoneIds.add(milestoneId);
 
     for (let i = 0; i < sequences.length; i++) {
       const seq = sequences[i];
       await db.guideSequence.create({
         data: {
-          milestoneId: milestone.id,
+          milestoneId,
           subGuideRef: seq.ref,
           subGuideName: seq.name,
           stepFrom: seq.stepFrom,
@@ -851,16 +874,27 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
     }
 
     order++;
-    created++;
+  }
+
+  // Delete milestones that are no longer part of this guide
+  const toDelete = existingMilestones.filter(m => !activeMilestoneIds.has(m.id));
+  if (toDelete.length > 0) {
+    await db.guideMilestone.deleteMany({
+      where: {
+        id: { in: toDelete.map(m => m.id) }
+      }
+    });
   }
 
   revalidatePath("/god/dofus-guides");
   return {
     success: true,
     created,
+    updated,
+    deleted: toDelete.length,
     skipped,
     noProperTitle,
-    message: `✅ ${created} milestones importés. ${skipped} ignorés (tutoriels). ${noProperTitle} sans titre propre (titre auto-généré).`,
+    message: `✅ Import intelligent terminé. Créés : ${created}, Mis à jour : ${updated}, Supprimés : ${toDelete.length}. ${skipped} ignorés.`,
   };
 }
 

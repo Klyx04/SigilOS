@@ -98,28 +98,57 @@ export type DofusroomBuildData = {
 
 async function fetchItemDetails(itemId: string | number) {
     try {
-        const res = await fetch("https://www.dofusroom.com/encyclopedia/item/getAjax", {
-            method: "POST",
+        const itemUrl = `https://www.dofusroom.com/encyclopedia/item/show/${itemId}`;
+        const res = await fetch(itemUrl, {
             headers: {
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "X-Requested-With": "XMLHttpRequest",
-                "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Cookie": "lang=fr; locale=fr;"
             },
-            body: JSON.stringify({ itemId: parseInt(itemId.toString()), datasOnly: true }),
             next: { revalidate: 86400 } // Cache items for 24 hours
         });
 
         if (res.ok) {
-            const json = await res.json();
-            if (json.status === "success" && json.data?.item) {
-                return {
-                    name: json.data.item.name || "Équipement",
-                    image: json.data.item.image?.toString() || "",
-                    stats: json.data.item.stats || {},
-                };
+            const html = await res.text();
+            const $ = cheerio.load(html);
+            
+            // Extract item name from meta title or page content
+            const title = $("title").text() || "";
+            const name = title.replace(/\s*-\s*Encyclopedia\s*$/i, "").trim() || "Équipement";
+
+            // Extract image from img tag or og:image
+            const ogImage = $("meta[property='og:image']").attr("content") || "";
+            let image = "";
+            if (ogImage) {
+                const imgMatch = ogImage.match(/items\/(\d+)\.png/);
+                if (imgMatch) {
+                    image = imgMatch[1];
+                }
             }
+            if (!image) {
+                const imgScr = $("img[src*='/assets/items/']").attr("src") || "";
+                const imgMatch = imgScr.match(/items\/(\d+)\.png/);
+                if (imgMatch) {
+                    image = imgMatch[1];
+                }
+            }
+
+            // Extract stats from HTML elements
+            const stats: Record<string, { is: number; statLabel: string }> = {};
+            $(".stat-row, [class*='stat-']").each((_, el) => {
+                const text = $(el).text().trim();
+                const numMatch = text.match(/([+-]?\d+)\s*(.+)/);
+                if (numMatch) {
+                    const value = parseInt(numMatch[1]);
+                    const label = numMatch[2].trim();
+                    stats[label] = { is: value, statLabel: label };
+                }
+            });
+
+            return {
+                name,
+                image,
+                stats,
+            };
         }
     } catch (e) {
         console.error(`[DofusRoom proxy] Failed to fetch item ${itemId}:`, e);
@@ -219,8 +248,12 @@ export async function GET(
 
         const build = apiData?.data?.build;
 
+        if (!build) {
+            return NextResponse.json({ error: "Build introuvable ou privé sur DofusRoom" }, { status: 404 });
+        }
+
         // ── Step 3: Normalize the response ────────────────────────────────────
-        const stats = build?.stats || {};
+        const stats = build.stats || {};
         const baseStats = {
             vitalite: (stats.vitalite?.inputs || 0) + (stats.vitalite?.parcho || 0),
             sagesse: (stats.sagesse?.inputs || 0) + (stats.sagesse?.parcho || 0),

@@ -11,12 +11,14 @@ export type OnboardingProgress = {
         title: string;
         description: string;
         status: "COMPLETED" | "IN_PROGRESS" | "TO_DO";
+        mandatory: boolean;
         points: number;
         href: string;
     }[];
     totalPoints: number;
     maxPoints: number;
     isFinished: boolean;
+    mandatoryComplete: boolean;
 };
 
 export async function getGettingStartedProgress(guildId: string): Promise<OnboardingProgress> {
@@ -48,22 +50,26 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
     }
 
     const rolesMapping = (guild.rolesMapping as Record<string, string[]>) || {};
-    const isRbacConfigured = Array.isArray(rolesMapping["dashboard:login"]) && rolesMapping["dashboard:login"].length > 0;
+    const isRbacConfigured = Object.values(rolesMapping).some(perms => 
+        Array.isArray(perms) && perms.includes("dashboard:login")
+    );
 
     const steps: OnboardingProgress["steps"] = [
         {
             id: "dofus",
-            title: "Serveur de Jeu (Obligatoire)",
+            title: "Serveur de Jeu",
             description: "Sélectionnez le serveur Dofus de votre guilde. Cela débloquera l'accès aux autres paramètres.",
             status: guild.dofusServerId ? "COMPLETED" : "TO_DO",
+            mandatory: true,
             points: 20,
             href: `/dashboard/${guildId}/admin/settings?tab=dofus`,
         },
         {
             id: "rbac",
-            title: "Rôles & Permissions (Obligatoire)",
+            title: "Rôles & Permissions",
             description: "Définissez au moins un rôle Discord pour l'autorisation 'Accès Dashboard' afin de sécuriser l'accès.",
             status: isRbacConfigured ? "COMPLETED" : "TO_DO",
+            mandatory: true,
             points: 20,
             href: `/dashboard/${guildId}/admin/permissions`,
         },
@@ -72,6 +78,7 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Lier le Bot Discord",
             description: "Configurez au moins le salon de notifications principal (Lifecycle ou Missions).",
             status: guild.missionNotifyChannelId || guild.lifecycleNotifyChannelId ? "COMPLETED" : "IN_PROGRESS",
+            mandatory: false,
             points: 15,
             href: `/dashboard/${guildId}/admin/settings?tab=annonces`,
         },
@@ -80,6 +87,7 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Configurer les Modules",
             description: "Activez les fonctionnalités dont votre guilde a besoin (Missions, Songes, Ocre...).",
             status: guild.modules && countEnabledModules(guild.modules) > 4 ? "COMPLETED" : "IN_PROGRESS",
+            mandatory: false,
             points: 15,
             href: `/dashboard/${guildId}/admin/modules`,
         },
@@ -88,6 +96,7 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Page de Présentation",
             description: "Personnalisez votre page publique pour attirer de nouveaux membres.",
             status: guild.presentationEnabled && guild.presentationHistory ? "COMPLETED" : "IN_PROGRESS",
+            mandatory: false,
             points: 15,
             href: `/dashboard/${guildId}/admin/presentation`,
         },
@@ -96,6 +105,7 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             title: "Premières Missions",
             description: "Lancez l'activité en publiant des missions hebdomadaires pour vos membres.",
             status: guild._count.missions > 0 ? "COMPLETED" : "TO_DO",
+            mandatory: false,
             points: 15,
             href: `/dashboard/${guildId}/missions/manage`,
         },
@@ -103,12 +113,16 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
 
     const totalPoints = steps.reduce((acc, step) => acc + (step.status === "COMPLETED" ? step.points : 0), 0);
     const maxPoints = steps.reduce((acc, step) => acc + step.points, 0);
+    const mandatoryComplete = steps
+        .filter(s => s.mandatory)
+        .every(s => s.status === "COMPLETED");
 
     return {
         steps,
         totalPoints,
         maxPoints,
         isFinished: totalPoints === maxPoints,
+        mandatoryComplete,
     };
 }
 

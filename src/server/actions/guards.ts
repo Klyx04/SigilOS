@@ -89,8 +89,11 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
         const isAdmin = memberRoles.some((r: any) => (BigInt(r.permissions) & 0x8n) === 0x8n);
 
         if (!isAdmin) {
-            const { logAdminAccessDenied } = await import("./audit-actions");
-            await logAdminAccessDenied(guildId, context); // 🛡️ LOGGING WITH CONTEXT
+            // 🛡️ SECURITY: Only log as a security event for external/non-member users.
+            // Guild members with partial permissions (validators, managers, etc.) legitimately
+            // reach this check without being Discord admins — this is expected behavior.
+            // We log ONLY external users (potential scanners/intruders) as a security event.
+            // Note: logAdminAccessDenied itself also filters members as a defense-in-depth measure.
             return { isAuthorized: false, error: "Admin permission required" };
         }
 

@@ -97,6 +97,9 @@ export function PassagesClient({
     const isLoansDisabled = maintenance && !maintenance.serviceLoansEnabled && !isAdmin;
     const isVaultDisabled = maintenance && !maintenance.serviceVaultEnabled && !isAdmin;
 
+    // Discord not configured → non-admin members can't switch tabs or create
+    const discordBlocked = !isDiscordConfigured && !isAdmin;
+
     const MaintenanceView = ({ message, label }: { message?: string | null, label: string }) => (
         <div className="flex flex-col items-center justify-center min-h-[400px] border border-white/10 rounded-2xl bg-zinc-900/40 relative overflow-hidden group p-8 text-center animate-in fade-in zoom-in-95 duration-500">
             <div className="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent opacity-50" />
@@ -213,17 +216,19 @@ export function PassagesClient({
                     {TAB_CONFIG.map((t) => {
                         const isActive = tab === t.key;
                         const Icon = t.icon;
-                        const isDisabled = (t.key === "services" && isMarketplaceDisabled) ||
+                        const isDisabled = discordBlocked ||
+                            (t.key === "services" && isMarketplaceDisabled) ||
                             (t.key === "prets" && isLoansDisabled) ||
                             (t.key === "coffre" && isVaultDisabled);
 
                         return (
                             <button
                                 key={t.key}
-                                onClick={() => handleTabChange(t.key)}
+                                onClick={() => !isDisabled && handleTabChange(t.key)}
                                 className={cn(
                                     "relative flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-[0.1em] transition-all duration-300 overflow-hidden",
-                                    isActive ? t.activeClass : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05]"
+                                    isActive ? t.activeClass : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05]",
+                                    isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
                                 )}
                             >
                                 {isActive && (
@@ -243,27 +248,27 @@ export function PassagesClient({
 
                 <div className="flex items-center gap-3">
                     {tab === "services" && canCreate && !isMarketplaceDisabled && (
-                        <Button 
-                            disabled={!isDiscordConfigured}
-                            onClick={() => setShowServiceForm(true)} 
+                        <Button
+                            disabled={discordBlocked}
+                            onClick={() => setShowServiceForm(true)}
                             className="bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-cyan-600 disabled:shadow-none"
                         >
                             <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Publier une offre
                         </Button>
                     )}
                     {tab === "prets" && canCreate && !isLoansDisabled && (
-                        <Button 
-                            disabled={!isDiscordConfigured}
-                            onClick={() => setShowLoanForm(true)} 
+                        <Button
+                            disabled={discordBlocked}
+                            onClick={() => setShowLoanForm(true)}
                             className="bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-amber-600 disabled:shadow-none"
                         >
                             <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Nouveau prêt
                         </Button>
                     )}
                     {tab === "coffre" && canCreate && !isVaultDisabled && (
-                        <Button 
-                            disabled={!isDiscordConfigured}
-                            onClick={() => setShowVaultForm(true)} 
+                        <Button
+                            disabled={discordBlocked}
+                            onClick={() => setShowVaultForm(true)}
                             className="bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600 disabled:shadow-none"
                         >
                             <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Enregistrer un item
@@ -321,7 +326,7 @@ export function PassagesClient({
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 {filteredListings.map((listing) => (
-                                    <ServiceCard key={listing.id} listing={listing} guildId={guildId} currentProfileId={profileId} isAdmin={isAdmin} />
+                                    <ServiceCard key={listing.id} listing={listing} guildId={guildId} currentProfileId={profileId} isAdmin={isAdmin} isDiscordConfigured={isDiscordConfigured} />
                                 ))}
                             </div>
                         )}
@@ -402,9 +407,9 @@ export function PassagesClient({
                         )}
                         <div className="flex items-center justify-end gap-3">
                             {canCreate ? (
-                                <Button 
-                                    disabled={!isDiscordConfigured}
-                                    onClick={() => setShowVaultForm(true)} 
+                                <Button
+                                    disabled={discordBlocked}
+                                    onClick={() => setShowVaultForm(true)}
                                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-9 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600 disabled:shadow-none"
                                 >
                                     <Plus className="h-4 w-4 mr-1" /> Enregistrer

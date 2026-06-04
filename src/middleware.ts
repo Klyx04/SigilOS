@@ -37,6 +37,12 @@ function getClientIp(req: NextRequest): string {
 export default auth(async (req) => {
     const { nextUrl } = req;
 
+    // ─── REWRITE UPLOADS: Must happen before any performance short-circuit ───
+    if (nextUrl.pathname.startsWith("/uploads/")) {
+        const protectedPath = nextUrl.pathname.replace("/uploads/", "/api/storage/");
+        return NextResponse.rewrite(new URL(protectedPath, req.url));
+    }
+
     // ─── PERFORMANCE GAIN: Short-circuit for images and common assets ───
     if (nextUrl.pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf)$/) || nextUrl.pathname.startsWith("/images/") || nextUrl.pathname.startsWith("/icons/")) {
         return NextResponse.next();
@@ -54,7 +60,7 @@ export default auth(async (req) => {
         nextUrl.pathname.startsWith("/api/og"); 
 
     // ─── IP Rate Limiting on public unauthenticated API routes ────────────────
-    if (isPublicApi && !nextUrl.pathname.startsWith("/api/auth")) {
+    if (isPublicApi && !nextUrl.pathname.startsWith("/api/auth") && !nextUrl.pathname.startsWith("/api/storage")) {
         const ip = getClientIp(req)
         // Discord interactions: 30 req/min (bots can legitimately hit this fast)
         // All other public routes: 60 req/min
@@ -74,11 +80,6 @@ export default auth(async (req) => {
                 }
             )
         }
-    }
-
-    if (nextUrl.pathname.startsWith("/uploads/")) {
-        const protectedPath = nextUrl.pathname.replace("/uploads/", "/api/storage/");
-        return NextResponse.rewrite(new URL(protectedPath, req.url));
     }
 
     if (nextUrl.pathname.startsWith("/api")) {
@@ -121,5 +122,5 @@ export default auth(async (req) => {
 })
 
 export const config = {
-    matcher: ["/((?!api/auth|api/health|api/god/notify|_next/static|_next/image|favicon.ico|images|fonts|icons|uploads|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf)$).*)"],
+    matcher: ["/((?!api/auth|api/health|api/god/notify|_next/static|_next/image|favicon.ico|images|fonts|icons|(?!uploads/).*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf)$).*)"],
 }

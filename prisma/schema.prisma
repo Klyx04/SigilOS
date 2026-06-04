@@ -2265,3 +2265,21 @@ enum DofusQuestStatus {
   COMPLETED
   SKIPPED
 }
+
+model TelemetryEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  userName   String
+  guildId    String?
+  path       String   // e.g. "/dashboard/guildId/missions"
+  eventType  String   // "PAGE_VIEW" | "INTERACTION"
+  elementId  String?  // e.g. "claim-reward-button"
+  details    Json?    // User Agent, OS, Browser, etc.
+  createdAt  DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([path])
+  @@index([createdAt])
+  @@index([userId])
+}
+

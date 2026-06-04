@@ -173,13 +173,29 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
             include: {
                 user: {
                     include: {
-                        profiles: { select: { id: true } }
+                        profiles: { select: { id: true } },
+                        accounts: { where: { provider: "discord" }, select: { providerAccountId: true } }
                     }
                 }
             }
         });
 
         if (!target) return { success: false, error: "Profile not found" };
+
+        // 🔒 Prevent self-deletion
+        if (target.userId === ctx.id) {
+            return { success: false, error: "Vous ne pouvez pas supprimer votre propre profil." };
+        }
+
+        // 🔒 Prevent deletion of the Discord guild owner
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { ownerId: true }
+        });
+        const targetDiscordId = target.user.accounts[0]?.providerAccountId;
+        if (guildConfig?.ownerId && targetDiscordId && guildConfig.ownerId === targetDiscordId) {
+            return { success: false, error: "Le propriétaire du serveur Discord ne peut pas être supprimé depuis SigilOS." };
+        }
 
         const targetUserId = target.userId;
         const hasOtherProfiles = target.user.profiles.length > 1;
@@ -682,9 +698,30 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
     try {
         const profile = await db.userProfile.findUnique({
             where: { id: profileId },
-            include: { user: true }
+            include: {
+                user: {
+                    include: {
+                        accounts: { where: { provider: "discord" }, select: { providerAccountId: true } }
+                    }
+                }
+            }
         });
         if (!profile) return { success: false, error: "Profil introuvable" };
+
+        // 🔒 Prevent self-wipe
+        if (profile.userId === ctx.id) {
+            return { success: false, error: "Vous ne pouvez pas nettoyer votre propre profil." };
+        }
+
+        // 🔒 Prevent wiping the Discord guild owner
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId },
+            select: { ownerId: true }
+        });
+        const targetDiscordId = profile.user?.accounts[0]?.providerAccountId;
+        if (guildConfig?.ownerId && targetDiscordId && guildConfig.ownerId === targetDiscordId) {
+            return { success: false, error: "Le propriétaire du serveur Discord ne peut pas être nettoyé depuis SigilOS." };
+        }
 
         await db.userProfile.update({
             where: { id: profileId },

@@ -36,9 +36,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { AccessDenied } from "@/components/layout/access-denied";
-import { OnboardingBanner } from "@/components/dashboard/onboarding-banner";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { GuidePulse } from "@/components/dashboard/guide-pulse";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
 

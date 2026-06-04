@@ -2122,59 +2122,61 @@ export default function InteractiveMapV2({
                                 </div>
                             </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 items-start md:ml-10">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 max-w-6xl mx-auto w-full items-stretch mt-6 md:ml-10">
 
                                     {/* Geoguesser Card */}
                                     <motion.div
                                         whileHover={getGameStatus('guesser').isEnabled ? { y: -5 } : {}}
                                         className={cn(
-                                            "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[2.5rem] p-8 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
+                                            "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[3rem] p-8 md:p-12 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
                                             getGameStatus('guesser').isEnabled 
                                                 ? "hover:border-emerald-500/40 hover:bg-[#0a0f18]/80 border-white/5" 
                                                 : "border-red-500/20 grayscale opacity-70"
                                         )}
                                     >
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-[60px] group-hover:bg-emerald-500/10 transition-all duration-700" />
+                                        <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full blur-[80px] group-hover:bg-emerald-500/10 transition-all duration-700" />
 
-                                        <div className="relative z-10 flex flex-col h-full">
-                                            <div className="flex items-start justify-between mb-6">
-                                                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 transition-all duration-300">
-                                                    <Target className="text-emerald-400 w-8 h-8" strokeWidth={2.5} />
+                                        <div className="relative z-10 flex flex-col h-full justify-between">
+                                            <div>
+                                                <div className="flex items-start justify-between mb-8">
+                                                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 transition-all duration-300">
+                                                        <Target className="text-emerald-400 w-10 h-10 md:w-12 md:h-12" strokeWidth={2.5} />
+                                                    </div>
+                                                    <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] md:text-xs font-black uppercase tracking-widest italic">
+                                                        {getGameStatus('guesser').isEnabled ? 'EXPLORATION' : 'MAINTENANCE'}
+                                                    </div>
                                                 </div>
-                                                <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-widest italic">
-                                                    {getGameStatus('guesser').isEnabled ? 'EXPLORATION' : 'MAINTENANCE'}
+
+                                                <h3 className="text-white font-black text-3xl md:text-4xl uppercase italic mb-2 tracking-tight group-hover:text-emerald-400 transition-colors">Sigil-Guesser</h3>
+                                                <div className="mb-6">
+                                                    <span className="text-emerald-500/60 text-xs md:text-sm font-black uppercase tracking-[0.2em] italic">"Où suis-je ? Le Zaap est cassé !"</span>
                                                 </div>
+                                                <p className="text-white/50 text-sm md:text-base font-semibold leading-relaxed mb-10">
+                                                    {getGameStatus('guesser').isEnabled 
+                                                        ? "Un mystérieux incident de Zaap vous a projeté dans l'inconnu. Saurez-vous identifier ce fragment du Monde des Douze pour retrouver votre chemin ?"
+                                                        : getGameStatus('guesser').message}
+                                                </p>
                                             </div>
 
-                                            <h3 className="text-white font-black text-2xl uppercase italic mb-1 tracking-tight group-hover:text-emerald-400 transition-colors">Sigil-Guesser</h3>
-                                            <div className="mb-4">
-                                                <span className="text-emerald-500/60 text-[9px] font-black uppercase tracking-[0.2em] italic">"Où suis-je ? Le Zaap est cassé !"</span>
-                                            </div>
-                                            <p className="text-white/40 text-[10px] font-medium leading-relaxed mb-8 h-12 overflow-hidden">
-                                                {getGameStatus('guesser').isEnabled 
-                                                    ? "Un mystérieux incident de Zaap vous a projeté dans l'inconnu. Saurez-vous identifier ce fragment du Monde des Douze pour retrouver votre chemin ?"
-                                                    : getGameStatus('guesser').message}
-                                            </p>
-
-                                            <div className="space-y-3 mt-auto">
+                                            <div className="space-y-4 mt-auto">
                                                 {getGameStatus('guesser').isEnabled ? (
                                                     <>
                                                         <button
                                                             onClick={handleCreateRoom}
                                                             disabled={isCreating || joiningId !== null}
-                                                            className="w-full py-4 rounded-xl bg-emerald-500 text-white font-black uppercase text-[10px] italic shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                                            className="w-full py-5 rounded-2xl bg-emerald-500 text-white font-black uppercase text-xs md:text-sm italic shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                                         >
-                                                            {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus size={14} /> Créer un Salon</>}
+                                                            {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus size={16} /> Créer un Salon</>}
                                                         </button>
                                                         <button
                                                             onClick={handleSoloMode}
-                                                            className="w-full py-4 rounded-xl bg-white/5 text-white/60 font-black uppercase text-[10px] italic border border-white/10 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
+                                                            className="w-full py-5 rounded-2xl bg-white/5 text-white/60 font-black uppercase text-xs md:text-sm italic border border-white/10 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2"
                                                         >
-                                                            <Compass size={14} /> Jouer Solo
+                                                            <Compass size={16} /> Jouer Solo
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
+                                                    <div className="w-full py-5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-xs md:text-sm font-black uppercase italic tracking-widest">
                                                         Indisponible
                                                     </div>
                                                 )}
@@ -2186,44 +2188,46 @@ export default function InteractiveMapV2({
                                     <motion.div
                                         whileHover={getGameStatus('bomb').isEnabled ? { y: -5 } : {}}
                                         className={cn(
-                                            "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[2.5rem] p-8 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
+                                            "group relative bg-[#0a0f18]/60 backdrop-blur-3xl border rounded-[3rem] p-8 md:p-12 flex flex-col transition-all shadow-2xl overflow-hidden h-full",
                                             getGameStatus('bomb').isEnabled 
                                                 ? "hover:border-red-500/40 hover:bg-[#0a0f18]/80 border-white/5" 
                                                 : "border-red-500/20 grayscale opacity-70"
                                         )}
                                     >
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[60px] group-hover:bg-red-500/10 transition-all duration-700" />
+                                        <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/5 rounded-full blur-[80px] group-hover:bg-red-500/10 transition-all duration-700" />
                                         
-                                        <div className="relative z-10 flex flex-col h-full">
-                                            <div className="flex items-start justify-between mb-6">
-                                                <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center border border-red-500/20 group-hover:scale-110 transition-all duration-300 text-2xl">
-                                                    <Bomb className="text-red-400 w-8 h-8" />
+                                        <div className="relative z-10 flex flex-col h-full justify-between">
+                                            <div>
+                                                <div className="flex items-start justify-between mb-8">
+                                                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-red-500/10 flex items-center justify-center border border-red-500/20 group-hover:scale-110 transition-all duration-300 text-2xl">
+                                                        <Bomb className="text-red-400 w-10 h-10 md:w-12 md:h-12" />
+                                                    </div>
+                                                    <div className="px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] md:text-xs font-black uppercase tracking-widest italic">
+                                                        {getGameStatus('bomb').isEnabled ? 'ACTION' : 'MAINTENANCE'}
+                                                    </div>
                                                 </div>
-                                                <div className="px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[8px] font-black uppercase tracking-widest italic">
-                                                    {getGameStatus('bomb').isEnabled ? 'ACTION' : 'MAINTENANCE'}
+
+                                                <h3 className="text-white font-black text-3xl md:text-4xl uppercase italic mb-2 tracking-tight group-hover:text-red-400 transition-colors">Sigil-Bomb</h3>
+                                                <div className="mb-6">
+                                                    <span className="text-red-400/60 text-xs md:text-sm font-black uppercase tracking-[0.2em] italic">"L'art explosif des Roublards"</span>
                                                 </div>
+                                                <p className="text-white/50 text-sm md:text-base font-semibold leading-relaxed mb-10">
+                                                    {getGameStatus('bomb').isEnabled 
+                                                        ? "Trouvez les mots imposés par la Reine avant que sa bombe n'explose. Un duel de vocabulaire explosif dans la Dimension Sram !"
+                                                        : getGameStatus('bomb').message}
+                                                </p>
                                             </div>
 
-                                            <h3 className="text-white font-black text-2xl uppercase italic mb-1 tracking-tight group-hover:text-red-400 transition-colors">Sigil-Bomb</h3>
-                                            <div className="mb-4">
-                                                <span className="text-red-400/60 text-[9px] font-black uppercase tracking-[0.2em] italic">"L'art explosif des Roublards"</span>
-                                            </div>
-                                            <p className="text-white/40 text-[10px] font-medium leading-relaxed mb-8 h-12 overflow-hidden">
-                                                {getGameStatus('bomb').isEnabled 
-                                                    ? "Trouvez les mots imposés par la Reine avant que sa bombe n'explose. Un duel de vocabulaire explosif dans la Dimension Sram !"
-                                                    : getGameStatus('bomb').message}
-                                            </p>
-
-                                            <div className="space-y-3 mt-auto">
+                                            <div className="space-y-4 mt-auto">
                                                 {getGameStatus('bomb').isEnabled ? (
                                                     <a 
                                                         href={`/dashboard/${guildId}/mini-jeux/sigil-bomb`}
-                                                        className="w-full py-4 rounded-xl bg-red-600 text-white font-black uppercase text-[10px] italic shadow-lg shadow-red-600/20 hover:bg-red-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                                                        className="w-full py-5 rounded-2xl bg-red-600 text-white font-black uppercase text-xs md:text-sm italic shadow-lg shadow-red-600/20 hover:bg-red-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-center"
                                                     >
-                                                        <Plus size={14} /> Créer un Salon
+                                                        <Plus size={16} /> Créer un Salon
                                                     </a>
                                                 ) : (
-                                                    <div className="w-full py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-[10px] font-black uppercase italic tracking-widest">
+                                                    <div className="w-full py-5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-center text-xs md:text-sm font-black uppercase italic tracking-widest">
                                                         Indisponible
                                                     </div>
                                                 )}

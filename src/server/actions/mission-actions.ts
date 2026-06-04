@@ -1575,6 +1575,9 @@ export async function publishMissionsToDiscord(
         const hasEvents = missions.some(m => m.category === "EVENT");
         const missionLabel = hasEvents ? "Missions Classiques et Événements" : "Missions Classiques";
 
+        // Pick a thematic thumbnail for the embed
+        const thumbnailUrl = getMissionThumbnailUrl(missions);
+
         const currentXP = (await getGuildMissionXpOverride(guildId)).data?.xpOverride || (await calculateDynamicXP(guild.id, guildId));
         const targetTier = guild.missionTier || 3;
 
@@ -1602,6 +1605,7 @@ export async function publishMissionsToDiscord(
             embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
+            embedThumbnail: thumbnailUrl,
             embedFooter: `SigilOS • Système de Gestion de Guilde`,
             fields: [
                 {
@@ -1653,6 +1657,33 @@ export async function publishMissionsToDiscord(
 }
 
 // =============================================================================
+// EMBED THUMBNAIL HELPER
+// =============================================================================
+
+/**
+ * Returns a publicly-accessible thumbnail URL for the weekly mission embed.
+ * Priority: Event missions → Songes → Dungeon boss → Regulation (default Dofus Ébène)
+ */
+function getMissionThumbnailUrl(missions: { category: string; payload: any }[]): string {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+
+    // Prefer event missions (most visual)
+    const eventMission = missions.find(m => m.category === "EVENT");
+    if (eventMission) {
+        return `${appUrl}/assets/ui/dofus-event.png`;
+    }
+
+    // Songes missions
+    const songesMission = missions.find(m => m.category === "SONGES");
+    if (songesMission) {
+        return `${appUrl}/assets/ui/dofus-songes.png`;
+    }
+
+    // Default — Dofus Ébène (classic guild progression image)
+    return `${appUrl}/assets/ui/dofus-missions-thumb.png`;
+}
+
+// =============================================================================
 // [MIS-1] XP PROGRESS BAR OVERRIDE (Admin Manual Adjustment)  
 // =============================================================================
 
@@ -1688,6 +1719,9 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
         const hasEvents = missions.some(m => m.category === "EVENT");
         const missionLabel = hasEvents ? "Missions Classiques et Événements" : "Missions Classiques";
 
+        // Pick a thematic thumbnail for the embed
+        const thumbnailUrl = getMissionThumbnailUrl(missions);
+
         // Calculate XP (Direct DB access to avoid session/auth dependency in background refresh)
         const xpData = await db.guildConfig.findUnique({
             where: { discordGuildId },
@@ -1715,6 +1749,7 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
             embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
+            embedThumbnail: thumbnailUrl,
             embedFooter: `SigilOS • Système de Gestion de Guilde`,
             fields: [
                 {

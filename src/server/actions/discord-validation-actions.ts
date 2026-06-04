@@ -151,6 +151,14 @@ export async function internalValidateMissionSubmission(
         revalidatePath(`/dashboard/${discordGuildId}/ladder`);
         revalidatePath(`/dashboard/${discordGuildId}/admin/validation`);
 
+        // 🔥 Sync weekly mission embed jalons (fire-and-forget)
+        if (status === "VALIDATED") {
+            const { refreshMissionDiscordEmbed } = await import("./mission-actions");
+            refreshMissionDiscordEmbed(discordGuildId).catch((e) =>
+                console.error("[Discord] refreshMissionDiscordEmbed after Discord validation failed:", e)
+            );
+        }
+
         const memberName = updated.profile.discordNickname || updated.profile.pseudoDofus || updated.profile.user?.name || "Membre";
         return { success: true, memberName, missionTitle: submission.mission.title ?? undefined };
     } catch (error) {
@@ -244,6 +252,14 @@ export async function internalReviewKamaDonation(
         revalidatePath(`/dashboard/${discordGuildId}/missions`);
         revalidatePath(`/dashboard/${discordGuildId}/ladder`);
         revalidatePath(`/dashboard/${discordGuildId}/admin/validation`);
+
+        // 🔥 Sync weekly mission embed jalons (fire-and-forget)
+        if (newStatus === "VALIDATED") {
+            const { refreshMissionDiscordEmbed } = await import("./mission-actions");
+            refreshMissionDiscordEmbed(discordGuildId).catch((e) =>
+                console.error("[Discord] refreshMissionDiscordEmbed after kama Discord validation failed:", e)
+            );
+        }
 
         const memberName = donation.profile?.discordNickname || donation.profile?.pseudoDofus || donation.profile?.user?.name || "Membre";
         return { success: true, memberName, amount: donation.amount };

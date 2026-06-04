@@ -39,6 +39,7 @@ import { ShareRoomButton } from "../shared/ShareRoomButton";
 import { useBombSounds } from "./useBombSounds";
 import { useDiscordVoice } from "@/hooks/use-discord-voice";
 import { DiscordVoiceOverlay } from "@/components/shared/DiscordVoiceOverlay";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 class BombErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
     constructor(props: {children: React.ReactNode}) {
@@ -92,6 +93,7 @@ export default function BombGame({
     const [isImmersive, setIsImmersive] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
     const [showTutorial, setShowTutorial] = useState(false);
+    const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [bloodSplats, setBloodSplats] = useState<any[]>([]);
     const [winnerName, setWinnerName] = useState<string | null>(null);
     const [localTimeLeft, setLocalTimeLeft] = useState<number>(0);
@@ -616,6 +618,40 @@ export default function BombGame({
             isImmersive ? "fixed inset-0 z-[100]" : "h-full w-full",
             shakeCount > 0 && "animate-shake"
         )}>
+            {/* QUIT CONFIRMATION DIALOG */}
+            <Dialog open={showQuitConfirm} onOpenChange={setShowQuitConfirm}>
+                <DialogContent className="max-w-md bg-slate-950/95 border border-white/10 text-white rounded-[2rem] p-6 backdrop-blur-xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black italic uppercase text-red-500 tracking-wider flex items-center gap-2">
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                            Quitter la partie ?
+                        </DialogTitle>
+                        <DialogDescription className="text-white/60 text-xs mt-2 leading-relaxed">
+                            {isHost && activePlayers.filter((p: any) => !p.isBot).length > 1
+                                ? "Vous êtes l'hôte. Quitter la partie transférera automatiquement les droits d'hôte au joueur suivant sans arrêter la partie pour les autres joueurs."
+                                : "Êtes-vous sûr de vouloir quitter la partie en cours ? Tout progrès sera perdu."}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-6 flex gap-3">
+                        <button
+                            onClick={() => setShowQuitConfirm(false)}
+                            className="flex-1 py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 font-bold uppercase text-[10px] italic tracking-wider transition-all"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                setShowQuitConfirm(false);
+                                handleLeave(e);
+                            }}
+                            className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-500 font-bold uppercase text-[10px] italic tracking-wider transition-all shadow-lg shadow-red-600/20"
+                        >
+                            Quitter
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <AtmosphericParticles />
             {showVoiceOverlay && (
                 <DiscordVoiceOverlay 
@@ -657,19 +693,17 @@ export default function BombGame({
                 >
                     {showVoiceOverlay ? <Mic size={20} /> : <MicOff size={20} />}
                 </button>
-                {/* Quit button — visible anytime for all players */}
+                {/* Quit button — visible anytime for all players, now triggers confirmation dialog */}
                 <button
-                    onClick={(e) => handleLeave(e)}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowQuitConfirm(true);
+                    }}
                     className="w-12 h-12 rounded-2xl flex items-center justify-center bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all shadow-lg"
                     title="Quitter la partie"
                 >
                     <XCircle size={20} />
-                </button>
-                <button 
-                    onClick={() => setIsImmersive(!isImmersive)}
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/5 border border-white/10 hover:bg-white/10 text-white/40 hover:text-white transition-all"
-                >
-                    {isImmersive ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
                 </button>
                 <button 
                     onClick={() => setShowAudioSettings(!showAudioSettings)}
@@ -681,26 +715,13 @@ export default function BombGame({
                 >
                     {masterVolume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
                 </button>
-                        <button 
-                            onClick={() => setShowTutorial(true)}
-                            className="w-12 h-12 rounded-2xl flex items-center justify-center bg-muted border border-border hover:bg-muted/80 text-foreground/40 hover:text-foreground transition-all"
-                            title="Aide et Tutoriel"
-                        >
-                            <HelpCircle size={20} />
-                        </button>
-                        <button 
-                            onClick={() => {
-                                setShowGameEnd(false);
-                                setShowOptions(false);
-                                setShowTutorial(false);
-                                socket?.emit("bomb:sync:request");
-                                toast.success("Interface réinitialisée");
-                            }}
-                            className="w-12 h-12 rounded-2xl flex items-center justify-center bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-orange-400 transition-all"
-                            title="Réinitialiser l'interface (en cas de gel)"
-                        >
-                            <Zap size={20} />
-                        </button>
+                <button 
+                    onClick={() => setShowTutorial(true)}
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center bg-muted border border-border hover:bg-muted/80 text-foreground/40 hover:text-foreground transition-all"
+                    title="Aide et Tutoriel"
+                >
+                    <HelpCircle size={20} />
+                </button>
             </div>
 
             {/* TOP STATS */}

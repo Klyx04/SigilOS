@@ -268,6 +268,12 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
           el.getAttribute('src')?.includes('dofus')
         );
 
+        // 3. Standalone Image (check first to prevent it from being hijacked by tag parsing)
+        if (el.tagName === 'IMG' && (el.classList.contains('guide-image') || (!isTag && !el.getAttribute('dofusdbid') && !el.getAttribute('data-id')))) {
+          blocks.push({ type: 'IMAGE', url: el.getAttribute('src') || '', alt: el.getAttribute('alt') || '' });
+          return;
+        }
+
         if (isTag || isDbLink || isDbImg) {
           const isDungeon = el.classList.contains('tag-dungeon') || el.getAttribute('type') === 'dungeon' || el.getAttribute('href')?.includes('dungeon');
           const href = el.getAttribute('href') || el.getAttribute('src') || '';
@@ -295,12 +301,6 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
             });
             return;
           }
-        }
-
-        // 3. Standalone Image
-        if (el.tagName === 'IMG') {
-          blocks.push({ type: 'IMAGE', url: el.getAttribute('src') || '', alt: el.getAttribute('alt') || '' });
-          return;
         }
 
         // 4. Containers or Formatting
@@ -1454,6 +1454,7 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
                                                       <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'QUEST', title: '', id: '', name: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-zinc-400 border border-white/5">+ QUÊTE</button>
                                                       <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TAG', tagType: 'item', name: '', id: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-blue-400 border border-white/5">+ OBJET</button>
                                                       <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'TAG', tagType: 'dungeon', name: '', id: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-purple-400 border border-white/5">+ DONJON</button>
+                                                      <button onClick={() => setActiveBlocks([...activeBlocks, { type: 'IMAGE', url: '', alt: '' }])} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-xl text-[10px] font-black text-pink-400 border border-white/5">+ IMAGE</button>
                                                       
                                                       <div className="relative">
                                                         <button 

@@ -63,6 +63,7 @@ export default async function AdminMembersPage({ params }: AdminMembersPageProps
                     initialHistory={history || []}
                     canManageMembers={ctx.canManageMembers || ctx.isAdmin}
                     canManageRelance={ctx.canManageRelance}
+                    currentUserId={ctx.id || ""}
                 />
             </Suspense>
         </div>

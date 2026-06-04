@@ -49,6 +49,7 @@ export type DjPostWithDetails = {
     discordMessageId?: string | null;
     discordChannelId?: string | null;
     status: string;
+    lastReminderAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
     _acceptedCount: number;
@@ -404,6 +405,105 @@ export async function sendDjReminder(guildId: string, postId: string) {
     } catch (error) {
         console.error("[sendDjReminder]", error);
         return { success: false, error: "Erreur lors de l'envoi du rappel" };
+    }
+}
+
+/**
+ * Envoie une relance personnalisée (message libre) aux participants acceptés.
+ * Réservé au leader du post. Rate limit : 24h.
+ */
+export async function sendDjCustomReminder(guildId: string, postId: string, customMessage: string) {
+    const user = await getUserContext(guildId);
+    if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
+
+    if (!customMessage || customMessage.trim().length === 0) {
+        return { success: false, error: "Le message ne peut pas être vide" };
+    }
+    if (customMessage.trim().length > 500) {
+        return { success: false, error: "Le message est trop long (max 500 caractères)" };
+    }
+
+    try {
+        const post = await (db as any).djSearchPost.findUnique({
+            where: { id: postId },
+            include: {
+                dungeon: {
+                    include: {
+                        achievements: {
+                            include: {
+                                challenge: { select: { id: true, name: true, iconUrl: true } },
+                            },
+                        },
+                    },
+                },
+                profile: {
+                    select: {
+                        discordNickname: true,
+                        pseudoDofus: true,
+                        dofusPseudo: true,
+                        userId: true,
+                        user: { select: { name: true } }
+                    }
+                },
+                participants: {
+                    where: { status: "ACCEPTED" },
+                    include: {
+                        profile: {
+                            select: {
+                                userId: true,
+                                discordNickname: true,
+                                pseudoDofus: true,
+                                dofusPseudo: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!post) return { success: false, error: "Post introuvable" };
+        if (post.profileId !== user.profileId) return { success: false, error: "Seul le leader peut envoyer une relance" };
+        if (!post.discordChannelId) return { success: false, error: "Post non publié sur Discord" };
+
+        // Rate limit : 24h
+        const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+        if (post.lastReminderAt && (Date.now() - post.lastReminderAt.getTime() < COOLDOWN_MS)) {
+            const remainingHours = Math.ceil((COOLDOWN_MS - (Date.now() - post.lastReminderAt.getTime())) / 3600000);
+            return { success: false, error: `Anti-spam : Veuillez attendre encore ${remainingHours}h avant la prochaine relance.` };
+        }
+
+        const mentions: string[] = [];
+        for (const p of post.participants) {
+            const discordId = await getDiscordId(p.profile.userId);
+            if (discordId) mentions.push(`<@${discordId}>`);
+        }
+
+        if (mentions.length === 0) return { success: false, error: "Aucun participant accepté à pinger" };
+
+        const { sendDiscordRawEmbed } = await import("@/server/discord");
+
+        const authorName = post.profile?.discordNickname || post.profile?.user?.name || "Leader";
+        const postTitle = post.mode === "DONJON" ? (post.dungeon?.name || "Donjon") : (post.questName || "Quête");
+
+        const embed = {
+            title: `📣 RELANCE DU LEADER — ${post.mode === "DONJON" ? "DONJON" : "QUÊTE"}`,
+            description: `**${postTitle}**\n\n💬 **Message du leader (${authorName}) :**\n> ${customMessage.trim()}`,
+            color: 0xf59e0b, // Amber for custom reminders
+            footer: { text: "SigilOS • Donjon-Finder — Relance personnalisée" },
+            timestamp: new Date().toISOString(),
+        };
+
+        await sendDiscordRawEmbed(guildId, post.discordChannelId, mentions.join(" "), embed);
+
+        await (db as any).djSearchPost.update({
+            where: { id: postId },
+            data: { lastReminderAt: new Date() }
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("[sendDjCustomReminder]", error);
+        return { success: false, error: "Erreur lors de l'envoi de la relance" };
     }
 }
 

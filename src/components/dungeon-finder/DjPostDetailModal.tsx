@@ -19,10 +19,10 @@ import {
     joinDjPost,
     leaveDjPost,
     deleteDjPost,
-    sendDjReminder,
 } from "@/server/actions/dungeon-finder-actions";
 import { DjCloseModal } from "./DjCloseModal";
 import { DjEditModal } from "./DjEditModal";
+import { DjReminderModal } from "./DjReminderModal";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -58,6 +58,7 @@ export function DjPostDetailModal({
     const [classe, setClasse] = useState("");
     const [message, setMessage] = useState("");
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
     const isOwner = post.profileId === currentProfileId;
@@ -119,16 +120,7 @@ export function DjPostDetailModal({
         });
     }
 
-    function handleReminder() {
-        startTransition(async () => {
-            const res = await sendDjReminder(guildId, post.id);
-            if (res.success) {
-                toast.success("Rappel envoyé sur Discord !");
-            } else {
-                toast.error(res.error || "Erreur lors de l'envoi du rappel.");
-            }
-        });
-    }
+    // Handled by DjReminderModal
 
     const visibleParticipants = post.participants.filter(p => p.status !== "REJECTED");
 
@@ -413,13 +405,13 @@ export function DjPostDetailModal({
                                         {post.isDiscordPublished && post.discordMessageId && acceptedCount > 1 && (
                                             <Button
                                                 variant="outline"
-                                                className="border-indigo-500/30 bg-indigo-500/10 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/30 font-bold h-11 transition-all px-4"
-                                                onClick={handleReminder}
+                                                className="border-amber-500/30 bg-amber-500/10 text-amber-400 hover:text-amber-300 hover:bg-amber-950/30 font-bold h-11 transition-all px-4"
+                                                onClick={() => setIsReminderModalOpen(true)}
                                                 disabled={isPending}
-                                                title="Envoyer un rappel aux participants sur Discord"
+                                                title="Envoyer une relance personnalisée aux participants"
                                             >
                                                 <Bell className="w-4 h-4 mr-2" />
-                                                Rappel
+                                                Relancer
                                             </Button>
                                         )}
                                         <Button
@@ -455,6 +447,14 @@ export function DjPostDetailModal({
                     guildId={guildId}
                     onClose={() => setIsEditModalOpen(false)}
                     onSaved={() => { onRefresh(); }}
+                />
+            )}
+            {isOwner && (
+                <DjReminderModal
+                    isOpen={isReminderModalOpen}
+                    post={post}
+                    guildId={guildId}
+                    onClose={() => setIsReminderModalOpen(false)}
                 />
             )}
         </>

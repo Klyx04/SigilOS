@@ -164,15 +164,26 @@ export default async function AdminPage({
     const { guildId } = await params;
 
     const user = await getUserContext(guildId);
-    
+
+    // Hard gate: must be a real member to even attempt admin access
+    if (!user.isMember) {
+        await logAdminAccessDenied(guildId, "/admin");
+        return <AccessDenied />;
+    }
+
     // Fetch configurations
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
         select: { dofusServerId: true, rolesMapping: true }
     });
     const isDofusConfigured = !!guild?.dofusServerId;
+
+    // 🔒 FIX: rolesMapping keys are Discord Role IDs, NOT permission IDs.
+    // Check by scanning permission arrays for DASHBOARD_LOGIN.
     const rolesMapping = (guild?.rolesMapping as Record<string, string[]>) || {};
-    const isRbacConfigured = Array.isArray(rolesMapping["dashboard:login"]) && rolesMapping["dashboard:login"].length > 0;
+    const isRbacConfigured = Object.values(rolesMapping).some(perms =>
+        Array.isArray(perms) && perms.includes("dashboard:login")
+    );
 
     const sections = buildSections(guildId);
     
@@ -185,13 +196,17 @@ export default async function AdminPage({
         })
     );
 
-    // Allow access if user is admin OR has at least one visible management tool
+    // Allow access if user is admin OR has at least one visible management tool.
+    // NOTE: isAdmin requires either Discord admin bit OR explicit SYSTEM_GOD in RBAC —
+    // it is never granted via the noRolesConfigured fallback.
     const hasAnyAdminPermission = user.isAdmin || hasVisibleCards;
 
     if (!hasAnyAdminPermission) {
-        await logAdminAccessDenied(guildId, "/admin");
+        // 🛡️ NOTE: Member is authenticated but lacks admin/management permissions.
+        // This is normal (member without any staff role) — no need to log as a security event.
         return <AccessDenied />;
     }
+
 
     return (
         <div className="space-y-16 pb-32 max-w-[1600px] mx-auto pt-10 px-6">

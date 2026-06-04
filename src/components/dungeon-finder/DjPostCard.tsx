@@ -491,7 +491,7 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
 
                         {isOwner && post.status === "OPEN" && (
                             <div className="flex flex-1 gap-2">
-                                {post.isDiscordPublished && post.discordMessageId && post._acceptedCount > 0 && (
+                                {post.participants.length > 0 && (
                                     <Button
                                         size="sm"
                                         variant="outline"

@@ -328,6 +328,11 @@ export async function sendDjReminder(guildId: string, postId: string) {
     if (!user.isAuthenticated || !user.profileId) return { success: false, error: "Non authentifié" };
 
     try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { djNotifyChannelId: true },
+        });
+
         const post = await (db as any).djSearchPost.findUnique({
             where: { id: postId },
             include: {
@@ -349,8 +354,9 @@ export async function sendDjReminder(guildId: string, postId: string) {
                         user: { select: { name: true } }
                     }
                 },
+                // Include ALL participants (PENDING + ACCEPTED) to notify everyone who signed up
                 participants: {
-                    where: { status: "ACCEPTED" },
+                    where: { status: { in: ["PENDING", "ACCEPTED"] } },
                     include: {
                         profile: {
                             select: {
@@ -367,7 +373,6 @@ export async function sendDjReminder(guildId: string, postId: string) {
 
         if (!post) return { success: false, error: "Post introuvable" };
         if (post.profileId !== user.profileId) return { success: false, error: "Seul le leader peut envoyer un rappel" };
-        if (!post.discordChannelId) return { success: false, error: "Post non publié sur Discord" };
 
         // Spam Protection: 5 minutes cooldown
         const COOLDOWN_MS = 5 * 60 * 1000;
@@ -376,30 +381,33 @@ export async function sendDjReminder(guildId: string, postId: string) {
             return { success: false, error: `Anti-spam : Veuillez attendre ${remainingMinutes} minute(s) avant le prochain rappel.` };
         }
 
+        // Resolve Discord channel: post-specific channel first, then guild's default DJ channel
+        const targetChannelId: string | null = post.discordChannelId || guildConfig?.djNotifyChannelId || null;
+
         const mentions: string[] = [];
         for (const p of post.participants) {
             const discordId = await getDiscordId(p.profile.userId);
             if (discordId) mentions.push(`<@${discordId}>`);
         }
 
-        if (mentions.length === 0) return { success: false, error: "Aucun participant à pinger" };
+        if (mentions.length === 0) return { success: false, error: "Aucun inscrit à notifier" };
 
-        const { sendDiscordRawEmbed } = await import("@/server/discord");
-        
-        const authorName = post.profile?.discordNickname || post.profile?.user?.name || "Leader";
-        const embed = await buildPostEmbed(post, authorName, guildId);
-        
-        // Customizations for reminder
-        embed.title = `🔔 RAPPEL : ${post.mode === "DONJON" ? "DONJON" : "QUÊTE"}`;
-        embed.description = `⚠️ **Le leader demande votre attention pour le départ !**\n\n${embed.description}`;
-        embed.color = 0x9333ea; // Purple for reminders
-
-        await sendDiscordRawEmbed(guildId, post.discordChannelId, mentions.join(" "), embed);
-
+        // Update cooldown timestamp regardless of Discord availability
         await (db as any).djSearchPost.update({
             where: { id: postId },
             data: { lastReminderAt: new Date() }
         });
+
+        // Send Discord ping if a channel is available
+        if (targetChannelId) {
+            const { sendDiscordRawEmbed } = await import("@/server/discord");
+            const authorName = post.profile?.discordNickname || post.profile?.user?.name || "Leader";
+            const embed = await buildPostEmbed(post, authorName, guildId);
+            embed.title = `🔔 RAPPEL : ${post.mode === "DONJON" ? "DONJON" : "QUÊTE"}`;
+            embed.description = `⚠️ **Le leader demande votre attention pour le départ !**\n\n${embed.description}`;
+            embed.color = 0x9333ea; // Purple for reminders
+            await sendDiscordRawEmbed(guildId, targetChannelId, mentions.join(" "), embed);
+        }
 
         return { success: true };
     } catch (error) {

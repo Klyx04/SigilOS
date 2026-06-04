@@ -27,6 +27,33 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
         return { success: false, error: "Forbidden" };
     }
 
+    // 🔒 Prevent archival of the Discord guild owner
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { ownerId: true }
+    });
+
+    const targetProfile = await db.userProfile.findUnique({
+        where: { id: targetProfileId },
+        include: {
+            user: {
+                include: {
+                    accounts: {
+                        where: { provider: "discord" },
+                        select: { providerAccountId: true }
+                    }
+                }
+            }
+        }
+    });
+
+    if (targetProfile) {
+        const targetDiscordId = targetProfile.user.accounts[0]?.providerAccountId;
+        if (guildConfig?.ownerId && targetDiscordId && guildConfig.ownerId === targetDiscordId) {
+            return { success: false, error: "Le propriétaire du serveur Discord ne peut pas être archivé. Transférez la propriété sur Discord d'abord." };
+        }
+    }
+
     try {
         // Admin Departure Log : Specific high-priority log if an admin leaves
         const userContext = await getUserContext(guildId);

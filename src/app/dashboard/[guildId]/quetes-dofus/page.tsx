@@ -79,6 +79,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                 guideGuildProgress = (membersContext.allProgress || []).map((p: any) => ({
                     profileId: p.profileId,
                     milestoneId: p.milestoneId,
+                    isCompleted: p.isCompleted,
                     userName: p.profile?.displayName || p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
                     userAvatar: p.profile?.user?.image || undefined,
                     profileSlug: p.profile?.pseudoDofus || p.profileId

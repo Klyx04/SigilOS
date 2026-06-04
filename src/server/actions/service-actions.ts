@@ -709,7 +709,11 @@ export async function contactPasseurAction(
                 `**Client :** ${requesterMention}`,
                 `**Passeur/Vendeur :** ${providerMention}`,
                 `\n**Options sélectionnées :**`,
-                options.map(opt => `• ${opt}`).join("\n") || "• Passage classique",
+                options.length > 0
+                    ? options.map(opt => `• ${opt}`).join("\n")
+                    : listing.category === "PASSAGE_DONJON"
+                        ? "• Passage classique"
+                        : "• Service standard",
                 customMessage ? `\n**Message du client :**\n*${customMessage}*` : "",
             ].filter(Boolean).join("\n"),
             color: CATEGORY_COLORS_HEX[listing.category as keyof typeof CATEGORY_COLORS_HEX] || 0x8b5cf6,

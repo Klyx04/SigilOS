@@ -23,9 +23,11 @@ import {
     Check,
     PackageOpen,
     Handshake,
-    Bell
+    Bell,
+    Search
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
@@ -45,6 +47,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
     const [progress, setProgress] = useState(0);
     const [partners, setPartners] = useState<ExchangePartner[]>([]);
     const [copiedUser, setCopiedUser] = useState<string | null>(null);
+    const [monsterSearch, setMonsterSearch] = useState("");
+    const [memberSearch, setMemberSearch] = useState("");
 
     // Trade Request State
     const [tradeRequest, setTradeRequest] = useState<{ targetProfileId: string; monsterId: number; targetName: string; monsterName: string; monsterImage?: string } | null>(null);
@@ -177,6 +181,14 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
 
     partners.forEach(partner => {
         partner.monstersTheyHave.forEach(monster => {
+            // Apply search query filter if typed
+            if (monsterSearch.trim()) {
+                const q = monsterSearch.toLowerCase().trim();
+                if (!monster.name.toLowerCase().includes(q)) {
+                    return;
+                }
+            }
+
             if (!monstersMap.has(monster.id)) {
                 monstersMap.set(monster.id, {
                     id: monster.id,
@@ -271,10 +283,23 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                     ) : (
                         <Tabs defaultValue="monsters" className="h-full flex flex-col">
                             <div className="px-6 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                <TabsList className="grid w-full md:w-[320px] grid-cols-2 bg-zinc-900/60 border border-white/5 p-1 rounded-xl">
-                                    <TabsTrigger value="monsters" className="rounded-lg font-bold py-2 text-xs">Par Monstre ({monstersList.length})</TabsTrigger>
-                                    <TabsTrigger value="members" className="rounded-lg font-bold py-2 text-xs">Par Membre ({partners.length})</TabsTrigger>
-                                </TabsList>
+                                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                                    <TabsList className="grid w-full sm:w-[320px] grid-cols-2 bg-zinc-900/60 border border-white/5 p-1 rounded-xl">
+                                        <TabsTrigger value="monsters" className="rounded-lg font-bold py-2 text-xs">Par Monstre ({monstersList.length})</TabsTrigger>
+                                        <TabsTrigger value="members" className="rounded-lg font-bold py-2 text-xs">Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim()))).length})</TabsTrigger>
+                                    </TabsList>
+                                    <div className="relative w-full sm:w-64 group shrink-0">
+                                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                            <Search className="h-3.5 w-3.5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
+                                        </div>
+                                        <Input
+                                            value={monsterSearch}
+                                            onChange={(e) => setMonsterSearch(e.target.value)}
+                                            placeholder="RECHERCHER UN ARCHIMONSTRE..."
+                                            className="pl-9 bg-zinc-900/50 border-white/10 h-9 text-[10px] font-black uppercase tracking-[0.1em] placeholder:text-zinc-650 focus:border-emerald-500/40 focus:ring-emerald-500/10 transition-all rounded-xl"
+                                        />
+                                    </div>
+                                </div>
 
                                 {/* Aesthetic Visual Legend */}
                                 <div className="flex items-center gap-3 text-xs bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-xl px-3 py-2 shrink-0 self-start md:self-auto">
@@ -398,12 +423,20 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                             <TabsContent value="members" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden">
                                 <ScrollArea className="h-[50vh] sm:h-[60vh] px-6 pb-6 rounded-md">
                                     <div className="space-y-4">
-                                        {partners.map((partner) => (
-                                            <div
-                                                key={partner.username}
-                                                className="bg-zinc-900/40 border border-white/5 rounded-xl p-4"
-                                            >
-                                                <div className="flex items-center justify-between mb-4">
+                                        {partners
+                                            .map(partner => ({
+                                                ...partner,
+                                                monstersTheyHave: partner.monstersTheyHave.filter(m => 
+                                                    !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim())
+                                                )
+                                            }))
+                                            .filter(partner => partner.monstersTheyHave.length > 0)
+                                            .map((partner) => (
+                                                <div
+                                                    key={partner.username}
+                                                    className="bg-zinc-900/40 border border-white/5 rounded-xl p-4"
+                                                >
+                                                    <div className="flex items-center justify-between mb-4">
                                                     <div className="flex items-center gap-3">
                                                         <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
                                                             <Avatar className="h-10 w-10 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">

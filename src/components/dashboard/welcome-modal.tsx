@@ -40,12 +40,11 @@ export function WelcomeModal({ guildId, show }: WelcomeModalProps) {
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
-                    {/* Backdrop */}
+                    {/* Backdrop — non-cliquable pour forcer l'action */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={handleClose}
                         className="absolute inset-0 bg-black/80 backdrop-blur-md"
                     />
 
@@ -119,7 +118,7 @@ export function WelcomeModal({ guildId, show }: WelcomeModalProps) {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex flex-col sm:flex-row items-center gap-3 pt-3 w-full max-w-md">
+                            <div className="flex flex-col items-center gap-3 pt-3 w-full max-w-md">
                                 <Button
                                     asChild
                                     className="w-full h-12 bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-[0.15em] text-xs rounded-2xl group"
@@ -128,13 +127,6 @@ export function WelcomeModal({ guildId, show }: WelcomeModalProps) {
                                         Lancer la configuration
                                         <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                     </Link>
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={handleClose}
-                                    className="w-full h-12 text-zinc-500 hover:text-white hover:bg-white/5 font-black uppercase tracking-[0.15em] text-xs rounded-2xl"
-                                >
-                                    Plus tard
                                 </Button>
                             </div>
                         </div>

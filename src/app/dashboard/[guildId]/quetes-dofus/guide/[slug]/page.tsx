@@ -9,17 +9,17 @@ export default async function OptimizedGuideUserPage({ params }: { params: Promi
     const session = await auth();
     if (!session?.user?.id) redirect("/");
 
-    // 1. Fetch Guide Details & Current User Progress (with robust error handling)
     let guideContext: Awaited<ReturnType<typeof getOptimizedGuideDetail>>;
     try {
         guideContext = await getOptimizedGuideDetail(slug, guildId);
-    } catch (e) {
-        console.error("[Guide Page] Error fetching guide:", slug, e);
+        console.error("[DEBUG GUIDE PAGE] guideContext success:", guideContext.success, "guide found:", !!guideContext.guide);
+    } catch (e: any) {
+        console.error("[DEBUG GUIDE PAGE] Error fetching guide:", slug, e?.message, e?.stack);
         notFound();
     }
 
     if (!guideContext.success || !guideContext.guide) {
-        console.error("[Guide Page] Guide not found for slug:", slug, "→ result:", guideContext);
+        console.error("[DEBUG GUIDE PAGE] Guide not found for slug:", slug, "→ result:", JSON.stringify(guideContext));
         notFound();
     }
 

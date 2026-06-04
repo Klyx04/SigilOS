@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
@@ -11,6 +12,8 @@ import { Suspense } from "react";
 import { PresenceHeartbeat } from "./_components/presence-heartbeat";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AccessDenied } from "@/components/layout/access-denied";
+import { TelemetryTracker } from "@/components/telemetry/telemetry-tracker";
+
 
 import { ValidatorInbox } from "./_components/validator-inbox";
 import { PseudoWarningBanner } from "@/components/layout/pseudo-warning-banner";
@@ -54,6 +57,9 @@ export default async function DashboardLayout({
 
     const roadmapEnabled = configRes.success && configRes.data ? (configRes.data as any).roadmapEnabled : false;
     const donationsEnabled = configRes.success && configRes.data ? (configRes.data as any).donationsEnabled : true;
+
+    const headersList = await headers();
+    const pathname = headersList.get("x-pathname") || "";
 
     // ── GUILD NOT WHITELISTED (getUserContext returns isAuthenticated:false for blocked guilds) ──
     if (!user.isAuthenticated) {
@@ -108,6 +114,29 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── ONOARDING/CONFIGURATION COMPLIANCE GATEWAY ──
+    if (!user.isOnboardingComplete) {
+        if (user.isAdmin) {
+            const allowedOnboardingPaths = [
+                `/dashboard/${guildId}/admin/getting-started`,
+                `/dashboard/${guildId}/admin/settings`,
+                `/dashboard/${guildId}/admin/permissions`
+            ];
+            const isPathAllowed = allowedOnboardingPaths.some(p => pathname.startsWith(p));
+            if (!isPathAllowed) {
+                redirect(`/dashboard/${guildId}/admin/getting-started`);
+            }
+        } else {
+            return (
+                <AccessDenied
+                    title="Configuration en cours"
+                    message={`Le tableau de bord de ${user.guildName || "votre guilde"} est en cours de configuration par les administrateurs. Revenez très bientôt !`}
+                    variant="lock"
+                    action={<SignOutButton variant="ghost" />}
+                />
+            );
+        }
+    }
 
     // ── NO DASHBOARD ACCESS (role-based) ──
     if (!user.canViewDashboard) {
@@ -134,7 +163,9 @@ export default async function DashboardLayout({
 
     return (
         <NebulaClientWrapper>
+            <TelemetryTracker />
             <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">
+
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
                 <div className="hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">

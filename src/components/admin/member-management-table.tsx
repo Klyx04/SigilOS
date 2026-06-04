@@ -101,9 +101,10 @@ interface MemberManagementTableProps {
     isSuperAdmin?: boolean;
     isAdmin?: boolean; // Guild admin (canManageMembers) — can delete & reactivate
     ownerId?: string | null;
+    currentUserId?: string; // NextAuth user ID of the logged-in admin
 }
 
-export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, isAdmin = false, ownerId = null }: MemberManagementTableProps) {
+export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeName, isSuperAdmin = false, isAdmin = false, ownerId = null, currentUserId = "" }: MemberManagementTableProps) {
     const [search, setSearch] = useState("");
     const [members, setMembers] = useState(initialMembers);
     const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "ARCHIVED" | "BANNED">("ACTIVE");
@@ -179,11 +180,15 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
 
         setIsUpdating(profileId);
         try {
-            await updateMemberProfileStatus(profileId, status);
-            setMembers(prev => prev.map(m =>
-                m.id === profileId ? { ...m, status, updatedAt: new Date().toISOString() } : m
-            ));
-            toast.success(`Statut mis à jour : ${status}`);
+            const res = await updateMemberProfileStatus(profileId, status);
+            if (res.success) {
+                setMembers(prev => prev.map(m =>
+                    m.id === profileId ? { ...m, status, updatedAt: new Date().toISOString() } : m
+                ));
+                toast.success(`Statut mis à jour : ${status}`);
+            } else {
+                toast.error(res.error || "Erreur lors de la mise à jour");
+            }
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
         } finally {
@@ -423,7 +428,13 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         Aucun membre trouvé pour ces critères.
                                     </TableCell>
                                 </TableRow>
-                            ) : paginatedMembers.map((member) => (
+                            ) : paginatedMembers.map((member) => {
+                                // 🔒 Block destructive actions for self and Discord guild owner
+                                const isSelf = !!currentUserId && member.userId === currentUserId;
+                                const isOwner = !!ownerId && member.user.accounts[0]?.providerAccountId === ownerId;
+                                const isProtected = isSelf || isOwner;
+
+                                return (
                             <TableRow key={member.id} className="group border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors border-none">
                                 <TableCell className="pl-8 py-5">
                                     <div className="flex items-center gap-3">
@@ -552,98 +563,63 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         <DropdownMenuContent align="end" className="w-48 bg-zinc-950 border-white/10 text-zinc-300 rounded-2xl shadow-xl">
                                             <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-2 py-1.5">Actions Membre</DropdownMenuLabel>
                                             <DropdownMenuSeparator className="bg-white/5" />
-
-                                            {/* REACTIVATION — visible aux admins de guilde ET au superadmin */}
                                             {member.status !== "ACTIVE" && (isAdmin || isSuperAdmin) && (
-                                                <DropdownMenuItem
-                                                    onClick={() => handleReactivate(member.id, member.status as "ARCHIVED" | "BANNED")}
-                                                    className="gap-2 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                                >
+                                                <DropdownMenuItem onClick={() => handleReactivate(member.id, member.status as "ARCHIVED" | "BANNED")} className="gap-2 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                     <RotateCcw className="h-3.5 w-3.5 text-emerald-500" />
-                                                    {member.status === "BANNED" ? "Débannir & Réintégrer" : "Réactiver"}
+                                                    {member.status === "BANNED" ? "Debannir & Reintegrer" : "Reactiver"}
                                                 </DropdownMenuItem>
                                             )}
-
-                                            {member.status === "ACTIVE" && (
-                                                <DropdownMenuItem
-                                                    onClick={() => handleStatusUpdate(member.id, "ARCHIVED")}
-                                                    className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                                >
+                                            {member.status === "ACTIVE" && !isProtected && (
+                                                <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, "ARCHIVED")} className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                     <UserX className="h-3.5 w-3.5 text-amber-500" />
                                                     Archiver
                                                 </DropdownMenuItem>
                                             )}
-
-                                            <DropdownMenuItem
-                                                onClick={() => handleStatusUpdate(member.id, "BANNED")}
-                                                className="gap-2 focus:bg-red-500/10 focus:text-red-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                            >
-                                                <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
-                                                Bannir (SigilOS)
-                                            </DropdownMenuItem>
-
+                                            {!isProtected && (
+                                                <DropdownMenuItem onClick={() => handleStatusUpdate(member.id, "BANNED")} className="gap-2 focus:bg-red-500/10 focus:text-red-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                                    <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
+                                                    Bannir (SigilOS)
+                                                </DropdownMenuItem>
+                                            )}
+                                            {isProtected && (
+                                                <DropdownMenuItem disabled className="gap-2 text-zinc-600 cursor-not-allowed text-[10px] font-black uppercase tracking-wider">
+                                                    <ShieldAlert className="h-3.5 w-3.5" />
+                                                    {isSelf ? "Votre compte" : "Proprietaire protege"}
+                                                </DropdownMenuItem>
+                                            )}
                                             <DropdownMenuSeparator className="bg-white/5" />
                                             <DropdownMenuLabel className="text-[9px] text-zinc-650 font-black uppercase tracking-widest px-2 py-1.5">Nouveau Membre</DropdownMenuLabel>
-
-                                            <DropdownMenuItem
-                                                onClick={() => setBadgeTarget({ id: member.id, name: member.user.name || "Membre" })}
-                                                className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                            >
+                                            <DropdownMenuItem onClick={() => setBadgeTarget({ id: member.id, name: member.user.name || "Membre" })} className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                 <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                                                 Attribuer Badge
                                             </DropdownMenuItem>
-
-                                            <DropdownMenuItem
-                                                onClick={() => handleWelcome(member.id, member.pseudoDofus || member.user.name || "Nouveau membre")}
-                                                className="gap-2 focus:bg-violet-500/10 focus:text-violet-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                            >
+                                            <DropdownMenuItem onClick={() => handleWelcome(member.id, member.pseudoDofus || member.user.name || "Nouveau membre")} className="gap-2 focus:bg-violet-500/10 focus:text-violet-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                 <Send className="h-3.5 w-3.5 text-violet-500" />
                                                 Bienvenue
                                             </DropdownMenuItem>
-
-                                            <DropdownMenuItem
-                                                onClick={() => openIdDialog(member)}
-                                                className="gap-2 focus:bg-indigo-500/10 focus:text-indigo-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                            >
+                                            <DropdownMenuItem onClick={() => openIdDialog(member)} className="gap-2 focus:bg-indigo-500/10 focus:text-indigo-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                 <Edit className="h-3.5 w-3.5 text-indigo-400" />
                                                 Modifier ID Dofus
                                             </DropdownMenuItem>
-
-                                            <DropdownMenuItem
-                                                onClick={() => setVacationTarget(member)}
-                                                className="gap-2 focus:bg-cyan-500/10 focus:text-cyan-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                            >
+                                            <DropdownMenuItem onClick={() => setVacationTarget(member)} className="gap-2 focus:bg-cyan-500/10 focus:text-cyan-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                 <Palmtree className="h-3.5 w-3.5 text-cyan-400" />
                                                 Modifier Vacances
                                             </DropdownMenuItem>
-
-                                            <DropdownMenuItem
-                                                onClick={() => handleUpdatePseudo(member.id)}
-                                                className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                            >
+                                            <DropdownMenuItem onClick={() => handleUpdatePseudo(member.id)} className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                 <Edit className="h-3.5 w-3.5 text-amber-500" />
                                                 Modifier Pseudo
                                             </DropdownMenuItem>
-
-                                            {/* DELETE — visible aux admins de guilde ET au superadmin (seulement profils non-actifs pour les non-superadmins) */}
                                             {(isAdmin || isSuperAdmin) && (
                                                 <>
                                                     <DropdownMenuSeparator className="bg-white/5" />
                                                     {isSuperAdmin && (
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleTransferOwnership(member.userId, member.pseudoDofus || member.user.name || "Membre")}
-                                                            className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                                        >
+                                                        <DropdownMenuItem onClick={() => handleTransferOwnership(member.userId, member.pseudoDofus || member.user.name || "Membre")} className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                             <UserCheck className="h-3.5 w-3.5" />
-                                                            Propriétaire
+                                                            Proprietaire
                                                         </DropdownMenuItem>
                                                     )}
-                                                    {/* Non-superadmin admins can only delete ARCHIVED/BANNED profiles */}
-                                                    {(isSuperAdmin || member.status !== "ACTIVE") && (
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleDelete(member.id)}
-                                                            className="gap-2 focus:bg-red-650 focus:text-white text-red-500 cursor-pointer text-[11px] font-black uppercase tracking-wider"
-                                                        >
+                                                    {(isSuperAdmin || member.status !== "ACTIVE") && !isProtected && (
+                                                        <DropdownMenuItem onClick={() => handleDelete(member.id)} className="gap-2 focus:bg-red-650 focus:text-white text-red-500 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                             Supprimer
                                                         </DropdownMenuItem>
@@ -654,7 +630,8 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                     </DropdownMenu>
                                 </TableCell>
                             </TableRow>
-                        ))}
+                                );
+                            })}
                     </TableBody>
                 </Table>
             </div>

@@ -26,11 +26,23 @@ const protocol = 'postgres' + 'ql://';
 const safeFromComponents = `${protocol}${encodeURIComponent(user)}:${encodeURIComponent(pwd)}@${host}:${port}/${db_name}?schema=public`;
 const connectionString = dbUrl || safeFromComponents;
 
+let poolUser = user;
+let poolPassword = pwd;
+try {
+    const parsedUrl = new URL(connectionString);
+    if (parsedUrl.username) poolUser = decodeURIComponent(parsedUrl.username);
+    if (parsedUrl.password) poolPassword = decodeURIComponent(parsedUrl.password);
+} catch (e) {
+    // Fallback to parsed user/pwd from env
+}
+
 const createPrismaClient = () => {
     const isDev = process.env.NODE_ENV !== 'production';
     
     const pool = new Pool({
         connectionString,
+        user: poolUser || undefined,
+        password: poolPassword || undefined,
         max: isDev ? 8 : 30, // Reduced from 10 to prevent exhaustion in local HMR
         idleTimeoutMillis: 5000, // Reduced from 30s to release connections faster
         connectionTimeoutMillis: 5000, // Fail fast (5s) instead of hanging (15s)

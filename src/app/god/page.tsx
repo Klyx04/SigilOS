@@ -46,6 +46,9 @@ import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
 import { WorkerTester } from "./components/worker-tester";
 import { getPlatformConfig } from "@/server/actions/god-mini-games-actions";
+import { getTelemetryStats } from "@/server/actions/telemetry-actions";
+import { TelemetryDashboard } from "./components/telemetry-dashboard";
+
 
 export default async function SuperAdminPage(props: {
     searchParams: Promise<{ tab?: string }>;
@@ -295,7 +298,23 @@ export default async function SuperAdminPage(props: {
                             </div>
                         </div>
                     )}
+
+                    {tab === "telemetry" && (
+                        <div className="space-y-12">
+                            <Suspense fallback={
+                                <div className="flex-1 flex items-center justify-center bg-black py-20">
+                                    <div className="flex flex-col items-center gap-6">
+                                        <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+                                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] animate-pulse">Chargement de la télémétrie...</span>
+                                    </div>
+                                </div>
+                            }>
+                                <TelemetryServer />
+                            </Suspense>
+                        </div>
+                    )}
                 </GodDashboardClient>
+
             </Suspense>
         </div>
     );
@@ -492,3 +511,15 @@ async function GameDataStatsServer() {
         );
     } catch { return <div>Stats indisponibles</div>; }
 }
+
+async function TelemetryServer() {
+    try {
+        const stats = await getTelemetryStats();
+        return <TelemetryDashboard initialStats={stats} />;
+    } catch (err) {
+        console.error("[Telemetry ERROR]", err);
+        return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading telemetry data</div>;
+    }
+}
+
+

@@ -24,7 +24,8 @@ import {
     PackageOpen,
     Handshake,
     Bell,
-    Search
+    Search,
+    Users
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -228,8 +229,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] flex flex-col bg-black/95 border-white/10 p-0 gap-0">
-                <DialogHeader className="p-6 border-b border-white/10">
+            <DialogContent className="w-[95vw] sm:max-w-4xl h-[90vh] sm:h-[85vh] flex flex-col bg-black/95 border-white/10 p-0 gap-0 overflow-hidden">
+                <DialogHeader className="p-6 border-b border-white/10 flex-shrink-0">
                     <div className="flex items-center justify-between mr-8">
                         <div>
                             <DialogTitle className="text-xl font-bold flex items-center gap-2">
@@ -254,7 +255,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                     </div>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                     {loading && partners.length === 0 ? (
                         <div className="h-[400px] flex flex-col items-center justify-center gap-6 text-muted-foreground w-full max-w-sm mx-auto px-6">
                             <div className="relative">
@@ -281,12 +282,24 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                             </p>
                         </div>
                     ) : (
-                        <Tabs defaultValue="monsters" className="h-full flex flex-col">
-                            <div className="px-6 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-                                    <TabsList className="grid w-full sm:w-[320px] grid-cols-2 bg-zinc-900/60 border border-white/5 p-1 rounded-xl">
-                                        <TabsTrigger value="monsters" className="rounded-lg font-bold py-2 text-xs">Par Monstre ({monstersList.length})</TabsTrigger>
-                                        <TabsTrigger value="members" className="rounded-lg font-bold py-2 text-xs">Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim()))).length})</TabsTrigger>
+                        <Tabs defaultValue="monsters" className="h-full flex flex-col flex-1 min-h-0">
+                            <div className="px-6 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-3 flex-shrink-0">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                                    <TabsList className="grid w-full sm:w-[360px] grid-cols-2 bg-zinc-950/80 border border-white/5 p-1 rounded-xl shrink-0">
+                                        <TabsTrigger 
+                                            value="monsters" 
+                                            className="rounded-lg font-black py-2 text-[10px] uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-zinc-400"
+                                        >
+                                            <PackageOpen className="h-3.5 w-3.5" />
+                                            Par Monstre ({monstersList.length})
+                                        </TabsTrigger>
+                                        <TabsTrigger 
+                                            value="members" 
+                                            className="rounded-lg font-black py-2 text-[10px] uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-zinc-400"
+                                        >
+                                            <Users className="h-3.5 w-3.5" />
+                                            Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim()))).length})
+                                        </TabsTrigger>
                                     </TabsList>
                                     <div className="relative w-full sm:w-64 group shrink-0">
                                         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
@@ -295,8 +308,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                         <Input
                                             value={monsterSearch}
                                             onChange={(e) => setMonsterSearch(e.target.value)}
-                                            placeholder="RECHERCHER UN ARCHIMONSTRE..."
-                                            className="pl-9 bg-zinc-900/50 border-white/10 h-9 text-[10px] font-black uppercase tracking-[0.1em] placeholder:text-zinc-650 focus:border-emerald-500/40 focus:ring-emerald-500/10 transition-all rounded-xl"
+                                            placeholder="RECHERCHER..."
+                                            className="pl-9 bg-zinc-900/50 border-white/10 h-9 text-[10px] font-black uppercase tracking-[0.1em] placeholder:text-zinc-600 focus:border-emerald-500/40 focus:ring-emerald-500/10 transition-all rounded-xl"
                                         />
                                     </div>
                                 </div>
@@ -320,8 +333,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                 </div>
                             </div>
 
-                            <TabsContent value="monsters" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden">
-                                <ScrollArea className="h-[50vh] sm:h-[60vh] px-6 pb-6 rounded-md">
+                            <TabsContent value="monsters" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden flex flex-col min-h-0">
+                                <ScrollArea className="flex-1 px-6 pb-6 rounded-md">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {monstersList.map((monster) => (
                                             <div
@@ -420,8 +433,8 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                 </ScrollArea>
                             </TabsContent>
 
-                            <TabsContent value="members" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden">
-                                <ScrollArea className="h-[50vh] sm:h-[60vh] px-6 pb-6 rounded-md">
+                            <TabsContent value="members" className="mt-4 focus-visible:outline-none flex-1 overflow-hidden flex flex-col min-h-0">
+                                <ScrollArea className="flex-1 px-6 pb-6 rounded-md">
                                     <div className="space-y-4">
                                         {partners
                                             .map(partner => ({
@@ -437,104 +450,104 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                                     className="bg-zinc-900/40 border border-white/5 rounded-xl p-4"
                                                 >
                                                     <div className="flex items-center justify-between mb-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
-                                                            <Avatar className="h-10 w-10 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
-                                                                <AvatarImage src={partner.discordAvatar} />
-                                                                <AvatarFallback className="bg-emerald-900/50 text-emerald-200 font-bold">
-                                                                    {partner.characterName[0].toUpperCase()}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                        </Link>
-                                                        <div>
-                                                            <Link
-                                                                href={`/dashboard/${guildId}/members/${partner.profileId}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="font-bold text-sm text-zinc-100 hover:text-amber-400 hover:underline cursor-pointer transition-colors"
-                                                            >
-                                                                {partner.characterName}
+                                                        <div className="flex items-center gap-3">
+                                                            <Link href={`/dashboard/${guildId}/members/${partner.profileId}`} target="_blank" rel="noopener noreferrer">
+                                                                <Avatar className="h-10 w-10 border border-white/10 cursor-pointer hover:border-amber-500/50 transition-colors">
+                                                                    <AvatarImage src={partner.discordAvatar} />
+                                                                    <AvatarFallback className="bg-emerald-900/50 text-emerald-200 font-bold">
+                                                                        {partner.characterName[0].toUpperCase()}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
                                                             </Link>
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="text-xs text-zinc-500">
-                                                                    propose {partner.monstersTheyHave.length} monstres
-                                                                </p>
-                                                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-semibold">
-                                                                    {partner.username}
-                                                                </span>
+                                                            <div>
+                                                                <Link
+                                                                    href={`/dashboard/${guildId}/members/${partner.profileId}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="font-bold text-sm text-zinc-100 hover:text-amber-400 hover:underline cursor-pointer transition-colors"
+                                                                >
+                                                                    {partner.characterName}
+                                                                </Link>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-xs text-zinc-500">
+                                                                        propose {partner.monstersTheyHave.length} monstres
+                                                                    </p>
+                                                                    <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-semibold">
+                                                                        {partner.username}
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
 
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                                    {partner.monstersTheyHave.map((monster) => (
-                                                        <div
-                                                            key={monster.id}
-                                                            className={cn(
-                                                                "flex items-center justify-between text-xs p-2 rounded-lg border group cursor-pointer transition-all duration-200",
-                                                                monster.coversNeed
-                                                                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-md shadow-emerald-950/20 hover:border-emerald-500/50"
-                                                                    : "bg-zinc-900/30 border-zinc-800/80 text-zinc-500 opacity-60 hover:opacity-100 hover:border-zinc-700"
-                                                            )}
-                                                            onClick={() => handleCopyMP(partner.characterName, monster.name)}
-                                                        >
-                                                            <div className="flex items-center gap-2 truncate flex-1 min-w-0">
-                                                                {monster.imageUrl && (
-                                                                    <img
-                                                                        src={monster.imageUrl}
-                                                                        alt={monster.name}
-                                                                        className="w-6 h-6 object-contain shrink-0"
-                                                                    />
+                                                    <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2">
+                                                        {partner.monstersTheyHave.map((monster) => (
+                                                            <div
+                                                                key={monster.id}
+                                                                className={cn(
+                                                                    "flex items-center justify-between text-xs p-2 rounded-lg border group cursor-pointer transition-all duration-200",
+                                                                    monster.coversNeed
+                                                                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-md shadow-emerald-950/20 hover:border-emerald-500/50"
+                                                                        : "bg-zinc-900/30 border-zinc-800/80 text-zinc-500 opacity-60 hover:opacity-100 hover:border-zinc-700"
                                                                 )}
-                                                                <span className={cn("truncate transition-colors", monster.coversNeed ? "text-emerald-300 font-bold" : "text-zinc-500")}>
-                                                                    {monster.name}
-                                                                </span>
-                                                                {monster.coversNeed && (
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-auto" />
-                                                                )}
-                                                            </div>
-                                                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-6 w-6 p-0 hover:text-emerald-400"
-                                                                    title="Envoyer une demande d'échange SigilOS"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setTradeRequest({
-                                                                            targetProfileId: partner.profileId,
-                                                                            monsterId: monster.id,
-                                                                            targetName: partner.characterName,
-                                                                            monsterName: monster.name,
-                                                                            monsterImage: monster.imageUrl,
-                                                                        });
-                                                                    }}
-                                                                >
-                                                                    <Handshake className="h-3.5 w-3.5 text-zinc-400 hover:text-emerald-400" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-6 w-6 p-0 hover:text-emerald-400"
-                                                                    title="Copier le MP Discord"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleCopyMP(partner.characterName, monster.name);
-                                                                    }}
-                                                                >
-                                                                    {copiedUser === partner.characterName ? (
-                                                                        <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                                                    ) : (
-                                                                        <Copy className="h-3.5 w-3.5 text-zinc-400 hover:text-emerald-400" />
+                                                                onClick={() => handleCopyMP(partner.characterName, monster.name)}
+                                                            >
+                                                                <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                                                                    {monster.imageUrl && (
+                                                                        <img
+                                                                            src={monster.imageUrl}
+                                                                            alt={monster.name}
+                                                                            className="w-6 h-6 object-contain shrink-0"
+                                                                        />
                                                                     )}
-                                                                </Button>
+                                                                    <span className={cn("truncate transition-colors", monster.coversNeed ? "text-emerald-300 font-bold" : "text-zinc-500")}>
+                                                                        {monster.name}
+                                                                    </span>
+                                                                    {monster.coversNeed && (
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-auto" />
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-6 w-6 p-0 hover:text-emerald-400"
+                                                                        title="Envoyer une demande d'échange SigilOS"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setTradeRequest({
+                                                                                targetProfileId: partner.profileId,
+                                                                                monsterId: monster.id,
+                                                                                targetName: partner.characterName,
+                                                                                monsterName: monster.name,
+                                                                                monsterImage: monster.imageUrl,
+                                                                            });
+                                                                        }}
+                                                                    >
+                                                                        <Handshake className="h-3.5 w-3.5 text-zinc-400 hover:text-emerald-400" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-6 w-6 p-0 hover:text-emerald-400"
+                                                                        title="Copier le MP Discord"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleCopyMP(partner.characterName, monster.name);
+                                                                        }}
+                                                                    >
+                                                                        {copiedUser === partner.characterName ? (
+                                                                            <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                                        ) : (
+                                                                            <Copy className="h-3.5 w-3.5 text-zinc-400 hover:text-emerald-400" />
+                                                                        )}
+                                                                    </Button>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
                                     </div>
                                 </ScrollArea>
                             </TabsContent>

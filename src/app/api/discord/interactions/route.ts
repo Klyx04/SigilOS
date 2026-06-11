@@ -118,7 +118,10 @@ export async function POST(request: NextRequest) {
                 calendar: PERMISSIONS.COMMUNITY_ACCESS,   // Calendrier = participation sociale
                 songes: PERMISSIONS.GAME_OPERATIONS,      // Songes = organisation d'activités
                 dj: PERMISSIONS.GAME_OPERATIONS,          // Donjons = organisation d'activités
-                poll: PERMISSIONS.COMMUNITY_ACCESS,       // Sondages = participation sociale
+                // NOTE: 'poll' is intentionally NOT in this map.
+                // Poll vote security is enforced downstream via SigilOS profile check
+                // (db.userProfile lookup). The Discord API gate can false-negative
+                // on rate limits or temporary API failures, blocking valid members.
                 svc: PERMISSIONS.GAME_OPERATIONS,         // Services = organisation d'activités
             };
 
@@ -193,11 +196,24 @@ export async function POST(request: NextRequest) {
                 }
             } else if (prefix === "poll") {
                 if (action === "vote") {
+                    // Find the internal guild config by discordGuildId (guild_id)
                     const { processPollVote } = await import("@/server/actions/poll-actions");
+                    const guild = await (db as any).guildConfig.findFirst({
+                        where: {
+                            OR: [{ id: guild_id }, { discordGuildId: guild_id }],
+                        },
+                        select: { id: true },
+                    });
 
-                    // RBAC already checked by centralized gate above (PERMISSIONS.COMMUNITY_ACCESS)
+                    if (!guild) {
+                        return NextResponse.json({
+                            type: 4,
+                            data: { content: "❌ Guilde introuvable sur SigilOS.", flags: 64 },
+                        });
+                    }
+
                     const profile = await db.userProfile.findUnique({
-                        where: { userId_guildId: { userId: account!.userId, guildId: guild_id } }
+                        where: { userId_guildId: { userId: account!.userId, guildId: guild.id } }
                     });
 
                     if (!profile) {

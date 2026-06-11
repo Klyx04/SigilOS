@@ -198,7 +198,11 @@ function DofusGuildProgressCard({ stat }: { stat: GuildDofusStats }) {
             >
                 <div className="w-10 h-10 bg-black/60 rounded-xl border border-white/10 flex items-center justify-center flex-shrink-0 p-1 shadow-lg">
                     {stat.imageUrl ? (
-                        <img src={stat.imageUrl} alt={stat.nameShort} className="w-full h-full object-contain" />
+                        <img 
+                            src={stat.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : stat.imageUrl.replace(/^\/public/, "")} 
+                            alt={stat.nameShort} 
+                            className="w-full h-full object-contain" 
+                        />
                     ) : (
                         <div className="w-full h-full rounded-lg" style={{ background: stat.color || "#6366f1" }} />
                     )}

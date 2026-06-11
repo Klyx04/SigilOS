@@ -897,12 +897,16 @@ async function publishPollToDiscord(
         const totalVotes = poll.options.reduce((acc, opt) => acc + (opt._count.votes || 0), 0);
 
         // Build options list with progress bars
+        // Each option gets a numbered label (e.g. 1️⃣) matching the button below
+        const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+
         const optionsList = poll.options
             .map((o: any, i: number) => {
                 const votes = o._count.votes || 0;
                 const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
                 const bar = getProgressBar(pct, 10);
-                return `${o.emoji || `**${i + 1}**`} — **${o.label}**\n${bar} \`${pct}%\` (${votes})`;
+                const prefix = o.emoji ? o.emoji : (NUMBER_EMOJIS[i] || `${i + 1}.`);
+                return `${prefix} **${o.label}**\n${bar} \`${pct}%\` (${votes} vote${votes !== 1 ? 's' : ''})`;
             })
             .join("\n\n");
 
@@ -912,22 +916,21 @@ async function publishPollToDiscord(
             descriptionParts.push(`> *${poll.description}*`);
         }
 
-        descriptionParts.push(`\n**📌 Options :**\n${optionsList}`);
+        descriptionParts.push(`\n**📊 Choix :**\n${optionsList}`);
 
         const metadata = [];
         if (poll.expiresAt) {
             metadata.push(`⏰ **Expire** — <t:${Math.floor(poll.expiresAt.getTime() / 1000)}:R>`);
         }
-        metadata.push(poll.allowMultipleVotes ? "✅ **Votes multiples** — Autorisés" : "👆 **Votes multiples** — Un seul choix");
+        metadata.push(poll.allowMultipleVotes ? "✅ **Votes multiples** — Autorisés" : "👆 **Vote unique** — Un seul choix");
 
         if (poll.isAnonymous) {
-            metadata.push("🕵️ **Anonymat** — Activé (voters masqués)");
+            metadata.push("🕵️ **Anonymat** — Activé");
         }
 
-        descriptionParts.push(`\n---\n${metadata.join("\n")}`);
-
-        // Permission notice
-        descriptionParts.push(`\n*Seuls les membres de la guilde peuvent voter sur [SigilOS](${voteUrl})*`);
+        descriptionParts.push(`\n---\n${metadata.join(" · ")}`);
+        descriptionParts.push(`\n*👉 Clique sur le bouton correspondant à ton choix pour voter !*`);
+        descriptionParts.push(`*Seuls les membres de la guilde peuvent voter via [SigilOS](${voteUrl})*`);
 
         const description = descriptionParts.join("\n");
 
@@ -941,6 +944,55 @@ async function publishPollToDiscord(
             }
         }
 
+        // === BUTTONS ===
+        // Discord allows max 5 ActionRows with max 5 buttons each.
+        // Strategy: group vote buttons 2 per row → max 5 rows for 10 options.
+        // Reserve the last row for the Link button.
+        const discordComponents: any[] = [];
+
+        // Build vote buttons — always 2 per ActionRow for visual clarity
+        const optionButtons = poll.options.map((o: any, i: number) => {
+            const prefix = o.emoji ? o.emoji : (NUMBER_EMOJIS[i] || `${i + 1}.`);
+            // Truncate label for Discord button (max 80 chars)
+            const rawLabel = `${o.emoji ? '' : (NUMBER_EMOJIS[i] ? '' : `${i + 1}. `)}${o.label}`;
+            const truncated = rawLabel.length > 75 ? rawLabel.substring(0, 72) + "..." : rawLabel;
+            return {
+                type: 2, // Button
+                style: 1, // Primary (blurple)
+                label: truncated,
+                emoji: o.emoji ? { name: o.emoji } : (NUMBER_EMOJIS[i] ? { name: NUMBER_EMOJIS[i] } : undefined),
+                custom_id: `poll:vote:${o.id}`,
+            };
+        });
+
+        // Chunk into rows of 2 buttons each
+        const buttonRows: any[] = [];
+        for (let i = 0; i < optionButtons.length; i += 2) {
+            buttonRows.push({
+                type: 1, // ActionRow
+                components: optionButtons.slice(i, i + 2)
+            });
+        }
+
+        // We have max 4 button rows for options + 1 row for link button = 5 total
+        // If we overflow (> 4 vote rows), compress last row with link button together
+        const linkButton = {
+            type: 2,
+            style: 5, // Link
+            label: "🌐 Résultats & Détails",
+            url: voteUrl,
+        };
+
+        if (buttonRows.length < 5) {
+            // Room for a dedicated link row
+            buttonRows.forEach(row => discordComponents.push(row));
+            discordComponents.push({ type: 1, components: [linkButton] });
+        } else {
+            // Overflow: append link button to the last row (it will have ≤2+1=3 buttons — within Discord's limit of 5)
+            buttonRows.forEach(row => discordComponents.push(row));
+            discordComponents[discordComponents.length - 1].components.push(linkButton);
+        }
+
         const embedOptions = {
             embedTitle: `📊 ${poll.title.toUpperCase()}`,
             embedColor: catConfig.color,
@@ -952,25 +1004,7 @@ async function publishPollToDiscord(
             },
             embedUrl: voteUrl,
             mentionContent,
-            components: [
-                {
-                    type: 1, // ActionRow
-                    components: [
-                        ...poll.options.slice(0, 4).map((o: any, idx: number) => ({
-                            type: 2, // Button
-                            style: 1, // Primary (Blur)
-                            label: `${o.emoji || idx + 1}`,
-                            custom_id: `poll:vote:${o.id}`,
-                        })),
-                        {
-                            type: 2, // Button
-                            style: 5, // Link
-                            label: "🌐 Voter / Détails",
-                            url: voteUrl,
-                        },
-                    ],
-                },
-            ],
+            components: discordComponents,
         };
 
         if (isUpdate && poll.discordMessageId && poll.discordChannelId) {

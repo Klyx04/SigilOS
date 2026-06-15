@@ -283,25 +283,26 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                         </div>
                     ) : (
                         <Tabs defaultValue="monsters" className="h-full flex flex-col flex-1 min-h-0">
-                            <div className="px-6 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-3 flex-shrink-0">
-                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                                    <TabsList className="grid w-full sm:w-[360px] grid-cols-2 bg-zinc-950/80 border border-white/5 p-1 rounded-xl shrink-0">
+                            <div className="px-4 sm:px-6 pt-4 flex flex-col gap-3 flex-shrink-0">
+                                {/* Tabs + Search row */}
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                                    <TabsList className="grid w-full grid-cols-2 bg-zinc-950/80 border border-white/5 p-1 rounded-xl shrink-0 sm:w-auto">
                                         <TabsTrigger 
                                             value="monsters" 
                                             className="rounded-lg font-black py-2 text-[10px] uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-zinc-400"
                                         >
-                                            <PackageOpen className="h-3.5 w-3.5" />
-                                            Par Monstre ({monstersList.length})
+                                            <PackageOpen className="h-3.5 w-3.5 shrink-0" />
+                                            <span>Par Monstre ({monstersList.length})</span>
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="members" 
                                             className="rounded-lg font-black py-2 text-[10px] uppercase tracking-wider gap-1.5 transition-all duration-205 data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-zinc-400"
                                         >
-                                            <Users className="h-3.5 w-3.5" />
-                                            Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim()))).length})
+                                            <Users className="h-3.5 w-3.5 shrink-0" />
+                                            <span>Par Membre ({partners.filter(p => p.monstersTheyHave.some(m => !monsterSearch.trim() || m.name.toLowerCase().includes(monsterSearch.toLowerCase().trim()))).length})</span>
                                         </TabsTrigger>
                                     </TabsList>
-                                    <div className="relative w-full sm:w-64 group shrink-0">
+                                    <div className="relative w-full group">
                                         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                                             <Search className="h-3.5 w-3.5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
                                         </div>
@@ -314,21 +315,21 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                                     </div>
                                 </div>
 
-                                {/* Aesthetic Visual Legend */}
-                                <div className="flex items-center gap-3 text-xs bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-xl px-3 py-2 shrink-0 self-start md:self-auto">
+                                {/* Legend row */}
+                                <div className="flex items-center gap-3 text-xs bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-xl px-3 py-2 self-start">
                                     <div className="flex items-center gap-1.5">
-                                        <span className="relative flex h-2 w-2">
+                                        <span className="relative flex h-2 w-2 shrink-0">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                         </span>
                                         <span className="font-bold text-emerald-400 text-[11px]">Recherché</span>
-                                        <span className="text-[10px] text-zinc-500">(vous manque)</span>
+                                        <span className="text-[10px] text-zinc-500 hidden xs:inline">(vous manque)</span>
                                     </div>
-                                    <div className="w-px h-3 bg-white/10" />
+                                    <div className="w-px h-3 bg-white/10 shrink-0" />
                                     <div className="flex items-center gap-1.5">
-                                        <span className="h-2 w-2 rounded-full bg-zinc-700" />
+                                        <span className="h-2 w-2 rounded-full bg-zinc-700 shrink-0" />
                                         <span className="font-bold text-zinc-400 text-[11px]">Possédé</span>
-                                        <span className="text-[10px] text-zinc-500">(déjà acquis)</span>
+                                        <span className="text-[10px] text-zinc-500 hidden xs:inline">(déjà acquis)</span>
                                     </div>
                                 </div>
                             </div>

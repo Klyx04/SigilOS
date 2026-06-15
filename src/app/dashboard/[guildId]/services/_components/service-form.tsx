@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, X, Sword, ScrollText, Hammer, Crown, Wrench, MessageSquare, Gamepad2, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, X, Sword, ScrollText, Hammer, Crown, Wrench, MessageSquare, Gamepad2, ArrowLeft, GraduationCap } from "lucide-react";
 import { createServiceListing } from "@/server/actions/service-actions";
 import { ServiceCategory } from "@prisma/client";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ import { DungeonPicker, type DungeonSelection } from "./dungeon-picker";
 import { QuestPicker, type QuestSelection } from "./quest-picker";
 import { DofusItemSearch } from "./dofus-item-search";
 import { DOFUS_JOBS, type DofusItem } from "@/lib/dofusdude-client";
-import { DOFUS_JOBS as _ALL_JOBS_MAP, JOB_CATEGORIES } from "@/lib/dofus-assets";
+import { DOFUS_JOBS as _ALL_JOBS_MAP, JOB_CATEGORIES, DOFUS_CLASSES } from "@/lib/dofus-assets";
 import Image from "next/image";
 import { AvailabilityPreview } from "./availability-preview";
 
@@ -54,6 +54,7 @@ const VISIBLE_CATEGORIES: { key: ServiceCategory; label: string; icon: React.Rea
     { key: "METIER", label: "Métier", icon: <Wrench className="h-5 w-5" />, color: "from-emerald-500/20 to-transparent", accent: "border-emerald-500/60 bg-emerald-500/15 text-emerald-300" },
     { key: "QUETE", label: "Quête", icon: <ScrollText className="h-5 w-5" />, color: "from-violet-500/20 to-transparent", accent: "border-violet-500/60 bg-violet-500/15 text-violet-300" },
     { key: "OCRE", label: "Quête Ocre", icon: <Crown className="h-5 w-5" />, color: "from-yellow-500/20 to-transparent", accent: "border-yellow-500/60 bg-yellow-500/15 text-yellow-300" },
+    { key: "TUTORAT", label: "Tutorat Classe", icon: <GraduationCap className="h-5 w-5" />, color: "from-pink-500/20 to-transparent", accent: "border-pink-500/60 bg-pink-500/15 text-pink-300" },
 ];
 
 const CATEGORY_ACCENT: Record<ServiceCategory, string> = {
@@ -63,6 +64,7 @@ const CATEGORY_ACCENT: Record<ServiceCategory, string> = {
     QUETE: "border-violet-500/60 bg-violet-500/10 text-violet-300",
     OCRE: "border-yellow-500/60 bg-yellow-500/10 text-yellow-300",
     AUTRE: "border-zinc-500/60 bg-zinc-500/10 text-zinc-300",
+    TUTORAT: "border-pink-500/60 bg-pink-500/10 text-pink-300",
 };
 
 // ---------------------------------------------------------------------------
@@ -113,6 +115,15 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
         pack1000: { active: false, price: "" },
     });
 
+    // TUTORAT
+    const [tutoratBases, setTutoratBases] = useState(false);
+    const [tutoratBasesPrice, setTutoratBasesPrice] = useState("");
+    const [tutoratAvance, setTutoratAvance] = useState(false);
+    const [tutoratAvancePrice, setTutoratAvancePrice] = useState("");
+    const [tutoratStuff, setTutoratStuff] = useState(false);
+    const [tutoratStuffPrice, setTutoratStuffPrice] = useState("");
+    const [tutoratClasses, setTutoratClasses] = useState<string[]>([]);
+
     useEffect(() => {
         if (open) {
             setStep(1);
@@ -161,8 +172,20 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
         } else if (category === "OCRE") {
             const packLabel = OCRE_PACKS.find(p => p.value === ocrePack)?.label || "Quête Ocre";
             setTitle(`Quête Ocre - ${packLabel}`);
+        } else if (category === "TUTORAT") {
+            const classNames = tutoratClasses.map(id => DOFUS_CLASSES.find(c => c.id === id)?.name).filter(Boolean).join(" / ");
+            const activeOpts = [];
+            if (tutoratBases) activeOpts.push("Les bases");
+            if (tutoratAvance) activeOpts.push("Avancé");
+            if (tutoratStuff) activeOpts.push("Les Stuff");
+            const prefix = classNames ? `Tutorat ${classNames}` : "Tutorat Classe";
+            if (activeOpts.length === 0) {
+                setTitle(prefix);
+            } else {
+                setTitle(`${prefix} - ${activeOpts.join(" & ")}`);
+            }
         }
-    }, [category, dungeonSelection, selectedJobs, metierMode, selectedMetierJob, questSelection, ocrePack]);
+    }, [category, dungeonSelection, selectedJobs, metierMode, selectedMetierJob, questSelection, ocrePack, tutoratBases, tutoratAvance, tutoratStuff, tutoratClasses]);
 
     const resetForm = () => {
         setStep(1);
@@ -182,6 +205,10 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
             pack100: { active: false, price: "" },
             pack1000: { active: false, price: "" },
         });
+        setTutoratBases(false); setTutoratBasesPrice("");
+        setTutoratAvance(false); setTutoratAvancePrice("");
+        setTutoratStuff(false); setTutoratStuffPrice("");
+        setTutoratClasses([]);
     };
 
     function addPriceTier() {
@@ -211,6 +238,26 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
             const missingPrices = activeOptions.some(([_, o]) => !o.price.trim());
             if (missingPrices) {
                 toast.error("Veuillez renseigner un tarif pour chaque prestation d'élevage sélectionnée.");
+                return;
+            }
+        }
+
+        // Validation for Tutorat
+        if (category === "TUTORAT") {
+            if (!tutoratBases && !tutoratAvance && !tutoratStuff) {
+                toast.error("Veuillez sélectionner au moins une option de tutorat.");
+                return;
+            }
+            if (tutoratBases && !tutoratBasesPrice.trim()) {
+                toast.error("Veuillez renseigner un tarif pour l'option 'Les bases'.");
+                return;
+            }
+            if (tutoratAvance && !tutoratAvancePrice.trim()) {
+                toast.error("Veuillez renseigner un tarif pour l'option 'Avancé'.");
+                return;
+            }
+            if (tutoratStuff && !tutoratStuffPrice.trim()) {
+                toast.error("Veuillez renseigner un tarif pour l'option 'Les Stuff'.");
                 return;
             }
         }
@@ -261,6 +308,18 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                     tiers.push({ label: "Pack naissance 1000 montures", price: eleveurOptions.pack1000.price.trim() });
                 }
                 finalPriceTiers = tiers;
+            } else if (category === "TUTORAT") {
+                const tiers: PriceTier[] = [];
+                if (tutoratBases) {
+                    tiers.push({ label: "Les bases", price: tutoratBasesPrice.trim() });
+                }
+                if (tutoratAvance) {
+                    tiers.push({ label: "Avancé", price: tutoratAvancePrice.trim() });
+                }
+                if (tutoratStuff) {
+                    tiers.push({ label: "Les Stuff", price: tutoratStuffPrice.trim() });
+                }
+                finalPriceTiers = tiers;
             }
 
             const result = await createServiceListing(guildId, {
@@ -271,7 +330,9 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                     ? OCRE_PACKS.find(p => p.value === ocrePack)?.label
                     : (category === "METIER" && selectedMetierJob === "Éleveur")
                         ? "Prestations Élevage"
-                        : price.trim()) || null,
+                        : category === "TUTORAT"
+                            ? "Prestations Tutorat"
+                            : price.trim()) || null,
                 availability: availability.trim() || null,
                 contactMethod: [contactDiscord && "Discord", contactIngame && "En jeu"].filter(Boolean).join(" + ") || null,
                 publishToDiscord: true,
@@ -297,7 +358,9 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                     : null,
                 professions: category === "FORGEMAGIE"
                     ? (selectedJobs.length ? selectedJobs : null)
-                    : (category === "METIER" && selectedMetierJob ? [selectedMetierJob] : null),
+                    : category === "METIER" && selectedMetierJob ? [selectedMetierJob]
+                    : category === "TUTORAT" && tutoratClasses.length ? tutoratClasses
+                    : null,
             });
 
             if (result.success) {
@@ -375,6 +438,13 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                         iconBorder: "group-hover:border-white/20",
                                         hoverShadow: "hover:shadow-none"
                                     },
+                                    TUTORAT: { 
+                                        border: "hover:border-pink-500/40", 
+                                        text: "text-pink-400", 
+                                        bg: "bg-pink-500/10", 
+                                        iconBorder: "group-hover:border-pink-500/30",
+                                        hoverShadow: "hover:shadow-[0_0_15px_rgba(236,72,153,0.15)]"
+                                    },
                                 };
                                 const colorInfo = colors[c.key];
 
@@ -385,6 +455,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                     QUETE: "Aidez d'autres membres de la guilde à valider leurs quêtes Dofus principales.",
                                     OCRE: "Proposez des packs spécifiques d'archimonstres ou d'étapes de l'Éternelle Moisson.",
                                     AUTRE: "Proposez d'autres services libres.",
+                                    TUTORAT: "Partagez votre maîtrise d'une classe en accompagnant d'autres joueurs.",
                                 };
                                 const descText = descs[c.key];
 
@@ -1185,6 +1256,177 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                                 </div>
                             )}
 
+                            {/* TUTORAT */}
+                            {category === "TUTORAT" && (
+                                <div className="space-y-4">
+                                    {/* Design Header Card for Tutorat */}
+                                    <div className="flex gap-4 items-center p-3.5 rounded-2xl border border-pink-500/20 bg-pink-500/5 shadow-[0_0_20px_rgba(236,72,153,0.05)]">
+                                        <div className="relative w-14 h-14 shrink-0 bg-pink-500/10 rounded-xl flex items-center justify-center border border-pink-500/20 shadow-[0_0_12px_rgba(236,72,153,0.15)] text-pink-400">
+                                            <GraduationCap className="h-8 w-8" />
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <span className="text-[9px] text-pink-500 font-black uppercase tracking-widest leading-none">Académie SigilOS</span>
+                                            <h4 className="text-sm font-black text-white leading-tight">Tutorat de Classe</h4>
+                                            <p className="text-[10px] text-zinc-500 leading-normal">Partagez votre expertise ou proposez d'accompagner des membres sur leur classe.</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Class Picker */}
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
+                                            Classes proposées <span className="text-zinc-600 font-normal">(optionnel)</span>
+                                        </Label>
+                                        <div className="grid grid-cols-5 gap-2 p-3 rounded-2xl border border-white/8 bg-white/[0.02]">
+                                            {[...DOFUS_CLASSES].sort((a, b) => a.name.localeCompare(b.name)).map((cls) => {
+                                                const isSelected = tutoratClasses.includes(cls.id);
+                                                return (
+                                                    <button
+                                                        key={cls.id}
+                                                        type="button"
+                                                        title={cls.name}
+                                                        onClick={() => setTutoratClasses(prev =>
+                                                            prev.includes(cls.id)
+                                                                ? prev.filter(id => id !== cls.id)
+                                                                : [...prev, cls.id]
+                                                        )}
+                                                        className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all duration-200 group ${
+                                                            isSelected
+                                                                ? "border-pink-500/70 bg-pink-500/15 shadow-[0_0_10px_rgba(236,72,153,0.2)]"
+                                                                : "border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]"
+                                                        }`}
+                                                    >
+                                                        <div className="relative w-9 h-9 transition-transform duration-200 group-hover:scale-110">
+                                                            <img
+                                                                src={cls.icon}
+                                                                alt={cls.name}
+                                                                className="w-full h-full object-contain"
+                                                            />
+                                                        </div>
+                                                        <span className={`text-[9px] font-bold leading-none text-center truncate w-full ${
+                                                            isSelected ? "text-pink-300" : "text-zinc-500 group-hover:text-zinc-300"
+                                                        }`}>{cls.name}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {tutoratClasses.length > 0 && (
+                                            <p className="text-[10px] text-pink-400 font-bold">
+                                                🎓 {tutoratClasses.length} classe{tutoratClasses.length > 1 ? "s" : ""} sélectionnée{tutoratClasses.length > 1 ? "s" : ""}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-3 border-t border-white/5 pt-4">
+                                        <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider block mb-1">Prestations de Tutorat</Label>
+
+                                        {/* Les bases */}
+                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratBases ? "border-pink-500/30 bg-pink-500/5 shadow-[0_0_15px_rgba(236,72,153,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative w-9 h-9 shrink-0 bg-pink-500/10 rounded-xl flex items-center justify-center border border-pink-500/20 shadow-inner text-pink-400">
+                                                    <span className="text-xs font-black">1</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold text-zinc-200 leading-tight">Les bases</p>
+                                                    <p className="text-[9px] text-zinc-500 font-medium">Sorts, caractéristiques, mécaniques élémentaires</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTutoratBases(!tutoratBases)}
+                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${tutoratBases ? "bg-pink-500 text-black font-black hover:bg-pink-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                >
+                                                    {tutoratBases ? "Activé" : "Proposer"}
+                                                </button>
+                                            </div>
+                                            {tutoratBases && (
+                                                <div className="mt-3 pl-12 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                    <div className="relative flex-1">
+                                                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                            <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                        </div>
+                                                        <Input
+                                                            value={tutoratBasesPrice}
+                                                            onChange={(e) => setTutoratBasesPrice(e.target.value)}
+                                                            placeholder="Ex: 100k ou Gratuit"
+                                                            className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Avancé */}
+                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratAvance ? "border-pink-500/30 bg-pink-500/5 shadow-[0_0_15px_rgba(236,72,153,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative w-9 h-9 shrink-0 bg-pink-500/10 rounded-xl flex items-center justify-center border border-pink-500/20 shadow-inner text-pink-400">
+                                                    <span className="text-xs font-black">2</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold text-zinc-200 leading-tight">Avancé</p>
+                                                    <p className="text-[9px] text-zinc-500 font-medium">Combos complexes, modes de jeu, optimisation combat</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTutoratAvance(!tutoratAvance)}
+                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${tutoratAvance ? "bg-pink-500 text-black font-black hover:bg-pink-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                >
+                                                    {tutoratAvance ? "Activé" : "Proposer"}
+                                                </button>
+                                            </div>
+                                            {tutoratAvance && (
+                                                <div className="mt-3 pl-12 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                    <div className="relative flex-1">
+                                                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                            <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                        </div>
+                                                        <Input
+                                                            value={tutoratAvancePrice}
+                                                            onChange={(e) => setTutoratAvancePrice(e.target.value)}
+                                                            placeholder="Ex: 200k ou Gratuit"
+                                                            className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Les Stuff */}
+                                        <div className={`p-3 rounded-2xl border transition-all duration-300 ${tutoratStuff ? "border-pink-500/30 bg-pink-500/5 shadow-[0_0_15px_rgba(236,72,153,0.05)]" : "border-white/5 bg-white/[0.01] opacity-75 hover:opacity-100"}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative w-9 h-9 shrink-0 bg-pink-500/10 rounded-xl flex items-center justify-center border border-pink-500/20 shadow-inner text-pink-400">
+                                                    <span className="text-xs font-black">3</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold text-zinc-200 leading-tight">Les Stuff</p>
+                                                    <p className="text-[9px] text-zinc-500 font-medium">Théorie et proposition de builds d'équipements adaptés</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTutoratStuff(!tutoratStuff)}
+                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${tutoratStuff ? "bg-pink-500 text-black font-black hover:bg-pink-400" : "bg-white/5 text-zinc-400 hover:text-white"}`}
+                                                >
+                                                    {tutoratStuff ? "Activé" : "Proposer"}
+                                                </button>
+                                            </div>
+                                            {tutoratStuff && (
+                                                <div className="mt-3 pl-12 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                    <div className="relative flex-1">
+                                                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                                            <img src="/assets/icons/kama.png" alt="kamas" className="w-3.5 h-3.5 object-contain" />
+                                                        </div>
+                                                        <Input
+                                                            value={tutoratStuffPrice}
+                                                            onChange={(e) => setTutoratStuffPrice(e.target.value)}
+                                                            placeholder="Ex: Gratuit ou 150k"
+                                                            className="bg-black/40 border-white/10 pl-8 text-xs h-8 font-semibold rounded-lg text-white"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Description for non-Quete categories */}
                             {category !== "QUETE" && (
                                 <div className="space-y-2">
@@ -1247,7 +1489,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
                             <Button
                                 onClick={handleSubmit}
                                 disabled={loading || !title.trim()}
-                                className={`flex-1 font-black h-12 text-white shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/20" : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20"}`}
+                                className={`flex-1 font-black h-12 text-white shadow-lg ${CATEGORY_ACCENT[category].includes("cyan") ? "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20" : CATEGORY_ACCENT[category].includes("amber") ? "bg-amber-600 hover:bg-amber-500 shadow-amber-900/20" : CATEGORY_ACCENT[category].includes("violet") ? "bg-violet-600 hover:bg-violet-500 shadow-violet-900/20" : CATEGORY_ACCENT[category].includes("yellow") ? "bg-yellow-600 hover:bg-yellow-500 shadow-yellow-900/20" : CATEGORY_ACCENT[category].includes("pink") ? "bg-pink-600 hover:bg-pink-500 shadow-pink-900/20" : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20"}`}
                             >
                                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publier"}
                             </Button>

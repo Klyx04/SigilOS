@@ -25,6 +25,10 @@ import { ChangelogModal } from "@/components/changelog/changelog-modal";
 import { CommandMenu } from "@/components/layout/command-menu";
 import { SupportOrb } from "@/components/shared/support-orb";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
+import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard";
+import { TourProvider } from "@/components/tour/tour-provider";
+import { TourOverlay } from "@/components/tour/tour-overlay";
+import { TourCompletion } from "@/components/tour/tour-completion";
 
 export default async function DashboardLayout({
     children,
@@ -114,28 +118,16 @@ export default async function DashboardLayout({
         );
     }
 
-    // ── ONOARDING/CONFIGURATION COMPLIANCE GATEWAY ──
-    if (!user.isOnboardingComplete) {
-        if (user.isAdmin) {
-            const allowedOnboardingPaths = [
-                `/dashboard/${guildId}/admin/getting-started`,
-                `/dashboard/${guildId}/admin/settings`,
-                `/dashboard/${guildId}/admin/permissions`
-            ];
-            const isPathAllowed = allowedOnboardingPaths.some(p => pathname.startsWith(p));
-            if (!isPathAllowed) {
-                redirect(`/dashboard/${guildId}/admin/getting-started`);
-            }
-        } else {
-            return (
-                <AccessDenied
-                    title="Configuration en cours"
-                    message={`Le tableau de bord de ${user.guildName || "votre guilde"} est en cours de configuration par les administrateurs. Revenez très bientôt !`}
-                    variant="lock"
-                    action={<SignOutButton variant="ghost" />}
-                />
-            );
-        }
+    // ── ONBOARDING/CONFIGURATION COMPLIANCE GATEWAY ──
+    if (!user.isOnboardingComplete && !user.isAdmin) {
+        return (
+            <AccessDenied
+                title="Configuration en cours"
+                message={`Le tableau de bord de ${user.guildName || "votre guilde"} est en cours de configuration par les administrateurs. Revenez très bientôt !`}
+                variant="lock"
+                action={<SignOutButton variant="ghost" />}
+            />
+        );
     }
 
     // ── NO DASHBOARD ACCESS (role-based) ──
@@ -164,7 +156,10 @@ export default async function DashboardLayout({
     return (
         <NebulaClientWrapper>
             <TelemetryTracker />
-            <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">
+            <TourProvider guildId={guildId}>
+                <TourOverlay />
+                <TourCompletion guildId={guildId} />
+                <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">
 
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
@@ -210,7 +205,7 @@ export default async function DashboardLayout({
                                 )}
 
                                 {/* Page Content */}
-                                <div className="flex-1 animate-in fade-in duration-700">
+                                <div className="flex-1 animate-in fade-in duration-200">
                                     <Suspense fallback={<div className="h-full w-full bg-white/5 animate-pulse rounded-2xl min-h-[400px]" />}>
                                         {children}
                                     </Suspense>
@@ -244,7 +239,17 @@ export default async function DashboardLayout({
 
                 {/* 4. FLOATING FOOTER (Compact version) */}
                 <GalacticFooter variant="compact" isMember={true} />
+
+                {/* Forced Onboarding Wizard (Missing character pseudo/class) */}
+                {!user.isAdmin && user.hasPseudoIssue && (
+                    <OnboardingWizard
+                        guildId={guildId}
+                        userName={user.name || "Aventurier"}
+                        show={true}
+                    />
+                )}
             </div>
+            </TourProvider>
         </NebulaClientWrapper>
     );
 }

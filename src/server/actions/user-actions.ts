@@ -870,6 +870,44 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         isOnboardingComplete: !!isOnboardingComplete,
     };
 
+    if (!isOnboardingComplete && !isGod) {
+        finalContext.canViewPresentation = false;
+        finalContext.canViewStats = false;
+        finalContext.canViewDocs = false;
+        finalContext.canViewAdminDocs = false;
+        finalContext.canViewResources = false;
+        finalContext.canViewProfile = false;
+        finalContext.canManageMembers = false;
+        finalContext.canViewMissions = false;
+        finalContext.canManageMissions = false;
+        finalContext.canValidateMissions = false;
+        finalContext.canManageBonus = false;
+        finalContext.canViewRoster = false;
+        finalContext.canViewSonges = false;
+        finalContext.canCreateSonges = false;
+        finalContext.canJoinSonges = false;
+        finalContext.canViewOcre = false;
+        finalContext.canViewLadder = false;
+        finalContext.canSyncLadder = false;
+        finalContext.canManualSyncLadder = false;
+        finalContext.canViewQuests = false;
+        finalContext.canViewWorldmap = false;
+        finalContext.canViewFinder = false;
+        finalContext.canViewServices = false;
+        finalContext.canViewStuffGallery = false;
+        finalContext.canViewMiniGames = false;
+        finalContext.canViewPolls = false;
+        finalContext.canViewCalendar = false;
+        finalContext.canManageCalendar = false;
+        finalContext.canManageRaid = false;
+        finalContext.canJoinRaid = false;
+        finalContext.canEditVacation = false;
+        finalContext.canViewDJQuests = false;
+        finalContext.canEditPresentation = false;
+        finalContext.canManageRelance = false;
+        finalContext.canViewAuditLogs = false;
+    }
+
     // Store in Redis before returning
     await redis.set(redisKey, JSON.stringify(finalContext), "EX", CACHE_TTL).catch(() => {});
 
@@ -1617,7 +1655,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
 /**
  * Update the whitelist of allowed Discord roles for pings (Admin only)
  */
-export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "legacy" = "legacy") {
+export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "legacy" = "legacy") {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -1629,6 +1667,7 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
         if (context === "calendar") data.calendarPingRoleIds = roleIds;
         else if (context === "dj") data.djPingRoleIds = roleIds;
         else if (context === "songes") data.songesPingRoleIds = roleIds;
+        else if (context === "polls") data.pollsPingRoleIds = roleIds;
         else data.allowedPingRoleIds = roleIds;
 
         await db.guildConfig.update({

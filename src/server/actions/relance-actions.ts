@@ -276,6 +276,72 @@ export async function sendRelance(rawData: z.infer<typeof RelanceSchema>): Promi
 }
 
 /**
+ * Send a manual nudge DM to a specific user to configure their profile
+ */
+export async function sendManualNudge(guildId: string, targetDiscordId: string): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isAdmin && !user.canManageRelance && !user.canManageMembers) {
+        return { success: false, error: "Unauthorized" };
+    }
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const message = `Salut ! Pense à configurer ton pseudo Dofus et ta classe principale sur le Dashboard de la guilde pour avoir accès à tous les modules et fonctionnalités. Ça ne prend que 10 secondes : ${appUrl}/dashboard/${guildId}`;
+
+        const msgId = await sendDirectMessage(targetDiscordId, "", {
+            embedTitle: "🎓 Configuration Profil - SigilOS",
+            embedDescription: message,
+            embedColor: 0xec4899, // Pink
+            embedFooter: `Relance envoyée par ${user.name || "un Administrateur"} de ${guildConfig.name}`,
+        });
+
+        if (!msgId) {
+            return { success: false, error: "Impossible d'envoyer le message privé Discord (le membre a peut-être bloqué les DMs du bot)." };
+        }
+
+        // Save nudge in relance history
+        await (db as any).relance.create({
+            data: {
+                guildId: guildConfig.id,
+                adminId: session.user.id,
+                type: "DM",
+                targetIds: [targetDiscordId],
+                message,
+                criteria: "MANUAL_NUDGE"
+            }
+        });
+
+        // Audit Log
+        const { createAuditLog } = await import("./audit-actions");
+        await createAuditLog({
+            guildId,
+            actorUserId: session.user.id,
+            actorName: user.name || "Admin",
+            action: "MEMBER_RELANCE",
+            targetType: "MEMBER",
+            metadata: {
+                type: "MANUAL_NUDGE",
+                discordId: targetDiscordId
+            }
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        logger.error("Send Manual Nudge Error: " + error.message);
+        return { success: false, error: "Erreur lors de l'envoi de la relance" };
+    }
+}
+
+
+/**
  * Get Relance history
  */
 export async function getRelanceHistory(guildId: string) {

@@ -17,9 +17,10 @@ interface GuildDofusOverviewProps {
     topMembers: MemberDofusSummary[];
     totalMembers: number;
     guildId?: string;
+    onMemberClick?: (profileId: string, pseudo: string, avatarUrl?: string) => void;
 }
  
-export function GuildDofusOverview({ stats, topMembers, totalMembers }: GuildDofusOverviewProps) {
+export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberClick }: GuildDofusOverviewProps) {
     const [search, setSearch] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("Tous");
  
@@ -71,7 +72,8 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers }: GuildDof
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
                                 key={member.profileId}
-                                className="group/member flex items-center gap-3 px-4 py-3 rounded-2xl bg-zinc-950/40 border border-white/5 hover:bg-white/[0.03] hover:border-white/10 transition-all duration-300"
+                                onClick={() => onMemberClick?.(member.profileId, member.pseudo, member.image || undefined)}
+                                className="group/member flex items-center gap-3 px-4 py-3 rounded-2xl bg-zinc-950/40 border border-white/5 hover:bg-white/[0.03] hover:border-white/10 transition-all duration-300 cursor-pointer"
                             >
                                 <div className="w-6 flex-shrink-0 flex items-center justify-center">
                                     {index === 0 ? (
@@ -163,7 +165,7 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers }: GuildDof
                     <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
                         <AnimatePresence mode="popLayout">
                             {filteredStats.map((s) => (
-                                <DofusGuildProgressCard key={s.dofusId} stat={s} />
+                                <DofusGuildProgressCard key={s.dofusId} stat={s} onMemberClick={onMemberClick} />
                             ))}
                         </AnimatePresence>
                         
@@ -179,7 +181,7 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers }: GuildDof
     );
 }
  
-function DofusGuildProgressCard({ stat }: { stat: GuildDofusStats }) {
+function DofusGuildProgressCard({ stat, onMemberClick }: { stat: GuildDofusStats; onMemberClick?: (profileId: string, pseudo: string, avatarUrl?: string) => void }) {
     const [isExpanded, setIsExpanded] = useState(false);
  
     return (
@@ -242,7 +244,11 @@ function DofusGuildProgressCard({ stat }: { stat: GuildDofusStats }) {
                         </div>
                         <div className="max-h-48 overflow-y-auto pr-1 custom-scrollbar space-y-1.5">
                             {stat.membersProgress.map((member) => (
-                                <div key={member.profileId} className="flex items-center gap-2 p-1.5 rounded-lg bg-white/[0.02] border border-white/5">
+                                <div 
+                                    key={member.profileId} 
+                                    onClick={() => onMemberClick?.(member.profileId, member.pseudo, member.image || undefined)}
+                                    className="flex items-center gap-2 p-1.5 rounded-lg bg-white/[0.02] border border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                                >
                                     <div className="w-6 h-6 rounded-md overflow-hidden bg-zinc-800 flex-shrink-0 border border-white/5">
                                         {member.image ? <img src={member.image} alt={member.pseudo} /> : <span className="text-[8px] flex items-center justify-center h-full font-black uppercase text-white/40">{member.pseudo[0]}</span>}
                                     </div>

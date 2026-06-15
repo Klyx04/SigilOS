@@ -102,7 +102,7 @@
     "rehype-raw": "^7.0.0",
     "rss-parser": "^3.13.0",
     "rxjs": "^7.8.2",
-    "sharp": "^0.35.1",
+    "sharp": "0.35.1",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
@@ -149,5 +149,9 @@
     "*.{ts,tsx}": [
       "eslint --fix --quiet"
     ]
+  },
+  "optionalDependencies": {
+    "@img/sharp-libvips-linuxmusl-x64": "1.3.0",
+    "@img/sharp-linuxmusl-x64": "0.35.1"
   }
 }

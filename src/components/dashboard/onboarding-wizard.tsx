@@ -25,13 +25,15 @@ interface OnboardingWizardProps {
     guildId: string;
     userName: string;
     show: boolean;
+    initialStep?: number;
+    initialPseudo?: string;
 }
 
-export function OnboardingWizard({ guildId, userName, show }: OnboardingWizardProps) {
+export function OnboardingWizard({ guildId, userName, show, initialStep = 1, initialPseudo = "" }: OnboardingWizardProps) {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
-    const [step, setStep] = useState(1);
-    const [pseudo, setPseudo] = useState("");
+    const [step, setStep] = useState(initialStep);
+    const [pseudo, setPseudo] = useState(initialPseudo);
     const [selectedClass, setSelectedClass] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

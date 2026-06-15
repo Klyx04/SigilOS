@@ -240,12 +240,14 @@ export default async function DashboardLayout({
                 {/* 4. FLOATING FOOTER (Compact version) */}
                 <GalacticFooter variant="compact" isMember={true} />
 
-                {/* Forced Onboarding Wizard (Missing character pseudo/class) */}
-                {!user.isAdmin && user.hasPseudoIssue && (
+                {/* Forced Onboarding Wizard (Missing character pseudo or class) */}
+                {!user.isAdmin && (user.hasPseudoIssue || !user.classe) && (
                     <OnboardingWizard
                         guildId={guildId}
                         userName={user.name || "Aventurier"}
                         show={true}
+                        initialStep={user.hasPseudoIssue ? 1 : 2}
+                        initialPseudo={user.pseudoDofus || ""}
                     />
                 )}
             </div>

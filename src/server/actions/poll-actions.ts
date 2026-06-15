@@ -40,6 +40,7 @@ export type ActionResponse<T = unknown> = {
 export async function getPollSettings(guildId: string): Promise<ActionResponse<{
     pollsNotifyChannelId: string | null;
     pollsNotifyRoleId: string | null;
+    pollsPingRoleIds?: string[];
 }>> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -51,7 +52,7 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
     try {
         const config = await (db.guildConfig as any).findUnique({
             where: { discordGuildId: guildId },
-            select: { pollsNotifyChannelId: true, pollsNotifyRoleId: true }
+            select: { pollsNotifyChannelId: true, pollsNotifyRoleId: true, pollsPingRoleIds: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
@@ -60,7 +61,8 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
             success: true,
             data: {
                 pollsNotifyChannelId: config.pollsNotifyChannelId,
-                pollsNotifyRoleId: config.pollsNotifyRoleId
+                pollsNotifyRoleId: config.pollsNotifyRoleId,
+                pollsPingRoleIds: config.pollsPingRoleIds || []
             }
         };
     } catch (error) {
@@ -125,6 +127,7 @@ const CreatePollSchema = z.object({
     discordChannelId: z.string().optional(),
     mentionEveryone: z.boolean().default(false),
     mentionRoleId: z.string().optional(),
+    externalUrl: z.string().url().optional().nullable().or(z.literal("")),
 }).strict();
 
 const UpdatePollSchema = z.object({
@@ -136,6 +139,7 @@ const UpdatePollSchema = z.object({
     allowMultipleVotes: z.boolean().optional(),
     isAnonymous: z.boolean().optional(),
     expiresAt: z.string().datetime().optional().nullable(),
+    externalUrl: z.string().url().optional().nullable().or(z.literal("")),
 }).strict();
 
 // --- Category Config ---
@@ -420,6 +424,7 @@ export async function createPoll(
                     expiresAt: finalExpiresAt,
                     mentionEveryone: data.mentionEveryone,
                     mentionRoleId: data.mentionRoleId || null,
+                    externalUrl: data.externalUrl || null,
                 },
             });
 
@@ -438,7 +443,11 @@ export async function createPoll(
 
         // Publish to Discord if requested
         const channelToUse = data.discordChannelId || (guildConfig as any).pollsNotifyChannelId;
-        const roleToUse = data.mentionEveryone ? undefined : (guildConfig as any).pollsNotifyRoleId;
+        const roleToUse = data.mentionEveryone
+            ? undefined
+            : (data.mentionRoleId !== undefined
+                ? (data.mentionRoleId || undefined)
+                : ((guildConfig as any).pollsNotifyRoleId || undefined));
 
         if (data.publishToDiscord && !channelToUse) {
             return {
@@ -534,6 +543,7 @@ export async function updatePoll(rawData: unknown): Promise<ActionResponse> {
                 allowMultipleVotes: data.allowMultipleVotes,
                 isAnonymous: data.isAnonymous,
                 expiresAt: data.expiresAt ? new Date(data.expiresAt) : data.expiresAt === null ? null : poll.expiresAt,
+                externalUrl: data.externalUrl !== undefined ? (data.externalUrl || null) : undefined,
             }
         });
 
@@ -916,6 +926,10 @@ async function publishPollToDiscord(
             descriptionParts.push(`> *${poll.description}*`);
         }
 
+        if (poll.externalUrl) {
+            descriptionParts.push(`🔗 **Lien :** [Consulter](${poll.externalUrl})`);
+        }
+
         descriptionParts.push(`\n**📊 Choix :**\n${optionsList}`);
 
         const metadata = [];
@@ -940,7 +954,11 @@ async function publishPollToDiscord(
             if (mentionEveryone) {
                 mentionContent = "Bonjour @everyone !";
             } else if (mentionRoleId) {
-                mentionContent = `Bonjour <@&${mentionRoleId}> !`;
+                if (mentionRoleId === "here") {
+                    mentionContent = "Bonjour @here !";
+                } else {
+                    mentionContent = `Bonjour <@&${mentionRoleId}> !`;
+                }
             }
         }
 

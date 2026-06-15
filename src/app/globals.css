@@ -677,6 +677,11 @@ html {
   display: none !important;
 }
 
+.ganymade-step-text,
+.ganymade-step-text * {
+  font-family: var(--font-sans) !important;
+}
+
 .ganymade-step-text a {
   @apply text-emerald-400 font-bold hover:underline transition-all;
 }

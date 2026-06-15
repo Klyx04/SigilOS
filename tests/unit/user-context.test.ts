@@ -450,7 +450,7 @@ describe("getUserContext — calcul des permissions RBAC", () => {
         mockDb.guildConfig.findFirst.mockResolvedValue(
             makeGuildConfig({
                 rolesMapping: {
-                    "role-admin": [PERMISSIONS.SYSTEM_GOD],
+                    "role-admin": [PERMISSIONS.SYSTEM_GOD, PERMISSIONS.DASHBOARD_LOGIN],
                 },
             })
         );
@@ -488,7 +488,9 @@ describe("getUserContext — calcul des permissions RBAC", () => {
         mockFetchRoles.mockResolvedValue([]);
         mockDb.guildConfig.findFirst.mockResolvedValue(
             makeGuildConfig({
-                rolesMapping: {},
+                rolesMapping: {
+                    "some-role": [PERMISSIONS.DASHBOARD_LOGIN]
+                },
                 // Permission individuelle sur le Discord ID de l'user
                 usersMapping: {
                     "discord-user-1": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.STAFF_AUDIT],
@@ -500,5 +502,54 @@ describe("getUserContext — calcul des permissions RBAC", () => {
 
         expect(ctx.canViewDashboard).toBe(true);
         expect(ctx.canViewStats).toBe(true);
+    });
+});
+
+describe("getUserContext — onboarding incomplete", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.advanceTimersByTime(120_000);
+        mockIsGuildAllowed.mockResolvedValue(true);
+        mockIsSuperAdmin.mockResolvedValue(false);
+        mockDb.platformBan.findUnique.mockResolvedValue(null);
+        mockDb.userProfile.findUnique.mockResolvedValue(makeProfile());
+        mockFetchGuild.mockResolvedValue({ id: "111111111111111111", owner_id: "other-owner", roles: [] });
+        mockAuth.mockResolvedValue({
+            user: { id: "user-1", discordId: "discord-user-1", name: "Test" },
+        });
+    });
+
+    it("restreint les permissions de module si l'onboarding est incomplet pour un admin", async () => {
+        mockFetchMember.mockResolvedValue(makeMember({ roles: ["role-admin"] }));
+        mockFetchRoles.mockResolvedValue([
+            { id: "role-admin", permissions: "8", name: "Discord Admin" }, // 0x8 makes them admin
+        ]);
+        
+        mockDb.guildConfig.findFirst.mockResolvedValue(
+            makeGuildConfig({
+                dofusServerId: null, // Makes onboarding incomplete
+                rolesMapping: {
+                    "role-admin": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.MISSIONS_PLAY, PERMISSIONS.GAME_VIEW],
+                },
+            })
+        );
+
+        const ctx = await getUserContext("111111111111111111");
+
+        // Onboarding is incomplete
+        expect(ctx.isOnboardingComplete).toBe(false);
+
+        // Core admin / onboarding perms are preserved
+        expect(ctx.isAdmin).toBe(true);
+        expect(ctx.isDiscordAdmin).toBe(true);
+        expect(ctx.canViewDashboard).toBe(true);
+        expect(ctx.canViewSettings).toBe(true);
+        expect(ctx.canManageRBAC).toBe(true);
+
+        // Standard modules are restricted to false
+        expect(ctx.canViewMissions).toBe(false);
+        expect(ctx.canViewOcre).toBe(false);
+        expect(ctx.canViewSonges).toBe(false);
+        expect(ctx.canViewLadder).toBe(false);
     });
 });

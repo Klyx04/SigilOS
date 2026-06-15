@@ -14,7 +14,8 @@ import {
     Trash2,
     GripVertical,
     AtSign,
-    Info
+    Info,
+    Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +89,13 @@ export function PollCreator({
 
     const isEdit = !!editPoll;
 
+    const [externalUrl, setExternalUrl] = useState("");
+    const [showDiscordConfirm, setShowDiscordConfirm] = useState(false);
+    const [selectedChannelId, setSelectedChannelId] = useState("");
+    const [mentionType, setMentionType] = useState<"none" | "everyone" | "here" | "role">("none");
+    const [selectedRoleId, setSelectedRoleId] = useState("");
+    const [pollsPingRoleIds, setPollsPingRoleIds] = useState<string[]>([]);
+
     useEffect(() => {
         if (editPoll) {
             setTitle(editPoll.title);
@@ -101,6 +109,7 @@ export function PollCreator({
                 const hours = Math.round((new Date(editPoll.expiresAt).getTime() - new Date(editPoll.createdAt).getTime()) / (1000 * 60 * 60));
                 setExpiryHours(hours > 0 ? hours : 24);
             }
+            setExternalUrl(editPoll.externalUrl || "");
         }
     }, [editPoll]);
 
@@ -123,6 +132,10 @@ export function PollCreator({
         }
         if (settingsRes.success && settingsRes.data) {
             setDiscordSetup({ channelId: settingsRes.data.pollsNotifyChannelId });
+            setPollsPingRoleIds(settingsRes.data.pollsPingRoleIds || []);
+            if (settingsRes.data.pollsNotifyChannelId) {
+                setSelectedChannelId(settingsRes.data.pollsNotifyChannelId);
+            }
             if (!settingsRes.data.pollsNotifyChannelId) {
                 setPublishToDiscord(false);
             }
@@ -189,17 +202,48 @@ export function PollCreator({
         setPublishToDiscord(true);
         setChannelId("none");
         setMentionEveryone(false);
+        setExternalUrl("");
+        setMentionType("none");
+        setSelectedRoleId("");
     };
 
     const handleSubmit = () => {
         if (!title.trim()) return toast.error("Le titre est obligatoire");
         if (options.filter(o => o.label.trim()).length < 2) return toast.error("Minimum 2 options requises");
 
+        // Validate URL format if provided
+        if (externalUrl.trim()) {
+            try {
+                new URL(externalUrl.trim());
+            } catch (_) {
+                return toast.error("L'URL externe n'est pas valide (elle doit commencer par http:// ou https://)");
+            }
+        }
+
+        if (publishToDiscord && !isEdit) {
+            setShowDiscordConfirm(true);
+        } else {
+            executeSubmit();
+        }
+    };
+
+    const executeSubmit = (discordConfigOverride?: { channelId?: string; mentionEveryone?: boolean; mentionRoleId?: string }) => {
         const expiresAt = hasExpiry
             ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString()
             : null;
 
         startTransition(async () => {
+            const finalPublishToDiscord = isEdit ? false : publishToDiscord;
+            const finalChannelId = discordConfigOverride?.channelId !== undefined
+                ? discordConfigOverride.channelId
+                : (channelId === "none" ? undefined : channelId);
+            const finalMentionEveryone = discordConfigOverride?.mentionEveryone !== undefined
+                ? discordConfigOverride.mentionEveryone
+                : mentionEveryone;
+            const finalMentionRoleId = discordConfigOverride?.mentionRoleId !== undefined
+                ? discordConfigOverride.mentionRoleId
+                : undefined;
+
             const pollData = {
                 guildId,
                 title: title.trim(),
@@ -212,9 +256,11 @@ export function PollCreator({
                 allowMultipleVotes,
                 isAnonymous,
                 expiresAt,
-                publishToDiscord: isEdit ? false : publishToDiscord,
-                discordChannelId: channelId === "none" ? undefined : channelId,
-                mentionEveryone,
+                publishToDiscord: finalPublishToDiscord,
+                discordChannelId: finalChannelId,
+                mentionEveryone: finalMentionEveryone,
+                mentionRoleId: finalMentionRoleId,
+                externalUrl: externalUrl.trim() || undefined,
             };
 
             const res = isEdit
@@ -224,6 +270,7 @@ export function PollCreator({
             if (res.success) {
                 toast.success(isEdit ? "Sondage mis à jour !" : "Sondage créé avec succès !");
                 setOpen(false);
+                setShowDiscordConfirm(false);
                 if (!isEdit) resetForm();
                 if (onSuccess) onSuccess();
                 router.refresh();
@@ -236,7 +283,8 @@ export function PollCreator({
     const isValid = title.trim().length >= 3 && options.filter(o => o.label.trim()).length >= 2;
 
     return (
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v && !isEdit) resetForm(); }}>
+        <>
+            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v && !isEdit) resetForm(); }}>
             <DialogTrigger asChild>
                 {trigger || (
                     <Button
@@ -549,6 +597,25 @@ export function PollCreator({
                                         )}
                                     </AnimatePresence>
                                 </div>
+
+                                <div className="space-y-2 pt-4 border-t border-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 rounded-xl bg-cyan-500/10">
+                                            <Info className="w-4 h-4 text-cyan-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] font-bold text-white uppercase tracking-tight">Lien externe (Optionnel)</p>
+                                            <p className="text-[9px] text-zinc-500 font-medium tracking-tight">URL associée au sondage</p>
+                                        </div>
+                                    </div>
+                                    <Input
+                                        type="url"
+                                        placeholder="https://..."
+                                        value={externalUrl}
+                                        onChange={(e) => setExternalUrl(e.target.value)}
+                                        className="bg-zinc-950/40 border-white/10 focus:border-cyan-500/30 text-white rounded-xl text-xs h-10"
+                                    />
+                                </div>
                             </div>
 
                             <div className="p-6 rounded-2xl bg-[#5865F2]/5 border border-[#5865F2]/10 space-y-6">
@@ -568,19 +635,6 @@ export function PollCreator({
                                         onCheckedChange={setPublishToDiscord}
                                         className="scale-90"
                                     />
-                                </div>
-
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2.5 rounded-xl bg-zinc-800">
-                                            <AtSign className="w-4 h-4 text-zinc-500" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[11px] font-bold text-white uppercase tracking-tight">@everyone</p>
-                                            <p className="text-[9px] text-zinc-600 font-medium tracking-tight">Notification globale</p>
-                                        </div>
-                                    </div>
-                                    <Switch disabled={!publishToDiscord} checked={mentionEveryone} onCheckedChange={setMentionEveryone} className="scale-90" />
                                 </div>
 
                                 {!discordSetup?.channelId && (
@@ -621,5 +675,143 @@ export function PollCreator({
                 </div>
             </DialogContent>
         </Dialog>
+
+        {/* Discord Publication Setup Modal (Step 2) */}
+        <Dialog open={showDiscordConfirm} onOpenChange={setShowDiscordConfirm}>
+            <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 text-white backdrop-blur-xl rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 text-[#5865F2]">
+                        <span className="p-2 bg-[#5865F2]/10 rounded-xl">
+                            <Megaphone className="w-4 h-4 text-[#5865F2]" />
+                        </span>
+                        Annonce Discord
+                    </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-6 py-4">
+                    {/* Channel Selection */}
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                            Salon de publication
+                        </label>
+                        {discordChannels.length > 0 ? (
+                            <select
+                                value={selectedChannelId}
+                                onChange={(e) => setSelectedChannelId(e.target.value)}
+                                className="w-full bg-zinc-900 border border-white/5 rounded-xl h-10 px-3 text-xs text-white focus:outline-none focus:border-cyan-500/30"
+                            >
+                                {discordChannels.map((ch) => (
+                                    <option key={ch.id} value={ch.id}>
+                                        #{ch.name}
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <p className="text-xs text-zinc-500 italic">Aucun salon disponible</p>
+                        )}
+                    </div>
+
+                    {/* Mention Type Selection */}
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                            Type de mention (Ping)
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { value: "none", label: "Aucune", desc: "Pas de ping" },
+                                { value: "everyone", label: "@everyone", desc: "Ping tout le monde" },
+                                { value: "here", label: "@here", desc: "Ping les présents" },
+                                { value: "role", label: "Rôle", desc: "Ping un rôle whitelisté" }
+                            ].map((type) => (
+                                <button
+                                    key={type.value}
+                                    type="button"
+                                    onClick={() => {
+                                        setMentionType(type.value as any);
+                                        if (type.value !== "role") setSelectedRoleId("");
+                                    }}
+                                    className={cn(
+                                        "flex flex-col items-start p-3 rounded-xl border text-left transition-all",
+                                        mentionType === type.value
+                                            ? "bg-cyan-500/10 border-cyan-500/30 text-white"
+                                            : "bg-zinc-900/60 border-white/5 text-zinc-400 hover:border-white/10"
+                                    )}
+                                >
+                                    <span className="text-xs font-bold">{type.label}</span>
+                                    <span className="text-[9px] text-zinc-500 mt-0.5">{type.desc}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Specific Role Dropdown */}
+                    {mentionType === "role" && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                Sélectionnez le rôle
+                            </label>
+                            {discordRoles.filter(r => (microStatus?.isAdmin || microStatus?.isSuperAdmin) || pollsPingRoleIds.includes(r.id)).length > 0 ? (
+                                <select
+                                    value={selectedRoleId}
+                                    onChange={(e) => setSelectedRoleId(e.target.value)}
+                                    className="w-full bg-zinc-900 border border-white/5 rounded-xl h-10 px-3 text-xs text-white focus:outline-none focus:border-cyan-500/30"
+                                >
+                                    <option value="">-- Choisir un rôle --</option>
+                                    {discordRoles
+                                        .filter(r => (microStatus?.isAdmin || microStatus?.isSuperAdmin) || pollsPingRoleIds.includes(r.id))
+                                        .map((role) => (
+                                            <option key={role.id} value={role.id}>
+                                                {role.name}
+                                            </option>
+                                        ))
+                                    }
+                                </select>
+                            ) : (
+                                <p className="text-[10px] text-amber-500 italic">
+                                    Aucun rôle n'est configuré dans la whitelist de l'admin.
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                    <Button
+                        variant="ghost"
+                        onClick={() => setShowDiscordConfirm(false)}
+                        className="text-xs font-bold text-zinc-400 hover:text-white rounded-xl"
+                    >
+                        Retour
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            if (mentionType === "role" && !selectedRoleId) {
+                                return toast.error("Veuillez sélectionner un rôle à mentionner");
+                            }
+                            executeSubmit({
+                                channelId: selectedChannelId,
+                                mentionEveryone: mentionType === "everyone",
+                                mentionRoleId: mentionType === "here" ? "here" : (mentionType === "role" ? selectedRoleId : undefined)
+                            });
+                        }}
+                        disabled={isPending}
+                        className="bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-bold uppercase tracking-wider px-6 h-11 rounded-xl flex items-center gap-2"
+                    >
+                        {isPending ? (
+                            <>
+                                <Clock className="w-4 h-4 animate-spin" />
+                                Publication...
+                            </>
+                        ) : (
+                            <>
+                                <Send className="w-4 h-4" />
+                                Confirmer & Publier
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

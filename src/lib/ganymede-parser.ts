@@ -267,7 +267,40 @@ export function parseGP0Milestones(rawSteps: any[]): {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/&#\d+;/g, "").trim();
+  if (!html) return "";
+  let clean = html;
+  // Preserve image alt or title attributes as text before stripping HTML tags
+  clean = clean.replace(/<img[^>]+alt=["']([^"']+)["'][^>]*>/gi, " $1 ");
+  clean = clean.replace(/<img[^>]+title=["']([^"']+)["'][^>]*>/gi, " $1 ");
+  
+  // Standard strip and basic entities
+  clean = clean.replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&oelig;/g, "œ")
+    .replace(/&Oelig;/g, "Œ")
+    .replace(/&eacute;/g, "é")
+    .replace(/&Eacute;/g, "É")
+    .replace(/&agrave;/g, "à")
+    .replace(/&Agrave;/g, "À")
+    .replace(/&egrave;/g, "è")
+    .replace(/&Egrave;/g, "È")
+    .replace(/&ugrave;/g, "ù")
+    .replace(/&acirc;/g, "â")
+    .replace(/&ecirc;/g, "ê")
+    .replace(/&icirc;/g, "î")
+    .replace(/&ocirc;/g, "ô")
+    .replace(/&ucirc;/g, "û")
+    .replace(/&ccedil;/g, "ç")
+    .replace(/&#\d+;/g, "");
+    
+  return clean.replace(/\s+/g, " ").trim();
 }
 
 function extractStepNumbers(text: string): [number | undefined, number | undefined] {

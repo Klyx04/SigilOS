@@ -13,7 +13,6 @@ import { BuildsCard } from "./builds-card";
 import { SuccessSync } from "./success-sync";
 import { UserSettings } from "./user-settings";
 import { IntroductionCard } from "./introduction-card";
-import { MemberStats } from "./member-stats";
 import { SkinLibrary } from "./skin-library";
 import { AlignmentSection } from "./alignment-section";
 import { LegendaryCrafting } from "./legendary-crafting";
@@ -21,10 +20,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
 import { toast } from "sonner";
-import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, BarChart3, Settings, Hammer } from "lucide-react";
+import { UserCircle, LayoutDashboard, Shield, Sparkles, Users, Calendar, Trophy, Settings, Hammer } from "lucide-react";
+import { ProfileReminderBanner } from "./profile-reminder-banner";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import type { AvailabilityMap, ForgemagieStatusId, GlobalAvailability } from "@/lib/dofus-assets";
+import { useTour } from "@/components/tour/tour-provider";
 
 interface ProfileBentoGridProps {
     profile: {
@@ -132,6 +133,20 @@ export function ProfileBentoGrid({
     const searchParams = useSearchParams();
     const initialTab = searchParams.get("tab") || "overview";
     const [activeTab, setActiveTab] = useState(initialTab);
+
+    const { tourPhase, currentStep } = useTour();
+
+    // Synchronize activeTab with onboarding tour phase & step
+    useEffect(() => {
+        if (tourPhase === "profile") {
+            if (currentStep === 3) setActiveTab("metiers");
+            else if (currentStep === 4) setActiveTab("planning");
+            else if (currentStep === 5) setActiveTab("combat");
+            else if (currentStep === 6) setActiveTab("intro");
+            else if (currentStep === 7) setActiveTab("settings");
+            else if (currentStep === 1 || currentStep === 2) setActiveTab("overview");
+        }
+    }, [currentStep, tourPhase]);
 
     // Default permissions to true if not provided (internal consistency)
     const { 
@@ -330,8 +345,13 @@ export function ProfileBentoGrid({
 
     return (
         <div className="flex flex-col gap-6">
+            {/* Monthly Profile Reminder — only for profile owner */}
+            {!readOnly && (
+                <ProfileReminderBanner guildId={guildId} />
+            )}
+
             {/* Hero Header (Glass) */}
-            <div className="rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black/40 backdrop-blur-md">
+            <div data-tour="profile-header" className="rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-black/40 backdrop-blur-md">
                 <HeroHeader
                     avatarUrl={user.image}
                     displayName={displayName}
@@ -392,7 +412,6 @@ export function ProfileBentoGrid({
                                     name: "Activité",
                                     tabs: [
                                         { id: "planning", label: "Planning", icon: Calendar, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/10", indicator: "bg-cyan-500 shadow-cyan-500/50" },
-                                        { id: "stats", label: "Statistiques", icon: BarChart3, activeColor: "text-blue-400", bgActive: "bg-blue-500/10", indicator: "bg-blue-500 shadow-blue-500/50" },
                                     ]
                                 },
                                 ...(canEdit ? [{
@@ -412,6 +431,7 @@ export function ProfileBentoGrid({
                                         <TabsTrigger
                                             key={tab.id}
                                             value={tab.id}
+                                            data-tour={`profile-tab-${tab.id}`}
                                             className={cn(
                                                 "relative flex items-center justify-start gap-3 min-w-[max-content] lg:w-full px-4 py-3 rounded-2xl transition-all duration-300 group shrink-0 overflow-hidden",
                                                 "bg-zinc-900/40 backdrop-blur-md border border-white/5",
@@ -459,13 +479,15 @@ export function ProfileBentoGrid({
                 <TabsContent value="overview" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="flex flex-col gap-6">
                         {/* Classes */}
-                        <ClassDisplay
-                            pseudoDofus={localProfile.pseudoDofus}
-                            mainClass={localProfile.classe}
-                            onSave={handleClassSave}
-                            readOnly={!canEdit}
-                            guildId={guildId}
-                        />
+                        <div data-tour="profile-class">
+                            <ClassDisplay
+                                pseudoDofus={localProfile.pseudoDofus}
+                                mainClass={localProfile.classe}
+                                onSave={handleClassSave}
+                                readOnly={!canEdit}
+                                guildId={guildId}
+                            />
+                        </div>
 
                         {/* Metamob */}
                         {canViewOcre && (
@@ -630,12 +652,7 @@ export function ProfileBentoGrid({
                      )}
                  </TabsContent>
 
-                 {/* STATS TAB */}
-                <TabsContent value="stats" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {visitedTabs.has("stats") && (
-                        <MemberStats stats={stats} />
-                    )}
-                </TabsContent>
+
 
                 {/* SETTINGS TAB */}
                 {canEdit && (

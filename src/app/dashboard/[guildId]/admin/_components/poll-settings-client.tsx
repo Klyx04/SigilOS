@@ -10,6 +10,8 @@ import { Loader2, Save, AlertTriangle, Hash, Bell, Users } from "lucide-react";
 import { toast } from "sonner";
 import { getPollSettings, updatePollSettings } from "@/server/actions/poll-actions";
 import { cn } from "@/lib/utils";
+import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
+import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 
 interface PollSettingsClientProps {
     guildId: string;
@@ -21,14 +23,23 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
+    const [pollsPingRoleIds, setPollsPingRoleIds] = useState<string[]>([]);
+    const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
 
     useEffect(() => {
         async function loadConfig() {
-            const result = await getPollSettings(guildId);
+            const [result, rolesRes] = await Promise.all([
+                getPollSettings(guildId),
+                getDiscordRolesAction(guildId, { ignoreWhitelist: true })
+            ]);
             if (result.success && result.data) {
                 setChannelId(result.data.pollsNotifyChannelId || "");
                 setRoleId(result.data.pollsNotifyRoleId || "");
                 setIsConfigured(!!result.data.pollsNotifyChannelId);
+                setPollsPingRoleIds(result.data.pollsPingRoleIds || []);
+            }
+            if (rolesRes.success && rolesRes.roles) {
+                setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
             }
             setIsLoading(false);
         }
@@ -41,11 +52,13 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                 pollsNotifyChannelId: channelId.trim() || null,
                 pollsNotifyRoleId: roleId.trim() || null
             });
-            if (result.success) {
+            const pingRolesResult = await updateAllowedPingRolesAction(guildId, pollsPingRoleIds, "polls");
+
+            if (result.success && pingRolesResult.success) {
                 toast.success("Configuration des sondages sauvegardée !");
                 setIsConfigured(!!channelId.trim());
             } else {
-                toast.error(result.error || "Erreur lors de la sauvegarde");
+                toast.error(result.error || pingRolesResult.error || "Erreur lors de la sauvegarde");
             }
         });
     };
@@ -117,6 +130,23 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                         <p className="text-[10px] text-zinc-500 italic">
                             Identifiant du rôle Discord à notifier (pings) lors de la publication d'un sondage.
                         </p>
+                    </div>
+
+                    {/* Whitelist of Ping Roles */}
+                    <div className="space-y-2 pt-2 border-t border-white/5">
+                        <Label className="text-zinc-400 flex items-center gap-2">
+                            <Users className="w-3.5 h-3.5 text-cyan-400" />
+                            Rôles autorisés pour les mentions (Whitelist)
+                        </Label>
+                        <p className="text-[10px] text-zinc-500 italic mb-2">
+                            Définissez quels rôles Discord les créateurs de sondages peuvent mentionner lors de la publication.
+                        </p>
+                        <PingRolesSelector
+                            value={pollsPingRoleIds}
+                            onChange={setPollsPingRoleIds}
+                            roles={discordRoles}
+                            description="Si la liste est vide, aucun rôle Discord ne sera disponible pour le ping/sélection dans les modales de création (seuls les administrateurs verront toujours tous les rôles)."
+                        />
                     </div>
 
                     <div className="pt-4 flex items-center justify-between border-t border-white/5">

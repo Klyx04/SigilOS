@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Pause, Play, Swords, MessageSquare, Gamepad2, Crown } from "lucide-react";
+import { Trash2, Pause, Play, Swords, MessageSquare, Gamepad2, Crown, GraduationCap } from "lucide-react";
 import { type ServiceListingWithProfile } from "@/server/actions/service-actions";
 import { CATEGORY_LABELS, CATEGORY_EMOJIS } from "@/server/actions/services-constants";
 import { deleteServiceListing, toggleServiceStatus } from "@/server/actions/service-actions";
@@ -16,7 +16,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { FM_JOBS } from "./service-form";
 import { getAchievementIconUrl } from "@/lib/achievement-icon";
-import { getJob } from "@/lib/dofus-assets";
+import { getJob, DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -30,6 +30,7 @@ const CATEGORY_COLORS: Record<ServiceCategory, { badge: string; glow: string; ho
     QUETE: { badge: "border-violet-500/40 bg-violet-500/10 text-violet-400", glow: "hover:border-violet-500/40", hover: "hover:bg-violet-500/[0.03]", icon: "text-violet-400", bg: "from-violet-500/5 to-transparent" },
     OCRE: { badge: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400", glow: "hover:border-yellow-500/40", hover: "hover:bg-yellow-500/[0.03]", icon: "text-yellow-400", bg: "from-yellow-500/5 to-transparent" },
     AUTRE: { badge: "border-zinc-500/40 bg-zinc-500/10 text-zinc-400", glow: "hover:border-zinc-500/40", hover: "hover:bg-zinc-500/[0.03]", icon: "text-zinc-400", bg: "from-zinc-500/5 to-transparent" },
+    TUTORAT: { badge: "border-pink-500/40 bg-pink-500/10 text-pink-400", glow: "hover:border-pink-500/40", hover: "hover:bg-pink-500/[0.03]", icon: "text-pink-400", bg: "from-pink-500/5 to-transparent" },
 };
 
 // ---------------------------------------------------------------------------
@@ -340,6 +341,32 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, isDis
                             </span>
                         );
                     })}
+                </div>
+            ) : null}
+
+            {/* ── TUTORAT Classes ── */}
+            {listing.category === "TUTORAT" && (listing.professions as string[] | null)?.length ? (
+                <div className="space-y-2">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-pink-500 flex items-center gap-1.5">
+                        <GraduationCap className="h-3 w-3" /> Classes proposées
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                        {(listing.professions as string[]).map((classId) => {
+                            const cls = DOFUS_CLASSES.find(c => c.id === classId);
+                            if (!cls) return null;
+                            return (
+                                <span
+                                    key={classId}
+                                    className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-pink-500/10 border border-pink-500/25 text-pink-300 font-bold"
+                                >
+                                    <div className="relative h-5 w-5 shrink-0">
+                                        <Image src={cls.icon} alt={cls.name} fill className="object-contain" />
+                                    </div>
+                                    {cls.name}
+                                </span>
+                            );
+                        })}
+                    </div>
                 </div>
             ) : null}
 

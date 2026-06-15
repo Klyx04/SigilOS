@@ -203,6 +203,64 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
 }
 
 /**
+ * Récupère la progression d'UN membre sur TOUS les guides actifs de la guilde.
+ * Utilisé pour le modal de détail membre dans la Progression Commune.
+ */
+export async function getMemberAllGuidesProgress(profileId: string, guildId: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+
+  const guides = await db.optimizedGuide.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      milestones: {
+        select: {
+          id: true,
+          title: true,
+          order: true,
+          accentColor: true,
+          playerProgress: {
+            where: { profileId },
+            select: { isCompleted: true, milestoneId: true },
+          },
+        },
+        orderBy: { order: "asc" },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const guideProgress = guides.map((guide) => {
+    const total = guide.milestones.length;
+    const completedIds = new Set(
+      guide.milestones
+        .filter((m) => m.playerProgress.some((p) => p.isCompleted))
+        .map((m) => m.id)
+    );
+    const completed = completedIds.size;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const activeMilestone = guide.milestones.find((m) => !completedIds.has(m.id));
+
+    return {
+      guideId: guide.id,
+      guideSlug: guide.slug,
+      guideName: guide.name,
+      total,
+      completed,
+      percent,
+      activeMilestone: activeMilestone
+        ? { id: activeMilestone.id, title: activeMilestone.title, order: activeMilestone.order }
+        : null,
+    };
+  });
+
+  return { success: true, guideProgress };
+}
+
+/**
  * Marquer un milestone comme terminé/non terminé pour l'utilisateur courant.
  */
 export async function toggleMilestoneProgress(guildId: string, milestoneId: string, isCompleted: boolean) {
@@ -380,14 +438,24 @@ export async function upsertMilestone(data: {
   const isGod = await isSuperAdmin();
   if (!isGod) throw new Error("Super-admin requis");
 
-  const { id, guideId, ...rest } = data;
+  // Destructure explicitly to avoid passing unknown fields (sequences, playerProgress, etc.)
+  // to Prisma which would throw on unrecognized fields
+  const { id, guideId, sequences: _seq, playerProgress: _pp, ...rest } = data as any;
 
-  // Ensure required fields have defaults
+  // Ensure required fields have defaults — only valid Prisma fields
   const milestoneData = {
-    ...rest,
+    title: rest.title,
+    subtitle: rest.subtitle ?? null,
+    description: rest.description ?? null,
     chapter: rest.chapter ?? 1,
     chapterLabel: rest.chapterLabel ?? `Chapitre ${rest.chapter ?? 1}`,
     type: (rest.type as any) ?? "DOFUS",
+    accentColor: rest.accentColor ?? "#10b981",
+    imageUrl: rest.imageUrl ?? null,
+    order: rest.order,
+    posX: rest.posX ?? 0,
+    posY: rest.posY ?? 0,
+    isOptional: rest.isOptional ?? false,
   };
 
   const milestone = id
@@ -672,11 +740,43 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
 
   const activeMilestoneIds = new Set<string>();
 
+  // ── HTML entity decoder (server-side, no DOMParser) ─────────────────────
+  const decodeHtmlEntities = (str: string): string =>
+    str
+      .replace(/&amp;/g, "&")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&rsquo;/g, "'")
+      .replace(/&lsquo;/g, "'")
+      .replace(/&mdash;/g, "—")
+      .replace(/&ndash;/g, "–")
+      .replace(/&oelig;/g, "œ")
+      .replace(/&Oelig;/g, "Œ")
+      .replace(/&eacute;/g, "é")
+      .replace(/&Eacute;/g, "É")
+      .replace(/&agrave;/g, "à")
+      .replace(/&Agrave;/g, "À")
+      .replace(/&egrave;/g, "è")
+      .replace(/&Egrave;/g, "È")
+      .replace(/&ugrave;/g, "ù")
+      .replace(/&acirc;/g, "â")
+      .replace(/&ecirc;/g, "ê")
+      .replace(/&icirc;/g, "î")
+      .replace(/&ocirc;/g, "ô")
+      .replace(/&ucirc;/g, "û")
+      .replace(/&ccedil;/g, "ç")
+      .replace(/&#\d+;/g, "") // strip remaining numeric entities
+      .replace(/\s+/g, " ")
+      .trim();
+
   for (const step of steps) {
     const html: string = step.web_text ?? "";
 
     // ── SKIP: Étapes tutoriel Ganymède ─────────────────────────────────────
-    // La première étape de GP0 est toujours le tuto interne "Guide utilisateur Ganymède"
+    // La première étape de GP0 is always the internal tutorial "Guide utilisateur Ganymède"
     const isGanymedeTuto = html.includes("Guide utilisateur Ganymède") ||
       html.includes("guide-utilisateur-ganymede") ||
       (step.name ?? "").includes("Guide utilisateur");
@@ -689,18 +789,26 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
     const stepName = (step.name as string | undefined)?.trim() ?? "";
     if (stepName && !isGarbageTitle(stepName)) rawTitle = stepName;
 
-    // P2: Texte "Objectifs :" dans le HTML (zone rouge Ganymède)
+    // P2: Zone "Objectifs :" dans le HTML — extrait le texte complet en strippant les tags
     if (!rawTitle) {
-      const m = html.match(/Objectifs?\s*:\s*<[^>]*>([^<]{3,100})/i)
-        ?? html.match(/Objectifs?\s*:\s*([^<]{3,100})/i);
-      if (m) rawTitle = m[1].replace(/&amp;/g, "&").replace(/\s+/g, " ").trim().substring(0, 120);
+      // Match everything after "Objectifs :" up to the next block-level closing tag
+      const objMatch = html.match(/Objectifs?\s*:([\s\S]{3,400}?)(?:<\/p>|<\/div>|<br|\n\n)/i);
+      if (objMatch) {
+        let objHtml = objMatch[1];
+        // Preserve image alt/title
+        objHtml = objHtml.replace(/<img[^>]+alt=["']([^"']+)["'][^>]*>/gi, " $1 ");
+        objHtml = objHtml.replace(/<img[^>]+title=["']([^"']+)["'][^>]*>/gi, " $1 ");
+        const plain = objHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        const decoded = decodeHtmlEntities(plain).substring(0, 150);
+        if (decoded.length >= 3 && !isGarbageTitle(decoded)) rawTitle = decoded;
+      }
     }
 
     // P3: Premier texte en <strong> (souvent le titre réel de la phase)
     if (!rawTitle) {
       const m = html.match(/<strong[^>]*>\s*([^<]{4,100})\s*<\/strong>/i);
       if (m) {
-        const candidate = m[1].replace(/&amp;/g, "&").trim();
+        const candidate = decodeHtmlEntities(m[1]);
         if (!isGarbageTitle(candidate)) rawTitle = candidate;
       }
     }
@@ -708,7 +816,7 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
     // P4: Premier <h1>/<h2>/<h3> dans le HTML
     if (!rawTitle) {
       const m = html.match(/<h[123][^>]*>\s*([^<]{4,100})\s*<\/h[123]>/i);
-      if (m) rawTitle = m[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim();
+      if (m) rawTitle = decodeHtmlEntities(m[1].replace(/<[^>]+>/g, ""));
     }
 
     // Fallback séquentiel propre (PAS l'ID Ganymède)

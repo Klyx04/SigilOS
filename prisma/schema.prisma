@@ -283,6 +283,7 @@ model GuildConfig {
   calendarPingRoleIds              String[]                @default([])
   djPingRoleIds                    String[]                @default([])
   songesPingRoleIds                String[]                @default([])
+  pollsPingRoleIds                 String[]                @default([])
 }
 
 model UserSkin {
@@ -1117,6 +1118,7 @@ model Poll {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   outcome            String?
+  externalUrl        String?
   creator            UserProfile  @relation("PollCreator", fields: [creatorId], references: [id])
   guild              GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
   options            PollOption[]
@@ -2193,6 +2195,7 @@ enum ServiceCategory {
   QUETE
   OCRE
   AUTRE
+  TUTORAT
 }
 
 enum ServiceStatus {

@@ -290,7 +290,7 @@ export function MetamobLink({
             </Dialog>
 
             <Dialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
-                <DialogContent className="bg-zinc-950 border-white/10">
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-white/10">
                     <DialogHeader>
                         <DialogTitle className="text-zinc-100">Délier le compte Metamob ?</DialogTitle>
                         <DialogDescription className="text-zinc-400">Vous ne pourrez plus accéder à la Quête Ocre via SigilOS.</DialogDescription>
@@ -301,7 +301,7 @@ export function MetamobLink({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
+ 
             <Dialog open={showLinkDialog} onOpenChange={(open) => {
                 setShowLinkDialog(open);
                 if (!open) { setLinkError(null); setInputPseudo(""); setInputApiKey(""); setForceLink(false); setLinkStep(1); }
@@ -323,8 +323,21 @@ export function MetamobLink({
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <label className="text-sm font-bold text-zinc-200">Clé API V2</label>
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-bold text-zinc-200">Clé API V2</label>
+                                    <a 
+                                        href="https://www.metamob.fr/settings#api" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-xs text-amber-500 hover:text-amber-400 font-semibold flex items-center gap-1 transition-colors"
+                                    >
+                                        Où trouver ma clé API ? <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                </div>
                                 <Input type="password" placeholder="64 caractères..." value={inputApiKey} onChange={(e) => setInputApiKey(e.target.value)} className="h-12 bg-zinc-900/50 border-zinc-800" />
+                                <p className="text-xs text-zinc-500 leading-relaxed">
+                                    Votre clé API est requise pour synchroniser automatiquement vos archimonstres et vos quêtes. Elle est disponible dans l'onglet <strong>API</strong> des paramètres de votre compte Metamob.fr.
+                                </p>
                             </div>
                         )}
                         {linkError && <div className="p-4 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 text-sm font-bold">{linkError}</div>}

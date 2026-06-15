@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import MemberManagement from "@/components/admin/members/member-management";
 import { db } from "@/lib/prisma";
 import { fetchGuildChannels, fetchGuildRoles } from "@/server/discord";
-import { getRelanceHistory } from "@/server/actions/relance-actions";
 
 export const metadata = {
     title: "Gestion des Membres | SigilOS",
@@ -20,11 +19,11 @@ interface AdminMembersPageProps {
 export default async function AdminMembersPage({ params }: AdminMembersPageProps) {
     const { guildId } = await params;
     
-    let ctx, stats, members, guildConfig, channels, roles, historyRes;
+    let ctx, stats, members, guildConfig, channels, roles;
     
     try {
         // Parallel fetching for performance
-        [ctx, stats, members, guildConfig, channels, roles, historyRes] = await Promise.all([
+        [ctx, stats, members, guildConfig, channels, roles] = await Promise.all([
             getUserContext(guildId),
             getGuildMemberStats(guildId),
             getGuildMembers(guildId),
@@ -33,8 +32,7 @@ export default async function AdminMembersPage({ params }: AdminMembersPageProps
                 select: { welcomeBadgeName: true }
             }),
             fetchGuildChannels(guildId),
-            fetchGuildRoles(guildId),
-            getRelanceHistory(guildId)
+            fetchGuildRoles(guildId)
         ]);
     } catch (err) {
         console.error("[CRITICAL] Members Page Fetch Error:", err);
@@ -42,7 +40,6 @@ export default async function AdminMembersPage({ params }: AdminMembersPageProps
     }
 
     const textChannels = (channels || []).filter(c => c.type === 0 || c.type === 5);
-    const history = historyRes.success ? historyRes.data : [];
 
     // RBAC: Need Admin, Member Manage, or Relance Manage permission
     if (!ctx.isAdmin && !ctx.canManageMembers && !ctx.canManageRelance) {
@@ -60,7 +57,6 @@ export default async function AdminMembersPage({ params }: AdminMembersPageProps
                     isSuperAdmin={ctx.isSuperAdmin}
                     channels={textChannels as any}
                     roles={roles || []}
-                    initialHistory={history || []}
                     canManageMembers={ctx.canManageMembers || ctx.isAdmin}
                     canManageRelance={ctx.canManageRelance}
                     currentUserId={ctx.id || ""}

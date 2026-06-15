@@ -59,6 +59,7 @@ interface PollDetailProps {
         discordMessageId: string | null;
         discordChannelId: string | null;
         outcome: string | null;
+        externalUrl: string | null;
         options: PollOption[];
         userVotedOptionIds: string[];
         totalVotes: number;
@@ -258,8 +259,19 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
                         {/* Title & Description */}
                         <div className="space-y-6">
-                            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter leading-[0.95] max-w-2xl">
-                                {poll.title}
+                            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter leading-[0.95] max-w-2xl flex items-center flex-wrap gap-4">
+                                <span>{poll.title}</span>
+                                {poll.externalUrl && (
+                                    <a
+                                        href={poll.externalUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all scale-90"
+                                    >
+                                        <Info className="w-3.5 h-3.5" />
+                                        Consulter le lien
+                                    </a>
+                                )}
                             </h1>
                             {poll.description && (
                                 <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-3xl font-medium">
@@ -411,20 +423,36 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
 
                                             {/* Voters preview */}
                                             {!poll.isAnonymous && option.votes.length > 0 && (
-                                                <div className="flex items-center gap-2 mt-2">
-                                                    <div className="flex -space-x-1.5">
-                                                        {option.votes.slice(0, 4).map((v) => (
-                                                            <div key={v.id} className="w-5 h-5 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[8px] font-black text-zinc-400 uppercase">
-                                                                {v.voterName.charAt(0)}
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center gap-2 mt-2 cursor-pointer">
+                                                                <div className="flex -space-x-1.5">
+                                                                    {option.votes.slice(0, 4).map((v) => (
+                                                                        <div key={v.id} className="w-5 h-5 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[8px] font-black text-zinc-400 uppercase">
+                                                                            {v.voterName.charAt(0)}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                {option.votes.length > 4 && (
+                                                                    <span className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
+                                                                        +{option.votes.length - 4} autres
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                    {option.votes.length > 4 && (
-                                                        <span className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
-                                                            +{option.votes.length - 4} autres
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="bg-zinc-950 border border-white/10 p-3 rounded-xl max-w-xs shadow-2xl">
+                                                            <div className="space-y-1">
+                                                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-white/5 pb-1 mb-1">
+                                                                    Votants ({option.votes.length})
+                                                                </p>
+                                                                <div className="text-[11px] text-zinc-300 font-medium max-h-40 overflow-y-auto pr-1">
+                                                                    {option.votes.map((v) => v.voterName).join(", ")}
+                                                                </div>
+                                                            </div>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                             )}
                                         </div>
                                     </div>

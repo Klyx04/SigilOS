@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
@@ -47,6 +48,11 @@ export default async function DashboardPage({
 }) {
     const { guildId } = await params;
     const user = await getUserContext(guildId);
+
+    // ONBOARDING REDIRECT
+    if (!user.isOnboardingComplete && user.isAdmin) {
+        redirect(`/dashboard/${guildId}/admin/getting-started`);
+    }
 
     // RBAC: Must be authenticated member of the guild
     if (!user.isAuthenticated || !user.isMember) {

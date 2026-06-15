@@ -120,6 +120,19 @@ const GP_PALETTE = [
 ];
 const getGPColor = (ref: string) => GP_PALETTE[(parseInt(ref.replace(/\D/g,""))||0) % GP_PALETTE.length];
 
+// Decode HTML entities in milestone titles stored in DB (e.g. &nbsp; -> space)
+const decodeTitle = (title: string): string =>
+  title
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&rsquo;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const TYPE_CONFIG: Record<string,{label:string;color:string;bg:string}> = {
   DOFUS:      { label:"Dofus",      color:"#f59e0b", bg:"rgba(245,158,11,0.12)" },
   DONJON:     { label:"Donjon",     color:"#a855f7", bg:"rgba(168,85,247,0.12)" },
@@ -200,6 +213,21 @@ const isResourceItem = (name: string, typeAttr: string): boolean => {
     if (n.startsWith(prefix)) return true;
   }
   return false;
+};
+
+// ─── Module-level HTML cache ─────────────────────────────────────────────────
+// processHtml is expensive (sanitize + regex). We cache results to avoid
+// re-processing identical step HTML on every re-render (e.g. each checkbox toggle).
+const _htmlCache = new Map<string, string>();
+const cachedProcessHtml = (html: string): string => {
+  if (!html) return "";
+  const hit = _htmlCache.get(html);
+  if (hit !== undefined) return hit;
+  const result = processHtml(html);
+  // Guard against unbounded memory growth (> 2000 unique steps is unlikely)
+  if (_htmlCache.size > 2000) _htmlCache.clear();
+  _htmlCache.set(html, result);
+  return result;
 };
 
 // Process HTML to make coordinates and entities clickable without breaking tags
@@ -390,6 +418,52 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
     ? steps.filter(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`))
     : steps;
 
+  // ─── Pre-compute step presence (memoized) ─────────────────────────────────
+  // This avoids O(steps × members) computation inside filteredSteps.map().
+  // Re-runs only when guild members, milestones, or steps change — NOT on every
+  // checkbox toggle (checkedSteps is intentionally excluded from deps).
+  const stepPresenceMap = useMemo(() => {
+    const map = new Map<string, {
+      validated: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[];
+      active: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[];
+    }>();
+    const selectedMs = milestones.find(m => m.id === selectedMilestoneId);
+    if (!selectedMs || !uniqueGuildMembers.length) return map;
+
+    steps.forEach(step => {
+      const key = `${seq.subGuideRef}-${step.stepNumber}`;
+      const validated: typeof map extends Map<string, { validated: infer V; active: any }> ? V : never[] = [];
+      const active: typeof map extends Map<string, { validated: any; active: infer A }> ? A : never[] = [];
+
+      uniqueGuildMembers.forEach(member => {
+        const isMsCompleted = member.completedMilestoneIds.has(selectedMilestoneId);
+        let isPastMs = false;
+        if (member.currentMilestoneId) {
+          const memberActiveMs = milestones.find(m => m.id === member.currentMilestoneId);
+          if (memberActiveMs && memberActiveMs.order > selectedMs.order) isPastMs = true;
+        } else if (member.completedMilestoneIds.size > 0) {
+          isPastMs = true;
+        }
+        const isOnOrPastMs = isPastMs || isMsCompleted;
+        const explicitlyValidated = member.completedSteps.has(key);
+
+        if (explicitlyValidated || isOnOrPastMs) {
+          (validated as any[]).push(member);
+        } else {
+          const bookmarkedStep = member.bookmarkedSteps.get(selectedMilestoneId);
+          if (bookmarkedStep) {
+            if (bookmarkedStep === key) (active as any[]).push(member);
+          } else if (member.currentMilestoneId === selectedMilestoneId) {
+            const firstIncompleteStep = steps.find(s => !member.completedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
+            if (firstIncompleteStep?.stepNumber === step.stepNumber) (active as any[]).push(member);
+          }
+        }
+      });
+      map.set(key, { validated: validated as any, active: active as any });
+    });
+    return map;
+  }, [uniqueGuildMembers, milestones, selectedMilestoneId, steps, seq.subGuideRef]);
+
   return (
     <div className="sgc" style={{"--sgc-color": color} as React.CSSProperties}>
       {/* Card Header */}
@@ -574,7 +648,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                           </span>
                           <div className="sgc-step-content ganymade-step-text"
                             onClick={onInteractiveClick}
-                            {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
+                            {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
                           {coords.length > 0 && (
                             <div className="sgc-step-coords">
                               {coords.map((c,i) => {
@@ -619,45 +693,8 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
 
                         const stepIndexInFullList = steps.findIndex(s => s.stepNumber === step.stepNumber);
 
-                        // ── Per-step presence: who validated or is "rendu" here ──
-                        const selectedMs = milestones.find(m => m.id === selectedMilestoneId);
-                        const validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[] = [];
-                        const activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[] = [];
-                        if (selectedMs) {
-                          uniqueGuildMembers.forEach(member => {
-                            const isMsCompleted = member.completedMilestoneIds.has(selectedMilestoneId);
-                            let isPastMs = false;
-                            if (member.currentMilestoneId) {
-                              const memberActiveMs = milestones.find(m => m.id === member.currentMilestoneId);
-                              if (memberActiveMs && memberActiveMs.order > selectedMs.order) {
-                                isPastMs = true;
-                              }
-                            } else if (member.completedMilestoneIds.size > 0) {
-                              isPastMs = true; // Completed the guide
-                            }
-
-                            const isOnOrPastMs = isPastMs || isMsCompleted;
-                            const explicitlyValidated = member.completedSteps.has(key);
-
-                            if (explicitlyValidated || isOnOrPastMs) {
-                              validatedMembers.push(member);
-                            } else {
-                              // Check if member has a bookmarked step for this milestone
-                              const bookmarkedStep = member.bookmarkedSteps.get(selectedMilestoneId);
-                              if (bookmarkedStep) {
-                                if (bookmarkedStep === key) {
-                                  activeMembers.push(member);
-                                }
-                              } else if (member.currentMilestoneId === selectedMilestoneId) {
-                                // Fallback: member is active on their first incomplete step of this milestone
-                                const firstIncompleteStep = steps.find(s => !member.completedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`));
-                                if (firstIncompleteStep?.stepNumber === step.stepNumber) {
-                                  activeMembers.push(member);
-                                }
-                              }
-                            }
-                          });
-                        }
+                        // ── O(1) presence lookup from pre-computed map ──
+                        const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
 
                         return (
                           <div key={step.stepNumber}
@@ -689,7 +726,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                             <div className="flex flex-col flex-1 min-w-0">
                               <div className="sgc-step-content ganymade-step-text"
                                 onClick={onInteractiveClick}
-                                {...{ dangerouslySetInnerHTML: { __html: processHtml(step.web_text ?? step.plainText ?? "") } }}/>
+                                {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
                               {(validatedMembers.length > 0 || activeMembers.length > 0) && (
                                 <div 
                                   role="button"
@@ -1658,7 +1695,7 @@ export default function OptimizedGuideClient({
         if (!targetMs) {
           const containingMs = milestones.filter(m => m.sequences.some(s => s.subGuideRef.toUpperCase() === ref.toUpperCase()));
           if (containingMs.length > 0) {
-            targetMs = containingMs.find(m => m.id !== selected?.id) || containingMs[0];
+            targetMs = containingMs.find(m => m.id === selected?.id) || containingMs[0];
             const sortedSeqs = [...targetMs.sequences].sort((a,b) => a.order - b.order);
             foundSeqIndex = sortedSeqs.findIndex(s => s.subGuideRef.toUpperCase() === ref.toUpperCase());
           }
@@ -1780,7 +1817,7 @@ export default function OptimizedGuideClient({
       if (!targetMs) {
         const containingMs = milestones.filter(m => m.sequences.some(s => s.subGuideRef.toUpperCase() === ref));
         if (containingMs.length > 0) {
-          targetMs = containingMs.find(m => m.id !== selected?.id) || containingMs[0];
+          targetMs = containingMs.find(m => m.id === selected?.id) || containingMs[0];
           const sortedSeqs = [...targetMs.sequences].sort((a,b) => a.order - b.order);
           foundSeqIndex = sortedSeqs.findIndex(s => s.subGuideRef.toUpperCase() === ref);
         }
@@ -2075,7 +2112,7 @@ export default function OptimizedGuideClient({
                   <BookOpen size={14} className="text-emerald-400"/>
                   <span className="guide-name-label font-black text-xs uppercase tracking-widest text-emerald-400">{guide.name}</span>
                   <span className="guide-name-sep text-zinc-600">›</span>
-                  <span className="guide-name-step text-xs font-semibold text-zinc-300">{selected.title}</span>
+                  <span className="guide-name-step text-xs font-semibold text-zinc-300">{decodeTitle(selected.title)}</span>
                   {bookmarkId === selected.id && (
                     <span title="Votre position actuelle"><BookmarkCheck size={14} className="text-amber-400 ml-1.5"/></span>
                   )}
@@ -2138,7 +2175,7 @@ export default function OptimizedGuideClient({
                           title="Aller directement à une étape précise"
                         >
                           <span className="truncate">
-                            {selectedIdx !== -1 ? selectedIdx + 1 : 1}. {selected.title}
+                            {selectedIdx !== -1 ? selectedIdx + 1 : 1}. {decodeTitle(selected.title)}
                           </span>
                           <ChevronDown size={12} className="text-zinc-500 shrink-0" />
                         </button>
@@ -2176,7 +2213,7 @@ export default function OptimizedGuideClient({
                   </div>
                 </div>
                 
-                <h1 className="step-title">{selected.title}</h1>
+                <h1 className="step-title">{decodeTitle(selected.title)}</h1>
                 {selected.subtitle && <p className="step-subtitle">{selected.subtitle}</p>}
 
                 {/* Step presence banner */}

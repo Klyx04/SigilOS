@@ -15,6 +15,7 @@ export const CATEGORY_LABELS = {
     QUETE: "Quête",
     OCRE: "Quête Ocre",
     AUTRE: "Autre",
+    TUTORAT: "Tutorat Classe",
 } as const;
 
 export const CATEGORY_EMOJIS = {
@@ -24,6 +25,7 @@ export const CATEGORY_EMOJIS = {
     QUETE: "📜",
     OCRE: "👑",
     AUTRE: "🔧",
+    TUTORAT: "🎓",
 } as const;
 
 export const CATEGORY_COLORS_HEX = {
@@ -33,6 +35,7 @@ export const CATEGORY_COLORS_HEX = {
     QUETE: 0x8b5cf6,
     OCRE: 0xeab308,
     AUTRE: 0x6b7280,
+    TUTORAT: 0xec4899,
 } as const;
 
 // ---------------------------------------------------------------------------

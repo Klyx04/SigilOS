@@ -910,6 +910,19 @@ function NavItem({
         <Link
             href={item.href}
             prefetch={item.prefetch ?? true}
+            data-tour={
+                item.isDashboard 
+                    ? "sidebar-dashboard" 
+                    : item.href?.endsWith("/missions") 
+                        ? "sidebar-missions" 
+                        : item.href?.endsWith("/ladder") 
+                            ? "sidebar-ladder" 
+                            : item.href?.endsWith("/members") 
+                                ? "sidebar-members" 
+                                : item.href?.endsWith("/calendar") 
+                                    ? "sidebar-calendar" 
+                                    : undefined
+            }
             className={cn(
                 "group relative flex items-center gap-3.5 transition-all duration-500 rounded-2xl border outline-none mx-2 mb-1 overflow-hidden",
                 item.isDashboard 

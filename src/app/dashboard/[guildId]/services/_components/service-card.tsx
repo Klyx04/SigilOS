@@ -29,8 +29,8 @@ const CATEGORY_COLORS: Record<ServiceCategory, { badge: string; glow: string; ho
     METIER: { badge: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400", glow: "hover:border-emerald-500/40", hover: "hover:bg-emerald-500/[0.03]", icon: "text-emerald-400", bg: "from-emerald-500/5 to-transparent" },
     QUETE: { badge: "border-violet-500/40 bg-violet-500/10 text-violet-400", glow: "hover:border-violet-500/40", hover: "hover:bg-violet-500/[0.03]", icon: "text-violet-400", bg: "from-violet-500/5 to-transparent" },
     OCRE: { badge: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400", glow: "hover:border-yellow-500/40", hover: "hover:bg-yellow-500/[0.03]", icon: "text-yellow-400", bg: "from-yellow-500/5 to-transparent" },
+    TUTORAT: { badge: "border-blue-500/40 bg-blue-500/10 text-blue-400", glow: "hover:border-blue-500/40", hover: "hover:bg-blue-500/[0.03]", icon: "text-blue-400", bg: "from-blue-500/5 to-transparent" },
     AUTRE: { badge: "border-zinc-500/40 bg-zinc-500/10 text-zinc-400", glow: "hover:border-zinc-500/40", hover: "hover:bg-zinc-500/[0.03]", icon: "text-zinc-400", bg: "from-zinc-500/5 to-transparent" },
-    TUTORAT: { badge: "border-pink-500/40 bg-pink-500/10 text-pink-400", glow: "hover:border-pink-500/40", hover: "hover:bg-pink-500/[0.03]", icon: "text-pink-400", bg: "from-pink-500/5 to-transparent" },
 };
 
 // ---------------------------------------------------------------------------

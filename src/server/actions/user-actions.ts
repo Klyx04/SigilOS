@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { fetchGuildRoles, fetchGuild, fetchGuildMember } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
+import { DEFAULT_MODULES } from "@/lib/module-types";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -787,7 +788,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal;
     const canViewAuditLogs = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
 
-    const mod = (guildConfig as any)?.modules;
+    // BUGFIX: Fall back to DEFAULT_MODULES when no GuildModules record exists in DB.
+    // Without this, mod = null → !!mod?.X = false → applyModule(false, perm) = false for ALL non-admins.
+    const mod = (guildConfig as any)?.modules ?? DEFAULT_MODULES;
     const bypassModules = isGod || isAdminFinal;
 
     const applyModule = (moduleEnabled: any, perm: boolean): boolean =>

@@ -22,6 +22,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Reinstall sharp for the correct platform (Alpine = linuxmusl-x64)
+# This ensures libvips .so files are present and get traced into .next/standalone
+RUN npm install --os=linux --libc=musl --cpu=x64 sharp
+
 # Generate Prisma Client
 RUN npx prisma generate
 

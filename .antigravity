@@ -1,7 +1,7 @@
 # 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-06-15)
 
 **Branche Active** : `feat/profile-onboarding-and-polish` (Onboarding Wizard, Tour Guidé & Polish UI/UX)
-**Status** : Onboarding Wizard et Tour Guidé fonctionnels et poussés. Corrections de scroll modal Ocre et bouton de retour-en-haut intégrées. Redirection breadcrumb opérationnelle. En attente de PR/CI puis déploiement VPS.
+**Status** : Onboarding Wizard et Tour Guidé fonctionnels et poussés. Correction de l'accès membre si le serveur Dofus n'est pas configuré. Corrections de scroll modal Ocre et bouton de retour-en-haut intégrées. Redirection breadcrumb opérationnelle. En attente de PR/CI puis déploiement VPS.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -121,8 +121,12 @@ git push origin feat/ma-branche
 
 ## ✅ Historique des Sessions (Complètes)
 
-### Phase 9 — GOD Dashboard & Core (2026-02-12 à 2026-02-16)
-... (Sessions previous unchanged) ...
+### Session — Fix Onboarding & Accès Membre (2026-06-15)
+
+- ✅ **Découplage de l'Onboarding** : Modification de `user-actions.ts` pour que `isOnboardingComplete` ne dépende plus de `dofusServerId` mais uniquement de `isRbacConfigured`. Cela évite que les membres se retrouvent avec toutes leurs permissions forcées à `false` ou soient bloqués sur l'écran "Configuration en cours" si l'administrateur n'a pas encore configuré le serveur de jeu.
+- ✅ **Gating Spécifique du Ladder** : Limitation de `canViewLadder` à la présence de `dofusServerId` dans `user-actions.ts` afin que le module de ladder soit inaccessible si aucun serveur Dofus n'est configuré.
+
+---
 
 ### Session — Harmonisation Calendrier & Inscriptions (2026-02-18)
 

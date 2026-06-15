@@ -84,9 +84,9 @@ import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { DailyReportButton } from "@/components/admin/daily-report-button";
-import { RelanceClient } from "@/components/admin/relance/relance-client";
 import { MemberDiscordCharts } from "@/components/admin/members/member-discord-charts";
 import { MemberBlacklist } from "@/components/admin/members/member-blacklist";
+import { sendManualNudge } from "@/server/actions/relance-actions";
 
 // Static color map to avoid Tailwind CSS purging dynamic class names
 const STAT_COLORS = [
@@ -165,7 +165,6 @@ interface MemberManagementProps {
     isSuperAdmin: boolean;
     channels: any[];
     roles: any[];
-    initialHistory: any[];
     canManageMembers: boolean;
     canManageRelance: boolean;
     currentUserId: string;
@@ -219,16 +218,13 @@ export default function MemberManagement({
     isSuperAdmin,
     channels,
     roles,
-    initialHistory,
     canManageMembers,
     canManageRelance,
     currentUserId
 }: MemberManagementProps) {
     const [mounted, setMounted] = useState(false);
-    const [activeTab, setActiveTab] = useState(() => {
-        if (!canManageMembers && canManageRelance) return "relances";
-        return "audit";
-    });
+    const [activeTab, setActiveTab] = useState("audit");
+    const [nudgingUser, setNudgingUser] = useState<string | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -456,7 +452,6 @@ export default function MemberManagement({
                         { id: "audit", label: "Audit & Sync", icon: ShieldCheck, requiresFull: true },
                         { id: "management", label: "Roster & Historique", icon: UserCircle, requiresFull: true },
                         { id: "blacklist", label: "Blacklist (Jeu)", icon: Ban, requiresFull: true },
-                        { id: "relances", label: "Relances Discord", icon: Bell, requiresFull: false },
                     ].map(tab => {
                         const isDisabled = tab.requiresFull && !canManageMembers;
                         
@@ -778,16 +773,43 @@ export default function MemberManagement({
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="pr-8 text-right">
-                                                        {member.hasDashboardProfile ? (
-                                                            <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-violet-600 hover:text-white hover:border-violet-500 transition-all text-[10px] font-black uppercase tracking-widest p-0 w-9" asChild>
-                                                                <a href={`/dashboard/${guildId}/members/${member.profileId}`} target="_blank">
-                                                                    <ArrowUpRight className="w-4 h-4" />
-                                                                </a>
-                                                            </Button>
-                                                        ) : (
-                                                            <div className="w-9 h-9" /> // Placeholder pour garder l'alignement
-                                                        )}
-                                                    </TableCell>
+                                                         {member.hasDashboardProfile ? (
+                                                             <Button variant="outline" size="sm" className="h-9 rounded-xl border-white/5 bg-white/5 hover:bg-violet-600 hover:text-white hover:border-violet-500 transition-all text-[10px] font-black uppercase tracking-widest p-0 w-9" asChild>
+                                                                 <a href={`/dashboard/${guildId}/members/${member.profileId}`} target="_blank">
+                                                                     <ArrowUpRight className="w-4 h-4" />
+                                                                 </a>
+                                                             </Button>
+                                                         ) : (
+                                                             <Button 
+                                                                 variant="outline" 
+                                                                 size="sm" 
+                                                                 className="h-9 rounded-xl border-amber-500/30 bg-amber-500/10 hover:bg-amber-500 hover:text-zinc-950 hover:border-amber-500 transition-all text-[10px] font-black uppercase tracking-widest px-3 gap-1.5"
+                                                                 onClick={async () => {
+                                                                     setNudgingUser(member.discordId);
+                                                                     try {
+                                                                         const res = await sendManualNudge(guildId, member.discordId);
+                                                                         if (res.success) {
+                                                                             toast.success("Relance Discord envoyée avec succès par MP !");
+                                                                         } else {
+                                                                             toast.error(res.error || "Erreur de relance");
+                                                                         }
+                                                                     } catch (err) {
+                                                                         toast.error("Échec de la relance");
+                                                                     } finally {
+                                                                         setNudgingUser(null);
+                                                                     }
+                                                                 }}
+                                                                 disabled={nudgingUser === member.discordId}
+                                                             >
+                                                                 {nudgingUser === member.discordId ? (
+                                                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                 ) : (
+                                                                     <Bell className="w-3.5 h-3.5" />
+                                                                 )}
+                                                                 Relancer
+                                                             </Button>
+                                                         )}
+                                                     </TableCell>
                                                 </TableRow>
                                             ))
                                         )}
@@ -852,19 +874,7 @@ export default function MemberManagement({
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 3: RELANCES --- */}
-                <TabsContent value="relances" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
-                    <div className="bg-zinc-900/40 border border-white/5 rounded-3xl backdrop-blur-xl overflow-hidden shadow-2xl">
-                        <RelanceClient 
-                            guildId={guildId}
-                            channels={channels}
-                            roles={roles}
-                            initialHistory={initialHistory}
-                        />
-                    </div>
-                </TabsContent>
-
-                {/* --- TAB 4: BLACKLIST --- */}
+                {/* --- TAB 3: BLACKLIST --- */}
                 <TabsContent value="blacklist" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
                     <MemberBlacklist guildId={guildId} />
                 </TabsContent>

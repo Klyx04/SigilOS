@@ -167,8 +167,11 @@ export async function updateGuildModules(
 
         // 🛡️ CRITICAL: Invalidate Server-side memory caches
         await invalidateModuleCache(discordGuildId);
-        const { invalidateGuildCache } = await import("./user-actions");
+        const { invalidateGuildCache, flushGuildUserContextCache } = await import("./user-actions");
         await invalidateGuildCache(discordGuildId);
+        // BUGFIX: Flush all user context Redis caches so module changes take effect immediately
+        // (without this, members see stale permissions for up to 60s after a module toggle)
+        await flushGuildUserContextCache(discordGuildId);
 
         await createAuditLog({
             guildId: discordGuildId,

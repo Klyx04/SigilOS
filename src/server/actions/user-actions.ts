@@ -588,7 +588,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             perms.includes(PERMISSIONS.DASHBOARD_LOGIN)
         )
     );
-    const isOnboardingComplete = !!guildConfig?.dofusServerId && isRbacConfigured;
+    const isOnboardingComplete = isRbacConfigured;
     
     const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions || 0) & 0x8n) === 0x8n);
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
@@ -823,7 +823,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canCreateSonges: !!applyModule(!!mod?.songes, !!canCreateSonges),
         canJoinSonges: !!applyModule(!!mod?.songes, !!canJoinSonges),
         canViewOcre: !!applyModule(!!mod?.ocre, !!canViewOcre),
-        canViewLadder: !!applyModule(!!mod?.ladder, !!canViewLadder),
+        canViewLadder: !!applyModule(!!mod?.ladder, !!canViewLadder) && !!guildConfig?.dofusServerId,
         canSyncLadder: !!applyModule(!!mod?.ladderSync, !!isAdminFinal),
         canManualSyncLadder: !!(isGod || mod?.manualLadderSync),
         canViewQuests: !!applyModule(!!mod?.quests, !!canViewQuests),

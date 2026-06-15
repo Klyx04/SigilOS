@@ -7,7 +7,7 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, MapPin, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1081,6 +1081,21 @@ export default function OptimizedGuideClient({
   const [search, setSearch] = useState("");
   const [validating, setValidating] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const container = mainRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      setShowScrollTop(container.scrollTop > 400);
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [selected]);
   
   const [mapModal, setMapModal] = useState<{x:number;y:number;worldId?:number}|null>(null);
   const [activeSeqIndex, setActiveSeqIndex] = useState(0);
@@ -3356,6 +3371,22 @@ export default function OptimizedGuideClient({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Floating Scroll to Top Button */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+            className="fixed bottom-6 right-6 z-[60] p-3 rounded-full bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(16,185,129,0.6)] hover:bg-emerald-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center border border-emerald-400/20"
+            title="Remonter en haut de page"
+          >
+            <ChevronUp className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
     </>
   );

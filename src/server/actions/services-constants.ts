@@ -14,8 +14,8 @@ export const CATEGORY_LABELS = {
     METIER: "Métier",
     QUETE: "Quête",
     OCRE: "Quête Ocre",
+    TUTORAT: "Tutorat",
     AUTRE: "Autre",
-    TUTORAT: "Tutorat Classe",
 } as const;
 
 export const CATEGORY_EMOJIS = {
@@ -24,8 +24,8 @@ export const CATEGORY_EMOJIS = {
     METIER: "🛠️",
     QUETE: "📜",
     OCRE: "👑",
-    AUTRE: "🔧",
     TUTORAT: "🎓",
+    AUTRE: "🔧",
 } as const;
 
 export const CATEGORY_COLORS_HEX = {
@@ -34,8 +34,8 @@ export const CATEGORY_COLORS_HEX = {
     METIER: 0x10b981,
     QUETE: 0x8b5cf6,
     OCRE: 0xeab308,
+    TUTORAT: 0x3b82f6,
     AUTRE: 0x6b7280,
-    TUTORAT: 0xec4899,
 } as const;
 
 // ---------------------------------------------------------------------------

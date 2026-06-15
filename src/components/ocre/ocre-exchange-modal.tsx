@@ -229,7 +229,7 @@ export function OcreExchangeModal({ guildId, hasOcreChannel, trigger }: OcreExch
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="w-[95vw] sm:max-w-4xl h-[90vh] sm:h-[85vh] flex flex-col bg-black/95 border-white/10 p-0 gap-0 overflow-hidden">
+            <DialogContent className="w-[95vw] sm:max-w-4xl h-[90vh] sm:h-[85vh] !flex flex-col bg-black/95 border-white/10 p-0 gap-0 overflow-hidden">
                 <DialogHeader className="p-6 border-b border-white/10 flex-shrink-0">
                     <div className="flex items-center justify-between mr-8">
                         <div>

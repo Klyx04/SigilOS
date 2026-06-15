@@ -1,7 +1,7 @@
-# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-05-20)
+# 🎮 SigilOS — Contexte Projet (Mis à jour : 2026-06-15)
 
-**Branche Active** : `feat/navigation-overhaul` (Navigation Overhaul, SaaS 2026 & Whitelist Hardening)
-**Status** : Audit SaaS 2026 validé. Erreurs TypeScript corrigées (type narrowing). Whitelists Discord durcies pour les pings Calendrier & Dungeon Finder. Images raids (Unsplash) restaurées via correctif CSP.
+**Branche Active** : `feat/profile-onboarding-and-polish` (Onboarding Wizard, Tour Guidé & Polish UI/UX)
+**Status** : Onboarding Wizard et Tour Guidé fonctionnels et poussés. Corrections de scroll modal Ocre et bouton de retour-en-haut intégrées. Redirection breadcrumb opérationnelle. En attente de PR/CI puis déploiement VPS.
 
 > ⚠️ **IMPORTANT : Le terminal est POWERSHELL, ne JAMAIS utiliser `&&`, toujours le point-virgule `;` pour chainer les commandes.**
 
@@ -16,7 +16,8 @@ SigilOS/
 │   │   ├── api/                # Routes API (uploads, discord, health...)
 │   │   │   └── discord/interactions/route.ts  # Boutons Discord (dj:join, dj:leave, poll:vote...)
 │   │   ├── dashboard/          # Dashboard guildes (auth required)
-│   │   │   └── [guildId]/admin/modules/  # Toggle modules par guilde
+│   │   │   ├── [guildId]/admin/modules/  # Toggle modules par guilde
+│   │   │   └── [guildId]/quetes-dofus/   # NEW — Module quêtes & guides interactifs
 │   │   ├── god/                # Super-admin panel (isSuperAdmin only)
 │   │   ├── docs/               # Documentation publique (Membre whitelisté requis)
 │   │   ├── changelog/          # Changelog public
@@ -35,6 +36,13 @@ SigilOS/
 │   │   │   ├── AchievementTracker.tsx    # Tracker succès (icônes claires)
 │   │   │   └── DungeonDirectory.tsx      # Répertoire donjons
 │   │   ├── changelog/          # NEW — Modale Changelog persistante
+│   │   ├── dashboard/          # NEW — Composants Dashboard & Onboarding
+│   │   │   ├── onboarding-wizard.tsx # Assistant onboarding (pseudo Dofus + classe)
+│   │   │   └── onboarding-banner.tsx # Bannière d'avertissement de configuration
+│   │   ├── tour/               # NEW — Spotlight & guide interactif pas à pas
+│   │   │   ├── tour-provider.tsx     # Contexte et état global du tour
+│   │   │   ├── tour-overlay.tsx      # Rendu spotlight & tooltips
+│   │   │   └── tour-completion.tsx   # Modale de félicitations fin de tour
 │   │   ├── profile/            # Profil utilisateur & sélection classes
 │   │   │   └── class-display.tsx  # FIXED — Layout flexbox + Native Scroll (Mobile ready)
 │   │   ├── editor/             # TipTap editor + extensions
@@ -94,7 +102,8 @@ SigilOS/
 |---------|------|
 | `main` | 🔴 Production (`sigilos.fr`) — **SYNC** |
 | `dev` | 🟠 Beta (`beta.sigilos.fr`) — **SYNC** |
-| `bug-fixes-modif` | 👨‍💻 Branche courante — Préparation RELEASE |
+| `feat/profile-onboarding-and-polish` | 👨‍💻 Branche courante — Wizard, Tour & Polish UI/UX |
+| `feat/guides-aesthetics-and-member-modal` | 🛠️ Branche locale — Refonte visuelle des guides (en attente de fusion) |
 
 ### ⚠️ Règle Anti-Crash CI (Dependabot)
 Toujours synchroniser une feat branch avec `dev` **avant** de push si elle a plus de 24h ou si des PRs Dependabot ont été mergées entre-temps. Sans ça, le robot CI crashe avec `EUSAGE` (`npm ci` détecte un `package-lock.json` désynchronisé).
@@ -509,6 +518,10 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - **Sigil-Invader** : Moteur d'arcade complet, Tactical Shop, HUD Boss dynamique.
 - **Profil Bento V2** : Layout harmonisé, validation Ladder temps-réel, liaison Metamob Premium.
 - **World Map HUD** : Coordonnées Néon, Autopilote, filtrage Bounties/Archis.
+- **Onboarding Wizard** : Assistant d'accueil en 2 étapes (Pseudo + Classe) avec validation Ankama et relance automatique.
+- **Membres V2** : Gestion premium des fiches, rôles probatoires et historique d'activité.
+- **Guides Dofus** : Quêtes de Dofus interactives, milestones, guides de boss Volcasaurus, et proxy CDN Ankama.
+- **Sigil-Bomb V2** : Mini-jeu WebSocket JKLM, ghost typing, historique des mots, safety bump et logs de combat.
 
 ---
 
@@ -626,3 +639,40 @@ npm run worker    # Terminal 2 — BullMQ Worker
 - ✅ **Dom de Pin Integration** : Data integrity 100% sur la suite quêtes Dom de Pin. Mapping des images boss haute résolution.
 - ✅ **Dofus Forgelave** : Intégration complète du répertoire de ressources et mapping des récompenses.
 - ✅ **Standardisation Dashboard** : Grille 2x2 harmonisée sur tous les trackers de succès et quêtes.
+
+---
+
+### Session — Guides Dofus — Intégration Complète (2026-05-22 à 2026-06-01)
+
+- ✅ **DofusQuestHub** : Mise en place du Hub interactif regroupant les quêtes légendaires (Argenté, Pourpre, Ébène, Ocre, etc.).
+- ✅ **OptimizedGuideClient** : Chargement fluide avec pré-rendu des étapes de quêtes, des récompenses, et filtres de recherche en temps réel.
+- ✅ **Siphon Images & Proxy VPS** : Intégration d'un proxy local pour contourner les blocages CORS d'Ankama lors du chargement des images d'items/monstres, avec stockage local des assets.
+- ✅ **Legendary Quests Prerequisites** : Suivi fin des prérequis (alignement, niveau, quêtes secondaires) avec indicateurs colorés pour chaque étape.
+- ✅ **Milestone Tracking** : Modèles `GuideMilestone` implémentés côté Prisma pour suivre la progression exacte de chaque membre sur chaque quête.
+
+---
+
+### Session — Mini-Jeux — Refonte Sigil-Bomb (2026-06-01 à 2026-06-05)
+
+- ✅ **WebSocket Server Sync** : Synchronisation temps-réel de l'arène de jeu avec Socket.io, gestion de la vie/timers et transition de tour.
+- ✅ **Syllabe Mechanics** : Validation algorithmique des mots saisis contenant la syllabe imposée en utilisant le dictionnaire normalisé de Dofus.
+- ✅ **Ghost Typing & Arrow** : Broadcast live de la saisie des joueurs actifs avec indicateurs visuels et flèche rotative directionnelle.
+- ✅ **Ladder & Stats** : Calcul automatique du classement des meilleurs joueurs de bombes et stockage des victoires en DB.
+
+---
+
+### Session — Sécurité Actions & Hardening Discord (2026-06-05)
+
+- ✅ **Discord Actions Whitelisting** : Durcissement des salons Discord autorisés pour le bot, validation des signatures d'interactions (SEC-05).
+- ✅ **DJ Reminder Bell** : Notification automatique sur le canal dédié lors de l'inscription à un donjon avec ré-envoi régulier en cas d'inactivité.
+- ✅ **Responsive Modals** : Corrections sur les modals d'échanges Ocre et de missions pour garantir une adaptabilité mobile totale.
+
+---
+
+### Session — Onboarding Wizard, Tour Guidé & Membres V2 (2026-06-10 à 2026-06-15)
+
+- ✅ **Onboarding Wizard** : Modal forcée d'accueil au premier accès au dashboard si le pseudo Dofus ou la classe est manquant, avec validation en temps réel sur le ladder et sans re-validation inutile si le pseudo n'est pas modifié.
+- ✅ **Tour Guidé Interactif** : Intégration de `TourProvider` et `TourOverlay` pour guider pas à pas le membre sur son profil.
+- ✅ **Profile Reminder Banner** : Bannière de relance mensuelle persistante pour encourager les membres à maintenir leurs informations à jour.
+- ✅ **Ocre Scroll Fix** : Correction CSS forçant le scroll interne au sein de la modale d'échange Ocre.
+- ✅ **Redirect 404 Hub** : Redirection des requêtes `/quetes-dofus/guide` vers `/quetes-dofus`.

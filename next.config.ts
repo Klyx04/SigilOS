@@ -113,6 +113,14 @@ const nextConfig: NextConfig = {
       'node_modules/@esbuild/linux-x64',
     ],
   },
+  outputFileTracingIncludes: {
+    // Force inclusion of sharp native binaries (.node + .so) for Alpine Linux (musl)
+    // Without this, Next.js standalone output misses the libvips shared libraries
+    '/**': [
+      './node_modules/sharp/**/*',
+      './node_modules/@img/**/*',
+    ],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '5mb', // Allow larger uploads for R2

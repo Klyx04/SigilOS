@@ -527,9 +527,8 @@ describe("getUserContext — onboarding incomplete", () => {
         
         mockDb.guildConfig.findFirst.mockResolvedValue(
             makeGuildConfig({
-                dofusServerId: null, // Makes onboarding incomplete
                 rolesMapping: {
-                    "role-admin": [PERMISSIONS.DASHBOARD_LOGIN, PERMISSIONS.MISSIONS_PLAY, PERMISSIONS.GAME_VIEW],
+                    "role-admin": [PERMISSIONS.MISSIONS_PLAY, PERMISSIONS.GAME_VIEW],
                 },
             })
         );

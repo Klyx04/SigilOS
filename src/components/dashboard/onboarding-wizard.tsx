@@ -95,11 +95,15 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
 
         setLoading(true);
         try {
-            const res = await updateUserProfile({
+            // Only re-submit pseudoDofus if the user typed it during this session (step 1).
+            // If we started at step 2 (pseudo already valid in DB), skip it to avoid
+            // re-triggering the Ankama ladder check.
+            const payload: Parameters<typeof updateUserProfile>[0] = {
                 guildId,
-                pseudoDofus: pseudo.trim(),
-                classe: selectedClass
-            });
+                classe: selectedClass,
+                ...(pseudo.trim() !== initialPseudo ? { pseudoDofus: pseudo.trim() } : {})
+            };
+            const res = await updateUserProfile(payload);
 
             if (res.success) {
                 toast.success("Profil configuré avec succès ! Bienvenue à bord.");
@@ -139,9 +143,11 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-[100px]" />
 
                         <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center text-center space-y-6">
-                            {/* Step indicators */}
+                            {/* Step indicators — 2 dots for full flow, 1 dot for class-only */}
                             <div className="flex items-center gap-3">
-                                <div className={cn("w-2 h-2 rounded-full transition-all duration-300", step === 1 ? "bg-violet-500 scale-125 shadow-[0_0_8px_#8b5cf6]" : "bg-white/20")} />
+                                {initialStep === 1 && (
+                                    <div className={cn("w-2 h-2 rounded-full transition-all duration-300", step === 1 ? "bg-violet-500 scale-125 shadow-[0_0_8px_#8b5cf6]" : "bg-white/20")} />
+                                )}
                                 <div className={cn("w-2 h-2 rounded-full transition-all duration-300", step === 2 ? "bg-violet-500 scale-125 shadow-[0_0_8px_#8b5cf6]" : "bg-white/20")} />
                             </div>
 
@@ -254,15 +260,17 @@ export function OnboardingWizard({ guildId, userName, show, initialStep = 1, ini
                                     </div>
 
                                     <div className="flex gap-3 max-w-md mx-auto w-full">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setStep(1)}
-                                            className="h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
-                                            disabled={loading}
-                                        >
-                                            Retour
-                                        </Button>
+                                        {initialStep === 1 && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => setStep(1)}
+                                                className="h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                                                disabled={loading}
+                                            >
+                                                Retour
+                                            </Button>
+                                        )}
                                         <Button
                                             type="button"
                                             onClick={handleClassSubmit}

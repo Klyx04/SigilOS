@@ -132,14 +132,16 @@ export default async function DashboardPage({
                     </h1>
                 </header>
 
-                {/* --- 1. HERO SECTION: MISSIONS --- */}
-                <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-                    <MissionsHero 
-                        guildId={guildId} 
-                        totalMissionsValidated={guildStats?.totalMissionsValidated}
-                        totalXp={guildStats?.totalXp}
-                    />
-                </section>
+                {/* --- 1. HERO SECTION: MISSIONS (RBAC guarded) --- */}
+                {user.canViewMissions && (
+                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                        <MissionsHero 
+                            guildId={guildId} 
+                            totalMissionsValidated={guildStats?.totalMissionsValidated}
+                            totalXp={guildStats?.totalXp}
+                        />
+                    </section>
+                )}
 
                 {/* --- 2. ACTIVITY & GALLERY ROW --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

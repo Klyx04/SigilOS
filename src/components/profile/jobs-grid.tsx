@@ -106,11 +106,31 @@ export function JobsGrid({
                             </DialogHeader>
                             <div className="flex-1 overflow-hidden p-6">
                                 <Tabs defaultValue="Récolte" className="h-full flex flex-col">
-                                    <TabsList className="grid w-full grid-cols-4 mb-6 bg-zinc-900/50">
-                                        <TabsTrigger value="Récolte">Récolte</TabsTrigger>
-                                        <TabsTrigger value="Artisanat">Artisanat</TabsTrigger>
-                                        <TabsTrigger value="Forgemagie">Forgemagie</TabsTrigger>
-                                        <TabsTrigger value="Élevage">Élevage</TabsTrigger>
+                                    <TabsList className="grid w-full grid-cols-4 mb-6 bg-zinc-900/40 p-1 border border-zinc-800/80 h-11 rounded-xl">
+                                        <TabsTrigger 
+                                            value="Récolte"
+                                            className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                        >
+                                            Récolte
+                                        </TabsTrigger>
+                                        <TabsTrigger 
+                                            value="Artisanat"
+                                            className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                        >
+                                            Artisanat
+                                        </TabsTrigger>
+                                        <TabsTrigger 
+                                            value="Forgemagie"
+                                            className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                        >
+                                            Forgemagie
+                                        </TabsTrigger>
+                                        <TabsTrigger 
+                                            value="Élevage"
+                                            className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                        >
+                                            Élevage
+                                        </TabsTrigger>
                                     </TabsList>
                                     {Object.entries(DOFUS_JOBS).map(([category, categoryJobs]) => (
                                         <TabsContent key={category} value={category} className="flex-1 overflow-hidden mt-0">
@@ -195,28 +215,28 @@ export function JobsGrid({
             {jobs.length > 0 && (
                 <div className="flex-1 mt-2 mb-6">
                     <Tabs defaultValue="Récolte" className="w-full flex flex-col">
-                        <TabsList className="grid w-full grid-cols-4 bg-zinc-950/40 border border-white/5 p-1 h-11 rounded-xl mb-6">
+                        <TabsList className="grid w-full grid-cols-4 bg-zinc-950/40 border border-white/10 p-1 h-11 rounded-xl mb-6">
                             <TabsTrigger 
                                 value="Récolte"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.25)]"
                             >
                                 Récolte
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Artisanat"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.25)]"
                             >
                                 Artisanat
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Forgemagie"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.25)]"
                             >
                                 Forgemagie
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="Élevage"
-                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-400 data-[state=active]:shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]"
+                                className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/10 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.25)]"
                             >
                                 Élevage
                             </TabsTrigger>

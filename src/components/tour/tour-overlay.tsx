@@ -85,46 +85,49 @@ export function TourOverlay() {
 
     const placement = activeStepData.placement;
 
-    if (placement === "bottom") {
+    // Auto-flip placement if there is not enough space
+    let finalPlacement = placement;
+    if (placement === "bottom" && y + height + margin + tooltipHeight > windowSize.height) {
+        if (y - tooltipHeight - margin > 0) {
+            finalPlacement = "top";
+        }
+    } else if (placement === "top" && y - tooltipHeight - margin < 0) {
+        if (y + height + margin + tooltipHeight < windowSize.height) {
+            finalPlacement = "bottom";
+        }
+    }
+
+    if (finalPlacement === "bottom") {
         tooltipStyle = {
-            top: y + height + margin,
+            top: Math.max(margin, Math.min(windowSize.height - tooltipHeight - margin, y + height + margin)),
             left: Math.max(margin, Math.min(windowSize.width - tooltipWidth - margin, x + width / 2 - tooltipWidth / 2)),
         };
-    } else if (placement === "top") {
+    } else if (finalPlacement === "top") {
         tooltipStyle = {
-            top: y - tooltipHeight - margin,
+            top: Math.max(margin, Math.min(windowSize.height - tooltipHeight - margin, y - tooltipHeight - margin)),
             left: Math.max(margin, Math.min(windowSize.width - tooltipWidth - margin, x + width / 2 - tooltipWidth / 2)),
         };
-    } else if (placement === "right") {
+    } else if (finalPlacement === "right") {
         tooltipStyle = {
-            top: Math.max(margin, Math.min(windowSize.height - tooltipHeight - margin, y + height / 2 - 90)),
-            left: x + width + margin,
+            top: Math.max(margin, Math.min(windowSize.height - tooltipHeight - margin, y + height / 2 - tooltipHeight / 2)),
+            left: Math.max(margin, Math.min(windowSize.width - tooltipWidth - margin, x + width + margin)),
         };
-        // Fallback for mobile
-        if (windowSize.width < 768) {
-            tooltipStyle = {
-                bottom: margin,
-                left: margin,
-                right: margin,
-                width: "auto",
-                top: "auto"
-            };
-        }
-    } else if (placement === "left") {
+    } else if (finalPlacement === "left") {
         tooltipStyle = {
-            top: Math.max(margin, Math.min(windowSize.height - tooltipHeight - margin, y + height / 2 - 90)),
-            left: x - tooltipWidth - margin,
+            top: Math.max(margin, Math.min(windowSize.height - tooltipHeight - margin, y + height / 2 - tooltipHeight / 2)),
+            left: Math.max(margin, Math.min(windowSize.width - tooltipWidth - margin, x - tooltipWidth - margin)),
         };
-        // Fallback for mobile
-        if (windowSize.width < 768) {
-            tooltipStyle = {
-                bottom: margin,
-                left: margin,
-                right: margin,
-                width: "auto",
-                top: "auto"
-            };
-        }
+    }
+
+    // Fallback for mobile (always dock to the bottom)
+    if (windowSize.width < 768) {
+        tooltipStyle = {
+            bottom: margin,
+            left: margin,
+            right: margin,
+            width: "auto",
+            top: "auto"
+        };
     }
 
     const isFirstStepGlobal = tourPhase === "profile" && currentStep === 1;
@@ -172,9 +175,9 @@ export function TourOverlay() {
             <div
                 className={cn(
                     "absolute pointer-events-auto transition-all duration-300 w-full max-w-[320px] sm:max-w-[340px] z-[120]",
-                    windowSize.width < 768 && (placement === "right" || placement === "left") ? "fixed" : ""
+                    windowSize.width < 768 ? "fixed" : ""
                 )}
-                style={windowSize.width >= 768 ? tooltipStyle : (placement === "right" || placement === "left" ? {} : tooltipStyle)}
+                style={tooltipStyle}
             >
                 <motion.div
                     key={`${tourPhase}-${currentStep}`}

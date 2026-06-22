@@ -73,9 +73,14 @@ export async function processRegistration(guildId: string, eventId: string, user
 
     // RBAC: Raids require RAID_MEMBER permission to participate
     if (event.type === "RAID_OFFICIAL") {
-        const { getUserContext } = await import("@/server/actions/user-actions");
-        const ctx = await getUserContext(guildId);
-        if (!ctx.isAdmin && !ctx.canJoinRaid) {
+        const discordUserId = await getDiscordId(userId);
+        if (!discordUserId) {
+            return { success: false, error: "Compte Discord non lié à SigilOS." };
+        }
+        const { internalCheckPermission } = await import("@/server/actions/user-actions");
+        const { PERMISSIONS } = await import("@/lib/permissions");
+        const hasPermission = await internalCheckPermission(guildId, discordUserId, PERMISSIONS.RAID_MEMBER);
+        if (!hasPermission) {
             return { success: false, error: "Permission requise: Participation aux Raids" };
         }
     }
@@ -317,7 +322,12 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             components: components
         };
 
-        const channel = await fetchChannel(guildConfig.calendarNotifyChannelId);
+        let channel = null;
+        try {
+            channel = await fetchChannel(guildConfig.calendarNotifyChannelId);
+        } catch (err) {
+            console.error("[Calendar Service] fetchChannel failed, falling back to text channel:", err);
+        }
         let messageId: string | null = null;
         let finalChannelId = guildConfig.calendarNotifyChannelId;
 

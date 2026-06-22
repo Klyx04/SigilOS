@@ -497,16 +497,22 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
 
         // Auto-publish if requested
         let discordSent = false;
+        let discordError: string | null = null;
         if (publishOnDiscord) {
             const { publishDiscordEvent } = await import("@/server/calendar-service"); // Lazy import to avoid cycle
             const result = await publishDiscordEvent(guildId, event.id);
-            if (result.success) discordSent = true;
+            if (result.success) {
+                discordSent = true;
+            } else {
+                discordError = result.error || "Erreur de publication Discord";
+                console.error("[Calendar] Auto-publish failed:", result.error);
+            }
         }
 
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         revalidatePath(`/dashboard/${guildId}/calendar`);
-        return { success: true, eventId: event.id, discordSent };
+        return { success: true, eventId: event.id, discordSent, discordError };
     } catch (error) {
         console.error("[Calendar] createEvent Error:", error);
         return { success: false, error: "Erreur lors de la création de l'événement" };

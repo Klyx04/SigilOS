@@ -791,6 +791,12 @@ export async function createForumPost(
         body.message.embeds = [embed];
     }
 
+    // IMPORTANT: For Forum Posts, components (buttons) must go in body.message.components
+    // Unlike regular channels where they go in the top-level body.components
+    if (options?.components) {
+        body.message.components = options.components;
+    }
+
     try {
         const res = await fetchWithRetry(`https://discord.com/api/v10/channels/${channelId}/threads`, {
             method: "POST",

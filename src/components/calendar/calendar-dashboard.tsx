@@ -228,7 +228,11 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     const handleCreate = async (data: GuildEventInput) => {
         const result = await createCalendarEvent(guildId, data);
         if (result.success) {
-            toast.success("Événement créé !");
+            if ((result as any).discordError) {
+                toast.warning(`Événement créé, mais la publication Discord a échoué : ${(result as any).discordError}`);
+            } else {
+                toast.success("Événement créé !");
+            }
             setIsCreateOpen(false);
             fetchEvents();
         } else {

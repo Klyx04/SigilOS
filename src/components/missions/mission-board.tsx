@@ -26,6 +26,7 @@ interface MissionBoardProps {
     guildId: string; // Discord Guild ID for uploads
     isRestricted?: boolean;
     availableAt?: string;
+    vitrineMode?: boolean;
 }
 
 const STATUS_FILTERS: { label: string; value: 'ALL' | 'PENDING' | 'VALIDATED'; icon?: React.ComponentType<{ className?: string }> }[] = [
@@ -47,7 +48,7 @@ const CATEGORY_FILTERS: { label: string; value: MissionCategory; icon?: React.Co
 type MissionPool = 'CLASSIQUES' | 'SPECIALES';
 
 
-export function MissionBoard({ missions, currentUserId, guildId, isRestricted, availableAt }: MissionBoardProps) {
+export function MissionBoard({ missions, currentUserId, guildId, isRestricted, availableAt, vitrineMode = false }: MissionBoardProps) {
     const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState<MissionCategory | 'ALL' | 'PENDING' | 'VALIDATED'>('ALL');
     const [missionPool, setMissionPool] = useState<MissionPool>('CLASSIQUES');
@@ -137,26 +138,30 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                             })}
                         </div>
 
-                        <div className="h-4 w-px bg-white/10 mx-1" />
+                        {!vitrineMode && (
+                            <>
+                                <div className="h-4 w-px bg-white/10 mx-1" />
 
-                        {/* Status Toggle */}
-                        <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/5 rounded-full shrink-0">
-                            {STATUS_FILTERS.map(f => {
-                                const isActive = selectedCategory === f.value;
-                                return (
-                                    <button
-                                        key={f.value}
-                                        onClick={() => setSelectedCategory(f.value)}
-                                        className={cn(
-                                            "px-3 py-1.5 text-[10px] font-bold rounded-full transition-all uppercase tracking-wider",
-                                            isActive ? "bg-zinc-100 text-zinc-950 shadow-md" : "text-zinc-500 hover:text-white"
-                                        )}
-                                    >
-                                        {f.label}
-                                    </button>
-                                )
-                            })}
-                        </div>
+                                {/* Status Toggle */}
+                                <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/5 rounded-full shrink-0">
+                                    {STATUS_FILTERS.map(f => {
+                                        const isActive = selectedCategory === f.value;
+                                        return (
+                                            <button
+                                                key={f.value}
+                                                onClick={() => setSelectedCategory(f.value)}
+                                                className={cn(
+                                                    "px-3 py-1.5 text-[10px] font-bold rounded-full transition-all uppercase tracking-wider",
+                                                    isActive ? "bg-zinc-100 text-zinc-950 shadow-md" : "text-zinc-500 hover:text-white"
+                                                )}
+                                            >
+                                                {f.label}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Right: Filters & Tools */}
@@ -235,6 +240,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                             onInterestClick={handleInterestClick}
                             isRestricted={isRestricted}
                             linkedEvent={(mission as any).linkedEvent}
+                            vitrineMode={vitrineMode}
                         />
                     </div>
                 ))}

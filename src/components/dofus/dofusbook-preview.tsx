@@ -2,21 +2,20 @@
 
 import { useState, useEffect, useMemo, memo } from "react";
 import { getClassName, processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
-import { ExternalLink, Users, Loader2, Zap, Move, Eye, Heart, Shield, Sparkles } from "lucide-react";
+import { ExternalLink, Users, Loader2, Zap, Move, Eye, Heart, Shield, Sparkles, RefreshCw } from "lucide-react";
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import { getClassColor } from "@/components/shared/class-icon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import type { DofusbookItem } from "@/lib/dofusbook-utils";
+import { toast } from "sonner";
 
 // Mini-popover showing a panoplie's equipped items with DofusDB links
 type ClothData = { name: string; count: number; total: number; clothItems?: DofusbookItem[]; bonuses?: Record<string, number> };
-
-import { RefreshCw } from "lucide-react";
-import { toast } from "sonner";
 
 const statLabelMapping: Record<string, string> = {
     "pa": "PA", "pm": "PM", "po": "PO", "vi": "Vitalité", "vit": "Vitalité",
@@ -26,7 +25,7 @@ const statLabelMapping: Record<string, string> = {
     "cc": "% Critique", "pp": "Prospection", "invo": "Invocation", "so": "Soin",
     "dnf": "Do Neutre", "dtf": "Do Terre", "dff": "Do Feu", "def": "Do Eau",
     "daf": "Do Air", "df": "Dommages", "dc": "Do Crit.", "dp": "Do Pous.",
-    "da": "% Do Armes", "ds": "% Do Sorts", "dm": "% Do Mêlée", "di": "% Do Dist."
+    "da": "% Do Armes", "ds": "% Do Sorts", "dm": "% Do Mêlée", "di": "% Do Dist.", "dd": "% Do Dist."
 };
 
 function ClothBadge({ cloth }: { cloth: ClothData }) {
@@ -94,7 +93,7 @@ interface DofusbookPreviewProps {
     className?: string;
     tags?: string[];
     classId?: number;
-    initialData?: DofusbookPreviewData; // New prop for cached data
+    initialData?: DofusbookPreviewData;
 }
 
 const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
@@ -120,8 +119,6 @@ const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
         "9": "bouclier",
         "15": "familier"
     };
-
-
     
     for (const [slotKey, fmStats] of Object.entries(smithmagic)) {
         if (!fmStats || typeof fmStats !== "object") continue;
@@ -152,11 +149,10 @@ const getIconId = (id: number) => id === 19 ? 20 : id;
 export const DofusbookPreview = memo(function DofusbookPreview({ url, title, className, tags = [], classId, initialData }: DofusbookPreviewProps) {
     const [data, setData] = useState<DofusbookPreviewData | null>(initialData || null);
     const [loading, setLoading] = useState(!initialData);
+    const [lastRefresh, setLastRefresh] = useState(0);
 
     const idMatch = url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
     const buildId = idMatch ? (idMatch[1] || idMatch[2]) : null;
-
-    const [lastRefresh, setLastRefresh] = useState(0);
 
     const fetchBuild = async (force: boolean = false) => {
         if (!buildId) return;
@@ -178,7 +174,6 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                 headers: force ? { "Cache-Control": "no-cache" } : {}
             });
             
-            // Check for throttling from server
             if (response.headers.get("X-Throttled") === "true") {
                 toast.info("Données déjà à jour (cache récent)");
             }
@@ -208,7 +203,6 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
     const hasData = !!data;
 
-    // Memoize guessed class and color to avoid recalculating on every scroll/hover
     const { guessedClassId, glowColor } = useMemo(() => {
         const searchString = `${title} ${url.split('/').pop()} ${tags.join(' ')}`.toLowerCase();
         const classesMap: Record<string, number> = {
@@ -288,69 +282,71 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
 
                 {/* Equipment Grid or Fallback UI */}
                 <div className="relative aspect-square w-full bg-black/40 p-3 rounded-[2.5rem] border border-white/5 flex items-center justify-center shadow-2xl">
-                    {/* Ambient glow in background */}
                     <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] flex items-center justify-center pointer-events-none z-0">
                         {(data?.classId || guessedClassId) > 0 && (
                             <div className="absolute w-24 h-24 rounded-full blur-[40px] opacity-25" style={{ backgroundColor: classArtColor }} />
                         )}
                     </div>
 
-                    {hasData && data ? (
-                        <div className="grid grid-cols-6 grid-rows-5 gap-1.5 relative z-10 w-full h-full p-1.5">
-                            {/* Class art in the center of the grid, highly visible in foreground */}
-                            {(data?.classId || guessedClassId) > 0 && (
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                    <NextImage
-                                        src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
-                                        alt={data?.className || "Class"}
-                                        width={75}
-                                        height={75}
-                                        className="object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.15)] opacity-85 group-hover:scale-105 transition-transform duration-500"
-                                    />
-                                </div>
-                            )}
-                            {[
-                                { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
-                                { s: 'ch', c: 6, r: 1 }, { s: 'ca', c: 6, r: 2 }, { s: 'ce', c: 6, r: 3 }, { s: 'bo', c: 6, r: 4 },
-                                { s: 'ar', c: 3, r: 4 }, { s: 'fa', c: 4, r: 4 },
-                                { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
-                                { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
-                            ].map((slot) => {
-                                const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
-                                return (
-                                    <div
-                                        key={slot.s}
-                                        className={cn(
-                                            "w-[34px] h-[34px] rounded-lg flex items-center justify-center p-1 relative group/mini-slot",
-                                            item ? "bg-zinc-800 border border-white/10 hover:bg-zinc-700 hover:border-emerald-500/30 transition-colors" : "bg-white/[0.03] border border-white/5 opacity-40"
-                                        )}
-                                        style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
-                                    >
-                                        {item && (
-                                            <>
-                                                <NextImage
-                                                    src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
-                                                    alt={item.name}
-                                                    width={32}
-                                                    height={32}
-                                                    className="object-contain"
-                                                    unoptimized
-                                                />
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 px-2 py-1 rounded-md text-[9px] font-bold text-white opacity-0 group-hover/mini-slot:opacity-100 transition-all shadow-xl z-50 whitespace-nowrap pointer-events-none">
-                                                    {item.name}
-                                                </div>
-                                            </>
-                                        )}
+                    <TooltipProvider>
+                        {hasData && data ? (
+                            <div className="grid grid-cols-6 grid-rows-5 gap-1.5 relative z-10 w-full h-full p-1.5">
+                                {(data?.classId || guessedClassId) > 0 && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                        <NextImage
+                                            src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
+                                            alt={data?.className || "Class"}
+                                            width={75}
+                                            height={75}
+                                            className="object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.15)] opacity-85 group-hover:scale-105 transition-transform duration-500"
+                                        />
                                     </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        /* No cached data — show class art as clean placeholder, no error message */
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <ExternalLink className="w-5 h-5 text-zinc-600 opacity-60" />
-                        </div>
-                    )}
+                                )}
+                                {[
+                                    { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
+                                    { s: 'ch', c: 6, r: 1 }, { s: 'ca', c: 6, r: 2 }, { s: 'ce', c: 6, r: 3 }, { s: 'bo', c: 6, r: 4 },
+                                    { s: 'ar', c: 3, r: 4 }, { s: 'fa', c: 4, r: 4 },
+                                    { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
+                                    { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
+                                ].map((slot) => {
+                                    const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
+                                    return (
+                                        <Tooltip key={slot.s}>
+                                            <TooltipTrigger asChild>
+                                                <div
+                                                    className={cn(
+                                                        "w-[34px] h-[34px] rounded-lg flex items-center justify-center p-1 relative group/mini-slot",
+                                                        item ? "bg-zinc-800 border border-white/10 hover:bg-zinc-700 hover:border-emerald-500/30 transition-colors cursor-pointer" : "bg-white/[0.03] border border-white/5 opacity-40"
+                                                    )}
+                                                    style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
+                                                >
+                                                    {item && (
+                                                        <NextImage
+                                                            src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
+                                                            alt={item.name}
+                                                            width={32}
+                                                            height={32}
+                                                            className="object-contain"
+                                                            unoptimized
+                                                        />
+                                                    )}
+                                                </div>
+                                            </TooltipTrigger>
+                                            {item && (
+                                                <TooltipContent className="bg-zinc-950 border-white/10 text-white p-2 rounded-xl text-[10px] font-bold shadow-2xl max-w-[200px]">
+                                                    {item.name}
+                                                </TooltipContent>
+                                            )}
+                                        </Tooltip>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <ExternalLink className="w-5 h-5 text-zinc-600 opacity-60" />
+                            </div>
+                        )}
+                    </TooltipProvider>
                 </div>
 
                 {/* Tags */}
@@ -375,340 +371,376 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             <DialogTrigger asChild>
                 {cardContent}
             </DialogTrigger>
-            <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] bg-zinc-950 border-white/10 p-0 overflow-y-auto custom-scrollbar rounded-[2rem] md:rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.8)]">
-                <div className="relative p-5 sm:p-8 lg:p-12 flex flex-col lg:flex-row gap-8 lg:gap-12">
-                    {/* Background Class Glow */}
-                    <div
-                        className="absolute inset-x-0 top-0 h-96 opacity-10 blur-[120px] pointer-events-none transition-all duration-1000"
-                        style={{ backgroundColor: classArtColor }}
-                    />
+            <DialogContent className="max-w-[1250px] w-[95vw] max-h-[95vh] bg-zinc-950 border-white/5 p-0 overflow-y-auto custom-scrollbar rounded-[2.5rem] md:rounded-[3.5rem] shadow-[0_0_100px_rgba(0,0,0,0.9)]">
+                <TooltipProvider>
+                    <div className="relative p-6 sm:p-8 lg:p-12 flex flex-col lg:flex-row gap-8 lg:gap-12">
+                        {/* Background Class Glow */}
+                        <div
+                            className="absolute inset-x-0 top-0 h-[450px] opacity-15 blur-[130px] pointer-events-none transition-all duration-1000"
+                            style={{ backgroundColor: classArtColor }}
+                        />
 
-                    {/* Left: Large Visual & Resists */}
-                    <div className="w-full lg:w-[360px] flex flex-col gap-6 lg:gap-8 relative z-10">
-                        <div className="relative aspect-square w-full rounded-[2rem] md:rounded-[3rem] bg-black/60 border border-white/5 flex items-center justify-center p-4 sm:p-8 overflow-hidden shadow-inner">
-                            {data && (data?.classId || guessedClassId) > 0 && (
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                    <NextImage
-                                        src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
-                                        alt={data?.className || "Class"}
-                                        width={90}
-                                        height={90}
-                                        className="object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] opacity-85 scale-105"
-                                    />
+                        {/* Left: Large Visual & Resists */}
+                        <div className="w-full lg:w-[380px] flex flex-col gap-6 lg:gap-8 relative z-10">
+                            <div className="relative aspect-square w-full rounded-[2.5rem] md:rounded-[3.5rem] bg-black/50 border border-white/5 flex items-center justify-center p-4 sm:p-8 overflow-hidden shadow-inner">
+                                {data && (data?.classId || guessedClassId) > 0 && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                        <NextImage
+                                            src={`/assets/dofus/classes/${getIconId(data?.classId || guessedClassId)}.png`}
+                                            alt={data?.className || "Class"}
+                                            width={100}
+                                            height={100}
+                                            className="object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.15)] opacity-40 scale-110"
+                                        />
+                                    </div>
+                                )}
+
+                                {data ? (
+                                    <div className="grid grid-cols-6 grid-rows-5 gap-2.5 sm:gap-4 relative z-10 w-full h-full">
+                                        {[
+                                            { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
+                                            { s: 'ch', c: 6, r: 1 }, { s: 'ca', c: 6, r: 2 }, { s: 'ce', c: 6, r: 3 }, { s: 'bo', c: 6, r: 4 },
+                                            { s: 'ar', c: 3, r: 4 }, { s: 'fa', c: 4, r: 4 },
+                                            { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
+                                            { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
+                                        ].map((slot) => {
+                                            const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
+                                            return (
+                                                <Tooltip key={slot.s}>
+                                                    <TooltipTrigger asChild>
+                                                        <a
+                                                            href={item ? `https://dofusdb.fr/fr/database/items?q=${encodeURIComponent(item.name)}` : "#"}
+                                                            target={item ? "_blank" : undefined}
+                                                            rel="noopener noreferrer"
+                                                            className={cn(
+                                                                "w-[42px] h-[42px] sm:w-[54px] sm:h-[54px] rounded-xl sm:rounded-2xl flex items-center justify-center p-1.5 sm:p-2.5 relative transition-all duration-300 group/modal-slot",
+                                                                item ? "bg-zinc-900/90 border border-white/10 shadow-2xl hover:border-emerald-500/50 hover:bg-zinc-800 hover:scale-105" : "bg-white/[0.01] border border-white/5 opacity-20 cursor-default"
+                                                            )}
+                                                            style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
+                                                            onClick={(e) => !item && e.preventDefault()}
+                                                        >
+                                                            {item && (
+                                                                <NextImage
+                                                                    src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
+                                                                    alt={item.name}
+                                                                    width={48}
+                                                                    height={48}
+                                                                    className="object-contain drop-shadow-xl"
+                                                                    unoptimized
+                                                                />
+                                                            )}
+                                                        </a>
+                                                    </TooltipTrigger>
+                                                    {item && (
+                                                        <TooltipContent className="bg-zinc-950 border border-white/10 text-white p-3 rounded-xl shadow-2xl max-w-[240px] text-center" side="top">
+                                                            <p className="font-bold text-xs">{item.name}</p>
+                                                            <span className="text-[10px] text-emerald-400 font-semibold block mt-1">→ Ouvrir dans DofusDB</span>
+                                                        </TooltipContent>
+                                                    )}
+                                                </Tooltip>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center p-8">
+                                        {guessedClassId > 0 && (
+                                            <NextImage
+                                                src={`/assets/dofus/classes/${getIconId(guessedClassId)}.png`}
+                                                alt="Classe"
+                                                fill
+                                                className="object-contain opacity-25 p-12"
+                                            />
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {data && (
+                                <div className="flex flex-col gap-2.5 bg-zinc-900/40 backdrop-blur-md p-6 rounded-[2rem] border border-white/5 shadow-xl">
+                                    <h4 className="text-[10px] font-black text-white/40 uppercase tracking-wider mb-2 flex items-center gap-2"><Shield className="w-3.5 h-3.5"/> RÉSISTANCES</h4>
+                                    {[
+                                        { res: 'neutre', val: data.resists?.neutre ?? 0, label: 'Neutre', icon: (
+                                            <svg viewBox="0 0 24 24" fill="none" className="w-[14px] h-[14px] drop-shadow-md">
+                                                <circle cx="12" cy="12" r="11" fill="#E2E2E2" stroke="#000" strokeWidth="1" />
+                                                <path d="M12 1A11 11 0 0 0 12 23A5.5 5.5 0 0 1 12 12A5.5 5.5 0 0 0 12 1Z" fill="#111" />
+                                                <circle cx="12" cy="6.5" r="2" fill="#111" />
+                                                <circle cx="12" cy="17.5" r="2" fill="#E2E2E2" />
+                                            </svg>
+                                        ), barColor: "bg-[#E2E2E2]" },
+                                        { res: 'terre', val: data.resists?.terre ?? 0, label: 'Terre', icon: (
+                                            <svg viewBox="0 0 24 24" fill="#9D753E" className="w-[14px] h-[14px] drop-shadow-md">
+                                               <path d="M12 24L5 12H9V0H15V12H19L12 24Z" />
+                                            </svg>
+                                        ), barColor: "bg-[#9D753E]" },
+                                        { res: 'feu', val: data.resists?.feu ?? 0, label: 'Feu', icon: (
+                                            <svg viewBox="0 0 24 24" fill="#E33E19" className="w-[14px] h-[14px] drop-shadow-md">
+                                               <path d="M12 0C12 0 3 8 3 15C3 20 7 24 12 24C17 24 21 20 21 15C21 8 12 0 12 0ZM12 20C10 20 8 18 8 16C8 14 12 10 12 10C12 10 16 14 16 16C16 18 14 20 12 20Z" />
+                                            </svg>
+                                        ), barColor: "bg-[#E33E19]" },
+                                        { res: 'eau', val: data.resists?.eau ?? 0, label: 'Eau', icon: (
+                                            <svg viewBox="0 0 24 24" fill="#5AC2FF" className="w-[14px] h-[14px] drop-shadow-md">
+                                               <path d="M12 0C12 0 4 10 4 16C4 20.418 7.582 24 12 24C16.418 24 20 20.418 20 16C20 10 12 0 12 0Z" />
+                                            </svg>
+                                        ), barColor: "bg-[#5AC2FF]" },
+                                        { res: 'air', val: data.resists?.air ?? 0, label: 'Air', icon: (
+                                            <svg viewBox="0 0 24 24" fill="#88C72B" className="w-[14px] h-[14px] drop-shadow-md">
+                                               <path d="M17 19C19.761 19 22 16.761 22 14C22 11.239 19.761 9 17 9C16.5 6 14 3 11 3C7 3 4 6 4 10C1.79 10 0 11.79 0 14C0 16.21 1.79 18 4 18H17Z" />
+                                            </svg>
+                                        ), barColor: "bg-[#88C72B]" },
+                                    ].map(({ res, val, icon, label, barColor }) => {
+                                        const pct = Math.min(100, Math.max(0, (val / 50) * 100));
+                                        return (
+                                            <div key={res} className="flex flex-col gap-1 bg-black/20 px-3 py-2 rounded-xl border border-white/[0.02]">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="flex items-center justify-center w-4 h-4">{icon}</span>
+                                                        <span className="text-zinc-400 text-[11px] font-bold tracking-wide leading-none">{label}</span>
+                                                    </div>
+                                                    <span className="font-black text-white text-[13px]">{val}%</span>
+                                                </div>
+                                                <div className="w-full h-1 bg-zinc-950 rounded-full overflow-hidden mt-1">
+                                                    <div className={cn("h-full rounded-full transition-all duration-500", barColor)} style={{ width: `${pct}%` }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
+                        </div>
+
+                        {/* Right: Info & Stats Grid */}
+                        <div className="flex-1 flex flex-col relative z-10">
+                            <DialogHeader className="mb-6 lg:mb-8 text-left">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-lg uppercase">Lvl {data?.level || "200"}</span>
+                                            <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{data?.className || getClassName(guessedClassId)}</span>
+                                        </div>
+                                        <DialogTitle className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight">{title || data?.name || "Sans nom"}</DialogTitle>
+                                    </div>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            fetchBuild(true);
+                                        }}
+                                        disabled={loading}
+                                        className="bg-zinc-900 border-white/5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl h-10 px-4"
+                                    >
+                                        <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
+                                        Actualiser
+                                    </Button>
+                                </div>
+                                <DialogDescription asChild>
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        {tags.map(tagId => {
+                                            const tagDef = DO_TAGS.find(t => t.id === tagId);
+                                            return tagDef ? (
+                                                <span key={tagId} className={cn("px-2 py-0.5 text-[9px] rounded font-black uppercase tracking-tighter", tagDef.className)}>
+                                                    {tagDef.label}
+                                                </span>
+                                            ) : null;
+                                        })}
+                                    </div>
+                                </DialogDescription>
+                            </DialogHeader>
 
                             {data ? (
-                                <div className="grid grid-cols-6 grid-rows-5 gap-2 sm:gap-3.5 relative z-10 w-full h-full">
-                                    {[
-                                        { s: 'am', c: 1, r: 1 }, { s: 'a1', c: 1, r: 2 }, { s: 'a2', c: 1, r: 3 }, { s: 'br', c: 1, r: 4 },
-                                        { s: 'ch', c: 6, r: 1 }, { s: 'ca', c: 6, r: 2 }, { s: 'ce', c: 6, r: 3 }, { s: 'bo', c: 6, r: 4 },
-                                        { s: 'ar', c: 3, r: 4 }, { s: 'fa', c: 4, r: 4 },
-                                        { s: 'd1', c: 1, r: 5 }, { s: 'd2', c: 2, r: 5 }, { s: 'd3', c: 3, r: 5 },
-                                        { s: 'd4', c: 4, r: 5 }, { s: 'd5', c: 5, r: 5 }, { s: 'd6', c: 6, r: 5 },
-                                    ].map((slot) => {
-                                        const item = slot.s === 'fa' ? (data.items?.['fa'] || data.items?.['mo']) : data.items?.[slot.s];
-                                        return (
-                                            <a
-                                                key={slot.s}
-                                                href={item ? `https://dofusdb.fr/fr/database/items?q=${encodeURIComponent(item.name)}` : "#"}
-                                                target={item ? "_blank" : undefined}
-                                                rel="noopener noreferrer"
-                                                className={cn(
-                                                    "w-[40px] h-[40px] sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl flex items-center justify-center p-1.5 sm:p-2 relative transition-all duration-500 group/modal-slot",
-                                                    item ? "bg-zinc-800/80 border border-white/20 shadow-2xl hover:border-emerald-500/50 hover:bg-zinc-700 hover:scale-110" : "bg-white/[0.02] border border-white/5 opacity-30 cursor-default"
-                                                )}
-                                                style={{ gridColumnStart: slot.c, gridRowStart: slot.r }}
-                                                onClick={(e) => !item && e.preventDefault()}
-                                            >
-                                                {item && (
-                                                    <>
-                                                        <NextImage
-                                                            src={`https://www.dofusbook.net/static/dist/items/${item.picture}-70.webp`}
-                                                            alt={item.name}
-                                                            width={44}
-                                                            height={44}
-                                                            className="object-contain drop-shadow-xl"
-                                                            unoptimized
-                                                        />
-                                                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 px-3 py-1.5 rounded-xl text-[10px] font-black text-white opacity-0 group-hover/modal-slot:opacity-100 transition-all scale-75 group-hover/modal-slot:scale-100 shadow-2xl z-50 whitespace-nowrap pointer-events-none">
-                                                            {item.name} <span className="text-emerald-400 ml-1">→ DofusDB</span>
+                                <div className="flex flex-col gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        {/* Bloc 1: Caractéristiques */}
+                                        <div className="bg-zinc-900/30 backdrop-blur-md p-6 rounded-[2rem] border border-white/5 shadow-xl flex flex-col h-full">
+                                            <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-4 flex items-center gap-2"><Move className="w-3.5 h-3.5"/> CARACTÉRISTIQUES</h4>
+                                            <div className="grid grid-cols-2 gap-2 my-auto">
+                                                {[
+                                                    { val: data.stats?.vit ?? 0, icon: "❤️", label: "PdV", color: "text-white" },
+                                                    { val: data.stats?.pa ?? 0, icon: "⭐", label: "PA", color: "text-[#008cfc]" },
+                                                    { val: data.stats?.pm ?? 0, icon: "🛹", label: "PM", color: "text-[#2cb14b]" },
+                                                    { val: data.stats?.po ?? 0, icon: "👁️", label: "PO", color: "text-[#389f81]" },
+                                                    { val: data.stats?.pp ?? 0, icon: "🔎", label: "Pros.", color: "text-[#5AC2FF]" },
+                                                    { val: data.stats?.cc ?? 0, icon: "🎯", label: "Crit.", color: "text-[#f24254]" },
+                                                    { val: data.stats?.invo ?? 0, icon: "🦊", label: "Invo.", color: "text-[#f59f0f]" },
+                                                    { val: data.stats?.so ?? 0, icon: "➕", label: "Soin", color: "text-[#ef3f3f]" },
+                                                ].map((s, i) => (
+                                                    <div key={i} className="flex items-center justify-between bg-black/25 px-2.5 py-2.5 rounded-xl border border-white/[0.02] gap-1 hover:bg-black/40 transition-colors">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-[12px] opacity-70 shrink-0">{s.icon}</span>
+                                                            <span className="text-zinc-500 text-[10px] font-black uppercase tracking-tighter whitespace-nowrap">{s.label}</span>
                                                         </div>
-                                                    </>
-                                                )}
-                                            </a>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="absolute inset-0 flex items-center justify-center p-8">
-                                    {guessedClassId > 0 && (
-                                        <NextImage
-                                            src={`/assets/dofus/classes/${getIconId(guessedClassId)}.png`}
-                                            alt="Classe"
-                                            fill
-                                            className="object-contain opacity-20 p-12"
-                                        />
+                                                        <span className={cn("font-black text-[13px] shrink-0", s.color)}>{s.val}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Bloc 2: Éléments */}
+                                        <div className="bg-zinc-900/30 backdrop-blur-md p-6 rounded-[2rem] border border-white/5 shadow-xl flex flex-col h-full">
+                                            <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5"/> ÉLÉMENTS</h4>
+                                            <div className="flex flex-col gap-2.5 my-auto">
+                                                {[
+                                                    { key: 'fo' as const, label: 'Force',        color: 'text-[#9D753E]', barColor: 'bg-[#9D753E]', max: 1200 },
+                                                    { key: 'in' as const, label: 'Intelligence', color: 'text-[#E33E19]', barColor: 'bg-[#E33E19]', max: 1200 },
+                                                    { key: 'ch' as const, label: 'Chance',       color: 'text-[#5AC2FF]', barColor: 'bg-[#5AC2FF]', max: 1200 },
+                                                    { key: 'ag' as const, label: 'Agilité',      color: 'text-[#88C72B]', barColor: 'bg-[#88C72B]', max: 1200 },
+                                                    { key: 'sa' as const, label: 'Sagesse',      color: 'text-[#a560df]', barColor: 'bg-[#a560df]', max: 600 },
+                                                    { key: 'pu' as const, label: 'Puissance',    color: 'text-[#f59f0f]', barColor: 'bg-[#f59f0f]', max: 500 },
+                                                ].map(({ key, label, color, barColor, max }) => {
+                                                    const val = data.elements?.[key] || 0;
+                                                    const pct = Math.min(100, Math.max(0, (val / max) * 100));
+                                                    return (
+                                                        <div key={key} className="flex flex-col gap-1.5 bg-black/20 px-3 py-2 rounded-xl border border-white/[0.02]">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-zinc-400 text-[11px] font-bold uppercase tracking-wider">{label}</span>
+                                                                <span className={cn("font-black text-[14px]", color)}>{val}</span>
+                                                            </div>
+                                                            <div className="w-full h-1.5 bg-zinc-950 rounded-full overflow-hidden">
+                                                                <div className={cn("h-full rounded-full transition-all duration-500", barColor)} style={{ width: `${pct}%` }} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Bloc 3: Dommages */}
+                                        <div className="bg-zinc-900/30 backdrop-blur-md p-6 rounded-[2rem] border border-white/5 shadow-xl md:col-span-2 xl:col-span-1 flex flex-col h-full">
+                                            <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-4 flex items-center gap-2"><Zap className="w-3.5 h-3.5 fill-current"/> DOMMAGES FIXES & %</h4>
+                                            <div className="flex flex-col gap-4 my-auto">
+                                                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                                                    {[
+                                                        { label: 'Neutre', k: "neutre" as const, c: 'text-[#E2E2E2]' },
+                                                        { label: 'Terre', k: "terre" as const, c: 'text-[#9D753E]' },
+                                                        { label: 'Feu', k: "feu" as const, c: 'text-[#E33E19]' },
+                                                        { label: 'Eau', k: "eau" as const, c: 'text-[#5AC2FF]' },
+                                                        { label: 'Air', k: "air" as const, c: 'text-[#88C72B]' },
+                                                        { label: 'Généraux', k: "general" as const, c: 'text-white' },
+                                                        { label: 'Crit.', k: "critique" as const, c: 'text-[#f24254]' },
+                                                        { label: 'Poussée', k: "poussee" as const, c: 'text-zinc-400' },
+                                                    ].map(d => (
+                                                        <div key={d.k} className="flex justify-between items-center text-[12px] border-b border-white/5 pb-1 hover:border-white/10 transition-colors">
+                                                            <span className="text-zinc-500 font-medium">{d.label}</span>
+                                                            <span className={cn("font-black", d.c)}>{data.damages?.[d.k] || 0}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {/* % Section */}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {[
+                                                        { label: '% Mêlée', k: "melee" as const },
+                                                        { label: '% Dist.', k: "distance" as const },
+                                                        { label: '% Armes', k: "armes" as const },
+                                                        { label: '% Sorts', k: "sorts" as const },
+                                                    ].map(p => (
+                                                        <div key={p.k} className="flex justify-between items-center text-[11px] bg-black/30 px-2.5 py-2 rounded-xl border border-white/5">
+                                                            <span className="text-zinc-500 font-bold uppercase tracking-tight">{p.label}</span>
+                                                            <span className="font-black text-emerald-400 text-[12px]">{data.damages?.[p.k] || 0}%</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Panoplies */}
+                                    {data.cloths && data.cloths.length > 0 && (
+                                        <div className="pt-5 border-t border-white/5">
+                                            <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <Shield className="w-3.5 h-3.5 text-emerald-500" /> PANOPLIES ASSOCIÉES
+                                            </h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {data.cloths.map((cloth, i) => (
+                                                    <ClothBadge key={i} cloth={cloth} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Forgemagie section */}
+                                    {data.smithmagic && (
+                                        (() => {
+                                            const fmEntries = parseDofusbookSmithmagic(data.smithmagic, data.items);
+                                            return (
+                                                <div className="pt-5 border-t border-white/5">
+                                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> FORGEMAGIE (EXO / OVER)
+                                                    </h4>
+                                                    {fmEntries.length > 0 ? (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                                                            {fmEntries.map((fm, idx) => {
+                                                                const isExo = ["PA", "PM", "PO"].includes(fm.stat);
+                                                                const badgeStyle = isExo 
+                                                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-400 font-extrabold animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.15)]"
+                                                                    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 font-bold";
+                                                                return (
+                                                                    <div key={idx} className={cn(
+                                                                        "flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-300",
+                                                                        isExo ? "bg-amber-950/20 border-amber-500/20 hover:border-amber-500/40" : "bg-zinc-900/50 border-white/5 hover:border-emerald-500/20"
+                                                                    )}>
+                                                                        {fm.itemImage && (
+                                                                            <div className="w-8 h-8 bg-zinc-950 rounded-lg border border-white/5 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                                                                <NextImage
+                                                                                    src={fm.itemImage}
+                                                                                    alt={fm.itemName}
+                                                                                    width={28}
+                                                                                    height={28}
+                                                                                    className="object-contain"
+                                                                                    unoptimized
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-[10px] font-bold text-zinc-300 truncate uppercase leading-tight" title={fm.itemName}>
+                                                                                {fm.itemName}
+                                                                            </p>
+                                                                            <span className="text-[9px] text-zinc-500 uppercase tracking-wider block mt-0.5">
+                                                                                {fm.slotKey}
+                                                                            </span>
+                                                                        </div>
+                                                                        <span className={cn("px-2.5 py-1 text-[10px] rounded-lg shrink-0 border", badgeStyle)}>
+                                                                            {fm.value > 0 ? `+${fm.value}` : fm.value} {fm.stat}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-[10px] text-zinc-600 italic">Aucune forgemagie (Exo/Over) détectée dans ce build.</p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()
                                     )}
                                 </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center p-12 bg-white/[0.02] rounded-[3rem] border border-white/5 text-center gap-5">
+                                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                        <ExternalLink className="w-8 h-8 text-zinc-500" />
+                                    </div>
+                                    <div className="max-w-xs">
+                                        <h4 className="text-lg font-black text-white uppercase mb-2">Build Dofusbook</h4>
+                                        <p className="text-sm text-zinc-500 leading-relaxed">
+                                            Ce build n'a pas pu être chargé dynamiquement sur le dashboard.
+                                        </p>
+                                    </div>
+                                </div>
                             )}
-                        </div>
 
-                        {data && (
-                            <div className="flex flex-col gap-2 bg-black/30 p-5 rounded-3xl border border-white/5">
-                                {[
-                                    { res: 'neutre', val: data.resists?.neutre ?? 0, label: 'Neutre', icon: (
-                                        <svg viewBox="0 0 24 24" fill="none" className="w-[15px] h-[15px] drop-shadow-md">
-                                            <circle cx="12" cy="12" r="11" fill="#E2E2E2" stroke="#000" strokeWidth="1" />
-                                            <path d="M12 1A11 11 0 0 0 12 23A5.5 5.5 0 0 1 12 12A5.5 5.5 0 0 0 12 1Z" fill="#111" />
-                                            <circle cx="12" cy="6.5" r="2" fill="#111" />
-                                            <circle cx="12" cy="17.5" r="2" fill="#E2E2E2" />
-                                        </svg>
-                                    ) },
-                                    { res: 'terre', val: data.resists?.terre ?? 0, label: 'Terre', icon: (
-                                        <svg viewBox="0 0 24 24" fill="#9D753E" className="w-[15px] h-[15px] drop-shadow-md">
-                                           <path d="M12 24L5 12H9V0H15V12H19L12 24Z" />
-                                        </svg>
-                                    ) },
-                                    { res: 'feu', val: data.resists?.feu ?? 0, label: 'Feu', icon: (
-                                        <svg viewBox="0 0 24 24" fill="#E33E19" className="w-[15px] h-[15px] drop-shadow-md">
-                                           <path d="M12 0C12 0 3 8 3 15C3 20 7 24 12 24C17 24 21 20 21 15C21 8 12 0 12 0ZM12 20C10 20 8 18 8 16C8 14 12 10 12 10C12 10 16 14 16 16C16 18 14 20 12 20Z" />
-                                        </svg>
-                                    ) },
-                                    { res: 'eau', val: data.resists?.eau ?? 0, label: 'Eau', icon: (
-                                        <svg viewBox="0 0 24 24" fill="#5AC2FF" className="w-[15px] h-[15px] drop-shadow-md">
-                                           <path d="M12 0C12 0 4 10 4 16C4 20.418 7.582 24 12 24C16.418 24 20 20.418 20 16C20 10 12 0 12 0Z" />
-                                        </svg>
-                                    ) },
-                                    { res: 'air', val: data.resists?.air ?? 0, label: 'Air', icon: (
-                                        <svg viewBox="0 0 24 24" fill="#88C72B" className="w-[15px] h-[15px] drop-shadow-md">
-                                           <path d="M17 19C19.761 19 22 16.761 22 14C22 11.239 19.761 9 17 9C16.5 6 14 3 11 3C7 3 4 6 4 10C1.79 10 0 11.79 0 14C0 16.21 1.79 18 4 18H17Z" />
-                                        </svg>
-                                    ) },
-                                ].map(({ res, val, icon, label }) => (
-                                    <div key={res} className="flex items-center gap-3">
-                                        <span className="w-8 text-right font-black text-white text-[15px]" style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.8)" }}>{val}</span>
-                                        <span className="flex items-center justify-center w-5 h-5">{icon}</span>
-                                        <span className="text-blue-300 text-[14px] font-semibold tracking-wide leading-none" style={{ textShadow: "0px 1px 2px rgba(0,0,0,0.8)" }}>% Ré {label}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Right: Info & Stats Grid */}
-                    <div className="flex-1 flex flex-col relative z-10">
-                        <DialogHeader className="mb-6 lg:mb-8 text-left">
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">Lvl {data?.level || "200"}</span>
-                                        <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{data?.className || getClassName(guessedClassId)}</span>
-                                    </div>
-                                    <DialogTitle className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">{title || data?.name || "Sans nom"}</DialogTitle>
-                                </div>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        fetchBuild(true);
-                                    }}
-                                    disabled={loading}
-                                    className="bg-zinc-900 border-white/10 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl h-10 px-4"
+                            <div className="mt-8">
+                                <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full sm:w-auto inline-flex px-8 py-4 bg-white text-black rounded-2xl text-center text-[12px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all items-center justify-center gap-3 shadow-xl shadow-white/5"
                                 >
-                                    <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
-                                    Actualiser
-                                </Button>
+                                    Ouvrir sur Dofusbook <ExternalLink className="w-4 h-4" />
+                                </a>
                             </div>
-                            <DialogDescription asChild>
-                                <div className="flex flex-wrap gap-2 mt-3">
-                                    {tags.map(tagId => {
-                                        const tagDef = DO_TAGS.find(t => t.id === tagId);
-                                        return tagDef ? (
-                                            <span key={tagId} className={cn("px-2 py-0.5 text-[9px] rounded font-black uppercase tracking-tighter", tagDef.className)}>
-                                                {tagDef.label}
-                                            </span>
-                                        ) : null;
-                                    })}
-                                </div>
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        {data ? (
-                            <div className="flex flex-col gap-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                    {/* Bloc 1: Stats Primaires */}
-                                    <div className="bg-[#2B2925] p-6 rounded-3xl border border-[#3B3831] shadow-inner flex flex-col h-full">
-                                        <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-6 flex items-center gap-2"><Move className="w-3.5 h-3.5"/> Caractéristiques</h4>
-                                        <div className="grid grid-cols-2 gap-2 my-auto">
-                                            {[
-                                                { val: data.stats?.vit ?? 0, icon: "❤️", label: "PdV", color: "text-white" },
-                                                { val: data.stats?.pa ?? 0, icon: "⭐", label: "PA", color: "text-[#008cfc]" },
-                                                { val: data.stats?.pm ?? 0, icon: "🛹", label: "PM", color: "text-[#2cb14b]" },
-                                                { val: data.stats?.po ?? 0, icon: "👁️", label: "PO", color: "text-[#389f81]" },
-                                                { val: data.stats?.pp ?? 0, icon: "🔎", label: "Pros.", color: "text-[#5AC2FF]" },
-                                                { val: data.stats?.cc ?? 0, icon: "🎯", label: "Crit.", color: "text-[#f24254]" },
-                                                { val: data.stats?.invo ?? 0, icon: "🦊", label: "Invo.", color: "text-[#f59f0f]" },
-                                                { val: data.stats?.so ?? 0, icon: "➕", label: "Soin", color: "text-[#ef3f3f]" },
-                                            ].map((s, i) => (
-                                                <div key={i} className="flex items-center justify-between bg-black/30 px-2 py-2 rounded-xl border border-white/[0.05] gap-1">
-                                                    <div className="flex items-center gap-0.5">
-                                                        <span className="text-[12px] opacity-60 shrink-0">{s.icon}</span>
-                                                        <span className="text-zinc-500 text-[9px] font-bold uppercase tracking-tighter whitespace-nowrap">{s.label}</span>
-                                                    </div>
-                                                    <span className={cn("font-black text-[13px] shrink-0", s.color)}>{s.val}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Bloc 2: Éléments */}
-                                    <div className="bg-[#2B2925] p-6 rounded-3xl border border-[#3B3831] shadow-inner flex flex-col h-full">
-                                        <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-6 flex items-center gap-2"><Zap className="w-3.5 h-3.5"/> Éléments</h4>
-                                        <div className="flex flex-col gap-2 my-auto">
-                                            {[
-                                                { key: 'fo' as const, label: 'Force',        color: 'text-[#9D753E]' },
-                                                { key: 'in' as const, label: 'Intelligence', color: 'text-[#E33E19]' },
-                                                { key: 'ch' as const, label: 'Chance',       color: 'text-[#5AC2FF]' },
-                                                { key: 'ag' as const, label: 'Agilité',      color: 'text-[#88C72B]' },
-                                                { key: 'sa' as const, label: 'Sagesse',      color: 'text-[#a560df]' },
-                                                { key: 'pu' as const, label: 'Puissance',    color: 'text-[#f59f0f]' },
-                                            ].map(({ key, label, color }) => (
-                                                <div key={key} className="flex justify-between items-center bg-black/20 px-3 py-2.5 rounded-xl border border-white/[0.02]">
-                                                    <span className="text-zinc-400 text-[13px] font-medium">{label}</span>
-                                                    <span className={cn("font-black text-[16px]", color)}>{data.elements?.[key] || 0}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Bloc 3: Dommages */}
-                                    <div className="bg-[#2B2925] p-6 rounded-3xl border border-[#3B3831] shadow-inner md:col-span-2 xl:col-span-1 flex flex-col h-full">
-                                        <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-6 flex items-center gap-2"><Zap className="w-3.5 h-3.5 fill-current"/> Dommages Fixes & %</h4>
-                                        <div className="flex flex-col gap-4 my-auto">
-                                            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
-                                                {[
-                                                    { label: 'Neutre', k: "neutre" as const, c: 'text-[#E2E2E2]' },
-                                                    { label: 'Terre', k: "terre" as const, c: 'text-[#9D753E]' },
-                                                    { label: 'Feu', k: "feu" as const, c: 'text-[#E33E19]' },
-                                                    { label: 'Eau', k: "eau" as const, c: 'text-[#5AC2FF]' },
-                                                    { label: 'Air', k: "air" as const, c: 'text-[#88C72B]' },
-                                                    { label: 'Généraux', k: "general" as const, c: 'text-white' },
-                                                    { label: 'Crit.', k: "critique" as const, c: 'text-[#f24254]' },
-                                                    { label: 'Poussée', k: "poussee" as const, c: 'text-zinc-400' },
-                                                ].map(d => (
-                                                    <div key={d.k} className="flex justify-between items-center text-[13px] border-b border-white/5 pb-1.5">
-                                                        <span className="text-zinc-500 font-medium">{d.label}</span>
-                                                        <span className={cn("font-black", d.c)}>{data.damages?.[d.k] || 0}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            {/* % Section */}
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {[
-                                                    { label: '% Mêlée', k: "melee" as const },
-                                                    { label: '% Dist.', k: "distance" as const },
-                                                    { label: '% Armes', k: "armes" as const },
-                                                    { label: '% Sorts', k: "sorts" as const },
-                                                ].map(p => (
-                                                    <div key={p.k} className="flex justify-between items-center text-[12px] bg-black/40 px-3 py-2 rounded-xl border border-white/5">
-                                                        <span className="text-zinc-500">{p.label}</span>
-                                                        <span className="font-black text-emerald-400 text-[13px]">{data.damages?.[p.k] || 0}%</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Panoplies */}
-                                {data.cloths && data.cloths.length > 0 && (
-                                    <div className="pt-4 border-t border-white/5">
-                                        <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                            <Shield className="w-3.5 h-3.5 text-emerald-500" /> Panoplies Associées
-                                        </h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {data.cloths.map((cloth, i) => (
-                                                <ClothBadge key={i} cloth={cloth} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Forgemagie section */}
-                                {data.smithmagic && (
-                                    (() => {
-                                        const fmEntries = parseDofusbookSmithmagic(data.smithmagic, data.items);
-                                        return (
-                                            <div className="pt-4 border-t border-white/5">
-                                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Forgemagie (Exo / Over)
-                                                </h4>
-                                                {fmEntries.length > 0 ? (
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
-                                                        {fmEntries.map((fm, idx) => (
-                                                            <div key={idx} className="flex items-center gap-3 p-2 bg-zinc-900/50 border border-white/5 rounded-xl hover:border-emerald-500/20 transition-all">
-                                                                {fm.itemImage && (
-                                                                    <div className="w-8 h-8 bg-zinc-950 rounded-lg border border-white/5 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                                                                        <NextImage
-                                                                            src={fm.itemImage}
-                                                                            alt={fm.itemName}
-                                                                            width={28}
-                                                                            height={28}
-                                                                            className="object-contain"
-                                                                            unoptimized
-                                                                        />
-                                                                    </div>
-                                                                )}
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-[10px] font-bold text-zinc-400 truncate uppercase leading-tight" title={fm.itemName}>
-                                                                        {fm.itemName}
-                                                                    </p>
-                                                                    <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-tighter">
-                                                                        {fm.slotKey}
-                                                                    </span>
-                                                                </div>
-                                                                <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-lg shrink-0">
-                                                                    {fm.value > 0 ? `+${fm.value}` : fm.value} {fm.stat}
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-[10px] text-zinc-600 italic">Aucune forgemagie (Exo/Over) détectée dans ce build.</p>
-                                                )}
-                                            </div>
-                                        );
-                                    })()
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center p-12 bg-white/[0.02] rounded-[3rem] border border-white/5 text-center gap-5">
-                                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                                    <ExternalLink className="w-8 h-8 text-zinc-500" />
-                                </div>
-                                <div className="max-w-xs">
-                                    <h4 className="text-lg font-black text-white uppercase mb-2">Build Dofusbook</h4>
-                                    <p className="text-sm text-zinc-500 leading-relaxed">
-                                        Ce build n'a pas pu être chargé dynamiquement sur le dashboard.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="mt-8">
-                            <a
-                                href={url}
-                                target="_blank"
-                                className="w-full sm:w-auto inline-flex px-8 py-4 bg-white text-black rounded-2xl text-center text-[12px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all items-center justify-center gap-3 shadow-xl shadow-white/5"
-                            >
-                                Ouvrir sur Dofusbook <ExternalLink className="w-4 h-4" />
-                            </a>
                         </div>
                     </div>
-                </div>
+                </TooltipProvider>
             </DialogContent>
         </Dialog>
     );

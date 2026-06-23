@@ -16,6 +16,7 @@ import { IntroductionCard } from "./introduction-card";
 import { SkinLibrary } from "./skin-library";
 import { AlignmentSection } from "./alignment-section";
 import { LegendaryCrafting } from "./legendary-crafting";
+import { LegendaryPetToggle } from "./legendary-pet-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserProfile, updateAvailability, updateVacationMode, updateForgemagieStatus, updateAltPseudos } from "@/server/actions/profile-actions";
 import type { ContributorTier } from "@/server/actions/profile-actions";
@@ -66,6 +67,7 @@ interface ProfileBentoGridProps {
         alignment?: string | null;
         alignmentOrder?: string | null;
         alignmentLevel?: number | null;
+        hasLegendaryPet?: boolean | null;
     };
     user: {
         name?: string | null;
@@ -643,12 +645,21 @@ export function ProfileBentoGrid({
                  {/* ARTISANAT TAB */}
                  <TabsContent value="artisanat" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                      {visitedTabs.has("artisanat") && (
-                         <LegendaryCrafting 
-                             guildId={guildId}
-                             profileId={localProfile.id}
-                             metiers={localProfile.metiers || []}
-                             readOnly={!canEdit}
-                         />
+                         <div className="space-y-12">
+                             <LegendaryCrafting 
+                                 guildId={guildId}
+                                 profileId={localProfile.id}
+                                 metiers={localProfile.metiers || []}
+                                 readOnly={!canEdit}
+                             />
+                             <div className="border-t border-white/5 pt-8">
+                                 <LegendaryPetToggle
+                                     guildId={guildId}
+                                     initialValue={localProfile.hasLegendaryPet ?? false}
+                                     readOnly={!canEdit}
+                                 />
+                             </div>
+                         </div>
                      )}
                  </TabsContent>
 

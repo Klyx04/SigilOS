@@ -14,7 +14,7 @@ interface GalacticFooterProps {
     isMember?: boolean;
 }
 
-export function GalacticFooter({ variant = "standard", isMember = false }: GalacticFooterProps) {
+export function GalacticFooter({ variant = "compact", isMember = false }: GalacticFooterProps) {
     const [latency, setLatency] = useState<number | null>(null);
     const [systemStatus, setSystemStatus] = useState<SystemStatus>("online");
     const [mounted, setMounted] = useState(false);

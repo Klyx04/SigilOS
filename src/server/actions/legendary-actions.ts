@@ -153,6 +153,38 @@ export async function syncLegendaryCrafts(guildId: string, hasPrerequisites: boo
     }
 }
 
+/**
+ * Bascule le statut "Familier/Montilier/Monture Légendaire" de l'utilisateur.
+ */
+export async function toggleLegendaryPet(guildId: string, enabled: boolean): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        await db.userProfile.update({
+            where: {
+                userId_guildId: {
+                    userId: session.user.id,
+                    guildId: guildConfig.id
+                }
+            },
+            data: { hasLegendaryPet: enabled }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/profile`);
+        return { success: true };
+    } catch (error) {
+        logger.error("Toggle Legendary Pet Error", { error });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 // ============================================================================
 // GOD ACTIONS — Super Admin only
 // ============================================================================

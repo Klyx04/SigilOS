@@ -1044,13 +1044,14 @@ const UpdateDofusBookLinksSchema = z.object({
                 const dofusroomPattern = /^https:\/\/(www\.)?dofusroom\.com\/(buildroom\/build\/show\/\d+|b-\d+)\/?$/;
                 return dofusbookPattern.test(url) || dofusroomPattern.test(url);
             },
-            { message: "Format invalide (DofusBook: d-bk.net/dofusbook.net ou DofusRoom: dofusroom.com)" }
+            { message: "Format de lien invalide (DofusBook: d-bk.net/dofusbook.net ou DofusRoom: dofusroom.com)" }
         ),
         tags: z.array(z.string()).optional(),
         classId: z.number().nullable().optional(),
         source: z.enum(["dofusbook", "dofusroom"]).nullable().optional(),
         previewData: z.any().nullable().optional(),
-    })).max(20, "Maximum 20 builds"),
+        discordMessageId: z.string().nullable().optional(),
+    }).passthrough()).max(20, "Maximum 20 builds"),
     targetUserId: z.string().optional(),
 });
 
@@ -1105,29 +1106,28 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
                 return { ...link, previewData: matchingOld.previewData };
             }
 
-            // DofusRoom links: skip DofusBook baking (different proxy)
-            const isDofusRoom = /dofusroom\.com/.test(link.url);
-            if (isDofusRoom) {
-                return { ...link, source: "dofusroom" };
-            }
-
             // DofusBook: try to fetch and bake preview
             try {
                 const res = await getDofusbookPreview(link.url, true);
                 if (res.success && res.data) {
-                    return { ...link, previewData: res.data, source: "dofusbook" };
+                    return { ...link, previewData: res.data, source: "dofusbook" as const };
                 }
             } catch (e) {
                 console.error(`[Server Baking] Failed for ${link.url}:`, e);
             }
-            return link;
+            return { ...link, source: "dofusbook" as const };
         }));
+
+        const filteredLinks = bakedLinks.filter((link) => {
+            const isDofusRoom = /dofusroom\.com/.test(link.url);
+            return !isDofusRoom;
+        });
 
         await db.userProfile.update({
             where: {
                 userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
-            data: { dofusBookLinks: bakedLinks as any }
+            data: { dofusBookLinks: filteredLinks as any }
         });
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache

@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
-import { DofusroomPreview } from "@/components/dofus/dofusroom-preview";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -65,7 +64,7 @@ export function GalleryClient({
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
     const [selectedGender, setSelectedGender] = useState<string | null>(null);
-    const [selectedSource, setSelectedSource] = useState<"dofusbook" | "dofusroom" | null>(null);
+    const [selectedSource, setSelectedSource] = useState<"dofusbook" | null>(null);
     const [sortBy, setSortBy] = useState<"newest" | "votes">("newest");
     
     const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
@@ -85,7 +84,7 @@ export function GalleryClient({
         gender: string | null, 
         sortKey: "newest" | "votes", 
         tab: "STUFF" | "SKIN",
-        source: "dofusbook" | "dofusroom" | null
+        source: "dofusbook" | null
     ) => {
         const runFilters = async () => {
             setIsLoading(true);
@@ -143,7 +142,7 @@ export function GalleryClient({
         applyFilters(searchQuery, selectedTag, selectedClass, gender, sortBy, activeTab, selectedSource);
     };
 
-    const handleSourceChange = (source: "dofusbook" | "dofusroom" | null) => {
+    const handleSourceChange = (source: "dofusbook" | null) => {
         setSelectedSource(source);
         applyFilters(searchQuery, selectedTag, selectedClass, selectedGender, sortBy, activeTab, source);
     };
@@ -467,38 +466,7 @@ export function GalleryClient({
                                     <AdvancedTagFilter selectedTag={selectedTag} onSelectTag={handleTagChange} />
                                 </div>
 
-                                <div className="w-px h-6 bg-white/10 shrink-0 hidden sm:block" />
 
-                                {/* 4. Source Filter */}
-                                <div className="flex items-center bg-black/40 p-1 rounded-2xl border border-white/5 gap-1">
-                                    <button
-                                        onClick={() => handleSourceChange(null)}
-                                        className={cn(
-                                            "h-8 px-3 rounded-xl text-[11px] font-black transition-all shrink-0",
-                                            !selectedSource ? "bg-white text-black shadow-md" : "text-zinc-500 hover:text-white hover:bg-white/10"
-                                        )}
-                                    >
-                                        Tous sites
-                                    </button>
-                                    <button
-                                        onClick={() => handleSourceChange("dofusbook")}
-                                        className={cn(
-                                            "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
-                                            selectedSource === "dofusbook" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-zinc-500 hover:text-emerald-400 hover:bg-white/10"
-                                        )}
-                                    >
-                                        Dofusbook
-                                    </button>
-                                    <button
-                                        onClick={() => handleSourceChange("dofusroom")}
-                                        className={cn(
-                                            "h-8 px-3 rounded-xl text-[11px] font-bold transition-all shrink-0",
-                                            selectedSource === "dofusroom" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-zinc-500 hover:text-sky-400 hover:bg-white/10"
-                                        )}
-                                    >
-                                        DofusRoom
-                                    </button>
-                                </div>
                             </>
                         )}
                     </div>
@@ -561,11 +529,7 @@ export function GalleryClient({
                         stuffBuilds.map((build) => (
                             <div key={build.id} className="group/card flex flex-col gap-3">
                                 <div className="relative">
-                                    {build.source === "dofusroom" ? (
-                                        <DofusroomPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} />
-                                    ) : (
-                                        <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} />
-                                    )}
+                                    <DofusbookPreview url={build.url} title={build.name} tags={build.tags} classId={build.classId ? Number(build.classId) : undefined} initialData={build.previewData} />
                                     
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent transition-all duration-300 rounded-2xl flex flex-col justify-end p-4 z-10 pointer-events-none">
                                         <div className="flex items-center justify-end gap-2">
@@ -573,7 +537,7 @@ export function GalleryClient({
                                                 onClick={(e) => { e.stopPropagation(); handleRefresh(build); }}
                                                 disabled={refreshingIds.has(build.id)}
                                                 className="p-1.5 bg-zinc-800/90 rounded-lg text-white hover:bg-zinc-700 transition-colors shadow-lg pointer-events-auto disabled:opacity-50"
-                                                title={build.source === "dofusroom" ? "Actualiser depuis DofusRoom" : "Actualiser depuis Dofusbook"}
+                                                title="Actualiser depuis Dofusbook"
                                             >
                                                 <RefreshCw className={cn("w-3.5 h-3.5", refreshingIds.has(build.id) && "animate-spin")} />
                                             </button>
@@ -639,13 +603,8 @@ export function GalleryClient({
                                             Par <span className="text-zinc-300 font-bold">{build.author.name}</span>
                                         </span>
                                     </div>
-                                    <span className={cn(
-                                        "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
-                                        build.source === "dofusroom"
-                                            ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                                            : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                    )}>
-                                        {build.source === "dofusroom" ? "DofusRoom" : "DofusBook"}
+                                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                                        DofusBook
                                     </span>
                                 </div>
                             </div>

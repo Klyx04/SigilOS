@@ -252,33 +252,10 @@ export function DofusQuestManagerV3({
 
     return (
         <div className="space-y-4">
-            <DofusGlobalLogistics chains={chains} dofusColor={dofus.color} completedIds={completedIds} />
-
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-zinc-950/40 border border-white/5 rounded-[2rem] backdrop-blur-xl mb-8">
-                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                    <div className="flex p-1.5 bg-black/40 rounded-2xl border border-white/5 w-full sm:w-auto overflow-x-auto no-scrollbar">
-                        {views.map(({ id, label, Icon }) => (
-                            <button
-                                key={id}
-                                onClick={() => setViewMode(id)}
-                                className={`
-                                    flex-1 sm:flex-none flex items-center justify-center gap-2 h-10 px-5 text-[11px] font-black uppercase tracking-widset rounded-xl transition-all duration-300 whitespace-nowrap
-                                    ${viewMode === id
-                                        ? "bg-white text-black shadow-2xl scale-[1.02]"
-                                        : "text-zinc-500 hover:text-white hover:bg-white/5"
-                                    }
-                                `}
-                            >
-                                <Icon className="w-4 h-4" />
-                                <span>{label}</span>
-                                {id === "heatmap" && heatmapData && heatmapData.members.length > 0 && (
-                                    <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[8px] font-black ${viewMode === id ? "bg-black/10 text-black" : "bg-indigo-500/20 text-indigo-400"}`}>
-                                        {heatmapData.members.length}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
-                    </div>
+                <div className="flex items-center gap-3">
+                    <img src="/succès.png" alt="Succès" className="w-6 h-6 object-contain drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                    <span className="text-[12px] font-black text-white uppercase tracking-widest italic">Dofusdex — Liste des Succès</span>
                 </div>
 
                 <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-white/5 pt-4 md:pt-0">
@@ -299,60 +276,21 @@ export function DofusQuestManagerV3({
                             <RefreshCw className={`w-4 h-4 ${loadingSynergy ? "animate-spin" : ""}`} />
                         </button>
                     </div>
-                    
-                    <div className="h-10 px-4 bg-zinc-900/60 border border-emerald-500/20 rounded-2xl flex items-center gap-2.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest italic">Analyseur IA</span>
-                    </div>
                 </div>
             </div>
 
-
             {/* ── Content ──────────────────────────────────────────────── */}
             <div className="relative">
-                {viewMode === "successes" && (
-                    <DofusSuccessGrid
-                        guildId={guildId}
-                        dofus={dofus}
-                        chains={chains}
-                        synergy={synergy}
-                        dofusColor={dofusColor}
-                        onToggleStatus={handleToggleStatus}
-                        completedIds={completedIds}
-                        onDungeonClick={handleDungeonClick}
-                    />
-                )}
-                {viewMode === "tree" && (
-                    <DofusNeuralTree
-                        guildId={guildId}
-                        dofus={dofus}
-                        chains={chains}
-                        synergy={synergy}
-                        dofusColor={dofusColor}
-                        onToggleStatus={handleToggleStatus}
-                        completedIds={completedIds}
-                        onDungeonClick={handleDungeonClick}
-                    />
-                )}
-                {viewMode === "heatmap" && (
-                    <div className="glass-premium border border-border rounded-2xl p-5">
-                        {heatmapData ? (
-                            <GuildDofusHeatmap
-                                data={heatmapData}
-                                dofusColor={dofusColor}
-                                dofusName={dofus.nameShort || dofus.name}
-                            />
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-16 gap-3">
-                                <Flame className="w-10 h-10 text-foreground/10" />
-                                <p className="text-muted-foreground/40 text-sm font-bold uppercase tracking-widest">Données indisponibles</p>
-                                <p className="text-muted-foreground/20 text-xs text-center max-w-xs">
-                                    Lance le seed depuis l&apos;admin panel pour charger les étapes, puis reviens ici.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
+                <DofusSuccessGrid
+                    guildId={guildId}
+                    dofus={dofus}
+                    chains={chains}
+                    synergy={synergy}
+                    dofusColor={dofusColor}
+                    onToggleStatus={handleToggleStatus}
+                    completedIds={completedIds}
+                    onDungeonClick={handleDungeonClick}
+                />
             </div>
 
             <DjPostCreateModal

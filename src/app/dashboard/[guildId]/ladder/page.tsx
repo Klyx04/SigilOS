@@ -8,6 +8,7 @@ import { AuroraBackground } from "@/components/ui/aurora-background";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { redirect } from "next/navigation";
 import { ActivitiesNav } from "@/components/layout/activities-nav";
+import { db } from "@/lib/prisma";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -26,6 +27,13 @@ export default async function LadderPage({ params }: Props) {
     if (!user.canViewLadder) {
         return <AccessDenied />;
     }
+
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { missionVitrineMode: true }
+    });
+
+    const vitrineMode = !!guildConfig?.missionVitrineMode && !user.isAdmin;
 
     return (
         <div className="relative min-h-[calc(100vh-4rem)] pb-12">
@@ -48,6 +56,7 @@ export default async function LadderPage({ params }: Props) {
                         canValidate={user.canValidateMissions} 
                         hasPseudoIssue={user.hasPseudoIssue}
                         pseudoDofus={user.pseudoDofus}
+                        vitrineMode={vitrineMode}
                     />
                 </Suspense>
             </div>

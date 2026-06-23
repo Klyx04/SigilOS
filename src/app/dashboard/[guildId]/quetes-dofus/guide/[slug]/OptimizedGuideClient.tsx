@@ -359,9 +359,21 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
   const color = getGPColor(seq.subGuideRef);
 
   // Focus & Hide state
-  const [readMode, setReadMode] = useState(false);
+  const readMode = true;
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [hideCompletedLocal, setHideCompletedLocal] = useState(false);
+
+  // Global states for sub-map checkboxes to respect React Rules of Hooks
+  const [checkedSubMaps, setCheckedSubMaps] = useState<Record<string, Record<number, boolean>>>({});
+
+  const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
+  const total = steps.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  // Filter steps if hideCompleted is checked
+  const filteredSteps = (hideCompletedLocal || hideCompletedGlobal)
+    ? steps.filter(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`))
+    : steps;
 
   const load = useCallback(async () => {
     if (loaded) return;
@@ -391,6 +403,13 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
     }
   }, [steps, seq.subGuideRef]);
 
+  // Clamp currentStepIndex within bounds of filteredSteps
+  useEffect(() => {
+    if (currentStepIndex >= filteredSteps.length && filteredSteps.length > 0) {
+      setCurrentStepIndex(filteredSteps.length - 1);
+    }
+  }, [filteredSteps.length, currentStepIndex]);
+
   const handleExpand = () => {
     if (!expanded) load();
     setExpanded(v => !v);
@@ -401,22 +420,15 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
     const isNowChecked = !checkedSteps.has(key);
     onStepToggle(seq.subGuideRef, stepNumber);
 
-    if (readMode && isNowChecked && stepIndex < steps.length - 1) {
-      // Auto-advance to next step in focus mode
-      setTimeout(() => {
-        setCurrentStepIndex(stepIndex + 1);
-      }, 400);
+    const isHidingCompleted = hideCompletedLocal || hideCompletedGlobal;
+    if (isNowChecked) {
+      if (!isHidingCompleted && stepIndex < filteredSteps.length - 1) {
+        setTimeout(() => {
+          setCurrentStepIndex(stepIndex + 1);
+        }, 400);
+      }
     }
   };
-
-  const done = steps.filter(s => checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`)).length;
-  const total = steps.length;
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-
-  // Filter steps if hideCompleted is checked
-  const filteredSteps = (hideCompletedLocal || hideCompletedGlobal)
-    ? steps.filter(s => !checkedSteps.has(`${seq.subGuideRef}-${s.stepNumber}`))
-    : steps;
 
   // ─── Pre-compute step presence (memoized) ─────────────────────────────────
   // This avoids O(steps × members) computation inside filteredSteps.map().
@@ -481,6 +493,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
           {seq.subGuideRef}
         </div>
         <div className="sgc-info">
+          <span className="text-[9px] uppercase tracking-wider font-extrabold text-zinc-500 block mb-0.5">Sous-guide tactique</span>
           <span 
             className="sgc-name hover:text-emerald-400 transition-colors cursor-pointer"
             title={`Filtrer par le guide secondaire : ${seq.subGuideName}`}
@@ -572,14 +585,6 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                 {/* Mode controls */}
                 <div className="sgc-controls">
                   <button 
-                    className={`sgc-ctrl-btn ${readMode ? "active" : ""}`}
-                    onClick={() => setReadMode(v => !v)}
-                    title="Activer le mode lecture étape par étape"
-                  >
-                    <BookOpen size={12}/>
-                    <span>Mode Lecture</span>
-                  </button>
-                  <button 
                     className={`sgc-ctrl-btn ${(hideCompletedLocal || hideCompletedGlobal) ? "active" : ""}`}
                     onClick={() => setHideCompletedLocal(v => !v)}
                     title={hideCompletedGlobal ? "Masquage global actif. Cliquez pour forcer la persistance locale." : "Masquer les étapes terminées de ce sous-guide"}
@@ -589,227 +594,262 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
                   </button>
                 </div>
 
-                {readMode ? (
-                  /* Focus mode rendering (Ganymede-like) */
-                  (() => {
-                    const step = steps[currentStepIndex];
-                    if (!step) return <div className="sgc-empty">Aucune étape sélectionnée</div>;
-
-                    const key = `${seq.subGuideRef}-${step.stepNumber}`;
-                    const checked = checkedSteps.has(key);
-                    const coords = Array.from(
-                      (step.plainText ?? step.web_text ?? "").matchAll(/\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g)
-                    ).map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]), worldId: m[3] ? parseInt(m[3]) : undefined }));
-
+                {(() => {
+                  const step = filteredSteps[currentStepIndex];
+                  if (!step) {
                     return (
-                      <div className="sgc-focus-wrap" id={`sgc-step-${seq.subGuideRef}-${step.stepNumber}`}>
-                        <div className="sgc-focus-header">
-                          <button 
-                            className="sgc-focus-nav-btn"
-                            disabled={currentStepIndex === 0}
-                            onClick={() => setCurrentStepIndex(prev => Math.max(0, prev - 1))}
-                          >
-                            <ChevronLeft size={16}/>
-                          </button>
-                          <span className="sgc-focus-indicator">
-                            Étape {step.stepNumber} ({currentStepIndex + 1} / {steps.length})
+                      <div className="sgc-empty p-8 text-center bg-zinc-950/20 border border-white/5 rounded-2xl">
+                        <BookOpenCheck size={24} className="mx-auto mb-2 text-emerald-500 animate-bounce" />
+                        <span>Toutes les étapes de ce sous-guide sont validées ! 🎉</span>
+                      </div>
+                    );
+                  }
+
+                  const key = `${seq.subGuideRef}-${step.stepNumber}`;
+                  const checked = checkedSteps.has(key);
+
+                  const activeSubMapCheckedState = checkedSubMaps[key] || {};
+
+                  const coords = Array.from(
+                    (step.plainText ?? step.web_text ?? "").matchAll(/\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g)
+                  ).map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]), worldId: m[3] ? parseInt(m[3]) : undefined }));
+
+                  // ── O(1) presence lookup from pre-computed map ──
+                  const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
+
+                  return (
+                    <div className="sgc-focus-wrap" id={`sgc-step-${seq.subGuideRef}-${step.stepNumber}`}>
+                      <div className="sgc-focus-header">
+                        <button 
+                          className="sgc-focus-nav-btn"
+                          disabled={currentStepIndex === 0}
+                          onClick={() => setCurrentStepIndex(prev => Math.max(0, prev - 1))}
+                        >
+                          <ChevronLeft size={16}/>
+                        </button>
+                        
+                        {/* Interactive Step Input selector */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] text-zinc-400 font-bold">Étape</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={steps.length}
+                            value={step.stepNumber}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              if (!isNaN(val) && val >= 1 && val <= steps.length) {
+                                // Find index of this step in filtered steps
+                                const targetIdx = filteredSteps.findIndex(s => s.stepNumber === val);
+                                if (targetIdx !== -1) {
+                                  setCurrentStepIndex(targetIdx);
+                                } else {
+                                  // Fallback to closest step if filtered out (e.g. completed)
+                                  const rawIdx = steps.findIndex(s => s.stepNumber === val);
+                                  if (rawIdx !== -1) {
+                                    // Turn off hiding local to let user see it
+                                    setHideCompletedLocal(false);
+                                    setTimeout(() => {
+                                      setCurrentStepIndex(rawIdx);
+                                    }, 10);
+                                  }
+                                }
+                              }
+                            }}
+                            className="w-12 bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-center text-xs font-black text-emerald-400 outline-none focus:border-emerald-500 transition-colors"
+                            title="Entrez un numéro d'étape pour y aller directement"
+                          />
+                          <span className="text-[10px] text-zinc-500 font-semibold">
+                            / {steps.length}
                           </span>
-                          <button 
-                            className="sgc-focus-nav-btn"
-                            disabled={currentStepIndex === steps.length - 1}
-                            onClick={() => setCurrentStepIndex(prev => Math.min(steps.length - 1, prev + 1))}
-                          >
-                            <ChevronRight size={16}/>
-                          </button>
                         </div>
 
-                        <div className={`sgc-step sgc-step-focus ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}>
-                          <div className="sgc-step-check" 
-                            onClick={() => handleStepCheckToggle(step.stepNumber, currentStepIndex)}>
-                            {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
-                          </div>
-                          <button
-                            className="sgc-step-bookmark-btn"
-                            title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              onStepBookmark(key);
-                            }}
-                          >
-                            {bookmarkStepKey === key ? (
-                              <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
-                            ) : (
-                              <Bookmark size={18} />
-                            )}
-                          </button>
-                          <span className="sgc-step-num">
-                            {step.stepNumber}
-                          </span>
+                        <button 
+                          className="sgc-focus-nav-btn"
+                          disabled={currentStepIndex === filteredSteps.length - 1}
+                          onClick={() => setCurrentStepIndex(prev => Math.min(filteredSteps.length - 1, prev + 1))}
+                        >
+                          <ChevronRight size={16}/>
+                        </button>
+                      </div>
+
+                      <div className={`sgc-step sgc-step-focus ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}>
+                        <div className="sgc-step-check" 
+                          onClick={() => handleStepCheckToggle(step.stepNumber, currentStepIndex)}>
+                          {checked ? <CheckCircle2 size={20} className="checked-icon"/> : <Circle size={20} className="unchecked-icon"/>}
+                        </div>
+                        <button
+                          className="sgc-step-bookmark-btn"
+                          title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onStepBookmark(key);
+                          }}
+                        >
+                          {bookmarkStepKey === key ? (
+                            <BookmarkCheck size={18} className="text-amber-500 fill-amber-500/20" />
+                          ) : (
+                            <Bookmark size={18} />
+                          )}
+                        </button>
+                        <span className="sgc-step-num">
+                          {step.stepNumber}
+                        </span>
+                        <div className="flex flex-col flex-1 min-w-0">
                           <div className="sgc-step-content ganymade-step-text"
                             onClick={onInteractiveClick}
                             {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
-                          {coords.length > 0 && (
-                            <div className="sgc-step-coords">
-                              {coords.map((c,i) => {
-                                const cmd = `/travel ${c.x} ${c.y}`;
-                                return (
-                                  <div key={i} className="flex items-center gap-1.5">
-                                    <button className="coord-btn" onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigator.clipboard.writeText(cmd);
-                                      toast.success("Commande copiée !", { description: cmd });
-                                    }} title="Copier la commande /travel">
-                                      <MapPin size={9}/> {c.x},{c.y}
-                                    </button>
-                                    <button className="p-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all cursor-pointer inline-flex items-center justify-center h-[22px] w-[22px]"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onMapClick(c.x, c.y, c.worldId);
-                                      }} title="Voir la carte HD">
-                                      <Eye size={10} />
-                                    </button>
-                                  </div>
+                          {(validatedMembers.length > 0 || activeMembers.length > 0) && (
+                            <div 
+                              role="button"
+                              tabIndex={0}
+                              className="sgc-step-presence cursor-pointer hover:opacity-80 active:scale-95 transition-all select-none"
+                              title="Cliquer pour voir la liste des membres ayant validé ou en cours sur cette étape"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onShowStepPresenceModal(
+                                  step.stepNumber,
+                                  step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                                  validatedMembers,
+                                  activeMembers
                                 );
-                              })}
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  onShowStepPresenceModal(
+                                    step.stepNumber,
+                                    step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
+                                    validatedMembers,
+                                    activeMembers
+                                  );
+                                }
+                              }}
+                            >
+                              {validatedMembers.slice(0, 5).map(m => (
+                                <div
+                                  key={`val-${m.profileId}`}
+                                  className="sgc-step-presence-avatar validated"
+                                  title={`✅ ${m.userName} — a validé cette étape`}
+                                >
+                                  {m.userAvatar
+                                    ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
+                                    : m.userName.charAt(0).toUpperCase()}
+                                </div>
+                              ))}
+                              {activeMembers.slice(0, 3).map(m => (
+                                <div
+                                  key={`act-${m.profileId}`}
+                                  className="sgc-step-presence-avatar active"
+                                  title={`📍 ${m.userName} — rendu à cette étape`}
+                                >
+                                  {m.userAvatar
+                                    ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
+                                    : m.userName.charAt(0).toUpperCase()}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Coords & Travel Roadmap Checks Section */}
+                          {coords.length > 0 && (
+                            <div className="mt-3 rounded-2xl overflow-hidden border border-cyan-500/15 animate-in fade-in duration-300" style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.04) 0%, rgba(16,185,129,0.03) 100%)" }}>
+                              {/* Header */}
+                              <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
+                                <div className="flex items-center gap-1.5">
+                                  <MapPin size={10} className="text-cyan-400" />
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
+                                    Trajet · {coords.length} carte{coords.length > 1 ? "s" : ""}
+                                  </span>
+                                </div>
+                                <span className="text-[9px] text-zinc-500 font-semibold">
+                                  {Object.values(activeSubMapCheckedState).filter(Boolean).length}/{coords.length} visitées
+                                </span>
+                              </div>
+                              {/* Map cards */}
+                              <div className="p-2 flex flex-col gap-1.5">
+                                {coords.map((c, i) => {
+                                  const cmd = `/travel ${c.x} ${c.y}`;
+                                  const isSubChecked = !!activeSubMapCheckedState[i];
+                                  return (
+                                    <div
+                                      key={i}
+                                      className={`group flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-all duration-200 cursor-default ${
+                                        isSubChecked
+                                          ? "bg-emerald-500/5 border-emerald-500/20"
+                                          : "bg-black/20 border-white/5 hover:border-cyan-500/20 hover:bg-cyan-500/5"
+                                      }`}
+                                    >
+                                      {/* Checkbox */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const nextState = { ...activeSubMapCheckedState, [i]: !isSubChecked };
+                                          setCheckedSubMaps(prev => ({ ...prev, [key]: nextState }));
+                                          localStorage.setItem(`sigilos_submaps_${guildId}_${key}`, JSON.stringify(nextState));
+                                          if (!isSubChecked && Object.values(nextState).filter(Boolean).length === coords.length) {
+                                            toast.success("Trajet terminé ! Toutes les cartes visitées 🗺️");
+                                          }
+                                        }}
+                                        className={`flex items-center justify-center w-5 h-5 rounded-lg border transition-all shrink-0 cursor-pointer ${
+                                          isSubChecked
+                                            ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.2)]"
+                                            : "bg-black/40 border-white/10 hover:border-emerald-500/50 text-zinc-600 hover:text-emerald-400"
+                                        }`}
+                                        title={isSubChecked ? "Décocher cette carte" : "Marquer cette carte comme visitée"}
+                                      >
+                                        {isSubChecked
+                                          ? <CheckCircle2 size={11} />
+                                          : <span className="text-[8px] font-black">{i + 1}</span>
+                                        }
+                                      </button>
+
+                                      {/* Coords label */}
+                                      <div className="flex flex-col flex-1 min-w-0">
+                                        <span className={`text-[10px] font-bold transition-colors ${isSubChecked ? "text-zinc-600 line-through" : "text-zinc-300 group-hover:text-cyan-300"}`}>
+                                          Position {i + 1}
+                                        </span>
+                                        <span className={`font-mono text-[11px] font-black transition-colors ${isSubChecked ? "text-zinc-600" : "text-cyan-400"}`}>
+                                          [{c.x}, {c.y}]
+                                        </span>
+                                      </div>
+
+                                      {/* Actions */}
+                                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigator.clipboard.writeText(cmd);
+                                            toast.success("Commande copiée !", { description: cmd });
+                                          }}
+                                          className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-white text-[9px] font-black transition-all cursor-pointer"
+                                          title="Copier /travel"
+                                        >
+                                          <Copy size={8} /> /travel
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onMapClick(c.x, c.y, c.worldId);
+                                          }}
+                                          className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 hover:border-cyan-500/40 text-cyan-400 text-[9px] font-black transition-all cursor-pointer"
+                                          title="Voir la carte HD"
+                                        >
+                                          <Eye size={8} /> HD
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>
                       </div>
-                    );
-                  })()
-                ) : (
-                  /* Standard list rendering */
-                  <div className="sgc-step-list">
-                    {filteredSteps.length === 0 ? (
-                      <div className="sgc-empty">Toutes les étapes de ce sous-guide sont validées ! 🎉</div>
-                    ) : (
-                      filteredSteps.map(step => {
-                        const key = `${seq.subGuideRef}-${step.stepNumber}`;
-                        const checked = checkedSteps.has(key);
-                        const coords = Array.from(
-                          (step.plainText ?? step.web_text ?? "").matchAll(/\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g)
-                        ).map(m => ({ x: parseInt(m[1]), y: parseInt(m[2]), worldId: m[3] ? parseInt(m[3]) : undefined }));
-
-                        const stepIndexInFullList = steps.findIndex(s => s.stepNumber === step.stepNumber);
-
-                        // ── O(1) presence lookup from pre-computed map ──
-                        const { validated: validatedMembers = [], active: activeMembers = [] } = stepPresenceMap.get(key) ?? {};
-
-                        return (
-                          <div key={step.stepNumber}
-                            id={`sgc-step-${seq.subGuideRef}-${step.stepNumber}`}
-                            className={`sgc-step ${checked ? "done" : ""} ${bookmarkStepKey === key ? "bookmarked" : ""}`}>
-                            <div className="sgc-step-check" 
-                              title={checked ? "Désactiver cette étape" : "Valider cette étape"}
-                              onClick={() => handleStepCheckToggle(step.stepNumber, stepIndexInFullList)}>
-                              {checked ? <CheckCircle2 size={18} className="checked-icon"/> : <Circle size={18} className="unchecked-icon"/>}
-                            </div>
-                            <button
-                              className="sgc-step-bookmark-btn"
-                              title={bookmarkStepKey === key ? "Retirer mon marque-page de cette étape (J'en suis là)" : "Marquer cette étape comme ma position (J'en suis là)"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                onStepBookmark(key);
-                              }}
-                            >
-                              {bookmarkStepKey === key ? (
-                                <BookmarkCheck size={16} className="text-amber-500 fill-amber-500/20" />
-                              ) : (
-                                <Bookmark size={16} />
-                              )}
-                            </button>
-                            <span className="sgc-step-num">
-                              {step.stepNumber}
-                            </span>
-                            <div className="flex flex-col flex-1 min-w-0">
-                              <div className="sgc-step-content ganymade-step-text"
-                                onClick={onInteractiveClick}
-                                {...{ dangerouslySetInnerHTML: { __html: cachedProcessHtml(step.web_text ?? step.plainText ?? "") } }}/>
-                              {(validatedMembers.length > 0 || activeMembers.length > 0) && (
-                                <div 
-                                  role="button"
-                                  tabIndex={0}
-                                  className="sgc-step-presence cursor-pointer hover:opacity-80 active:scale-95 transition-all select-none"
-                                  title="Cliquer pour voir la liste des membres ayant validé ou en cours sur cette étape"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onShowStepPresenceModal(
-                                      step.stepNumber,
-                                      step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
-                                      validatedMembers,
-                                      activeMembers
-                                    );
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
-                                      onShowStepPresenceModal(
-                                        step.stepNumber,
-                                        step.plainText ?? step.web_text ?? `Étape ${step.stepNumber}`,
-                                        validatedMembers,
-                                        activeMembers
-                                      );
-                                    }
-                                  }}
-                                >
-                                  {validatedMembers.slice(0, 5).map(m => (
-                                    <div
-                                      key={`val-${m.profileId}`}
-                                      className="sgc-step-presence-avatar validated"
-                                      title={`✅ ${m.userName} — a validé cette étape`}
-                                    >
-                                      {m.userAvatar
-                                        ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
-                                        : m.userName.charAt(0).toUpperCase()}
-                                    </div>
-                                  ))}
-                                  {activeMembers.slice(0, 3).map(m => (
-                                    <div
-                                      key={`act-${m.profileId}`}
-                                      className="sgc-step-presence-avatar active"
-                                      title={`📍 ${m.userName} — rendu à cette étape`}
-                                    >
-                                      {m.userAvatar
-                                        ? <img src={m.userAvatar} alt={m.userName} referrerPolicy="no-referrer" />
-                                        : m.userName.charAt(0).toUpperCase()}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              {coords.length > 0 && (
-                                <div className="sgc-step-coords">
-                                  {coords.map((c,i) => {
-                                    const cmd = `/travel ${c.x} ${c.y}`;
-                                    return (
-                                      <div key={i} className="flex items-center gap-1.5">
-                                        <button className="coord-btn" onClick={(e) => {
-                                          e.stopPropagation();
-                                          navigator.clipboard.writeText(cmd);
-                                          toast.success("Commande copiée !", { description: cmd });
-                                        }} title="Copier la commande /travel">
-                                          <MapPin size={9}/> {c.x},{c.y}{c.worldId ? ` (Monde ${c.worldId})` : ''}
-                                        </button>
-                                        <button className="p-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all cursor-pointer inline-flex items-center justify-center h-[22px] w-[22px]"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onMapClick(c.x, c.y, c.worldId);
-                                          }} title="Voir la carte HD">
-                                          <Eye size={10} />
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
+                    </div>
+                  );
+                })()}
               </>
             )}
           </motion.div>
@@ -856,27 +896,36 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
 
   const totalPresence = milestones.reduce((acc, m) => acc + (presenceMap[m.id]?.length || 0), 0);
   const isChapterActive = milestones.some(m => m.id === selectedId);
-
+  const activeColor = selectedId ? (milestones.find(m => m.id === selectedId)?.accentColor || "#6366f1") : "#6366f1";
+  
   return (
     <div className="chapter-group">
       <button 
         className={`chapter-header ${allDone ? "all-done" : ""} ${isChapterActive ? "active" : ""}`} 
-        style={isChapterActive ? { "--accent-color": selectedId ? milestones.find(m => m.id === selectedId)?.accentColor || "#3b82f6" : "#3b82f6" } as React.CSSProperties : undefined}
+        style={{
+          "--accent-color": activeColor,
+          background: isChapterActive 
+            ? `linear-gradient(135deg, color-mix(in srgb, ${activeColor} 18%, transparent) 0%, rgba(255,255,255,0.02) 100%)` 
+            : undefined,
+          borderColor: isChapterActive ? `color-mix(in srgb, ${activeColor} 40%, transparent)` : undefined
+        } as React.CSSProperties}
         onClick={() => onToggle(!isOpen)}
       >
-        <ProgressRing pct={pct} size={28} stroke={2.5} color={allDone ? "#10b981" : isChapterActive ? "var(--accent-color)" : "#60a5fa"}/>
+        <ProgressRing pct={pct} size={28} stroke={2.5} color={allDone ? "#10b981" : isChapterActive ? "var(--accent-color)" : "#6366f1"}/>
         <div className="chapter-label">
           <span className="chapter-name">{label}</span>
           <div className="chapter-meta">
-            <span className="chapter-count">{done}/{milestones.length} complétées</span>
+            <span className="chapter-count" style={{ color: isChapterActive ? "color-mix(in srgb, var(--accent-color) 75%, white)" : undefined }}>
+              {done}/{milestones.length} complétées
+            </span>
             {totalPresence > 0 && (
-              <span className="chapter-presence">
+              <span className="chapter-presence" style={{ color: "#38bdf8" }}>
                 <Users size={10}/> {totalPresence}
               </span>
             )}
           </div>
         </div>
-        {isOpen ? <ChevronDown size={14} className={isChapterActive ? "text-blue-400" : "text-zinc-500"}/> : <ChevronRight size={14} className="text-zinc-500"/>}
+        {isOpen ? <ChevronDown size={14} className={isChapterActive ? "text-indigo-300" : "text-zinc-500"}/> : <ChevronRight size={14} className="text-zinc-500"/>}
       </button>
 
       <AnimatePresence>
@@ -1068,6 +1117,7 @@ export default function OptimizedGuideClient({
   }, [selected?.id, selected?.chapter]);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
+  const [isAllMembersModalOpen, setIsAllMembersModalOpen] = useState(false);
   // Initialize checkedSteps from userProgress on mount
   const [checkedSteps, setCheckedSteps] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -2025,12 +2075,27 @@ export default function OptimizedGuideClient({
 
           {/* Guild radar mini — only if members */}
           {guildProgress.length > 0 && (
-            <div className="sb-radar-chip">
-              <Users size={10} className="text-blue-400 shrink-0"/>
-              <span>{guildProgress.length} membres actifs</span>
-              <span className="sb-radar-sep">·</span>
-              <span>{Object.keys(presenceMap).length} étapes occupées</span>
-            </div>
+            <button 
+              onClick={() => setIsAllMembersModalOpen(true)}
+              className="sb-radar-chip w-full hover:bg-white/5 border border-white/5 hover:border-white/10 rounded-xl transition-all p-2 text-left flex flex-col gap-1 cursor-pointer"
+              title="Voir la liste des membres"
+            >
+              <div className="flex items-center gap-1.5 text-blue-400">
+                <Users size={12} className="shrink-0"/>
+                <span className="text-[11px] font-black uppercase tracking-wider">Suivi de guilde</span>
+              </div>
+              <div className="text-[10px] text-zinc-400 font-medium">
+                <strong>{uniqueGuildMembers.length}</strong> {uniqueGuildMembers.length > 1 ? "membres suivent" : "membre suit"} ce guide.
+              </div>
+              {Object.keys(presenceMap).length > 0 && (
+                <div className="text-[9px] text-zinc-500">
+                  Répartis sur <strong>{Object.keys(presenceMap).length}</strong> jalon{Object.keys(presenceMap).length > 1 ? "s" : ""} différent{Object.keys(presenceMap).length > 1 ? "s" : ""} du parcours.
+                </div>
+              )}
+              <div className="text-[9px] text-indigo-400 mt-0.5 underline font-bold">
+                Afficher les membres →
+              </div>
+            </button>
           )}
 
           {/* Back to main guide (only when filter active) */}
@@ -2228,6 +2293,37 @@ export default function OptimizedGuideClient({
                   </div>
                 </div>
                 
+                {/* Structure / Hierarchy flow */}
+                <div className="flex items-center flex-wrap gap-2 text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-4 bg-zinc-950/20 px-3 py-2 rounded-xl border border-white/5">
+                  <span className="text-zinc-400">Structure :</span>
+                  <div className="flex items-center gap-1 text-indigo-400">
+                    <BookOpen size={10} className="shrink-0" />
+                    <span>{guide.name}</span>
+                  </div>
+                  <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
+                  <div className="flex items-center gap-1 text-zinc-300">
+                    <span>Phase {selected.chapter > 0 ? selected.chapter : "Intro"} : {selected.chapterLabel}</span>
+                  </div>
+                  <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
+                  <div className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    <Flag size={10} className="shrink-0" />
+                    <span className="max-w-[120px] sm:max-w-[200px] truncate">{decodeTitle(selected.title)}</span>
+                  </div>
+                  {selected.sequences.length > 0 && (() => {
+                    const sortedSeqs = [...selected.sequences].sort((a,b) => a.order - b.order);
+                    const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
+                    return (
+                      <>
+                        <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
+                        <div className="flex items-center gap-1 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                          <span className="truncate">Sous-Guide {activeSeq.subGuideRef}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
                 <h1 className="step-title">{decodeTitle(selected.title)}</h1>
                 {selected.subtitle && <p className="step-subtitle">{selected.subtitle}</p>}
 
@@ -2290,6 +2386,21 @@ export default function OptimizedGuideClient({
                 const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
                 return (
                   <section className="subguides-section">
+                    {/* Explication pédagogique de la hiérarchie */}
+                    <div className="mb-6 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-xs text-indigo-200/90 leading-relaxed flex items-start gap-3">
+                      <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shrink-0">
+                        <Info className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-zinc-100">Comment suivre cette étape ?</span>
+                        <span>
+                          Cette étape de la quête principale nécessite d&apos;accomplir les instructions du sous-guide de terrain ci-dessous.
+                          {sortedSeqs.length > 1 && " L'étape étant longue, elle est découpée en plusieurs sous-guides accessibles via les onglets ci-dessous."}
+                          {" Cochez les étapes secondaires au fur et à mesure pour guider vos équipiers !"}
+                        </span>
+                      </div>
+                    </div>
+
                     <div className="subguides-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <span>Instructions tactiques</span>
@@ -2997,7 +3108,10 @@ export default function OptimizedGuideClient({
               Navigation rapide
             </DialogTitle>
             <div className="text-lg font-black italic tracking-tight text-white uppercase mt-1">
-              Jalons de la feuille de route
+              Aller à une étape
+            </div>
+            <div className="text-[11px] text-zinc-500 mt-1 font-medium">
+              {completedIds.size} / {milestones.length} étapes complétées ({overallPct}%)
             </div>
           </DialogHeader>
 
@@ -3006,7 +3120,7 @@ export default function OptimizedGuideClient({
             <Search size={14} className="text-zinc-500 mr-3 shrink-0" />
             <input
               type="text"
-              placeholder="Rechercher un jalon par titre..."
+              placeholder="Rechercher par titre d'étape..."
               value={modalSearchQuery}
               onChange={(e) => setModalSearchQuery(e.target.value)}
               className="w-full bg-transparent text-sm text-white placeholder-zinc-600 outline-none font-medium"
@@ -3021,24 +3135,22 @@ export default function OptimizedGuideClient({
             )}
           </div>
 
-          {/* Milestone List in ScrollArea */}
-          <ScrollArea className="h-[400px] pr-2 no-scrollbar">
-            <div className="space-y-1.5 pb-2">
+          {/* Milestone List in ScrollArea — grouped by chapter when no search */}
+          <ScrollArea className="h-[420px] pr-2 no-scrollbar">
+            <div className="space-y-3 pb-2">
               {filteredModalMilestones.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-zinc-600 italic text-sm">
                   <Info size={20} className="mb-2 opacity-40" />
-                  <span>Aucun jalon trouvé</span>
+                  <span>Aucune étape trouvée</span>
                 </div>
-              ) : (
+              ) : modalSearchQuery.trim() ? (
+                /* Flat list when searching */
                 filteredModalMilestones.map((m) => {
                   const isSelected = selected?.id === m.id;
                   const isDone = completedIds.has(m.id);
                   const isBookmarked = bookmarkId === m.id;
-                  
-                  // Find global index in milestones list for numbering
                   const globalIndex = milestones.findIndex(item => item.id === m.id) + 1;
                   const here = presenceMap[m.id] || [];
-
                   return (
                     <button
                       key={m.id}
@@ -3048,13 +3160,12 @@ export default function OptimizedGuideClient({
                         setModalSearchQuery("");
                       }}
                       className={`w-full text-left flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 relative group
-                        ${isSelected 
+                        ${isSelected
                           ? "bg-white/10 border-white/20 shadow-lg"
                           : "bg-white/[0.02] border-white/5 hover:bg-white/5 hover:border-white/15"
                         }
                       `}
                     >
-                      {/* Status Indicator */}
                       <div className="shrink-0 flex items-center justify-center">
                         {isBookmarked && !isDone ? (
                           <div className="w-5 h-5 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -3074,65 +3185,139 @@ export default function OptimizedGuideClient({
                           </div>
                         )}
                       </div>
-
-                      {/* Milestone Info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[13px] font-black italic truncate transition-colors ${
-                            isSelected ? "text-white" : "text-zinc-300 group-hover:text-white"
-                          } ${isDone ? "text-zinc-500 line-through" : ""}`}>
-                            {m.title}
+                        <span className={`text-[13px] font-black italic truncate block transition-colors ${
+                          isSelected ? "text-white" : "text-zinc-300 group-hover:text-white"
+                        } ${isDone ? "text-zinc-500 line-through" : ""}`}>
+                          {m.title}
+                        </span>
+                        {m.isOptional && (
+                          <span className="text-[8px] font-black uppercase bg-amber-500/10 text-amber-500 px-1 py-0.5 rounded border border-amber-500/20 mt-0.5 inline-block">
+                            Bonus
                           </span>
-                          {m.isOptional && (
-                            <span className="text-[8px] font-black uppercase bg-amber-500/10 text-amber-500 px-1 py-0.5 rounded border border-amber-500/20 shrink-0">
-                              Bonus
-                            </span>
-                          )}
-                        </div>
-                        {m.subtitle && (
-                          <div className="text-[10px] text-zinc-500 truncate mt-0.5">
-                            {m.subtitle}
-                          </div>
                         )}
                       </div>
-
-                      {/* Right actions/badges */}
                       <div className="shrink-0 flex items-center gap-2">
-                        {/* Guild Presence avatars */}
                         {here.length > 0 && (
-                          <div className="flex -space-x-1.5 mr-1">
+                          <div className="flex -space-x-1.5">
                             {here.slice(0, 2).map((member) => (
-                              <div
-                                key={member.profileId}
-                                className="w-4 h-4 rounded-full border border-black/40 overflow-hidden bg-zinc-800 flex items-center justify-center"
-                                title={member.userName}
-                              >
-                                {member.userAvatar ? (
-                                  <img src={member.userAvatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <span className="text-[8px] font-bold text-zinc-400">
-                                    {member.userName.charAt(0).toUpperCase()}
-                                  </span>
-                                )}
+                              <div key={member.profileId} className="w-4 h-4 rounded-full border border-black/40 overflow-hidden bg-zinc-800" title={member.userName}>
+                                {member.userAvatar
+                                  ? <img src={member.userAvatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  : <span className="flex w-full h-full items-center justify-center text-[8px] font-bold text-zinc-400">{member.userName.charAt(0).toUpperCase()}</span>}
                               </div>
                             ))}
                             {here.length > 2 && (
-                              <div className="w-4 h-4 rounded-full border border-black/40 bg-indigo-600 text-white text-[7px] font-black flex items-center justify-center" title={`${here.length} membres ici`}>
+                              <div className="w-4 h-4 rounded-full border border-black/40 bg-indigo-600 text-white text-[7px] font-black flex items-center justify-center">
                                 +{here.length - 2}
                               </div>
                             )}
                           </div>
                         )}
-
-                        {m.sequences.length > 0 && (
-                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400">
-                            {m.sequences.length} étapes
-                          </span>
-                        )}
-                        
                         <ChevronRight size={12} className="text-zinc-600 group-hover:text-white transition-colors" />
                       </div>
                     </button>
+                  );
+                })
+              ) : (
+                /* Grouped by chapter when not searching */
+                chapters.map((ch) => {
+                  const chMilestones = filteredModalMilestones.filter(m => m.chapter === ch.chapter);
+                  if (chMilestones.length === 0) return null;
+                  const chDone = chMilestones.filter(m => completedIds.has(m.id)).length;
+                  const chPct = Math.round((chDone / chMilestones.length) * 100);
+                  const chAllDone = chDone === chMilestones.length;
+                  const chHasSelected = chMilestones.some(m => m.id === selected?.id);
+                  return (
+                    <div key={ch.chapter} className="space-y-1">
+                      {/* Chapter header */}
+                      <div className={`flex items-center gap-2 px-2 py-1.5 rounded-xl ${
+                        chHasSelected ? "bg-indigo-500/10 border border-indigo-500/20" : "border border-transparent"
+                      }`}>
+                        <div className="w-4 h-4 shrink-0">
+                          {chAllDone
+                            ? <CheckCircle2 size={14} className="text-emerald-500" />
+                            : <div className="w-4 h-4 rounded-full border-2 border-zinc-700 flex items-center justify-center">
+                                <div
+                                  className="w-2 h-2 rounded-full bg-indigo-400"
+                                  style={{ transform: `scale(${chPct / 100})` }}
+                                />
+                              </div>
+                          }
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${
+                          chHasSelected ? "text-indigo-300" : chAllDone ? "text-zinc-600" : "text-zinc-400"
+                        }`}>{ch.label}</span>
+                        <span className="ml-auto text-[9px] font-bold text-zinc-600">{chDone}/{chMilestones.length}</span>
+                      </div>
+                      {/* Milestones in chapter */}
+                      <div className="pl-4 space-y-0.5">
+                        {chMilestones.map((m) => {
+                          const isSelected = selected?.id === m.id;
+                          const isDone = completedIds.has(m.id);
+                          const isBookmarked = bookmarkId === m.id;
+                          const globalIndex = milestones.findIndex(item => item.id === m.id) + 1;
+                          const here = presenceMap[m.id] || [];
+                          return (
+                            <button
+                              key={m.id}
+                              onClick={() => {
+                                setSelected(m);
+                                setIsMilestoneModalOpen(false);
+                                setModalSearchQuery("");
+                              }}
+                              className={`w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all duration-200 group
+                                ${isSelected
+                                  ? "bg-white/10 border-white/20"
+                                  : "bg-white/[0.015] border-white/5 hover:bg-white/5 hover:border-white/12"
+                                }
+                              `}
+                            >
+                              {/* Status icon */}
+                              <div className="shrink-0">
+                                {isBookmarked && !isDone ? (
+                                  <Bookmark size={12} className="text-amber-400 fill-amber-400/20" />
+                                ) : isDone ? (
+                                  <CheckCircle2 size={12} className="text-emerald-500" />
+                                ) : isSelected ? (
+                                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                ) : (
+                                  <span className="text-[9px] font-mono font-bold text-zinc-600 w-5 inline-block text-center">{globalIndex}</span>
+                                )}
+                              </div>
+                              {/* Title */}
+                              <span className={`flex-1 text-[12px] font-bold truncate transition-colors ${
+                                isSelected ? "text-white" : "text-zinc-300 group-hover:text-white"
+                              } ${isDone ? "text-zinc-600 line-through" : ""}`}>
+                                {m.title}
+                              </span>
+                              {/* Bonus badge */}
+                              {m.isOptional && (
+                                <span className="text-[7px] font-black uppercase bg-amber-500/10 text-amber-500 px-1 py-0.5 rounded border border-amber-500/20 shrink-0">
+                                  Bonus
+                                </span>
+                              )}
+                              {/* Guild presence avatars */}
+                              {here.length > 0 && (
+                                <div className="flex -space-x-1 shrink-0" title={`${here.length} membre${here.length > 1 ? "s" : ""} ici`}>
+                                  {here.slice(0, 2).map((member) => (
+                                    <div key={member.profileId} className="w-4 h-4 rounded-full border border-black/40 overflow-hidden bg-zinc-800">
+                                      {member.userAvatar
+                                        ? <img src={member.userAvatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                        : <span className="flex w-full h-full items-center justify-center text-[7px] font-bold text-zinc-400">{member.userName.charAt(0).toUpperCase()}</span>}
+                                    </div>
+                                  ))}
+                                  {here.length > 2 && (
+                                    <div className="w-4 h-4 rounded-full border border-black/40 bg-indigo-600/70 text-white text-[7px] font-black flex items-center justify-center">+{here.length - 2}</div>
+                                  )}
+                                </div>
+                              )}
+                              <ChevronRight size={10} className="text-zinc-700 group-hover:text-zinc-400 transition-colors shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })
               )}
@@ -3336,6 +3521,73 @@ export default function OptimizedGuideClient({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+      {/* All Guild Members Tracking Guide Modal */}
+      <Dialog open={isAllMembersModalOpen} onOpenChange={setIsAllMembersModalOpen}>
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-white/5 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500 flex items-center gap-2">
+              <Users size={14} className="text-blue-400" />
+              Membres sur ce guide
+            </DialogTitle>
+            <div className="text-lg font-black italic tracking-tight text-white uppercase mt-1">
+              Position dans la guilde
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[350px] pr-2 no-scrollbar">
+            <div className="space-y-2 pb-2">
+              {uniqueGuildMembers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-zinc-500 italic text-sm">
+                  <Info size={16} className="mb-2 opacity-40" />
+                  <span>Aucun membre ne suit ce guide</span>
+                </div>
+              ) : (
+                uniqueGuildMembers.map((m) => {
+                  const profileUrl = `/dashboard/${guildId}/members/${encodeURIComponent(m.profileSlug || m.profileId)}`;
+                  // Find current milestone title
+                  const currentMs = milestones.find(ms => ms.id === m.currentMilestoneId);
+                  
+                  return (
+                    <Link
+                      key={m.profileId}
+                      href={profileUrl}
+                      className="flex items-center justify-between p-3 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10 transition-all group cursor-pointer"
+                      onClick={() => setIsAllMembersModalOpen(false)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                          {m.userAvatar ? (
+                            <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <span className="text-sm font-bold text-zinc-400">
+                              {m.userName.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-zinc-200 group-hover:text-blue-400 transition-colors truncate">
+                            {m.userName}
+                          </span>
+                          <span className="text-[9px] text-zinc-400 truncate mt-0.5">
+                            {currentMs 
+                              ? `En cours : ${currentMs.title}` 
+                              : m.completedMilestoneIds.size === milestones.length 
+                                ? "✨ Guide entièrement complété !" 
+                                : "Pas encore commencé / En pause"
+                            }
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-zinc-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       {/* How to Use Modal Dialog */}
       <Dialog 
         open={isHelpOpen} 
@@ -3351,6 +3603,14 @@ export default function OptimizedGuideClient({
 
           <ScrollArea className="max-h-[400px] pr-2 no-scrollbar text-zinc-300 text-xs leading-relaxed space-y-4">
             <div className="space-y-4 pb-2 font-medium">
+              <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 mb-4">
+                <h4 className="text-indigo-300 font-black uppercase tracking-wider text-[10px] mb-1">📐 Structure & Hiérarchie</h4>
+                <p className="text-zinc-200">Le système de guide est structuré en deux niveaux :</p>
+                <ul className="list-disc pl-4 mt-1.5 space-y-1 text-zinc-300 text-[11px]">
+                  <li><strong>Guide Principal (à gauche) :</strong> Les étapes et quêtes de la trame globale (ex: Quête du Dofus Émeraude).</li>
+                  <li><strong>Sous-Guides GP (au centre) :</strong> Les fiches d&apos;instructions ultra-détaillées avec coordonnées et dialogues pour chaque objectif spécifique.</li>
+                </ul>
+              </div>
               <div>
                 <h4 className="text-white font-black uppercase tracking-wider text-[10px] mb-1">🗺️ Progression pas-à-pas</h4>
                 <p>Suivez la feuille de route optimisée. Les étapes s&apos;enchaînent logiquement pour réduire les allers-retours.</p>

@@ -793,6 +793,7 @@ export async function getMissionConfig(guildId: string): Promise<{
         missionManagementNotifyRoleId: string | null;
         newsBroadcastEnabled: boolean;
         lifecycleNotifyChannelId: string | null;
+        missionVitrineMode: boolean;
     }
 }> {
     const session = await auth();
@@ -816,6 +817,7 @@ export async function getMissionConfig(guildId: string): Promise<{
                 missionManagementNotifyRoleId: true,
                 newsBroadcastEnabled: true,
                 lifecycleNotifyChannelId: true,
+                missionVitrineMode: true,
             }
         });
 
@@ -834,6 +836,7 @@ export async function getMissionConfig(guildId: string): Promise<{
                 missionManagementNotifyRoleId: config.missionManagementNotifyRoleId,
                 newsBroadcastEnabled: config.newsBroadcastEnabled,
                 lifecycleNotifyChannelId: config.lifecycleNotifyChannelId,
+                missionVitrineMode: config.missionVitrineMode,
             }
         };
     } catch (error) {
@@ -855,6 +858,7 @@ export async function updateMissionNotifySettings(
         missionManagementNotifyRoleId?: string | null;
         newsBroadcastEnabled?: boolean;
         lifecycleNotifyChannelId?: string | null;
+        missionVitrineMode?: boolean;
     }
 ): Promise<ActionResponse> {
     const session = await auth();
@@ -896,6 +900,7 @@ export async function updateMissionNotifySettings(
         if (data.missionManagementNotifyRoleId !== undefined) updateData.missionManagementNotifyRoleId = data.missionManagementNotifyRoleId;
         if (data.newsBroadcastEnabled !== undefined) updateData.newsBroadcastEnabled = data.newsBroadcastEnabled;
         if (data.lifecycleNotifyChannelId !== undefined) updateData.lifecycleNotifyChannelId = data.lifecycleNotifyChannelId;
+        if (data.missionVitrineMode !== undefined) updateData.missionVitrineMode = data.missionVitrineMode;
 
         // 2. Perform DB update
         await db.guildConfig.update({

@@ -16,7 +16,7 @@ export type GalleryBuild = {
     tags?: string[];
     classId?: string | number; // stored as string ("cra", "roublard") or number from legacy data
     previewData?: any; // Cached build info
-    source?: "dofusbook" | "dofusroom";
+    source?: "dofusbook";
     author: {
         id: string;
         name: string;
@@ -79,7 +79,7 @@ export async function getStuffGalleryPage(
     tag?: string,
     classId?: string,
     sortBy?: "newest" | "votes",
-    source?: "dofusbook" | "dofusroom"
+    source?: "dofusbook"
 ): Promise<ActionResponse<GalleryPage>> {
     if (!guildId) return { success: false, error: "ID de guilde requis" };
 
@@ -141,9 +141,11 @@ export async function getStuffGalleryPage(
             const links = profile.dofusBookLinks as any[];
             links.forEach((link, idx) => {
                 if (link?.url && link?.name) {
-                    const buildId = link.id || `${profile.id}-${idx}`; // Prefer real id if exists
                     const isDofusRoom = /dofusroom\.com/.test(link.url);
-                    const buildSource = isDofusRoom ? "dofusroom" : "dofusbook";
+                    if (isDofusRoom) return; // Skip DofusRoom links completely
+
+                    const buildId = link.id || `${profile.id}-${idx}`; // Prefer real id if exists
+                    const buildSource = "dofusbook" as const;
                     
                     const buildIdMatch = link.url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
                     const parsedId = buildIdMatch ? (buildIdMatch[1] || buildIdMatch[2]) : null;
@@ -203,7 +205,7 @@ export async function getStuffGalleryPage(
             allBuilds = allBuilds.filter(b => String(b.classId) === classId);
         }
 
-        // Apply source filter server-side (dofusbook vs dofusroom)
+        // Apply source filter server-side
         if (source) {
             allBuilds = allBuilds.filter(b => b.source === source);
         }
@@ -246,31 +248,17 @@ export async function refreshBuildMetadata(
     try {
         const { revalidatePath } = await import("next/cache");
         const isDofusRoom = /dofusroom\.com/.test(buildUrl);
+        if (isDofusRoom) {
+            return { success: false, error: "L'intégration DofusRoom a été supprimée." };
+        }
         let previewData = null;
 
-        if (isDofusRoom) {
-            const buildIdMatch = buildUrl.match(/(?:build\/show\/|\/b-)(\d+)/);
-            const buildId = buildIdMatch ? buildIdMatch[1] : null;
-            if (!buildId) return { success: false, error: "Identifiant Dofusroom introuvable" };
-
-            const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-            const response = await fetch(`${baseUrl}/api/dofusroom/proxy/${buildId}`, {
-                method: "GET",
-                cache: "no-store",
-            });
-            if (response.ok) {
-                previewData = await response.json();
-            } else {
-                return { success: false, error: "Impossible de récupérer les données DofusRoom" };
-            }
-        } else {
-            const { getDofusbookPreview } = await import("./dofusbook-actions");
-            const res = await getDofusbookPreview(buildUrl, true);
-            if (!res.success || !res.data) {
-                return { success: false, error: res.error || "Impossible de récupérer les données" };
-            }
-            previewData = res.data;
+        const { getDofusbookPreview } = await import("./dofusbook-actions");
+        const res = await getDofusbookPreview(buildUrl, true);
+        if (!res.success || !res.data) {
+            return { success: false, error: res.error || "Impossible de récupérer les données" };
         }
+        previewData = res.data;
 
         // 2. Update user profile dofusBookLinks
         const profile = await db.userProfile.findUnique({
@@ -283,7 +271,7 @@ export async function refreshBuildMetadata(
         const links = (profile.dofusBookLinks as any[]) || [];
         const updatedLinks = links.map(link => {
             if (link.url === buildUrl) {
-                return { ...link, previewData, source: isDofusRoom ? "dofusroom" : "dofusbook" };
+                return { ...link, previewData, source: "dofusbook" as const };
             }
             return link;
         });

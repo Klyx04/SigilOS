@@ -54,7 +54,7 @@ export default auth(async (req) => {
         nextUrl.pathname.startsWith("/api/auth") || 
         nextUrl.pathname.startsWith("/api/health") ||
         nextUrl.pathname.startsWith("/api/god/notify") || 
-        nextUrl.pathname.startsWith("/api/cron/guildaton-report") || 
+        nextUrl.pathname.startsWith("/api/cron/") ||       // ✅ Protected by verifyCronSecret (x-cron-secret header)
         nextUrl.pathname.startsWith("/api/discord/interactions") || 
         nextUrl.pathname.startsWith("/api/storage") || 
         nextUrl.pathname.startsWith("/api/og"); 

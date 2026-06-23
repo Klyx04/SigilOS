@@ -341,7 +341,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
     const anomalieType = payload.type || 'ZONE';
     const levelRange = payload.levelRange || '200';
 
-    const handleTypeChange = (type: 'ZONE' | 'BOSS') => {
+    const handleTypeChange = (type: AnomaliePayload['type']) => {
         const newPayload: AnomaliePayload = {
             type,
             levelRange,
@@ -364,18 +364,26 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
             onTitleChange(`Zone Anomalie ${range}`);
         } else if (type === 'BOSS') {
             onTitleChange(`Gardien Anomalie ${range}`);
+        } else if (type === 'FRAGMENTS') {
+            onTitleChange(`Collecte Fragments Anomalie ${range}`);
+        } else if (type === 'STABILISATION') {
+            onTitleChange(`Stabilisation Gardiens Anomalie ${range}`);
         }
     };
 
-    const TYPES: { value: 'ZONE' | 'BOSS'; label: string; desc: string }[] = [
+    const TYPES: { value: AnomaliePayload['type']; label: string; desc: string }[] = [
         { value: 'ZONE', label: 'Zone', desc: '50 monstres' },
         { value: 'BOSS', label: 'Gardien', desc: 'Gardien d\'anomalie' },
+        { value: 'FRAGMENTS', label: 'Fragments', desc: '20 fragments d\'anomalie' },
+        { value: 'STABILISATION', label: 'Stabilisation', desc: '3 gardiens (Élixir majeur)' },
     ];
 
     // Anomalie Artwork
     const getAnomalieArtwork = () => {
         switch(anomalieType) {
             case 'BOSS': return "/assets/missions/ano1.png";
+            case 'FRAGMENTS': return "/assets/missions/fragment.png";
+            case 'STABILISATION': return "/assets/missions/3-gardiens.png";
             default: return "/assets/missions/anomalie.png";
         }
     };
@@ -427,6 +435,12 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                     )}
                     {anomalieType === 'BOSS' && (
                         <>Vaincre un <span className="text-white font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-white font-black">{levelRange}</span> avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
+                    )}
+                    {anomalieType === 'FRAGMENTS' && (
+                        <>Obtenir <span className="text-white font-black">20 Fragments d'anomalie</span> dans une anomalie de niveau <span className="text-white font-black">{levelRange}</span></>
+                    )}
+                    {anomalieType === 'STABILISATION' && (
+                        <>Vaincre <span className="text-white font-black">3 Gardiens des anomalies</span> de niveau <span className="text-white font-black">{levelRange}</span> sous l'effet d'un <span className="text-fuchsia-300 font-bold">[Élixir uchronique majeur]</span></>
                     )}
                 </div>
             </div>

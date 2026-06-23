@@ -67,7 +67,7 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
     return (
         <Link
             href={`/dashboard/${guildId}/quetes-dofus/${dofus.slug}${selectedCharacter !== "PRINCIPAL" ? `?character=${selectedCharacter}` : ""}`}
-            className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
+            className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 will-change-transform"
             style={{
                 background: `linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)`,
                 border: `1px solid ${isObtained ? color + "66" : "rgba(255,255,255,0.08)"}`,
@@ -170,9 +170,10 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                         strokeWidth={5}
                         color={color}
                         isObtained={isObtained}
+                        showText={false}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="relative flex items-center justify-center transition-all duration-500 group-hover:scale-110">
+                        <div className="relative flex items-center justify-center transition-all duration-500 group-hover:scale-110 will-change-transform">
                             {dofus.imageUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
@@ -183,8 +184,8 @@ export function DofusGemCard({ dofus, guildId, selectedCharacter = "PRINCIPAL" }
                                     className="object-contain"
                                     style={{
                                         filter: isObtained
-                                            ? `drop-shadow(0 0 10px ${color}aa)`
-                                            : `drop-shadow(0 0 4px ${color}44)`,
+                                            ? `drop-shadow(0 0 8px ${color}88)`
+                                            : `drop-shadow(0 0 3px ${color}22)`,
                                     }}
                                 />
                             ) : dofus.nameShort ? (

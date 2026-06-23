@@ -53,11 +53,6 @@ export function DofusProgressRing({
                     strokeDashoffset={offset}
                     style={{
                         transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
-                        filter: isObtained
-                            ? `drop-shadow(0 0 6px ${displayColor}99)`
-                            : percent > 0
-                            ? `drop-shadow(0 0 4px ${displayColor}66)`
-                            : "none",
                     }}
                 />
             </svg>

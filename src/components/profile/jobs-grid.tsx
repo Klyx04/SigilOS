@@ -106,28 +106,28 @@ export function JobsGrid({
                             </DialogHeader>
                             <div className="flex-1 overflow-hidden p-6">
                                 <Tabs defaultValue="Récolte" className="h-full flex flex-col">
-                                    <TabsList className="grid w-full grid-cols-4 mb-6 bg-zinc-900/40 p-1 border border-zinc-800/80 h-11 rounded-xl">
+                                    <TabsList className="grid w-full grid-cols-4 mb-6 bg-zinc-900 border border-zinc-800 p-1 h-12 rounded-xl">
                                         <TabsTrigger 
                                             value="Récolte"
-                                            className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
                                         >
                                             Récolte
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Artisanat"
-                                            className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
                                         >
                                             Artisanat
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Forgemagie"
-                                            className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
                                         >
                                             Forgemagie
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="Élevage"
-                                            className="text-xs font-black uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-amber-500/15 data-[state=active]:to-amber-600/15 data-[state=active]:text-amber-400 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=active]:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                            className="text-xs font-extrabold uppercase tracking-wider h-full rounded-lg transition-all text-zinc-400 hover:text-white hover:bg-zinc-800/50 data-[state=active]:bg-amber-500 data-[state=active]:text-zinc-950 data-[state=active]:font-black data-[state=active]:shadow-[0_0_20px_rgba(245,158,11,0.4)]"
                                         >
                                             Élevage
                                         </TabsTrigger>

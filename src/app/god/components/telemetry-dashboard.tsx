@@ -278,6 +278,38 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Side: Popular Lists (5 Columns) */}
                 <div className="lg:col-span-5 space-y-8">
+                    {/* Consommation par Guilde (7 jours) */}
+                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
+                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <Users className="w-4 h-4 text-emerald-400" />
+                            Consommation par Guilde (7j)
+                        </h3>
+                        <div className="space-y-4">
+                            {!stats.guildActivity || stats.guildActivity.length === 0 ? (
+                                <p className="text-zinc-600 text-xs italic">Aucune activité de guilde enregistrée</p>
+                            ) : (
+                                stats.guildActivity.map((item: any) => {
+                                    const maxVal = stats.guildActivity[0]?.count || 1;
+                                    const pct = Math.max(5, (item.count / maxVal) * 100);
+                                    return (
+                                        <div key={item.guildId} className="space-y-1.5">
+                                            <div className="flex justify-between text-xs font-bold text-zinc-300">
+                                                <span className="truncate max-w-[250px] font-mono text-[11px] text-emerald-400/90">{item.guildName}</span>
+                                                <span className="text-zinc-400">{item.count} actions</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-gradient-to-r from-emerald-600 to-teal-500 rounded-full" 
+                                                    style={{ width: `${pct}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+
                     {/* Top Visited Pages */}
                     <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
                         <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -288,7 +320,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             {stats.topPaths.length === 0 ? (
                                 <p className="text-zinc-600 text-xs italic">Aucune visite enregistrée</p>
                             ) : (
-                                stats.topPaths.map((item: any, idx: number) => {
+                                stats.topPaths.map((item: any) => {
                                     const maxVal = stats.topPaths[0]?.count || 1;
                                     const pct = Math.max(5, (item.count / maxVal) * 100);
                                     return (
@@ -320,7 +352,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             {stats.topInteractions.length === 0 ? (
                                 <p className="text-zinc-600 text-xs italic">Aucune interaction enregistrée</p>
                             ) : (
-                                stats.topInteractions.map((item: any, idx: number) => {
+                                stats.topInteractions.map((item: any) => {
                                     const maxVal = stats.topInteractions[0]?.count || 1;
                                     const pct = Math.max(5, (item.count / maxVal) * 100);
                                     return (
@@ -353,12 +385,15 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                 <p className="text-zinc-600 text-xs italic">Aucun utilisateur actif</p>
                             ) : (
                                 stats.topUsers.map((item: any) => (
-                                    <div key={item.userId} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
                                         <div className="flex items-center gap-3">
                                             <div className="w-7 h-7 rounded-lg bg-zinc-950/60 flex items-center justify-center border border-white/5 text-[10px] font-black text-emerald-400">
                                                 {item.userName.substring(0, 2).toUpperCase()}
                                             </div>
-                                            <span className="text-xs font-bold text-white">{item.userName}</span>
+                                            <div>
+                                                <span className="text-xs font-bold text-white block leading-tight">{item.userName}</span>
+                                                <span className="text-[9px] text-zinc-500 font-semibold uppercase">{item.guildName}</span>
+                                            </div>
                                         </div>
                                         <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md border border-white/5">
                                             {item.count} act.
@@ -368,10 +403,40 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             )}
                         </div>
                     </div>
+
+                    {/* Qui s'est connecté quand (Dernières connexions 30 jours) */}
+                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
+                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-violet-400" />
+                            Historique des connexions (30j)
+                        </h3>
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            {!stats.usersLastSeen || stats.usersLastSeen.length === 0 ? (
+                                <p className="text-zinc-600 text-xs italic">Aucune connexion enregistrée</p>
+                            ) : (
+                                stats.usersLastSeen.map((item: any) => (
+                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 text-[11px]">
+                                        <div className="min-w-0">
+                                            <span className="font-bold text-white block truncate">{item.userName}</span>
+                                            <span className="text-[9px] text-zinc-500 font-semibold uppercase truncate block">{item.guildName}</span>
+                                        </div>
+                                        <span className="text-[9px] font-semibold text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-white/5 shrink-0">
+                                            {item.lastActive ? new Date(item.lastActive).toLocaleDateString("fr-FR", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                hour: "2-digit",
+                                                minute: "2-digit"
+                                            }) : "Jamais"}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right Side: Live Log Stream (7 Columns) */}
-                <div className="lg:col-span-7 p-6 rounded-3xl border border-white/5 bg-zinc-950/60 backdrop-blur-md flex flex-col h-[770px] relative overflow-hidden">
+                <div className="lg:col-span-7 p-6 rounded-3xl border border-white/5 bg-zinc-950/60 backdrop-blur-md flex flex-col h-[950px] relative overflow-hidden">
                     <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-zinc-950/80 to-transparent pointer-events-none z-10" />
                     
                     {/* Header search bar */}
@@ -390,7 +455,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
                             <input
                                 type="text"
-                                placeholder="Rechercher par membre, route, clic..."
+                                placeholder="Rechercher par membre, route, guilde, clic..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2.5 bg-zinc-900/60 border border-white/5 rounded-xl text-xs font-bold text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20 transition-all"
@@ -426,9 +491,14 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                         {/* Event Details */}
                                         <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex justify-between items-start gap-2">
-                                                <span className="text-xs font-black text-white truncate max-w-[150px]">
-                                                    {event.userName}
-                                                </span>
+                                                <div className="truncate max-w-[200px]">
+                                                    <span className="text-xs font-black text-white block truncate">
+                                                        {event.userName}
+                                                    </span>
+                                                    <span className="text-[8px] text-zinc-500 font-bold uppercase block truncate leading-none">
+                                                        {event.guildName}
+                                                    </span>
+                                                </div>
                                                 <span className="text-[9px] font-black text-zinc-500 uppercase shrink-0 font-mono">
                                                     {new Date(event.createdAt).toLocaleTimeString("fr-FR", { 
                                                         hour: "2-digit", 

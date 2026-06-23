@@ -22,14 +22,14 @@
         {
           "name": "La pêche aux infos",
           "dofusdbId": 1731,
+          "externalRef": "https://www.dofuspourlesnoobs.com/la-pecircche-aux-infos.h",
           "level": 200,
           "zone": "Sufokia / Abysses",
           "npcName": "Kiara Byssal",
           "npcSubArea": null,
           "coords": {
             "x": 23,
-            "y": 24,
-            "worldId": 1
+            "y": 24
           },
           "isDungeon": false,
           "itemsRequired": [],

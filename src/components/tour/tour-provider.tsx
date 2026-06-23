@@ -106,7 +106,7 @@ const DASHBOARD_STEPS: TourStep[] = [
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
-export function TourProvider({ children, guildId }: { children: ReactNode; guildId: string }) {
+export function TourProvider({ children, guildId, modules }: { children: ReactNode; guildId: string; modules?: any }) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -116,9 +116,44 @@ export function TourProvider({ children, guildId }: { children: ReactNode; guild
     const [isActive, setIsActive] = useState<boolean>(false);
     const [isCelebrationActive, setCelebrationActive] = useState<boolean>(false);
 
-    const steps = tourPhase === "profile" ? PROFILE_STEPS : tourPhase === "dashboard" ? DASHBOARD_STEPS : [];
+    // Filter dashboard steps dynamically based on active modules
+    const steps = tourPhase === "profile" 
+        ? PROFILE_STEPS 
+        : tourPhase === "dashboard" 
+            ? DASHBOARD_STEPS.filter(step => {
+                if (step.target.includes("sidebar-missions") && modules && !modules.missions) return false;
+                if (step.target.includes("sidebar-ladder") && modules && !modules.ladder) return false;
+                if (step.target.includes("sidebar-calendar") && modules && !modules.calendar) return false;
+                return true;
+            })
+            : [];
+
     const totalSteps = steps.length;
     const activeStepData = steps[currentStep - 1] || null;
+
+    // Helper function to auto-open sections in sidebar based on current target step
+    const ensureSidebarSectionOpen = (targetSelector: string) => {
+        if (typeof document === "undefined") return;
+        // Find parent sections or trigger expanding logic by simulating clicks on collapsible headers if needed
+        if (targetSelector.includes("sidebar-missions") || targetSelector.includes("sidebar-ladder")) {
+            const btn = document.querySelector('[data-tour-section="progression"] button');
+            if (btn && btn.getAttribute("aria-expanded") !== "true") {
+                (btn as HTMLButtonElement).click();
+            }
+        } else if (targetSelector.includes("sidebar-members") || targetSelector.includes("sidebar-calendar")) {
+            const btn = document.querySelector('[data-tour-section="informations"] button');
+            if (btn && btn.getAttribute("aria-expanded") !== "true") {
+                (btn as HTMLButtonElement).click();
+            }
+        }
+    };
+
+    // Auto-open sections on active step change
+    useEffect(() => {
+        if (isActive && activeStepData) {
+            ensureSidebarSectionOpen(activeStepData.target);
+        }
+    }, [isActive, activeStepData]);
 
     // Load initial state / handle redirect parameters
     useEffect(() => {

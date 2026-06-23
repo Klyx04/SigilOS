@@ -396,6 +396,43 @@ export async function getUpcomingEvents(guildId: string, days: number = 7) {
     }
 }
 
+/**
+ * Returns the currently active RAID_OFFICIAL event (if any).
+ * A raid is "active" when its startDate <= now <= endDate and status is PUBLISHED.
+ */
+export async function getActiveRaid(guildId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.isMember) return null;
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return null;
+
+        const now = new Date();
+
+        const raid = await db.guildEvent.findFirst({
+            where: {
+                guildId: guildConfig.id,
+                type: "RAID_OFFICIAL",
+                status: "PUBLISHED",
+                startDate: { lte: now },
+                endDate: { gte: now }
+            },
+            include: {
+                _count: { select: { participants: true } }
+            },
+            orderBy: { startDate: "desc" }
+        });
+
+        return raid;
+    } catch {
+        return null;
+    }
+}
+
 // ============================================
 // WRITE ACTIONS
 // ============================================

@@ -55,6 +55,7 @@ interface MissionCardProps {
     onInterestClick?: (missionId: string) => void; // For modal trigger
     isRestricted?: boolean;
     linkedEvent?: { id: string, title: string, startDate: Date } | null;
+    vitrineMode?: boolean;
 }
 
 // --- Category Config ---
@@ -147,7 +148,7 @@ const CATEGORY_CONFIG: Record<MissionCategory, {
 
 // --- Component ---
 
-export function MissionCard({ mission, currentUserId, guildId, onInterestClick, isRestricted, linkedEvent }: MissionCardProps) {
+export function MissionCard({ mission, currentUserId, guildId, onInterestClick, isRestricted, linkedEvent, vitrineMode = false }: MissionCardProps) {
     const [isPending, startTransition] = useTransition();
     const [showUploadDialog, setShowUploadDialog] = useState(false);
     const [showValidators, setShowValidators] = useState(false);
@@ -266,9 +267,9 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
             <Card className={cn(
                 "flex flex-col relative overflow-hidden transition-all duration-500 group border-white/5 bg-[#121417] shadow-2xl",
                 "hover:border-white/10 hover:shadow-[0_0_30px_rgba(0,0,0,0.5)]",
-                isValidated && "ring-1 ring-emerald-500/40",
-                isRejected && "ring-1 ring-red-500/40",
-                isPendingValidation && "ring-1 ring-yellow-500/40"
+                !vitrineMode && isValidated && "ring-1 ring-emerald-500/40",
+                !vitrineMode && isRejected && "ring-1 ring-red-500/40",
+                !vitrineMode && isPendingValidation && "ring-1 ring-yellow-500/40"
             )}>
                 {/* ----------------- HEADER BAR (Full Width) ----------------- */}
                 <div className={cn(
@@ -311,17 +312,17 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
 
                     {/* Status Badges Pin to Right */}
                     <div className="ml-auto flex gap-2 relative z-10">
-                        {isValidated && (
+                        {!vitrineMode && isValidated && (
                             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/90 text-white font-black text-[9px] shadow-lg border border-white/10">
                                 <CheckCircle2 className="w-3 h-3" /> <span className="hidden sm:inline">VALIDÉ</span>
                             </div>
                         )}
-                        {isPendingValidation && (
+                        {!vitrineMode && isPendingValidation && (
                             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-500/90 text-black font-black text-[9px] shadow-lg border border-white/10 animate-pulse">
                                 <Hourglass className="w-3 h-3" /> <span className="hidden sm:inline">ATTENTE</span>
                             </div>
                         )}
-                        {isRejected && (
+                        {!vitrineMode && isRejected && (
                             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/90 text-white font-black text-[9px] shadow-lg border border-white/10">
                                 <XCircle className="w-3 h-3" /> <span className="hidden sm:inline">REFUSÉ</span>
                             </div>
@@ -471,16 +472,18 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             )}
                         </Button>
 
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="hidden sm:flex h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-zinc-900/50 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all border-white/10 shrink-0"
-                            onClick={handleShowValidators}
-                            title="Voir les membres ayant validé"
-                        >
-                            <ShieldCheck className="w-3.5 h-3.5 mr-1.5 opacity-80" />
-                            Validés
-                        </Button>
+                        {!vitrineMode && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="hidden sm:flex h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-zinc-900/50 text-zinc-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all border-white/10 shrink-0"
+                                onClick={handleShowValidators}
+                                title="Voir les membres ayant validé"
+                            >
+                                <ShieldCheck className="w-3.5 h-3.5 mr-1.5 opacity-80" />
+                                Validés
+                            </Button>
+                        )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 ml-auto">
@@ -509,7 +512,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             </div>
                         )}
 
-                        {!isValidated && (
+                        {!vitrineMode && !isValidated && (
                             isPendingValidation ? (
                                 <Button
                                     size="sm"

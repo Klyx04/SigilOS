@@ -68,6 +68,7 @@ export async function getTelemetryStats() {
             topPathsRaw,
             topInteractionsRaw,
             topUsersRaw,
+            guildConfigs,
         ] = await Promise.all([
             // Total stats
             dbAny.telemetryEvent.count(),
@@ -93,10 +94,10 @@ export async function getTelemetryStats() {
                 },
                 _count: true
             }),
-            // Live activity (last 50 events)
+            // Live activity (last 100 events for better visibility)
             dbAny.telemetryEvent.findMany({
                 orderBy: { createdAt: "desc" },
-                take: 50
+                take: 100
             }),
             // Top Paths (Most Visited Pages)
             dbAny.telemetryEvent.groupBy({
@@ -106,7 +107,7 @@ export async function getTelemetryStats() {
                 orderBy: {
                     _count: { path: "desc" }
                 },
-                take: 10
+                take: 15
             }),
             // Top Clicks/Interactions
             dbAny.telemetryEvent.groupBy({
@@ -119,18 +120,72 @@ export async function getTelemetryStats() {
                 orderBy: {
                     _count: { elementId: "desc" }
                 },
-                take: 10
+                take: 15
             }),
             // Top Active Users
             dbAny.telemetryEvent.groupBy({
-                by: ["userId", "userName"],
+                by: ["userId", "userName", "guildId"],
                 _count: { id: true },
                 orderBy: {
                     _count: { id: "desc" }
                 },
-                take: 10
+                take: 50
+            }),
+            // Fetch all guild configs to map names
+            dbAny.guildConfig.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                }
             })
         ]);
+
+        const guildMap = new Map<string, string>();
+        guildConfigs.forEach((g: any) => {
+            guildMap.set(g.id, g.name);
+        });
+
+        // 1. Get last seen activity per user from telemetry data (from last 30 days)
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const lastSeenRaw = await dbAny.telemetryEvent.groupBy({
+            by: ["userId", "userName", "guildId"],
+            _max: {
+                createdAt: true
+            },
+            where: {
+                createdAt: { gte: thirtyDaysAgo }
+            }
+        });
+
+        const usersLastSeen = lastSeenRaw.map((u: any) => ({
+            userId: u.userId,
+            userName: u.userName,
+            guildId: u.guildId || "None",
+            guildName: u.guildId ? (guildMap.get(u.guildId) || "Guilde Inconnue") : "Sans Guilde",
+            lastActive: u._max.createdAt ? u._max.createdAt.toISOString() : null
+        })).sort((a: any, b: any) => {
+            const dateA = a.lastActive ? new Date(a.lastActive).getTime() : 0;
+            const dateB = b.lastActive ? new Date(b.lastActive).getTime() : 0;
+            return dateB - dateA;
+        });
+
+        // 2. Aggregate telemetry counts by guild
+        const guildActivityRaw = await dbAny.telemetryEvent.groupBy({
+            by: ["guildId"],
+            _count: { id: true },
+            where: {
+                createdAt: { gte: sevenDaysAgo }
+            }
+        });
+
+        const guildActivity = guildActivityRaw.map((ga: any) => {
+            const gId = ga.guildId;
+            return {
+                guildId: gId || "None",
+                guildName: gId ? (guildMap.get(gId) || "Guilde Inconnue") : "Sans Guilde",
+                count: ga._count.id
+            };
+        }).sort((a: any, b: any) => b.count - a.count);
 
         // Hourly activity for the last 24h (views and interactions combined)
         const hourlyEvents = await dbAny.telemetryEvent.findMany({
@@ -183,6 +238,7 @@ export async function getTelemetryStats() {
                 userId: e.userId,
                 userName: e.userName,
                 guildId: e.guildId,
+                guildName: e.guildId ? (guildMap.get(e.guildId) || "Guilde Inconnue") : "Sans Guilde",
                 path: e.path,
                 eventType: e.eventType,
                 elementId: e.elementId,
@@ -200,8 +256,12 @@ export async function getTelemetryStats() {
             topUsers: topUsersRaw.map((u: any) => ({
                 userId: u.userId,
                 userName: u.userName,
+                guildId: u.guildId || "None",
+                guildName: u.guildId ? (guildMap.get(u.guildId) || "Guilde Inconnue") : "Sans Guilde",
                 count: u._count.id
             })),
+            guildActivity,
+            usersLastSeen,
             chartData
         };
     } catch (err) {

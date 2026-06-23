@@ -204,15 +204,6 @@ export async function processUnregistration(guildId: string, eventId: string, us
 
 export async function publishDiscordEvent(guildId: string, eventId: string) {
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true, calendarNotifyChannelId: true }
-        });
-
-        if (!guildConfig || !guildConfig.calendarNotifyChannelId) {
-            return { success: false, error: "Canal Discord non configuré" };
-        }
-
         const event = await db.guildEvent.findUnique({
             where: { id: eventId },
             include: {
@@ -221,6 +212,25 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
+
+        const isRaid = event.type === "RAID_OFFICIAL";
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, calendarNotifyChannelId: true, raidNotifyChannelId: true }
+        });
+
+        if (!guildConfig) {
+            return { success: false, error: "Guilde introuvable" };
+        }
+
+        const targetChannelId = isRaid && guildConfig.raidNotifyChannelId
+            ? guildConfig.raidNotifyChannelId
+            : guildConfig.calendarNotifyChannelId;
+
+        if (!targetChannelId) {
+            return { success: false, error: "Canal Discord non configuré" };
+        }
 
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
         const imageName = EVENT_IMAGES[event.type] || "calendar_event_guild.png";
@@ -266,7 +276,6 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         const startTs = Math.floor(new Date(event.startDate).getTime() / 1000);
         const endTs = Math.floor(new Date(event.endDate).getTime() / 1000);
 
-        const isRaid = event.type === "RAID_OFFICIAL";
         const raidMeta = isRaid ? (event.metadata as any) : null;
 
         const fields = [
@@ -324,16 +333,16 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
 
         let channel = null;
         try {
-            channel = await fetchChannel(guildConfig.calendarNotifyChannelId);
+            channel = await fetchChannel(targetChannelId);
         } catch (err) {
             console.error("[Calendar Service] fetchChannel failed, falling back to text channel:", err);
         }
         let messageId: string | null = null;
-        let finalChannelId = guildConfig.calendarNotifyChannelId;
+        let finalChannelId = targetChannelId;
 
         if (channel && channel.type === 15) {
             const res = await createForumPost(
-                guildConfig.calendarNotifyChannelId,
+                targetChannelId,
                 `${typeConfig.emoji} ${event.title}`,
                 "",
                 messageOptions
@@ -344,7 +353,7 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             }
         } else {
             messageId = await sendChannelMessage(
-                guildConfig.calendarNotifyChannelId,
+                targetChannelId,
                 mentionContent,
                 messageOptions
             );
@@ -374,9 +383,9 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, calendarNotifyChannelId: true }
+            select: { id: true, calendarNotifyChannelId: true, raidNotifyChannelId: true }
         });
-        if (!guildConfig || !guildConfig.calendarNotifyChannelId) return;
+        if (!guildConfig) return;
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId },

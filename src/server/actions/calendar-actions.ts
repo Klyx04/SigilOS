@@ -1029,6 +1029,7 @@ async function reorderParticipants(eventId: string) {
 // REMINDER ACTIONS
 // ============================================
 
+
 /**
  * Send reminder notifications to all participants
  * Also sends a Discord reminder embed if configured
@@ -1040,26 +1041,8 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: { id: true, name: true, calendarNotifyChannelId: true, calendarPingRoleIds: true }
-        });
-        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
-
-        // SECURITY: Validate pingRoleId against the admin-configured whitelist
-        if (pingRoleId && pingRoleId !== "everyone") {
-            const allowedRoleIds: string[] = guildConfig.calendarPingRoleIds ?? [];
-            if (!allowedRoleIds.includes(pingRoleId)) {
-                return { success: false, error: "Ce rôle n'est pas autorisé pour les mentions de calendrier" };
-            }
-        }
-        // Block @everyone unless explicitly whitelisted via special sentinel value
-        if (pingRoleId === "everyone" && !(guildConfig.calendarPingRoleIds ?? []).includes("everyone")) {
-            return { success: false, error: "@everyone n'est pas autorisé pour les rappels de calendrier" };
-        }
-
         const event = await db.guildEvent.findUnique({
-            where: { id: eventId, guildId: guildConfig.id },
+            where: { id: eventId },
             include: {
                 participants: {
                     where: { status: { in: ["REGISTERED", "RESERVE"] } },
@@ -1069,6 +1052,40 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
+
+        const isRaid = event.type === "RAID_OFFICIAL";
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                name: true,
+                calendarNotifyChannelId: true,
+                calendarPingRoleIds: true,
+                raidNotifyChannelId: true,
+                raidPingRoleIds: true
+            }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const targetChannelId = isRaid && guildConfig.raidNotifyChannelId
+            ? guildConfig.raidNotifyChannelId
+            : guildConfig.calendarNotifyChannelId;
+
+        const allowedRoleIds: string[] = isRaid && guildConfig.raidNotifyChannelId
+            ? guildConfig.raidPingRoleIds
+            : guildConfig.calendarPingRoleIds;
+
+        // SECURITY: Validate pingRoleId against the admin-configured whitelist
+        if (pingRoleId && pingRoleId !== "everyone") {
+            if (!allowedRoleIds.includes(pingRoleId)) {
+                return { success: false, error: "Ce rôle n'est pas autorisé pour les rappels de calendrier" };
+            }
+        }
+        // Block @everyone unless explicitly whitelisted via special sentinel value
+        if (pingRoleId === "everyone" && !allowedRoleIds.includes("everyone")) {
+            return { success: false, error: "@everyone n'est pas autorisé pour les rappels de calendrier" };
+        }
 
         // Check permission: must be creator or have calendar management
         if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
@@ -1108,10 +1125,10 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
 
         // Send Discord reminder if channel is configured
         let discordSent = false;
-        if (guildConfig.calendarNotifyChannelId) {
+        if (targetChannelId) {
             // Validate channel belongs to guild
             const { validateChannelBelongsToGuild, sendChannelMessage } = await import("@/server/discord");
-            const isValidChannel = await validateChannelBelongsToGuild(guildConfig.calendarNotifyChannelId, guildId);
+            const isValidChannel = await validateChannelBelongsToGuild(targetChannelId, guildId);
 
             if (isValidChannel) {
                 // Get type config for emoji and color
@@ -1151,9 +1168,8 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                 const registeredCount = event.participants.filter(p => p.status === "REGISTERED").length;
 
                 // Create urgency embed for reminder
-                // Create urgency embed for reminder
                 const msgId = await sendChannelMessage(
-                    guildConfig.calendarNotifyChannelId,
+                    targetChannelId,
                     mentionContent,
                     {
                         embedTitle: `⏰ RAPPEL: ${event.title}`,
@@ -1308,42 +1324,8 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
     if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
 
     try {
-        const guildConfig = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId },
-            select: {
-                id: true,
-                calendarNotifyChannelId: true,
-                name: true,
-                calendarPingRoleIds: true
-            }
-        });
-
-        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
-
-        // SECURITY: Validate pingRoleId against the admin-configured whitelist
-        if (pingRoleId && pingRoleId !== "everyone") {
-            const allowedRoleIds: string[] = guildConfig.calendarPingRoleIds ?? [];
-            if (!allowedRoleIds.includes(pingRoleId)) {
-                return { success: false, error: "Ce rôle n'est pas autorisé pour les notifications de calendrier" };
-            }
-        }
-        // Block @everyone unless explicitly whitelisted via special sentinel value
-        if (pingRoleId === "everyone" && !(guildConfig.calendarPingRoleIds ?? []).includes("everyone")) {
-            return { success: false, error: "@everyone n'est pas autorisé pour les notifications de calendrier" };
-        }
-        if (!guildConfig.calendarNotifyChannelId) {
-            return { success: false, error: "Salon Discord non configuré. Allez dans Admin > Calendrier." };
-        }
-
-        // SECURITY: Validate channel belongs to this guild
-        const { validateChannelBelongsToGuild } = await import("@/server/discord");
-        const isValidChannel = await validateChannelBelongsToGuild(guildConfig.calendarNotifyChannelId, guildId);
-        if (!isValidChannel) {
-            return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
-        }
-
         const event = await db.guildEvent.findUnique({
-            where: { id: eventId, guildId: guildConfig.id },
+            where: { id: eventId },
             include: {
                 participants: {
                     where: { status: "REGISTERED" }
@@ -1352,6 +1334,51 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
+
+        const isRaid = event.type === "RAID_OFFICIAL";
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: {
+                id: true,
+                calendarNotifyChannelId: true,
+                raidNotifyChannelId: true,
+                name: true,
+                calendarPingRoleIds: true,
+                raidPingRoleIds: true
+            }
+        });
+
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const targetChannelId = isRaid && guildConfig.raidNotifyChannelId
+            ? guildConfig.raidNotifyChannelId
+            : guildConfig.calendarNotifyChannelId;
+
+        const allowedRoleIds: string[] = isRaid && guildConfig.raidNotifyChannelId
+            ? guildConfig.raidPingRoleIds
+            : guildConfig.calendarPingRoleIds;
+
+        // SECURITY: Validate pingRoleId against the admin-configured whitelist
+        if (pingRoleId && pingRoleId !== "everyone") {
+            if (!allowedRoleIds.includes(pingRoleId)) {
+                return { success: false, error: "Ce rôle n'est pas autorisé pour les notifications de calendrier" };
+            }
+        }
+        // Block @everyone unless explicitly whitelisted via special sentinel value
+        if (pingRoleId === "everyone" && !allowedRoleIds.includes("everyone")) {
+            return { success: false, error: "@everyone n'est pas autorisé pour les notifications de calendrier" };
+        }
+        if (!targetChannelId) {
+            return { success: false, error: "Salon Discord non configuré. Allez dans Admin > Calendrier." };
+        }
+
+        // SECURITY: Validate channel belongs to this guild
+        const { validateChannelBelongsToGuild } = await import("@/server/discord");
+        const isValidChannel = await validateChannelBelongsToGuild(targetChannelId, guildId);
+        if (!isValidChannel) {
+            return { success: false, error: "Salon Discord invalide ou n'appartient pas à ce serveur" };
+        }
 
         // Permission check: must be creator or admin
         if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
@@ -1380,7 +1407,6 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
 
         // Resolve Mentions
         // SECURITY: All role IDs — whether from param or metadata — must be in the whitelist
-        const allowedRoleIds: string[] = guildConfig.calendarPingRoleIds ?? [];
         let mentionContent = "";
         const meta = event.metadata as any;
 
@@ -1418,7 +1444,7 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
         // Send Discord message
         const { sendChannelMessage } = await import("@/server/discord");
         const messageId = await sendChannelMessage(
-            guildConfig.calendarNotifyChannelId,
+            targetChannelId,
             mentionContent,
             {
                 embedTitle: `${typeConfig.emoji} ${raidTitle}`,
@@ -1461,12 +1487,11 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
     }
 }
 
-
 /**
  * Get Discord roles for calendar notifications
  * Used to populate the role selection dropdown
  */
-export async function getDiscordRolesForCalendar(guildId: string) {
+export async function getDiscordRolesForCalendar(guildId: string, isRaid?: boolean) {
     const ctx = await getUserContext(guildId);
     if (!ctx.isAuthenticated || !ctx.canManageCalendar) {
         return { roles: [], everyoneAllowed: false };
@@ -1475,9 +1500,11 @@ export async function getDiscordRolesForCalendar(guildId: string) {
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { calendarPingRoleIds: true }
+            select: { calendarPingRoleIds: true, raidPingRoleIds: true }
         });
-        const allowedRoleIds: string[] = config?.calendarPingRoleIds ?? [];
+        const allowedRoleIds: string[] = isRaid
+            ? (config?.raidPingRoleIds ?? [])
+            : (config?.calendarPingRoleIds ?? []);
         const everyoneAllowed = allowedRoleIds.includes("everyone");
 
         const { fetchGuildRoles } = await import("@/server/discord");
@@ -1509,7 +1536,7 @@ export async function getCalendarPublicConfig(guildId: string) {
 
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { calendarNotifyChannelId: true }
+            select: { calendarNotifyChannelId: true, raidNotifyChannelId: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
@@ -1519,3 +1546,4 @@ export async function getCalendarPublicConfig(guildId: string) {
         return { success: false, error: e.message };
     }
 }
+

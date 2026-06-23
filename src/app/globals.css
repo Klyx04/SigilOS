@@ -255,13 +255,12 @@ html {
 
   html {
     scroll-behavior: smooth;
-    height: 100%;
-    overflow: hidden; /* Prevent global scrollbar */
   }
 
   body {
     background-color: var(--background);
     color: var(--foreground);
+    overflow-x: hidden;
   }
 
   /* --- DASHBOARD MODE: Restricted & Locked --- */
@@ -269,19 +268,6 @@ html {
   html:has(.dashboard-layout) body {
     overflow: hidden !important;
     height: 100% !important;
-  }
-
-  /* --- PUBLIC MODE: Clean & Scrollable --- */
-  html:not(:has(.dashboard-layout)) {
-    overflow-x: hidden;
-    overflow-y: auto !important;
-    height: auto;
-  }
-  
-  html:not(:has(.dashboard-layout)) body {
-    overflow: visible !important;
-    height: auto;
-    margin: 0;
   }
 }
 

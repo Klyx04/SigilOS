@@ -177,6 +177,7 @@ model GuildConfig {
   updatedAt                        DateTime                @updatedAt
   absenceChannelId                 String?
   calendarNotifyChannelId          String?
+  raidNotifyChannelId              String?
   userRequestChannelId             String?
   dofusServerId                    String?
   dofusServerName                  String?
@@ -282,6 +283,7 @@ model GuildConfig {
   vaultEntries                     VaultEntry[]
   allowedPingRoleIds               String[]                @default([])
   calendarPingRoleIds              String[]                @default([])
+  raidPingRoleIds                  String[]                @default([])
   djPingRoleIds                    String[]                @default([])
   songesPingRoleIds                String[]                @default([])
   pollsPingRoleIds                 String[]                @default([])

@@ -10,32 +10,18 @@ import { getUpcomingAlmanax } from "@/server/actions/resources-actions";
 import { getUnifiedActiveGroups } from "@/server/actions/unified-groups-actions";
 import { getStuffGalleryPage } from "@/server/actions/gallery-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
-import { getUpcomingEvents } from "@/server/actions/calendar-actions";
+import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
+import { getPolls } from "@/server/actions/poll-actions";
 
-import { MissionsHero } from "./_components/missions-hero";
 import { RecentDjPosts } from "./_components/recent-dj-posts";
 import { RecentStuffGallery } from "./_components/recent-stuff-gallery";
 import { AlmanaxWidget } from "./_components/almanax-widget";
 import { GuildActivityFeed } from "./_components/guild-activity-feed";
 import { UpcomingEventsWidget } from "./_components/upcoming-events-widget";
+import { EchoDuSigil } from "./_components/echo-du-sigil";
+import { ActivePollsWidget } from "./_components/active-polls-widget";
+import { RaidHeroBanner } from "./_components/raid-hero-banner";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-    ArrowRight,
-    Users,
-    InfinityIcon,
-    Sparkles,
-    Target,
-    Bug,
-    CircleDashed,
-    Flame,
-    ScrollText,
-    Library,
-    Sword
-} from "lucide-react";
-import Link from "next/link";
 import { AccessDenied } from "@/components/layout/access-denied";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
@@ -73,16 +59,18 @@ export default async function DashboardPage({
 
     // Parallel Data Fetching
     const [
-        weeklyLadder, 
+        weeklyLadder,
         monthlyLadder,
-        profileResult, 
-        ocreProgress, 
-        guildStatsResult, 
+        profileResult,
+        ocreProgress,
+        guildStatsResult,
         almanaxItems,
         groupsResult,
         stuffResult,
         guildLogs,
-        calendarResult
+        calendarResult,
+        pollsResult,
+        activeRaid,
     ] = await Promise.all([
         getActivityLadder(guildId, "weekly"),
         getActivityLadder(guildId, "monthly"),
@@ -93,18 +81,19 @@ export default async function DashboardPage({
         getUnifiedActiveGroups(guildId),
         getStuffGalleryPage(guildId, 1, undefined, undefined, undefined, "newest"),
         getUnifiedGuildActivity(guildId, 12).catch(() => []),
-        getUpcomingEvents(guildId, 7).catch(() => ({ success: false, events: [] }))
+        getUpcomingEvents(guildId, 7).catch(() => ({ success: false, events: [] })),
+        user.canViewPolls ? getPolls(guildId).catch(() => ({ success: false, data: [] })) : Promise.resolve({ success: false, data: [] }),
+        getActiveRaid(guildId).catch(() => null),
     ]);
 
     // Derived Data
     const focusData = await getDashboardFocus(guildId, user, ocreProgress.success ? ocreProgress.data : undefined);
-    const topWeeklyEntries = weeklyLadder.success && weeklyLadder.data ? weeklyLadder.data.entries : [];
-    const topMonthlyEntries = monthlyLadder.success && monthlyLadder.data ? monthlyLadder.data.entries : [];
-    const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
     const profile = profileResult.success && profileResult.data ? profileResult.data : null;
     const activeGroups = groupsResult.success ? groupsResult.groups : [];
     const latestBuilds = stuffResult.success && stuffResult.data ? stuffResult.data.builds : [];
     const upcomingEvents = calendarResult.success ? calendarResult.events : [];
+    const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
+    const hasRaidNow = !!activeRaid;
 
     return (
         <div className="relative w-full min-h-full pb-20">
@@ -125,57 +114,71 @@ export default async function DashboardPage({
                 />
             )}
 
-            <div className="relative z-10 p-4 md:p-6 space-y-8 max-w-[1600px] mx-auto">
+            <div className="relative z-10 p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
+
+                {/* ── 0. Subtle page label ─────────────────────────────── */}
                 <header className="flex items-end justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-1000">
                     <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-foreground/5 drop-shadow-sm uppercase italic select-none">
                         Dashboard
                     </h1>
                 </header>
 
-                {/* --- 1. HERO SECTION: MISSIONS (RBAC guarded) --- */}
-                {user.canViewMissions && (
-                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-                        <MissionsHero 
-                            guildId={guildId} 
-                            totalMissionsValidated={guildStats?.totalMissionsValidated}
-                            totalXp={guildStats?.totalXp}
-                        />
+                {/* ── 1. RAID HERO (prioritaire — conditionnel) ────────── */}
+                {hasRaidNow && (
+                    <section className="animate-in fade-in slide-in-from-top-2 duration-500">
+                        <RaidHeroBanner guildId={guildId} raid={activeRaid as any} />
                     </section>
                 )}
 
-                {/* --- 2. ACTIVITY & GALLERY ROW --- */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 min-h-[400px]">
-                        <RecentDjPosts guildId={guildId} groups={activeGroups} />
+                {/* ── 2. INTELLIGENCE FOCUS (masqué si raid actif) ─────── */}
+                {focusData && !hasRaidNow && (
+                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                        <EchoDuSigil data={focusData} />
                     </section>
-                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 min-h-[400px]">
-                        <RecentStuffGallery guildId={guildId} builds={latestBuilds} />
-                    </section>
-                </div>
+                )}
 
-                {/* --- 3. SIDEBAR INFO ROW (Now Horizontal) --- */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Almanax Widget */}
-                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
-                        <AlmanaxWidget 
-                            guildId={guildId} 
-                            initialAlmanax={almanaxItems?.[0] ?? null} 
-                        />
-                    </section>
-
-                    {/* Upcoming Events Widget */}
-                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-500">
-                        <UpcomingEventsWidget 
+                {/* ── 3. EVENTS + SONDAGES (zone principale) ───────────── */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                    {/* Events — large */}
+                    <section className="lg:col-span-7 min-h-[340px]">
+                        <UpcomingEventsWidget
                             guildId={guildId}
                             events={upcomingEvents as any}
                         />
                     </section>
 
-                    {/* Guild Activity Feed */}
-                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-600">
+                    {/* Polls — medium */}
+                    <section className="lg:col-span-5 min-h-[340px]">
+                        <ActivePollsWidget
+                            guildId={guildId}
+                            polls={polls}
+                        />
+                    </section>
+                </div>
+
+                {/* ── 4. GROUPES ACTIFS + GALERIE (secondaire) ─────────── */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                    <section className="min-h-[360px]">
+                        <RecentDjPosts guildId={guildId} groups={activeGroups} />
+                    </section>
+                    <section className="min-h-[360px]">
+                        <RecentStuffGallery guildId={guildId} builds={latestBuilds} />
+                    </section>
+                </div>
+
+                {/* ── 5. ALMANAX + ACTIVITÉ (widgets bas) ──────────────── */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
+                    <section>
+                        <AlmanaxWidget
+                            guildId={guildId}
+                            initialAlmanax={almanaxItems?.[0] ?? null}
+                        />
+                    </section>
+                    <section>
                         <GuildActivityFeed logs={guildLogs} />
                     </section>
                 </div>
+
             </div>
         </div>
     );

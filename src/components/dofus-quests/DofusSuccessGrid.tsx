@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Package, Target, Navigation, Users, Sword } from "lucide-react";
 import { QuestGuildStatus } from "./QuestGuildStatus";
 import { QuestActionsBlock } from "./QuestActionsBlock";
+import { toast } from "sonner";
 
 
 
@@ -144,12 +145,12 @@ export function DofusSuccessGrid({
                                         <div 
                                             className={`absolute -left-[41px] sm:-left-[57px] top-6 w-5 h-5 rounded-full border-4 flex items-center justify-center transition-all duration-500 z-10 ${
                                                 isComplete 
-                                                    ? "bg-emerald-500 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.6)]" 
+                                                    ? "bg-indigo-950 border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)]" 
                                                     : "bg-[#050608] border-zinc-700 group-hover:border-indigo-500"
                                             }`}
                                         >
                                             {isComplete ? (
-                                                <Check className="w-2 h-2 text-black stroke-[4px]" />
+                                                <Check className="w-2 h-2 text-indigo-400 stroke-[4px]" />
                                             ) : (
                                                 <span className="text-[7px] font-black text-zinc-500 tabular-nums">{chainIdx + 1}</span>
                                             )}
@@ -161,7 +162,7 @@ export function DofusSuccessGrid({
                                             whileTap={{ scale: 0.99 }}
                                             className={`w-full p-6 rounded-[2.5rem] border transition-all duration-500 flex flex-col sm:flex-row sm:items-center justify-between gap-6 text-left overflow-hidden ${
                                                 isComplete 
-                                                    ? "bg-emerald-500/[0.02] border-emerald-500/20 hover:border-emerald-500/40 shadow-[0_0_40px_rgba(16,185,129,0.05)]" 
+                                                    ? "bg-indigo-950/10 border-indigo-500/20 hover:border-indigo-500/40 shadow-[0_0_40px_rgba(99,102,241,0.05)]" 
                                                     : "bg-white/[0.01] border-white/5 hover:border-white/20 active:bg-white/[0.02]"
                                             }`}
                                         >
@@ -171,14 +172,14 @@ export function DofusSuccessGrid({
                                                         src="/succès.png" 
                                                         alt="Succès" 
                                                         className={`w-6 h-6 object-contain transition-all duration-300 ${
-                                                            isComplete ? "drop-shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-85"
+                                                            isComplete ? "drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" : "opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-85"
                                                         }`} 
                                                     />
                                                     <Badge 
                                                         variant="outline" 
                                                         className={`text-[9px] font-black py-0.5 px-2 rounded-lg border transition-all ${
                                                             isComplete 
-                                                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
+                                                                ? "bg-indigo-500/10 text-indigo-450 border-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.15)]" 
                                                                 : "bg-white/5 text-zinc-500 border-white/5"
                                                         }`}
                                                     >
@@ -187,7 +188,7 @@ export function DofusSuccessGrid({
                                                 </div>
                                                 <div>
                                                     <h3 className={`text-xl font-black italic leading-none uppercase tracking-tighter transition-colors ${
-                                                        isComplete ? "text-emerald-400" : "text-white group-hover:text-indigo-400"
+                                                        isComplete ? "text-indigo-400" : "text-white group-hover:text-indigo-400"
                                                     }`}>{chain.sectionName}</h3>
                                                     {nextInChain && !isComplete && (
                                                         <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2 truncate flex items-center gap-1.5">
@@ -200,13 +201,13 @@ export function DofusSuccessGrid({
                                             <div className="flex flex-col items-start sm:items-end gap-3 shrink-0 min-w-[200px] w-full sm:w-auto">
                                                 <div className="flex items-center justify-between w-full text-[11px] font-black uppercase tracking-widest text-zinc-500">
                                                     <span>Progression</span>
-                                                    <span className={`tabular-nums font-black ${isComplete ? "text-emerald-400" : "text-white"}`}>{stats.done}/{stats.total} quêtes</span>
+                                                    <span className={`tabular-nums font-black ${isComplete ? "text-indigo-400" : "text-white"}`}>{stats.done}/{stats.total} quêtes</span>
                                                 </div>
                                                 <div className="w-full sm:w-48 h-2 bg-white/5 rounded-full overflow-hidden border border-white/5 shadow-inner relative">
                                                     <div 
                                                         className="h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(255,255,255,0.05)]" 
                                                         style={{ 
-                                                            background: isComplete ? "#10b981" : zoneColor, 
+                                                            background: isComplete ? "#6366f1" : zoneColor, 
                                                             width: `${stats.pct}%` 
                                                         }} 
                                                     />
@@ -237,6 +238,32 @@ export function DofusSuccessGrid({
                                 </h3>
                             </div>
                         </div>
+
+                        {selectedChain && (
+                            <Button
+                                onClick={async () => {
+                                    const entries = selectedChain.entries || [];
+                                    const allCompleted = entries.every((e: any) => completedIds.has(e.id));
+                                    const targetStatus = allCompleted ? "NOT_STARTED" : "COMPLETED";
+                                    
+                                    toast.loading(targetStatus === "COMPLETED" ? "Validation du succès..." : "Annulation du succès...", { id: "toggle-all-success" });
+                                    try {
+                                        for (const entry of entries) {
+                                            if (completedIds.has(entry.id) !== (targetStatus === "COMPLETED")) {
+                                                await onToggleStatus(entry.id, targetStatus);
+                                            }
+                                        }
+                                        toast.success(targetStatus === "COMPLETED" ? "Succès validé !" : "Succès réinitialisé !", { id: "toggle-all-success" });
+                                    } catch (e) {
+                                        toast.error("Erreur lors de la mise à jour globale", { id: "toggle-all-success" });
+                                    }
+                                }}
+                                variant="outline"
+                                className="border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 font-black uppercase text-[10px] tracking-wider rounded-xl px-4 py-2"
+                            >
+                                {selectedChain.entries?.every((e: any) => completedIds.has(e.id)) ? "Tout Décocher" : "Tout Cocher"}
+                            </Button>
+                        )}
                     </div>
 
                     <ScrollArea className="flex-1 w-full overflow-y-auto">
@@ -246,37 +273,29 @@ export function DofusSuccessGrid({
                                     const lock = isLocked(entry);
                                     const expanded = selectedQuestId === entry.id;
 
-                                    // V3 structured dungeons & Fallback text-parsed dungeons
-                                    const structuredDungeons: any[] = entry.dungeonsRequired ?? [];
-                                    const dungeonInfos = detectRealDungeons(Array.isArray(entry.objectives) ? entry.objectives : []);
-                                    const hasDungeons = structuredDungeons.length > 0 || dungeonInfos.length > 0;
-                                    const itemsReq = Array.isArray(entry.itemsRequired) ? entry.itemsRequired : [];
-
                                     return (
                                         <div key={entry.id} className="space-y-4">
                                             <div
                                                 onClick={() => setSelectedQuestId(expanded ? null : entry.id)}
                                                 className={`w-full p-6 rounded-[2rem] border text-left transition-all duration-300 relative overflow-hidden cursor-pointer ${
-                                                    done ? "bg-emerald-500/5 border-emerald-500/20 opacity-60" 
-                                                    : lock ? "bg-zinc-900/30 border-white/5 opacity-40 grayscale"
-                                                    : expanded ? "bg-white/5 border-white/30 shadow-2xl"
-                                                    : "bg-zinc-900/50 border-white/5 hover:border-white/20"
+                                                    done ? "bg-indigo-950/15 border-indigo-500/20 hover:border-indigo-500/40 shadow-[0_0_30px_rgba(99,102,241,0.03)]" 
+                                                    : lock ? "bg-zinc-900/20 border-white/5 opacity-40 grayscale"
+                                                    : expanded ? "bg-white/5 border-white/25 shadow-2xl"
+                                                    : "bg-zinc-900/40 border-white/5 hover:border-white/15"
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-[14px] ${
-                                                        done ? "bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]" : "bg-white/5 text-zinc-500"
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-[14px] transition-all ${
+                                                        done ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.2)]" : "bg-white/5 text-zinc-500"
                                                     }`}>
-                                                        {done ? <Check className="w-6 h-6" /> : lock ? <Lock className="w-5 h-5" /> : i + 1}
+                                                        {done ? <Check className="w-5 h-5 stroke-[3px]" /> : lock ? <Lock className="w-5 h-5" /> : i + 1}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className={`text-[17px] font-black italic uppercase tracking-tighter truncate ${done ? "line-through text-zinc-600" : "text-white"}`}>
+                                                        <div className={`text-[17px] font-black italic uppercase tracking-tighter truncate transition-all ${done ? "line-through text-zinc-650" : "text-white"}`}>
                                                             {entry.name}
                                                         </div>
                                                         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                                             {entry.level && <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest bg-white/5 px-2.5 py-1 rounded-xl">Lvl {entry.level}</span>}
-                                                            {hasDungeons && <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-xl flex items-center gap-1"><Sword className="w-3 h-3" /> Donjon</span>}
-                                                            {itemsReq.length > 0 && <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl flex items-center gap-1"><Package className="w-3 h-3" /> x{itemsReq.length}</span>}
                                                             {lock && !done && <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">Quête verrouillée</span>}
                                                         </div>
                                                     </div>
@@ -286,137 +305,7 @@ export function DofusSuccessGrid({
                                                 <AnimatePresence>
                                                     {expanded && (
                                                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                                            <div className="pt-8 mt-6 border-t border-white/5 space-y-8">
-                                                                {/* NPC Meta Card */}
-                                                                <div className="p-5 bg-indigo-500/10 border border-indigo-500/20 rounded-3xl flex items-center gap-5">
-                                                                    <div className="w-14 h-14 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-400">
-                                                                        <MapPin className="w-7 h-7" />
-                                                                    </div>
-                                                                    <div 
-                                                                        className="flex-1 min-w-0 cursor-pointer group/travel"
-                                                                        onClick={(e) => { 
-                                                                            e.stopPropagation();
-                                                                            if (entry.coords) copyWithToast(`/travel ${entry.coords.x} ${entry.coords.y}`);
-                                                                        }}
-                                                                    >
-                                                                        <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-1 group-hover/travel:text-emerald-400 transition-colors">
-                                                                            PNJ NARRATIF
-                                                                            <span className="opacity-0 group-hover/travel:opacity-60 text-[9px] bg-white/5 px-2.5 py-1 rounded-lg ml-4">COPIER /TRAVEL</span>
-                                                                        </div>
-                                                                        <div className="text-[15px] font-black text-white italic group-hover/travel:text-emerald-400 transition-colors">
-                                                                            {(() => {
-                                                                                const objectives = Array.isArray(entry.objectives) ? entry.objectives : [];
-                                                                                const objWithNpc = objectives.find((o: any) => extractObjectiveText(o).includes("{npc,"));
-                                                                                const match = extractObjectiveText(objWithNpc).match(/\{npc,(\d+)\}/);
-                                                                                return match ? <NpcName npcId={match[1]} /> : (entry.npcName || entry.npcSubArea || "PNJ Curation");
-                                                                            })()} {entry.coords && <span className="text-zinc-600 font-normal">en [{entry.coords.x}, {entry.coords.y}]</span>}
-                                                                        </div>
-                                                                    </div>
-                                                                    {entry.coords && (
-                                                                         <Link 
-                                                                            href={`/dashboard/${guildId}/worldmap?x=${entry.coords.x}&y=${entry.coords.y}&zoom=4&world=${
-                                                                                (entry as any).coords.worldId ?? 
-                                                                                (((entry as any).zone || "").toLowerCase().includes("incarnam") || ((entry as any).npcSubArea || "").toLowerCase().includes("incarnam") ? 1 : 0)
-                                                                            }`}
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                            className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-black hover:scale-110 transition-transform shadow-[0_0_20px_rgba(16,185,129,0.4)]"
-                                                                         >
-                                                                             <MapPin className="w-6 h-6" />
-                                                                         </Link>
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Step Logistics */}
-                                                                {Array.isArray(entry.objectives) && entry.objectives.length > 0 && (
-                                                                    <div className="space-y-4">
-                                                                        <div className="text-[11px] font-black text-zinc-600 uppercase tracking-[0.4em] px-1 italic">Logique de l'étape</div>
-                                                                        <div className="space-y-3">
-                                                                            {entry.objectives.map((obj: any, idx: number) => {
-                                                                                const stepText = extractObjectiveText(obj);
-                                                                                const isReturn = stepText.toLowerCase().includes("retour") || stepText.toLowerCase().includes("aller voir");
-                                                                                return (
-                                                                                    <div key={idx} className="flex gap-5 p-5 bg-white/[0.02] border border-white/5 rounded-[1.5rem] text-[14px] text-zinc-400 leading-relaxed font-bold">
-                                                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black ${isReturn ? "bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)] animate-pulse" : "bg-white/10 text-white/40"}`}>
-                                                                                            {idx + 1}
-                                                                                        </div>
-                                                                                        <div className={isReturn ? "text-white" : ""}>
-                                                                                            <ParsedObjective text={obj} guildId={guildId} zone={selectedChain ? SECTION_TYPES[selectedChain.sectionType]?.label : undefined} />
-                                                                                        </div>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                {/* V3 Structured Dungeons & Detected Dungeons */}
-                                                                {hasDungeons && (
-                                                                    <div className="space-y-3">
-                                                                        {structuredDungeons.map((d, dx) => (
-                                                                            <div key={`sd-${dx}`} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-[1.5rem] flex items-center gap-4 cursor-pointer hover:bg-rose-500/15 hover:border-rose-500/30 transition-all" onClick={() => onDungeonClick?.(d.name, d.id ? Number(d.id) : null)}>
-                                                                                <div className="w-14 h-14 rounded-xl bg-black/60 border border-rose-500/20 flex items-center justify-center p-1 shrink-0 overflow-hidden">
-                                                                                    {d.img ? (
-                                                                                        // eslint-disable-next-line @next/next/no-img-element
-                                                                                        <img src={d.img} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                                                                    ) : d.id ? (
-                                                                                        // eslint-disable-next-line @next/next/no-img-element
-                                                                                        <img src={`https://static.dofusdb.fr/monsters/${d.id}.png`} alt={d.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                                                                    ) : <span className="text-rose-400">🏰</span>}
-                                                                                </div>
-                                                                                <div className="flex-1 min-w-0">
-                                                                                    <div className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon requis</div>
-                                                                                    <div className="text-[15px] font-black text-white italic truncate">{d.name}</div>
-                                                                                    <div className="flex items-center gap-2 mt-1 block">
-                                                                                        {d.level && d.level > 0 && <span className="text-[9px] text-zinc-500 font-bold uppercase">Lvl {d.level}</span>}
-                                                                                        {d.bossName && <span className="text-[9px] text-zinc-600 italic">— {d.bossName}</span>}
-                                                                                        {d.idoleName && <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded">{d.idoleName}</span>}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        ))}
-                                                                        {structuredDungeons.length === 0 && dungeonInfos.map((di, dx) => (
-                                                                            <div key={`di-${dx}`} className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-[1.5rem] flex items-center gap-4 cursor-pointer hover:bg-rose-500/15 hover:border-rose-500/30 transition-all" onClick={() => onDungeonClick?.(di.dungeonName || "", di.bossId ? Number(di.bossId) : null)}>
-                                                                                {di.mapImg && (
-                                                                                    // eslint-disable-next-line @next/next/no-img-element
-                                                                                    <img src={di.mapImg} alt={di.dungeonName} className="w-14 h-14 object-cover rounded-xl border border-rose-500/30" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                                                                                )}
-                                                                                <div className="flex-1 min-w-0">
-                                                                                    <div className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">🏰 Donjon</div>
-                                                                                    <div className="text-[15px] font-black text-white italic">{di.dungeonName}</div>
-                                                                                </div>
-                                                                                {di.x !== undefined && (
-                                                                                    <Link href={`/dashboard/${guildId}/worldmap?x=${di.x}&y=${di.y}&zoom=4&world=${di.worldId ?? 0}`} className="h-10 w-10 rounded-xl bg-rose-500 text-black flex items-center justify-center hover:scale-110 transition-transform flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                                                        <MapPin className="w-5 h-5" />
-                                                                                    </Link>
-                                                                                )}
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Required Items Resource Block */}
-                                                                {itemsReq.length > 0 && (
-                                                                    <div className="p-5 bg-amber-500/5 border border-amber-500/20 rounded-3xl">
-                                                                        <div className="flex items-center gap-3 mb-4">
-                                                                            <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
-                                                                                <Package className="w-4 h-4" />
-                                                                            </div>
-                                                                            <div>
-                                                                                <div className="text-[10px] font-black text-amber-400/70 uppercase tracking-widest">A prévoir pour cette quête</div>
-                                                                                <div className="text-sm font-bold text-amber-400 italic">Ressources requises</div>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {itemsReq.map((req: any, index: number) => (
-                                                                                <div key={index} className="flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-[1rem] border border-amber-500/20">
-                                                                                    <span className="text-[12px] font-black text-amber-500">x{req.amount || 1}</span>
-                                                                                    <ItemInline itemId={req.id || String(req.id)} />
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
+                                                            <div className="pt-6 mt-6 border-t border-white/5">
                                                                 {/* Action Terminal */}
                                                                 <QuestActionsBlock
                                                                     entry={entry}

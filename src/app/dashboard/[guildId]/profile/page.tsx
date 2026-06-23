@@ -106,6 +106,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         alignment: profile.alignment,
                         alignmentOrder: profile.alignmentOrder,
                         alignmentLevel: profile.alignmentLevel,
+                        hasLegendaryPet: profile.hasLegendaryPet ?? false,
                     }}
                     user={{
                         name: profile.user.name,

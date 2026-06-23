@@ -26,10 +26,13 @@ type Props = {
     canValidate?: boolean;
     hasPseudoIssue?: boolean;
     pseudoDofus?: string | null;
+    vitrineMode?: boolean;
 };
 
-export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons" | "discord">("activity");
+export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus, vitrineMode = false }: Props) {
+    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons" | "discord">(
+        vitrineMode ? "discord" : "activity"
+    );
     const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "characters" | "reactions" | "stream" | "replies">("messages");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
@@ -179,7 +182,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         }
     };
 
-    const categories = [
+    const categories = ([
         { id: "activity", label: "Activité", icon: "/PA.png", isImage: true, color: "#10b981" },
         { id: "guildatons", label: "Guildatons", icon: "/guildatons.png", isImage: true, color: "#eab308" },
         { id: "discord", label: "Discord", icon: MessageSquare, isImage: false, color: "#818cf8" },
@@ -187,7 +190,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         { id: "seniority", label: "Ancienneté", icon: Clock, isImage: false, color: "#06b6d4" },
         { id: "success", label: "Succès", icon: Trophy, isImage: false, color: "#f59e0b" },
         { id: "general", label: "Général", icon: TrendingUp, isImage: false, color: "#3b82f6" },
-    ] as const;
+    ] as const).filter(cat => !vitrineMode || (cat.id !== "activity" && cat.id !== "guildatons"));
 
     return (
         <div className="space-y-12">

@@ -194,32 +194,42 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                         </div>
                     ) : (
                         /* Logged Out View */
-                            <>
-                                <form action={loginWithDiscord}>
-                                    <Button
-                                        type="submit"
-                                        variant="sigil-emerald"
-                                        className="h-auto py-6 px-14 rounded-2xl"
-                                    >
-                                        <DiscordIcon className="w-8 h-8 flex-shrink-0 text-white" />
-                                        <span className="flex flex-col items-start leading-none gap-1 text-left">
-                                            <span className="text-[10px] tracking-widest text-emerald-950/60 uppercase font-black">Accès Membre</span>
-                                            <span className="text-xl">Se Connecter</span>
-                                        </span>
-                                        <ChevronRight className="w-5 h-5 ml-2" />
-                                    </Button>
-                                </form>
-
+                        <div className="flex flex-col items-center gap-5">
+                            {/* CTA principal : membres existants */}
+                            <form action={loginWithDiscord}>
                                 <Button
-                                    variant="sigil"
-                                    onClick={() => setShowAccessModal(true)}
-                                    className="h-auto py-2 px-4 rounded-xl text-xs"
+                                    type="submit"
+                                    variant="sigil-emerald"
+                                    className="h-auto py-6 px-14 rounded-2xl"
                                 >
-                                    <span className="opacity-60">Chef de Guilde ?</span>
-                                    <span>Demander l&apos;accès</span>
-                                    <ChevronRight className="w-3.5 h-3.5" />
+                                    <DiscordIcon className="w-8 h-8 flex-shrink-0 text-white" />
+                                    <span className="flex flex-col items-start leading-none gap-1 text-left">
+                                        <span className="text-[10px] tracking-widest text-emerald-950/60 uppercase font-black">Accès Membre</span>
+                                        <span className="text-xl">Se Connecter</span>
+                                    </span>
+                                    <ChevronRight className="w-5 h-5 ml-2" />
                                 </Button>
-                            </>
+                            </form>
+
+                            {/* Séparateur contextuel */}
+                            <div className="flex items-center gap-4 w-full max-w-xs">
+                                <div className="h-px flex-1 bg-white/5" />
+                                <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest whitespace-nowrap">
+                                    Vous gérez une guilde ?
+                                </span>
+                                <div className="h-px flex-1 bg-white/5" />
+                            </div>
+
+                            {/* CTA secondaire : admins/staff Discord */}
+                            <Button
+                                variant="sigil"
+                                onClick={() => setShowAccessModal(true)}
+                                className="h-auto py-3 px-6 rounded-xl text-xs gap-2"
+                            >
+                                <span className="text-zinc-300 font-bold">Demander l&apos;accès à SigilOS</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                            </Button>
+                        </div>
                     )}
                 </motion.div>
             </div>

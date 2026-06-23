@@ -88,8 +88,8 @@ export function QuestActionsBlock({
                 Panneau Tactique & Synergies
             </div>
 
-            {/* 5-Column Navigation Deck */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {/* 4-Column Navigation Deck */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {/* 1. DofusDB */}
                 <a
                     href={`https://dofusdb.fr/fr/database/quest/${entry.dofusdbId || entry.id}`}
@@ -161,37 +161,7 @@ export function QuestActionsBlock({
                     </div>
                 </a>
 
-                {/* 3. DofusBook Encyclopedia Search */}
-                <a
-                    href={`https://www.dofusbook.net/fr/encyclopedie/recherche?q=${encodeURIComponent(entry.name)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="relative group overflow-hidden rounded-2xl border border-sky-500/20 bg-[#0d0e15]/60 p-4 hover:border-sky-500/40 hover:bg-[#0e1319]/80 hover:shadow-[0_0_20px_rgba(14,165,233,0.15)] transition-all duration-300 flex flex-col justify-between min-h-[110px]"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div className="flex justify-between items-start">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
-                            src={dofusbookFavicon} 
-                            alt="DofusBook" 
-                            className="w-5 h-5 object-contain rounded-md filter drop-shadow-[0_0_4px_rgba(14,165,233,0.5)] group-hover:scale-110 transition-transform" 
-                            onError={(e) => { e.currentTarget.style.display = "none"; }} 
-                        />
-                        <span className="text-[8px] font-black uppercase tracking-wider text-sky-400/90 bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20">
-                            Equip
-                        </span>
-                    </div>
-                    <div>
-                        <h4 className="text-xs font-black text-white italic tracking-tight mt-3 group-hover:text-sky-400 transition-colors">
-                            DofusBook
-                        </h4>
-                        <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2 leading-tight">
-                            Objets, équipements & builds.
-                        </p>
-                    </div>
-                </a>
-
-                {/* 4. Autopilote (Travel) */}
+                {/* 3. Autopilote (Travel) */}
                 <button
                     onClick={copyTravelCoords}
                     disabled={!entry.coords}
@@ -222,7 +192,7 @@ export function QuestActionsBlock({
                     </div>
                 </button>
 
-                {/* 5. Guild Radar Card (La Tour de Contrôle avec vrai modal au clic) */}
+                {/* 4. Guild Radar Card (La Tour de Contrôle avec vrai modal au clic) */}
                 <button
                     onClick={openGuildModal}
                     className="relative group overflow-hidden rounded-2xl border border-rose-500/20 bg-[#0d0e15]/60 p-4 hover:border-rose-500/40 hover:bg-[#150d10]/80 hover:shadow-[0_0_20px_rgba(244,63,94,0.15)] transition-all duration-300 flex flex-col justify-between min-h-[110px] text-left"

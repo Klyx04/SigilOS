@@ -172,11 +172,11 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                         </p>
                     )}
                     {dofus.description && (
-                        <p className="text-sm text-muted-foreground/80 mt-2 max-w-lg font-medium leading-relaxed">{dofus.description}</p>
+                        <p className="text-sm text-muted-foreground/80 mt-2 max-w-4xl font-medium leading-relaxed">{dofus.description}</p>
                     )}
 
                     {/* Progress bar + stats */}
-                    <div className="mt-4 flex flex-col gap-2 max-w-xs mx-auto sm:mx-0">
+                    <div className="mt-4 flex flex-col gap-2 max-w-xl mx-auto sm:mx-0">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <span className="font-black uppercase tracking-widest text-[10px]">Progression</span>
                             <span className="tabular-nums font-bold">{dofus.completedQuests}/{dofus.totalQuests} étapes</span>

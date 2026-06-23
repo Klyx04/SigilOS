@@ -891,7 +891,15 @@ async function publishPollToDiscord(
             where: { id: pollId },
             include: {
                 options: {
-                    include: { _count: { select: { votes: true } } },
+                    include: {
+                        _count: { select: { votes: true } },
+                        votes: {
+                            select: {
+                                voter: { select: { pseudoDofus: true, discordNickname: true } },
+                            },
+                            take: 5, // récupère les 5 premiers pour le preview embed
+                        },
+                    },
                     orderBy: { order: "asc" }
                 },
                 creator: { include: { user: { select: { image: true } } } }
@@ -916,7 +924,19 @@ async function publishPollToDiscord(
                 const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
                 const bar = getProgressBar(pct, 10);
                 const prefix = o.emoji ? o.emoji : (NUMBER_EMOJIS[i] || `${i + 1}.`);
-                return `${prefix} **${o.label}**\n${bar} \`${pct}%\` (${votes} vote${votes !== 1 ? 's' : ''})`;
+
+                // Affiche les noms des votants pour les sondages non-anonymes
+                let votersLine = "";
+                if (!poll.isAnonymous && o.votes && o.votes.length > 0) {
+                    const names = (o.votes as any[]).slice(0, 3).map((v: any) =>
+                        v.voter.pseudoDofus || v.voter.discordNickname || "Membre"
+                    );
+                    const remaining = votes - (o.votes as any[]).length;
+                    const suffix = remaining > 0 ? ` +${remaining} autres` : "";
+                    votersLine = `\n👥 *${names.join(", ")}${suffix}*`;
+                }
+
+                return `${prefix} **${o.label}**\n${bar} \`${pct}%\` (${votes} vote${votes !== 1 ? 's' : ''})${votersLine}`;
             })
             .join("\n\n");
 
@@ -927,7 +947,7 @@ async function publishPollToDiscord(
         }
 
         if (poll.externalUrl) {
-            descriptionParts.push(`🔗 **Lien :** [Consulter](${poll.externalUrl})`);
+            descriptionParts.push(`🔗 **Source externe :** [Ouvrir le lien ↗](${poll.externalUrl})`);
         }
 
         descriptionParts.push(`\n**📊 Choix :**\n${optionsList}`);
@@ -1020,7 +1040,9 @@ async function publishPollToDiscord(
                 name: `Sondage lancé par ${poll.creatorName}`,
                 iconUrl: (poll.creator as any)?.user?.image || undefined
             },
-            embedUrl: voteUrl,
+            // embedUrl intentionnellement absent : évite que le titre de l'embed
+            // soit cliquable (confusion avec le lien externe du sondage).
+            // La navigation vers le dashboard se fait via le bouton "Résultats & Détails".
             mentionContent,
             components: discordComponents,
         };

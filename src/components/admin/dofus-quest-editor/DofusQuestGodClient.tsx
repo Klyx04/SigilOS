@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { compileDofusChain, updateDofusCategory } from "@/server/actions/dofus-quest-admin-actions";
+import { compileDofusChain, updateDofusCategory, upsertQuestEntry } from "@/server/actions/dofus-quest-admin-actions";
 import { Badge } from "@/components/ui/badge";
 import {
     Select,
@@ -27,12 +28,16 @@ import {
     Trophy,
     Terminal,
     Skull,
+    Edit2,
+    Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { runV3Siphoner } from "@/server/actions/dofus-v3-actions";
 import { RefreshCcw, Share2, Zap } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 interface DofusStats {
     id: string;
@@ -58,9 +63,12 @@ interface DofusStats {
 }
 
 export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }) {
+    const router = useRouter();
     const [expandedDofus, setExpandedDofus] = useState<string | null>(null);
     const [expandedChain, setExpandedChain] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
+    const [editingEntry, setEditingEntry] = useState<any | null>(null);
+    const [isEntryDialogOpen, setIsEntryDialogOpen] = useState(false);
 
     const handleV3Siphon = (slug: string) => {
         startTransition(async () => {
@@ -351,131 +359,6 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                             </Button>
                                         </div>
 
-                                        {/* Global Summary Stats */}
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
-                                            {/* DUNGEONS SYNTESIS */}
-                                            <div className="relative group/card bg-gradient-to-br from-zinc-900/60 to-black/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden flex flex-col">
-                                                <div className="absolute inset-0 bg-rose-500/5 opacity-0 group-hover/card:opacity-100 transition-opacity" />
-                                                <div className="relative flex items-center justify-between mb-8">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
-                                                            <Trophy className="w-5 h-5 text-rose-500" />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <h4 className="text-white font-black italic uppercase tracking-tighter">Synthèse Donjons</h4>
-                                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Trophées de Boss requis</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="relative flex flex-wrap gap-5">
-                                                    {(() => {
-                                                        const dungeons = (dofus.chains || []).flatMap(c => (c.entries || []).flatMap(e => (e.dungeonsRequired ?? []) as any[]));
-                                                        const uniqueDungeons = Array.from(new Map(dungeons.map(d => [d.name, d])).values());
-                                                        
-                                                        if (uniqueDungeons.length === 0) return (
-                                                                <div className="w-full py-10 text-center border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.01]">
-                                                                    <span className="text-zinc-600 text-sm font-bold italic tracking-wide">Zéro donjon sur cette route</span>
-                                                                </div>
-                                                            );
-
-                                                        return uniqueDungeons.map((dj, i) => (
-                                                            <div key={i} className="group/boss relative flex flex-col items-center gap-3 transition-all hover:-translate-y-1">
-                                                                <div className="relative w-20 h-20 rounded-[2rem] bg-zinc-950 border border-white/10 group-hover/boss:border-rose-500/50 overflow-hidden shadow-2xl transition-all p-1 bg-gradient-to-tr from-black to-zinc-900">
-                                                                    {dj.img ? (
-                                                                        <img 
-                                                                            src={dj.img} 
-                                                                            className="w-full h-full object-contain filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.8)] group-hover/boss:scale-110 transition-transform" 
-                                                                            alt={dj.name}
-                                                                            loading="lazy"
-                                                                        />
-                                                                    ) : (
-                                                                        <div className="w-full h-full flex items-center justify-center text-rose-500/20">
-                                                                            <Trophy className="w-10 h-10" />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter text-center max-w-[80px] line-clamp-2 leading-tight group-hover/boss:text-rose-400">
-                                                                    {dj.name.replace("Donjon du ", "").replace("Donjon de la ", "").replace("Donjon des ", "").replace("Donjon ", "")}
-                                                                </span>
-                                                            </div>
-                                                        ));
-                                                    })()}
-                                                </div>
-                                            </div>
-
-                                            {/* RESOURCES SYNTESIS */}
-                                            <div className="relative group/card bg-gradient-to-br from-zinc-900/60 to-black/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden flex flex-col">
-                                                <div className="absolute inset-0 bg-amber-500/10 opacity-0 group-hover/card:opacity-100 transition-opacity" />
-                                                <div className="relative flex items-center justify-between mb-8">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-                                                            <Package className="w-5 h-5 text-amber-500" />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <h4 className="text-white font-black italic uppercase tracking-tighter">Coffre de Quêtes</h4>
-                                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Inventaire complet nécessaire</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <ScrollArea className="h-[320px] w-full">
-                                                    <div className="relative grid grid-cols-4 sm:grid-cols-6 xl:grid-cols-8 gap-3">
-                                                        {(() => {
-                                                            const itemMap = new Map<string, { name: string; amount: number; img: string | null; id: number }>();
-                                                            (dofus.chains || []).forEach(c => {
-                                                                (c.entries || []).forEach(e => {
-                                                                    const items = e.itemsRequired as any[] || [];
-                                                                    items.forEach(it => {
-                                                                        const key = it.id || it.dofusdbId || it.name;
-                                                                        const existing = itemMap.get(String(key));
-                                                                        if (existing) existing.amount += it.amount;
-                                                                        else itemMap.set(String(key), { 
-                                                                            name: it.name, 
-                                                                            amount: it.amount, 
-                                                                            img: it.img, 
-                                                                            id: it.id || it.dofusdbId 
-                                                                        });
-                                                                    });
-                                                                });
-                                                            });
-                                                            const totalItems = Array.from(itemMap.values());
-                                                            
-                                                            if (totalItems.length === 0) return (
-                                                                <div className="col-span-full py-10 text-center border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.01]">
-                                                                    <span className="text-zinc-600 text-sm font-bold italic tracking-wide">Aucune ressource répertoriée</span>
-                                                                </div>
-                                                            );
-
-                                                            return totalItems.map((it, i) => (
-                                                                <a 
-                                                                    key={i} 
-                                                                    href={it.id && it.id > 0 ? `https://dofusdb.fr/fr/database/item/${it.id}` : "#"}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="group/item relative aspect-square rounded-2xl bg-black/40 border border-white/5 flex flex-col items-center justify-center p-2 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all cursor-alias"
-                                                                    title={it.name}
-                                                                >
-                                                                    <div className="relative w-full h-full flex items-center justify-center">
-                                                                        {it.img ? (
-                                                                            <img src={it.img} className="w-full h-full object-contain filter group-hover/item:scale-110 transition-transform" alt={it.name} loading="lazy" />
-                                                                        ) : (
-                                                                            <Package className="w-6 h-6 text-zinc-800" />
-                                                                        )}
-                                                                        <div className="absolute -bottom-2 -right-2 bg-zinc-950 border border-white/10 rounded-md px-1.5 py-0.5 shadow-2xl z-10 group-hover/item:border-amber-500/30">
-                                                                            <span className="text-[10px] font-black text-white tabular-nums leading-none">
-                                                                                {it.amount > 999 ? `${(it.amount/1000).toFixed(1)}k` : it.amount}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                </a>
-                                                            ));
-                                                        })()}
-                                                    </div>
-                                                </ScrollArea>
-                                            </div>
-                                        </div>
-
                                         {/* Chain list */}
                                         {(dofus.chains || []).map(chain => {
                                             const chainExpanded = expandedChain === chain.id;
@@ -522,8 +405,6 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                                                     <th className="text-left px-4 py-4">Lien DB</th>
                                                                                     <th className="text-center px-4 py-4">Lvl</th>
                                                                                     <th className="text-left px-4 py-4">Zone / PNJ</th>
-                                                                                    <th className="text-left px-4 py-4">Objectifs</th>
-                                                                                    <th className="text-center px-4 py-4">Besoin</th>
                                                                                     <th className="text-center px-4 py-4">Actions</th>
                                                                                 </tr>
                                                                             </thead>
@@ -583,66 +464,8 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                                                                     <span className="text-zinc-700 italic font-bold">Inconnu</span>
                                                                                                 )}
                                                                                             </td>
-                                                                                            <td className="px-4 py-4 border-y border-white/5 group-hover/row:border-white/10">
-                                                                                                {objectives.length > 0 ? (
-                                                                                                    <Popover>
-                                                                                                        <PopoverTrigger asChild>
-                                                                                                            <button className="flex items-center gap-2 group/pop hover:bg-white/5 px-3 py-1.5 rounded-xl border border-transparent hover:border-white/10 transition-all">
-                                                                                                                <ListChecks className="w-4 h-4 text-indigo-400 group-hover/pop:scale-110 transition-transform" />
-                                                                                                                <span className="text-indigo-200 font-black uppercase text-[10px] tracking-widest">{objectives.length} étapes</span>
-                                                                                                            </button>
-                                                                                                        </PopoverTrigger>
-                                                                                                        <PopoverContent className="w-80 bg-zinc-950/90 border-white/10 p-5 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl rounded-3xl">
-                                                                                                            <div className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-4 flex items-center justify-between">
-                                                                                                                <div className="flex items-center gap-2">
-                                                                                                                   <ListChecks className="w-3.5 h-3.5" />
-                                                                                                                   Guide de Quête
-                                                                                                                </div>
-                                                                                                                <span className="bg-white/5 px-2 py-0.5 rounded text-[9px]">{entry.name}</span>
-                                                                                                            </div>
-                                                                                                            <div className="space-y-3">
-                                                                                                                {objectives.map((obj, i) => (
-                                                                                                                    <div key={i} className="flex gap-3 text-[11px] leading-normal text-zinc-400 group/obj">
-                                                                                                                        <div className="w-5 h-5 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 font-black text-indigo-400 text-[9px]">
-                                                                                                                           {i+1}
-                                                                                                                        </div>
-                                                                                                                        <span className="pt-0.5">{obj.replace(/\{npc,\d+\}/g, "NPC").replace(/\{item,\d+\}/g, "Objet")}</span>
-                                                                                                                    </div>
-                                                                                                                ))}
-                                                                                                            </div>
-                                                                                                        </PopoverContent>
-                                                                                                    </Popover>
-                                                                                                ) : (
-                                                                                                    <span className="text-zinc-800 italic font-bold ml-3">Aucun détail</span>
-                                                                                                )}
-                                                                                            </td>
-                                                                                            <td className="px-4 py-4 border-y border-white/5 group-hover/row:border-white/10 text-center">
-                                                                                                {items.length > 0 ? (
-                                                                                                    <div className="flex -space-x-3 justify-center group-hover/row:space-x-1 transition-all">
-                                                                                                        {items.slice(0, 4).map((item, i) => (
-                                                                                                            <div 
-                                                                                                                key={i} 
-                                                                                                                className="w-10 h-10 rounded-xl bg-zinc-900 border-2 border-white/5 overflow-hidden flex items-center justify-center bg-black/60 p-1.5 shadow-xl hover:border-amber-500/50 hover:scale-110 transition-all z-[1]"
-                                                                                                                title={`${item.amount}x ${item.name}`}
-                                                                                                                style={{ zIndex: 10 - i }}
-                                                                                                            >
-                                                                                                                {item.img ? <img src={item.img} className="w-full h-full object-contain" /> : <Package className="w-5 h-5 text-zinc-700" />}
-                                                                                                            </div>
-                                                                                                        ))}
-                                                                                                        {items.length > 4 && (
-                                                                                                            <div className="w-10 h-10 rounded-xl bg-zinc-800 border-2 border-white/5 flex items-center justify-center text-[10px] font-black text-zinc-500 z-0">
-                                                                                                                +{items.length - 4}
-                                                                                                            </div>
-                                                                                                        )}
-                                                                                                    </div>
-                                                                                                ) : (
-                                                                                                    <div className="w-10 h-10 mx-auto rounded-xl border-2 border-dashed border-white/5 flex items-center justify-center">
-                                                                                                       <Check className="w-4 h-4 text-emerald-500/20" />
-                                                                                                    </div>
-                                                                                                )}
-                                                                                            </td>
                                                                                             <td className="px-4 py-4 border-y border-r border-white/5 group-hover/row:border-white/10 first:rounded-l-2xl last:rounded-r-2xl text-center">
-                                                                                                <div className="flex items-center justify-center">
+                                                                                                <div className="flex items-center justify-center gap-2">
                                                                                                     <Button 
                                                                                                         variant="ghost" 
                                                                                                         size="icon" 
@@ -657,6 +480,17 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                                                                                                         }}
                                                                                                     >
                                                                                                         <BookOpen className="w-4 h-4" />
+                                                                                                    </Button>
+                                                                                                    <Button 
+                                                                                                        variant="ghost" 
+                                                                                                        size="icon" 
+                                                                                                        className="h-10 w-10 rounded-xl hover:bg-white/10 text-indigo-400 hover:text-indigo-300 transition-all hover:scale-110 active:scale-90"
+                                                                                                        onClick={() => {
+                                                                                                            setEditingEntry(entry);
+                                                                                                            setIsEntryDialogOpen(true);
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        <Edit2 className="w-4 h-4" />
                                                                                                     </Button>
                                                                                                 </div>
                                                                                             </td>
@@ -681,6 +515,139 @@ export function DofusQuestGodClient({ dofusItems }: { dofusItems: DofusStats[] }
                 );
             })}
 
+            <EntryEditDialog 
+                open={isEntryDialogOpen} 
+                onOpenChange={setIsEntryDialogOpen} 
+                entry={editingEntry} 
+                onSuccess={() => router.refresh()} 
+            />
         </div>
+    );
+}
+
+function EntryEditDialog({ open, onOpenChange, entry, onSuccess }: { open: boolean, onOpenChange: (open: boolean) => void, entry: any, onSuccess: () => void }) {
+    const [formData, setFormData] = useState<any>({
+        chainId: "",
+        name: "",
+        zone: "",
+        questType: "QUEST",
+        stepOrder: 0,
+        isOptional: false,
+        isLast: false,
+        dofusdbId: "",
+        mapId: "",
+        coords: { x: null, y: null },
+        notes: "",
+        externalRef: ""
+    });
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (entry) {
+            setFormData({ 
+                ...entry, 
+                dofusdbId: entry.dofusdbId || "", 
+                mapId: entry.mapId || "", 
+                coords: entry.coords || { x: null, y: null }, 
+                externalRef: entry.externalRef || "",
+                dungeonsRequired: Array.isArray(entry.dungeonsRequired) ? entry.dungeonsRequired : []
+            });
+        }
+    }, [entry, open]);
+
+    async function handleSubmit(e: any) {
+        e.preventDefault();
+        setLoading(true);
+        const res = await upsertQuestEntry(entry?.id || null, {
+            ...formData,
+            dofusdbId: formData.dofusdbId ? parseInt(formData.dofusdbId) : null,
+            mapId: formData.mapId ? parseInt(formData.mapId) : null,
+            stepOrder: parseInt(formData.stepOrder) || 0
+        });
+        if (res.success) {
+            toast.success("Étape enregistrée");
+            onOpenChange(false);
+            onSuccess();
+        } else {
+            toast.error(res.error || "Erreur lors de la sauvegarde");
+        }
+        setLoading(false);
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="bg-zinc-950 border-white/10 text-white max-w-xl rounded-3xl overflow-hidden p-0 shadow-2xl">
+                <div className="p-8 border-b border-white/5 bg-zinc-900/30">
+                    <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">
+                        Éditer : {entry?.name || "Étape"}
+                    </DialogTitle>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">ID Base DofusDB</label>
+                        <Input 
+                            type="number" 
+                            value={formData.dofusdbId} 
+                            onChange={e => setFormData({...formData, dofusdbId: e.target.value})} 
+                            className="bg-black/45 border border-white/5 h-12 rounded-xl text-sm font-semibold focus-visible:ring-indigo-500/50" 
+                            placeholder="Ex: 4294" 
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic">Lien Tutoriel (DofusPourLesNoobs)</label>
+                        <Input 
+                            value={formData.externalRef || ""} 
+                            onChange={e => setFormData({...formData, externalRef: e.target.value})} 
+                            className="bg-indigo-500/10 border border-indigo-500/20 h-12 rounded-xl text-xs font-medium focus-visible:ring-indigo-500/50" 
+                            placeholder="https://www.dofuspourlesnoobs.com/..." 
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 block">Coord X</label>
+                            <Input 
+                                type="number" 
+                                value={formData.coords?.x ?? ""} 
+                                onChange={e => setFormData({
+                                    ...formData, 
+                                    coords: { 
+                                        ...formData.coords, 
+                                        x: e.target.value === "" ? null : parseInt(e.target.value) 
+                                    }
+                                })} 
+                                className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 h-12 rounded-xl text-center font-black focus-visible:ring-emerald-500/50" 
+                                placeholder="-" 
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 block">Coord Y</label>
+                            <Input 
+                                type="number" 
+                                value={formData.coords?.y ?? ""} 
+                                onChange={e => setFormData({
+                                    ...formData, 
+                                    coords: { 
+                                        ...formData.coords, 
+                                        y: e.target.value === "" ? null : parseInt(e.target.value) 
+                                    }
+                                })} 
+                                className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 h-12 rounded-xl text-center font-black focus-visible:ring-emerald-500/50" 
+                                placeholder="-" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-6 border-t border-white/5">
+                        <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl h-11 text-zinc-400 hover:text-white">Annuler</Button>
+                        <Button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black italic text-[10px] uppercase tracking-widest rounded-xl h-11 px-8 shadow-xl">
+                            {loading ? "Enregistrement..." : "Sauvegarder"}
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

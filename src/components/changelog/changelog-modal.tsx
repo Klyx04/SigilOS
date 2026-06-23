@@ -60,7 +60,7 @@ export function ChangelogModal() {
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent className="max-w-xl bg-[#09090b] border-white/10 p-0 shadow-2xl focus:outline-none focus:ring-0 rounded-3xl max-h-[85vh] flex flex-col [&>button:first-of-type]:hidden">
+            <DialogContent className="max-w-3xl bg-[#09090b] border-white/10 p-0 shadow-2xl focus:outline-none focus:ring-0 rounded-3xl max-h-[85vh] flex flex-col [&>button:first-of-type]:hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 pointer-events-none rounded-3xl" />
 
                 {/* Close Button */}
@@ -106,14 +106,14 @@ export function ChangelogModal() {
                         <DocContent
                             content={changelog.content}
                             className="
-                                prose-p:text-sm prose-p:leading-relaxed
+                                prose-p:text-base prose-p:leading-relaxed prose-p:text-zinc-300
                                 prose-headings:text-white prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-headings:mb-3 prose-headings:mt-6
-                                prose-h3:text-lg
+                                prose-h3:text-xl
                                 prose-strong:text-indigo-400
-                                prose-ul:list-disc prose-li:text-zinc-400 prose-li:text-sm prose-li:my-1
+                                prose-ul:list-disc prose-li:text-zinc-300 prose-li:text-base prose-li:my-1.5
                                 prose-hr:border-white/5 prose-hr:my-4
                                 [&_.callout]:my-4 [&_.callout]:p-4
-                                [&_img]:max-w-full [&_img]:h-auto [&_img]:object-contain
+                                [&_img]:max-w-full [&_img]:h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:border [&_img]:border-white/5
                                 [&_figure]:my-4 [&_figure]:flex [&_figure]:flex-col [&_figure]:items-start
                             "
                         />

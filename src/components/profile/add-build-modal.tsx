@@ -14,7 +14,7 @@ import type { DofusBookLink } from "./builds-card";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-type BuildSource = "dofusbook" | "dofusroom" | null;
+type BuildSource = "dofusbook" | null;
 
 interface AddBuildModalProps {
     guildId: string;
@@ -58,16 +58,13 @@ const TAG_CATEGORIES = [
     }
 ];
 
-const URL_VALIDATORS: Record<NonNullable<BuildSource>, { pattern: RegExp; placeholder: string; hint: string }> = {
+type NonNullableBuildSource = "dofusbook";
+
+const URL_VALIDATORS: Record<NonNullableBuildSource, { pattern: RegExp; placeholder: string; hint: string }> = {
     dofusbook: {
         pattern: /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/,
         placeholder: "https://d-bk.net/fr/d/...",
         hint: "Lien d-bk.net ou dofusbook.net (https requis)"
-    },
-    dofusroom: {
-        pattern: /^https:\/\/(www\.)?dofusroom\.com\/(buildroom\/build\/show\/\d+|b-\d+)\/?$/,
-        placeholder: "https://www.dofusroom.com/b-411814",
-        hint: "Lien dofusroom.com (format /b-XXXXX ou /buildroom/build/show/XXXXX)"
     }
 };
 
@@ -75,7 +72,7 @@ const URL_VALIDATORS: Record<NonNullable<BuildSource>, { pattern: RegExp; placeh
 
 const STEPS = [
     { label: "Nom", icon: "✏️" },
-    { label: "Source & Lien", icon: "🔗" },
+    { label: "Lien stuff", icon: "🔗" },
     { label: "Tags", icon: "🏷️" },
     { label: "Classe", icon: "⚔️" },
 ];
@@ -89,7 +86,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
 
     // Form state
     const [name, setName] = useState("");
-    const [source, setSource] = useState<BuildSource>(null);
+    const [source, setSource] = useState<BuildSource>("dofusbook");
     const [url, setUrl] = useState("");
     const [tags, setTags] = useState<string[]>([]);
     const [classId, setClassId] = useState<number | null>(null);
@@ -102,7 +99,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
     const reset = () => {
         setStep(0);
         setName("");
-        setSource(null);
+        setSource("dofusbook");
         setUrl("");
         setTags([]);
         setClassId(null);
@@ -244,106 +241,49 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                         </div>
                     )}
 
-                    {/* ── Step 1: Source & Lien ─────────────────────────── */}
+                    {/* ── Step 1: Lien stuff ─────────────────────────────── */}
                     {step === 1 && (
                         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
-                            {/* Source selector */}
-                            <div>
-                                <Label className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-3 block">
-                                    Source du stuff
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                                <Label htmlFor="build-url" className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2 block">
+                                    Lien de partage DofusBook
                                 </Label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {/* DofusBook */}
-                                    <button
-                                        type="button"
-                                        onClick={() => { setSource("dofusbook"); setUrl(""); }}
+                                <div className="relative">
+                                    <Input
+                                        id="build-url"
+                                        autoFocus
+                                        placeholder={urlValidator?.placeholder}
+                                        value={url}
+                                        onChange={(e) => setUrl(e.target.value)}
                                         className={cn(
-                                            "relative p-4 rounded-2xl border-2 transition-all duration-200 text-left group overflow-hidden",
-                                            source === "dofusbook"
-                                                ? "border-emerald-500/60 bg-emerald-500/10 shadow-xl shadow-emerald-500/10"
-                                                : "border-white/8 bg-zinc-900/50 hover:border-white/20 hover:bg-zinc-800/50"
+                                            "bg-zinc-900 border-white/10 text-white placeholder:text-zinc-600 h-11 font-mono text-xs pr-10 transition-all",
+                                            url.trim().length > 0 && urlIsValid === true && "border-emerald-500/50",
+                                            url.trim().length > 0 && urlIsValid === false && "border-red-500/50"
                                         )}
-                                    >
-                                        {source === "dofusbook" && (
-                                            <div className="absolute top-2 right-2 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
-                                                <Check className="w-2.5 h-2.5 text-white" />
-                                            </div>
-                                        )}
-                                        <div className="w-8 h-8 bg-zinc-800 rounded-xl flex items-center justify-center mb-2.5 shadow-inner border border-white/5">
-                                            <BookOpen className="w-4 h-4 text-emerald-400" />
+                                    />
+                                    {url.trim().length > 0 && (
+                                        <div className={cn(
+                                            "absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center",
+                                            urlIsValid ? "bg-emerald-500" : "bg-red-500/80"
+                                        )}>
+                                            {urlIsValid
+                                                ? <Check className="w-3 h-3 text-white" />
+                                                : <span className="text-white text-xs font-black">!</span>
+                                            }
                                         </div>
-                                        <div className="font-black text-sm text-white">DofusBook</div>
-                                        <div className="text-[10px] text-zinc-500 mt-0.5">d-bk.net · dofusbook.net</div>
-                                    </button>
-
-                                    {/* DofusRoom */}
-                                    <button
-                                        type="button"
-                                        onClick={() => { setSource("dofusroom"); setUrl(""); }}
-                                        className={cn(
-                                            "relative p-4 rounded-2xl border-2 transition-all duration-200 text-left group overflow-hidden",
-                                            source === "dofusroom"
-                                                ? "border-sky-500/60 bg-sky-500/10 shadow-xl shadow-sky-500/10"
-                                                : "border-white/8 bg-zinc-900/50 hover:border-white/20 hover:bg-zinc-800/50"
-                                        )}
-                                    >
-                                        {source === "dofusroom" && (
-                                            <div className="absolute top-2 right-2 w-4 h-4 bg-sky-500 rounded-full flex items-center justify-center">
-                                                <Check className="w-2.5 h-2.5 text-white" />
-                                            </div>
-                                        )}
-                                        <div className="w-8 h-8 bg-zinc-800 rounded-xl flex items-center justify-center mb-2.5 shadow-inner border border-white/5">
-                                            <ExternalLink className="w-4 h-4 text-sky-400" />
-                                        </div>
-                                        <div className="font-black text-sm text-white">DofusRoom</div>
-                                        <div className="text-[10px] text-zinc-500 mt-0.5">dofusroom.com</div>
-                                    </button>
+                                    )}
                                 </div>
+                                <p className={cn(
+                                    "text-[10px] mt-1.5 flex items-center gap-1 transition-colors",
+                                    url.trim().length > 0 && urlIsValid === false ? "text-red-400" : "text-zinc-500"
+                                )}>
+                                    <ShieldAlert className="w-3 h-3 shrink-0" />
+                                    {url.trim().length > 0 && urlIsValid === false
+                                        ? "Format de lien invalide (DofusBook attendu : d-bk.net ou dofusbook.net)."
+                                        : urlValidator?.hint
+                                    }
+                                </p>
                             </div>
-
-                            {/* URL input (only shown after source is picked) */}
-                            {source && (
-                                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <Label htmlFor="build-url" className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2 block">
-                                        Lien de partage
-                                    </Label>
-                                    <div className="relative">
-                                        <Input
-                                            id="build-url"
-                                            autoFocus
-                                            placeholder={urlValidator?.placeholder}
-                                            value={url}
-                                            onChange={(e) => setUrl(e.target.value)}
-                                            className={cn(
-                                                "bg-zinc-900 border-white/10 text-white placeholder:text-zinc-600 h-11 font-mono text-xs pr-10 transition-all",
-                                                url.trim().length > 0 && urlIsValid === true && "border-emerald-500/50",
-                                                url.trim().length > 0 && urlIsValid === false && "border-red-500/50"
-                                            )}
-                                        />
-                                        {url.trim().length > 0 && (
-                                            <div className={cn(
-                                                "absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center",
-                                                urlIsValid ? "bg-emerald-500" : "bg-red-500/80"
-                                            )}>
-                                                {urlIsValid
-                                                    ? <Check className="w-3 h-3 text-white" />
-                                                    : <span className="text-white text-xs font-black">!</span>
-                                                }
-                                            </div>
-                                        )}
-                                    </div>
-                                    <p className={cn(
-                                        "text-[10px] mt-1.5 flex items-center gap-1 transition-colors",
-                                        url.trim().length > 0 && urlIsValid === false ? "text-red-400" : "text-zinc-500"
-                                    )}>
-                                        <ShieldAlert className="w-3 h-3 shrink-0" />
-                                        {url.trim().length > 0 && urlIsValid === false
-                                            ? "Format de lien invalide pour cette source."
-                                            : urlValidator?.hint
-                                        }
-                                    </p>
-                                </div>
-                            )}
                         </div>
                     )}
 

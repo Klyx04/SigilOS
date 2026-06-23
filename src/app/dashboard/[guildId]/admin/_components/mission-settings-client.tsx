@@ -4,7 +4,8 @@ import { useState, useEffect, useTransition } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Save, Hash, Target, Users, Bell, Search, ShieldCheck, Coins, Trophy, Clock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Save, Hash, Target, Users, Bell, Search, ShieldCheck, Coins, Trophy, Clock, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
@@ -31,6 +32,9 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
     const [managementChannelId, setManagementChannelId] = useState<string>("");
     const [managementRoleId, setManagementRoleId] = useState<string | null>(null);
 
+    // Mode Vitrine
+    const [missionVitrineMode, setMissionVitrineMode] = useState<boolean>(false);
+
     const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
@@ -53,6 +57,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 setKamaRoleId((configRes.data as any).kamaNotifyRoleId || null);
                 setManagementChannelId(configRes.data.missionManagementNotifyChannelId || "");
                 setManagementRoleId(configRes.data.missionManagementNotifyRoleId || null);
+                setMissionVitrineMode(configRes.data.missionVitrineMode || false);
             }
 
             if (rolesRes.success && rolesRes.roles) {
@@ -75,6 +80,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 kamaNotifyRoleId: kamaRoleId,
                 missionManagementNotifyChannelId: managementChannelId.trim() || null,
                 missionManagementNotifyRoleId: managementRoleId,
+                missionVitrineMode: missionVitrineMode,
             });
             if (result.success) {
                 toast.success("Paramètres mis à jour !");
@@ -190,6 +196,21 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                                 <RoleSelector value={managementRoleId} onChange={setManagementRoleId} roles={roles} className="h-10" />
                             </div>
                         </CardContent>
+                    </Card>
+
+                    {/* SECTION 4: MODE VITRINE */}
+                    <Card className="bg-zinc-900/60 border-white/5">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                            <div className="space-y-1">
+                                <CardTitle className="flex items-center gap-2 text-blue-400 text-sm uppercase tracking-tight">
+                                    <Eye className="w-4 h-4" /> Mode Vitrine (Lecture seule)
+                                </CardTitle>
+                                <CardDescription className="text-zinc-400 text-xs">
+                                    Masque la possibilité d'uploader des captures (bouton PREUVE), le statut "Validé" sur les missions, et cache les ladders aux membres.
+                                </CardDescription>
+                            </div>
+                            <Switch checked={missionVitrineMode} onCheckedChange={setMissionVitrineMode} />
+                        </CardHeader>
                     </Card>
 
                     <div className="flex justify-end pt-4">

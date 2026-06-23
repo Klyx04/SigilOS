@@ -28,6 +28,7 @@ export default async function QuestsDofusGodPage() {
                     entries: {
                         select: {
                             id: true,
+                            chainId: true,
                             name: true,
                             dofusdbId: true,
                             level: true,
@@ -44,6 +45,7 @@ export default async function QuestsDofusGodPage() {
                             requirements: true,
                             localImageUrl: true,
                             coordinatesV3: true,
+                            externalRef: true,
                         },
                         orderBy: { stepOrder: "asc" },
                     },

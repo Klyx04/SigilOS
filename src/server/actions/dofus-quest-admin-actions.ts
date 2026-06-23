@@ -232,6 +232,55 @@ export async function deleteQuestChain(id: string): Promise<ActionResponse> {
     }
 }
 
+import fs from "fs";
+import path from "path";
+
+async function syncEntryToLocalJson(
+    dofusSlug: string, 
+    entryName: string, 
+    updatedFields: { 
+        externalRef?: string | null; 
+        coords?: { x: number | null; y: number | null } | null; 
+        dofusdbId?: number | null 
+    }
+) {
+    try {
+        const filePath = path.join(process.cwd(), "prisma", "seed-data", "dofus-quests", `${dofusSlug}-compiled.json`);
+        if (!fs.existsSync(filePath)) return;
+        
+        const fileContent = fs.readFileSync(filePath, "utf-8");
+        const dofusData = JSON.parse(fileContent);
+        
+        let modified = false;
+        if (dofusData && Array.isArray(dofusData.chains)) {
+            for (const chain of dofusData.chains) {
+                if (Array.isArray(chain.entries)) {
+                    for (const entry of chain.entries) {
+                        if (entry.name === entryName) {
+                            if (updatedFields.externalRef !== undefined) {
+                                entry.externalRef = updatedFields.externalRef;
+                            }
+                            if (updatedFields.coords !== undefined) {
+                                entry.coords = updatedFields.coords;
+                            }
+                            if (updatedFields.dofusdbId !== undefined) {
+                                entry.dofusdbId = updatedFields.dofusdbId;
+                            }
+                            modified = true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (modified) {
+            fs.writeFileSync(filePath, JSON.stringify(dofusData, null, 2), "utf-8");
+        }
+    } catch (e) {
+        console.error("Error syncing entry to local JSON:", e);
+    }
+}
+
 export async function upsertQuestEntry(id: string | null, data: z.infer<typeof EntrySchema>): Promise<ActionResponse<any>> {
     const userId = await requireSuperAdmin();
     if (!userId) return { success: false, error: "Accès refusé" };
@@ -242,6 +291,20 @@ export async function upsertQuestEntry(id: string | null, data: z.infer<typeof E
             ? await (db as any).dofusQuestEntry.update({ where: { id }, data: validated })
             : await (db as any).dofusQuestEntry.create({ data: validated });
         
+        // Find Dofus Slug to sync to file
+        const chain = await (db as any).dofusQuestChain.findUnique({
+            where: { id: validated.chainId },
+            include: { dofus: true }
+        });
+        
+        if (chain?.dofus?.slug) {
+            await syncEntryToLocalJson(chain.dofus.slug, validated.name, {
+                externalRef: validated.externalRef,
+                coords: validated.coords,
+                dofusdbId: validated.dofusdbId
+            });
+        }
+
         revalidatePath("/god/game-data");
         return { success: true, data: record };
     } catch (error) {

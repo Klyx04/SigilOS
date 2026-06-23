@@ -159,6 +159,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             case 'ds':  do_sorts += val; break;
             case 'dm':  do_melee += val; break;
             case 'di':  do_dist += val; break;
+            case 'dd':  do_dist += val; break;  // DofusBook uses 'dd' for % Do Dist.
             // Secondary
             case 'ini': ini += val; break;
             case 'cc': cc += val; break;
@@ -291,7 +292,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     do_armes += Number(fmGlobal.da) || 0;
     do_sorts += Number(fmGlobal.ds) || 0;
     do_melee += Number(fmGlobal.dm) || 0;
-    do_dist  += Number(fmGlobal.di) || 0;
+    do_dist  += Number(fmGlobal.di) || Number(fmGlobal.dd) || 0;
 
     // B. Per-item exo FM — path: raw.stuff.stuffFmItem (NOT raw.stuff.stuffFm.fmItem!)
     // We already skipped the base values in sumEffect, so now we just blindly ADD every fm value 
@@ -329,7 +330,7 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
             do_armes += Number(fmStats.da) || 0;
             do_sorts += Number(fmStats.ds) || 0;
             do_melee += Number(fmStats.dm) || 0;
-            do_dist  += Number(fmStats.di) || 0;
+            do_dist  += Number(fmStats.di) || Number(fmStats.dd) || 0;
         });
     }
 

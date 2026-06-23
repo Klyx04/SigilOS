@@ -492,7 +492,7 @@ export function AppSidebar({
                             </div>
                         </div>
 
-                        <div key="section-informations" className="relative group/section">
+                        <div key="section-informations" className="relative group/section" data-tour-section="informations">
                             <SectionTitle 
                                 label="Informations" 
                                 collapsible 
@@ -588,7 +588,7 @@ export function AppSidebar({
 
                         {/* SECTION: PROGRESSION */}
                         {showProgressionGroup && (
-                            <div key="section-progression" className="relative group/section">
+                            <div key="section-progression" className="relative group/section" data-tour-section="progression">
                                 <SectionTitle 
                                     label="Progression" 
                                     collapsible 

@@ -7,6 +7,10 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const SCREENSHOTS = [
+    { src: "/assets/screenshots/map-monde.png?v=2", alt: "Carte Interactive Dofus" },
+    { src: "/assets/screenshots/guide-complet.png?v=2", alt: "Guide Quêtes et Succès" },
+    { src: "/assets/screenshots/galerie.png?v=2", alt: "Galerie d'Images de la Guilde" },
+    { src: "/assets/screenshots/recherche-donjons.png?v=2", alt: "Recherche de Groupes & Donjons" },
     { src: "/assets/screenshots/screenshot1.png?v=2", alt: "Tableau de bord SigilOS" },
     { src: "/assets/screenshots/screenshot2.png?v=2", alt: "Profil Personnel Complet" },
     { src: "/assets/screenshots/screenshot3.png?v=2", alt: "Calendrier de guilde Complet" },

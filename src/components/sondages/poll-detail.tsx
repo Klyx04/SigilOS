@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
     BarChart3, Clock, Users, Lock, CheckCircle2, XCircle, ArrowLeft,
-    Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send, Info
+    Crown, Trash2, AlertTriangle, Edit2, Megaphone, Send, Info, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -258,25 +258,28 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                         </div>
 
                         {/* Title & Description */}
-                        <div className="space-y-6">
-                            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter leading-[0.95] max-w-2xl flex items-center flex-wrap gap-4">
-                                <span>{poll.title}</span>
-                                {poll.externalUrl && (
-                                    <a
-                                        href={poll.externalUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all scale-90"
-                                    >
-                                        <Info className="w-3.5 h-3.5" />
-                                        Consulter le lien
-                                    </a>
-                                )}
+                        <div className="space-y-4">
+                            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter leading-[0.95] max-w-2xl">
+                                {poll.title}
                             </h1>
                             {poll.description && (
                                 <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-3xl font-medium">
                                     {poll.description}
                                 </p>
+                            )}
+                            {poll.externalUrl && (
+                                <a
+                                    href={poll.externalUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest bg-zinc-800/60 text-zinc-300 border border-white/10 hover:bg-zinc-700/60 hover:text-white hover:border-white/20 transition-all group w-fit"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-cyan-400 transition-colors" />
+                                    Source externe
+                                    <span className="text-zinc-600 group-hover:text-zinc-400 transition-colors normal-case font-medium truncate max-w-[200px]">
+                                        {(() => { try { return new URL(poll.externalUrl).hostname; } catch { return poll.externalUrl; } })()}
+                                    </span>
+                                </a>
                             )}
                         </div>
 
@@ -426,29 +429,79 @@ export function PollDetail({ poll, guildId, isAdmin, currentProfileId, hasMicro,
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <div className="flex items-center gap-2 mt-2 cursor-pointer">
-                                                                <div className="flex -space-x-1.5">
-                                                                    {option.votes.slice(0, 4).map((v) => (
-                                                                        <div key={v.id} className="w-5 h-5 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[8px] font-black text-zinc-400 uppercase">
-                                                                            {v.voterName.charAt(0)}
-                                                                        </div>
-                                                                    ))}
+                                                            <div className="flex items-center gap-2.5 mt-2.5 cursor-pointer group/voters">
+                                                                <div className="flex -space-x-2">
+                                                                    {option.votes.slice(0, 5).map((v) => {
+                                                                        // Couleur déterministe basée sur le nom
+                                                                        const colors = [
+                                                                            "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+                                                                            "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                                                                            "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                                                                            "bg-rose-500/20 text-rose-300 border-rose-500/30",
+                                                                            "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+                                                                            "bg-violet-500/20 text-violet-300 border-violet-500/30",
+                                                                        ];
+                                                                        const colorClass = colors[v.voterName.charCodeAt(0) % colors.length];
+                                                                        return (
+                                                                            <div
+                                                                                key={v.id}
+                                                                                className={cn(
+                                                                                    "w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-black uppercase transition-transform hover:scale-110 hover:z-10 relative",
+                                                                                    colorClass
+                                                                                )}
+                                                                                title={v.voterName}
+                                                                            >
+                                                                                {v.voterName.charAt(0)}
+                                                                            </div>
+                                                                        );
+                                                                    })}
                                                                 </div>
-                                                                {option.votes.length > 4 && (
-                                                                    <span className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
-                                                                        +{option.votes.length - 4} autres
+                                                                {option.votes.length > 5 && (
+                                                                    <span className="text-[10px] text-zinc-500 font-black group-hover/voters:text-zinc-300 transition-colors">
+                                                                        +{option.votes.length - 5} autres
                                                                     </span>
                                                                 )}
                                                             </div>
                                                         </TooltipTrigger>
-                                                        <TooltipContent className="bg-zinc-950 border border-white/10 p-3 rounded-xl max-w-xs shadow-2xl">
-                                                            <div className="space-y-1">
-                                                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-white/5 pb-1 mb-1">
-                                                                    Votants ({option.votes.length})
+                                                        <TooltipContent
+                                                            className="bg-zinc-950 border border-white/10 p-0 rounded-2xl max-w-xs shadow-2xl overflow-hidden"
+                                                            side="bottom"
+                                                            align="start"
+                                                        >
+                                                            <div className="px-4 py-3 border-b border-white/5">
+                                                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                                                                    {option.votes.length} votant{option.votes.length > 1 ? "s" : ""}
                                                                 </p>
-                                                                <div className="text-[11px] text-zinc-300 font-medium max-h-40 overflow-y-auto pr-1">
-                                                                    {option.votes.map((v) => v.voterName).join(", ")}
-                                                                </div>
+                                                            </div>
+                                                            <div className="max-h-48 overflow-y-auto">
+                                                                {option.votes.map((v, idx) => {
+                                                                    const colors = [
+                                                                        "bg-cyan-500/20 text-cyan-300",
+                                                                        "bg-amber-500/20 text-amber-300",
+                                                                        "bg-emerald-500/20 text-emerald-300",
+                                                                        "bg-rose-500/20 text-rose-300",
+                                                                        "bg-indigo-500/20 text-indigo-300",
+                                                                        "bg-violet-500/20 text-violet-300",
+                                                                    ];
+                                                                    const colorClass = colors[v.voterName.charCodeAt(0) % colors.length];
+                                                                    return (
+                                                                        <div
+                                                                            key={v.id}
+                                                                            className={cn(
+                                                                                "flex items-center gap-3 px-4 py-2.5 transition-colors",
+                                                                                idx % 2 === 0 ? "bg-white/[0.01]" : "bg-transparent"
+                                                                            )}
+                                                                        >
+                                                                            <div className={cn(
+                                                                                "w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black uppercase shrink-0",
+                                                                                colorClass
+                                                                            )}>
+                                                                                {v.voterName.charAt(0)}
+                                                                            </div>
+                                                                            <span className="text-[12px] text-zinc-200 font-medium truncate">{v.voterName}</span>
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
                                                         </TooltipContent>
                                                     </Tooltip>

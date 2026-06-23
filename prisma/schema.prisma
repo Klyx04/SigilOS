@@ -228,6 +228,7 @@ model GuildConfig {
   welcomeBadgeName                 String                  @default("Nouveau")
   welcomeDiscordMessageTemplate    String?
   missionWeekXpOverride            Int?
+  missionVitrineMode               Boolean                 @default(false)
   kamaNotifyChannelId              String?
   achievementNotifyChannelId       String?
   achievementNotifyRoleId          String?
@@ -497,6 +498,7 @@ model UserProfile {
   dungeonProgress            UserDungeonProgress[]
   legendaryCrafts            LegendaryItem[]            @relation("LegendaryCrafters")
   hasLegendaryPrerequisites  Boolean                    @default(false)
+  hasLegendaryPet            Boolean                    @default(false)
   playerGuideProgress        PlayerGuideProgress[]
   guild                      GuildConfig                @relation(fields: [guildId], references: [id], onDelete: Cascade)
   user                       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)

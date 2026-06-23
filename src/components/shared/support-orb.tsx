@@ -13,8 +13,7 @@ import { cn } from "@/lib/utils";
 export function SupportOrb() {
     const [isHovered, setIsHovered] = useState(false);
 
-    // TODO: Replace with real link in production
-    const stripeLink = "#"; 
+    const stripeLink = "https://ko-fi.com/wylan"; 
 
     return (
         <div 

@@ -12,13 +12,13 @@
 /* ── Sidebar ── */
 .guide-sidebar {
   flex: 0 0 380px;
-  background: linear-gradient(180deg, #121420 0%, #0a0b12 100%);
-  border-right: 1px solid rgba(99, 102, 241, 0.15);
+  background: linear-gradient(180deg, #0e111a 0%, #05060b 100%);
+  border-right: 1px solid rgba(99, 102, 241, 0.25);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   z-index: 10;
-  box-shadow: 10px 0 40px rgba(0, 0, 0, 0.4), inset -1px 0 0 rgba(255, 255, 255, 0.02);
+  box-shadow: 15px 0 45px rgba(0, 0, 0, 0.6), inset -1px 0 0 rgba(255, 255, 255, 0.03);
 }
 
 /* ── Compact Sidebar Header ── */
@@ -473,8 +473,8 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.85rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 1rem;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -483,9 +483,9 @@
 }
 
 .chapter-header:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
-  transform: translateX(2px);
+  background: rgba(99, 102, 241, 0.05);
+  border-color: rgba(99, 102, 241, 0.2);
+  transform: translateY(-1px);
 }
 
 .chapter-header.active {
@@ -601,7 +601,8 @@
 }
 
 .ms-row.active {
-  background: rgba(59, 130, 246, 0.1);
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.03) 100%);
+  border-left: 3px solid #6366f1;
 }
 
 .ms-state {
@@ -642,8 +643,9 @@
 }
 
 .ms-row.active .ms-title {
-  color: #fff;
+  color: #a5b4fc;
   font-weight: 800;
+  text-shadow: 0 0 10px rgba(165, 180, 252, 0.3);
 }
 
 .ms-presence-chip {
@@ -1248,6 +1250,11 @@
   font-size: 0.9rem;
   line-height: 1.5;
   color: #e4e4e7;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .sgc-step-coords {
@@ -1410,11 +1417,11 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: rgba(20, 22, 31, 0.85);
+  background: rgba(15, 17, 26, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 20px rgba(16, 185, 129, 0.1);
   border-radius: 100px;
   width: max-content;
   margin: 0 auto;
@@ -1779,6 +1786,9 @@
   background: rgba(255, 255, 255, 0.02);
   padding: 1.5rem !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
 
@@ -2193,24 +2203,28 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.1rem;
-  padding: 0.4rem 0.85rem;
-  background: rgba(255, 255, 255, 0.01);
-  border: none !important;
-  border-radius: 0.5rem;
-  color: #71717a;
+  padding: 0.5rem 0.95rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 0.6rem;
+  color: #a1a1aa;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
   text-align: left;
 }
 
 .subguide-tab-btn:hover {
-  background: rgba(255, 255, 255, 0.03);
-  color: #a1a1aa;
+  background: rgba(99, 102, 241, 0.08);
+  color: #fff;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  transform: translateY(-1px);
 }
 
 .subguide-tab-btn.active {
-  background: rgba(16, 185, 129, 0.08);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.05) 100%);
   color: #10b981;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
 }
 
 .subguide-tab-btn .tab-num {
@@ -2218,6 +2232,7 @@
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  color: #71717a;
 }
 
 .subguide-tab-btn.active .tab-num {

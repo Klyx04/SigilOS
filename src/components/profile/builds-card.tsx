@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { updateDofusBookLinks } from "@/server/actions/profile-actions";
 import { shareGalleryItemOnDiscord } from "@/server/actions/gallery-actions";
 import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
-import { DofusroomPreview } from "@/components/dofus/dofusroom-preview";
 import { AddBuildModal } from "@/components/profile/add-build-modal";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import type { BUILD_TAG_TYPE } from "@/lib/dofus-tags";
@@ -23,14 +22,9 @@ export type DofusBookLink = {
     name: string;
     tags?: string[];
     classId?: number;
-    source?: "dofusbook" | "dofusroom"; // Source of the build
+    source?: "dofusbook"; // Source of the build
     previewData?: any; // Cached build info
 };
-
-/** Detect whether a URL is a DofusRoom build */
-function isDofusroomUrl(url: string): boolean {
-    return /dofusroom\.com/.test(url);
-}
 
 const DOFUS_CLASSES = [
     { id: 1, name: "Féca" }, { id: 2, name: "Osamodas" }, { id: 3, name: "Enutrof" },
@@ -144,9 +138,8 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
             return;
         }
         const dofusbookPattern = /^https:\/\/(www\.)?(d-bk\.net|dofusbook\.net)\/(fr|en|es|pt|de)\/(?:private\/)?[a-zA-Z0-9-_\/]+$/;
-        const dofusroomPattern = /^https:\/\/(www\.)?dofusroom\.com\/(buildroom\/build\/show\/\d+|b-\d+)\/?$/;
-        if (!dofusbookPattern.test(editingLink.url.trim()) && !dofusroomPattern.test(editingLink.url.trim())) {
-            toast.error("Format de lien invalide (DofusBook ou DofusRoom requis)");
+        if (!dofusbookPattern.test(editingLink.url.trim())) {
+            toast.error("Format de lien invalide (DofusBook requis)");
             return;
         }
         setIsSubmitting(true);
@@ -330,11 +323,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                 {filteredLinks.length > 0 ? (
                     filteredLinks.map(link => (
                         <div key={link.id} className="relative group/card h-full flex flex-col">
-                            {isDofusroomUrl(link.url) ? (
-                                <DofusroomPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
-                            ) : (
-                                <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
-                            )}
+                            <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
 
                             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-30 opacity-0 group-hover/card:opacity-100 translate-y-2 group-hover/card:translate-y-0 transition-all duration-300 pointer-events-none">
                                 <div className="flex items-center gap-1.5 bg-zinc-950/95 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-auto shrink-0 w-max">
@@ -404,7 +393,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                         <div className="space-y-2 relative px-6">
                             <h4 className="text-white font-black uppercase tracking-widest text-sm">Aucun build importé</h4>
                             <p className="text-zinc-500 text-xs leading-relaxed max-w-sm mx-auto font-medium">
-                                Importez vos stuffs depuis <span className="text-emerald-400 font-bold">DofusBook</span> ou <span className="text-sky-400 font-bold">DofusRoom</span> pour que les membres puissent s'en inspirer.
+                                Importez vos stuffs depuis <span className="text-emerald-400 font-bold">DofusBook</span> pour que les membres puissent s'en inspirer.
                                 <br />
                                 <span className="text-zinc-600 italic">C'est ici que vous lorgnez le stuff des autres !</span>
                             </p>
@@ -450,7 +439,7 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="edit-url">Lien du Build (DofusBook ou DofusRoom)</Label>
+                                <Label htmlFor="edit-url">Lien du Build DofusBook</Label>
                                 <Input
                                     id="edit-url"
                                     value={editingLink.url}

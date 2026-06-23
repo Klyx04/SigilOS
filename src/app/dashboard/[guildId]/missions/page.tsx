@@ -5,7 +5,7 @@ import { getMyWeeklyKamaStatus, getKamaStats } from "@/server/actions/kama-actio
 import { getUserProfile } from "@/server/actions/profile-actions";
 import { MissionBoard } from "@/components/missions/mission-board";
 import { redirect } from "next/navigation";
-import { ScrollText } from "lucide-react";
+import { ScrollText, Eye } from "lucide-react";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { MissionsErrorState } from "@/components/missions/missions-error-state";
@@ -50,6 +50,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 guildHallPosX: true,
                 guildHallPosY: true,
                 guildHallWorldId: true,
+                missionVitrineMode: true,
             }
         })
     ]);
@@ -102,6 +103,8 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     // Kama status for the widget
     const kamaStatus = (kamaRes.success && kamaRes.data) ? kamaRes.data : null;
 
+    const vitrineMode = !!guildConfig?.missionVitrineMode && !user.isAdmin;
+
     return (
         <div className="space-y-6 pb-12">
             <ActivitiesNav guildId={guildId} />
@@ -112,6 +115,18 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 iconColor="#ef4444"
                 backHref={`/dashboard/${guildId}`}
             />
+
+            {vitrineMode && (
+                <div className="mx-1 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-start gap-3 shadow-lg shadow-blue-500/5 animate-in fade-in duration-300">
+                    <Eye className="w-5 h-5 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                        <h4 className="font-bold text-sm tracking-wide text-blue-300 uppercase">Mode Vitrine Actif</h4>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                            Les missions de guilde sont en mode lecture seule pour le moment. Vous pouvez consulter les objectifs de la semaine, mais l'upload de captures d'écran (bouton PREUVE) et l'accès aux classements d'activité et de guildatons sont désactivés.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Dashboard Row 1: XP Progress & Weekly Rewards */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 px-1">
@@ -140,6 +155,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 guildId={guildId}
                 isRestricted={isRestricted}
                 availableAt={availableAt}
+                vitrineMode={vitrineMode}
             />
         </div>
     );

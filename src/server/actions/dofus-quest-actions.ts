@@ -527,9 +527,9 @@ export async function getGuildDofusStats(guildId: string): Promise<{
             },
         });
 
-        // Get all player Dofus progress (including in-progress)
+        // Get all player Dofus progress for their PRINCIPAL character (avoid duplicates from alts)
         const allProgress = await (db as any).playerDofusProgress.findMany({
-            where: { guildId: internalGuildId },
+            where: { guildId: internalGuildId, characterName: "PRINCIPAL" },
             include: {
                 profile: {
                     select: {
@@ -542,11 +542,12 @@ export async function getGuildDofusStats(guildId: string): Promise<{
             }
         });
 
-        // Get all active quest progress to find "Current Quest"
+        // Get active quest progress for PRINCIPAL character
         const activeQuests = await (db as any).playerDofusQuestProgress.findMany({
             where: {
                 guildId: internalGuildId,
-                status: "IN_PROGRESS"
+                status: "IN_PROGRESS",
+                characterName: "PRINCIPAL"
             },
             include: {
                 quest: { select: { id: true, name: true, chain: { select: { dofusId: true } } } }

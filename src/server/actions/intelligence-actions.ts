@@ -84,7 +84,36 @@ export async function getDashboardFocus(
             }
         }
 
-        // 3. Fallback: Welcome / Activities
+        // 3. Check for Active / Upcoming Official Raids or Guild Events
+        if (user.canViewCalendar) {
+            const now = new Date();
+            const upcomingEvents = await db.guildEvent.findMany({
+                where: {
+                    guild: { discordGuildId: guildId },
+                    startDate: { lte: new Date(now.getTime() + 24 * 60 * 60 * 1000) }, // In next 24 hours
+                    endDate: { gte: now }, // Not ended yet
+                    status: "PUBLISHED",
+                    type: { in: ["RAID_OFFICIAL", "EVENT_GUILD"] }
+                },
+                orderBy: { startDate: "asc" },
+                take: 1
+            });
+
+            if (upcomingEvents.length > 0) {
+                const event = upcomingEvents[0];
+                const isRaid = event.type === "RAID_OFFICIAL";
+                cards.push({
+                    type: isRaid ? "SONGES_RECRUIT" : "WELCOME", // Reuses styling indicators
+                    title: isRaid ? "🔥 RAID EN COURS / IMMINENT" : "🎉 ÉVÉNEMENT MAJEUR",
+                    description: `Rejoignez "${event.title}" prévu le ${event.startDate.toLocaleDateString("fr-FR")} à ${event.startDate.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}.`,
+                    actionLabel: "S'inscrire / Rejoindre",
+                    actionHref: `/dashboard/${guildId}/calendar?event=${event.id}`,
+                    priority: 95 // Highest priority to put it at the very top of the Dashboard Focus Hero
+                });
+            }
+        }
+
+        // 4. Fallback: Welcome / Activities
         if (user.canViewMissions) {
             cards.push({
                 type: "WELCOME",

@@ -18,6 +18,7 @@ import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
+
 interface MemberDirectoryProps {
     initialMembers: any[];
     legendaryItems: any[];
@@ -35,6 +36,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
     const [selectedAlignment, setSelectedAlignment] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
     const [selectedLegendary, setSelectedLegendary] = useState<string | null>(null);
+    const [filterLegendaryPet, setFilterLegendaryPet] = useState(false);
     const [isOpenClass, setIsOpenClass] = useState(false);
     const [isOpenJob, setIsOpenJob] = useState(false);
     const [isOpenAlignment, setIsOpenAlignment] = useState(false);
@@ -118,6 +120,11 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
             if (!hasLegendary) return false;
         }
 
+        // 7. Legendary Pet Filter
+        if (filterLegendaryPet) {
+            if (!m.hasLegendaryPet) return false;
+        }
+
         return true;
     });
 
@@ -128,9 +135,10 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
         setSelectedAlignment(null);
         setSelectedOrder(null);
         setSelectedLegendary(null);
+        setFilterLegendaryPet(false);
     };
 
-    const activeFiltersCount = (selectedClass ? 1 : 0) + (selectedJob ? 1 : 0) + (selectedAlignment ? 1 : 0) + (selectedOrder ? 1 : 0) + (selectedLegendary ? 1 : 0);
+    const activeFiltersCount = (selectedClass ? 1 : 0) + (selectedJob ? 1 : 0) + (selectedAlignment ? 1 : 0) + (selectedOrder ? 1 : 0) + (selectedLegendary ? 1 : 0) + (filterLegendaryPet ? 1 : 0);
 
     const getSelectedClassName = () => DOFUS_CLASSES.find(c => c.id === selectedClass)?.name;
     const getSelectedJobName = () => {
@@ -327,13 +335,20 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )} />
                                 {selectedClass ? getSelectedClassName() : "Classe"}
                                 {selectedClass && (
-                                    <X 
-                                        className="ml-1 w-3.5 h-3.5 text-indigo-400/60 hover:text-indigo-400 transition-colors"
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        className="ml-1 rounded-full hover:bg-indigo-400/20 p-0.5 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
+                                            e.preventDefault();
                                             setSelectedClass(null);
                                         }}
-                                    />
+                                        onKeyDown={(e) => e.key === 'Enter' && setSelectedClass(null)}
+                                        aria-label="Supprimer le filtre classe"
+                                    >
+                                        <X className="w-3.5 h-3.5 text-indigo-400/60 hover:text-indigo-400" />
+                                    </span>
                                 )}
                             </Button>
                         </PopoverTrigger>
@@ -386,13 +401,20 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )} />
                                 {selectedJob ? getSelectedJobName() : "Métier (200)"}
                                 {selectedJob && (
-                                    <X 
-                                        className="ml-1 w-3.5 h-3.5 text-amber-500/60 hover:text-amber-400 transition-colors"
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        className="ml-1 rounded-full hover:bg-amber-400/20 p-0.5 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
+                                            e.preventDefault();
                                             setSelectedJob(null);
                                         }}
-                                    />
+                                        onKeyDown={(e) => e.key === 'Enter' && setSelectedJob(null)}
+                                        aria-label="Supprimer le filtre métier"
+                                    >
+                                        <X className="w-3.5 h-3.5 text-amber-500/60 hover:text-amber-400" />
+                                    </span>
                                 )}
                             </Button>
                         </PopoverTrigger>
@@ -464,14 +486,21 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )} />
                                 {selectedAlignment ? selectedAlignment : "Alignement"}
                                 {selectedAlignment && (
-                                    <X 
-                                        className="ml-1 w-3.5 h-3.5 text-indigo-400/60 hover:text-indigo-400 transition-colors"
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        className="ml-1 rounded-full hover:bg-indigo-400/20 p-0.5 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
+                                            e.preventDefault();
                                             setSelectedAlignment(null);
                                             setSelectedOrder(null);
                                         }}
-                                    />
+                                        onKeyDown={(e) => e.key === 'Enter' && (setSelectedAlignment(null), setSelectedOrder(null))}
+                                        aria-label="Supprimer le filtre alignement"
+                                    >
+                                        <X className="w-3.5 h-3.5 text-indigo-400/60 hover:text-indigo-400" />
+                                    </span>
                                 )}
                             </Button>
                         </PopoverTrigger>
@@ -537,13 +566,20 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                     )} />
                                     {selectedOrder ? (ORDERS as any)[selectedAlignment].find((o: any) => o.id === selectedOrder)?.name || "Ordre" : "Ordre"}
                                     {selectedOrder && (
-                                        <X 
-                                            className="ml-1 w-3.5 h-3.5 text-amber-500/60 hover:text-amber-400 transition-colors"
+                                        <span
+                                            role="button"
+                                            tabIndex={0}
+                                            className="ml-1 rounded-full hover:bg-amber-400/20 p-0.5 transition-colors cursor-pointer"
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                e.preventDefault();
                                                 setSelectedOrder(null);
                                             }}
-                                        />
+                                            onKeyDown={(e) => e.key === 'Enter' && setSelectedOrder(null)}
+                                            aria-label="Supprimer le filtre ordre"
+                                        >
+                                            <X className="w-3.5 h-3.5 text-amber-500/60 hover:text-amber-400" />
+                                        </span>
                                     )}
                                 </Button>
                             </PopoverTrigger>
@@ -610,13 +646,20 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                                 )} />
                                 {selectedLegendary ? getSelectedLegendaryName() : "Légendaire"}
                                 {selectedLegendary && (
-                                    <X 
-                                        className="ml-1 w-3.5 h-3.5 text-purple-400/60 hover:text-purple-400 transition-colors"
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        className="ml-1 rounded-full hover:bg-purple-400/20 p-0.5 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
+                                            e.preventDefault();
                                             setSelectedLegendary(null);
                                         }}
-                                    />
+                                        onKeyDown={(e) => e.key === 'Enter' && setSelectedLegendary(null)}
+                                        aria-label="Supprimer le filtre légendaire"
+                                    >
+                                        <X className="w-3.5 h-3.5 text-purple-400/60 hover:text-purple-400" />
+                                    </span>
                                 )}
                             </Button>
                         </PopoverTrigger>
@@ -670,6 +713,46 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
                             </Command>
                         </PopoverContent>
                     </Popover>
+
+                    {/* Legendary Pet Filter Button */}
+                    <Button
+                        variant="outline"
+                        onClick={() => setFilterLegendaryPet(!filterLegendaryPet)}
+                        className={cn(
+                            "h-11 border-amber-400/10 bg-amber-400/5 hover:bg-amber-400/10 hover:border-amber-400/20 text-muted-foreground gap-2.5 px-4 font-black uppercase italic tracking-widest text-[11px] rounded-xl transition-all duration-500 shadow-xl group/btn shrink-0",
+                            filterLegendaryPet && "border-amber-400/40 bg-amber-400/20 text-amber-300 shadow-amber-400/10"
+                        )}
+                    >
+                        <Image
+                            src="/assets/icons/croquette.png"
+                            alt="Service légendaire familier"
+                            width={18}
+                            height={18}
+                            className={cn(
+                                "object-contain transition-all duration-500",
+                                filterLegendaryPet
+                                    ? "drop-shadow-[0_0_6px_rgba(251,191,36,0.8)] scale-110"
+                                    : "grayscale opacity-50 group-hover/btn:opacity-80 group-hover/btn:grayscale-0"
+                            )}
+                        />
+                        Service Familier ★
+                        {filterLegendaryPet && (
+                            <span
+                                role="button"
+                                tabIndex={0}
+                                className="ml-1 rounded-full hover:bg-amber-300/20 p-0.5 transition-colors cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setFilterLegendaryPet(false);
+                                }}
+                                onKeyDown={(e) => e.key === 'Enter' && setFilterLegendaryPet(false)}
+                                aria-label="Supprimer le filtre familier"
+                            >
+                                <X className="w-3.5 h-3.5 text-amber-300/60 hover:text-amber-300" />
+                            </span>
+                        )}
+                    </Button>
 
                     {/* Reset Button — High Visibility */}
                     {activeFiltersCount > 0 && (

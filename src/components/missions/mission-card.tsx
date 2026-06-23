@@ -172,8 +172,20 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
         return `/assets/missions/${diff}${lvl}.png`;
     };
 
+    const getAnomalieImage = () => {
+        if (mission.category !== 'ANOMALIE') return null;
+        switch (payload.type) {
+            case 'BOSS': return "/assets/missions/ano1.png";
+            case 'FRAGMENTS': return "/assets/missions/fragment.png";
+            case 'STABILISATION': return "/assets/missions/3-gardiens.png";
+            default: return "/assets/missions/anomalie.png";
+        }
+    };
+
     const imageUrl = mission.category === 'SONGES'
         ? getSongesImage()
+        : mission.category === 'ANOMALIE'
+        ? getAnomalieImage()
         : (payload.imageUrl || payload.image || (config as any).fallbackImage || null);
 
     // Check user's submission status for this mission
@@ -621,7 +633,7 @@ function getAutoTitle(category: MissionCategory, payload: any): string {
     switch (category) {
         case "DONJON": return payload.dungeonName || "Donjon Mystérieux";
         case "REGULATION": return (payload.monsterName || payload.familyName) ? `Régulation des ${payload.monsterName || payload.familyName}` : "Régulation";
-        case "ANOMALIE": return payload.type === 'BOSS' ? `Gardien d'anomalie ${payload.levelRange || '200'}` : "Au cœur de l'anomalie";
+        case "ANOMALIE": return payload.type === 'BOSS' ? `Gardien d'anomalie ${payload.levelRange || '200'}` : payload.type === 'FRAGMENTS' ? `Collecte Fragments ${payload.levelRange || '200'}` : payload.type === 'STABILISATION' ? `Stabilisation Gardiens ${payload.levelRange || '200'}` : "Au cœur de l'anomalie";
         case "SONGES": return payload.difficulty && payload.level ? `Plongée en ${payload.difficulty} ${payload.level}` : "Songes Infinis";
         case "EXPEDITION": return payload.dungeonName ? `Expédition de ${payload.dungeonName}` : "Expédition";
         case "EVENT": return payload.title || "Événement Spécial";
@@ -656,6 +668,16 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 const frag = payload.fragmentLevel || 1;
                 return (
                     <>Collecter des <span className="text-fuchsia-400 font-bold">Fragments d'anomalie {frag}</span></>
+                );
+            }
+            if (payload.type === 'FRAGMENTS') {
+                return (
+                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie de niveau <span className="text-fuchsia-400 font-bold">{range}</span></>
+                );
+            }
+            if (payload.type === 'STABILISATION') {
+                return (
+                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">[Élixir uchronique majeur]</span></>
                 );
             }
             return (

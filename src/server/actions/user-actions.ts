@@ -1609,7 +1609,7 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     return { success: true, data: updated };
 }
 
-export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "legacy" }) {
+export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "legacy" | "raid" }) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -1622,7 +1622,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             fetchGuildRoles(guildId, { excludeManaged: true }),
             db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
-                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true }
+                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true }
             })
         ]);
 
@@ -1634,6 +1634,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
         if (!shouldIgnoreWhitelist) {
             let allowedIds: string[] = [];
             if (options?.context === "calendar") allowedIds = guildConfig?.calendarPingRoleIds || [];
+            else if (options?.context === "raid") allowedIds = guildConfig?.raidPingRoleIds || [];
             else if (options?.context === "dj") allowedIds = guildConfig?.djPingRoleIds || [];
             else if (options?.context === "songes") allowedIds = guildConfig?.songesPingRoleIds || [];
             else allowedIds = guildConfig?.allowedPingRoleIds || [];
@@ -1658,7 +1659,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
 /**
  * Update the whitelist of allowed Discord roles for pings (Admin only)
  */
-export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "legacy" = "legacy") {
+export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "legacy" | "raid" = "legacy") {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -1668,6 +1669,7 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
     try {
         const data: any = {};
         if (context === "calendar") data.calendarPingRoleIds = roleIds;
+        else if (context === "raid") data.raidPingRoleIds = roleIds;
         else if (context === "dj") data.djPingRoleIds = roleIds;
         else if (context === "songes") data.songesPingRoleIds = roleIds;
         else if (context === "polls") data.pollsPingRoleIds = roleIds;

@@ -224,39 +224,7 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [roleOpen, setRoleOpen] = useState(false);
     const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
-
-    // Fetch Target Channel Name
-    useEffect(() => {
-        if (isDiscordConfigured && guildId) {
-            import("@/server/actions/calendar-actions").then(m => {
-                m.getCalendarPublicConfig(guildId).then(res => {
-                    if (res.success && res.data?.calendarNotifyChannelId) {
-                        import("@/server/actions/discord-actions").then(d => {
-                            d.getDiscordChannelInfo(guildId, res.data!.calendarNotifyChannelId!).then(chanRes => {
-                                if (chanRes.success && chanRes.data) {
-                                    setTargetChannelName(chanRes.data.name);
-                                }
-                            });
-                        });
-                    }
-                });
-            });
-        }
-    }, [isDiscordConfigured, guildId]);
-
-    // Fetch roles if not provided
-    useEffect(() => {
-        if (!providedRoles && isDiscordConfigured) {
-            setIsLoadingRoles(true);
-            getDiscordRolesAction(guildId, { context: "calendar" }).then(res => {
-                if (res.success && res.roles) {
-                    setDiscordRoles(normalizeRoles(res.roles.filter((r: any) => r.name !== "@everyone")));
-                }
-            }).finally(() => setIsLoadingRoles(false));
-        } else if (providedRoles) {
-            setDiscordRoles(normalizeRoles(providedRoles));
-        }
-    }, [providedRoles, guildId, isDiscordConfigured]);
+    
     // Fallback to EVENT_GUILD for unknown types
     const validType = initialData?.type && TYPE_CONFIG[initialData.type] ? initialData.type : "EVENT_GUILD";
     const [selectedType, setSelectedType] = useState<string>(validType);
@@ -265,6 +233,60 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
     const [raidType, setRaidType] = useState<"jardin" | "gigalodon">(initialData?.metadata?.raidType || "gigalodon");
     const [raidCaptain, setRaidCaptain] = useState<string>(initialData?.metadata?.raidCaptain || userPseudo || "");
     const [openToExternal, setOpenToExternal] = useState<boolean>(initialData?.metadata?.openToExternal ?? false);
+
+    const isRaid = selectedType === "RAID_OFFICIAL";
+
+    const [configChannels, setConfigChannels] = useState<{ calendarNotifyChannelId?: string | null; raidNotifyChannelId?: string | null }>({});
+
+    // Fetch Target Channels
+    useEffect(() => {
+        if (isDiscordConfigured && guildId) {
+            import("@/server/actions/calendar-actions").then(m => {
+                m.getCalendarPublicConfig(guildId).then(res => {
+                    if (res.success && res.data) {
+                        setConfigChannels({
+                            calendarNotifyChannelId: res.data.calendarNotifyChannelId,
+                            raidNotifyChannelId: res.data.raidNotifyChannelId
+                        });
+                    }
+                });
+            });
+        }
+    }, [isDiscordConfigured, guildId]);
+
+    const activeChannelId = isRaid && configChannels.raidNotifyChannelId
+        ? configChannels.raidNotifyChannelId
+        : configChannels.calendarNotifyChannelId;
+
+    // Fetch Target Channel Name
+    useEffect(() => {
+        if (isDiscordConfigured && guildId && activeChannelId) {
+            import("@/server/actions/discord-actions").then(d => {
+                d.getDiscordChannelInfo(guildId, activeChannelId).then(chanRes => {
+                    if (chanRes.success && chanRes.data) {
+                        setTargetChannelName(chanRes.data.name);
+                    }
+                });
+            });
+        } else {
+            setTargetChannelName("annonces");
+        }
+    }, [isDiscordConfigured, guildId, activeChannelId]);
+
+    // Fetch roles if not provided
+    useEffect(() => {
+        if (!providedRoles && isDiscordConfigured) {
+            setIsLoadingRoles(true);
+            const context = isRaid ? "raid" : "calendar";
+            getDiscordRolesAction(guildId, { context }).then(res => {
+                if (res.success && res.roles) {
+                    setDiscordRoles(normalizeRoles(res.roles.filter((r: any) => r.name !== "@everyone")));
+                }
+            }).finally(() => setIsLoadingRoles(false));
+        } else if (providedRoles) {
+            setDiscordRoles(normalizeRoles(providedRoles));
+        }
+    }, [providedRoles, guildId, isDiscordConfigured, isRaid]);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),

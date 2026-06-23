@@ -452,7 +452,7 @@ export async function updateSongesChannel(
 // CALENDAR NOTIFICATION CONFIGURATION
 // ============================================================================
 
-export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[] } }> {
+export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[]; raidChannelId: string | null; raidPingRoleIds: string[] } }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -464,12 +464,20 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
     try {
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { calendarNotifyChannelId: true, calendarPingRoleIds: true }
+            select: { calendarNotifyChannelId: true, calendarPingRoleIds: true, raidNotifyChannelId: true, raidPingRoleIds: true }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };
 
-        return { success: true, data: { calendarChannelId: config.calendarNotifyChannelId, calendarPingRoleIds: config.calendarPingRoleIds || [] } };
+        return {
+            success: true,
+            data: {
+                calendarChannelId: config.calendarNotifyChannelId,
+                calendarPingRoleIds: config.calendarPingRoleIds || [],
+                raidChannelId: config.raidNotifyChannelId,
+                raidPingRoleIds: config.raidPingRoleIds || []
+            }
+        };
     } catch (error) {
         console.error("Get Calendar Config Error:", error);
         return { success: false, error: "Erreur serveur" };
@@ -517,6 +525,51 @@ export async function updateCalendarChannel(
         return { success: true };
     } catch (error) {
         console.error("Update Calendar Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateRaidChannel(
+    guildId: string,
+    channelId: string | null
+): Promise<ActionResponse> {
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "updateRaidChannel");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
+
+    try {
+        // Validate channel ID format (18-19 digits)
+        if (channelId && !/^\d{17,19}$/.test(channelId)) {
+            return { success: false, error: "Format d'ID invalide" };
+        }
+
+        // SECURITY: Validate channel belongs to this guild (if provided)
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValidChannel = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValidChannel) {
+                return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+            }
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { raidNotifyChannelId: channelId }
+        });
+
+        // 📝 LOG ACTION
+        await logAction({
+            guildId,
+            action: "CHANNEL_CONFIGURED",
+            targetType: "CONFIG",
+            targetId: channelId || "NONE",
+            metadata: { operation: "UPDATE_RAID_CHANNEL" }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Raid Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

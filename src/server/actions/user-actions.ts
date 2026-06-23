@@ -29,10 +29,10 @@ export async function invalidateUserContextCache(userId: string, guildId: string
     // 1. Clear In-memory profile cache (covers both internal UUID and Discord ID mapping)
     profileCache.delete(`profile:${userId}:${guildId}`);
     if (discordGuildId) profileCache.delete(`profile:${userId}:${discordGuildId}`);
-    
+
     // 2. Clear Redis context cache (covers both potential key types)
-    await redis.del(`user:ctx:${userId}:${guildId}`).catch(() => {});
-    if (discordGuildId) await redis.del(`user:ctx:${userId}:${discordGuildId}`).catch(() => {});
+    await redis.del(`user:ctx:${userId}:${guildId}`).catch(() => { });
+    if (discordGuildId) await redis.del(`user:ctx:${userId}:${discordGuildId}`).catch(() => { });
 }
 
 /**
@@ -41,7 +41,7 @@ export async function invalidateUserContextCache(userId: string, guildId: string
  */
 export async function invalidateGuildCache(guildId: string) {
     // 1. Redis cache
-    await redis.del(`config:${guildId}`).catch(() => {});
+    await redis.del(`config:${guildId}`).catch(() => { });
     // 2. In-memory configCache — CRITICAL: without this, the stale rolesMapping
     //    persists in the Node.js process for up to 60s after an RBAC update,
     //    causing noRolesConfigured=true even when roles ARE configured.
@@ -64,7 +64,7 @@ export async function flushGuildUserContextCache(discordGuildId: string) {
             const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
             cursor = nextCursor;
             if (keys.length > 0) {
-                await redis.del(...keys).catch(() => {});
+                await redis.del(...keys).catch(() => { });
             }
         } while (cursor !== "0");
     } catch (e) {
@@ -581,20 +581,20 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     // 1. Roles & Admin check
     const rolesMapping = (guildConfig?.rolesMapping as Record<string, PermissionId[]>) || {};
     const individualMapping = (guildConfig?.usersMapping as Record<string, PermissionId[]>) || {};
-    
-    const isRbacConfigured = Object.values(rolesMapping).some(perms => 
+
+    const isRbacConfigured = Object.values(rolesMapping).some(perms =>
         Array.isArray(perms) && (
-            perms.includes("dashboard:login" as PermissionId) || 
+            perms.includes("dashboard:login" as PermissionId) ||
             perms.includes("dashboard:access" as PermissionId) ||
             perms.includes(PERMISSIONS.DASHBOARD_LOGIN)
         )
     );
     const isOnboardingComplete = isRbacConfigured;
-    
+
     const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions || 0) & 0x8n) === 0x8n);
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;
     const hasDiscordAdmin = hasDiscordAdminRole || isOwner;
-    
+
     // MASTER ADMIN: Must be checked against the USER'S OWN roles, not all guild roles
     const userHasAdminPermission = memberRoles.some(rId => {
         const perms = rolesMapping[rId];
@@ -655,25 +655,25 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
                 // Audit & Onboarding — ONLY on genuine first-time creation (not P2002 fallback)
                 (async () => {
-                   try {
-                       const { createAuditLog } = await import("./audit-actions");
-                       await createAuditLog({
-                           guildId: actualDiscordGuildId,
-                           actorUserId: "SYSTEM",
-                           actorName: "Platform System",
-                           action: "PLATFORM_ARRIVAL",
-                           targetType: "PROFILE",
-                           targetId: profile!.id,
-                           metadata: { description: displayName },
-                           newValue: { displayName, roleName, discordJoinedAt: joinedAt }
-                       });
-                       if (guildConfig.welcomeEnabled) {
-                           const { sendWelcomeNotifications } = await import("@/server/actions/onboarding-actions");
-                           await sendWelcomeNotifications(guildConfig, profile!.id, displayName);
-                       }
-                   } catch (e) {
-                       console.error("[UserContext] Arrival processing error:", e);
-                   }
+                    try {
+                        const { createAuditLog } = await import("./audit-actions");
+                        await createAuditLog({
+                            guildId: actualDiscordGuildId,
+                            actorUserId: "SYSTEM",
+                            actorName: "Platform System",
+                            action: "PLATFORM_ARRIVAL",
+                            targetType: "PROFILE",
+                            targetId: profile!.id,
+                            metadata: { description: displayName },
+                            newValue: { displayName, roleName, discordJoinedAt: joinedAt }
+                        });
+                        if (guildConfig.welcomeEnabled) {
+                            const { sendWelcomeNotifications } = await import("@/server/actions/onboarding-actions");
+                            await sendWelcomeNotifications(guildConfig, profile!.id, displayName);
+                        }
+                    } catch (e) {
+                        console.error("[UserContext] Arrival processing error:", e);
+                    }
                 })();
             } catch (e: any) {
                 if (e.code === 'P2002') {
@@ -695,7 +695,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                     console.error("[getUserContext] Failed to sync discordNickname:", e);
                 }
             }
-            
+
             try { await PresenceManager.updatePresence(guildConfig.id, session.user.id); } catch { }
         }
     }
@@ -740,15 +740,15 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     memberRoles.forEach(rId => {
         const perms = rolesMapping[rId];
         if (perms) perms.forEach(p => {
-             permissionSet.add(p as PermissionId);
-             if (LEGACY_MAPPING[p]) permissionSet.add(LEGACY_MAPPING[p]);
+            permissionSet.add(p as PermissionId);
+            if (LEGACY_MAPPING[p]) permissionSet.add(LEGACY_MAPPING[p]);
         });
     });
 
     const personalPerms = individualMapping[discordUserId];
     if (personalPerms) personalPerms.forEach(p => {
-         permissionSet.add(p as PermissionId);
-         if (LEGACY_MAPPING[p]) permissionSet.add(LEGACY_MAPPING[p]);
+        permissionSet.add(p as PermissionId);
+        if (LEGACY_MAPPING[p]) permissionSet.add(LEGACY_MAPPING[p]);
     });
 
     const noRolesConfigured = Object.keys(rolesMapping).length === 0;
@@ -784,7 +784,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canEditVacation = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
     const canViewPolls = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || isAdminFinal;
     const canManageRelance = permissionSet.has(PERMISSIONS.STAFF_MEMBER_MGMT) || isAdminFinal;
-    const canManageRBAC = permissionSet.has(PERMISSIONS.SYSTEM_RBAC) || hasDiscordAdmin || isGod; 
+    const canManageRBAC = permissionSet.has(PERMISSIONS.SYSTEM_RBAC) || hasDiscordAdmin || isGod;
     const canViewSettings = permissionSet.has(PERMISSIONS.SYSTEM_CONFIG) || isAdminFinal;
     const canViewAuditLogs = permissionSet.has(PERMISSIONS.STAFF_AUDIT) || isAdminFinal;
 
@@ -897,7 +897,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewWorldmap = false;
         finalContext.canViewFinder = false;
         finalContext.canViewServices = false;
-        finalContext.canViewStuffGallery = false;
+        finalContext.canViewStuffGallery = !!applyModule(!!mod?.gallery, !!canViewStuffGallery);
         finalContext.canViewMiniGames = false;
         finalContext.canViewPolls = false;
         finalContext.canViewCalendar = false;
@@ -912,7 +912,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     }
 
     // Store in Redis before returning
-    await redis.set(redisKey, JSON.stringify(finalContext), "EX", CACHE_TTL).catch(() => {});
+    await redis.set(redisKey, JSON.stringify(finalContext), "EX", CACHE_TTL).catch(() => { });
 
     return finalContext;
 }
@@ -1051,7 +1051,7 @@ export async function getGuildsSeparated() {
     }));
 
     const userGuildIds = new Set(userGuilds.map(ug => ug.id));
-    
+
     // Get statuses from DB to filter out BANNED/ARCHIVED
     const userProfiles = await db.userProfile.findMany({
         where: { userId },
@@ -1388,7 +1388,7 @@ export async function internalUpdateMemberProfileStatus(
     // 1. Get profile to find guildId
     const profile = await db.userProfile.findUnique({
         where: { id: profileId },
-        include: { 
+        include: {
             guild: { select: { discordGuildId: true, name: true } },
             user: { include: { accounts: { where: { provider: "discord" } } } }
         }
@@ -1470,9 +1470,9 @@ export async function internalUpdateMemberProfileStatus(
         targetId: profileId,
         oldValue: { status: profile.status },
         newValue: { status },
-        metadata: { 
+        metadata: {
             operation: "MEMBER_STATUS_UPDATE",
-            description: targetName, 
+            description: targetName,
             reason: reason || "Manual Action",
             adminMessage
         }
@@ -1483,17 +1483,17 @@ export async function internalUpdateMemberProfileStatus(
         const discordId = profile.user?.accounts?.[0]?.providerAccountId;
         if (discordId) {
             const { sendDirectMessage } = await import("@/server/discord");
-            
-            const dmTitle = status === "ACTIVE" 
-                ? `✅ Réintégration Acceptée — ${profile.guild.name}` 
+
+            const dmTitle = status === "ACTIVE"
+                ? `✅ Réintégration Acceptée — ${profile.guild.name}`
                 : `❌ Réintégration Refusée — ${profile.guild.name}`;
-            
+
             const dmColor = status === "ACTIVE" ? 0x10b981 : 0xef4444;
-            
-            let dmDesc = status === "ACTIVE" 
+
+            let dmDesc = status === "ACTIVE"
                 ? `Bonne nouvelle ! Ta demande de réintégration a été **acceptée** par le staff.\nTu as de nouveau accès à toutes les fonctionnalités du dashboard SigilOS.`
                 : `Ta demande de réintégration a malheureusement été **refusée** par le staff.`;
-                
+
             if (adminMessage) {
                 dmDesc += `\n\n**📝 Message du staff :**\n> *${adminMessage}*`;
             }
@@ -1627,7 +1627,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
         ]);
 
         let filteredRoles = roles;
-        
+
         // Apply whitelist filtering (strict-whitelist-by-default for everyone)
         // Admins can bypass ONLY if explicitly configured (like in settings panels)
         const shouldIgnoreWhitelist = options?.ignoreWhitelist && user.isAdmin;
@@ -1638,7 +1638,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             else if (options?.context === "dj") allowedIds = guildConfig?.djPingRoleIds || [];
             else if (options?.context === "songes") allowedIds = guildConfig?.songesPingRoleIds || [];
             else allowedIds = guildConfig?.allowedPingRoleIds || [];
-            
+
             filteredRoles = roles.filter(r => allowedIds.includes(r.id));
         }
 

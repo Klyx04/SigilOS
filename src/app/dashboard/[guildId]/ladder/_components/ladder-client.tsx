@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv } from "lucide-react";
+import { TrendingUp, Clock, Trophy, Loader2, ShieldCheck, CheckSquare, HandHeart, Zap, AlertTriangle, ChevronLeft, ChevronRight, MessageSquare, BookOpen, Heart, Tv, Swords } from "lucide-react";
 import { LeaderboardCard } from "./leaderboard-card";
 import {
     getActivityLadder,
@@ -14,12 +14,14 @@ import {
     getGuildatonsLadder,
     getGeneralLadder,
     getPresenceLadder,
+    getRaidLadder,
     type LadderEntry,
     type ActivityView
 } from "@/server/actions/ladder-actions";
 import { formatSeniority } from "@/lib/ladder-utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 type Props = {
     guildId: string;
@@ -30,11 +32,12 @@ type Props = {
 };
 
 export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus, vitrineMode = false }: Props) {
-    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons" | "discord">(
+    const [activeTab, setActiveTab] = useState<"activity" | "contribution" | "seniority" | "success" | "general" | "guildatons" | "discord" | "raids">(
         vitrineMode ? "discord" : "activity"
     );
     const [discordMetric, setDiscordMetric] = useState<"messages" | "voice" | "characters" | "reactions" | "stream" | "replies">("messages");
     const [activityView, setActivityView] = useState<ActivityView>("weekly");
+    const [raidFilter, setRaidFilter] = useState<"all" | "jardin" | "gigalodon">("all");
     const [ladder, setLadder] = useState<LadderEntry[]>([]);
     const [pagination, setPagination] = useState<{ totalPages: number; totalCount: number } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
@@ -43,7 +46,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     // Reset page when switching tabs or timeframes
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeTab, activityView, discordMetric]);
+    }, [activeTab, activityView, discordMetric, raidFilter]);
 
     useEffect(() => {
         async function loadLadder() {
@@ -72,9 +75,12 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                 case "discord":
                     result = await getPresenceLadder(guildId, discordMetric, activityView, currentPage);
                     break;
+                case "raids":
+                    result = await getRaidLadder(guildId, raidFilter, currentPage);
+                    break;
             }
 
-            if (result.success && result.data) {
+            if (result && result.success && result.data) {
                 setLadder(result.data.entries);
                 setPagination({
                     totalPages: result.data.totalPages,
@@ -88,7 +94,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
         }
 
         loadLadder();
-    }, [guildId, activeTab, activityView, currentPage, discordMetric]);
+    }, [guildId, activeTab, activityView, currentPage, discordMetric, raidFilter]);
 
     const getValueLabel = (entry: LadderEntry): React.ReactNode => {
         switch (activeTab) {
@@ -177,6 +183,31 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                         </div>
                     );
                 }
+            case "raids":
+                return (
+                    <div className="flex flex-col items-end text-right">
+                        <div className="flex items-center gap-1.5 font-black text-red-500">
+                            <span>{entry.value} {entry.value > 1 ? "raids" : "raid"}</span>
+                        </div>
+                        {entry.averageScore !== undefined && entry.averageScore > 0 && (
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">
+                                Score Moyen: {Math.round(entry.averageScore).toLocaleString()} pts
+                            </span>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                            {entry.jardinCount !== undefined && entry.jardinCount > 0 && (
+                                <Badge variant="outline" className="text-[8px] font-black border-emerald-500/20 text-emerald-400 bg-emerald-500/5 px-1.5 py-0 uppercase tracking-tighter">
+                                    🌿 {entry.jardinCount} Jardin
+                                </Badge>
+                            )}
+                            {entry.gigalodonCount !== undefined && entry.gigalodonCount > 0 && (
+                                <Badge variant="outline" className="text-[8px] font-black border-cyan-500/20 text-cyan-400 bg-cyan-500/5 px-1.5 py-0 uppercase tracking-tighter">
+                                    🦈 {entry.gigalodonCount} Gigalodon
+                                </Badge>
+                            )}
+                        </div>
+                    </div>
+                );
             default:
                 return entry.value.toString();
         }
@@ -185,6 +216,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
     const categories = ([
         { id: "activity", label: "Activité", icon: "/PA.png", isImage: true, color: "#10b981" },
         { id: "guildatons", label: "Guildatons", icon: "/guildatons.png", isImage: true, color: "#eab308" },
+        { id: "raids", label: "Raids", icon: Swords, isImage: false, color: "#ef4444" },
         { id: "discord", label: "Discord", icon: MessageSquare, isImage: false, color: "#818cf8" },
         { id: "contribution", label: "Contribution", icon: HandHeart, isImage: false, color: "#a855f7" },
         { id: "seniority", label: "Ancienneté", icon: Clock, isImage: false, color: "#06b6d4" },

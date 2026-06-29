@@ -22,6 +22,7 @@ import {
     Filter,
     ChevronLeft,
     ChevronRight,
+    BookOpen,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -50,6 +51,7 @@ import { CalendarGrid } from "./calendar-grid";
 import { EventDetailModal } from "./event-detail-modal";
 import { EventCard } from "./event-card";
 import { EventForm } from "./event-form";
+import { RaidHubModal } from "./raid-hub-modal";
 import { cn } from "@/lib/utils";
 
 interface CalendarDashboardProps {
@@ -151,6 +153,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     // Filter state
     const [selectedFilter, setSelectedFilter] = useState<string | "ALL">("ALL");
     const [showFilters, setShowFilters] = useState(false);
+
+    // Hub Raid modal
+    const [isRaidHubOpen, setIsRaidHubOpen] = useState(false);
 
     // Dynamic counts for filters
     const typeCounts = events.reduce((acc, e) => {
@@ -476,6 +481,16 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                 Filtres
                             </Button>
 
+                            {/* Hub Raid button — visible for all members */}
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsRaidHubOpen(true)}
+                                className="h-10 rounded-full px-4 text-[10px] md:text-sm font-black uppercase italic tracking-widest border-2 bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 transition-all"
+                            >
+                                <Swords className="h-4 w-4 mr-2" />
+                                Hub Raid
+                            </Button>
+
                             {canManage && (
                                 <Button
                                     onClick={() => setIsCreateOpen(true)}
@@ -757,6 +772,14 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 onComplete={handleComplete}
                 onSendReminder={handleSendReminder}
                 onShareDiscord={handleShareDiscord}
+            />
+
+            {/* ============ RAID HUB MODAL ============ */}
+            <RaidHubModal
+                open={isRaidHubOpen}
+                onOpenChange={setIsRaidHubOpen}
+                guildId={guildId}
+                isAdmin={isAdmin}
             />
 
             {/* ============ EDIT DIALOG ============ */}

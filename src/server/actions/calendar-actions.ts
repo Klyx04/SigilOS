@@ -350,6 +350,32 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
             hasMetamobKey = !!userProfile?.metamobApiKey;
         }
 
+        // Annotate raid participants who already played this week
+        if (eventData.type === "RAID_OFFICIAL" && eventData.participants.length > 0) {
+            const weekStart = new Date();
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+            weekStart.setHours(0, 0, 0, 0);
+
+            const participantsWithCompletedRaids = await db.eventParticipant.findMany({
+                where: {
+                    userId: { in: eventData.participants.map((p: any) => p.userId) },
+                    status: "REGISTERED",
+                    event: {
+                        guildId: guildConfig.id,
+                        type: "RAID_OFFICIAL",
+                        status: "COMPLETED",
+                        startDate: { gte: weekStart }
+                    }
+                },
+                select: { userId: true }
+            });
+            const repeatUserIds = new Set(participantsWithCompletedRaids.map((p: any) => p.userId));
+            (eventData as any).participants = eventData.participants.map((p: any) => ({
+                ...p,
+                hasParticipatedThisWeek: repeatUserIds.has(p.userId)
+            }));
+        }
+
         return { success: true, event: eventData, hasMetamobKey };
     } catch (error) {
         console.error("[Calendar] getEventDetails Error:", error);
@@ -531,6 +557,18 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
                 creatorId: ctx.id!
             }
         });
+
+        if (event.type === "RAID_OFFICIAL") {
+            await db.eventParticipant.create({
+                data: {
+                    eventId: event.id,
+                    userId: ctx.id!,
+                    status: "REGISTERED",
+                    position: 1,
+                }
+            });
+        }
+
 
         // Auto-publish if requested
         let discordSent = false;
@@ -1007,6 +1045,77 @@ export async function unregisterFromEvent(guildId: string, eventId: string) {
     }
 }
 
+/**
+ * Remove/Kick a participant from an event (admin or event creator only)
+ */
+export async function kickParticipant(guildId: string, eventId: string, targetUserId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { creatorId: true }
+        });
+        if (!event) return { success: false, error: "Événement introuvable" };
+
+        // Perms: Admin, has calendar manage perm, or is creator
+        if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
+            return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut exclure un participant." };
+        }
+
+        const participant = await db.eventParticipant.findUnique({
+            where: { eventId_userId: { eventId, userId: targetUserId } }
+        });
+        if (!participant) return { success: false, error: "Participant introuvable" };
+
+        const wasRegistered = participant.status === "REGISTERED";
+
+        await db.eventParticipant.delete({
+            where: { id: participant.id }
+        });
+
+        // Promote first reserve if a registered participant was kicked
+        if (wasRegistered) {
+            const firstReserve = await db.eventParticipant.findFirst({
+                where: { eventId, status: "RESERVE" },
+                orderBy: { position: "asc" }
+            });
+
+            if (firstReserve) {
+                await db.eventParticipant.update({
+                    where: { id: firstReserve.id },
+                    data: {
+                        status: "REGISTERED",
+                        promotedAt: new Date()
+                    }
+                });
+            }
+        }
+
+        // Reorder positions
+        await reorderParticipants(eventId);
+
+        // Update Discord embed
+        const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+        updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        revalidatePath(`/dashboard/${guildId}`, "layout");
+        return { success: true };
+    } catch (error) {
+        console.error("[Calendar] kickParticipant Error:", error);
+        return { success: false, error: "Erreur lors de l'expulsion du participant" };
+    }
+}
+
+
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
@@ -1161,6 +1270,27 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                         mentionContent = "@everyone";
                     } else {
                         mentionContent = `<@&${pingRoleId}>`;
+                    }
+                }
+
+                if (isRaid) {
+                    const participantUserIds = event.participants
+                        .filter(p => p.status === "REGISTERED")
+                        .map(p => p.userId);
+
+                    const accounts = await db.account.findMany({
+                        where: {
+                            userId: { in: participantUserIds },
+                            provider: "discord"
+                        },
+                        select: {
+                            providerAccountId: true
+                        }
+                    });
+
+                    const discordPings = accounts.map(acc => `<@${acc.providerAccountId}>`).join(" ");
+                    if (discordPings) {
+                        mentionContent = mentionContent ? `${mentionContent} ${discordPings}` : discordPings;
                     }
                 }
 

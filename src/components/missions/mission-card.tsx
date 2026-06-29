@@ -633,7 +633,7 @@ function getAutoTitle(category: MissionCategory, payload: any): string {
     switch (category) {
         case "DONJON": return payload.dungeonName || "Donjon Mystérieux";
         case "REGULATION": return (payload.monsterName || payload.familyName) ? `Régulation des ${payload.monsterName || payload.familyName}` : "Régulation";
-        case "ANOMALIE": return payload.type === 'BOSS' ? `Gardien d'anomalie ${payload.levelRange || '200'}` : payload.type === 'FRAGMENTS' ? `Collecte Fragments ${payload.levelRange || '200'}` : payload.type === 'STABILISATION' ? `Stabilisation Gardiens ${payload.levelRange || '200'}` : "Au cœur de l'anomalie";
+        case "ANOMALIE": return payload.type === 'BOSS' ? `Gardien d'anomalie ${payload.levelRange || '200'}` : payload.type === 'FRAGMENTS' ? `Collecte Fragments` : payload.type === 'STABILISATION' ? `Stabilisation Gardiens` : "Au cœur de l'anomalie";
         case "SONGES": return payload.difficulty && payload.level ? `Plongée en ${payload.difficulty} ${payload.level}` : "Songes Infinis";
         case "EXPEDITION": return payload.dungeonName ? `Expédition de ${payload.dungeonName}` : "Expédition";
         case "EVENT": return payload.title || "Événement Spécial";
@@ -672,12 +672,12 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
             }
             if (payload.type === 'FRAGMENTS') {
                 return (
-                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie de niveau <span className="text-fuchsia-400 font-bold">{range}</span></>
+                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie (tous niveaux)</>
                 );
             }
             if (payload.type === 'STABILISATION') {
                 return (
-                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">[Élixir uchronique majeur]</span></>
+                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">[Élixir uchronique majeur]</span> (tous niveaux)</>
                 );
             }
             return (

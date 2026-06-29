@@ -94,28 +94,7 @@ export async function processRegistration(guildId: string, eventId: string, user
 
     if (event.participants.length > 0) return { success: false, error: "Déjà inscrit" };
 
-    if (event.type === "RAID_OFFICIAL") {
-        const weekStart = new Date();
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-        weekStart.setHours(0, 0, 0, 0);
 
-        const existingRaid = await db.eventParticipant.findFirst({
-            where: {
-                userId: userId,
-                status: "REGISTERED",
-                event: {
-                    guildId: guildConfig.id,
-                    type: "RAID_OFFICIAL",
-                    status: "COMPLETED",
-                    startDate: { gte: weekStart }
-                }
-            }
-        });
-
-        if (existingRaid) {
-            return { success: false, error: "Tu as déjà participé à un Raid cette semaine" };
-        }
-    }
 
     const currentCount = event._count.participants;
     const maxParticipants = event.maxParticipants || 999;
@@ -204,17 +183,6 @@ export async function processUnregistration(guildId: string, eventId: string, us
 
 export async function publishDiscordEvent(guildId: string, eventId: string) {
     try {
-        const event = await db.guildEvent.findUnique({
-            where: { id: eventId },
-            include: {
-                _count: { select: { participants: true } }
-            }
-        });
-
-        if (!event) return { success: false, error: "Événement introuvable" };
-
-        const isRaid = event.type === "RAID_OFFICIAL";
-
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             select: { id: true, calendarNotifyChannelId: true, raidNotifyChannelId: true }
@@ -223,6 +191,31 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         if (!guildConfig) {
             return { success: false, error: "Guilde introuvable" };
         }
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId },
+            include: {
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                profiles: {
+                                    where: { guildId: guildConfig.id },
+                                    select: { discordNickname: true }
+                                }
+                            }
+                        }
+                    },
+                    orderBy: { position: "asc" }
+                }
+            }
+        });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+
+        const isRaid = event.type === "RAID_OFFICIAL";
 
         const targetChannelId = isRaid && guildConfig.raidNotifyChannelId
             ? guildConfig.raidNotifyChannelId
@@ -278,10 +271,27 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
 
         const raidMeta = isRaid ? (event.metadata as any) : null;
 
+        const registered = event.participants.filter(p => p.status === "REGISTERED" || p.status === "CONFIRMED");
+        const reserve = event.participants.filter(p => p.status === "RESERVE");
+
+        const formatParticipant = (p: any) => {
+            const name = p.user.profiles[0]?.discordNickname || p.user.name || "Inconnu";
+            const classe = p.classe ? `(${p.classe})` : "";
+            return `• ${name} ${classe}`;
+        };
+
+        const registeredList = registered.length > 0
+            ? registered.map(formatParticipant).join("\n")
+            : "*Aucun inscrit*";
+
+        const reserveList = reserve.length > 0
+            ? reserve.map(formatParticipant).join("\n")
+            : "*Personne en file d'attente*";
+
         const fields = [
             { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
             { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
-            { name: "👥 Places", value: `0/${event.maxParticipants || "∞"}`, inline: true },
+            { name: "👥 Places", value: `${registered.length}/${event.maxParticipants || "∞"}`, inline: true },
             { name: "🔗 Lien", value: `[Voir l'événement](${publicUrl}/dashboard/${guildId}/calendar?event=${event.id})`, inline: true },
         ];
 
@@ -307,8 +317,8 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         }
 
         fields.push(
-            { name: `✅ Inscrits (0)`, value: "*Aucun inscrit*", inline: true },
-            { name: `⏳ File d'attente (0)`, value: "*Personne en file d'attente*", inline: true },
+            { name: `✅ Inscrits (${registered.length})`, value: registeredList, inline: true },
+            { name: `⏳ File d'attente (${reserve.length})`, value: reserveList, inline: true },
         );
 
         const components = [

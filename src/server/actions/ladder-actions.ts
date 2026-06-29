@@ -29,6 +29,10 @@ export type LadderEntry = {
     isCurrentUser: boolean;
     isAdmin: boolean;
     isInVacation: boolean;
+    // Raid-specific optional fields
+    averageScore?: number;
+    jardinCount?: number;
+    gigalodonCount?: number;
 };
 
 export type LadderResponse = {
@@ -1001,4 +1005,206 @@ export async function getGuildatonsLadder(
         return { success: false, error: "Erreur lors du chargement du classement de guildatons" };
     }
 }
+
+/**
+ * Get Raid Ladder (Raids completed, counts by type, and scores)
+ */
+export async function getRaidLadder(
+    guildId: string,
+    raidType: "all" | "jardin" | "gigalodon" = "all",
+    page: number = 1,
+    pageSize: number = 25
+): Promise<ActionResponse<LadderResponse>> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return { success: false, error: "Non authentifié" };
+        }
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, rolesMapping: true }
+        });
+
+        if (!guildConfig) {
+            return { success: false, error: "Guilde non trouvée" };
+        }
+
+        const currentProfile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guildId: guildConfig.id }
+        });
+
+        const skip = (page - 1) * pageSize;
+
+        // Fetch completed raid events
+        const completedRaids = await db.guildEvent.findMany({
+            where: {
+                guildId: guildConfig.id,
+                type: "RAID_OFFICIAL",
+                status: "COMPLETED"
+            },
+            select: {
+                id: true,
+                metadata: true,
+                participants: {
+                    select: {
+                        userId: true,
+                        classe: true
+                    }
+                }
+            }
+        });
+
+        // Calculate stats per user
+        const statsByUser = new Map<string, {
+            userId: string;
+            totalCount: number;
+            jardinCount: number;
+            gigalodonCount: number;
+            totalScore: number;
+            scoreCount: number;
+            classe: string | null;
+        }>();
+
+        for (const raid of completedRaids) {
+            const meta = raid.metadata as any;
+            const type = meta?.raidType || "jardin";
+            const scoreStr = meta?.raidScore;
+            
+            let scoreVal = 0;
+            if (scoreStr) {
+                const cleaned = scoreStr.replace(/[^\d]/g, "");
+                const parsed = parseInt(cleaned);
+                if (!isNaN(parsed)) {
+                    scoreVal = parsed;
+                }
+            }
+
+            let participantUserIds: string[] = [];
+            if (meta?.raidPresentUserIds && Array.isArray(meta.raidPresentUserIds) && meta.raidPresentUserIds.length > 0) {
+                participantUserIds = meta.raidPresentUserIds;
+            } else {
+                participantUserIds = raid.participants.map(p => p.userId);
+            }
+
+            for (const userId of participantUserIds) {
+                const pObj = raid.participants.find(p => p.userId === userId);
+                const classUsed = pObj?.classe || null;
+
+                let stats = statsByUser.get(userId);
+                if (!stats) {
+                    stats = {
+                        userId,
+                        totalCount: 0,
+                        jardinCount: 0,
+                        gigalodonCount: 0,
+                        totalScore: 0,
+                        scoreCount: 0,
+                        classe: classUsed
+                    };
+                    statsByUser.set(userId, stats);
+                }
+
+                if (classUsed && !stats.classe) {
+                    stats.classe = classUsed;
+                }
+
+                if (raidType === "all" || raidType === type) {
+                    stats.totalCount += 1;
+                    if (type === "jardin") {
+                        stats.jardinCount += 1;
+                    } else if (type === "gigalodon") {
+                        stats.gigalodonCount += 1;
+                    }
+
+                    if (scoreVal > 0) {
+                        stats.totalScore += scoreVal;
+                        stats.scoreCount += 1;
+                    }
+                }
+            }
+        }
+
+        const profiles = await db.userProfile.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "ACTIVE"
+            },
+            select: {
+                id: true,
+                userId: true,
+                discordNickname: true,
+                discordRoleColor: true,
+                discordRoleName: true,
+                discordJoinedAt: true,
+                pseudoDofus: true,
+                classe: true,
+                vacationStart: true,
+                vacationEnd: true,
+                user: {
+                    select: { image: true }
+                }
+            }
+        });
+
+        const rolesMapping = (guildConfig.rolesMapping as Record<string, string[]>) || {};
+        const adminRoleNames = new Set<string>();
+        for (const [roleId, perms] of Object.entries(rolesMapping)) {
+            if (perms.includes("admin:access")) adminRoleNames.add(roleId);
+        }
+
+        const now = new Date();
+        const entries = profiles
+            .map((p) => {
+                const stats = statsByUser.get(p.userId);
+                const isInVacation = !!(p.vacationStart && p.vacationEnd && now >= p.vacationStart && now <= p.vacationEnd);
+                const value = stats ? stats.totalCount : 0;
+
+                return {
+                    profileId: p.id,
+                    discordNickname: p.discordNickname,
+                    discordRoleColor: p.discordRoleColor,
+                    discordImage: p.user.image,
+                    pseudoDofus: p.pseudoDofus,
+                    classe: stats?.classe || p.classe,
+                    value: value,
+                    isAdmin: p.discordRoleName === "Administrateur" || adminRoleNames.has(p.discordRoleName ?? ""),
+                    isInVacation,
+                    jardinCount: stats ? stats.jardinCount : 0,
+                    gigalodonCount: stats ? stats.gigalodonCount : 0,
+                    averageScore: stats && stats.scoreCount > 0 ? (stats.totalScore / stats.scoreCount) : 0
+                };
+            })
+            .filter(entry => raidType === "all" || entry.value > 0)
+            .sort((a, b) => {
+                if (b.value !== a.value) return b.value - a.value;
+                if (b.averageScore !== a.averageScore) return b.averageScore - a.averageScore;
+                return (a.discordNickname || "").localeCompare(b.discordNickname || "");
+            })
+            .map((entry, idx) => ({
+                ...entry,
+                rank: idx + 1
+            }));
+
+        const totalCount = entries.length;
+        const paginatedData = entries.slice(skip, skip + pageSize).map((item) => ({
+            ...item,
+            isCurrentUser: item.profileId === currentProfile?.id
+        }));
+
+        return {
+            success: true,
+            data: {
+                entries: paginatedData,
+                totalCount,
+                totalPages: Math.ceil(totalCount / pageSize),
+                currentPage: page
+            }
+        };
+    } catch (error) {
+        console.error("[getRaidLadder] Error:", error);
+        return { success: false, error: "Erreur lors du chargement du classement des raids" };
+    }
+}
+
 

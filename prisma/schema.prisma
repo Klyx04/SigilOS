@@ -287,6 +287,7 @@ model GuildConfig {
   djPingRoleIds                    String[]                @default([])
   songesPingRoleIds                String[]                @default([])
   pollsPingRoleIds                 String[]                @default([])
+  raidHubConfig                    Json?
 }
 
 model UserSkin {

@@ -365,9 +365,9 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
         } else if (type === 'BOSS') {
             onTitleChange(`Gardien Anomalie ${range}`);
         } else if (type === 'FRAGMENTS') {
-            onTitleChange(`Collecte Fragments Anomalie ${range}`);
+            onTitleChange(`Collecte Fragments Anomalie`);
         } else if (type === 'STABILISATION') {
-            onTitleChange(`Stabilisation Gardiens Anomalie ${range}`);
+            onTitleChange(`Stabilisation Gardiens Anomalie`);
         }
     };
 
@@ -408,19 +408,21 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 </RadioGroup>
             </div>
 
-            <div className="space-y-2">
-                <Label className="text-xs text-zinc-400">Tranche de niveau</Label>
-                <Select value={levelRange} onValueChange={handleLevelChange}>
-                    <SelectTrigger className="bg-zinc-950 border-zinc-900 rounded-xl">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-950 border-white/5">
-                        {ANOMALIE_LEVEL_RANGES.map(range => (
-                            <SelectItem key={range} value={range}>{range}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+            {anomalieType !== 'FRAGMENTS' && anomalieType !== 'STABILISATION' && (
+                <div className="space-y-2">
+                    <Label className="text-xs text-zinc-400">Tranche de niveau</Label>
+                    <Select value={levelRange} onValueChange={handleLevelChange}>
+                        <SelectTrigger className="bg-zinc-950 border-zinc-900 rounded-xl">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-950 border-white/5">
+                            {ANOMALIE_LEVEL_RANGES.map(range => (
+                                <SelectItem key={range} value={range}>{range}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
             {/* Visual Preview Card for Anomalie */}
             <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -431,16 +433,16 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 <div className="flex-1 text-[11px] text-zinc-400 leading-relaxed py-0.5">
                     <div className="font-black text-fuchsia-400 uppercase tracking-widest text-[9px] mb-1">Visualisation Mission</div>
                     {anomalieType === 'ZONE' && (
-                        <>Vaincre 50 monstres dans un territoire de niveau <span className="text-white font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
+                        <>Vaincre 50 monstres dans un territory de niveau <span className="text-white font-black">{levelRange}</span> sous anomalie avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
                     )}
                     {anomalieType === 'BOSS' && (
                         <>Vaincre un <span className="text-white font-black text-xs">Gardien d'anomalie</span> de niveau <span className="text-white font-black">{levelRange}</span> avec un <span className="text-fuchsia-300 font-bold">[Elixir uchronique]</span></>
                     )}
                     {anomalieType === 'FRAGMENTS' && (
-                        <>Obtenir <span className="text-white font-black">20 Fragments d'anomalie</span> dans une anomalie de niveau <span className="text-white font-black">{levelRange}</span></>
+                        <>Obtenir <span className="text-white font-black">20 Fragments d'anomalie</span> dans une anomalie <span className="text-fuchsia-300 font-bold">(tous niveaux)</span></>
                     )}
                     {anomalieType === 'STABILISATION' && (
-                        <>Vaincre <span className="text-white font-black">3 Gardiens des anomalies</span> de niveau <span className="text-white font-black">{levelRange}</span> sous l'effet d'un <span className="text-fuchsia-300 font-bold">[Élixir uchronique majeur]</span></>
+                        <>Vaincre <span className="text-white font-black">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-fuchsia-300 font-bold">[Élixir uchronique majeur]</span> <span className="text-fuchsia-300 font-bold">(tous niveaux)</span></>
                     )}
                 </div>
             </div>

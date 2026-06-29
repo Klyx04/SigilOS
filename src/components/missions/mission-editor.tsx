@@ -725,7 +725,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                         value={currentMission.rank}
                                         onChange={(e) => updateMission(currentMission.slotIndex, { rank: parseInt(e.target.value) })}
                                     >
-                                        {[1, 2, 3, 4].map(r => (
+                                        {[1, 2, 3, 4, 5].map(r => (
                                             <option key={r} value={r}>Rang {r}</option>
                                         ))}
                                     </select>

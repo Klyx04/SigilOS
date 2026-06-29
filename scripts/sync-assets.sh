@@ -99,6 +99,7 @@ if command -v rsync &> /dev/null; then
     rsync -avzc --progress \
         --human-readable \
         --stats \
+        --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r \
         $DRY_RUN \
         "$LOCAL_ASSETS" \
         "$VPS_HOST:$VPS_PATH/public/game-data/"

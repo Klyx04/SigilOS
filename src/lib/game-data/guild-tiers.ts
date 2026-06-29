@@ -78,6 +78,7 @@ export const MISSION_RANKS = {
     2: { id: 2, label: "Rang 2", levels: "110 - 169" },
     3: { id: 3, label: "Rang 3", levels: "170 - 199" },
     4: { id: 4, label: "Rang 4", levels: "200" },
+    5: { id: 5, label: "Rang 5", levels: "200+" },
 } as const;
 
 export type GuildTierId = keyof typeof GUILD_TIERS;

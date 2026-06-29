@@ -770,7 +770,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const canCreateSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
     const canJoinSonges = permissionSet.has(PERMISSIONS.GAME_OPERATIONS) || isAdminFinal;
     const canViewOcre = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
-    const canViewStuffGallery = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
+    const canViewStuffGallery = permissionSet.has(PERMISSIONS.COMMUNITY_ACCESS) || permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewLadder = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewQuests = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;
     const canViewWorldmap = permissionSet.has(PERMISSIONS.GAME_VIEW) || isAdminFinal;

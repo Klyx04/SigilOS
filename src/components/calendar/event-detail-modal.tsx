@@ -60,6 +60,7 @@ import { ClassIcon, getClassColor } from "@/components/shared/class-icon";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
+import { kickParticipant } from "@/server/actions/calendar-actions";
 import { Skull, Zap, Clock as ClockIcon, Infinity as InfinityIcon, Sparkles as SparklesIcon } from "lucide-react";
 
 // ============================================
@@ -168,6 +169,7 @@ interface Participant {
     position: number;
     classe?: string | null;
     comment?: string | null;
+    hasParticipatedThisWeek?: boolean;
     user: {
         id: string;
         name: string | null;
@@ -748,6 +750,17 @@ export function EventDetailModal({
                                                         isCreator={participant.user.id === event.creator.id}
                                                         isCurrentUser={participant.user.id === currentUserId}
                                                         onUnregister={!isExternal && onUnregister ? () => handleAction(onUnregister) : undefined}
+                                                        onKick={(canManage || event.creator.id === currentUserId) && participant.user.id !== event.creator.id
+                                                            ? () => handleAction(async () => {
+                                                                const res = await kickParticipant(guildId, event.id, participant.user.id);
+                                                                if (res.success) {
+                                                                    toast.success("Joueur exclu de l'événement.");
+                                                                } else {
+                                                                    toast.error(res.error || "Erreur lors de l'expulsion");
+                                                                }
+                                                            })
+                                                            : undefined
+                                                        }
                                                     />
                                                 ))}
 
@@ -800,6 +813,17 @@ export function EventDetailModal({
                                                                 isReserve
                                                                 isCurrentUser={participant.user.id === currentUserId}
                                                                 onUnregister={onUnregister ? () => handleAction(onUnregister) : undefined}
+                                                                onKick={(canManage || event.creator.id === currentUserId) && participant.user.id !== event.creator.id
+                                                                    ? () => handleAction(async () => {
+                                                                        const res = await kickParticipant(guildId, event.id, participant.user.id);
+                                                                        if (res.success) {
+                                                                            toast.success("Joueur exclu de l'événement.");
+                                                                        } else {
+                                                                            toast.error(res.error || "Erreur lors de l'expulsion");
+                                                                        }
+                                                                    })
+                                                                    : undefined
+                                                                }
                                                             />
                                                         ))}
                                                 </>
@@ -1118,15 +1142,18 @@ function ParticipantRow({
     isCreator = false,
     isReserve = false,
     isCurrentUser = false,
-    onUnregister
+    onUnregister,
+    onKick
 }: {
     participant: Participant;
     isCreator?: boolean;
     isReserve?: boolean;
     isCurrentUser?: boolean;
     onUnregister?: () => void;
+    onKick?: () => void;
 }) {
     const [isConfirming, setIsConfirming] = useState(false);
+    const [isKickConfirming, setIsKickConfirming] = useState(false);
 
     return (
         <div className={cn(
@@ -1162,6 +1189,11 @@ function ParticipantRow({
                                 </Tooltip>
                             </TooltipProvider>
                         )}
+                        {participant.hasParticipatedThisWeek && (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-[9px] font-black uppercase py-0 px-1.5 shrink-0">
+                                ⚠️ Déjà participé cette semaine
+                            </Badge>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         {participant.classe && (
@@ -1184,38 +1216,73 @@ function ParticipantRow({
                 </div>
             </div>
 
-            {/* Unregister Button (visible only for current user) */}
-            {isCurrentUser && onUnregister && (
-                <Button
-                    size={isConfirming ? "sm" : "icon"}
-                    variant={isConfirming ? "destructive" : "ghost"}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (isConfirming) {
-                            onUnregister();
-                        } else {
-                            setIsConfirming(true);
-                            setTimeout(() => setIsConfirming(false), 3000); // Reset after 3s
-                        }
-                    }}
-                    className={cn(
-                        "shrink-0 transition-all",
-                        isConfirming
-                            ? "h-8 px-3 text-xs font-medium"
-                            : "h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
-                    )}
-                    title="Se désinscrire"
-                >
-                    {isConfirming ? (
-                        <span className="flex items-center gap-1">
-                            <X className="h-3 w-3" />
-                            Confirmer
-                        </span>
-                    ) : (
-                        <X className="h-4 w-4" />
-                    )}
-                </Button>
-            )}
+            <div className="flex items-center gap-1">
+                {/* Unregister Button (visible only for current user) */}
+                {isCurrentUser && onUnregister && (
+                    <Button
+                        size={isConfirming ? "sm" : "icon"}
+                        variant={isConfirming ? "destructive" : "ghost"}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (isConfirming) {
+                                onUnregister();
+                            } else {
+                                setIsConfirming(true);
+                                setTimeout(() => setIsConfirming(false), 3000); // Reset after 3s
+                            }
+                        }}
+                        className={cn(
+                            "shrink-0 transition-all",
+                            isConfirming
+                                ? "h-8 px-3 text-xs font-medium"
+                                : "h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+                        )}
+                        title="Se désinscrire"
+                    >
+                        {isConfirming ? (
+                            <span className="flex items-center gap-1">
+                                <X className="h-3 w-3" />
+                                Confirmer
+                             </span>
+                        ) : (
+                            <X className="h-4 w-4" />
+                        )}
+                    </Button>
+                )}
+
+                {/* Kick Button (visible only for admin/creator on non-creator rows) */}
+                {!isCurrentUser && onKick && (
+                    <Button
+                        size={isKickConfirming ? "sm" : "icon"}
+                        variant={isKickConfirming ? "destructive" : "ghost"}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (isKickConfirming) {
+                                onKick();
+                            } else {
+                                setIsKickConfirming(true);
+                                setTimeout(() => setIsKickConfirming(false), 3000); // Reset after 3s
+                            }
+                        }}
+                        className={cn(
+                            "shrink-0 transition-all",
+                            isKickConfirming
+                                ? "h-8 px-3 text-xs font-medium"
+                                : "h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+                        )}
+                        title="Exclure ce joueur"
+                    >
+                        {isKickConfirming ? (
+                            <span className="flex items-center gap-1">
+                                <Check className="h-3 w-3" />
+                                Exclure ?
+                            </span>
+                        ) : (
+                            <Trash2 className="h-4 w-4" />
+                        )}
+                    </Button>
+                )}
+            </div>
         </div>
     );
 }

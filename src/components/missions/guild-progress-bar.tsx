@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { GUILD_TIERS } from "@/lib/game-data/guild-tiers";
 import { cn } from "@/lib/utils";
-import { Trophy, Target, Sparkles, Medal, Crown } from "lucide-react";
+import { Trophy, Target, Sparkles, Medal, Crown, BarChart3 } from "lucide-react";
 import {
     Tooltip,
     TooltipContent,
@@ -14,6 +14,7 @@ import { ResetCountdown } from "./reset-countdown";
 import { ActiveBonusBar } from "@/components/admin/ActiveBonusBar";
 import { KamaContributionWidget } from "@/components/kamas/kama-contribution-widget";
 import type { KamaWeeklyStatus } from "@/server/actions/kama-actions";
+import Link from "next/link";
 
 interface GuildProgressBarProps {
     currentXP: number;
@@ -253,6 +254,16 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                     <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[280px] md:max-w-[340px]">
                         {/* Kama contribution widget */}
                         <KamaContributionWidget guildId={guildId} initialStatus={kamaStatus ?? null} />
+
+                        {/* Recap link */}
+                        <Link
+                            href={`/dashboard/${guildId}/kamas/summary`}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] hover:bg-amber-500/[0.08] hover:border-amber-500/25 text-amber-400/70 hover:text-amber-300 transition-all duration-200 text-[11px] font-semibold group"
+                        >
+                            <BarChart3 className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-110" />
+                            Récap kamas de la semaine
+                            <span className="ml-auto text-zinc-700 group-hover:text-zinc-500 transition-colors text-[10px]">→</span>
+                        </Link>
 
                         {/* Legend */}
                         <div className="flex items-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-widest italic">

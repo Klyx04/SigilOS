@@ -20,4 +20,4 @@ export const REWARDS_PER_TRANCHE = {
 } as const;
 
 /** Maximum de guildatons par semaine par personne */
-export const GUILDATONS_MAX_PER_WEEK = 250;
+export const GUILDATONS_MAX_PER_WEEK = 300;

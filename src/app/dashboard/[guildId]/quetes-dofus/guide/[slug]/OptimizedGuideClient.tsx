@@ -7,14 +7,14 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, MapPin, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ─── EYE_SVG Constant ────────────────────────────────────────────────────────
 const EYE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye inline-block w-3.5 h-3.5"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>`;
-import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep } from "@/server/actions/optimized-guide-actions";
+import { toggleMilestoneProgress, getSubGuideSteps, updateStepProgress, updateBookmarkedStep, resetMilestoneProgress, resetGuideProgress } from "@/server/actions/optimized-guide-actions";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { DungeonCreateModal } from "@/components/game-data/DungeonCreateModal";
@@ -879,7 +879,7 @@ function NarrativeBlock({ html }: { html: string }) {
 }
 
 // ─── Chapter Group ────────────────────────────────────────────────────────────
-function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark }: {
+function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, onSelect, isOpen, onToggle, presenceMap, bookmarkId, guildId, onShowPresenceModal, onBookmark, onResetMilestone }: {
   chapter: number; label: string; milestones: Milestone[];
   selectedId?: string; completedIds: Set<string>;
   onSelect: (m: Milestone) => void; isOpen: boolean;
@@ -889,6 +889,7 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
   guildId: string;
   onShowPresenceModal: (milestoneId: string, title: string) => void;
   onBookmark: (milestoneId: string) => void;
+  onResetMilestone: (milestone: Milestone) => void;
 }) {
   const done = milestones.filter(m => completedIds.has(m.id)).length;
   const pct = milestones.length > 0 ? Math.round((done / milestones.length) * 100) : 0;
@@ -992,22 +993,35 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
                     <span className="ms-seqs">{ms.sequences.length}</span>
                   )}
 
-                  {!isDone && (
+                  <div className="flex items-center gap-1.5 ml-auto shrink-0">
                     <button
-                      className="ms-bookmark-btn"
-                      title={bookmarkId === ms.id ? "Retirer mon marque-page (J'en suis là)" : "Marquer comme ma position (J'en suis là)"}
+                      className="ms-reset-btn"
+                      title="Réinitialiser ce jalon"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onBookmark(ms.id);
+                        onResetMilestone(ms);
                       }}
                     >
-                      {bookmarkId === ms.id ? (
-                        <BookmarkCheck size={12} className="text-amber-500 fill-amber-500/20" />
-                      ) : (
-                        <Bookmark size={12} />
-                      )}
+                      <RotateCcw size={10} />
                     </button>
-                  )}
+
+                    {!isDone && (
+                      <button
+                        className="ms-bookmark-btn"
+                        title={bookmarkId === ms.id ? "Retirer mon marque-page (J'en suis là)" : "Marquer comme ma position (J'en suis là)"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onBookmark(ms.id);
+                        }}
+                      >
+                        {bookmarkId === ms.id ? (
+                          <BookmarkCheck size={12} className="text-amber-500 fill-amber-500/20" />
+                        ) : (
+                          <Bookmark size={12} />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -1020,14 +1034,21 @@ function ChapterGroup({ chapter, label, milestones, selectedId, completedIds, on
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function OptimizedGuideClient({
-  guide, milestones: initialMilestones, userProgress, guildProgress, guildId
+  guide, milestones: initialMilestones, userProgress, guildProgress, guildId,
+  selectedCharacter = "PRINCIPAL", mainCharacter, mules = []
 }: {
   guide: { id: string; name: string; slug: string };
   milestones: Milestone[];
   userProgress: { milestoneId: string; isCompleted: boolean; completedSteps?: string[]; currentStep?: string | null }[];
   guildProgress: GuildMember[];
   guildId: string;
+  selectedCharacter?: string;
+  mainCharacter?: { pseudo: string; classe?: string | null };
+  mules?: { pseudo: string; classe?: string | null; level?: number | null }[];
 }) {
+  // altPseudo is the mule name to pass to server actions (undefined = main char)
+  const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
+
   const [milestones] = useState(() => initialMilestones);
   const [selected, setSelected] = useState<Milestone | null>(milestones[0] ?? null);
   const [completedIds, setCompletedIds] = useState<Set<string>>(
@@ -1181,6 +1202,9 @@ export default function OptimizedGuideClient({
     validatedMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[];
     activeMembers: { profileId: string; userName: string; userAvatar?: string; profileSlug?: string }[];
   } | null>(null);
+
+  const [isResetMilestoneConfirmOpen, setIsResetMilestoneConfirmOpen] = useState(false);
+  const [isResetGuideConfirmOpen, setIsResetGuideConfirmOpen] = useState(false);
 
   const handleShowStepPresenceModal = useCallback((
     stepNumber: number,
@@ -1654,7 +1678,7 @@ export default function OptimizedGuideClient({
     setValidating(true);
     const isCurrentlyCompleted = completedIds.has(selected.id);
     try {
-      const res = await toggleMilestoneProgress(guildId, selected.id, !isCurrentlyCompleted);
+      const res = await toggleMilestoneProgress(guildId, selected.id, !isCurrentlyCompleted, altPseudo);
       if ((res as any).success) {
         setCompletedIds(prev => {
           const next = new Set(prev);
@@ -1684,7 +1708,63 @@ export default function OptimizedGuideClient({
       }
     } catch { toast.error("Erreur de synchronisation"); }
     finally { setValidating(false); }
-  }, [selected, guildId, nextMs, completedIds]);
+  }, [selected, guildId, nextMs, completedIds, altPseudo]);
+
+  // ─── Reset single milestone ────────────────────────────────────────────────
+  const handleResetMilestone = useCallback(() => {
+    setIsResetMilestoneConfirmOpen(true);
+  }, []);
+
+  const confirmResetMilestone = useCallback(async () => {
+    if (!selected) return;
+    setValidating(true);
+    setIsResetMilestoneConfirmOpen(false);
+    try {
+      const res = await resetMilestoneProgress(guildId, selected.id, altPseudo);
+      if ((res as any).success) {
+        setCompletedIds(prev => {
+          const next = new Set(prev);
+          next.delete(selected.id);
+          return next;
+        });
+        setCheckedSteps(prev => {
+          const next = new Set(prev);
+          selected.sequences.forEach(seq => {
+            Array.from(next).filter(k => k.startsWith(`${seq.subGuideRef}-`)).forEach(k => next.delete(k));
+          });
+          return next;
+        });
+        setBookmarkStepKey(null);
+        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        toast.success("Jalon réinitialisé ↺", { description: selected.title });
+      }
+    } catch { toast.error("Erreur lors de la réinitialisation"); }
+    finally { setValidating(false); }
+  }, [selected, guildId, altPseudo, guide.slug]);
+
+  // ─── Reset entire guide ────────────────────────────────────────────────────
+  const handleResetGuide = useCallback(() => {
+    setIsResetGuideConfirmOpen(true);
+  }, []);
+
+  const confirmResetGuide = useCallback(async () => {
+    setValidating(true);
+    setIsResetGuideConfirmOpen(false);
+    try {
+      const res = await resetGuideProgress(guildId, guide.id, altPseudo);
+      if ((res as any).success) {
+        setCompletedIds(new Set());
+        setCheckedSteps(new Set());
+        setBookmarkId(null);
+        setBookmarkStepKey(null);
+        localStorage.removeItem(`guide-bm-${guide.slug}`);
+        localStorage.removeItem(`guide-bm-step-${guide.slug}`);
+        localStorage.removeItem(`sigilos_session_${guildId}_${guide.id}`);
+        toast.success("Guide réinitialisé ↺", { description: "Toute votre progression a été effacée." });
+      }
+    } catch { toast.error("Erreur lors de la réinitialisation du guide"); }
+    finally { setValidating(false); }
+  }, [guildId, guide.id, guide.slug, altPseudo]);
 
   const handleInteractiveClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -2045,7 +2125,7 @@ export default function OptimizedGuideClient({
           <div className="sb-actions-row">
             {/* Hide completed */}
             <button
-              className={`sb-action-btn ${hideCompleted ? "active" : ""}`}
+              className={`sb-action-btn sb-action-btn-hide-completed ${hideCompleted ? "active" : ""}`}
               onClick={() => setHideCompleted(v => !v)}
               title={hideCompleted ? "Afficher les étapes validées" : "Masquer les étapes validées"}
             >
@@ -2053,22 +2133,32 @@ export default function OptimizedGuideClient({
             </button>
 
             {/* Collapse all */}
-            <button className="sb-action-btn" onClick={handleCollapseAll} title="Réduire tous les chapitres">
+            <button className="sb-action-btn sb-action-btn-collapse" onClick={handleCollapseAll} title="Réduire tous les chapitres">
               <ChevronDown size={13} style={{ transform: "rotate(180deg)" }}/>
             </button>
 
             {/* Expand all */}
-            <button className="sb-action-btn" onClick={handleExpandAll} title="Développer tous les chapitres">
+            <button className="sb-action-btn sb-action-btn-expand" onClick={handleExpandAll} title="Développer tous les chapitres">
               <ChevronDown size={13}/>
             </button>
 
             {/* Legend toggle */}
             <button
-              className={`sb-action-btn ${legendOpen ? "active" : ""}`}
+              className={`sb-action-btn sb-action-btn-legend ${legendOpen ? "active" : ""}`}
               onClick={() => setLegendOpen(v => !v)}
               title="Légende des indicateurs"
             >
               <HelpCircle size={13}/>
+            </button>
+
+            {/* Reset entire guide progress */}
+            <button
+              className="sb-action-btn sb-action-btn-reset text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer transition-colors"
+              onClick={handleResetGuide}
+              title="Réinitialiser TOUT le guide (progression remise à zéro)"
+              disabled={validating}
+            >
+              <RotateCcw size={13}/>
             </button>
 
           </div>
@@ -2166,6 +2256,7 @@ export default function OptimizedGuideClient({
                 guildId={guildId}
                 onShowPresenceModal={(milestoneId, title) => setPresenceModal({ isOpen: true, milestoneId, milestoneTitle: title })}
                 onBookmark={handleBookmark}
+                onResetMilestone={handleResetMilestone}
               />
             ))
           )}
@@ -2279,6 +2370,14 @@ export default function OptimizedGuideClient({
                         title={bookmarkId === selected.id ? "Supprimer le marque-page" : "J'en suis là"}
                       >
                         {bookmarkId === selected.id ? <BookmarkCheck size={12} className="text-amber-500"/> : <Bookmark size={12}/>}
+                      </button>
+                      <button
+                        className="p-1.5 rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+                        onClick={handleResetMilestone}
+                        disabled={validating}
+                        title="Réinitialiser ce jalon (étapes cochées et validation)"
+                      >
+                        <RotateCcw size={12} />
                       </button>
                     </div>
                   </div>
@@ -3647,6 +3746,81 @@ export default function OptimizedGuideClient({
           </motion.button>
         )}
       </AnimatePresence>
+
+      {/* Custom Reset Milestone Confirmation Modal */}
+      <Dialog open={isResetMilestoneConfirmOpen} onOpenChange={setIsResetMilestoneConfirmOpen}>
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/20 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-400 flex items-center gap-2">
+              <RotateCcw size={14} className="animate-spin-slow" />
+              Réinitialiser le jalon
+            </DialogTitle>
+            <div className="text-lg font-black italic tracking-tight text-white uppercase mt-2">
+              {selected?.title}
+            </div>
+          </DialogHeader>
+          <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
+            <p>Êtes-vous sûr de vouloir réinitialiser la progression de ce jalon ?</p>
+            <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10 text-red-200/90 text-[11px] font-medium">
+              ⚠️ <strong>Cette action va :</strong>
+              <ul className="list-disc pl-4 mt-1 space-y-1">
+                <li>Décocher toutes les étapes secondaires de ce jalon</li>
+                <li>Retirer le statut de validation de ce jalon</li>
+                <li>Supprimer votre marque-page d'étape</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setIsResetMilestoneConfirmOpen(false)}
+              className="py-2.5 px-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={confirmResetMilestone}
+              className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] cursor-pointer"
+            >
+              Réinitialiser
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Reset Entire Guide Confirmation Modal */}
+      <Dialog open={isResetGuideConfirmOpen} onOpenChange={setIsResetGuideConfirmOpen}>
+        <DialogContent className="max-w-md bg-zinc-950/95 border border-red-500/30 rounded-[2rem] p-6 text-white backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] outline-none">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-sm font-black uppercase tracking-[0.3em] text-red-500 flex items-center gap-2">
+              <RotateCcw size={14} className="animate-pulse" />
+              Réinitialisation Totale
+            </DialogTitle>
+            <div className="text-lg font-black italic tracking-tight text-white uppercase mt-2">
+              {guide.name}
+            </div>
+          </DialogHeader>
+          <div className="text-zinc-400 text-xs leading-relaxed mb-6 space-y-2">
+            <p>Êtes-vous absolument sûr de vouloir réinitialiser la totalité de ce guide ?</p>
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-[11px] font-bold">
+              🚨 WARNING : TOUTE votre progression sur ce guide (quêtes cochées, jalons validés, marque-pages) sera effacée définitivement pour ce personnage.
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setIsResetGuideConfirmOpen(false)}
+              className="py-2.5 px-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs transition-all cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={confirmResetGuide}
+              className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] cursor-pointer"
+            >
+              Tout effacer
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
     </>
   );

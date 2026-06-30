@@ -481,14 +481,14 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                 Filtres
                             </Button>
 
-                            {/* Hub Raid button — visible for all members */}
+                            {/* Conseil Raid button — visible for all members */}
                             <Button
                                 variant="outline"
                                 onClick={() => setIsRaidHubOpen(true)}
                                 className="h-10 rounded-full px-4 text-[10px] md:text-sm font-black uppercase italic tracking-widest border-2 bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 transition-all"
                             >
                                 <Swords className="h-4 w-4 mr-2" />
-                                Hub Raid
+                                Conseil Raid
                             </Button>
 
                             {canManage && (
@@ -668,46 +668,51 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         </div>
                     ) : (
                         <div className="space-y-10">
-                            {sortedDates.map(dateKey => (
-                                <div key={dateKey} className="space-y-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex flex-col items-end shrink-0 min-w-[60px]">
-                                            <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">
-                                                {format(new Date(dateKey), "MMM", { locale: fr }).replace(".", "")}
-                                            </span>
-                                            <span className="text-2xl font-black text-foreground leading-none">
-                                                {format(new Date(dateKey), "dd")}
+                            {sortedDates.map(dateKey => {
+                                const [year, month, day] = dateKey.split("-").map(Number);
+                                const localDate = new Date(year, month - 1, day);
+                                return (
+                                    <div key={dateKey} className="space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex flex-col items-end shrink-0 min-w-[60px]">
+                                                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+                                                    {format(localDate, "MMM", { locale: fr }).replace(".", "")}
+                                                </span>
+                                                <span className="text-2xl font-black text-foreground leading-none">
+                                                    {format(localDate, "dd")}
+                                                </span>
+                                            </div>
+                                            <div className="h-px bg-border flex-1" />
+                                            <span className="text-sm font-black text-muted-foreground uppercase tracking-widest italic">
+                                                {format(localDate, "EEEE", { locale: fr })}
                                             </span>
                                         </div>
-                                        <div className="h-px bg-border flex-1" />
-                                        <span className="text-sm font-black text-muted-foreground uppercase tracking-widest italic">
-                                            {format(new Date(dateKey), "EEEE", { locale: fr })}
-                                        </span>
-                                    </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                        {groupedEvents[dateKey].map((event: any) => (
-                                            <div
-                                                key={event.id}
-                                                onClick={() => handleEventClick(event.id)}
-                                                className="cursor-pointer transition-all hover:opacity-90"
-                                            >
-                                                <EventCard
-                                                    event={event}
-                                                    currentUserId={currentUserId}
-                                                    canManage={canManage}
-                                                    onRespond={(status) => handleQuickRespond(event.id, status)}
-                                                    onEdit={() => setEditingEvent(event)}
-                                                    onDelete={() => {
-                                                        setSelectedEventId(event.id);
-                                                        handleDelete();
-                                                    }}
-                                                />
-                                            </div>
-                                        ))}
+                                        <div className="flex flex-col gap-3">
+                                            {groupedEvents[dateKey].map((event: any) => (
+                                                <div
+                                                    key={event.id}
+                                                    onClick={() => handleEventClick(event.id)}
+                                                    className="cursor-pointer transition-all hover:opacity-90"
+                                                >
+                                                    <EventCard
+                                                        event={event}
+                                                        currentUserId={currentUserId}
+                                                        canManage={canManage}
+                                                        variant="list"
+                                                        onRespond={(status) => handleQuickRespond(event.id, status)}
+                                                        onEdit={() => setEditingEvent(event)}
+                                                        onDelete={() => {
+                                                            setSelectedEventId(event.id);
+                                                            handleDelete();
+                                                        }}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

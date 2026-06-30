@@ -676,8 +676,20 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 );
             }
             if (payload.type === 'STABILISATION') {
+                const elixir = payload.elixir || 'majeur';
+                if (elixir === 'aucun') {
+                    return (
+                        <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> (tous niveaux)</>
+                    );
+                }
+                const labelMap: Record<string, string> = {
+                    mineur: "Élixir uchronique mineur",
+                    ameliore: "Élixir uchronique amélioré",
+                    majeur: "Élixir uchronique majeur"
+                };
+                const elixirLabel = labelMap[elixir as keyof typeof labelMap] || labelMap.majeur;
                 return (
-                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">[Élixir uchronique majeur]</span> (tous niveaux)</>
+                    <>Vaincre <span className="text-fuchsia-400 font-bold">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">[{elixirLabel}]</span> (tous niveaux)</>
                 );
             }
             return (

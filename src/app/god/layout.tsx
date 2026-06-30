@@ -56,7 +56,10 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     </Suspense>
                 </div>
 
-                {children}
+                {/* Scrollable content view */}
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    {children}
+                </div>
             </div>
         </div>
     );

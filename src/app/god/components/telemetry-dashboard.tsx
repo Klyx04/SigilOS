@@ -34,6 +34,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
     const [countdown, setCountdown] = useState(5);
     const [isPending, setIsPending] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [telemetryTab, setTelemetryTab] = useState<"live" | "analytics" | "users" | "guilds">("live");
     const isRefreshingRef = useRef(false);
 
     // Stable refresh function — never called during render
@@ -84,6 +85,8 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
         );
     });
 
+    const activeUserCount = stats.usersLastSeen.length;
+
     return (
         <div className="space-y-10">
             {/* Header / Control Bar */}
@@ -110,7 +113,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                         )}
                     >
                         <span className={cn(
-                            "w-2 h-2 rounded-full",
+                            "w-2.5 h-2.5 rounded-full",
                             isAutoRefresh ? "bg-violet-400 animate-ping" : "bg-zinc-600"
                         )} />
                         {isAutoRefresh ? `Auto-Refresh : ${countdown}s` : "Auto-Refresh Off"}
@@ -125,6 +128,37 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                         <RefreshCw className={cn("w-4 h-4 group-hover:rotate-180 transition-all duration-700", isPending && "animate-spin")} />
                     </button>
                 </div>
+            </div>
+
+            {/* Sub Tabs Selection */}
+            <div className="flex border-b border-white/5 pb-1 gap-2 overflow-x-auto no-scrollbar">
+                {[
+                    { id: "live", label: "Flux Temps Réel", count: filteredEvents.length },
+                    { id: "analytics", label: "Analyses de Trafic", count: null },
+                    { id: "users", label: "Membres Actifs", count: activeUserCount },
+                    { id: "guilds", label: "Activité Guildes", count: stats.guildActivity.length },
+                ].map((t) => (
+                    <button
+                        key={t.id}
+                        onClick={() => setTelemetryTab(t.id as any)}
+                        className={cn(
+                            "px-6 py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border flex items-center gap-2 whitespace-nowrap",
+                            telemetryTab === t.id
+                                ? "bg-violet-500/10 text-violet-400 border-violet-500/25"
+                                : "bg-transparent text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5"
+                        )}
+                    >
+                        {t.label}
+                        {t.count !== null && (
+                            <span className={cn(
+                                "text-[9px] font-black px-1.5 py-0.5 rounded-md",
+                                telemetryTab === t.id ? "bg-violet-500/20 text-violet-300" : "bg-zinc-900 text-zinc-600"
+                            )}>
+                                {t.count}
+                            </span>
+                        )}
+                    </button>
+                ))}
             </div>
 
             {/* KPI Metrics Grid */}
@@ -194,259 +228,19 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                 </div>
             </div>
 
-            {/* Hourly Trend Chart */}
-            <div className="p-8 rounded-[2rem] border border-white/5 bg-zinc-950/80 backdrop-blur-xl">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                    <div className="space-y-1">
-                        <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-violet-400" />
-                            Activité par heure (Dernières 24h)
-                        </h3>
-                        <p className="text-zinc-500 text-[11px] font-medium">Comparatif des consultations de pages et des clics d'interaction.</p>
-                    </div>
-                    <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest">
-                        <span className="flex items-center gap-1.5 text-violet-400">
-                            <span className="w-2.5 h-2.5 rounded-full bg-violet-500/20 border border-violet-500" /> Pages Vues
-                        </span>
-                        <span className="flex items-center gap-1.5 text-amber-400">
-                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500" /> Clics
-                        </span>
-                    </div>
-                </div>
-
-                <div className="h-[300px] w-full mt-4">
-                    {stats.chartData.length === 0 ? (
-                        <div className="h-full w-full flex items-center justify-center text-zinc-500 text-xs font-bold uppercase tracking-wider">
-                            Pas de données suffisantes pour tracer le graphe.
-                        </div>
-                    ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={stats.chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="viewsGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="clicksGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
-                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
-                                <XAxis 
-                                    dataKey="time" 
-                                    stroke="rgba(255,255,255,0.2)" 
-                                    tickLine={false} 
-                                    style={{ fontSize: 9, fontWeight: 800 }} 
-                                />
-                                <YAxis 
-                                    stroke="rgba(255,255,255,0.2)" 
-                                    tickLine={false} 
-                                    style={{ fontSize: 9, fontWeight: 800 }} 
-                                />
-                                <Tooltip 
-                                    contentStyle={{ 
-                                        backgroundColor: "#09090b", 
-                                        borderColor: "rgba(255,255,255,0.1)",
-                                        borderRadius: "16px",
-                                        color: "#fff"
-                                    }}
-                                />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="views" 
-                                    stroke="#8b5cf6" 
-                                    strokeWidth={2.5} 
-                                    fillOpacity={1} 
-                                    fill="url(#viewsGrad)" 
-                                />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="interactions" 
-                                    stroke="#f59e0b" 
-                                    strokeWidth={2.5} 
-                                    fillOpacity={1} 
-                                    fill="url(#clicksGrad)" 
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    )}
-                </div>
-            </div>
-
-            {/* Split Section: Top Stats vs Live Log Feed */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Side: Popular Lists (5 Columns) */}
-                <div className="lg:col-span-5 space-y-8">
-                    {/* Consommation par Guilde (7 jours) */}
-                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
-                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Users className="w-4 h-4 text-emerald-400" />
-                            Consommation par Guilde (7j)
-                        </h3>
-                        <div className="space-y-4">
-                            {!stats.guildActivity || stats.guildActivity.length === 0 ? (
-                                <p className="text-zinc-600 text-xs italic">Aucune activité de guilde enregistrée</p>
-                            ) : (
-                                stats.guildActivity.map((item: any) => {
-                                    const maxVal = stats.guildActivity[0]?.count || 1;
-                                    const pct = Math.max(5, (item.count / maxVal) * 100);
-                                    return (
-                                        <div key={item.guildId} className="space-y-1.5">
-                                            <div className="flex justify-between text-xs font-bold text-zinc-300">
-                                                <span className="truncate max-w-[250px] font-mono text-[11px] text-emerald-400/90">{item.guildName}</span>
-                                                <span className="text-zinc-400">{item.count} actions</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
-                                                <div 
-                                                    className="h-full bg-gradient-to-r from-emerald-600 to-teal-500 rounded-full" 
-                                                    style={{ width: `${pct}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Top Visited Pages */}
-                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
-                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Globe className="w-4 h-4 text-violet-400" />
-                            Pages les plus populaires
-                        </h3>
-                        <div className="space-y-4">
-                            {stats.topPaths.length === 0 ? (
-                                <p className="text-zinc-600 text-xs italic">Aucune visite enregistrée</p>
-                            ) : (
-                                stats.topPaths.map((item: any) => {
-                                    const maxVal = stats.topPaths[0]?.count || 1;
-                                    const pct = Math.max(5, (item.count / maxVal) * 100);
-                                    return (
-                                        <div key={item.path} className="space-y-1.5">
-                                            <div className="flex justify-between text-xs font-bold text-zinc-300">
-                                                <span className="truncate max-w-[250px] font-mono text-[11px]">{item.path}</span>
-                                                <span className="text-zinc-400">{item.count} vues</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
-                                                <div 
-                                                    className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 rounded-full" 
-                                                    style={{ width: `${pct}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Top Interactions (Clicks) */}
-                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
-                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <MousePointer className="w-4 h-4 text-amber-400" />
-                            Actions les plus cliquées
-                        </h3>
-                        <div className="space-y-4">
-                            {stats.topInteractions.length === 0 ? (
-                                <p className="text-zinc-600 text-xs italic">Aucune interaction enregistrée</p>
-                            ) : (
-                                stats.topInteractions.map((item: any) => {
-                                    const maxVal = stats.topInteractions[0]?.count || 1;
-                                    const pct = Math.max(5, (item.count / maxVal) * 100);
-                                    return (
-                                        <div key={item.elementId} className="space-y-1.5">
-                                            <div className="flex justify-between text-xs font-bold text-zinc-300">
-                                                <span className="truncate max-w-[250px] font-mono text-[10px] text-amber-400/90">{item.elementId}</span>
-                                                <span className="text-zinc-400">{item.count} clics</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
-                                                <div 
-                                                    className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full" 
-                                                    style={{ width: `${pct}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Top Users */}
-                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
-                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <UserCheck className="w-4 h-4 text-emerald-400" />
-                            Membres les plus actifs
-                        </h3>
-                        <div className="space-y-4">
-                            {stats.topUsers.length === 0 ? (
-                                <p className="text-zinc-600 text-xs italic">Aucun utilisateur actif</p>
-                            ) : (
-                                stats.topUsers.map((item: any) => (
-                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-7 h-7 rounded-lg bg-zinc-950/60 flex items-center justify-center border border-white/5 text-[10px] font-black text-emerald-400">
-                                                {item.userName.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <span className="text-xs font-bold text-white block leading-tight">{item.userName}</span>
-                                                <span className="text-[9px] text-zinc-500 font-semibold uppercase">{item.guildName}</span>
-                                            </div>
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md border border-white/5">
-                                            {item.count} act.
-                                        </span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Qui s'est connecté quand (Dernières connexions 30 jours) */}
-                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
-                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-violet-400" />
-                            Historique des connexions (30j)
-                        </h3>
-                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                            {!stats.usersLastSeen || stats.usersLastSeen.length === 0 ? (
-                                <p className="text-zinc-600 text-xs italic">Aucune connexion enregistrée</p>
-                            ) : (
-                                stats.usersLastSeen.map((item: any) => (
-                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 text-[11px]">
-                                        <div className="min-w-0">
-                                            <span className="font-bold text-white block truncate">{item.userName}</span>
-                                            <span className="text-[9px] text-zinc-500 font-semibold uppercase truncate block">{item.guildName}</span>
-                                        </div>
-                                        <span className="text-[9px] font-semibold text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-white/5 shrink-0">
-                                            {item.lastActive ? new Date(item.lastActive).toLocaleDateString("fr-FR", {
-                                                day: "2-digit",
-                                                month: "2-digit",
-                                                hour: "2-digit",
-                                                minute: "2-digit"
-                                            }) : "Jamais"}
-                                        </span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Side: Live Log Stream (7 Columns) */}
-                <div className="lg:col-span-7 p-6 rounded-3xl border border-white/5 bg-zinc-950/60 backdrop-blur-md flex flex-col h-[950px] relative overflow-hidden">
+            {/* TAB CONTENT: LIVE FEED */}
+            {telemetryTab === "live" && (
+                <div className="p-6 rounded-3xl border border-white/5 bg-zinc-950/60 backdrop-blur-md flex flex-col h-[750px] relative overflow-hidden">
                     <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-zinc-950/80 to-transparent pointer-events-none z-10" />
                     
                     {/* Header search bar */}
                     <div className="mb-6 space-y-4">
                         <div className="flex justify-between items-center">
                             <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-violet-400" />
+                                <Activity className="w-4 h-4 text-violet-400 animate-pulse" />
                                 Flux d'activité Live
                             </h3>
-                            <span className="text-[9px] font-black uppercase text-zinc-600 bg-zinc-900 border border-white/5 px-2 py-0.5 rounded-full">
+                            <span className="text-[9px] font-black uppercase text-zinc-600 bg-zinc-900 border border-white/5 px-3 py-1 rounded-full">
                                 {filteredEvents.length} événements
                             </span>
                         </div>
@@ -491,11 +285,11 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                         {/* Event Details */}
                                         <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex justify-between items-start gap-2">
-                                                <div className="truncate max-w-[200px]">
+                                                <div className="truncate max-w-[250px]">
                                                     <span className="text-xs font-black text-white block truncate">
                                                         {event.userName}
                                                     </span>
-                                                    <span className="text-[8px] text-zinc-500 font-bold uppercase block truncate leading-none">
+                                                    <span className="text-[8px] text-zinc-500 font-bold uppercase block truncate leading-none mt-0.5">
                                                         {event.guildName}
                                                     </span>
                                                 </div>
@@ -554,10 +348,258 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             })
                         )}
                     </div>
-                    
-                    <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-zinc-950/80 to-transparent pointer-events-none z-10" />
                 </div>
-            </div>
+            )}
+
+            {/* TAB CONTENT: ANALYTICS */}
+            {telemetryTab === "analytics" && (
+                <div className="space-y-8 animate-in fade-in duration-200">
+                    {/* Hourly Trend Chart */}
+                    <div className="p-8 rounded-[2rem] border border-white/5 bg-zinc-950/80 backdrop-blur-xl">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                            <div className="space-y-1">
+                                <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                    <TrendingUp className="w-4 h-4 text-violet-400" />
+                                    Activité par heure (Dernières 24h)
+                                </h3>
+                                <p className="text-zinc-500 text-[11px] font-medium">Comparatif des consultations de pages et des clics d'interaction.</p>
+                            </div>
+                            <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest">
+                                <span className="flex items-center gap-1.5 text-violet-400">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-violet-500/20 border border-violet-500" /> Pages Vues
+                                </span>
+                                <span className="flex items-center gap-1.5 text-amber-400">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500" /> Clics
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="h-[300px] w-full mt-4">
+                            {stats.chartData.length === 0 ? (
+                                <div className="h-full w-full flex items-center justify-center text-zinc-500 text-xs font-bold uppercase tracking-wider">
+                                    Pas de données suffisantes pour tracer le graphe.
+                                </div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={stats.chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="viewsGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="clicksGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+                                                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
+                                        <XAxis 
+                                            dataKey="time" 
+                                            stroke="rgba(255,255,255,0.2)" 
+                                            tickLine={false} 
+                                            style={{ fontSize: 9, fontWeight: 800 }} 
+                                        />
+                                        <YAxis 
+                                            stroke="rgba(255,255,255,0.2)" 
+                                            tickLine={false} 
+                                            style={{ fontSize: 9, fontWeight: 800 }} 
+                                        />
+                                        <Tooltip 
+                                            contentStyle={{ 
+                                                backgroundColor: "#09090b", 
+                                                borderColor: "rgba(255,255,255,0.1)",
+                                                borderRadius: "16px",
+                                                color: "#fff"
+                                            }}
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="views" 
+                                            stroke="#8b5cf6" 
+                                            strokeWidth={2.5} 
+                                            fillOpacity={1} 
+                                            fill="url(#viewsGrad)" 
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="interactions" 
+                                            stroke="#f59e0b" 
+                                            strokeWidth={2.5} 
+                                            fillOpacity={1} 
+                                            fill="url(#clicksGrad)" 
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Top Visited Pages */}
+                        <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
+                            <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <Globe className="w-4 h-4 text-violet-400" />
+                                Pages les plus populaires
+                            </h3>
+                            <div className="space-y-4">
+                                {stats.topPaths.length === 0 ? (
+                                    <p className="text-zinc-600 text-xs italic">Aucune visite enregistrée</p>
+                                ) : (
+                                    stats.topPaths.map((item: any) => {
+                                        const maxVal = stats.topPaths[0]?.count || 1;
+                                        const pct = Math.max(5, (item.count / maxVal) * 100);
+                                        return (
+                                            <div key={item.path} className="space-y-1.5">
+                                                <div className="flex justify-between text-xs font-bold text-zinc-300">
+                                                    <span className="truncate max-w-[350px] font-mono text-[11px]">{item.path}</span>
+                                                    <span className="text-zinc-400">{item.count} vues</span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 rounded-full" 
+                                                        style={{ width: `${pct}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Top Interactions (Clicks) */}
+                        <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
+                            <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <MousePointer className="w-4 h-4 text-amber-400" />
+                                Actions les plus cliquées
+                            </h3>
+                            <div className="space-y-4">
+                                {stats.topInteractions.length === 0 ? (
+                                    <p className="text-zinc-600 text-xs italic">Aucune interaction enregistrée</p>
+                                ) : (
+                                    stats.topInteractions.map((item: any) => {
+                                        const maxVal = stats.topInteractions[0]?.count || 1;
+                                        const pct = Math.max(5, (item.count / maxVal) * 100);
+                                        return (
+                                            <div key={item.elementId} className="space-y-1.5">
+                                                <div className="flex justify-between text-xs font-bold text-zinc-300">
+                                                    <span className="truncate max-w-[350px] font-mono text-[10px] text-amber-400/90">{item.elementId}</span>
+                                                    <span className="text-zinc-400">{item.count} clics</span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full" 
+                                                        style={{ width: `${pct}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* TAB CONTENT: ACTIVE USERS */}
+            {telemetryTab === "users" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-200">
+                    {/* Top Users */}
+                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
+                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <UserCheck className="w-4 h-4 text-emerald-400" />
+                            Membres les plus actifs
+                        </h3>
+                        <div className="space-y-4">
+                            {stats.topUsers.length === 0 ? (
+                                <p className="text-zinc-600 text-xs italic">Aucun utilisateur actif</p>
+                            ) : (
+                                stats.topUsers.map((item: any) => (
+                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-7 h-7 rounded-lg bg-zinc-950/60 flex items-center justify-center border border-white/5 text-[10px] font-black text-emerald-400">
+                                                {item.userName.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <span className="text-xs font-bold text-white block leading-tight">{item.userName}</span>
+                                                <span className="text-[9px] text-zinc-500 font-semibold uppercase">{item.guildName}</span>
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md border border-white/5">
+                                            {item.count} act.
+                                        </span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Qui s'est connecté quand (Dernières connexions 30 jours) */}
+                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10">
+                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-violet-400" />
+                            Historique des connexions (30j)
+                        </h3>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            {!stats.usersLastSeen || stats.usersLastSeen.length === 0 ? (
+                                <p className="text-zinc-600 text-xs italic">Aucune connexion enregistrée</p>
+                            ) : (
+                                stats.usersLastSeen.map((item: any) => (
+                                    <div key={item.userId} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 text-[11px]">
+                                        <div className="min-w-0">
+                                            <span className="font-bold text-white block truncate">{item.userName}</span>
+                                            <span className="text-[9px] text-zinc-500 font-semibold uppercase truncate block">{item.guildName}</span>
+                                        </div>
+                                        <span className="text-[9px] font-semibold text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-white/5 shrink-0">
+                                            {item.lastActive ? new Date(item.lastActive).toLocaleDateString("fr-FR", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                hour: "2-digit",
+                                                minute: "2-digit"
+                                            }) : "Jamais"}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* TAB CONTENT: GUILD ACTIVITY */}
+            {telemetryTab === "guilds" && (
+                <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 max-w-3xl animate-in fade-in duration-200">
+                    <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <Users className="w-4 h-4 text-emerald-400" />
+                        Consommation par Guilde (7j)
+                    </h3>
+                    <div className="space-y-4">
+                        {!stats.guildActivity || stats.guildActivity.length === 0 ? (
+                            <p className="text-zinc-600 text-xs italic">Aucune activité de guilde enregistrée</p>
+                        ) : (
+                            stats.guildActivity.map((item: any) => {
+                                const maxVal = stats.guildActivity[0]?.count || 1;
+                                const pct = Math.max(5, (item.count / maxVal) * 100);
+                                return (
+                                    <div key={item.guildId} className="space-y-1.5">
+                                        <div className="flex justify-between text-xs font-bold text-zinc-300">
+                                            <span className="truncate max-w-[400px] font-mono text-[11px] text-emerald-400/90">{item.guildName}</span>
+                                            <span className="text-zinc-400">{item.count} actions</span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-zinc-950/80 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-gradient-to-r from-emerald-600 to-teal-500 rounded-full" 
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

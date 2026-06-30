@@ -2291,5 +2291,7 @@ model TelemetryEvent {
   @@index([path])
   @@index([createdAt])
   @@index([userId])
+  @@index([guildId])
+  @@index([guildId, createdAt])
 }
 

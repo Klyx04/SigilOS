@@ -573,6 +573,145 @@ export async function getKamaStats(guildId: string): Promise<ActionResponse<Kama
 }
 
 // ============================================================================
+// WEEKLY KAMA SUMMARY (vue récap semaine — accessible membres + officiers)
+// ============================================================================
+
+export type KamaWeeklyMemberSummary = {
+    profileId: string;
+    pseudoDofus: string | null;
+    discordNickname: string | null;
+    discordRoleColor: number | null;
+    discordImage: string | null;
+    totalAmount: number;
+    tranches: number;
+    status: "VALIDATED" | "PENDING" | "MIXED" | "REJECTED";
+    hasValidated: boolean;
+    hasPending: boolean;
+    donationCount: number;
+    /** Only populated for MISSIONS_OFFICER / admin */
+    proofUrls: string[];
+    donations: Array<{
+        id: string;
+        amount: number;
+        status: "PENDING" | "VALIDATED" | "REJECTED";
+        createdAt: Date;
+    }>;
+};
+
+export type KamaWeeklySummaryResult = {
+    week: number;
+    year: number;
+    members: KamaWeeklyMemberSummary[];
+    totalValidated: number;
+    totalPending: number;
+    memberCount: number;
+};
+
+export async function getWeeklyKamaSummary(
+    guildId: string
+): Promise<ActionResponse<KamaWeeklySummaryResult>> {
+    const session = await auth();
+    const guard = await checkGuildPermission(session, guildId, PERMISSIONS.COMMUNITY_ACCESS);
+    if (!guard.allowed) return { success: false, error: guard.error };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // Check if viewer is officer/admin (to expose proof URLs)
+        const isOfficer = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
+
+        const { week, year } = getDofusWeek();
+
+        const rawDonations: Array<{
+            id: string;
+            profileId: string;
+            amount: number;
+            status: string;
+            proofUrl: string | null;
+            createdAt: Date;
+            profile: {
+                id: string;
+                pseudoDofus: string | null;
+                discordNickname: string | null;
+                discordRoleColor: number | null;
+                user: { name: string | null; image: string | null };
+            };
+        }> = await kamaDb.kamaDonation.findMany({
+            where: {
+                guildId: guildConfig.id,
+                weekNumber: week,
+                yearNumber: year,
+                status: { not: "REJECTED" },
+            },
+            include: { profile: { select: profileSelect } },
+            orderBy: { createdAt: "asc" },
+        });
+
+        // Group by profileId
+        const map = new Map<string, KamaWeeklyMemberSummary>();
+        for (const d of rawDonations) {
+            const existing = map.get(d.profileId);
+            const dStatus = d.status as "PENDING" | "VALIDATED" | "REJECTED";
+            if (existing) {
+                existing.totalAmount += d.amount;
+                existing.tranches = Math.round(existing.totalAmount / KAMA_TRANCHE);
+                existing.donationCount += 1;
+                if (dStatus === "VALIDATED") existing.hasValidated = true;
+                if (dStatus === "PENDING") existing.hasPending = true;
+                if (isOfficer.allowed && d.proofUrl) existing.proofUrls.push(d.proofUrl);
+                existing.donations.push({ id: d.id, amount: d.amount, status: dStatus, createdAt: d.createdAt });
+            } else {
+                map.set(d.profileId, {
+                    profileId: d.profileId,
+                    pseudoDofus: d.profile.pseudoDofus,
+                    discordNickname: d.profile.discordNickname,
+                    discordRoleColor: d.profile.discordRoleColor,
+                    discordImage: d.profile.user?.image ?? null,
+                    totalAmount: d.amount,
+                    tranches: Math.round(d.amount / KAMA_TRANCHE),
+                    status: dStatus === "VALIDATED" ? "VALIDATED" : "PENDING",
+                    hasValidated: dStatus === "VALIDATED",
+                    hasPending: dStatus === "PENDING",
+                    donationCount: 1,
+                    proofUrls: isOfficer.allowed && d.proofUrl ? [d.proofUrl] : [],
+                    donations: [{ id: d.id, amount: d.amount, status: dStatus, createdAt: d.createdAt }],
+                });
+            }
+        }
+
+        // Resolve final status per member
+        const members: KamaWeeklyMemberSummary[] = Array.from(map.values())
+            .map(m => ({
+                ...m,
+                status: (m.hasValidated && m.hasPending ? "MIXED" : m.hasValidated ? "VALIDATED" : "PENDING") as KamaWeeklyMemberSummary["status"],
+            }))
+            .sort((a, b) => b.totalAmount - a.totalAmount);
+
+        const totalValidated = members.reduce((acc, m) => acc + (m.hasValidated ? m.donations.filter(d => d.status === "VALIDATED").reduce((s, d) => s + d.amount, 0) : 0), 0);
+        const totalPending = members.reduce((acc, m) => acc + m.donations.filter(d => d.status === "PENDING").reduce((s, d) => s + d.amount, 0), 0);
+
+        return {
+            success: true,
+            data: {
+                week,
+                year,
+                members,
+                totalValidated,
+                totalPending,
+                memberCount: members.length,
+            },
+        };
+    } catch (error) {
+        logger.error("getWeeklyKamaSummary error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+// ============================================================================
 // DELETE (pending, owner or admin)
 // ============================================================================
 

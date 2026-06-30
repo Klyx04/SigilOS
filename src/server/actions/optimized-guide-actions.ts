@@ -39,12 +39,30 @@ export async function getOptimizedGuides(guildId?: string) {
   return { success: true, guides };
 }
 
-export async function getOptimizedGuideDetail(slug: string, guildId: string) {
+export async function getOptimizedGuideDetail(slug: string, guildId: string, altPseudo?: string) {
 
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
 
-  const profileId = ctx.profileId;
+  let profileId = ctx.profileId;
+
+  // If an altPseudo is provided, resolve its profileId from the main profile's altPseudos JSON
+  if (altPseudo && altPseudo !== "PRINCIPAL" && ctx.profileId) {
+    const mainProfile = await db.userProfile.findUnique({
+      where: { id: ctx.profileId },
+      select: { altPseudos: true }
+    });
+    const altList = Array.isArray(mainProfile?.altPseudos) ? (mainProfile.altPseudos as any[]) : [];
+    const muleEntry = altList.find((m: any) =>
+      (typeof m === "string" ? m : m.pseudo) === altPseudo
+    );
+    // Mules share the same profileId but use a different "character slot" key in PlayerGuideProgress
+    // For guides, we use a dedicated per-mule progress record keyed by a virtual profileId.
+    // We embed the mule name as a suffix on the profileId to create a unique slot.
+    if (muleEntry) {
+      profileId = `${ctx.profileId}::${altPseudo}`;
+    }
+  }
 
   const guide = await db.optimizedGuide.findUnique({
     where: { slug },
@@ -67,7 +85,7 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string) {
 
   if (!guide) return { success: false, error: "Guide introuvable" };
 
-  return { success: true, guide };
+  return { success: true, guide, resolvedProfileId: profileId };
 }
 
 /**
@@ -263,12 +281,15 @@ export async function getMemberAllGuidesProgress(profileId: string, guildId: str
 /**
  * Marquer un milestone comme terminé/non terminé pour l'utilisateur courant.
  */
-export async function toggleMilestoneProgress(guildId: string, milestoneId: string, isCompleted: boolean) {
+export async function toggleMilestoneProgress(guildId: string, milestoneId: string, isCompleted: boolean, altPseudo?: string) {
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
   if (!ctx.id) throw new Error("Profile ID manquant");
 
-  const profileId: string = ctx.profileId!;
+  let profileId: string = ctx.profileId!;
+  if (altPseudo && altPseudo !== "PRINCIPAL") {
+    profileId = `${ctx.profileId}::${altPseudo}`;
+  }
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
@@ -296,6 +317,73 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
 
   revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
   return { success: true, progress };
+}
+
+/**
+ * Réinitialise la progression d'un milestone (étapes + validation + marque-page).
+ */
+export async function resetMilestoneProgress(guildId: string, milestoneId: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  let profileId: string = ctx.profileId;
+  if (altPseudo && altPseudo !== "PRINCIPAL") {
+    profileId = `${ctx.profileId}::${altPseudo}`;
+  }
+
+  // Delete the progress record entirely (cleaner than zeroing out)
+  await db.playerGuideProgress.deleteMany({
+    where: { profileId, milestoneId }
+  });
+
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: { guide: { select: { slug: true } } }
+  });
+  if (milestone?.guide?.slug) {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+  }
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  return { success: true };
+}
+
+/**
+ * Réinitialise toute la progression d'un guide pour l'utilisateur courant.
+ */
+export async function resetGuideProgress(guildId: string, guideId: string, altPseudo?: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  let profileId: string = ctx.profileId;
+  if (altPseudo && altPseudo !== "PRINCIPAL") {
+    profileId = `${ctx.profileId}::${altPseudo}`;
+  }
+
+  // Fetch all milestone IDs for this guide
+  const milestones = await db.guideMilestone.findMany({
+    where: { guideId },
+    select: { id: true }
+  });
+  const milestoneIds = milestones.map(m => m.id);
+
+  if (milestoneIds.length > 0) {
+    await db.playerGuideProgress.deleteMany({
+      where: { profileId, milestoneId: { in: milestoneIds } }
+    });
+  }
+
+  // Also look up guide slug for cache invalidation
+  const guide = await db.optimizedGuide.findUnique({
+    where: { id: guideId },
+    select: { slug: true }
+  });
+  if (guide?.slug) {
+    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
+  }
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
+  return { success: true };
 }
 
 /**

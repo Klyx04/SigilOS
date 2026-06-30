@@ -185,7 +185,13 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, calendarNotifyChannelId: true, raidNotifyChannelId: true }
+            select: { 
+                id: true, 
+                calendarNotifyChannelId: true, 
+                raidNotifyChannelId: true,
+                raidGigalodonNotifyChannelId: true,
+                raidSanctuaireNotifyChannelId: true
+            }
         });
 
         if (!guildConfig) {
@@ -216,10 +222,18 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         if (!event) return { success: false, error: "Événement introuvable" };
 
         const isRaid = event.type === "RAID_OFFICIAL";
+        const meta = event.metadata as any;
 
-        const targetChannelId = isRaid && guildConfig.raidNotifyChannelId
-            ? guildConfig.raidNotifyChannelId
-            : guildConfig.calendarNotifyChannelId;
+        let targetChannelId = guildConfig.calendarNotifyChannelId;
+        if (isRaid) {
+            if (meta?.raidType === "gigalodon") {
+                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            } else if (meta?.raidType === "jardin") {
+                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            } else {
+                targetChannelId = guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            }
+        }
 
         if (!targetChannelId) {
             return { success: false, error: "Canal Discord non configuré" };
@@ -231,7 +245,6 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         const imageUrl = `${publicUrl}/assets/calendar/${imageName}`;
 
         // Fetch Mentions from metadata
-        const meta = event.metadata as any;
         const mentionRoleIds: string[] = meta?.mentionRoleIds || [];
         const roleMentions = mentionRoleIds.length > 0 
             ? mentionRoleIds.map(id => `<@&${id}>`).join(" ") 

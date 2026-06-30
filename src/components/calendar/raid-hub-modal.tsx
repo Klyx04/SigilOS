@@ -397,27 +397,21 @@ function RaidTabPanel({
 
     const config = raidType === "jardin"
         ? {
-            name: "Jardin de Cania",
-            subtitle: "Raid 3.6 — Boss : Crocabulia",
+            name: "Sanctuaire des Jardins Éternels",
+            subtitle: "Raid officiel",
             color: "text-red-400",
-            border: "border-red-500/30",
+            border: "border-red-500/20",
             bg: "bg-red-500/5",
-            gradFrom: "from-red-500/20",
-            icon: Swords,
             badge: "RAID_OFFICIAL",
         }
         : {
             name: "Gigalodon",
-            subtitle: "Raid aquatique — Boss : Gigalodon",
+            subtitle: "Raid officiel",
             color: "text-cyan-400",
-            border: "border-cyan-500/30",
+            border: "border-cyan-500/20",
             bg: "bg-cyan-500/5",
-            gradFrom: "from-cyan-500/20",
-            icon: Waves,
-            badge: "KRALAMOURE",
+            badge: "RAID_OFFICIAL",
         };
-
-    const Icon = config.icon;
 
     const handleAddSection = () => {
         const newSection: RaidTipSection = {
@@ -440,67 +434,65 @@ function RaidTabPanel({
 
     return (
         <div className="space-y-6">
-            {/* Raid Header Card */}
-            <div className={cn(
-                "relative overflow-hidden rounded-2xl border p-5",
-                config.border,
-                config.bg
-            )}>
-                <div className={cn("absolute inset-0 bg-gradient-to-br pointer-events-none opacity-30", config.gradFrom, "to-transparent")} />
-                <div className="relative flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center border shrink-0", config.bg, config.border)}>
-                            <Icon className={cn("h-6 w-6", config.color)} />
-                        </div>
-                        <div>
-                            <h3 className={cn("text-xl font-black uppercase tracking-tighter", config.color)}>
-                                {config.name}
-                            </h3>
-                            <p className="text-xs text-zinc-500 font-bold">{config.subtitle}</p>
-                        </div>
+            {/* Raid Banner Image */}
+            <div className="relative h-44 rounded-2xl overflow-hidden border border-zinc-800 shadow-md">
+                <Image
+                    src={raidType === "jardin" ? "/assets/raids/sanctuaire.webp" : "/assets/raids/gigalodon.webp"}
+                    alt={config.name}
+                    fill
+                    className="object-cover opacity-90"
+                    priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+                    <div>
+                        <h3 className="text-xl font-black uppercase tracking-tighter text-white drop-shadow-sm">
+                            {config.name}
+                        </h3>
+                        <p className="text-xs text-zinc-300 font-bold drop-shadow-sm">{config.subtitle}</p>
                     </div>
-                    <Badge className={cn("text-[10px] font-black uppercase px-2 border", config.bg, config.color, config.border)}>
+                    <Badge className="bg-black/60 text-zinc-300 border border-zinc-800 text-[10px] font-black uppercase px-2 py-0.5 backdrop-blur-sm">
                         {config.badge}
                     </Badge>
                 </div>
+            </div>
 
-                {/* Description */}
-                <div className="relative mt-4">
-                    {editingDesc ? (
-                        <div className="space-y-2">
-                            <textarea
-                                value={editDesc}
-                                onChange={(e) => setEditDesc(e.target.value)}
-                                rows={3}
-                                placeholder="Description générale de ce raid (objectif, durée estimée, difficulté...)..."
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-900/80 border border-zinc-700 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 resize-none"
-                            />
-                            <div className="flex gap-2 justify-end">
-                                <button onClick={() => setEditingDesc(false)} className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1">Annuler</button>
-                                <button
-                                    onClick={() => { onUpdateDescription(editDesc); setEditingDesc(false); }}
-                                    className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold"
-                                >
-                                    Sauvegarder
-                                </button>
-                            </div>
+            {/* Description */}
+            <div className="bg-zinc-900/10 border border-zinc-900 rounded-xl p-4">
+                {editingDesc ? (
+                    <div className="space-y-2">
+                        <textarea
+                            value={editDesc}
+                            onChange={(e) => setEditDesc(e.target.value)}
+                            rows={3}
+                            placeholder="Description générale de ce raid..."
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 resize-none"
+                        />
+                        <div className="flex gap-2 justify-end">
+                            <button onClick={() => setEditingDesc(false)} className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1">Annuler</button>
+                            <button
+                                onClick={() => { onUpdateDescription(editDesc); setEditingDesc(false); }}
+                                className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-bold"
+                            >
+                                Sauvegarder
+                            </button>
                         </div>
-                    ) : (
-                        <div className="flex items-start gap-2 group">
-                            <p className={cn("text-sm flex-1", description ? "text-zinc-300" : "text-zinc-600 italic")}>
-                                {description || "Aucune description générale. Cliquez sur Modifier pour en ajouter une."}
-                            </p>
-                            {isAdmin && (
-                                <button
-                                    onClick={() => { setEditDesc(description ?? ""); setEditingDesc(true); }}
-                                    className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-all shrink-0"
-                                >
-                                    <Edit3 className="h-3.5 w-3.5" />
-                                </button>
-                            )}
-                        </div>
-                    )}
-                </div>
+                    </div>
+                ) : (
+                    <div className="flex items-start gap-2 group">
+                        <p className={cn("text-sm flex-1 leading-relaxed", description ? "text-zinc-300" : "text-zinc-600 italic")}>
+                            {description || "Aucune description générale. Cliquez sur modifier pour en ajouter une."}
+                        </p>
+                        {isAdmin && (
+                            <button
+                                onClick={() => { setEditDesc(description ?? ""); setEditingDesc(true); }}
+                                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-all shrink-0"
+                            >
+                                <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Tips */}
@@ -612,7 +604,7 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
     const TABS: { id: RaidTab; label: string; icon: any; color: string; activeBg: string; activeBorder: string }[] = [
         {
             id: "jardin",
-            label: "Jardin de Cania",
+            label: "Sanctuaire des Jardins Éternels",
             icon: Swords,
             color: "text-red-400",
             activeBg: "bg-red-500/10",

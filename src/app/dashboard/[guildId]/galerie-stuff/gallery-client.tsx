@@ -713,8 +713,8 @@ export function GalleryClient({
                                             Par <span className="text-zinc-300 font-bold">{skin.author.name}</span>
                                         </span>
                                     </div>
-                                    <span className="text-[9px] text-zinc-600 font-medium">
-                                        {new Date(skin.createdAt).toLocaleDateString()}
+                                    <span className="text-[9px] text-zinc-600 font-medium" suppressHydrationWarning>
+                                        {new Date(skin.createdAt).toLocaleDateString("fr-FR")}
                                     </span>
                                 </div>
                             </div>

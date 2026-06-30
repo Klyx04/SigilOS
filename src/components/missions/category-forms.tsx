@@ -340,11 +340,13 @@ export function RegulationForm({ payload, onPayloadChange, onTitleChange, onRank
 export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const anomalieType = payload.type || 'ZONE';
     const levelRange = payload.levelRange || '200';
+    const elixir = payload.elixir || 'majeur';
 
     const handleTypeChange = (type: AnomaliePayload['type']) => {
         const newPayload: AnomaliePayload = {
             type,
             levelRange,
+            elixir: type === 'STABILISATION' ? elixir : undefined
         };
         onPayloadChange(newPayload);
         updateTitle(type, levelRange);
@@ -354,9 +356,19 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
         const newPayload: AnomaliePayload = {
             type: anomalieType,
             levelRange: range as AnomaliePayload['levelRange'],
+            elixir: anomalieType === 'STABILISATION' ? elixir : undefined
         };
         onPayloadChange(newPayload);
         updateTitle(anomalieType, range);
+    };
+
+    const handleElixirChange = (val: string) => {
+        const newPayload: AnomaliePayload = {
+            type: anomalieType,
+            levelRange,
+            elixir: val as AnomaliePayload['elixir'],
+        };
+        onPayloadChange(newPayload);
     };
 
     const updateTitle = (type: string, range: string) => {
@@ -375,7 +387,7 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
         { value: 'ZONE', label: 'Zone', desc: '50 monstres' },
         { value: 'BOSS', label: 'Gardien', desc: 'Gardien d\'anomalie' },
         { value: 'FRAGMENTS', label: 'Fragments', desc: '20 fragments d\'anomalie' },
-        { value: 'STABILISATION', label: 'Stabilisation', desc: '3 gardiens (Élixir majeur)' },
+        { value: 'STABILISATION', label: 'Stabilisation', desc: '3 gardiens d\'anomalies' },
     ];
 
     // Anomalie Artwork
@@ -424,6 +436,23 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                 </div>
             )}
 
+            {anomalieType === 'STABILISATION' && (
+                <div className="space-y-2 animate-in fade-in duration-300">
+                    <Label className="text-xs text-zinc-400">Choix de l'élixir</Label>
+                    <Select value={elixir} onValueChange={handleElixirChange}>
+                        <SelectTrigger className="bg-zinc-950 border-zinc-900 rounded-xl">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-950 border-white/5">
+                            <SelectItem value="aucun">Sans élixir (Simple)</SelectItem>
+                            <SelectItem value="mineur">Élixir uchronique mineur</SelectItem>
+                            <SelectItem value="ameliore">Élixir uchronique amélioré</SelectItem>
+                            <SelectItem value="majeur">Élixir uchronique majeur</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+
             {/* Visual Preview Card for Anomalie */}
             <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
                 <div className="w-14 h-14 rounded-xl bg-zinc-900/80 backdrop-blur-md border border-fuchsia-500/20 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
@@ -442,16 +471,22 @@ export function AnomalieForm({ payload, onPayloadChange, onTitleChange, onRankCh
                         <>Obtenir <span className="text-white font-black">20 Fragments d'anomalie</span> dans une anomalie <span className="text-fuchsia-300 font-bold">(tous niveaux)</span></>
                     )}
                     {anomalieType === 'STABILISATION' && (
-                        <>Vaincre <span className="text-white font-black">3 Gardiens des anomalies</span> sous l'effet d'un <span className="text-fuchsia-300 font-bold">[Élixir uchronique majeur]</span> <span className="text-fuchsia-300 font-bold">(tous niveaux)</span></>
+                        <>
+                            Vaincre <span className="text-white font-black">3 Gardiens des anomalies</span>
+                            {elixir === 'aucun' ? (
+                                <span className="text-fuchsia-300 font-bold"> (tous niveaux)</span>
+                            ) : (
+                                <> sous l'effet d'un <span className="text-fuchsia-300 font-bold">
+                                    {elixir === 'mineur' ? "[Élixir uchronique mineur]" : elixir === 'ameliore' ? "[Élixir uchronique amélioré]" : "[Élixir uchronique majeur]"}
+                                </span> <span className="text-fuchsia-300 font-bold">(tous niveaux)</span></>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
         </div>
     );
-}
-
-
-// --- SONGES FORM ---
+}// --- SONGES FORM ---
 
 export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChange }: FormProps) {
     const difficulty = payload.difficulty || 'Paradoxe';

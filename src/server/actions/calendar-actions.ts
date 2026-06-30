@@ -1172,16 +1172,26 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                 calendarNotifyChannelId: true,
                 calendarPingRoleIds: true,
                 raidNotifyChannelId: true,
-                raidPingRoleIds: true
+                raidPingRoleIds: true,
+                raidGigalodonNotifyChannelId: true,
+                raidSanctuaireNotifyChannelId: true
             }
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        const targetChannelId = isRaid && guildConfig.raidNotifyChannelId
-            ? guildConfig.raidNotifyChannelId
-            : guildConfig.calendarNotifyChannelId;
+        const meta = event.metadata as any;
+        let targetChannelId = guildConfig.calendarNotifyChannelId;
+        if (isRaid) {
+            if (meta?.raidType === "gigalodon") {
+                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            } else if (meta?.raidType === "jardin") {
+                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            } else {
+                targetChannelId = guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            }
+        }
 
-        const allowedRoleIds: string[] = isRaid && guildConfig.raidNotifyChannelId
+        const allowedRoleIds: string[] = isRaid
             ? guildConfig.raidPingRoleIds
             : guildConfig.calendarPingRoleIds;
 
@@ -1475,17 +1485,27 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
                 raidNotifyChannelId: true,
                 name: true,
                 calendarPingRoleIds: true,
-                raidPingRoleIds: true
+                raidPingRoleIds: true,
+                raidGigalodonNotifyChannelId: true,
+                raidSanctuaireNotifyChannelId: true
             }
         });
 
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        const targetChannelId = isRaid && guildConfig.raidNotifyChannelId
-            ? guildConfig.raidNotifyChannelId
-            : guildConfig.calendarNotifyChannelId;
+        const meta = event.metadata as any;
+        let targetChannelId = guildConfig.calendarNotifyChannelId;
+        if (isRaid) {
+            if (meta?.raidType === "gigalodon") {
+                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            } else if (meta?.raidType === "jardin") {
+                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            } else {
+                targetChannelId = guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+            }
+        }
 
-        const allowedRoleIds: string[] = isRaid && guildConfig.raidNotifyChannelId
+        const allowedRoleIds: string[] = isRaid
             ? guildConfig.raidPingRoleIds
             : guildConfig.calendarPingRoleIds;
 
@@ -1538,7 +1558,6 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
         // Resolve Mentions
         // SECURITY: All role IDs — whether from param or metadata — must be in the whitelist
         let mentionContent = "";
-        const meta = event.metadata as any;
 
         if (pingRoleId) {
             // Already validated above — safe to use directly
@@ -1666,7 +1685,12 @@ export async function getCalendarPublicConfig(guildId: string) {
 
         const config = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { calendarNotifyChannelId: true, raidNotifyChannelId: true }
+            select: { 
+                calendarNotifyChannelId: true, 
+                raidNotifyChannelId: true,
+                raidGigalodonNotifyChannelId: true,
+                raidSanctuaireNotifyChannelId: true
+            }
         });
 
         if (!config) return { success: false, error: "Guilde introuvable" };

@@ -178,6 +178,8 @@ model GuildConfig {
   absenceChannelId                 String?
   calendarNotifyChannelId          String?
   raidNotifyChannelId              String?
+  raidGigalodonNotifyChannelId     String?
+  raidSanctuaireNotifyChannelId    String?
   userRequestChannelId             String?
   dofusServerId                    String?
   dofusServerName                  String?

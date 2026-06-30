@@ -236,7 +236,12 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
 
     const isRaid = selectedType === "RAID_OFFICIAL";
 
-    const [configChannels, setConfigChannels] = useState<{ calendarNotifyChannelId?: string | null; raidNotifyChannelId?: string | null }>({});
+    const [configChannels, setConfigChannels] = useState<{ 
+        calendarNotifyChannelId?: string | null; 
+        raidNotifyChannelId?: string | null;
+        raidGigalodonNotifyChannelId?: string | null;
+        raidSanctuaireNotifyChannelId?: string | null;
+    }>({});
 
     // Fetch Target Channels
     useEffect(() => {
@@ -246,7 +251,9 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                     if (res.success && res.data) {
                         setConfigChannels({
                             calendarNotifyChannelId: res.data.calendarNotifyChannelId,
-                            raidNotifyChannelId: res.data.raidNotifyChannelId
+                            raidNotifyChannelId: res.data.raidNotifyChannelId,
+                            raidGigalodonNotifyChannelId: res.data.raidGigalodonNotifyChannelId,
+                            raidSanctuaireNotifyChannelId: res.data.raidSanctuaireNotifyChannelId
                         });
                     }
                 });
@@ -254,8 +261,10 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
         }
     }, [isDiscordConfigured, guildId]);
 
-    const activeChannelId = isRaid && configChannels.raidNotifyChannelId
-        ? configChannels.raidNotifyChannelId
+    const activeChannelId = isRaid
+        ? (raidType === "gigalodon"
+            ? configChannels.raidGigalodonNotifyChannelId || configChannels.raidNotifyChannelId || configChannels.calendarNotifyChannelId
+            : configChannels.raidSanctuaireNotifyChannelId || configChannels.raidNotifyChannelId || configChannels.calendarNotifyChannelId)
         : configChannels.calendarNotifyChannelId;
 
     // Fetch Target Channel Name

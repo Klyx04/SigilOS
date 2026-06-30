@@ -139,7 +139,9 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                     />
                 </div>
                 <div className="space-y-6">
-                    <PersonalGuildatonWidget guildatons={weeklyGuildatons} />
+                    {!vitrineMode && (
+                        <PersonalGuildatonWidget guildatons={weeklyGuildatons} />
+                    )}
                     <GuildHallWidget 
                         posX={guildConfig?.guildHallPosX ?? null} 
                         posY={guildConfig?.guildHallPosY ?? null} 

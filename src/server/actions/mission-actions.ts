@@ -35,7 +35,7 @@ const MissionSchema = z.object({
     slotIndex: z.number().min(0).max(17), // 0-11 classiques, 12-17 spéciales (Dofus 3.5)
     category: z.enum(["DONJON", "REGULATION", "ANOMALIE", "SONGES", "EXPEDITION", "EVENT"]),
     tier: z.number().min(1).max(5),
-    rank: z.number().min(1).max(4).default(1),
+    rank: z.number().min(1).max(5).default(1),
     xpReward: z.number().min(0).default(0),
     guildatonsReward: z.number().min(0).default(0),
     title: z.string().optional(),

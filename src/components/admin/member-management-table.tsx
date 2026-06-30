@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
     Select,
     SelectContent,
@@ -126,45 +126,49 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     const [vacationTarget, setVacationTarget] = useState<Member | null>(null);
     const [archiveTarget, setArchiveTarget] = useState<{ id: string, name: string } | null>(null);
 
-    const filteredMembers = members
-        .filter((member: Member) =>
-            activeTab === "ALL" || member.status === activeTab
-        )
-        .filter((member: Member) =>
-            member.user.name?.toLowerCase().includes(search.toLowerCase()) ||
-            (member.user.accounts[0]?.providerAccountId || "").includes(search) ||
-            member.pseudoDofus?.toLowerCase().includes(search.toLowerCase()) ||
-            member.ankamaId?.toLowerCase().includes(search.toLowerCase())
-        )
-        .filter((member: Member) => 
-            roleFilter === "all" || member.discordRoleName === roleFilter
-        )
-        .filter((member: Member) => {
-            if (joinedFilter === "all") return true;
-            const createdDate = new Date(member.createdAt);
-            const now = new Date();
-            const diffDays = Math.ceil(Math.abs(now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-            if (joinedFilter === "week") return diffDays <= 7;
-            if (joinedFilter === "month") return diffDays <= 30;
-            if (joinedFilter === "old") return diffDays > 180;
-            return true;
-        })
-        .sort((a, b) => {
-            const dateA = new Date(a.createdAt).getTime();
-            const dateB = new Date(b.createdAt).getTime();
-            return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
-        });
+    const filteredMembers = useMemo(() => {
+        return members
+            .filter((member: Member) =>
+                activeTab === "ALL" || member.status === activeTab
+            )
+            .filter((member: Member) =>
+                member.user.name?.toLowerCase().includes(search.toLowerCase()) ||
+                (member.user.accounts[0]?.providerAccountId || "").includes(search) ||
+                member.pseudoDofus?.toLowerCase().includes(search.toLowerCase()) ||
+                member.ankamaId?.toLowerCase().includes(search.toLowerCase())
+            )
+            .filter((member: Member) => 
+                roleFilter === "all" || member.discordRoleName === roleFilter
+            )
+            .filter((member: Member) => {
+                if (joinedFilter === "all") return true;
+                const createdDate = new Date(member.createdAt);
+                const now = new Date();
+                const diffDays = Math.ceil(Math.abs(now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+                if (joinedFilter === "week") return diffDays <= 7;
+                if (joinedFilter === "month") return diffDays <= 30;
+                if (joinedFilter === "old") return diffDays > 180;
+                return true;
+            })
+            .sort((a, b) => {
+                const dateA = new Date(a.createdAt).getTime();
+                const dateB = new Date(b.createdAt).getTime();
+                return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+            });
+    }, [members, activeTab, search, roleFilter, joinedFilter, sortOrder]);
 
-    const paginatedMembers = filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-    const totalPages = Math.ceil(filteredMembers.length / pageSize);
+    const paginatedMembers = useMemo(() => {
+        return filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    }, [filteredMembers, currentPage]);
+
+    const totalPages = useMemo(() => {
+        return Math.ceil(filteredMembers.length / pageSize);
+    }, [filteredMembers.length]);
 
     // Reset page when filters change
-    const [lastFilterHash, setLastFilterHash] = useState("");
-    const currentFilterHash = `${activeTab}-${search}-${roleFilter}-${joinedFilter}`;
-    if (currentFilterHash !== lastFilterHash) {
-        setLastFilterHash(currentFilterHash);
+    useEffect(() => {
         setCurrentPage(1);
-    }
+    }, [activeTab, search, roleFilter, joinedFilter]);
 
     const uniqueRoles = [...new Set(members.map(m => m.discordRoleName).filter(Boolean))];
 

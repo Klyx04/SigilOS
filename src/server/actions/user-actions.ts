@@ -354,6 +354,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         quests: true,
                         worldmap: true,
                         resources: true,
+                        gallery: true,
                         ladderSync: true,
                         manualLadderSync: true,
                         minigames: true,

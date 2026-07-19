@@ -534,8 +534,7 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                         Actualiser
                                     </Button>
                                 </div>
-                                <DialogDescription asChild>
-                                    <div className="flex flex-wrap gap-2 mt-3">
+                                <DialogDescription className="flex flex-wrap gap-2 mt-3">
                                         {tags.map(tagId => {
                                             const tagDef = DO_TAGS.find(t => t.id === tagId);
                                             return tagDef ? (
@@ -544,7 +543,6 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
                                                 </span>
                                             ) : null;
                                         })}
-                                    </div>
                                 </DialogDescription>
                             </DialogHeader>
 

@@ -23,7 +23,8 @@ import {
     Navigation,
     Bug,
     Map,
-    History
+    History,
+    Zap
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSearchParams } from "next/navigation";
@@ -49,6 +50,7 @@ const CONSOLE_PAGES = [
     { name: "Avis de Recherche", id: "bounties", href: "/god/game-data/bounties", icon: ShieldAlert, color: "text-rose-500" },
     { name: "Quêtes Dofus", id: "quetes-dofus", href: "/god/quetes-dofus", icon: Sparkles, color: "text-purple-400" },
     { name: "Guides Optim.", id: "dofus-guides", href: "/god/dofus-guides", icon: Navigation, color: "text-emerald-400" },
+    { name: "Rush Sylvestre", id: "rush-sylvestre", href: "/god/rush-sylvestre", icon: Zap, color: "text-emerald-400" },
     { name: "Bugs & Suggs", id: "bugs", href: "/god/bugs", icon: Bug, color: "text-rose-400" },
     { name: "Roadmap Pro", id: "roadmap", href: "/god/roadmap", icon: Map, color: "text-amber-400" },
     { name: "Changelog Engine", id: "changelog", href: "/god/changelog", icon: History, color: "text-indigo-400" },

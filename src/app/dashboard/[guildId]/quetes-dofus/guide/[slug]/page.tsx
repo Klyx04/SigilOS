@@ -3,8 +3,10 @@ import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getOptimizedGuideDetail, getGuildOptimizedGuideProgress } from "@/server/actions/optimized-guide-actions";
+import { getMemberProfile } from "@/server/actions/profile-actions";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
 import OptimizedGuideClient from "./OptimizedGuideClient";
+import RushTimelineClient from "./RushTimelineClient";
 
 type Props = {
     params: Promise<{ guildId: string; slug: string }>;
@@ -17,11 +19,9 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
     const session = await auth();
     if (!session?.user?.id) redirect("/");
 
-    // Read selected character (mule) from query string
     const character = (resolvedSearchParams?.character as string) || "PRINCIPAL";
     const altPseudo = character !== "PRINCIPAL" ? character : undefined;
 
-    // Fetch user context for character selector
     const user = await getUserContext(guildId);
 
     let guideContext: Awaited<ReturnType<typeof getOptimizedGuideDetail>>;
@@ -36,7 +36,10 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         notFound();
     }
 
-    // Fetch Guild members progress (non-blocking - fail gracefully)
+    const guide = guideContext.guide as any;
+    const isTimeline = guide.displayMode === "TIMELINE";
+
+    // Fetch Guild members progress (non-blocking)
     let allProgress: any[] = [];
     try {
         const membersContext = await getGuildOptimizedGuideProgress(slug, guildId);
@@ -54,15 +57,32 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         console.error("[Guide Page] Guild progress fetch failed (non-fatal):", e);
     }
 
+    // Fetch full profile to get alignment, alignmentOrder, alignmentLevel, altPseudos
+    let userProfile: { alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number; altPseudos?: any[] } = {};
+    try {
+        const profileRes = await getMemberProfile(guildId, session.user.id);
+        if (profileRes.success && profileRes.data) {
+            const p = profileRes.data;
+            userProfile = {
+                alignment: p.alignment,
+                alignmentOrder: p.alignmentOrder,
+                alignmentLevel: p.alignmentLevel ?? 0,
+                altPseudos: Array.isArray(p.altPseudos) ? p.altPseudos : [],
+            };
+        }
+    } catch (e) {
+        console.error("[Guide Page] Profile fetch failed (non-fatal):", e);
+    }
+
     const mules = (user.altPseudos as any[] | undefined) || [];
 
     return (
         <div className="flex flex-col w-full h-full overflow-hidden">
-            {/* Character selector bar — only shown when mules exist */}
+            {/* Character selector bar */}
             {mules.length > 0 && (
                 <div className="flex items-center justify-between px-4 py-2 bg-zinc-950/80 border-b border-white/5 shrink-0">
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-400/60">
-                        <span>📖 {guideContext.guide.name}</span>
+                        <span>📖 {guide.name}</span>
                     </div>
                     <CharacterQuestSelector
                         mainCharacter={{
@@ -74,20 +94,51 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 </div>
             )}
 
-            <Suspense fallback={<div className="flex items-center justify-center w-full h-full"><div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" /></div>}>
-                <OptimizedGuideClient
-                    guide={guideContext.guide}
-                    milestones={guideContext.guide.milestones as any}
-                    userProgress={guideContext.guide.milestones.flatMap((m: any) => m.playerProgress || [])}
-                    guildProgress={allProgress}
-                    guildId={guildId}
-                    selectedCharacter={character}
-                    mainCharacter={{
-                        pseudo: user.pseudoDofus || user.name || "Principal",
-                        classe: user.classe,
-                    }}
-                    mules={mules}
-                />
+            <Suspense fallback={
+                <div className="flex items-center justify-center w-full h-full">
+                    <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
+                </div>
+            }>
+                {isTimeline ? (
+                    <div className="flex-1 overflow-y-auto p-6">
+                        <RushTimelineClient
+                            key={character}
+                            guide={{
+                                id: guide.id,
+                                name: guide.name,
+                                slug: guide.slug,
+                                description: guide.description,
+                                imageUrl: guide.imageUrl,
+                                isUnderConstruction: guide.isUnderConstruction ?? false,
+                            }}
+                            milestones={guide.milestones as any}
+                            guildProgress={allProgress}
+                            guildId={guildId}
+                            selectedCharacter={character}
+                            mules={mules}
+                            currentUserProfile={{
+                                alignment: userProfile.alignment,
+                                alignmentOrder: userProfile.alignmentOrder,
+                                alignmentLevel: userProfile.alignmentLevel,
+                                altPseudos: mules,
+                            }}
+                        />
+                    </div>
+                ) : (
+                    <OptimizedGuideClient
+                        guide={guide}
+                        milestones={guide.milestones as any}
+                        userProgress={guide.milestones.flatMap((m: any) => m.playerProgress || [])}
+                        guildProgress={allProgress}
+                        guildId={guildId}
+                        selectedCharacter={character}
+                        mainCharacter={{
+                            pseudo: user.pseudoDofus || user.name || "Principal",
+                            classe: user.classe,
+                        }}
+                        mules={mules}
+                    />
+                )}
             </Suspense>
         </div>
     );

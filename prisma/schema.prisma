@@ -1809,16 +1809,18 @@ model GuildatonHistory {
 // ─── Guide Optimisé — Arbre de Progression ───────────────────────────────────
 
 model OptimizedGuide {
-  id          String               @id @default(cuid())
-  slug        String               @unique
-  name        String
-  description String?
-  imageUrl    String?
-  isActive    Boolean              @default(false)
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  steps       OptimizedGuideStep[]
-  milestones  GuideMilestone[]     // Nouveaux noeuds de l'arbre de progression
+  id                  String               @id @default(cuid())
+  slug                String               @unique
+  name                String
+  description         String?
+  imageUrl            String?
+  isActive            Boolean              @default(false)
+  isUnderConstruction Boolean              @default(false) // God toggle: affiche "En construction" côté membres
+  displayMode         String               @default("TREE") // "TREE" | "TIMELINE" — mode d'affichage membre
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  steps               OptimizedGuideStep[]
+  milestones          GuideMilestone[]
 }
 
 model OptimizedGuideStep {
@@ -1854,6 +1856,8 @@ model GuideMilestone {
   isOptional      Boolean              @default(false)
   prerequisiteIds String[]             @default([]) // IDs de milestones requis avant celui-ci
   order           Int                  @default(0)  // Ordre global pour le tri
+  tips            String?              // Conseils / astuces au niveau du bloc
+  dofusId         String?              // Association optionnelle avec un DofusItem (pour le % global)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
@@ -1876,7 +1880,7 @@ model GuideSequence {
 
   // Identification du sous-guide source
   subGuideRef  String   // Code interne du sous-guide (ex: "GP1", "GP2")
-  subGuideName String   // Nom lisible (ex: "Incarnam & Astrub")
+  subGuideName String   // Nom de la quête / étape
   stepFrom     Int?     // Étape de départ dans le sous-guide
   stepTo       Int?     // Étape de fin dans le sous-guide
   isPartial    Boolean  @default(true)  // true = portion du guide, false = guide entier
@@ -1884,7 +1888,19 @@ model GuideSequence {
   note         String?  // Avertissement ou conseil (ex: "Ne pas cliquer le Portail !")
   isResume     Boolean  @default(false) // true = on reprend après interruption
 
-  // Lien optionnel vers un donjon de notre base existante
+  // Liens personnalisés dofusdb / dofusnoob déclarés par le super-admin
+  dofusdbUrl           String?
+  dofuspourlesnoobsUrl String?
+  tips                 String?  // Conseils spécifiques à cette quête
+  
+  // Alignement optionnel lié à cette quête (ex: "bontarien", "brakmarien") + niveau d'ordre
+  alignReq             String?  // "bontarien" | "brakmarien"
+  alignOrderReq        Int?     // Niveau requis (1 à 100)
+
+  // Donjons requis (Plusieurs IDs stockés dans un tableau JSON ou de chaînes)
+  dungeonIds   String[] @default([]) // Liste d'IDs de Dungeon pour supporter plusieurs donjons à la fois
+
+  // Lien historique vers un donjon principal
   dungeonId    String?
   dungeon      Dungeon? @relation(fields: [dungeonId], references: [id], onDelete: SetNull)
 
@@ -1893,6 +1909,11 @@ model GuideSequence {
   dungeonDbIds Int[]    @default([])   // dofusdbId des donjons concernés
   questDbIds   Int[]    @default([])   // dofusdbId des quêtes concernées
   mapPositions Json?    @default("[]") // Positions cliquables [{x, y, label}]
+
+  // Types spéciaux d'étapes
+  isSuccess         Boolean  @default(false)  // true = étape de succès (icône trophée)
+  metamobMonsterId  Int?                       // ID du monstre Metamob lié (Ocre / Quête Éternelle Moisson)
+  activityTags      Json     @default("[]")   // Tags d'activité : [{ type: string, name?: string, level?: number }]
 
   createdAt   DateTime      @default(now())
   milestone   GuideMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
@@ -1930,6 +1951,7 @@ enum GuideMilestoneType {
   QUETE_SERIE   // Série de quêtes majeures
   ALIGNEMENT    // Progression d'alignement
   PREREQUIS     // Prérequis technique (non visible dans l'arbre principal)
+  SUCCES        // Succès spécifique
 }
 
 // Stocke le JSON complet d'un sous-guide Ganymède (GP1, GP2, etc.)

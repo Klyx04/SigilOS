@@ -1240,5 +1240,403 @@ export async function resolveMapWorldAction(x: number, y: number, textContext?: 
   }
 }
 
+// ─── Rush Timeline Actions ──────────────────────────────────────────────────
 
+/**
+ * (God) Toggle isUnderConstruction / displayMode sur un guide.
+ */
+export async function updateGuideSettings(
+  guideId: string,
+  data: { isUnderConstruction?: boolean; displayMode?: "TREE" | "TIMELINE"; isActive?: boolean }
+) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Réservé aux Super Admins");
 
+  const guide = await db.optimizedGuide.update({
+    where: { id: guideId },
+    data,
+  });
+
+  revalidatePath("/god/dofus-guides");
+  return { success: true, guide };
+}
+
+/**
+ * Valide TOUTES les séquences/étapes d'un milestone (bouton "Valider tout ce bloc").
+ * Passe le milestone isCompleted=true et enregistre toutes ses stepKeys en completedSteps.
+ */
+export async function validateEntireMilestone(
+  guildId: string,
+  milestoneId: string,
+  altPseudo?: string
+) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated || !ctx.profileId) throw new Error("Non autorisé");
+
+  let profileId = ctx.profileId;
+  if (altPseudo && altPseudo !== "PRINCIPAL") {
+    profileId = `${ctx.profileId}::${altPseudo}`;
+  }
+
+  // Fetch milestone sequences to build the full list of step keys
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    include: {
+      sequences: {
+        orderBy: { order: "asc" },
+      },
+    },
+  });
+
+  if (!milestone) return { success: false, error: "Milestone introuvable" };
+
+  // Build all step keys from sequences
+  const allStepKeys: string[] = [];
+  for (const seq of milestone.sequences) {
+    if (seq.stepFrom !== null && seq.stepTo !== null) {
+      for (let i = seq.stepFrom; i <= seq.stepTo; i++) {
+        allStepKeys.push(`${seq.subGuideRef}-${i}`);
+      }
+    } else {
+      allStepKeys.push(`${seq.subGuideRef}-all`);
+    }
+  }
+
+  await db.playerGuideProgress.upsert({
+    where: { profileId_milestoneId: { profileId, milestoneId } },
+    create: {
+      profileId,
+      milestoneId,
+      isCompleted: true,
+      completedAt: new Date(),
+      completedSteps: allStepKeys,
+    },
+    update: {
+      isCompleted: true,
+      completedAt: new Date(),
+      completedSteps: allStepKeys,
+    },
+  });
+
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
+  return { success: true };
+}
+
+/**
+ * Retourne tous les guides avec displayMode=TIMELINE qui sont actifs.
+ */
+export async function getTimelineGuides(guildId: string) {
+  const ctx = await getUserContext(guildId);
+  if (!ctx.isAuthenticated) throw new Error("Non autorisé");
+
+  const guides = await db.optimizedGuide.findMany({
+    where: { displayMode: "TIMELINE", isActive: true },
+    include: {
+      milestones: {
+        orderBy: [{ chapter: "asc" }, { order: "asc" }],
+        include: {
+          sequences: { orderBy: { order: "asc" } },
+          playerProgress: ctx.profileId
+            ? { where: { profileId: ctx.profileId } }
+            : { where: { profileId: "__NONE__" } },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return { success: true, guides };
+}
+
+// ─── Rush Sylvestre God Actions ────────────────────────────────────────────────
+
+/**
+ * (God) Récupère ou crée le guide Rush Sylvestre.
+ * Le guide est automatiquement créé avec displayMode=TIMELINE si absent.
+ */
+export async function getOrCreateRushSylvestreGuide() {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Accès réservé aux super-admins");
+
+  let guide = await db.optimizedGuide.findUnique({
+    where: { slug: "rush-sylvestre" },
+    include: {
+      milestones: {
+        orderBy: [{ chapter: "asc" }, { order: "asc" }],
+        include: {
+          sequences: {
+            orderBy: { order: "asc" },
+            include: { dungeon: true }
+          }
+        },
+      },
+    },
+  });
+
+  if (!guide) {
+    guide = await db.optimizedGuide.create({
+      data: {
+        slug: "rush-sylvestre",
+        name: "Rush Sylvestre",
+        description: "Guide communautaire de rush Dofus Sylvestre — suis ta progression étape par étape et coordonne-toi avec la guilde.",
+        displayMode: "TIMELINE",
+        isActive: true,
+        isUnderConstruction: true,
+      },
+      include: {
+        milestones: {
+          orderBy: [{ chapter: "asc" }, { order: "asc" }],
+          include: {
+            sequences: {
+              orderBy: { order: "asc" },
+              include: { dungeon: true }
+            }
+          },
+        },
+      },
+    });
+  }
+
+  return guide;
+}
+
+/**
+ * (God) Met à jour les métadonnées du guide Rush Sylvestre.
+ */
+export async function updateRushSylvestreSettings(data: {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  isUnderConstruction?: boolean;
+}) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Accès réservé aux super-admins");
+
+  const guide = await db.optimizedGuide.update({
+    where: { slug: "rush-sylvestre" },
+    data,
+  });
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true, guide };
+}
+
+/**
+ * (God) Upsert un chapitre (milestone) du Rush Sylvestre.
+ */
+export async function upsertRushMilestone(data: {
+  id?: string;
+  chapter: string;
+  chapterLabel: string;
+  label: string;
+  description?: string;
+  accentColor?: string;
+  isOptional?: boolean;
+  order?: number;
+  type?: any; // GuideMilestoneType enum
+  tips?: string;
+  dofusId?: string | null;
+}) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Accès réservé aux super-admins");
+
+  const guide = await db.optimizedGuide.findUniqueOrThrow({ where: { slug: "rush-sylvestre" } });
+
+  let parsedChapter = parseInt(data.chapter, 10);
+  if (isNaN(parsedChapter)) {
+    parsedChapter = 1;
+  }
+
+  let milestone;
+  if (data.id) {
+    milestone = await db.guideMilestone.update({
+      where: { id: data.id },
+      data: {
+        chapter: parsedChapter,
+        chapterLabel: data.chapterLabel,
+        title: data.label,
+        description: data.description,
+        accentColor: data.accentColor,
+        isOptional: data.isOptional ?? false,
+        order: data.order ?? 0,
+        type: data.type ?? undefined,
+        tips: data.tips,
+        dofusId: data.dofusId,
+      },
+      include: {
+        sequences: {
+          orderBy: { order: "asc" },
+          include: { dungeon: true }
+        }
+      },
+    });
+  } else {
+    const maxOrder = await db.guideMilestone.count({ where: { guideId: guide.id } });
+    milestone = await db.guideMilestone.create({
+      data: {
+        guideId: guide.id,
+        type: data.type ?? "QUETE_SERIE",
+        chapter: parsedChapter,
+        chapterLabel: data.chapterLabel,
+        title: data.label,
+        description: data.description,
+        accentColor: data.accentColor ?? "#10b981",
+        isOptional: data.isOptional ?? false,
+        order: data.order ?? maxOrder,
+        tips: data.tips,
+        dofusId: data.dofusId,
+      },
+      include: {
+        sequences: {
+          orderBy: { order: "asc" },
+          include: { dungeon: true }
+        }
+      },
+    });
+  }
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true, milestone };
+}
+
+/**
+ * (God) Supprime un milestone du Rush Sylvestre.
+ */
+export async function deleteRushMilestone(milestoneId: string) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Accès réservé aux super-admins");
+
+  await db.guideMilestone.delete({ where: { id: milestoneId } });
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+/**
+ * (God) Reordonne une liste de milestones (Drag & Drop)
+ */
+export async function reorderRushMilestones(orderedIds: string[]) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Accès réservé aux super-admins");
+
+  await db.$transaction(
+    orderedIds.map((id, index) =>
+      db.guideMilestone.update({
+        where: { id },
+        data: { order: index }
+      })
+    )
+  );
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+/**
+ * (God) Reordonne les séquences d'un milestone (Drag & Drop)
+ */
+export async function reorderRushSequences(milestoneId: string, orderedIds: string[]) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Accès réservé aux super-admins");
+
+  await db.$transaction(
+    orderedIds.map((id, index) =>
+      db.guideSequence.update({
+        where: { id },
+        data: { order: index, milestoneId }
+      })
+    )
+  );
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+/**
+ * (God) Upsert une séquence (quête) dans un milestone Rush.
+ */
+export async function upsertRushSequence(data: {
+  id?: string;
+  milestoneId: string;
+  subGuideRef: string;
+  dungeonId?: string | null;
+  dungeonIds?: string[];
+  dofusdbUrl?: string | null;
+  dofuspourlesnoobsUrl?: string | null;
+  tips?: string | null;
+  alignReq?: string | null;
+  alignOrderReq?: number | null;
+  note?: string;
+  order?: number;
+  isSuccess?: boolean;
+  metamobMonsterId?: number | null;
+  activityTags?: Array<{ type: string; name?: string; level?: number }>;
+}) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Accès réservé aux super-admins");
+
+  let seq;
+  // Champs communs (sans dungeonId — géré différemment selon create/update)
+  const commonFields = {
+    subGuideRef: data.subGuideRef,
+    subGuideName: data.subGuideRef,
+    dofusdbUrl: data.dofusdbUrl,
+    dofuspourlesnoobsUrl: data.dofuspourlesnoobsUrl,
+    tips: data.tips,
+    alignReq: data.alignReq,
+    alignOrderReq: data.alignOrderReq,
+    note: data.note,
+    order: data.order ?? undefined,
+    isSuccess: data.isSuccess ?? false,
+    metamobMonsterId: data.metamobMonsterId ?? null,
+    activityTags: data.activityTags ?? [],
+    dungeonIds: data.dungeonIds ?? undefined,
+  };
+
+  if (data.id) {
+    // UPDATE : Prisma v7 exige l'API relation pour les FK (connect/disconnect)
+    seq = await db.guideSequence.update({
+      where: { id: data.id },
+      data: {
+        ...commonFields,
+        ...(data.dungeonId !== undefined
+          ? { dungeon: data.dungeonId ? { connect: { id: data.dungeonId } } : { disconnect: true } }
+          : {}),
+      },
+    });
+  } else {
+    // CREATE : on peut passer le scalaire dungeonId directement
+    const maxOrder = await db.guideSequence.count({ where: { milestoneId: data.milestoneId } });
+    seq = await db.guideSequence.create({
+      data: {
+        ...commonFields,
+        milestoneId: data.milestoneId,
+        isPartial: false,
+        dungeonId: data.dungeonId ?? null,
+        dungeonIds: data.dungeonIds ?? [],
+        order: data.order ?? maxOrder,
+      },
+    });
+  }
+
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true, sequence: seq };
+}
+
+/**
+ * (God) Supprime une séquence Rush.
+ */
+export async function deleteRushSequence(sequenceId: string) {
+  const isGod = await isSuperAdmin();
+  if (!isGod) throw new Error("Accès réservé aux super-admins");
+
+  await db.guideSequence.delete({ where: { id: sequenceId } });
+  revalidatePath("/god/rush-sylvestre");
+  revalidatePath("/dashboard");
+  return { success: true };
+}

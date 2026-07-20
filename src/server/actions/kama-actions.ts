@@ -765,3 +765,59 @@ export async function deleteKamaDonation(
         return { success: false, error: "Erreur serveur" };
     }
 }
+
+// ============================================================================
+// GET USER RAID ELIGIBILITY (kamas gate for RAID_OFFICIAL)
+// Returns the user's validated kamas total for the current Dofus week
+// and whether they meet the 30 000 threshold.
+// ============================================================================
+
+export async function getUserRaidEligibility(guildId: string): Promise<{
+    success: boolean;
+    totalDonated?: number;
+    isEligible?: boolean;
+    weekNumber?: number;
+    yearNumber?: number;
+    error?: string;
+}> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: "Non authentifié" };
+
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const profile = await db.userProfile.findFirst({
+            where: { userId: session.user.id, guildId: guildConfig.id },
+            select: { id: true },
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const { week, year } = getDofusWeek();
+
+        const result = await kamaDb.kamaDonation.aggregate({
+            _sum: { amount: true },
+            where: {
+                profileId: profile.id,
+                status: "VALIDATED",
+                weekNumber: week,
+                yearNumber: year,
+            },
+        });
+
+        const totalDonated = result._sum.amount ?? 0;
+        return {
+            success: true,
+            totalDonated,
+            isEligible: totalDonated >= 30000,
+            weekNumber: week,
+            yearNumber: year,
+        };
+    } catch (error) {
+        logger.error("getUserRaidEligibility error", { error, guildId });
+        return { success: false, error: "Erreur serveur" };
+    }
+}

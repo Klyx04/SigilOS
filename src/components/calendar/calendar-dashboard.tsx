@@ -47,6 +47,7 @@ import {
     getDiscordRolesForCalendar,
     type GuildEventInput
 } from "@/server/actions/calendar-actions";
+import { getUserRaidEligibility } from "@/server/actions/kama-actions";
 import { CalendarGrid } from "./calendar-grid";
 import { EventDetailModal } from "./event-detail-modal";
 import { EventCard } from "./event-card";
@@ -157,6 +158,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     // Hub Raid modal
     const [isRaidHubOpen, setIsRaidHubOpen] = useState(false);
 
+    // Raid eligibility (kamas gate)
+    const [raidEligibility, setRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number } | null>(null);
+
     // Dynamic counts for filters
     const typeCounts = events.reduce((acc, e) => {
         acc[e.type] = (acc[e.type] || 0) + 1;
@@ -220,6 +224,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 setEveryoneAllowed(res.everyoneAllowed || false);
             });
         }
+        // Fetch raid kamas eligibility for the current user
+        getUserRaidEligibility(guildId).then(res => {
+            if (res.success) {
+                setRaidEligibility({ isEligible: res.isEligible ?? false, totalDonated: res.totalDonated ?? 0 });
+            }
+        });
     }, [currentDate, guildId, canManage]);
 
     useEffect(() => {
@@ -766,6 +776,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 discordRoles={discordRoles}
                 everyoneAllowed={everyoneAllowed}
                 hasMetamobKey={hasMetamobKey}
+                raidEligibility={raidEligibility}
                 onRegister={handleRegister}
                 onUnregister={handleUnregister}
                 onEdit={() => {

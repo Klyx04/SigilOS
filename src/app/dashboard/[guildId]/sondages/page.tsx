@@ -3,7 +3,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { isModuleEnabled } from "@/server/actions/module-actions";
-import { getPolls, checkCanCreatePoll, getMicroStatus } from "@/server/actions/poll-actions";
+import { getPolls, checkCanCreatePoll, getMicroStatus, getPollSettings, getPollPublicConfig } from "@/server/actions/poll-actions";
 import { PollList } from "@/components/sondages/poll-list";
 import { PollCreator } from "@/components/sondages/poll-creator";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
@@ -23,11 +23,16 @@ export default async function PollsPage({ params }: { params: Promise<{ guildId:
     }
 
     // Fetch everything in parallel
-    const [pollsResult, canCreateResult, microStatusResult, channels, roles] = await Promise.all([
+    // 🔒 SECURITY: Admins use getPollSettings (full config), members use getPollPublicConfig (safe subset)
+    const [pollsResult, canCreateResult, microStatusResult, pollSettingsResult, channels, roles] = await Promise.all([
         getPolls(guildId),
         checkCanCreatePoll(guildId),
         getMicroStatus(guildId),
-        fetchGuildChannels(guildId).catch(() => [] as { id: string; name: string; type: number; position: number }[]),
+        isAdmin
+            ? getPollSettings(guildId).catch(() => ({ success: false as const, data: null }))
+            : getPollPublicConfig(guildId).catch(() => ({ success: false as const, data: null })),
+        // Only fetch full channel list for admins (members get restricted list below)
+        isAdmin ? fetchGuildChannels(guildId).catch(() => [] as { id: string; name: string; type: number; position: number }[]) : Promise.resolve([] as { id: string; name: string; type: number; position: number }[]),
         fetchGuildRoles(guildId, { excludeManaged: true }).catch(() => [] as { id: string; name: string; color: number }[]),
     ]);
 
@@ -41,15 +46,39 @@ export default async function PollsPage({ params }: { params: Promise<{ guildId:
         isSuperAdmin: microStatusResult.data.isSuperAdmin,
     } : null;
 
-    // Text channels only (type 0) for Discord publish
-    const textChannels = channels
-        .filter((c) => c.type === 0)
-        .map((c) => ({ id: c.id, name: c.name }));
+    // 🔒 SECURITY: Non-admins only see the admin-configured channel (if any).
+    // Admins get the full text channel list for overrides.
+    const adminConfiguredChannelId = pollSettingsResult.success && pollSettingsResult.data?.pollsNotifyChannelId
+        ? pollSettingsResult.data.pollsNotifyChannelId
+        : null;
 
-    // Filter @everyone role
-    const discordRoles = roles
+    let textChannels: { id: string; name: string }[] = [];
+    if (isAdmin) {
+        // Admins: full list of text channels (type 0)
+        textChannels = channels
+            .filter((c) => c.type === 0)
+            .map((c) => ({ id: c.id, name: c.name }));
+    } else if (adminConfiguredChannelId) {
+        // Members: only the channel configured by admin — fetch its name from the guild channels list
+        // We need to fetch just that one channel; re-use the already-fetched list if admin, otherwise
+        // we resolve the channel name from Discord via a targeted fetch.
+        const allChannels = await fetchGuildChannels(guildId).catch(() => [] as { id: string; name: string; type: number; position: number }[]);
+        const configuredChannel = allChannels.find((c) => c.id === adminConfiguredChannelId && c.type === 0);
+        if (configuredChannel) {
+            textChannels = [{ id: configuredChannel.id, name: configuredChannel.name }];
+        }
+    }
+
+    // 🔒 SECURITY: Roles whitelist — only return whitelisted ping roles.
+    // Admins get the full roles list; members only see what admin whitelisted.
+    const pollsPingRoleIds: string[] = (pollSettingsResult.success && (pollSettingsResult.data as any)?.pollsPingRoleIds) || [];
+    const allRoles = roles
         .filter((r) => r.name !== "@everyone")
         .map((r) => ({ id: r.id, name: r.name, color: (r as any).color ?? 0 }));
+
+    const discordRoles = isAdmin
+        ? allRoles
+        : allRoles.filter((r) => pollsPingRoleIds.includes(r.id));
 
     return (
         <div className="space-y-6 pb-12">

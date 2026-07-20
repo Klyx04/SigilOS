@@ -131,10 +131,10 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
             <div 
                 ref={widgetRef}
                 className={cn(
-                    "rounded-xl border bg-zinc-950/80 overflow-hidden transition-all duration-300",
+                    "rounded-xl border overflow-hidden transition-all duration-300 shadow-lg",
                     shouldPulse 
-                        ? "border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.25)] scale-[1.01] ring-1 ring-amber-500/50" 
-                        : "border-amber-500/15"
+                        ? "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] scale-[1.01] ring-1 ring-amber-500/50" 
+                        : "border-amber-500/30 bg-gradient-to-b from-amber-500/[0.04] to-zinc-950/80 shadow-[0_4px_20px_rgba(245,158,11,0.05)] hover:border-amber-500/50"
                 )}
             >
 
@@ -201,11 +201,16 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
                 {expanded && (
                     <div className="border-t border-white/5 p-3 space-y-3">
                         {/* Info block */}
-                        <div className="flex items-start gap-2 bg-zinc-900/60 rounded-lg p-2.5 border border-white/5">
-                            <Info className="w-3 h-3 text-zinc-500 shrink-0 mt-0.5" />
-                            <div className="text-[10px] text-zinc-500 space-y-0.5">
-                                <p>Max <span className="text-white font-bold">{KAMA_MAX_PER_WEEK.toLocaleString("fr-FR")} kamas</span> par semaine</p>
-                                <p>Chaque tranche de <span className="text-amber-400 font-bold">10 000k</span> → {REWARDS_PER_TRANCHE.xp} XP · {REWARDS_PER_TRANCHE.guildatons} guildatons</p>
+                        <div className="flex flex-col gap-2 bg-amber-500/[0.03] rounded-lg p-3 border border-amber-500/20">
+                            <div className="flex items-start gap-2">
+                                <Info className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                <div className="text-[10px] text-zinc-400 space-y-0.5">
+                                    <p>Max <span className="text-white font-bold">{KAMA_MAX_PER_WEEK.toLocaleString("fr-FR")} kamas</span> par semaine</p>
+                                    <p>Chaque tranche de <span className="text-amber-400 font-bold">10 000k</span> → {REWARDS_PER_TRANCHE.xp} XP · {REWARDS_PER_TRANCHE.guildatons} guildatons</p>
+                                </div>
+                            </div>
+                            <div className="pt-2 border-t border-amber-500/10 text-[9px] text-amber-300/80 leading-relaxed">
+                                ⚠️ **Important :** Les dons en Kamas servent directement à financer les **Raids de guilde**. Votre participation aux dons est indispensable pour maintenir l&apos;accès à ces raids.
                             </div>
                         </div>
 

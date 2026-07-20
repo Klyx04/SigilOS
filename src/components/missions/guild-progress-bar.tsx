@@ -251,19 +251,9 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                 {/* 3. FOOTER */}
                 <div className="flex flex-col md:flex-row items-start justify-between gap-4 pt-4 border-t border-border/10 relative z-40 mt-4 w-full">
                     {/* LEFT: Kama widget + legend */}
-                    <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[280px] md:max-w-[340px]">
+                    <div className="flex flex-col gap-3 w-full md:w-1/2">
                         {/* Kama contribution widget */}
                         <KamaContributionWidget guildId={guildId} initialStatus={kamaStatus ?? null} />
-
-                        {/* Recap link */}
-                        <Link
-                            href={`/dashboard/${guildId}/kamas/summary`}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] hover:bg-amber-500/[0.08] hover:border-amber-500/25 text-amber-400/70 hover:text-amber-300 transition-all duration-200 text-[11px] font-semibold group"
-                        >
-                            <BarChart3 className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-110" />
-                            Récap kamas de la semaine
-                            <span className="ml-auto text-zinc-700 group-hover:text-zinc-500 transition-colors text-[10px]">→</span>
-                        </Link>
 
                         {/* Legend */}
                         <div className="flex items-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-widest italic">
@@ -278,38 +268,30 @@ export function GuildProgressBar({ currentXP, targetTier = 5, guildId, kamaStatu
                         </div>
                     </div>
 
-                    {/* RIGHT: Bonus + Prochain jalon */}
-                    <div className="flex flex-col items-start md:items-end gap-2 mt-4 md:mt-0 w-full md:w-auto md:ml-auto">
+                    {/* RIGHT: Active Bonus and Raid Notice */}
+                    <div className="flex flex-col items-start md:items-end gap-3 mt-4 md:mt-0 w-full md:w-1/2 md:ml-auto">
                         {/* Active Bonus Tracker */}
                         <ActiveBonusBar guildId={guildId} />
 
-                        {/* Next milestone within current target tier */}
-                        {(() => {
-                            const steps = GUILD_TIERS[targetTier as keyof typeof GUILD_TIERS]?.steps || [];
-                            const nextStep = steps.find(s => currentXP < s.xp);
-                            if (!nextStep) {
-                                return (
-                                    <div className="bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-2 w-full md:w-auto justify-start md:justify-end">
-                                        <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                                        <span className="text-emerald-400 font-black">Palier {targetTier} atteint !</span>
-                                    </div>
-                                );
-                            }
-                            const xpLeft = nextStep.xp - currentXP;
-                            const xpDisplay = nextStep.xp >= 1000 ? `${nextStep.xp / 1000}k` : nextStep.xp;
-                            return (
-                                <div className="bg-foreground/[0.03] px-3 py-1.5 rounded-lg border border-border flex items-center gap-2 w-full md:w-auto justify-center md:justify-start">
-                                    <Target className="w-3.5 h-3.5 text-muted-foreground" />
-                                    <span className="text-muted-foreground font-black uppercase italic text-[10px] tracking-widest">
-                                        Prochain jalon
-                                        <span className="text-primary font-black ml-1">{nextStep.label}</span>
-                                        <span className="text-[9px] opacity-60 ml-1">({xpDisplay} XP)</span>
-                                        {" · "}
-                                        <span className="text-foreground font-black text-sm">{xpLeft.toLocaleString()}</span> XP restants
-                                    </span>
-                                </div>
-                            );
-                        })()}
+                        {/* Raid / Kama Notice */}
+                        <div className="bg-amber-500/[0.03] border border-amber-500/20 rounded-2xl p-4 w-full md:max-w-md text-left md:text-right">
+                            <h4 className="text-[11px] font-black text-amber-400 uppercase tracking-widest flex items-center md:justify-end gap-2 mb-1">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                Financement des Raids
+                            </h4>
+                            <p className="text-[10px] text-zinc-400 leading-relaxed font-medium">
+                                Les contributions en Kamas sont indispensables pour le financement et la participation de la guilde aux **Raids de Guilde**. Donnez pour soutenir l'effort collectif !
+                            </p>
+                            <div className="mt-2.5">
+                                <Link
+                                    href={`/dashboard/${guildId}/kamas/summary`}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] hover:bg-amber-500/[0.08] hover:border-amber-500/25 text-amber-400/70 hover:text-amber-300 transition-all duration-200 text-[10px] font-black uppercase tracking-wider"
+                                >
+                                    <BarChart3 className="w-3 h-3 shrink-0" />
+                                    Récap kamas de la semaine
+                                </Link>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

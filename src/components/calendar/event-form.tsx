@@ -32,7 +32,8 @@ import {
     ChevronsUpDown,
     Check,
     Hash,
-    X
+    X,
+    Coins
 } from "lucide-react";
 import {
     Form,
@@ -54,7 +55,9 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { MissionPicker } from "./mission-picker";
+import Link from "next/link";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
+import { getUserRaidEligibility } from "@/server/actions/kama-actions";
 import {
     Command,
     CommandEmpty,
@@ -210,6 +213,9 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
     const [step, setStep] = useState<1 | 2>(1);
     const [submitting, setSubmitting] = useState(false);
     
+    // Raid eligibility (kamas gate) for the creator
+    const [creatorRaidEligibility, setCreatorRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number } | null>(null);
+    
     // Helper to normalize discord role colors
     const normalizeRoles = (roles: any[]) => roles.map(r => ({
         ...r,
@@ -296,6 +302,18 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
             setDiscordRoles(normalizeRoles(providedRoles));
         }
     }, [providedRoles, guildId, isDiscordConfigured, isRaid]);
+
+    // Fetch raid eligibility for the creator
+    useEffect(() => {
+        getUserRaidEligibility(guildId).then(res => {
+            if (res.success) {
+                setCreatorRaidEligibility({
+                    isEligible: res.isEligible ?? false,
+                    totalDonated: res.totalDonated ?? 0
+                });
+            }
+        });
+    }, [guildId]);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
@@ -648,6 +666,30 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                                     )} />
                                 </div>
                             </button>
+
+                            {/* Creator eligibility warning box */}
+                            {creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible && (
+                                <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-red-500/20 bg-red-950/20 text-red-400 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <div className="flex items-start gap-2.5">
+                                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+                                        <div className="text-xs leading-relaxed">
+                                            <span className="font-black uppercase tracking-wide">Création de raid bloquée</span>
+                                            <br />
+                                            <span className="text-red-400/80">
+                                                Pour créer et participer à un raid, tu dois avoir effectué un don de 30 000 kamas validé pour la semaine en cours.
+                                                Tu as donné <strong>{creatorRaidEligibility.totalDonated.toLocaleString("fr-FR")}</strong> kamas.
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <Link
+                                        href={`/dashboard/${guildId}/missions#don-kamas`}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wide transition-all shadow-lg shadow-red-600/20 w-fit"
+                                    >
+                                        <Coins className="h-3.5 w-3.5" />
+                                        Faire mon don (30 000k)
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -1034,19 +1076,23 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                 <div className="flex items-center gap-3 mt-4">
                     <Button
                         type="submit"
-                        disabled={submitting}
+                        disabled={submitting || (isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible)}
                         className={cn(
                             "w-full h-12 font-bold text-base transition-all",
-                            "bg-gradient-to-r from-amber-500 to-orange-500",
-                            "hover:from-amber-400 hover:to-orange-400",
-                            "shadow-lg shadow-amber-500/20",
-                            "text-zinc-950"
+                            isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
+                                ? "bg-zinc-800 border border-zinc-700 text-zinc-500 cursor-not-allowed shadow-inner"
+                                : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-500/20 text-zinc-950"
                         )}
                     >
                         {submitting ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                 Création...
+                            </>
+                        ) : isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
+                            <>
+                                <Lock className="mr-2 h-5 w-5" />
+                                Création bloquée
                             </>
                         ) : (
                             <>

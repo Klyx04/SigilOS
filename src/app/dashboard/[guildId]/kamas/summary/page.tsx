@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getWeeklyKamaSummary } from "@/server/actions/kama-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
-import { BarChart3 } from "lucide-react";
+import { Coins } from "lucide-react";
 import AccessDenied from "@/components/access-denied";
 import { KamaWeeklySummary } from "@/components/kamas/kama-weekly-summary";
 import { isModuleEnabled } from "@/server/actions/module-actions";
@@ -44,9 +44,9 @@ export default async function KamaWeeklySummaryPage({
                 <UnifiedModuleHeader
                     title="Récap Kamas Semaine"
                     description="Erreur lors du chargement du récapitulatif."
-                    icon={BarChart3}
+                    icon={Coins}
                     iconColor="#f59e0b"
-                    backHref={`/dashboard/${guildId}/missions`}
+                    backHref={`/dashboard/${guildId}/kamas`}
                 />
                 <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center text-sm text-red-400">
                     {summaryRes.error || "Une erreur est survenue."}
@@ -61,15 +61,16 @@ export default async function KamaWeeklySummaryPage({
         <div className="space-y-6 pb-12">
             <UnifiedModuleHeader
                 title="Récap Kamas Semaine"
-                description={`Semaine ${week} · ${year} — Contributions kamas de la guilde`}
-                icon={BarChart3}
+                description={`Semaine ${week} · ${year} — Dons validés & éligibilité aux raids officiels`}
+                icon={Coins}
                 iconColor="#f59e0b"
-                backHref={`/dashboard/${guildId}/missions`}
+                backHref={`/dashboard/${guildId}/kamas`}
             />
 
             <KamaWeeklySummary
                 data={summaryRes.data}
                 isOfficer={isOfficer}
+                guildId={guildId}
             />
         </div>
     );

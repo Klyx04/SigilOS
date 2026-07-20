@@ -559,6 +559,34 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         });
 
         if (event.type === "RAID_OFFICIAL") {
+            // Kamas gate applies to the creator too — consistent with processRegistration
+            const { getDofusWeek } = await import("@/lib/date-utils");
+            const eventWeek = getDofusWeek(event.startDate);
+            const creatorProfile = await db.userProfile.findFirst({
+                where: { userId: ctx.id!, guildId: guildConfig.id },
+                select: { id: true },
+            });
+            if (creatorProfile) {
+                const weekDonations = await (db as any).kamaDonation.aggregate({
+                    _sum: { amount: true },
+                    where: {
+                        profileId: creatorProfile.id,
+                        status: "VALIDATED",
+                        weekNumber: eventWeek.week,
+                        yearNumber: eventWeek.year,
+                    },
+                });
+                const totalDonated = weekDonations._sum.amount ?? 0;
+                if (totalDonated < 30000) {
+                    // Roll back the event creation — creator can't participate
+                    await db.guildEvent.delete({ where: { id: event.id } });
+                    return {
+                        success: false,
+                        error: `🪙 Don de 30 000 kamas requis pour créer et participer aux raids cette semaine. Tu as donné ${totalDonated.toLocaleString("fr-FR")} kamas validés. Effectue ton don sur le site.`,
+                    };
+                }
+            }
+
             await db.eventParticipant.create({
                 data: {
                     eventId: event.id,
@@ -568,6 +596,7 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
                 }
             });
         }
+
 
 
         // Auto-publish if requested

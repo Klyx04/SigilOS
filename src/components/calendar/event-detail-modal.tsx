@@ -34,7 +34,9 @@ import {
     Lock,
     Shield,
     Trophy,
-    Star
+    Star,
+    Coins,
+    AlertTriangle,
 } from "lucide-react";
 import {
     Dialog,
@@ -223,6 +225,8 @@ interface EventDetailModalProps {
     onShareDiscord?: (roleId?: string) => Promise<{ success: boolean; error?: string }>;
     hasMetamobKey?: boolean;
     isDiscordConfigured?: boolean;
+    /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
+    raidEligibility?: { isEligible: boolean; totalDonated: number } | null;
 }
 
 // ============================================
@@ -248,7 +252,8 @@ export function EventDetailModal({
     onSendReminder,
     onShareDiscord,
     hasMetamobKey = false,
-    isDiscordConfigured = false
+    isDiscordConfigured = false,
+    raidEligibility = null,
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
@@ -897,21 +902,64 @@ export function EventDetailModal({
                             ) : (
                                 <>
                                     {canRegister && (
-                                        <Button
-                                            size="lg"
-                                            onClick={() => setShowRegistration(true)}
-                                            disabled={isLoading}
-                                            className={cn(
-                                                "h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-lg relative group overflow-hidden border-t border-white/10 px-8",
-                                                isFull
-                                                    ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30 text-white"
-                                                    : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30 text-white"
-                                            )}
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            {isFull ? <Users className="h-4 w-4 mr-2.5" /> : <Check className="h-4 w-4 mr-2.5" />}
-                                            {isFull ? "Rejoindre la file d'attente" : "S'inscrire à l'événement"}
-                                        </Button>
+                                        (() => {
+                                            // Kamas gate: only for RAID_OFFICIAL events
+                                            const isRaidOfficial = event.type === "RAID_OFFICIAL";
+                                            const isBlocked = isRaidOfficial && raidEligibility !== null && raidEligibility !== undefined && !raidEligibility.isEligible;
+
+                                            if (isBlocked) {
+                                                const donated = raidEligibility!.totalDonated.toLocaleString("fr-FR");
+                                                return (
+                                                    <div className="flex flex-col gap-2 w-full">
+                                                        <Button
+                                                            size="lg"
+                                                            disabled
+                                                            className="h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-inner relative group overflow-hidden border border-zinc-700/50 bg-zinc-800/50 text-zinc-500 cursor-not-allowed px-8"
+                                                        >
+                                                            <Lock className="h-4 w-4 mr-2.5" />
+                                                            Inscription verrouillée
+                                                        </Button>
+                                                        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-400">
+                                                            <Coins className="h-4 w-4 shrink-0 mt-0.5" />
+                                                            <div className="text-xs leading-relaxed">
+                                                                <span className="font-black uppercase tracking-wide">Don requis : 30 000 kamas</span>
+                                                                <br />
+                                                                <span className="text-amber-400/70">
+                                                                    Tu as donné <strong>{donated}</strong> kamas cette semaine. Complète ton don pour débloquer l'accès aux raids.
+                                                                </span>
+                                                                <br />
+                                                                <Link
+                                                                    href={`/dashboard/${guildId}/missions#don-kamas`}
+                                                                    className="inline-flex items-center gap-1 mt-1.5 font-black text-amber-400 hover:text-amber-300 underline underline-offset-2"
+                                                                >
+                                                                    <Coins className="h-3 w-3" />
+                                                                    Faire mon don maintenant
+                                                                    <ExternalLink className="h-3 w-3" />
+                                                                </Link>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <Button
+                                                    size="lg"
+                                                    onClick={() => setShowRegistration(true)}
+                                                    disabled={isLoading}
+                                                    className={cn(
+                                                        "h-12 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 shadow-lg relative group overflow-hidden border-t border-white/10 px-8",
+                                                        isFull
+                                                            ? "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30 text-white"
+                                                            : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30 text-white"
+                                                    )}
+                                                >
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    {isFull ? <Users className="h-4 w-4 mr-2.5" /> : <Check className="h-4 w-4 mr-2.5" />}
+                                                    {isFull ? "Rejoindre la file d'attente" : "S'inscrire à l'événement"}
+                                                </Button>
+                                            );
+                                        })()
                                     )}
 
                                     {isRegistered && onUnregister && (

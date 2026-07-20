@@ -326,11 +326,11 @@ const MilestoneRow = memo(function MilestoneRow({
                 if (!def) return null;
                 return (
                   <span
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest"
-                    style={{ borderColor: def.color + "40", background: def.color + "10", color: def.color }}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest animate-pulse"
+                    style={{ borderColor: def.color + "60", background: def.color + "20", color: def.color, boxShadow: `0 0 10px ${def.color}40` }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={def.imageUrl} alt={def.label} className="w-3.5 h-3.5 object-contain" />
+                    <img src={def.imageUrl} alt={def.label} className="w-4 h-4 object-contain" />
                     {def.label}
                   </span>
                 );
@@ -1341,27 +1341,38 @@ export default function RushTimelineClient({
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {chapters.map(([chNum, { label, items }]) => (
-            <ChapterBlock
-              key={chNum}
-              chapterNum={chNum}
-              label={label}
-              milestones={items}
-              completedIds={completedIds}
-              bookmarkedMsId={bookmarkedMsId}
-              guildProgressByMs={guildProgressByMs}
-              hideDone={hideDone}
-              loadingIds={loadingIds}
-              dofusFilter={dofusFilter}
-              userAlignmentInfo={resolvedCharacterInfo}
-              onToggle={handleToggle}
-              onValidateAll={handleValidateAll}
-              onReset={handleReset}
-              onBookmark={handleBookmark}
-              onDungeonClick={handleDungeonClick}
-              onLinkClick={handleQuestLinkClick}
-            />
+        <div className="space-y-6">
+          {chapters.map(([chNum, { label, items }], idx) => (
+            <div key={chNum} className="space-y-4">
+              {/* Séparateur de chapitre doré et nommé */}
+              {idx > 0 && (
+                <div className="flex items-center justify-center gap-4 py-4 my-2 select-none">
+                  <div className="h-px bg-gradient-to-r from-transparent via-amber-500/25 to-transparent flex-1" />
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/40 flex items-center gap-1.5 italic font-mono">
+                    ✦ Chapitre {chNum} ✦
+                  </div>
+                  <div className="h-px bg-gradient-to-r from-transparent via-amber-500/25 to-transparent flex-1" />
+                </div>
+              )}
+              <ChapterBlock
+                chapterNum={chNum}
+                label={label}
+                milestones={items}
+                completedIds={completedIds}
+                bookmarkedMsId={bookmarkedMsId}
+                guildProgressByMs={guildProgressByMs}
+                hideDone={hideDone}
+                loadingIds={loadingIds}
+                dofusFilter={dofusFilter}
+                userAlignmentInfo={resolvedCharacterInfo}
+                onToggle={handleToggle}
+                onValidateAll={handleValidateAll}
+                onReset={handleReset}
+                onBookmark={handleBookmark}
+                onDungeonClick={handleDungeonClick}
+                onLinkClick={handleQuestLinkClick}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -24,15 +24,20 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
     const [memberProgress, setMemberProgress] = useState<any[]>([]);
     const [selectedStepIndex, setSelectedStepIndex] = useState(0);
 
-    const [redirecting, setRedirecting] = useState(initialGuides && initialGuides.length === 1);
+    // Filtrer le guide rush-sylvestre qui a déjà sa carte dédiée dans le hub principal
+    const filteredGuides = React.useMemo(() => {
+        return (initialGuides || []).filter(g => g.slug !== "rush-sylvestre");
+    }, [initialGuides]);
+
+    const [redirecting, setRedirecting] = useState(filteredGuides && filteredGuides.length === 1);
 
     useEffect(() => {
-        if (initialGuides && initialGuides.length === 1) {
-            router.replace(`/dashboard/${guildId}/quetes-dofus/guide/${initialGuides[0].slug}`);
+        if (filteredGuides && filteredGuides.length === 1) {
+            router.replace(`/dashboard/${guildId}/quetes-dofus/guide/${filteredGuides[0].slug}`);
         } else {
             setRedirecting(false);
         }
-    }, [initialGuides, guildId, router]);
+    }, [filteredGuides, guildId, router]);
 
     const handleSelectGuide = (slug: string) => {
         router.push(`/dashboard/${guildId}/quetes-dofus/guide/${slug}`);
@@ -269,7 +274,7 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
     // --- LIST VIEW ---
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {initialGuides.map((guide) => (
+            {filteredGuides.map((guide) => (
                 <div 
                     key={guide.id} 
                     onClick={() => handleSelectGuide(guide.slug)}
@@ -311,7 +316,7 @@ export function OptimizedGuideTab({ initialGuides, guildId }: OptimizedGuideTabP
                 </div>
             ))}
 
-            {initialGuides.length === 0 && (
+            {filteredGuides.length === 0 && (
                 <div className="col-span-full py-20 bg-white/5 border border-dashed border-white/10 rounded-[3rem] text-center flex flex-col items-center justify-center">
                     <Navigation className="w-12 h-12 text-zinc-600 mb-4 opacity-20" />
                     <h3 className="text-xl font-bold text-white/50">Aucun guide configuré</h3>

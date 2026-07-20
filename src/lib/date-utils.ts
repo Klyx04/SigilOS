@@ -4,8 +4,8 @@ import { getISOWeek, getISOWeekYear, subHours, addDays, setHours, setMinutes, se
  * Get the current Dofus ISO week number and year.
  * The week changes on Tuesday at 07:00 Paris time.
  */
-export function getDofusWeek(): { week: number; year: number } {
-    const nowStr = new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" });
+export function getDofusWeek(date: Date = new Date()): { week: number; year: number } {
+    const nowStr = date.toLocaleString("en-US", { timeZone: "Europe/Paris" });
     const parisDate = new Date(nowStr);
 
     // ISO week resets on Monday at 00:00.

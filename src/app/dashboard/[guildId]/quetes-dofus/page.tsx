@@ -34,10 +34,14 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
     if (!enabled) return <AccessDenied />;
 
     // Fetch data in parallel
-    const [dofusResult, guildStatsResult, guidesResult] = await Promise.all([
+    const [dofusResult, guildStatsResult, guidesResult, rushSylvestre] = await Promise.all([
         getDofusListWithProgress(guildId, character),
         getGuildDofusStats(guildId),
         getOptimizedGuides(guildId),
+        db.optimizedGuide.findUnique({
+            where: { slug: "rush-sylvestre" },
+            select: { isUnderConstruction: true, isActive: true },
+        }).catch(() => null),
     ]);
 
     const dofusList = dofusResult.success ? (dofusResult.data ?? []) : [];
@@ -128,6 +132,7 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                         dofusList={dofusList}
                         guildStats={guildStats}
                         guides={serializedGuides}
+                        rushSylvestreGuide={rushSylvestre}
                         guildId={guildId}
                         selectedCharacter={character}
                         userProfile={userProfile}

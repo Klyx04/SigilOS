@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { Upload, Coins, X, ImageIcon, Loader2, CheckCircle2, Plus, Minus, Star } from "lucide-react";
+import { Upload, Coins, X, ImageIcon, Loader2, CheckCircle2, Plus, Minus, Star, Swords, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { submitKamaDonation } from "@/server/actions/kama-actions";
 import {
@@ -77,7 +77,34 @@ export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) 
     };
 
     return (
-        <div className="rounded-2xl border border-white/8 bg-zinc-900/60 backdrop-blur-sm p-6 space-y-5">
+        <div className="rounded-2xl border border-white/8 bg-zinc-900/60 backdrop-blur-sm overflow-hidden space-y-0">
+
+            {/* ── Raid access banner ── */}
+            <div className="relative overflow-hidden bg-gradient-to-r from-red-950/60 via-zinc-900/80 to-zinc-900/60 border-b border-red-500/15 px-5 py-3">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_left,rgba(239,68,68,0.07),transparent_60%)] pointer-events-none" />
+                <div className="relative flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 shrink-0">
+                        <Swords className="w-3.5 h-3.5 text-red-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black text-red-300 uppercase tracking-wider">Accès Raids Officiels</p>
+                        <p className="text-[10px] text-zinc-500 leading-tight">
+                            <span className="text-amber-400 font-bold">30 000 kamas validés</span> requis pour s&apos;inscrire aux raids de la semaine.
+                        </p>
+                    </div>
+                    {totalKamas >= 30000 ? (
+                        <span className="flex items-center gap-1 text-[9px] font-black bg-red-500/15 border border-red-500/25 text-red-400 px-2 py-1 rounded-full uppercase tracking-wide shrink-0">
+                            <Swords className="w-2.5 h-2.5" /> Accès débloqué
+                        </span>
+                    ) : (
+                        <span className="flex items-center gap-1 text-[9px] font-black bg-zinc-800/60 border border-zinc-700/40 text-zinc-500 px-2 py-1 rounded-full uppercase tracking-wide shrink-0">
+                            <Lock className="w-2.5 h-2.5" /> {(30000 - Math.min(30000, totalKamas)).toLocaleString("fr-FR")}k manquant
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            <div className="p-6 space-y-5">
             <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
                     <Coins className="w-5 h-5 text-amber-400" />
@@ -193,19 +220,21 @@ export function KamaDonationForm({ guildId, onSuccess }: KamaDonationFormProps) 
             <Button
                 onClick={handleSubmit}
                 disabled={submitting || done || !file}
-                className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold shadow-lg gap-2 h-11 transition-all"
+                className="w-full relative overflow-hidden bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black shadow-xl shadow-amber-600/25 hover:shadow-amber-600/40 gap-2 h-12 transition-all duration-300 hover:scale-[1.01] border-t border-white/10 text-sm uppercase tracking-wide rounded-xl"
             >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity" />
                 {submitting ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Envoi en cours...</>
                 ) : done ? (
-                    <><CheckCircle2 className="w-4 h-4" /> Soumis !</>
+                    <><CheckCircle2 className="w-4 h-4" /> Soumis avec succès !</>
                 ) : (
-                    <><Coins className="w-4 h-4" /> Soumettre le don</>
+                    <><Coins className="w-4 h-4" /> Soumettre mon don</>
                 )}
             </Button>
             <p className="text-[10px] text-zinc-600 text-center">
-                Un administrateur validera votre donation. Validée = comptabilisée dans le classement.
+                Un administrateur validera votre donation. Validée = comptabilisée dans le classement et accès raids débloqué.
             </p>
+            </div>
         </div>
     );
 }

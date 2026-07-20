@@ -2,6 +2,7 @@ import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { updateChannelMessage, sendChannelMessage, fetchChannel, createForumPost } from "@/server/discord";
 import { getAppBaseUrl } from "@/lib/utils";
+import { getDofusWeek } from "@/lib/date-utils";
 
 // Map event types to premium image filenames
 const EVENT_IMAGES: Record<string, string> = {
@@ -82,6 +83,32 @@ export async function processRegistration(guildId: string, eventId: string, user
         const hasPermission = await internalCheckPermission(guildId, discordUserId, PERMISSIONS.RAID_MEMBER);
         if (!hasPermission) {
             return { success: false, error: "Permission requise: Participation aux Raids" };
+        }
+
+        // Kamas gate: user must have donated ≥30 000 kamas (validated) in the Dofus week of the event
+        const eventWeek = getDofusWeek(event.startDate);
+        const userProfile = await db.userProfile.findFirst({
+            where: { userId, guildId: guildConfig.id },
+            select: { id: true },
+        });
+        if (!userProfile) {
+            return { success: false, error: "Profil introuvable dans cette guilde." };
+        }
+        const weekDonations = await db.kamaDonation.aggregate({
+            _sum: { amount: true },
+            where: {
+                profileId: userProfile.id,
+                status: "VALIDATED",
+                weekNumber: eventWeek.week,
+                yearNumber: eventWeek.year,
+            },
+        });
+        const totalDonated = weekDonations._sum.amount ?? 0;
+        if (totalDonated < 30000) {
+            return {
+                success: false,
+                error: `🪙 Don de 30 000 kamas requis pour s'inscrire aux raids de cette semaine. Tu as donné ${totalDonated.toLocaleString("fr-FR")} kamas. Fais ton don sur le site !`,
+            };
         }
     }
 

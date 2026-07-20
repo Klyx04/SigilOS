@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   importGanymedeGuide, upsertMilestone, deleteMilestone, upsertSequence, 
   deleteSequence, getGuideAdminFull, getGuildProgressSummary, 
-  deleteAllMilestones, importSubGuide, listSubGuides, getSubGuideSteps, updateSubGuideStep, deleteSubGuide 
+  deleteAllMilestones, importSubGuide, listSubGuides, getSubGuideSteps, updateSubGuideStep, deleteSubGuide,
+  updateGuideSettings
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchItemsDofusDB, searchQuestsLocalThenDofusDB, getQuestPrerequisites } from "@/server/actions/dofus-search-actions";
 import { toast } from "sonner";
@@ -17,7 +18,7 @@ import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import { sanitizeHtml } from "@/lib/security";
 import { fixBrokenImages } from "@/lib/ganymede-parser";
 
-type Guide = { id: string; name: string; slug: string; isActive: boolean; milestones: Milestone[] };
+type Guide = { id: string; name: string; slug: string; isActive: boolean; isUnderConstruction?: boolean; displayMode?: string; milestones: Milestone[] };
 type Milestone = { id: string; title: string; subtitle?: string; description?: string; type: string; accentColor: string; imageUrl?: string; order: number; chapter: number; chapterLabel: string; posX: number; posY: number; isOptional: boolean; sequences: Sequence[] };
 type Sequence = { id: string; milestoneId?: string; subGuideRef: string; subGuideName: string; stepFrom?: number; stepTo?: number; note?: string; isOptional: boolean; order: number };
 
@@ -1735,6 +1736,101 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
           {/* ── SETTINGS TAB ───────────────────────────────── */}
           {tab === "settings" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-2xl mx-auto space-y-6">
+               <div className="bg-zinc-900/50 border border-white/10 rounded-3xl p-8 space-y-6">
+                  <h3 className="text-white font-black text-xl flex items-center gap-3">
+                     <Settings2 className="w-6 h-6 text-emerald-400" /> Options d'affichage & Statut
+                  </h3>
+                  
+                  <div className="space-y-4">
+                     {/* Active / Inactive */}
+                     <div className="flex items-center justify-between p-4 bg-zinc-950/40 border border-white/5 rounded-2xl">
+                        <div>
+                           <span className="block text-white font-black text-sm">Activer le Guide</span>
+                           <span className="block text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Rend le guide visible par tous les membres</span>
+                        </div>
+                        <button
+                           onClick={async () => {
+                              if (!guide) return;
+                              setLoading(true);
+                              const res = await updateGuideSettings(guide.id, { isActive: !guide.isActive });
+                              if (res.success) {
+                                 setGuide({ ...guide, isActive: (res.guide as any).isActive });
+                                 toast.success(`Guide ${(res.guide as any).isActive ? 'activé' : 'désactivé'}`);
+                              }
+                              setLoading(false);
+                           }}
+                           className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                              guide?.isActive 
+                                 ? "bg-emerald-500 text-emerald-950 hover:bg-emerald-400" 
+                                 : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                           }`}
+                        >
+                           {guide?.isActive ? "Actif" : "Inactif"}
+                        </button>
+                     </div>
+
+                     {/* Under Construction Toggle */}
+                     <div className="flex items-center justify-between p-4 bg-zinc-950/40 border border-white/5 rounded-2xl">
+                        <div>
+                           <span className="block text-white font-black text-sm">Mode Construction 🚧</span>
+                           <span className="block text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Affiche "En construction" aux membres (idéal pour rédiger au propre)</span>
+                        </div>
+                        <button
+                           onClick={async () => {
+                              if (!guide) return;
+                              setLoading(true);
+                              const nextVal = !(guide as any).isUnderConstruction;
+                              const res = await updateGuideSettings(guide.id, { isUnderConstruction: nextVal });
+                              if (res.success) {
+                                 setGuide({ ...guide, isUnderConstruction: (res.guide as any).isUnderConstruction } as any);
+                                 toast.success(`Mode construction ${(res.guide as any).isUnderConstruction ? 'activé' : 'désactivé'}`);
+                              }
+                              setLoading(false);
+                           }}
+                           className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+                              (guide as any)?.isUnderConstruction 
+                                 ? "bg-amber-500 text-amber-950 hover:bg-amber-400" 
+                                 : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                           }`}
+                        >
+                           {(guide as any)?.isUnderConstruction ? "Actif" : "Désactivif"}
+                        </button>
+                     </div>
+
+                     {/* Display Mode (TREE vs TIMELINE) */}
+                     <div className="flex items-center justify-between p-4 bg-zinc-950/40 border border-white/5 rounded-2xl">
+                        <div>
+                           <span className="block text-white font-black text-sm">Mode de Rendu</span>
+                           <span className="block text-[10px] text-zinc-500 uppercase font-bold mt-0.5">Arbre d'objectifs (classique) ou Timeline verticale (collaboratif)</span>
+                        </div>
+                        <div className="flex bg-zinc-950 rounded-xl overflow-hidden p-1 border border-white/5">
+                           {(["TREE", "TIMELINE"] as const).map((mode) => (
+                              <button
+                                 key={mode}
+                                 onClick={async () => {
+                                    if (!guide) return;
+                                    setLoading(true);
+                                    const res = await updateGuideSettings(guide.id, { displayMode: mode });
+                                    if (res.success) {
+                                       setGuide({ ...guide, displayMode: (res.guide as any).displayMode } as any);
+                                       toast.success(`Mode réglé sur ${mode}`);
+                                    }
+                                    setLoading(false);
+                                 }}
+                                 className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all rounded-lg ${
+                                    ((guide as any)?.displayMode || "TREE") === mode
+                                       ? "bg-zinc-850 text-white"
+                                       : "text-zinc-500 hover:text-zinc-300"
+                                 }`}
+                              >
+                                 {mode === "TREE" ? "Arbre" : "Timeline"}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
                <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-8">
                   <h3 className="text-red-400 font-black text-xl mb-4 flex items-center gap-3">
                      <AlertTriangle className="w-6 h-6" /> Zone de Danger
@@ -1749,7 +1845,7 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
                            <span className="block text-[10px] text-red-500/60 uppercase font-bold">Supprime tous les milestones et chapitres</span>
                         </div>
                         <Trash2 className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
-                     </button>
+                      </button>
                   </div>
                </div>
             </motion.div>

@@ -34,7 +34,10 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
     const [preview, setPreview] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [step, setStep] = useState<"form" | "proof">("form");
+    const [shouldPulse, setShouldPulse] = useState(false);
+    
     const fileRef = useRef<HTMLInputElement>(null);
+    const widgetRef = useRef<HTMLDivElement>(null);
 
     const tranchesLeft = status?.tranchesLeft ?? KAMA_MAX_TRANCHES;
     const canContribute = (status?.canContribute ?? true) && tranchesLeft > 0;
@@ -72,6 +75,27 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
         return () => window.removeEventListener("paste", handlePaste);
     }, [step, expanded, guildId, preview]);
 
+    // Handle hash routing to auto-expand and focus the widget
+    useEffect(() => {
+        const checkHash = () => {
+            if (window.location.hash === "#don-kamas") {
+                setExpanded(true);
+                setShouldPulse(true);
+                setTimeout(() => {
+                    widgetRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 100);
+                
+                // Stop pulsing after 3 seconds
+                const timer = setTimeout(() => setShouldPulse(false), 3000);
+                return () => clearTimeout(timer);
+            }
+        };
+
+        checkHash();
+        window.addEventListener("hashchange", checkHash);
+        return () => window.removeEventListener("hashchange", checkHash);
+    }, []);
+
     const handleSubmit = async () => {
         if (!file) { toast.error("Ajoutez un screenshot de preuve."); return; }
         setSubmitting(true);
@@ -104,7 +128,15 @@ export function KamaContributionWidget({ guildId, initialStatus }: KamaContribut
     return (
         <>
             {/* ── Widget principal ── */}
-            <div className="rounded-xl border border-amber-500/15 bg-zinc-950/80 overflow-hidden transition-all duration-300">
+            <div 
+                ref={widgetRef}
+                className={cn(
+                    "rounded-xl border bg-zinc-950/80 overflow-hidden transition-all duration-300",
+                    shouldPulse 
+                        ? "border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.25)] scale-[1.01] ring-1 ring-amber-500/50" 
+                        : "border-amber-500/15"
+                )}
+            >
 
                 {/* Header — always visible */}
                 <div

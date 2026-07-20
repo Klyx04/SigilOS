@@ -719,8 +719,11 @@ export function PollCreator({
                         <div className="grid grid-cols-2 gap-2">
                             {[
                                 { value: "none", label: "Aucune", desc: "Pas de ping" },
-                                { value: "everyone", label: "@everyone", desc: "Ping tout le monde" },
-                                { value: "here", label: "@here", desc: "Ping les présents" },
+                                // 🔒 SECURITY: @everyone and @here are admin-only
+                                ...(microStatus?.isAdmin || microStatus?.isSuperAdmin ? [
+                                    { value: "everyone", label: "@everyone", desc: "Ping tout le monde" },
+                                    { value: "here", label: "@here", desc: "Ping les présents" },
+                                ] : []),
                                 { value: "role", label: "Rôle", desc: "Ping un rôle whitelisté" }
                             ].map((type) => (
                                 <button

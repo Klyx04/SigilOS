@@ -81,24 +81,36 @@ export function GuildAbsenceCalendar({ members, guildId }: GuildAbsenceCalendarP
     };
 
     const filteredMembers = useMemo(() => {
-        return members.filter(m => {
-            const searchTerm = search.toLowerCase();
+        const searchTerm = search.toLowerCase();
+        
+        // 1. Filter members first
+        const matched = members.filter(m => {
             const match = 
                 (m.pseudoDofus || "").toLowerCase().includes(searchTerm) ||
                 (m.user?.name || "").toLowerCase().includes(searchTerm) ||
                 (m.discordNickname || "").toLowerCase().includes(searchTerm);
             return match;
-        }).sort((a, b) => {
-            // Sort by who is absent this week, then alphabetically
-            const aAbsent = DAYS_OF_WEEK.some(day => isVacation(a, weekDates[day]));
-            const bAbsent = DAYS_OF_WEEK.some(day => isVacation(b, weekDates[day]));
-            if (aAbsent && !bAbsent) return -1;
-            if (!aAbsent && bAbsent) return 1;
-            
-            const nameA = a.pseudoDofus || a.discordNickname || a.user?.name || "";
-            const nameB = b.pseudoDofus || b.discordNickname || b.user?.name || "";
-            return nameA.localeCompare(nameB);
         });
+
+        // 2. Precompute vacation status for the current week to avoid overhead in the sort loop
+        const membersWithVacationStatus = matched.map(m => {
+            const hasVacationThisWeek = DAYS_OF_WEEK.some(day => isVacation(m, weekDates[day]));
+            return {
+                member: m,
+                hasVacationThisWeek,
+                name: (m.pseudoDofus || m.discordNickname || m.user?.name || "").toLowerCase()
+            };
+        });
+
+        // 3. Sort on precomputed values
+        membersWithVacationStatus.sort((a, b) => {
+            if (a.hasVacationThisWeek && !b.hasVacationThisWeek) return -1;
+            if (!a.hasVacationThisWeek && b.hasVacationThisWeek) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        // 4. Return original objects
+        return membersWithVacationStatus.map(x => x.member);
     }, [members, search, weekDates]);
 
     return (

@@ -71,6 +71,44 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
     }
 }
 
+/**
+ * Public (member-accessible) poll config.
+ * Only exposes what members need: the configured publish channel and whitelisted ping roles.
+ * Does NOT expose sensitive admin settings.
+ */
+export async function getPollPublicConfig(guildId: string): Promise<ActionResponse<{
+    pollsNotifyChannelId: string | null;
+    pollsPingRoleIds: string[];
+}>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    // Any authenticated member can call this — we only expose public-safe fields
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated || !ctx.isMember) return { success: false, error: "Accès refusé" };
+
+    try {
+        const config = await (db.guildConfig as any).findUnique({
+            where: { discordGuildId: guildId },
+            select: { pollsNotifyChannelId: true, pollsPingRoleIds: true }
+        });
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+
+        return {
+            success: true,
+            data: {
+                pollsNotifyChannelId: config.pollsNotifyChannelId,
+                pollsPingRoleIds: config.pollsPingRoleIds || []
+            }
+        };
+    } catch (error) {
+        console.error("Get Poll Public Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+
 export async function updatePollSettings(
     guildId: string,
     data: { pollsNotifyChannelId: string | null; pollsNotifyRoleId: string | null }
@@ -402,6 +440,34 @@ export async function createPoll(
 
         const ctx = await getUserContext(data.guildId);
         const creatorName = ctx.name || "Membre";
+        const isAdmin = ctx.isAdmin || ctx.isSuperAdmin;
+
+        // 🔒 SECURITY: Enforce channel restriction for non-admins.
+        // Members can only publish to the admin-configured channel.
+        const adminChannelId = (guildConfig as any).pollsNotifyChannelId as string | null;
+        if (data.publishToDiscord && data.discordChannelId && !isAdmin) {
+            if (data.discordChannelId !== adminChannelId) {
+                logger.error(`[Security] Non-admin tried to publish poll to unauthorized channel. User: ${session.user.id}, channel: ${data.discordChannelId}`);
+                return { success: false, error: "Salon non autorisé. Seul l'admin peut choisir un autre salon." };
+            }
+        }
+
+        // 🔒 SECURITY: Only admins can use @everyone or @here.
+        let safeMentionEveryone = data.mentionEveryone;
+        if (safeMentionEveryone && !isAdmin) {
+            logger.error(`[Security] Non-admin tried to mention @everyone in poll. User: ${session.user.id}`);
+            safeMentionEveryone = false;
+        }
+
+        // 🔒 SECURITY: For non-admins, mentionRoleId must be in the admin-whitelisted list.
+        let safeMentionRoleId = data.mentionRoleId;
+        if (safeMentionRoleId && !isAdmin) {
+            const allowedRoleIds: string[] = (guildConfig as any).pollsPingRoleIds || [];
+            if (!allowedRoleIds.includes(safeMentionRoleId)) {
+                logger.error(`[Security] Non-admin tried to ping non-whitelisted role ${safeMentionRoleId}. User: ${session.user.id}`);
+                safeMentionRoleId = undefined;
+            }
+        }
 
         // Create poll + options in transaction
         const poll = await db.$transaction(async (tx) => {
@@ -422,8 +488,8 @@ export async function createPoll(
                     allowMultipleVotes: data.allowMultipleVotes,
                     isAnonymous: data.isAnonymous,
                     expiresAt: finalExpiresAt,
-                    mentionEveryone: data.mentionEveryone,
-                    mentionRoleId: data.mentionRoleId || null,
+                    mentionEveryone: safeMentionEveryone,
+                    mentionRoleId: safeMentionRoleId || null,
                     externalUrl: data.externalUrl || null,
                 },
             });
@@ -442,11 +508,11 @@ export async function createPoll(
         });
 
         // Publish to Discord if requested
-        const channelToUse = data.discordChannelId || (guildConfig as any).pollsNotifyChannelId;
-        const roleToUse = data.mentionEveryone
+        const channelToUse = data.discordChannelId || adminChannelId;
+        const roleToUse = safeMentionEveryone
             ? undefined
-            : (data.mentionRoleId !== undefined
-                ? (data.mentionRoleId || undefined)
+            : (safeMentionRoleId !== undefined
+                ? (safeMentionRoleId || undefined)
                 : ((guildConfig as any).pollsNotifyRoleId || undefined));
 
         if (data.publishToDiscord && !channelToUse) {
@@ -462,7 +528,7 @@ export async function createPoll(
                 data.guildId,
                 poll.id,
                 channelToUse,
-                data.mentionEveryone,
+                safeMentionEveryone,
                 roleToUse || undefined
             );
         }

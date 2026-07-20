@@ -215,6 +215,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [newStepTitle, setNewStepTitle] = useState("");
   const [newStepColor, setNewStepColor] = useState("#10b981");
   const [newStepType, setNewStepType] = useState<MilestoneType>("QUETE_SERIE");
+  const [newDofusId, setNewDofusId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!addingStep) setNewChapterNum(chapters.length + 1);
@@ -365,13 +366,14 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           accentColor: newStepColor,
           order: localMilestones.length,
           type: newStepType,
+          dofusId: newDofusId,
         });
         toast.success("Étape ajoutée ✓");
-        setNewStepTitle(""); setNewChapterLabel(""); setAddingStep(false);
+        setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setAddingStep(false);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
     });
-  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, localMilestones.length, router]);
+  }, [newChapterNum, newChapterLabel, newStepTitle, newStepColor, newStepType, newDofusId, localMilestones.length, router]);
 
   const handleSaveMilestone = useCallback((m: Milestone) => {
     startTransition(async () => {
@@ -577,12 +579,18 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                     {/* Dofus selector (si type DOFUS) */}
                     {newStepType === "DOFUS" && (
                       <div>
-                        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Dofus associé</label>
+                        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Dofus associé <span className="text-zinc-600">(clic pour sélectionner)</span></label>
                         <div className="flex flex-wrap gap-2">
                           {DOFUS_LIST.map(d => (
-                            <button key={d.id} title={d.label}
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black border border-white/10 hover:border-white/30 text-zinc-400 hover:text-white transition-all"
-                              style={{ borderColor: d.color + "40", background: d.color + "10" }}
+                            <button key={d.id} type="button"
+                              onClick={() => setNewDofusId(prev => prev === d.id ? null : d.id)}
+                              title={d.label}
+                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black border transition-all ${
+                                newDofusId === d.id
+                                  ? "border-white/40 scale-105"
+                                  : "border-white/10 opacity-40 hover:opacity-80"
+                              }`}
+                              style={newDofusId === d.id ? { color: d.color, borderColor: d.color, background: d.color + "25" } : { borderColor: d.color + "40", background: d.color + "10" }}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={d.imageUrl} alt={d.label} className="w-5 h-5 object-contain" />
@@ -590,6 +598,9 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                             </button>
                           ))}
                         </div>
+                        {newDofusId && (
+                          <p className="mt-1.5 text-[9px] text-emerald-400/70">✓ Sélectionné : {DOFUS_LIST.find(d => d.id === newDofusId)?.label}</p>
+                        )}
                       </div>
                     )}
 
@@ -633,8 +644,19 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                 <SortableContext items={localMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-3">
                     {chapters.map(({ key, chapterLabel, num, milestones: cms }, chapterIdx) => (
-                      <div key={key} className="border border-white/5 rounded-2xl overflow-hidden bg-zinc-900/10">
-                        <div className="flex items-center bg-zinc-900/60 hover:bg-zinc-900 transition-colors">
+                      <div key={key} className="space-y-4">
+                        {/* Séparation de Chapitre Élégante */}
+                        {chapterIdx > 0 && (
+                          <div className="flex items-center justify-center gap-4 py-4 my-2 select-none">
+                            <div className="h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent flex-1" />
+                            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/50 flex items-center gap-1.5 italic font-mono">
+                              ✦ Chapitre {num} ✦
+                            </div>
+                            <div className="h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent flex-1" />
+                          </div>
+                        )}
+                        <div className="border border-white/5 rounded-2xl overflow-hidden bg-zinc-900/10">
+                          <div className="flex items-center bg-zinc-900/60 hover:bg-zinc-900 transition-colors">
                           {/* Boutons de déplacement chapitre */}
                           <div className="flex flex-col border-r border-white/5 px-1.5 py-1 gap-0.5">
                             <button
@@ -695,6 +717,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                             </motion.div>
                           )}
                         </AnimatePresence>
+                        </div>
                       </div>
                     ))}
                   </div>

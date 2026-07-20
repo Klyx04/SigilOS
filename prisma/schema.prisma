@@ -1030,7 +1030,7 @@ model GuildBonus {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
   guild                 GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  purchaser             UserProfile? @relation(fields: [purchasedBy], references: [id])
+  purchaser             UserProfile? @relation(fields: [purchasedBy], references: [id], onDelete: SetNull)
 
   @@index([guildId, status])
   @@index([activatesAt])
@@ -1126,7 +1126,7 @@ model Poll {
   updatedAt          DateTime     @updatedAt
   outcome            String?
   externalUrl        String?
-  creator            UserProfile  @relation("PollCreator", fields: [creatorId], references: [id])
+  creator            UserProfile  @relation("PollCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   guild              GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
   options            PollOption[]
 
@@ -1152,7 +1152,7 @@ model PollVote {
   voterId   String
   createdAt DateTime    @default(now())
   option    PollOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  voter     UserProfile @relation(fields: [voterId], references: [id])
+  voter     UserProfile @relation(fields: [voterId], references: [id], onDelete: Cascade)
 
   @@unique([optionId, voterId])
   @@index([optionId])

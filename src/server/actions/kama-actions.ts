@@ -583,6 +583,10 @@ export type KamaWeeklyMemberSummary = {
     discordRoleColor: number | null;
     discordImage: string | null;
     totalAmount: number;
+    fourWeekAmount: number;
+    purpleKamasBalance: number;
+    purpleKamasEarned: number;
+    purpleKamasConsumed: number;
     tranches: number;
     status: "VALIDATED" | "PENDING" | "MIXED" | "REJECTED";
     hasValidated: boolean;
@@ -626,6 +630,39 @@ export async function getWeeklyKamaSummary(
 
         const { week, year } = getDofusWeek();
 
+        // 4-week window calculation
+        const fourWeeksCutoff = new Date();
+        fourWeeksCutoff.setDate(fourWeeksCutoff.getDate() - 28);
+
+        // Fetch all validated donations per profile for 4-week cumulative sum and total all-time
+        const allValidatedDonations: Array<{ profileId: string; amount: number; createdAt: Date }> = await kamaDb.kamaDonation.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: "VALIDATED",
+            },
+            select: { profileId: true, amount: true, createdAt: true },
+        });
+
+        // Fetch profiles to get purpleKamasConsumed
+        const profilesMap = new Map<string, { purpleKamasConsumed: number }>();
+        const profilesList = await db.userProfile.findMany({
+            where: { guildId: guildConfig.id },
+            select: { id: true, purpleKamasConsumed: true }
+        });
+        for (const p of profilesList) {
+            profilesMap.set(p.id, { purpleKamasConsumed: p.purpleKamasConsumed || 0 });
+        }
+
+        // Pre-aggregate 4-week amounts and all-time totals by profileId
+        const fourWeekSums = new Map<string, number>();
+        const allTimeSums = new Map<string, number>();
+        for (const d of allValidatedDonations) {
+            allTimeSums.set(d.profileId, (allTimeSums.get(d.profileId) || 0) + d.amount);
+            if (new Date(d.createdAt) >= fourWeeksCutoff) {
+                fourWeekSums.set(d.profileId, (fourWeekSums.get(d.profileId) || 0) + d.amount);
+            }
+        }
+
         const rawDonations: Array<{
             id: string;
             profileId: string;
@@ -656,6 +693,13 @@ export async function getWeeklyKamaSummary(
         for (const d of rawDonations) {
             const existing = map.get(d.profileId);
             const dStatus = d.status as "PENDING" | "VALIDATED" | "REJECTED";
+            const profileMeta = profilesMap.get(d.profileId) || { purpleKamasConsumed: 0 };
+            const allTime = allTimeSums.get(d.profileId) || 0;
+            const fourWeek = fourWeekSums.get(d.profileId) || 0;
+            const purpleKamasEarned = Math.floor(allTime / 1000);
+            const purpleKamasConsumed = profileMeta.purpleKamasConsumed;
+            const purpleKamasBalance = Math.max(0, purpleKamasEarned - purpleKamasConsumed);
+
             if (existing) {
                 existing.totalAmount += d.amount;
                 existing.tranches = Math.round(existing.totalAmount / KAMA_TRANCHE);
@@ -672,6 +716,10 @@ export async function getWeeklyKamaSummary(
                     discordRoleColor: d.profile.discordRoleColor,
                     discordImage: d.profile.user?.image ?? null,
                     totalAmount: d.amount,
+                    fourWeekAmount: fourWeek,
+                    purpleKamasEarned,
+                    purpleKamasConsumed,
+                    purpleKamasBalance,
                     tranches: Math.round(d.amount / KAMA_TRANCHE),
                     status: dStatus === "VALIDATED" ? "VALIDATED" : "PENDING",
                     hasValidated: dStatus === "VALIDATED",
@@ -683,13 +731,51 @@ export async function getWeeklyKamaSummary(
             }
         }
 
+        // Also include profiles that have donations in 4-week window or purple kamas balance even if no donation this week
+        for (const [profId, fourWeekAmt] of fourWeekSums.entries()) {
+            if (!map.has(profId)) {
+                const p = profilesList.find(pr => pr.id === profId);
+                const profDetails = await db.userProfile.findUnique({
+                    where: { id: profId },
+                    select: profileSelect
+                });
+                if (profDetails) {
+                    const profileMeta = profilesMap.get(profId) || { purpleKamasConsumed: 0 };
+                    const allTime = allTimeSums.get(profId) || 0;
+                    const purpleKamasEarned = Math.floor(allTime / 1000);
+                    const purpleKamasConsumed = profileMeta.purpleKamasConsumed;
+                    const purpleKamasBalance = Math.max(0, purpleKamasEarned - purpleKamasConsumed);
+
+                    map.set(profId, {
+                        profileId: profId,
+                        pseudoDofus: profDetails.pseudoDofus,
+                        discordNickname: profDetails.discordNickname,
+                        discordRoleColor: profDetails.discordRoleColor,
+                        discordImage: profDetails.user?.image ?? null,
+                        totalAmount: 0,
+                        fourWeekAmount: fourWeekAmt,
+                        purpleKamasEarned,
+                        purpleKamasConsumed,
+                        purpleKamasBalance,
+                        tranches: 0,
+                        status: "VALIDATED",
+                        hasValidated: true,
+                        hasPending: false,
+                        donationCount: 0,
+                        proofUrls: [],
+                        donations: [],
+                    });
+                }
+            }
+        }
+
         // Resolve final status per member
         const members: KamaWeeklyMemberSummary[] = Array.from(map.values())
             .map(m => ({
                 ...m,
                 status: (m.hasValidated && m.hasPending ? "MIXED" : m.hasValidated ? "VALIDATED" : "PENDING") as KamaWeeklyMemberSummary["status"],
             }))
-            .sort((a, b) => b.totalAmount - a.totalAmount);
+            .sort((a, b) => b.purpleKamasBalance - a.purpleKamasBalance || b.fourWeekAmount - a.fourWeekAmount);
 
         const totalValidated = members.reduce((acc, m) => acc + (m.hasValidated ? m.donations.filter(d => d.status === "VALIDATED").reduce((s, d) => s + d.amount, 0) : 0), 0);
         const totalPending = members.reduce((acc, m) => acc + m.donations.filter(d => d.status === "PENDING").reduce((s, d) => s + d.amount, 0), 0);
@@ -792,7 +878,7 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
 
         const profile = await db.userProfile.findFirst({
             where: { userId: session.user.id, guildId: guildConfig.id },
-            select: { id: true },
+            select: { id: true, purpleKamasConsumed: true },
         });
         if (!profile) return { success: false, error: "Profil introuvable" };
 
@@ -803,16 +889,17 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
             where: {
                 profileId: profile.id,
                 status: "VALIDATED",
-                weekNumber: week,
-                yearNumber: year,
             },
         });
 
         const totalDonated = result._sum.amount ?? 0;
+        const purpleKamasEarned = Math.floor(totalDonated / 1000);
+        const purpleKamasBalance = Math.max(0, purpleKamasEarned - (profile.purpleKamasConsumed || 0));
+
         return {
             success: true,
             totalDonated,
-            isEligible: totalDonated >= 30000,
+            isEligible: purpleKamasBalance >= 30,
             weekNumber: week,
             yearNumber: year,
         };

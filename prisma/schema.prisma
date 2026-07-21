@@ -180,6 +180,7 @@ model GuildConfig {
   raidNotifyChannelId              String?
   raidGigalodonNotifyChannelId     String?
   raidSanctuaireNotifyChannelId    String?
+  raidRequireKamaDonation          Boolean                 @default(true)
   userRequestChannelId             String?
   dofusServerId                    String?
   dofusServerName                  String?
@@ -419,6 +420,7 @@ model UserProfile {
   fmPriceTrans               Int?
   forgemagieStatus           String?                    @default("UNAVAILABLE")
   guildatons                 Int                        @default(0)
+  purpleKamasConsumed        Int                        @default(0)
   lastActivityAt             DateTime?
   lastActivityDesc           String?
   lastLadderUpdate           DateTime?

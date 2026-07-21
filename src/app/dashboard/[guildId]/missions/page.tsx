@@ -51,6 +51,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                 guildHallPosY: true,
                 guildHallWorldId: true,
                 missionVitrineMode: true,
+                raidRequireKamaDonation: true,
             }
         })
     ]);
@@ -136,12 +137,10 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                         targetTier={targetTier}
                         guildId={guildId}
                         kamaStatus={kamaStatus}
+                        raidRequireKamaDonation={guildConfig?.raidRequireKamaDonation ?? true}
                     />
                 </div>
                 <div className="space-y-6">
-                    {!vitrineMode && (
-                        <PersonalGuildatonWidget guildatons={weeklyGuildatons} />
-                    )}
                     <GuildHallWidget 
                         posX={guildConfig?.guildHallPosX ?? null} 
                         posY={guildConfig?.guildHallPosY ?? null} 

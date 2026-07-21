@@ -27,24 +27,13 @@ export function GuildHallWidget({ posX, posY, worldId, guildId }: GuildHallWidge
     return (
         <div className="border border-white/5 bg-zinc-900/20 backdrop-blur-md rounded-3xl overflow-hidden transition-all duration-300 hover:border-cyan-500/20 hover:shadow-[0_20px_40px_rgba(6,182,212,0.05)] space-y-4">
             
-            {/* Header Image with Overlay */}
-            <div className="relative h-44 w-full overflow-hidden group">
-                <img 
-                    src="/hall-guilde.jpg" 
-                    alt="Hall de Guilde" 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] via-[#090d16]/40 to-transparent" />
-                
-                {/* Overlay Text */}
-                <div className="absolute bottom-4 left-5 flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 backdrop-blur-sm shadow-lg">
-                        <Home className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/80 mb-0.5">Quartier Général</p>
-                        <h4 className="text-base font-black text-white tracking-tight uppercase italic">Hall de Guilde</h4>
-                    </div>
+            {/* Header / Title */}
+            <div className="p-5 pb-0 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 backdrop-blur-sm shadow-lg">
+                    <Home className="w-5 h-5" />
+                </div>
+                <div>
+                    <h4 className="text-base font-black text-white tracking-tight uppercase italic">Hall de Guilde</h4>
                 </div>
             </div>
 

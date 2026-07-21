@@ -167,13 +167,15 @@ export function DungeonFinderClient({
                     }[tab.color];
 
                     return (
-                        <button
+                        <motion.button
                             key={tab.id}
+                            whileHover={{ scale: 1.02, y: -2 }}
+                            whileTap={{ scale: 0.98 }}
                             onClick={() => setActiveTab(tab.id)}
                             className={cn(
-                                "relative group overflow-hidden flex items-center gap-4 p-5 rounded-2xl border transition-all duration-500",
+                                "relative group overflow-hidden flex items-center gap-4 p-5 rounded-2xl border transition-all duration-300",
                                 isActive
-                                    ? cn("bg-zinc-800/90 scale-[1.02] z-10 shadow-2xl", colorVariants.border, colorVariants.shadow)
+                                    ? cn("bg-zinc-800/90 z-10 shadow-2xl", colorVariants.border, colorVariants.shadow)
                                     : cn("bg-zinc-900/70 hover:bg-zinc-800/70", colorVariants.inactiveBorder)
                             )}
                         >
@@ -253,7 +255,7 @@ export function DungeonFinderClient({
                                     colorVariants.glow
                                 )} />
                             )}
-                        </button>
+                        </motion.button>
                     );
                 })}
             </div>

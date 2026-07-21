@@ -234,3 +234,42 @@ export async function getQuestPrerequisites(dofusDbId: number) {
     }
 }
 
+export async function searchGuideQuests(query: string) {
+    if (!query || query.length < 2) return { success: true, data: [] };
+    try {
+        // 1. Search existing guide sequence names in DB
+        const sequences = await db.guideSequence.findMany({
+            where: {
+                OR: [
+                    { subGuideName: { contains: query, mode: "insensitive" } },
+                    { subGuideRef: { contains: query, mode: "insensitive" } }
+                ]
+            },
+            select: { subGuideName: true, subGuideRef: true },
+            take: 10
+        });
+
+        const names = new Set<string>();
+        sequences.forEach(s => {
+            if (s.subGuideName) names.add(s.subGuideName);
+            if (s.subGuideRef) names.add(s.subGuideRef);
+        });
+
+        // 2. Also search GameQuest table
+        const localQuests = await db.gameQuest.findMany({
+            where: { name: { contains: query, mode: "insensitive" } },
+            select: { name: true },
+            take: 10
+        });
+        localQuests.forEach(q => names.add(q.name));
+
+        return {
+            success: true,
+            data: Array.from(names).slice(0, 10).map(name => ({ id: name, name }))
+        };
+    } catch (error) {
+        console.error("[searchGuideQuests] Error:", error);
+        return { success: false, error: "Erreur recherche quêtes" };
+    }
+}
+

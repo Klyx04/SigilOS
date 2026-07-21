@@ -254,7 +254,7 @@ export function DofusQuestManagerV3({
         <div className="space-y-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-zinc-950/40 border border-white/5 rounded-[2rem] backdrop-blur-xl mb-8">
                 <div className="flex items-center gap-3">
-                    <img src="/succès.png" alt="Succès" className="w-6 h-6 object-contain drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                    <img src="/assets/icons/succes.png" alt="Succès" className="w-6 h-6 object-contain drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
                     <span className="text-[12px] font-black text-white uppercase tracking-widest italic">Dofusdex — Liste des Succès</span>
                 </div>
 

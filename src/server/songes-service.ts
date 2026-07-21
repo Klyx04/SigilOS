@@ -97,7 +97,7 @@ async function buildRunEmbedData(guildId: string, runId: string) {
     // Robust URL detection: prioritize app URL but fallback to NextAuth URL
     // If the context suggests we are in a beta environment, force beta link
     const publicUrl = getAppBaseUrl();
-    const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
+    const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes`;
 
     // Get leader more info
     const leaderProfile = await getUserProfileData(run.leaderId, guildConfig.id);
@@ -578,7 +578,7 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
 
         // Notify leader in-app
         const publicUrl = getAppBaseUrl();
-        const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes/${run.id}`;
+        const dashboardUrl = `${publicUrl}/dashboard/${guildId}/songes`;
 
         // Notify leader in-app
         await createNotification(
@@ -586,7 +586,7 @@ export async function processRunJoin(guildId: string, runId: string, userId: str
             "SONGES_JOIN_REQUEST",
             "Candidature Songes",
             `**${candidateName}** (${classe}) • Run ${run.difficulty}`,
-            `/dashboard/${guildId}/songes/${run.id}`,
+            `/dashboard/${guildId}/songes`,
             guildId
         );
 

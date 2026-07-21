@@ -1954,6 +1954,7 @@ enum GuideMilestoneType {
   ALIGNEMENT    // Progression d'alignement
   PREREQUIS     // Prérequis technique (non visible dans l'arbre principal)
   SUCCES        // Succès spécifique
+  INFO          // Bloc d'information / tips autonome
 }
 
 // Stocke le JSON complet d'un sous-guide Ganymède (GP1, GP2, etc.)

@@ -4,18 +4,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, ChevronUp,
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
-  Bookmark, BookmarkCheck, Zap, Loader2, CheckCheck, ArrowRight,
-  Sparkles, Construction, AlertTriangle, Sword, Gem, X
+  Bookmark, BookmarkCheck, Zap, Loader2, CheckCheck, ArrowRight, ArrowUp,
+  Sparkles, Construction, AlertTriangle, Sword, Gem, X, Lock, ShieldAlert, UserCheck, MapPin, Plus
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
+import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import {
   toggleMilestoneProgress,
   validateEntireMilestone,
   resetMilestoneProgress,
   updateBookmarkedStep,
+  updateStepProgress,
 } from "@/server/actions/optimized-guide-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,9 +34,10 @@ type ActivityTagType =
   | "donjon"
   | "plusieurs_personnes"
   | "sort"
-  | "metier";
+  | "metier"
+  | "solver";
 
-type ActivityTag = { type: ActivityTagType; name?: string; level?: number; count?: number };
+type ActivityTag = { type: ActivityTagType; name?: string; level?: number; count?: number; color?: string; url?: string };
 
 type Sequence = {
   id: string;
@@ -120,7 +123,17 @@ type RushTimelineClientProps = {
     alignmentOrder?: string | null;
     alignmentLevel?: number;
     altPseudos?: any[];
+    dofusClass?: string | null;
+    metamobPseudo?: string | null;
+    pseudoDofus?: string | null;
   };
+  ocreStats?: {
+    bosses?: { total: number; gathered: number };
+    archis?: { total: number; gathered: number };
+    progressPercent?: number;
+    currentStep?: number;
+    serverName?: string;
+  } | null;
 };
 
 // Dofus list (static reference)
@@ -136,7 +149,10 @@ const DOFUS_DEFS = [
   { id: "dolmanax",         label: "Dolmanax",           color: "#ef4444", imageUrl: "/module-dofus/Dofus_Dolmanax.png" },
   { id: "des_glaces",       label: "Des Glaces",         color: "#93c5fd", imageUrl: "/module-dofus/Dofus_Des_Glaces.png" },
   { id: "du_cauchemar",     label: "Du Cauchemar",       color: "#7c3aed", imageUrl: "/module-dofus/Dofus_Du_Cauchemar.png" },
+  { id: "des_veilleurs",    label: "Des Veilleurs",      color: "#38bdf8", imageUrl: "/module-dofus/Dofus_Veilleur.png" },
   { id: "domakuro",         label: "Domakuro",           color: "#84cc16", imageUrl: "/module-dofus/Dofus_Domakuro.png" },
+  { id: "dorigami",         label: "Dorigami",           color: "#f472b6", imageUrl: "/module-dofus/Dofus_Dorigami.png" },
+  { id: "tachete",          label: "Tacheté",            color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tacheté.png" },
   { id: "dom_de_pin",       label: "Dom de Pin",         color: "#a3e635", imageUrl: "/module-dofus/Dom_De_Pin.png" },
 ];
 
@@ -160,6 +176,91 @@ function getDofusDbQuestUrl(name: string): string {
 
 function getQuestUrl(name: string, mode: LinkMode): string {
   return mode === "dofusnoob" ? getDofusNoobQuestUrl(name) : getDofusDbQuestUrl(name);
+}
+
+// ─── Tougli Callout Component ──────────────────────────────────────────────────
+function TougliCallout({ text, colorStyle = "emerald" }: { text: string; colorStyle?: string }) {
+  const isPurple = colorStyle === "purple";
+  const isAmber = colorStyle === "amber";
+
+  const borderColor = isPurple ? "border-purple-500" : isAmber ? "border-amber-500" : "border-emerald-500";
+  const bgGradient = isPurple
+    ? "from-purple-950/50 via-zinc-950 to-zinc-950"
+    : isAmber
+    ? "from-amber-950/50 via-zinc-950 to-zinc-950"
+    : "from-emerald-950/50 via-zinc-950 to-zinc-950";
+  const iconColor = isPurple ? "text-purple-400" : isAmber ? "text-amber-400" : "text-emerald-400";
+  const linkColor = isPurple
+    ? "text-purple-300 hover:text-purple-200 decoration-purple-500/50"
+    : isAmber
+    ? "text-amber-300 hover:text-amber-200 decoration-amber-500/50"
+    : "text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50";
+
+  const parts = [];
+  const regex = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    if (match[1] && match[2]) {
+      const label = match[1];
+      const url = match[2];
+      parts.push(
+        <a
+          key={match.index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors ${linkColor}`}
+        >
+          {label}
+          <ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0" />
+        </a>
+      );
+    } else if (match[3]) {
+      const rawUrl = match[3];
+      let displayLabel = rawUrl;
+      if (rawUrl.includes("dofusdb.fr")) displayLabel = "Lien DofusDB ↗";
+      else if (rawUrl.includes("dofuspourlesnoobs.com")) displayLabel = "Lien DofusNoobs ↗";
+      parts.push(
+        <a
+          key={match.index}
+          href={rawUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors ${linkColor}`}
+        >
+          {displayLabel}
+        </a>
+      );
+    }
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return (
+    <div className={`flex items-start gap-3 p-3 rounded-2xl border-l-4 ${borderColor} bg-gradient-to-r ${bgGradient} border border-y-white/5 border-r-white/5 shadow-md my-2`}>
+      <div className="mt-0.5 shrink-0">
+        {isPurple ? (
+          <span className="text-base leading-none">👿</span>
+        ) : isAmber ? (
+          <span className="text-base leading-none">💡</span>
+        ) : (
+          <span className={`font-black text-base leading-none ${iconColor}`}>!</span>
+        )}
+      </div>
+      <div className="text-xs text-zinc-200 leading-relaxed font-medium">
+        {parts}
+      </div>
+    </div>
+  );
 }
 
 // Avatar cluster for guild heatmap
@@ -210,35 +311,49 @@ const MemberAvatars = memo(function MemberAvatars({
 const MilestoneRow = memo(function MilestoneRow({
   ms,
   isCompleted,
+  completedStepsSet,
   isBookmarked,
   membersHere,
   hideDone,
   isLoading,
+  accentColor,
+  userAlignmentInfo,
   onToggle,
+  onToggleSequence,
   onValidateAll,
   onReset,
   onBookmark,
-  accentColor,
-  userAlignmentInfo,
   onDungeonClick,
   onLinkClick,
 }: {
   ms: Milestone;
   isCompleted: boolean;
+  completedStepsSet: Set<string>;
   isBookmarked: boolean;
   membersHere: GuildMemberProgress[];
   hideDone: boolean;
   isLoading: boolean;
+  accentColor: string;
+  userAlignmentInfo: { alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number };
   onToggle: () => void;
+  onToggleSequence: (ms: Milestone, seqId: string) => void;
   onValidateAll: () => void;
   onReset: () => void;
   onBookmark: () => void;
-  accentColor: string;
-  userAlignmentInfo: { alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number };
   onDungeonClick: (dungeonId: string, questName: string) => void;
   onLinkClick: (questName: string, dbUrl?: string | null, noobsUrl?: string | null) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+
+  const isInfoBlock = ms.type === "INFO";
+  if (isInfoBlock) {
+    const textToRender = ms.tips || ms.description || ms.title;
+    return (
+      <div className="my-2 ml-2">
+        <TougliCallout text={textToRender} colorStyle="emerald" />
+      </div>
+    );
+  }
 
   // Auto-expand bookmarked milestone
   useEffect(() => {
@@ -246,6 +361,8 @@ const MilestoneRow = memo(function MilestoneRow({
   }, [isBookmarked]);
 
   if (hideDone && isCompleted) return null;
+
+  const completedSeqCount = ms.sequences.filter(s => isCompleted || completedStepsSet.has(s.id)).length;
 
   return (
     <div
@@ -293,6 +410,8 @@ const MilestoneRow = memo(function MilestoneRow({
               <Loader2 className="w-5 h-5 animate-spin" style={{ color: accentColor }} />
             ) : isCompleted ? (
               <CheckCircle2 className="w-5 h-5" style={{ color: accentColor }} />
+            ) : completedSeqCount > 0 ? (
+              <CheckCircle2 className="w-5 h-5 text-amber-400/80" />
             ) : (
               <Circle className="w-5 h-5 text-zinc-600" />
             )}
@@ -348,10 +467,16 @@ const MilestoneRow = memo(function MilestoneRow({
             </div>
           )}
 
-          {/* Sequences count */}
+          {/* Sequences count / progress indicator */}
           {ms.sequences.length > 0 && (
-            <span className="text-[9px] text-zinc-600 font-black flex-shrink-0">
-              {ms.sequences.length} séq.
+            <span className={`text-[9px] font-black flex-shrink-0 px-2 py-0.5 rounded-full border transition-all ${
+              completedSeqCount === ms.sequences.length || isCompleted
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                : completedSeqCount > 0
+                ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                : "bg-zinc-800 border-white/5 text-zinc-500"
+            }`}>
+              {completedSeqCount}/{ms.sequences.length} quête{ms.sequences.length > 1 ? "s" : ""}
             </span>
           )}
 
@@ -380,12 +505,16 @@ const MilestoneRow = memo(function MilestoneRow({
                 {/* Sequences / quêtes */}
                 {ms.sequences.length > 0 ? (
                   <div className="space-y-1.5">
-                    {ms.sequences.map((seq) => (
+                    {ms.sequences
+                      .filter((seq) => !(hideDone && (isCompleted || completedStepsSet.has(seq.id))))
+                      .map((seq) => (
                       <SequenceRow 
                         key={seq.id} 
                         seq={seq} 
                         accentColor={accentColor} 
                         userAlignmentInfo={userAlignmentInfo}
+                        isSeqCompleted={isCompleted || completedStepsSet.has(seq.id)}
+                        onToggleSeq={() => onToggleSequence(ms, seq.id)}
                         onDungeonClick={onDungeonClick} 
                         onLinkClick={onLinkClick}
                       />
@@ -480,12 +609,16 @@ const SequenceRow = memo(function SequenceRow({
   seq,
   accentColor,
   userAlignmentInfo,
+  isSeqCompleted,
+  onToggleSeq,
   onDungeonClick,
   onLinkClick,
 }: {
   seq: Sequence;
   accentColor: string;
   userAlignmentInfo: { alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number };
+  isSeqCompleted?: boolean;
+  onToggleSeq?: () => void;
   onDungeonClick: (dungeonId: string, questName: string) => void;
   onLinkClick: (questName: string, dbUrl?: string | null, noobsUrl?: string | null) => void;
 }) {
@@ -526,26 +659,43 @@ const SequenceRow = memo(function SequenceRow({
 
   const questName = seq.subGuideName || seq.subGuideRef;
 
-  // Determine row colors based on content type
-  let bgClass = "bg-zinc-950/20 border-white/5 hover:border-white/10 hover:bg-white/5";
+  const isInfoBlock = seq.activityTags?.some((t: any) => t.type === "is_info_block");
+  if (isInfoBlock) {
+    const tougliTag = seq.activityTags?.find((t: any) => t.type === "tougli_box");
+    const textToRender = tougliTag?.name || seq.note || seq.tips || seq.subGuideName || seq.subGuideRef;
+    const colorToUse = tougliTag?.color || "emerald";
+
+    return (
+      <div className="py-0.5">
+        <TougliCallout text={textToRender} colorStyle={colorToUse} />
+      </div>
+    );
+  }
+
+  // Determine row colors based on content type with high contrast
+  let bgClass = isSeqCompleted 
+    ? "bg-emerald-950/40 border-emerald-500/30 hover:border-emerald-500/60 shadow-[0_2px_10px_rgba(16,185,129,0.05)]" 
+    : "bg-zinc-900/90 border-white/10 hover:border-white/20 hover:bg-zinc-800/90 shadow-md";
   let themeAccent = accentColor;
   
-  if (seq.isSuccess) {
-    bgClass = "bg-orange-500/5 border-orange-500/20 hover:border-orange-500/40 hover:bg-orange-500/10";
-    themeAccent = "#f97316"; // Orange for success/achievement
-  } else if (hasDungeons) {
-    bgClass = "bg-red-500/5 border-red-500/20 hover:border-red-500/40 hover:bg-red-500/10";
-    themeAccent = "#ef4444";
-  } else if (seq.isOptional) {
-    bgClass = "bg-purple-500/5 border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/10";
-    themeAccent = "#a855f7";
-  } else if (hasAlignment) {
-    if (seq.alignReq === "bontarien") {
-      bgClass = "bg-blue-500/5 border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-500/10";
-      themeAccent = "#3b82f6";
-    } else if (seq.alignReq === "brakmarien") {
-      bgClass = "bg-red-500/5 border-red-900/25 hover:border-red-500/40 hover:bg-red-950/10";
+  if (!isSeqCompleted) {
+    if (seq.isSuccess) {
+      bgClass = "bg-orange-950/30 border-orange-500/35 hover:border-orange-500/60 hover:bg-orange-900/40 shadow-[0_2px_12px_rgba(249,115,22,0.08)]";
+      themeAccent = "#f97316"; // Orange for success/achievement
+    } else if (hasDungeons) {
+      bgClass = "bg-red-950/30 border-red-500/35 hover:border-red-500/60 hover:bg-red-900/40 shadow-[0_2px_12px_rgba(239,68,68,0.08)]";
       themeAccent = "#ef4444";
+    } else if (seq.isOptional) {
+      bgClass = "bg-purple-950/30 border-purple-500/35 hover:border-purple-500/60 hover:bg-purple-900/40 shadow-[0_2px_12px_rgba(168,85,247,0.08)]";
+      themeAccent = "#a855f7";
+    } else if (hasAlignment) {
+      if (seq.alignReq === "bontarien") {
+        bgClass = "bg-blue-950/30 border-blue-500/35 hover:border-blue-500/60 hover:bg-blue-900/40 shadow-[0_2px_12px_rgba(59,130,246,0.08)]";
+        themeAccent = "#3b82f6";
+      } else if (seq.alignReq === "brakmarien") {
+        bgClass = "bg-red-950/30 border-red-500/35 hover:border-red-500/60 hover:bg-red-950/40 shadow-[0_2px_12px_rgba(239,68,68,0.08)]";
+        themeAccent = "#ef4444";
+      }
     }
   }
 
@@ -553,35 +703,57 @@ const SequenceRow = memo(function SequenceRow({
     <div 
       onClick={hasAnyLink ? () => onLinkClick(questName, dbUrl, noobsUrl) : undefined}
       className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all ${bgClass} ${
-        hasAnyLink ? "group cursor-pointer" : "cursor-default opacity-80"
+        hasAnyLink ? "group cursor-pointer" : "cursor-default"
       }`}
     >
       <div className="flex items-start gap-3 min-w-0 flex-1">
-        {/* Left: donjon icon(s) or bullet */}
+        {/* Checkbox pour cocher la quête/étape individuellement */}
+        {onToggleSeq && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSeq();
+            }}
+            className="flex-shrink-0 mt-0.5 p-0.5 rounded text-zinc-500 hover:text-emerald-400 transition-colors"
+            title={isSeqCompleted ? "Décocher cette quête" : "Cocher cette quête comme faite"}
+          >
+            {isSeqCompleted ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/20" />
+            ) : (
+              <Circle className="w-4 h-4 text-zinc-500 hover:text-zinc-300" />
+            )}
+          </button>
+        )}
+
+        {/* Left: donjon avatar button / bullet */}
         <div className="flex flex-col items-center gap-1 flex-shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
           {hasDungeons ? (
             allDungeons.map((dj) => (
               <button
                 key={dj.id}
                 onClick={(e) => { e.stopPropagation(); onDungeonClick(dj.id, questName); }}
-                title={`Créer un post DJ — ${dj.name}`}
-                className="relative group/dj"
+                title={`Créer un post DJ pour le donjon ${dj.name}`}
+                className="group/dj relative p-0.5 rounded-xl border border-white/10 hover:border-amber-500/50 bg-zinc-900/80 transition-all hover:scale-105 shadow-md flex items-center gap-1.5 pr-2"
               >
                 {dj.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={dj.imageUrl}
                     alt={dj.bossName}
-                    className="w-8 h-8 rounded-lg object-cover border border-white/10 group-hover/dj:border-amber-500/40 transition-colors"
-                    style={{ boxShadow: `0 0 8px ${themeAccent}30` }}
+                    className="w-8 h-8 rounded-lg object-cover border border-white/10 flex-shrink-0"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 group-hover/dj:border-amber-500/40 flex items-center justify-center transition-colors">
-                    <Sword className="w-4 h-4 text-zinc-500" />
+                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center flex-shrink-0">
+                    <Sword className="w-4 h-4 text-amber-400" />
                   </div>
                 )}
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-amber-500/90 rounded-full opacity-0 group-hover/dj:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-[6px] text-black font-black">+</span>
+                <div className="text-left hidden sm:block">
+                  <div className="text-[10px] font-black text-amber-300 leading-tight flex items-center gap-1">
+                    {dj.name}
+                    <Plus className="w-3 h-3 text-amber-400 group-hover/dj:scale-125 transition-transform" />
+                  </div>
+                  <span className="text-[7.5px] text-zinc-400 font-bold uppercase tracking-wider">Sortie DJ +</span>
                 </div>
               </button>
             ))
@@ -592,14 +764,71 @@ const SequenceRow = memo(function SequenceRow({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-zinc-200 font-bold leading-tight group-hover:text-white transition-colors">{questName}</span>
+            <span className={`text-xs font-black tracking-tight leading-tight group-hover:text-white transition-colors ${
+              isSeqCompleted ? "line-through text-zinc-400 opacity-70" : "text-white"
+            }`}>
+              {questName}
+            </span>
             
-            {/* Donjon badge */}
+            {/* Badge Dofus spécifique à cette quête */}
+            {(() => {
+              const dofusTag = seq.activityTags?.find((t: any) => t.type === "dofus_link");
+              if (!dofusTag?.name) return null;
+              const def = DOFUS_DEFS.find(d => d.id === dofusTag.name);
+              if (!def) return null;
+              return (
+                <span
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest animate-pulse shadow-md"
+                  style={{ borderColor: def.color + "60", background: def.color + "25", color: def.color, boxShadow: `0 0 10px ${def.color}35` }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={def.imageUrl} alt={def.label} className="w-4.5 h-4.5 object-contain" />
+                  {def.label}
+                </span>
+              );
+            })()}
+
+            {/* Badge Prérequis de la quête */}
+            {(() => {
+              const prereqTag = seq.activityTags?.find((t: any) => t.type === "prereq_text");
+              if (!prereqTag?.name) return null;
+              return (
+                <span
+                  className="flex items-center gap-1 text-[8.5px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
+                  title={`Prérequis de cette quête : ${prereqTag.name}`}
+                >
+                  <Lock className="w-3 h-3 text-amber-400 shrink-0" />
+                  Requis : {prereqTag.name}
+                </span>
+              );
+            })()}
+
+            {/* Donjon badge(s) cliquables pour créer un post DJ */}
             {hasDungeons && (
-              <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
-                <Sword className="w-2 h-2" />
-                {allDungeons.length > 1 ? `${allDungeons.length} donjons` : allDungeons[0].name}
-              </span>
+              allDungeons.map((dj) => {
+                const isDjOcre = seq.activityTags?.some((t: any) => t.type === "ocre_dungeon" && t.name === dj.id) || (allDungeons.length === 1 && !!seq.metamobMonsterId);
+                return (
+                  <button
+                    key={dj.id}
+                    onClick={(e) => { e.stopPropagation(); onDungeonClick(dj.id, questName); }}
+                    title={`Créer un post DJ pour ${dj.name}`}
+                    className={`flex items-center gap-1 text-[8.5px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border transition-all hover:scale-105 cursor-pointer ${
+                      isDjOcre
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+                        : "bg-red-500/15 text-red-300 border-red-500/30 hover:bg-red-500/25"
+                    }`}
+                  >
+                    {isDjOcre ? (
+                      <img src="/assets/icons/ocre.png" alt="Ocre" className="w-3.5 h-3.5 object-contain flex-shrink-0" />
+                    ) : (
+                      <Sword className="w-3 h-3 flex-shrink-0 text-red-400" />
+                    )}
+                    <span>{dj.name}</span>
+                    {isDjOcre && <span className="text-[7.5px] text-amber-300 font-extrabold ml-0.5">(À CAPTURER)</span>}
+                    <span className="ml-1 px-1 py-0.5 bg-black/40 rounded text-[7px] text-amber-400 font-bold border border-amber-500/30">+ SORTIE DJ</span>
+                  </button>
+                );
+              })
             )}
 
             {stepRange && <span className="text-[9px] text-zinc-500 font-mono">{stepRange}</span>}
@@ -610,24 +839,20 @@ const SequenceRow = memo(function SequenceRow({
             {seq.isSuccess && (
               <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/succès.png" alt="succès" className="w-3 h-3 object-contain" />
+                <img src="/assets/icons/succes.png" alt="succès" className="w-3.5 h-3.5 object-contain" />
                 Succès
               </span>
             )}
-            {/* Badge Metamob Ocre */}
-            {seq.metamobMonsterId && (
-              <a
-                href={`https://metamob.fr/monstre/${seq.metamobMonsterId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all"
-                title="Voir sur Metamob (Ocre)"
+            {/* Badge Ocre global s'il n'y a pas de donjon spécifique mais qu'il est coché */}
+            {seq.metamobMonsterId && !hasDungeons && (
+              <span
+                className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                title="À capturer pour la quête du Dofus Ocre"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/icons/ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
-                Metamob
-              </a>
+                <img src="/assets/icons/ocre.png" alt="Ocre" className="w-3.5 h-3.5 object-contain" />
+                À capturer (Ocre)
+              </span>
             )}
 
             {/* Badge Alignement comparatif */}
@@ -645,8 +870,64 @@ const SequenceRow = memo(function SequenceRow({
               </span>
             )}
 
-            {/* Rendu des tags d'activité réels */}
-            {Array.isArray(seq.activityTags) && seq.activityTags.map((tag, idx) => {
+            {/* Positions GPS cliquables */}
+            {(() => {
+              const posTag = seq.activityTags?.find((t: any) => t.type === "pos_tags");
+              if (!posTag?.name) return null;
+              const matches = posTag.name.match(/\[?\s*-?\d+\s*,\s*-?\d+\s*\]?/g) || [posTag.name];
+              return matches.map((posStr: string, pIdx: number) => {
+                const cleanPos = posStr.trim();
+                return (
+                  <button
+                    key={pIdx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(cleanPos);
+                      toast.success(`Position ${cleanPos} copiée dans le presse-papier !`, {
+                        icon: "📍",
+                        duration: 2000,
+                      });
+                    }}
+                    className="flex items-center gap-1 text-[9.5px] font-mono font-black uppercase px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 hover:scale-105 transition-all cursor-pointer shadow-sm"
+                    title="Cliquer pour copier la position dans le presse-papier"
+                  >
+                    <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                    {cleanPos}
+                  </button>
+                );
+              });
+            })()}
+
+            {/* Rendu des tags d'activité réels (GRANDES ICÔNES w-7 h-7) */}
+            {Array.isArray(seq.activityTags) && seq.activityTags
+              .filter((tag: any) => tag.type !== "ocre_dungeon" && tag.type !== "dofus_link" && tag.type !== "prereq_text" && tag.type !== "pos_tags" && tag.type !== "tougli_box")
+              .map((tag, idx) => {
+              const isSolver = tag.type === "solver";
+              if (isSolver) {
+                const solverUrl = tag.url || null;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={(e) => {
+                      if (solverUrl) {
+                        e.stopPropagation();
+                        window.open(solverUrl, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    title={solverUrl ? `Ouvrir le Solver : ${solverUrl}` : "Solver requis"}
+                    className={`flex items-center gap-2 text-[9.5px] font-black uppercase tracking-widest px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-md transition-all ${
+                      solverUrl ? "hover:bg-emerald-500/30 hover:scale-105 cursor-pointer" : "cursor-default"
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/assets/rush-sylvestre/solver.png" alt="Solver" className="w-7 h-7 object-cover rounded-full overflow-hidden shrink-0 border border-emerald-400/40 bg-zinc-950 p-0.5" />
+                    <span>Solver</span>
+                    {solverUrl && <ExternalLink className="w-3 h-3 text-emerald-400 ml-0.5 shrink-0" />}
+                  </button>
+                );
+              }
+
               const def = ACTIVITY_TAGS.find(d => d.type === tag.type);
               if (!def) return null;
               const isMetier = tag.type === "metier";
@@ -656,17 +937,24 @@ const SequenceRow = memo(function SequenceRow({
                 <span
                   key={idx}
                   title={label}
-                  className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-zinc-800/80 text-zinc-300 border border-white/5"
+                  className="flex items-center gap-2 text-[9.5px] font-black uppercase tracking-widest px-2.5 py-1 rounded-xl bg-zinc-900/90 text-zinc-100 border border-white/10 shadow-md"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={iconPath} alt={def.label} className="w-3.5 h-3.5 object-contain" />
-                  {tag.count && tag.count > 1 && <span className="text-amber-400 font-mono text-[9px]">x{tag.count}</span>}
+                  <img src={iconPath} alt={def.label} className="w-7 h-7 object-cover rounded-full overflow-hidden shrink-0 border border-white/20 bg-zinc-950 p-0.5" />
+                  {tag.count && tag.count > 1 && <span className="text-amber-400 font-mono text-[10px] font-black">x{tag.count}</span>}
                   {isMetier && tag.name && <span>{tag.name} {tag.level ? `Niv.${tag.level}` : ""}</span>}
                   {!isMetier && <span>{def.label}</span>}
                 </span>
               );
             })}
           </div>
+
+          {/* Mini bloc Conseil / Tips Style Tougli */}
+          {(() => {
+            const tougliTag = seq.activityTags?.find((t: any) => t.type === "tougli_box");
+            if (!tougliTag?.name) return null;
+            return <TougliCallout text={tougliTag.name} colorStyle={tougliTag.color || "emerald"} />;
+          })()}
 
           {seq.tips && (
             <div className="flex items-start gap-1 mt-1">
@@ -689,47 +977,45 @@ const SequenceRow = memo(function SequenceRow({
         {seq.isSuccess && (
           <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-orange-500/10 border border-orange-500/20 flex-shrink-0" title="Étape de succès">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/succès.png" alt="succès" className="w-5 h-5 object-contain" />
+            <img src="/assets/icons/succes.png" alt="succès" className="w-5 h-5 object-contain" />
           </div>
         )}
         {/* Metamob/Ocre icon */}
         {seq.metamobMonsterId && (
-          <a
-            href={`https://metamob.fr/monstre/${seq.metamobMonsterId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/40 transition-all flex-shrink-0"
-            title="Monstre lié à l'Ocre — Voir sur Metamob"
+          <div
+            className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex-shrink-0"
+            title="À capturer pour la quête du Dofus Ocre"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/icons/ocre.png" alt="Ocre" className="w-5 h-5 object-contain" />
-          </a>
+          </div>
         )}
-        {/* Favicons des sites (si liens disponibles) */}
+        {/* Favicons des sites (si liens disponibles) avec libellés */}
         {hasAnyLink && (
           <div className="flex items-center gap-1.5">
             {noobsUrl && (
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-800/60 border border-white/8 group-hover:border-white/20 transition-colors flex-shrink-0" title="DofusPourLesNoobs disponible">
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900/90 text-cyan-300 border border-cyan-500/25 group-hover:border-cyan-400/50 transition-all text-[9px] font-black uppercase tracking-wider shadow-sm" title="Ouvrir le guide DofusPourLesNoobs">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32"
                   alt="Noobs"
-                  className="w-5 h-5 rounded-sm"
+                  className="w-4 h-4 rounded-sm shrink-0"
                 />
-              </div>
+                <span className="hidden sm:inline">DofusNoobs</span>
+              </span>
             )}
             {dbUrl && (
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-800/60 border border-white/8 group-hover:border-white/20 transition-colors flex-shrink-0" title="DofusDB disponible">
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900/90 text-emerald-300 border border-emerald-500/25 group-hover:border-emerald-400/50 transition-all text-[9px] font-black uppercase tracking-wider shadow-sm" title="Ouvrir la fiche DofusDB">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32"
                   alt="DofusDB"
-                  className="w-5 h-5 rounded-sm"
+                  className="w-4 h-4 rounded-sm shrink-0"
                 />
-              </div>
+                <span className="hidden sm:inline">DofusDB</span>
+              </span>
             )}
-            <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400 group-hover:text-zinc-200 flex-shrink-0">
+            <div className="w-6 h-6 flex items-center justify-center rounded-lg bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400 group-hover:text-zinc-200 flex-shrink-0">
               <ExternalLink className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -807,6 +1093,7 @@ const ChapterBlock = memo(function ChapterBlock({
   label,
   milestones,
   completedIds,
+  completedStepsByMs,
   bookmarkedMsId,
   guildProgressByMs,
   hideDone,
@@ -814,6 +1101,7 @@ const ChapterBlock = memo(function ChapterBlock({
   dofusFilter,
   userAlignmentInfo,
   onToggle,
+  onToggleSequence,
   onValidateAll,
   onReset,
   onBookmark,
@@ -824,6 +1112,7 @@ const ChapterBlock = memo(function ChapterBlock({
   label: string;
   milestones: Milestone[];
   completedIds: Set<string>;
+  completedStepsByMs: Map<string, Set<string>>;
   bookmarkedMsId: string | null;
   guildProgressByMs: Map<string, GuildMemberProgress[]>;
   hideDone: boolean;
@@ -831,6 +1120,7 @@ const ChapterBlock = memo(function ChapterBlock({
   dofusFilter: string | null;
   userAlignmentInfo: { alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number };
   onToggle: (ms: Milestone) => void;
+  onToggleSequence: (ms: Milestone, seqId: string) => void;
   onValidateAll: (ms: Milestone) => void;
   onReset: (ms: Milestone) => void;
   onBookmark: (ms: Milestone) => void;
@@ -883,7 +1173,11 @@ const ChapterBlock = memo(function ChapterBlock({
         {/* Label + progress bar */}
         <div className="flex-1 text-left">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-black text-white uppercase tracking-wide">{label}</span>
+            <span className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-amber-400/80 text-xs">✦</span>
+              {label}
+              <span className="text-amber-400/80 text-xs">✦</span>
+            </span>
             <span
               className="text-[9px] font-black px-2 py-0.5 rounded-full"
               style={{ background: `${accentColor}15`, color: accentColor }}
@@ -927,11 +1221,13 @@ const ChapterBlock = memo(function ChapterBlock({
                   key={ms.id}
                   ms={ms}
                   isCompleted={completedIds.has(ms.id)}
+                  completedStepsSet={completedStepsByMs.get(ms.id) || new Set()}
                   isBookmarked={ms.id === bookmarkedMsId}
                   membersHere={guildProgressByMs.get(ms.id) || []}
                   hideDone={hideDone}
                   isLoading={loadingIds.has(ms.id)}
                   onToggle={() => onToggle(ms)}
+                  onToggleSequence={onToggleSequence}
                   onValidateAll={() => onValidateAll(ms)}
                   onReset={() => onReset(ms)}
                   onBookmark={() => onBookmark(ms)}
@@ -959,6 +1255,7 @@ export default function RushTimelineClient({
   selectedCharacter = "PRINCIPAL",
   mules = [],
   currentUserProfile,
+  ocreStats,
 }: RushTimelineClientProps) {
   const router = useRouter();
   const altPseudo = selectedCharacter !== "PRINCIPAL" ? selectedCharacter : undefined;
@@ -972,6 +1269,32 @@ export default function RushTimelineClient({
     return s;
   });
 
+  const [completedStepsByMs, setCompletedStepsByMs] = useState<Map<string, Set<string>>>(() => {
+    const map = new Map<string, Set<string>>();
+    milestones.forEach((ms) => {
+      const raw = ms.playerProgress?.[0]?.completedSteps;
+      const stepsArray = Array.isArray(raw) ? raw : (typeof raw === "string" ? JSON.parse(raw) : []);
+      map.set(ms.id, new Set(stepsArray));
+    });
+    return map;
+  });
+
+  // Re-sync local state when milestones prop changes
+  useEffect(() => {
+    const nextCompletedIds = new Set<string>();
+    const nextStepsMap = new Map<string, Set<string>>();
+    milestones.forEach((ms) => {
+      if (ms.playerProgress?.[0]?.isCompleted) {
+        nextCompletedIds.add(ms.id);
+      }
+      const raw = ms.playerProgress?.[0]?.completedSteps;
+      const stepsArray = Array.isArray(raw) ? raw : (typeof raw === "string" ? JSON.parse(raw) : []);
+      nextStepsMap.set(ms.id, new Set(stepsArray));
+    });
+    setCompletedIds(nextCompletedIds);
+    setCompletedStepsByMs(nextStepsMap);
+  }, [milestones]);
+
   const [bookmarkedMsId, setBookmarkedMsId] = useState<string | null>(() => {
     for (const ms of milestones) {
       if (ms.playerProgress?.[0]?.currentStep) return ms.id;
@@ -980,6 +1303,21 @@ export default function RushTimelineClient({
   });
 
   const [hideDone, setHideDone] = useState(false);
+
+  // Scroll to top listener state
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [dofusFilter, setDofusFilter] = useState<string | null>(null);
 
@@ -988,6 +1326,10 @@ export default function RushTimelineClient({
 
   // Link Selector Modal
   const [linkSelectorModal, setLinkSelectorModal] = useState<{ open: boolean; title?: string; noobsUrl?: string; dbUrl?: string }>({ open: false });
+
+  // Onboarding Wizard Modal state
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [activeMembersModalOpen, setActiveMembersModalOpen] = useState(false);
 
   // Résoudre l'alignement et l'ordre du personnage sélectionné (principal ou mule)
   const resolvedCharacterInfo = useMemo(() => {
@@ -1076,6 +1418,49 @@ export default function RushTimelineClient({
     });
   }, []);
 
+  const handleToggleSequence = useCallback(async (ms: Milestone, seqId: string) => {
+    const currentStepsSet = new Set(completedStepsByMs.get(ms.id) || []);
+    const wasChecked = currentStepsSet.has(seqId);
+
+    if (wasChecked) {
+      currentStepsSet.delete(seqId);
+    } else {
+      currentStepsSet.add(seqId);
+    }
+
+    const updatedStepsArray = Array.from(currentStepsSet);
+    const allSeqIds = ms.sequences.map(s => s.id);
+    const isAllChecked = allSeqIds.length > 0 && allSeqIds.every(id => currentStepsSet.has(id));
+
+    // Optimistic updates
+    setCompletedStepsByMs((prev) => {
+      const next = new Map(prev);
+      next.set(ms.id, currentStepsSet);
+      return next;
+    });
+
+    setCompletedIds((prev) => {
+      const next = new Set(prev);
+      if (isAllChecked) next.add(ms.id);
+      else next.delete(ms.id);
+      return next;
+    });
+
+    setLoading(ms.id, true);
+    try {
+      const res = await updateStepProgress(guildId, ms.id, updatedStepsArray, altPseudo);
+      if ((res as any).success) {
+        toast.success(wasChecked ? "Quête décochée" : "✅ Quête validée !", { duration: 1500 });
+      } else {
+        toast.error("Erreur de sauvegarde de la quête");
+      }
+    } catch {
+      toast.error("Erreur réseau");
+    } finally {
+      setLoading(ms.id, false);
+    }
+  }, [completedStepsByMs, guildId, altPseudo, setLoading]);
+
   const handleToggle = useCallback(async (ms: Milestone) => {
     const wasCompleted = completedIds.has(ms.id);
     // Optimistic update
@@ -1083,6 +1468,15 @@ export default function RushTimelineClient({
       const n = new Set(prev);
       wasCompleted ? n.delete(ms.id) : n.add(ms.id);
       return n;
+    });
+    setCompletedStepsByMs((prev) => {
+      const next = new Map(prev);
+      if (wasCompleted) {
+        next.set(ms.id, new Set());
+      } else {
+        next.set(ms.id, new Set(ms.sequences.map(s => s.id)));
+      }
+      return next;
     });
     setLoading(ms.id, true);
     try {
@@ -1107,6 +1501,11 @@ export default function RushTimelineClient({
 
   const handleValidateAll = useCallback(async (ms: Milestone) => {
     setCompletedIds((prev) => new Set([...prev, ms.id]));
+    setCompletedStepsByMs((prev) => {
+      const next = new Map(prev);
+      next.set(ms.id, new Set(ms.sequences.map(s => s.id)));
+      return next;
+    });
     setLoading(ms.id, true);
     try {
       const res = await validateEntireMilestone(guildId, ms.id, altPseudo);
@@ -1129,6 +1528,11 @@ export default function RushTimelineClient({
 
   const handleReset = useCallback(async (ms: Milestone) => {
     setCompletedIds((prev) => { const n = new Set(prev); n.delete(ms.id); return n; });
+    setCompletedStepsByMs((prev) => {
+      const next = new Map(prev);
+      next.set(ms.id, new Set());
+      return next;
+    });
     setLoading(ms.id, true);
     try {
       await resetMilestoneProgress(guildId, ms.id, altPseudo);
@@ -1190,6 +1594,21 @@ export default function RushTimelineClient({
         Retour au Hub
       </Link>
 
+      {/* ── Bandeau d'attention — Niveau 200 conseillé ── */}
+      <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 backdrop-blur-md shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+          <AlertTriangle className="w-5.5 h-5.5 text-amber-400 animate-pulse" />
+        </div>
+        <div className="space-y-0.5 min-w-0 flex-1">
+          <p className="text-xs font-black uppercase tracking-wider text-amber-400">
+            ⚠️ Attention — Prérequis Recommandé
+          </p>
+          <p className="text-xs text-amber-200/90 leading-relaxed">
+            Ce guide Rush Sylvestre est vivement conseillé dès le <strong className="text-white font-black underline decoration-amber-500/50">Niveau 200</strong> (ou avec un personnage fortement optimisé) pour effectuer le parcours sereinement.
+          </p>
+        </div>
+      </div>
+
       {/* ── Hero banner ── */}
       <div className="relative overflow-hidden rounded-3xl p-6 border border-emerald-500/20 bg-gradient-to-br from-emerald-950/30 via-zinc-950 to-zinc-950">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[80px] pointer-events-none rounded-full" />
@@ -1208,13 +1627,18 @@ export default function RushTimelineClient({
               )}
             </div>
 
-            {/* Active Character status & alignment details */}
-            <div className="flex flex-wrap items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl max-w-xl">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            {/* Active Character status & class preview & alignment details */}
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl max-w-3xl">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black text-xs shadow-inner">
+                  {currentUserProfile?.dofusClass ? currentUserProfile.dofusClass.slice(0, 3).toUpperCase() : "LVL"}
+                </div>
                 <div className="text-left">
-                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Personnage Actif</p>
-                  <p className="text-xs font-bold text-white">{selectedCharacter}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Personnage Actif</p>
+                    <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Niv. 200</span>
+                  </div>
+                  <p className="text-xs font-black text-white">{selectedCharacter} {currentUserProfile?.dofusClass ? `(${currentUserProfile.dofusClass})` : ""}</p>
                 </div>
               </div>
 
@@ -1225,15 +1649,43 @@ export default function RushTimelineClient({
               {resolvedCharacterInfo.alignment && (
                 <div className="flex items-center gap-1.5">
                   <span
-                    className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${
+                    className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-xl border flex items-center gap-1 shadow-sm ${
                       resolvedCharacterInfo.alignment === "bontarien"
-                        ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
-                        : "bg-red-500/10 border-red-500/20 text-red-400"
+                        ? "bg-blue-500/15 border-blue-500/30 text-blue-300"
+                        : resolvedCharacterInfo.alignment === "brakmarien"
+                        ? "bg-red-500/15 border-red-500/30 text-red-300"
+                        : "bg-zinc-800 border-white/10 text-zinc-300"
                     }`}
                   >
-                    {resolvedCharacterInfo.alignment} {resolvedCharacterInfo.alignmentLevel > 0 ? `lv.${resolvedCharacterInfo.alignmentLevel}` : ""}
+                    <span>{resolvedCharacterInfo.alignment === "bontarien" ? "🔵 Bonta" : resolvedCharacterInfo.alignment === "brakmarien" ? "🔴 Brakmar" : "⚪ Neutre"}</span>
+                    {resolvedCharacterInfo.alignmentLevel > 0 && <span className="font-mono text-amber-400">lv.{resolvedCharacterInfo.alignmentLevel}</span>}
                   </span>
                 </div>
+              )}
+
+              {/* Metamob / Ocre Progress Stats Widget */}
+              {ocreStats && (
+                <>
+                  <div className="h-6 w-px bg-white/10 hidden sm:block" />
+                  <Link
+                    href={`/dashboard/${guildId}/quete-ocre`}
+                    className="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 hover:border-amber-400/50 transition-all group"
+                    title="Voir les détails complets sur Metamob"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/assets/icons/ocre.png" alt="Ocre" className="w-5 h-5 object-contain shrink-0" />
+                    <div className="text-left text-[10px] leading-tight space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-amber-300">Gardiens:</span>
+                        <span className="font-mono font-black text-white">{ocreStats.bosses?.gathered ?? 0}/{ocreStats.bosses?.total ?? 51}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-amber-300">Archis:</span>
+                        <span className="font-mono font-black text-white">{ocreStats.archis?.gathered ?? 0}/{ocreStats.archis?.total ?? 286}</span>
+                      </div>
+                    </div>
+                  </Link>
+                </>
               )}
 
               <div className="ml-auto flex items-center gap-2">
@@ -1270,12 +1722,17 @@ export default function RushTimelineClient({
                 <span className="text-[10px] text-zinc-600">({completedCount}/{totalMs})</span>
               </div>
               {activeMembersCount > 0 && (
-                <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveMembersModalOpen(true)}
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 transition-all cursor-pointer"
+                  title="Voir le détail de l'avancée de chaque membre actif"
+                >
                   <Users className="w-3 h-3 text-indigo-400" />
                   <span className="text-[10px] font-black text-indigo-400">
                     {activeMembersCount} membre{activeMembersCount > 1 ? "s" : ""} actif{activeMembersCount > 1 ? "s" : ""}
                   </span>
-                </div>
+                </button>
               )}
             </div>
             {/* Global progress bar */}
@@ -1359,6 +1816,7 @@ export default function RushTimelineClient({
                 label={label}
                 milestones={items}
                 completedIds={completedIds}
+                completedStepsByMs={completedStepsByMs}
                 bookmarkedMsId={bookmarkedMsId}
                 guildProgressByMs={guildProgressByMs}
                 hideDone={hideDone}
@@ -1366,6 +1824,7 @@ export default function RushTimelineClient({
                 dofusFilter={dofusFilter}
                 userAlignmentInfo={resolvedCharacterInfo}
                 onToggle={handleToggle}
+                onToggleSequence={handleToggleSequence}
                 onValidateAll={handleValidateAll}
                 onReset={handleReset}
                 onBookmark={handleBookmark}
@@ -1461,6 +1920,130 @@ export default function RushTimelineClient({
         )}
       </AnimatePresence>
 
+      {/* Onboarding Wizard Modal */}
+      <RushOnboardingWizardModal
+        isOpen={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        guildId={guildId}
+        characters={[
+          { id: "PRINCIPAL", name: currentUserProfile?.pseudoDofus || "Principal", isMule: false, dofusClass: currentUserProfile?.dofusClass },
+          ...(mules || []).map((m: any) => ({
+            id: m.pseudo,
+            name: m.pseudo,
+            isMule: true,
+            dofusClass: m.classe,
+          })),
+        ]}
+        selectedCharacter={selectedCharacter}
+        onSelectCharacter={(charId) => {
+          router.push(`?character=${encodeURIComponent(charId)}`);
+        }}
+        activeMembers={Array.from(
+          new Map(
+            guildProgress.map((p) => [
+              p.profileId,
+              {
+                profileId: p.profileId,
+                userName: p.userName,
+                userAvatar: p.userAvatar,
+                currentMilestoneTitle: milestones.find((m) => m.id === p.milestoneId)?.title,
+                percent: Math.round(
+                  (guildProgress.filter((x) => x.profileId === p.profileId && x.isCompleted).length / Math.max(1, milestones.length)) * 100
+                ),
+              },
+            ])
+          ).values()
+        )}
+        hasNoClassDeclared={!currentUserProfile?.dofusClass}
+      />
+
+      {/* Guild Active Members Modal */}
+      <AnimatePresence>
+        {activeMembersModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-zinc-950 border border-white/10 rounded-3xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-400" />
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Avancée de la Guilde</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMembersModalOpen(false)}
+                  className="text-zinc-500 hover:text-white text-xs font-bold"
+                >
+                  Fermer
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {Array.from(
+                  new Map(
+                    guildProgress.map((p) => [
+                      p.profileId,
+                      {
+                        profileId: p.profileId,
+                        userName: p.userName,
+                        userAvatar: p.userAvatar,
+                        currentMilestoneTitle: milestones.find((m) => m.id === p.milestoneId)?.title,
+                        completedCount: guildProgress.filter((x) => x.profileId === p.profileId && x.isCompleted).length,
+                      },
+                    ])
+                  ).values()
+                ).map((m, idx) => {
+                  const percent = Math.round((m.completedCount / Math.max(1, milestones.length)) * 100);
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-zinc-900/60 border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-indigo-900/60 border border-indigo-500/30 flex items-center justify-center text-xs font-black text-indigo-300 overflow-hidden shrink-0">
+                          {m.userAvatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
+                          ) : (
+                            m.userName[0]?.toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-white truncate">{m.userName}</p>
+                          <p className="text-[9.5px] text-zinc-400 truncate">{m.currentMilestoneTitle ? `Étape : ${m.currentMilestoneTitle}` : "Démarré"}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-black text-emerald-400">{percent}%</span>
+                        <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden mt-1">
+                          <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${percent}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Scroll to Top Button */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="fixed bottom-6 right-24 z-40 p-3.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_25px_rgba(16,185,129,0.4)] border border-emerald-300/40 transition-all hover:scale-110 flex items-center justify-center cursor-pointer group"
+            title="Remonter tout en haut de la page"
+          >
+            <ArrowUp className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
     </>
   );

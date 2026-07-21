@@ -389,36 +389,51 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
 /**
  * Met à jour les étapes individuelles cochées pour un milestone.
  */
-export async function updateStepProgress(guildId: string, milestoneId: string, completedSteps: string[]) {
+export async function updateStepProgress(guildId: string, milestoneId: string, completedSteps: string[], altPseudo?: string) {
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
-  const profileId: string = ctx.profileId!;
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+
+  let profileId: string = ctx.profileId;
+  if (altPseudo && altPseudo !== "PRINCIPAL") {
+    profileId = `${ctx.profileId}::${altPseudo}`;
+  }
+
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: {
+      guide: { select: { slug: true } },
+      sequences: { select: { id: true } }
+    }
+  });
+
+  const totalSeqCount = milestone?.sequences.length || 0;
+  const isAllCompleted = totalSeqCount > 0 && milestone!.sequences.every(s => completedSteps.includes(s.id));
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
       profileId_milestoneId: { profileId, milestoneId }
     },
     update: {
-      completedSteps: completedSteps 
+      completedSteps: completedSteps,
+      isCompleted: isAllCompleted,
+      completedAt: isAllCompleted ? new Date() : null
     },
     create: {
       profileId,
       milestoneId,
       completedSteps: completedSteps,
-      isCompleted: false
+      isCompleted: isAllCompleted,
+      completedAt: isAllCompleted ? new Date() : null
     }
   });
 
-  const milestone = await db.guideMilestone.findUnique({
-    where: { id: milestoneId },
-    select: { guide: { select: { slug: true } } }
-  });
   if (milestone?.guide?.slug) {
     revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
   }
 
   revalidatePath(`/dashboard/${guildId}/quetes-dofus/routes/progression-complete`);
-  return { success: true, progress };
+  return { success: true, progress, isCompleted: isAllCompleted };
 }
 
 /**

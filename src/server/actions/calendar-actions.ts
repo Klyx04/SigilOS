@@ -1010,7 +1010,7 @@ export async function completeRaidEvent(
             deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
         }
 
-        // Distribute XP only to present members
+        // Distribute XP + deduct 30 Purple Kamas for present members
         if (presentUserIds.length > 0) {
             await db.userProfile.updateMany({
                 where: {
@@ -1018,7 +1018,8 @@ export async function completeRaidEvent(
                     guildId: guildConfig.id
                 },
                 data: {
-                    xp: { increment: 50 }
+                    xp: { increment: 50 },
+                    purpleKamasConsumed: { increment: 30 }
                 }
             });
         }
@@ -1028,6 +1029,76 @@ export async function completeRaidEvent(
     } catch (error) {
         console.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };
+    }
+}
+
+/**
+ * Transfer Raid Lead (Captain) to a registered participant
+ */
+export async function transferRaidLead(
+    guildId: string,
+    eventId: string,
+    targetUserId: string
+) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            include: {
+                participants: { select: { userId: true } }
+            }
+        });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+
+        const isCurrentLead = event.creatorId === ctx.id;
+        const meta = (event.metadata as any) || {};
+        const isCaptain = meta.raidCaptainId === ctx.id;
+
+        if (!isCurrentLead && !isCaptain && !ctx.isAdmin && !ctx.canManageCalendar) {
+            return { success: false, error: "Seul le Lead actuel du Raid ou un administrateur peut transférer le Lead." };
+        }
+
+        const isTargetRegistered = event.participants.some(p => p.userId === targetUserId);
+        if (!isTargetRegistered) {
+            return { success: false, error: "Le nouveau Lead doit être inscrit à l'événement." };
+        }
+
+        const targetUser = await db.user.findUnique({
+            where: { id: targetUserId },
+            select: { name: true, profiles: { where: { guildId: guildConfig.id }, select: { discordNickname: true, pseudoDofus: true } } }
+        });
+
+        const newCaptainName = targetUser?.profiles[0]?.discordNickname || targetUser?.profiles[0]?.pseudoDofus || targetUser?.name || "Membre";
+
+        await db.guildEvent.update({
+            where: { id: eventId },
+            data: {
+                creatorId: targetUserId,
+                metadata: {
+                    ...meta,
+                    raidCaptain: newCaptainName,
+                    raidCaptainId: targetUserId
+                }
+            }
+        });
+
+        const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+        updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, newCaptainName };
+    } catch (error) {
+        console.error("[Calendar] transferRaidLead Error:", error);
+        return { success: false, error: "Erreur lors du transfert de Lead" };
     }
 }
 

@@ -2,7 +2,9 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, Clock, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X } from "lucide-react";
+import { Plus, Loader2, MessageSquare, Trophy, Swords, Timer, Calendar as CalendarIcon, Clock, ChevronsUpDown, Check, Hash, ChevronRight, AlertTriangle, X, User } from "lucide-react";
+import { DOFUS_CLASSES, getClass } from "@/lib/dofus-assets";
+import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -87,6 +89,10 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [roleOpen, setRoleOpen] = useState(false);
     const [targetChannelName, setTargetChannelName] = useState<string>("annonces");
+    // Leader class selection
+    const [leaderClass, setLeaderClass] = useState<string | null>(null);
+    const [userMules, setUserMules] = useState<{ pseudo: string; classe: string }[]>([]);
+    const [userMainClass, setUserMainClass] = useState<string | null>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
@@ -122,6 +128,20 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                 ]).then(([res, userCtx]) => {
                     if (res.success && res.data && userCtx.profileId) {
                         setStuffs(res.data.builds.filter(s => s.author.id === userCtx.profileId));
+                    }
+                    // Populate user characters for class selection
+                    if (userCtx && userCtx.profileId) {
+                        const mainCls = (userCtx as any).classe || null;
+                        setUserMainClass(mainCls);
+                        const alts = ((userCtx as any).altPseudos as any[] || []).map((a: any) => ({
+                            pseudo: typeof a === 'string' ? a : a.pseudo,
+                            classe: typeof a === 'string' ? 'cra' : (a.classe || 'cra'),
+                        }));
+                        setUserMules(alts);
+                        // Pre-select main class if no selection yet
+                        if (!leaderClass && mainCls) {
+                            setLeaderClass(mainCls);
+                        }
                     }
                 });
             }
@@ -170,7 +190,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     linkedStuffId: selectedStuffId === "none" ? null : selectedStuffId,
                     linkedStuffName: customStuffName || selectedStuff?.name || null,
                     linkedStuffThumbnail: selectedStuff?.previewData?.thumbnail || null,
-                    linkedStuffUrl: selectedStuff?.url || null
+                    linkedStuffUrl: selectedStuff?.url || null,
+                    leaderClass: leaderClass || undefined,
                 });
                 if (result.success) {
                     toast.success("Run créée avec succès !");
@@ -210,7 +231,8 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                     linkedStuffId: selectedStuffId === "none" ? null : selectedStuffId,
                     linkedStuffName: customStuffName || selectedStuff?.name || null,
                     linkedStuffThumbnail: selectedStuff?.previewData?.thumbnail || null,
-                    linkedStuffUrl: selectedStuff?.url || null
+                    linkedStuffUrl: selectedStuff?.url || null,
+                    leaderClass: leaderClass || undefined,
                 });
                 if (result.success) {
                     toast.success(`Épreuve ${epreuve.code} lancée !`);
@@ -250,7 +272,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="bg-zinc-950 border-white/10 text-white max-w-lg shadow-2xl shadow-black/60 premium-scrollbar">
+            <DialogContent className="bg-zinc-950 border-white/10 text-white max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/60 premium-scrollbar">
                 <DialogHeader>
                     <DialogTitle className="text-xl flex items-center gap-2 text-white">
                         🌙 Nouvelle Run Songes
@@ -477,6 +499,113 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             Pas de butin ni d&apos;expérience pour les Épreuves.
                         </p>
                     )}
+
+                    {/* CLASS SELECTION (Lead) */}
+                    <div className="space-y-3 pt-2 border-t border-white/5">
+                        <Label className="text-sm font-bold text-white flex items-center gap-2">
+                            ⚔️ Ta Classe pour cette Run
+                        </Label>
+
+                        {/* Mes Personnages (main + mules) */}
+                        {(userMainClass || userMules.length > 0) && (
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] text-white/35 uppercase font-bold tracking-widest flex items-center gap-1.5">
+                                    <User className="w-3 h-3" /> Mes Personnages
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {/* Main character */}
+                                    {userMainClass && (() => {
+                                        const cls = getClass(userMainClass);
+                                        if (!cls) return null;
+                                        const isSelected = leaderClass === cls.id;
+                                        return (
+                                            <button
+                                                key="main"
+                                                type="button"
+                                                onClick={() => setLeaderClass(cls.id)}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
+                                                    isSelected
+                                                        ? "border-purple-500/60 bg-purple-500/15 text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.2)]"
+                                                        : "border-white/8 bg-white/3 text-white/50 hover:border-white/20 hover:text-white/80"
+                                                )}
+                                            >
+                                                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
+                                                    <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
+                                                </div>
+                                                <span>{cls.name}</span>
+                                                <span className="text-[9px] text-white/25 uppercase">Main</span>
+                                                {isSelected && <Check className="w-3 h-3 text-purple-400" />}
+                                            </button>
+                                        );
+                                    })()}
+                                    {/* Mules */}
+                                    {userMules.map((mule, i) => {
+                                        const cls = getClass(mule.classe);
+                                        if (!cls) return null;
+                                        const isSelected = leaderClass === cls.id;
+                                        return (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                onClick={() => setLeaderClass(cls.id)}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all",
+                                                    isSelected
+                                                        ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.2)]"
+                                                        : "border-white/8 bg-white/3 text-white/50 hover:border-white/20 hover:text-white/80"
+                                                )}
+                                            >
+                                                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${cls.color}20` }}>
+                                                    <NextImage src={cls.icon} alt={cls.name} width={18} height={18} className="object-contain" unoptimized />
+                                                </div>
+                                                <span>{mule.pseudo}</span>
+                                                {isSelected && <Check className="w-3 h-3 text-indigo-400" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Toutes les classes */}
+                        <div className="space-y-1.5">
+                            <p className="text-[10px] text-white/35 uppercase font-bold tracking-widest">Toutes les Classes</p>
+                            <div className="flex flex-wrap gap-1.5 bg-white/3 rounded-xl p-2 border border-white/5">
+                                {DOFUS_CLASSES.map((cls) => {
+                                    const isSelected = leaderClass === cls.id;
+                                    return (
+                                        <button
+                                            key={cls.id}
+                                            type="button"
+                                            title={cls.name}
+                                            onClick={() => setLeaderClass(cls.id)}
+                                            className={cn(
+                                                "w-9 h-9 rounded-lg flex items-center justify-center transition-all border shrink-0",
+                                                isSelected
+                                                    ? "border-white/30 scale-110 z-10"
+                                                    : "border-white/5 bg-black/20 opacity-50 hover:opacity-100 hover:bg-white/5"
+                                            )}
+                                            style={{
+                                                backgroundColor: isSelected ? `${cls.color}20` : undefined,
+                                                boxShadow: isSelected ? `0 0 12px ${cls.color}40, inset 0 0 0 1px ${cls.color}50` : 'none'
+                                            }}
+                                        >
+                                            <NextImage src={cls.icon} alt={cls.name} width={22} height={22} className="object-contain" unoptimized />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {leaderClass && (() => {
+                                const cls = getClass(leaderClass);
+                                return cls ? (
+                                    <p className="text-[10px] text-center font-bold" style={{ color: cls.color }}>
+                                        {cls.name} sélectionné(e)
+                                    </p>
+                                ) : null;
+                            })()}
+                        </div>
+                    </div>
 
                     {/* STUFF SELECTION (Lead) */}
                     <div className="space-y-3 pt-2 border-t border-white/5">

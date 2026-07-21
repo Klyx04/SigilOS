@@ -4,9 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import {
     Coins, CheckCircle2, Clock, AlertCircle,
-    ImageIcon, X, ExternalLink, ChevronDown, ChevronUp,
-    Users, TrendingUp, Shield, Swords, Lock, Star,
-    Trophy, Crown, Zap
+    ChevronDown, ChevronUp, Users, TrendingUp,
+    Swords, Lock, Star, Trophy, Crown, Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KAMA_TRANCHE, KAMA_MAX_PER_WEEK } from "@/lib/kama-constants";
@@ -58,66 +57,26 @@ function getStatusConfig(member: KamaWeeklyMemberSummary): StatusConfig {
     };
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Proof Lightbox (officers only)
-// ──────────────────────────────────────────────────────────────────────────────
 
-function ProofLightbox({ url, onClose }: { url: string; onClose: () => void }) {
-    return (
-        <div
-            className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-150"
-            onClick={onClose}
-        >
-            <div
-                className="relative max-w-3xl w-full max-h-[85vh] rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={url}
-                    alt="Preuve de don"
-                    className="w-full h-full object-contain bg-zinc-950"
-                    style={{ maxHeight: "80vh" }}
-                />
-                <button
-                    onClick={onClose}
-                    className="absolute top-3 right-3 p-2 rounded-xl bg-zinc-900/90 border border-white/10 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
-                >
-                    <X className="w-4 h-4" />
-                </button>
-                <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-white/10 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
-                >
-                    <ExternalLink className="w-3 h-3" />
-                    Ouvrir
-                </a>
-            </div>
-        </div>
-    );
-}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Raid Eligibility Badge
 // ──────────────────────────────────────────────────────────────────────────────
 
-function RaidEligibilityBadge({ totalAmount }: { totalAmount: number }) {
-    const isEligible = totalAmount >= RAID_THRESHOLD;
+function RaidEligibilityBadge({ purpleKamasBalance }: { purpleKamasBalance: number }) {
+    const isEligible = purpleKamasBalance >= 30;
     if (isEligible) {
         return (
-            <span className="flex items-center gap-1 text-[9px] font-black bg-red-500/15 border border-red-500/25 text-red-400 px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+            <span className="flex items-center gap-1 text-[9px] font-black bg-red-500/15 border border-red-500/25 text-red-400 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
                 <Swords className="w-2.5 h-2.5" />
-                Raid OK
+                Raid Éligible ({purpleKamasBalance} 🟣)
             </span>
         );
     }
     return (
-        <span className="flex items-center gap-1 text-[9px] font-black bg-zinc-800/60 border border-zinc-700/40 text-zinc-500 px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+        <span className="flex items-center gap-1 text-[9px] font-black bg-zinc-800/60 border border-zinc-700/40 text-zinc-500 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
             <Lock className="w-2.5 h-2.5" />
-            Raid verrouillé
+            Raid verrouillé ({purpleKamasBalance}/30 🟣)
         </span>
     );
 }
@@ -130,12 +89,10 @@ function MemberRow({
     member,
     rank,
     isOfficer,
-    onProofClick,
 }: {
     member: KamaWeeklyMemberSummary;
     rank: number;
     isOfficer: boolean;
-    onProofClick: (url: string) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const displayName = member.discordNickname || member.pseudoDofus || "Membre inconnu";
@@ -212,7 +169,13 @@ function MemberRow({
                         <span className="text-sm font-bold text-white truncate" style={{ color: roleColor !== "#71717a" ? roleColor : undefined }}>
                             {displayName}
                         </span>
-                        <RaidEligibilityBadge totalAmount={member.totalAmount} />
+                        <RaidEligibilityBadge purpleKamasBalance={member.purpleKamasBalance || 0} />
+                        <span className="text-[9px] font-black bg-violet-500/15 border border-violet-500/25 text-violet-300 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0 flex items-center gap-1">
+                            🟣 Bourse: {member.purpleKamasBalance || 0} Violets
+                        </span>
+                        <span className="text-[9px] font-bold bg-zinc-800/80 border border-white/10 text-zinc-300 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+                            4 Semaines: {(member.fourWeekAmount || 0).toLocaleString("fr-FR")} k
+                        </span>
                         {isMax && (
                             <span className="text-[9px] font-black bg-amber-500/15 border border-amber-500/25 text-amber-400 px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
                                 MAX ✓
@@ -220,23 +183,22 @@ function MemberRow({
                         )}
                     </div>
 
-                    {/* Dual progress bar: raid threshold + max */}
+                    {/* Dual progress bar */}
                     <div className="space-y-1">
-                        {/* Raid threshold bar (30k) */}
                         <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden relative">
                                 <div
                                     className={cn(
                                         "h-full rounded-full transition-all duration-700",
-                                        isRaidEligible
-                                            ? "bg-gradient-to-r from-red-600 to-rose-400"
+                                        member.purpleKamasBalance >= 30
+                                            ? "bg-gradient-to-r from-violet-600 via-fuchsia-500 to-rose-400"
                                             : "bg-gradient-to-r from-zinc-700 to-zinc-500"
                                     )}
-                                    style={{ width: `${raidPct}%` }}
+                                    style={{ width: `${Math.min(100, ((member.purpleKamasBalance || 0) / 30) * 100)}%` }}
                                 />
                             </div>
-                            <span className="text-[10px] text-zinc-600 font-mono shrink-0 w-16 text-right">
-                                {member.totalAmount.toLocaleString("fr-FR")} k
+                            <span className="text-[10px] text-zinc-400 font-mono shrink-0 w-24 text-right">
+                                Semaine: {member.totalAmount.toLocaleString("fr-FR")} k
                             </span>
                         </div>
                     </div>
@@ -251,66 +213,44 @@ function MemberRow({
                     {statusCfg.label}
                 </div>
 
-                {/* Expand toggle */}
-                {(member.donations.length > 1 || (isOfficer && member.proofUrls.length > 0)) && (
-                    <button
-                        onClick={() => setExpanded(e => !e)}
-                        className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 text-zinc-600 hover:text-zinc-300 transition-colors"
-                        title="Voir les détails"
-                    >
-                        {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
-                )}
-            </div>
-
-            {/* Expanded details */}
-            {expanded && (
-                <div className="border-t border-white/5 px-4 pb-4 pt-3 space-y-3 animate-in slide-in-from-top-1 duration-150">
-                    {/* Individual donations breakdown */}
-                    {member.donations.length > 0 && (
-                        <div className="space-y-1.5">
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">Détail des dons</p>
-                            {member.donations.map((d, i) => {
-                                const dCfg = d.status === "VALIDATED"
-                                    ? { label: "Validé", color: "text-emerald-400", dot: "bg-emerald-400" }
-                                    : { label: "En attente", color: "text-amber-400", dot: "bg-amber-400" };
-                                return (
-                                    <div key={d.id} className="flex items-center gap-2 text-xs">
-                                        <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", dCfg.dot)} />
-                                        <span className="text-zinc-400">Don #{i + 1}</span>
-                                        <span className="font-mono font-bold text-white">
-                                            {d.amount.toLocaleString("fr-FR")} k
-                                        </span>
-                                        <span className={cn("ml-auto", dCfg.color)}>{dCfg.label}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* Proof screenshots (officers only) */}
-                    {isOfficer && member.proofUrls.length > 0 && (
-                        <div className="space-y-1.5">
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold flex items-center gap-1">
-                                <Shield className="w-3 h-3" />
-                                Preuves (officier)
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {member.proofUrls.map((url, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => onProofClick(url)}
-                                        className="relative group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800/60 border border-white/10 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all text-xs text-zinc-400 hover:text-amber-300"
-                                    >
-                                        <ImageIcon className="w-3 h-3" />
-                                        Preuve {i + 1}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                    {/* Expand toggle */}
+                    {member.donations.length > 1 && (
+                        <button
+                            onClick={() => setExpanded(e => !e)}
+                            className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 text-zinc-600 hover:text-zinc-300 transition-colors"
+                            title="Voir les détails"
+                        >
+                            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
                     )}
                 </div>
-            )}
+
+                {/* Expanded details */}
+                {expanded && (
+                    <div className="border-t border-white/5 px-4 pb-4 pt-3 space-y-3 animate-in slide-in-from-top-1 duration-150">
+                        {/* Individual donations breakdown */}
+                        {member.donations.length > 0 && (
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">Détail des dons</p>
+                                {member.donations.map((d, i) => {
+                                    const dCfg = d.status === "VALIDATED"
+                                        ? { label: "Validé", color: "text-emerald-400", dot: "bg-emerald-400" }
+                                        : { label: "En attente", color: "text-amber-400", dot: "bg-amber-400" };
+                                    return (
+                                        <div key={d.id} className="flex items-center gap-2 text-xs">
+                                            <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", dCfg.dot)} />
+                                            <span className="text-zinc-400">Don #{i + 1}</span>
+                                            <span className="font-mono font-bold text-white">
+                                                {d.amount.toLocaleString("fr-FR")} k
+                                            </span>
+                                            <span className={cn("ml-auto", dCfg.color)}>{dCfg.label}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
         </div>
     );
 }
@@ -326,21 +266,13 @@ interface KamaWeeklySummaryProps {
 }
 
 export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummaryProps) {
-    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-
     const validatedCount = data.members.filter(m => m.status === "VALIDATED" || m.status === "MIXED").length;
     const raidEligibleCount = data.members.filter(m => m.totalAmount >= RAID_THRESHOLD).length;
     const maxCount = data.members.filter(m => m.totalAmount >= KAMA_MAX_PER_WEEK).length;
     const totalCollected = data.totalValidated + data.totalPending;
 
     return (
-        <>
-            {/* Lightbox */}
-            {lightboxUrl && (
-                <ProofLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
-            )}
-
-            <div className="space-y-6">
+        <div className="space-y-6">
 
                 {/* ── Raid eligibility highlight banner ── */}
                 <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-r from-red-950/40 via-zinc-950/60 to-zinc-950/40 p-5 shadow-lg shadow-red-950/20">
@@ -352,20 +284,20 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                             </div>
                             <div>
                                 <p className="text-sm font-black text-white uppercase tracking-wide">
-                                    Condition d&apos;accès aux Raids
+                                    Condition d&apos;accès aux Raids de Guilde
                                 </p>
                                 <p className="text-xs text-zinc-400 mt-0.5">
-                                    Minimum <span className="text-amber-400 font-black">30 000 kamas validés</span> dans la semaine en cours pour s&apos;inscrire aux raids officiels.
+                                    Solde de bourse minimum : <span className="text-amber-400 font-black">30 Kamas Violets 🟣</span> (10 000 k validés = 10 Kamas Violets). Un raid consomme 30 Kamas Violets.
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="text-center px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20">
-                                <div className="text-2xl font-black text-red-400">{raidEligibleCount}</div>
+                                <div className="text-2xl font-black text-red-400">{data.members.filter(m => m.purpleKamasBalance >= 30).length}</div>
                                 <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Éligibles</div>
                             </div>
                             <div className="text-center px-4 py-2 rounded-xl bg-zinc-800/50 border border-zinc-700/30">
-                                <div className="text-2xl font-black text-zinc-300">{data.memberCount - raidEligibleCount}</div>
+                                <div className="text-2xl font-black text-zinc-300">{data.memberCount - data.members.filter(m => m.purpleKamasBalance >= 30).length}</div>
                                 <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Verrouillés</div>
                             </div>
                         </div>
@@ -394,8 +326,8 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                     />
                     <StatCard
                         icon={<TrendingUp className="w-4 h-4 text-violet-400" />}
-                        label="Max atteint"
-                        value={`${maxCount} mbr`}
+                        label="Max ce cycle"
+                        value={`${maxCount} ${maxCount > 1 ? "membres" : "membre"}`}
                         color="violet"
                     />
                 </div>
@@ -440,7 +372,6 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                                 member={member}
                                 rank={i + 1}
                                 isOfficer={isOfficer}
-                                onProofClick={setLightboxUrl}
                             />
                         ))}
                     </div>
@@ -452,13 +383,9 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                     <span>
                         Récapitulatif de la semaine Dofus en cours (reset mardi 07h00 Paris).
                         {" "}Le badge <span className="text-red-400 font-bold">Raid OK</span> indique que le membre a ≥30 000 kamas validés et peut s&apos;inscrire aux raids officiels de la semaine.
-                        {isOfficer
-                            ? " En tant qu'officier, vous pouvez consulter les screenshots de preuves en cliquant sur une ligne."
-                            : " Les screenshots de preuves sont réservés aux officiers."}
                     </span>
                 </div>
             </div>
-        </>
     );
 }
 

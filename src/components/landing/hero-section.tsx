@@ -6,7 +6,7 @@ import { AccessRequestModal } from "./AccessRequestModal";
 import Image from "next/image";
 import { User } from "next-auth";
 import Link from "next/link";
-import { ChevronRight, LayoutDashboard, Users, Zap, Crown } from "lucide-react";
+import { ChevronRight, LayoutDashboard, Crown } from "lucide-react";
 import { DashboardDrawer } from "@/components/layout/dashboard-drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";

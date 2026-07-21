@@ -60,6 +60,8 @@ export type DjPostWithDetails = {
         level: number;
         imageUrl: string | null;
         isExpedition: boolean;
+        dofuspourlesnoobsUrl?: string | null;
+        dofensiveUrl?: string | null;
         achievements: {
             id: string;
             points: number;
@@ -166,8 +168,11 @@ async function sendDiscordNotification(
             { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: embed.url || `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
         ];
 
-        if (post.questUrl && post.questUrl.includes("dofuspourlesnoobs")) {
-            buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.questUrl });
+        if (post.dungeon?.dofuspourlesnoobsUrl || (post.questUrl && post.questUrl.includes("dofuspourlesnoobs"))) {
+            buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.dungeon?.dofuspourlesnoobsUrl || post.questUrl });
+        }
+        if (post.dungeon?.dofensiveUrl) {
+            buttonComponents.push({ type: 2, style: 5, label: "Dofensive", emoji: { name: "🛡️" }, url: post.dungeon.dofensiveUrl });
         }
         if (post.questId && post.questId !== -1) {
             buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
@@ -278,8 +283,11 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
             { type: 2, style: 5, label: "Voir sur le site", emoji: { name: "🔗" }, url: `${appUrl}/dashboard/${guildId}/donjons-et-quetes` },
         ];
 
-        if (post.questUrl && post.questUrl.includes("dofuspourlesnoobs")) {
-            buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.questUrl });
+        if (post.dungeon?.dofuspourlesnoobsUrl || (post.questUrl && post.questUrl.includes("dofuspourlesnoobs"))) {
+            buttonComponents.push({ type: 2, style: 5, label: "DofusPourLesNoobs", emoji: { name: "📙" }, url: post.dungeon?.dofuspourlesnoobsUrl || post.questUrl });
+        }
+        if (post.dungeon?.dofensiveUrl) {
+            buttonComponents.push({ type: 2, style: 5, label: "Dofensive", emoji: { name: "🛡️" }, url: post.dungeon.dofensiveUrl });
         }
         if (post.questId && post.questId !== -1) {
             buttonComponents.push({ type: 2, style: 5, label: "DofusDB", emoji: { name: "🗺️" }, url: `https://dofusdb.fr/fr/database/quest/${post.questId}` });
@@ -1332,7 +1340,15 @@ export async function getDjPosts(
             take: 50,
             include: {
                 dungeon: {
-                    include: {
+                    select: {
+                        id: true,
+                        name: true,
+                        bossName: true,
+                        level: true,
+                        imageUrl: true,
+                        isExpedition: true,
+                        dofuspourlesnoobsUrl: true,
+                        dofensiveUrl: true,
                         achievements: {
                             include: {
                                 challenge: {

@@ -10,7 +10,6 @@ import { useState, useEffect } from "react";
 import {
     Calendar as CalendarIcon,
     Plus,
-    List,
     LayoutGrid,
     Loader2,
     Sparkles,
@@ -18,11 +17,9 @@ import {
     PartyPopper,
     Target,
     Wheat,
-    Eye,
     Filter,
     ChevronLeft,
     ChevronRight,
-    BookOpen,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -65,7 +62,7 @@ interface CalendarDashboardProps {
     isAdmin?: boolean;
 }
 
-type ViewMode = "grid" | "list";
+type ViewMode = "grid";
 
 interface DiscordRole {
     id: string;
@@ -89,51 +86,25 @@ const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg
         border: "border-purple-500/40",
     },
     SESSION_MISSIONS: {
-        label: "Missions Guilde",
+        label: "Missions",
         icon: Target,
         color: "text-amber-400",
         bg: "bg-amber-500/15",
         border: "border-amber-500/40",
     },
     SORTIE_FARM: {
-        label: "Sortie Farm",
+        label: "Farm",
         icon: Wheat,
         color: "text-emerald-400",
         bg: "bg-emerald-500/15",
         border: "border-emerald-500/40",
     },
-    KRALAMOURE: {
-        label: "Kralamoure",
-        icon: Eye,
-        color: "text-pink-400",
-        bg: "bg-pink-500/15",
-        border: "border-pink-500/40",
-    },
-    OTHERS: {
-        label: "Autres",
-        icon: List,
-        color: "text-zinc-400",
-        bg: "bg-zinc-500/15",
-        border: "border-zinc-500/40",
-    },
 };
 
 export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, isDiscordConfigured, isAdmin = false }: CalendarDashboardProps) {
-    const [displayMode, setDisplayMode] = useState<ViewMode>("grid");
+    const [displayMode] = useState<ViewMode>("grid");
     const [gridType, setGridType] = useState<"week" | "month">("week");
     const [currentDate, setCurrentDate] = useState(new Date());
-
-    // Auto-switch to list mode on small screens
-    useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth < 1024) {
-                setDisplayMode("list");
-            }
-        };
-        handleResize(); // Initial check
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, []);
 
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -426,57 +397,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         </div>
 
                         <div className="flex items-center gap-3">
-                            {/* Display Mode Toggle */}
-                            <div className="flex bg-zinc-900/80 p-1 rounded-full border border-zinc-800 shadow-inner">
-                                <button
-                                    onClick={() => setDisplayMode("grid")}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                        displayMode === "grid" ? "bg-zinc-100 text-zinc-950 shadow-lg" : "text-zinc-500 hover:text-zinc-300"
-                                    )}
-                                >
-                                    <LayoutGrid className="h-3.5 w-3.5" />
-                                    Grille
-                                </button>
-                                <button
-                                    onClick={() => setDisplayMode("list")}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                        displayMode === "list" ? "bg-zinc-100 text-zinc-950 shadow-lg" : "text-zinc-500 hover:text-zinc-300"
-                                    )}
-                                >
-                                    <List className="h-3.5 w-3.5" />
-                                    Liste
-                                </button>
-                            </div>
-
-                            {/* Grid-Specific Navigation */}
-                            {displayMode === "grid" && (
-                                <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
-                                    {/* Week/Month Toggle */}
-                                    <div className="flex bg-zinc-950/50 border border-zinc-800 rounded-full p-1">
-                                        <button
-                                            onClick={() => setGridType("week")}
-                                            className={cn(
-                                                "px-3 py-1 rounded-full text-[9px] font-bold uppercase transition-all",
-                                                gridType === "week" ? "bg-amber-500 text-zinc-950" : "text-zinc-500"
-                                            )}
-                                        >
-                                            Semaine
-                                        </button>
-                                        <button
-                                            onClick={() => setGridType("month")}
-                                            className={cn(
-                                                "px-3 py-1 rounded-full text-[9px] font-bold uppercase transition-all",
-                                                gridType === "month" ? "bg-amber-500 text-zinc-950" : "text-zinc-500"
-                                            )}
-                                        >
-                                            Mois
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
                             <Button
                                 variant="outline"
                                 onClick={() => setShowFilters(!showFilters)}
@@ -489,6 +409,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                             >
                                 <Filter className={cn("h-4 w-4 mr-2", selectedFilter !== "ALL" && "text-amber-500")} />
                                 Filtres
+                                {selectedFilter !== "ALL" && (
+                                    <span className="ml-1 h-4 w-4 rounded-full bg-amber-500 text-zinc-950 text-[9px] font-black flex items-center justify-center">1</span>
+                                )}
                             </Button>
 
                             {/* Conseil Raid button — visible for all members */}
@@ -586,28 +509,46 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                     return monthStr.charAt(0).toUpperCase() + monthStr.slice(1);
                                 })()}
                             </span>
-                            {displayMode === "grid" && (
+                            {gridType === "week" && (
                                 <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase px-2 py-0.5 tracking-wider shrink-0">
                                     Semaine {format(currentDate, "I", { locale: fr })}
                                 </Badge>
                             )}
                         </h3>
                         <p className="text-xs text-zinc-400 font-bold tracking-tight mt-0.5">
-                            {displayMode === "grid" 
-                                ? (gridType === "week" ? "Agenda hebdomadaire complet" : "Agenda mensuel de la guilde") 
-                                : "Liste chronologique des événements"}
+                            {gridType === "week" ? "Agenda hebdomadaire complet" : "Agenda mensuel de la guilde"}
                         </p>
                     </div>
                 </div>
 
                 <div className="relative flex items-center gap-3">
-                    {/* Fast Navigation Controls */}
+                    {/* Week/Month Toggle */}
+                    <div className="flex bg-[#070b0c]/90 border border-white/5 rounded-xl p-1 shadow-inner">
+                        <button
+                            onClick={() => setGridType("week")}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                                gridType === "week" ? "bg-amber-500 text-zinc-950 shadow-lg" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                            )}
+                        >
+                            Semaine
+                        </button>
+                        <button
+                            onClick={() => setGridType("month")}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                                gridType === "month" ? "bg-amber-500 text-zinc-950 shadow-lg" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                            )}
+                        >
+                            Mois
+                        </button>
+                    </div>
+
+                    {/* Navigation Controls */}
                     <div className="flex bg-[#070b0c]/90 border border-white/5 rounded-xl p-1 shadow-inner">
                         <button
                             onClick={() => {
-                                const date = displayMode === "list"
-                                    ? subMonths(currentDate, 1)
-                                    : (gridType === "week" ? subWeeks(currentDate, 1) : subMonths(currentDate, 1));
+                                const date = gridType === "week" ? subWeeks(currentDate, 1) : subMonths(currentDate, 1);
                                 setCurrentDate(date);
                             }}
                             className="p-2 hover:bg-white/5 rounded-lg transition-all active:scale-95"
@@ -623,9 +564,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         </button>
                         <button
                             onClick={() => {
-                                const date = displayMode === "list"
-                                    ? addMonths(currentDate, 1)
-                                    : (gridType === "week" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1));
+                                const date = gridType === "week" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
                                 setCurrentDate(date);
                             }}
                             className="p-2 hover:bg-white/5 rounded-lg transition-all active:scale-95"
@@ -637,7 +576,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 </div>
             </div>
 
-            {/* ============ MAIN CONTENT AREA (Stable) ============ */}
+            {/* ============ MAIN CONTENT AREA ============ */}
             <div className="min-h-[500px]">
                 {loading ? (
                 <div className="flex flex-col items-center justify-center py-24 space-y-4">
@@ -649,7 +588,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     </div>
                     <p className="text-zinc-400 text-sm animate-pulse">Chargement de l'agenda...</p>
                 </div>
-            ) : displayMode === "grid" ? (
+            ) : (
                 // ============ GRID VIEW ============
                 <CalendarGrid
                     events={filteredEvents}
@@ -661,71 +600,6 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     viewMode={gridType}
                     onViewModeChange={setGridType}
                 />
-            ) : (
-                // ============ LIST VIEW ============
-                <div className="space-y-8">
-
-                    {/* Events List Grouped */}
-                    {sortedDates.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border rounded-2xl bg-foreground/[0.02] text-center px-4">
-                            <Sparkles className="h-10 w-10 text-muted-foreground/20 mb-4" />
-                            <p className="text-muted-foreground font-bold">Aucun événement ne correspond à vos filtres.</p>
-                            {canManage && selectedFilter === "ALL" && (
-                                <Button variant="link" onClick={() => setIsCreateOpen(true)} className="mt-2 text-amber-500">
-                                    Créer un événement
-                                </Button>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="space-y-10">
-                            {sortedDates.map(dateKey => {
-                                const [year, month, day] = dateKey.split("-").map(Number);
-                                const localDate = new Date(year, month - 1, day);
-                                return (
-                                    <div key={dateKey} className="space-y-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex flex-col items-end shrink-0 min-w-[60px]">
-                                                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">
-                                                    {format(localDate, "MMM", { locale: fr }).replace(".", "")}
-                                                </span>
-                                                <span className="text-2xl font-black text-foreground leading-none">
-                                                    {format(localDate, "dd")}
-                                                </span>
-                                            </div>
-                                            <div className="h-px bg-border flex-1" />
-                                            <span className="text-sm font-black text-muted-foreground uppercase tracking-widest italic">
-                                                {format(localDate, "EEEE", { locale: fr })}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex flex-col gap-3">
-                                            {groupedEvents[dateKey].map((event: any) => (
-                                                <div
-                                                    key={event.id}
-                                                    onClick={() => handleEventClick(event.id)}
-                                                    className="cursor-pointer transition-all hover:opacity-90"
-                                                >
-                                                    <EventCard
-                                                        event={event}
-                                                        currentUserId={currentUserId}
-                                                        canManage={canManage}
-                                                        variant="list"
-                                                        onRespond={(status) => handleQuickRespond(event.id, status)}
-                                                        onEdit={() => setEditingEvent(event)}
-                                                        onDelete={() => {
-                                                            setSelectedEventId(event.id);
-                                                            handleDelete();
-                                                        }}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
             )}
         </div>
 

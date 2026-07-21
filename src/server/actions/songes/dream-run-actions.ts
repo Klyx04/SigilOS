@@ -97,6 +97,7 @@ const CreateRunSchema = z.object({
     linkedStuffName: z.string().nullable().optional(),
     linkedStuffThumbnail: z.string().nullable().optional(),
     linkedStuffUrl: z.string().nullable().optional(),
+    leaderClass: z.string().optional(),
 }).refine((data) => {
     if (data.epreuveCode) return true; // Épreuve bypasse la restriction objectifs
     const isParadoxeOrHigher = data.difficulty.startsWith("PARADOXE") || data.difficulty.startsWith("CAUCHEMAR");
@@ -205,6 +206,23 @@ export async function createDreamRun(guildId: string, data: z.infer<typeof Creat
         },
     });
 
+    // Create an ACCEPTED join request for the leader to store their class choice
+    if (validated.data.leaderClass) {
+        await db.dreamJoinRequest.create({
+            data: {
+                runId: run.id,
+                userId: ctx.userId,
+                classe: validated.data.leaderClass,
+                status: "ACCEPTED",
+                message: "Meneur de la run",
+                linkedStuffId: validated.data.linkedStuffId ?? null,
+                linkedStuffName: validated.data.linkedStuffName ?? null,
+                linkedStuffThumbnail: validated.data.linkedStuffThumbnail ?? null,
+                linkedStuffUrl: validated.data.linkedStuffUrl ?? null,
+            }
+        });
+    }
+
     // Auto-publish to Discord if requested
     if (validated.data.publishToDiscord) {
         const { publishDiscordRun } = await import("@/server/songes-service");
@@ -257,7 +275,7 @@ export async function getDreamRuns(guildId: string, statusFilter?: string[]) {
                 orderBy: { position: "asc" },
             },
             joinRequests: {
-                where: { status: "PENDING" },
+                where: { status: { in: ["PENDING", "ACCEPTED"] } },
                 select: { id: true, userId: true, message: true, classe: true },
             },
             _count: {
@@ -816,7 +834,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
             "SONGES_JOIN_REQUEST",
             "Candidature Songes",
             `**${candidateName}** (${validated.data.classe}) • Étage ${run.currentFloor}`,
-            `/dashboard/${guildId}/songes/${validated.data.runId}`,
+            `/dashboard/${guildId}/songes`,
             guildId
         );
 
@@ -844,7 +862,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
 
             const difficultyDisplay = run.difficulty.replace("_", " ");
             const { getAppBaseUrl } = await import("@/lib/utils");
-            const runUrl = `${getAppBaseUrl()}/dashboard/${run.guildId}/songes/${run.id}`;
+            const runUrl = `${getAppBaseUrl()}/dashboard/${run.guildId}/songes`;
 
             // SECURITY: Validate channel belongs to this guild before sending
             const { validateChannelBelongsToGuild, sendChannelMessage } = await import("@/server/discord");
@@ -1012,7 +1030,7 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
             "SYSTEM_INFO",
             "Candidature acceptée !",
             `Votre candidature pour la run ${request.run.difficulty} a été acceptée. Bienvenue dans l'équipe !`,
-            `/dashboard/${request.run.guildId}/songes/${request.runId}`,
+            `/dashboard/${request.run.guildId}/songes`,
             request.run.guildId
         );
 
@@ -1369,7 +1387,7 @@ export async function updateCurrentFloor(guildId: string, runId: string, floorNu
         },
     });
 
-    revalidatePath(`/dashboard/${ctx.guildId}/songes/${runId}`);
+    revalidatePath(`/dashboard/${ctx.guildId}/songes`);
     return { success: true };
 }
 
@@ -1446,7 +1464,6 @@ export async function reopenDreamRun(guildId: string, runId: string) {
     });
 
     revalidatePath(`/dashboard/${ctx.guildId}/songes`);
-    revalidatePath(`/dashboard/${ctx.guildId}/songes/${runId}`);
     return { success: true };
 }
 
@@ -1513,7 +1530,7 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
             scheduledAt
                 ? `RDV à ${scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${message}`
                 : `Message du leader : ${message}`,
-            `/dashboard/${ctx.guildId}/songes/${runId}`,
+            `/dashboard/${ctx.guildId}/songes`,
             guildId
         )
     );
@@ -1791,6 +1808,6 @@ export async function updateMemberStuff(guildId: string, data: z.infer<typeof Up
         }
     });
 
-    revalidatePath(`/dashboard/${guildId}/songes/${validated.data.runId}`);
+    revalidatePath(`/dashboard/${guildId}/songes`);
     return { success: true };
 }

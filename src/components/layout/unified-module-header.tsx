@@ -58,12 +58,18 @@ export function UnifiedModuleHeader({
             )}
 
             {/* 2. MAIN CONTENT LAYER */}
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 lg:gap-10">
-                <div className="space-y-3 min-w-0 flex-1">
-                    <div className="flex items-center gap-4 md:gap-7">
+            <div className={cn(
+                "flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-6",
+                !compact && "lg:items-end gap-6 lg:gap-10"
+            )}>
+                <div className={cn("min-w-0 flex-1", compact ? "space-y-1" : "space-y-3")}>
+                    <div className={cn("flex items-center", compact ? "gap-3" : "gap-4 md:gap-7")}>
                         {/* ICON / IMAGE SECTION */}
                         {imageSrc ? (
-                            <div className="relative h-14 w-14 md:h-18 md:w-18 shrink-0">
+                            <div className={cn(
+                                "relative shrink-0",
+                                compact ? "h-8 w-8 md:h-10 md:w-10" : "h-14 w-14 md:h-18 md:w-18"
+                            )}>
                                 <div className="absolute -inset-4 bg-primary/10 rounded-full blur-3xl animate-pulse" />
                                 <Image
                                     src={imageSrc}
@@ -74,31 +80,34 @@ export function UnifiedModuleHeader({
                                 />
                             </div>
                         ) : Icon ? (
-                            <div className="relative shrink-0 flex items-center justify-center h-14 w-14 md:h-16 md:w-16 bg-foreground/[0.03] backdrop-blur-2xl rounded-2xl border border-foreground/5 shadow-2xl group transition-all">
+                            <div className={cn(
+                                "relative shrink-0 flex items-center justify-center bg-foreground/[0.03] backdrop-blur-2xl rounded-xl border border-foreground/5 shadow-2xl group transition-all",
+                                compact ? "h-9 w-9 md:h-10 md:w-10 rounded-xl" : "h-14 w-14 md:h-16 md:w-16 rounded-2xl"
+                            )}>
                                 <Icon
-                                    className="h-7 w-7 md:h-8 md:w-8 transition-all duration-500 group-hover:scale-110"
+                                    className={cn("transition-all duration-500 group-hover:scale-110", compact ? "h-4 w-4 md:h-5 md:w-5" : "h-7 w-7 md:h-8 md:w-8")}
                                     style={{
                                         color: iconColor,
                                         filter: `drop-shadow(0 0 15px ${iconColor}60)`
                                     }}
                                     strokeWidth={2.5}
                                 />
-                                <div className="absolute inset-0 bg-foreground/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="absolute inset-0 bg-foreground/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                         ) : null}
 
                         {/* TITLE SECTION - Fluid Typography 2026 */}
                         <div className="min-w-0">
                             <h1 className={cn(
-                                compact ? "text-[clamp(1.25rem,5vw,2rem)]" : "text-[clamp(1.75rem,8vw,3.5rem)]",
-                                "font-black tracking-tighter leading-[0.9] uppercase py-1 text-foreground"
+                                compact ? "text-lg md:text-xl font-extrabold tracking-tight py-0" : "text-[clamp(1.75rem,8vw,3.5rem)] font-black tracking-tighter leading-[0.9] py-1",
+                                "uppercase text-foreground"
                             )}>
                                 {title}
                             </h1>
                         </div>
                     </div>
 
-                    {description && (
+                    {description && !compact && (
                         <p className="text-muted-foreground text-sm md:text-base font-medium max-w-3xl leading-relaxed opacity-70 border-l-2 border-foreground/5 pl-4 ml-1">
                             {description}
                         </p>
@@ -107,13 +116,13 @@ export function UnifiedModuleHeader({
 
                 {/* MIDDLE CONTENT - Responsive behavior */}
                 {middleContent && (
-                    <div className="flex justify-start lg:justify-center items-center py-2 lg:py-0">
+                    <div className="flex justify-start lg:justify-center items-center py-1 lg:py-0">
                         {middleContent}
                     </div>
                 )}
                 
                 {/* ACTIONS - Grouped & Pushed to right on desktop */}
-                <div className="flex flex-wrap items-center gap-3 shrink-0 lg:pb-1">
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
                     {actions}
                 </div>
             </div>

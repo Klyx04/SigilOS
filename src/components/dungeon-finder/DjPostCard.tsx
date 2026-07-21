@@ -355,31 +355,49 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                         </div>
                     )}
 
-                    {/* Quest link — DofusDB or Dofuspourlesnoobs */}
-                    {(post.questId && post.questId > 0) || (post.mode === "QUETE" && post.questUrl) ? (
-                        <div className="pt-1">
-                            {post.questId && post.questId > 0 ? (
-                                <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl px-4 py-2.5 w-max transition-all border shadow-lg hover:scale-[1.03]",
-                                        isDonjon
-                                            ? "text-cyan-400 hover:text-white bg-cyan-500/10 border-cyan-500/25 hover:bg-cyan-500 hover:border-cyan-400 shadow-cyan-500/5 hover:shadow-cyan-500/20"
-                                            : "text-zinc-400 hover:text-white bg-zinc-950 border-white/10 hover:bg-zinc-800"
-                                    )}>
-                                    <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" />
-                                    {isDonjon && post.questName ? post.questName : "Ouvrir DofusDB"}
-                                </a>
-                            ) : post.questUrl && (
-                                <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-2.5 w-max transition-all shadow-lg hover:bg-amber-500 hover:border-amber-400 hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
-                                    <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
-                                    DofusPourLesNoobs
-                                </a>
-                            )}
-                        </div>
-                    ) : null}
+                    {/* Quest link & Dungeon Guide Links (DofusDB, Dofuspourlesnoobs, Dofensive) */}
+                    <div className="pt-1 flex flex-wrap gap-2">
+                        {post.dungeon?.dofuspourlesnoobsUrl && (
+                            <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-amber-500 hover:border-amber-400 hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
+                                <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
+                                Guide DPNL
+                            </a>
+                        )}
+                        {post.dungeon?.dofensiveUrl && (
+                            <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:text-white bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-emerald-500 hover:border-emerald-400 hover:scale-[1.03] shadow-emerald-500/5 hover:shadow-emerald-500/20">
+                                <span className="text-xs">🛡️</span>
+                                Dofensive
+                            </a>
+                        )}
+                        {(post.questId && post.questId > 0) || (post.mode === "QUETE" && post.questUrl) ? (
+                            <>
+                                {post.questId && post.questId > 0 ? (
+                                    <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={cn(
+                                            "inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl px-3 py-2 w-max transition-all border shadow-lg hover:scale-[1.03]",
+                                            isDonjon
+                                                ? "text-cyan-400 hover:text-white bg-cyan-500/10 border-cyan-500/25 hover:bg-cyan-500 hover:border-cyan-400 shadow-cyan-500/5 hover:shadow-cyan-500/20"
+                                                : "text-zinc-400 hover:text-white bg-zinc-950 border-white/10 hover:bg-zinc-800"
+                                        )}>
+                                        <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" />
+                                        {isDonjon && post.questName ? post.questName : "Ouvrir DofusDB"}
+                                    </a>
+                                ) : post.questUrl && !post.dungeon?.dofuspourlesnoobsUrl && (
+                                    <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-white bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 w-max transition-all shadow-lg hover:bg-amber-500 hover:border-amber-400 hover:scale-[1.03] shadow-amber-500/5 hover:shadow-amber-500/20">
+                                        <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" />
+                                        DofusPourLesNoobs
+                                    </a>
+                                )}
+                            </>
+                        ) : null}
+                    </div>
 
                     {/* Message */}
                     {post.message && (

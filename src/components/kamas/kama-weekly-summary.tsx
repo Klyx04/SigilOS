@@ -4,9 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import {
     Coins, CheckCircle2, Clock, AlertCircle,
-    ImageIcon, X, ExternalLink, ChevronDown, ChevronUp,
-    Users, TrendingUp, Shield, Swords, Lock, Star,
-    Trophy, Crown, Zap
+    ChevronDown, ChevronUp, Users, TrendingUp,
+    Swords, Lock, Star, Trophy, Crown, Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KAMA_TRANCHE, KAMA_MAX_PER_WEEK } from "@/lib/kama-constants";
@@ -58,47 +57,7 @@ function getStatusConfig(member: KamaWeeklyMemberSummary): StatusConfig {
     };
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Proof Lightbox (officers only)
-// ──────────────────────────────────────────────────────────────────────────────
 
-function ProofLightbox({ url, onClose }: { url: string; onClose: () => void }) {
-    return (
-        <div
-            className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-150"
-            onClick={onClose}
-        >
-            <div
-                className="relative max-w-3xl w-full max-h-[85vh] rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={url}
-                    alt="Preuve de don"
-                    className="w-full h-full object-contain bg-zinc-950"
-                    style={{ maxHeight: "80vh" }}
-                />
-                <button
-                    onClick={onClose}
-                    className="absolute top-3 right-3 p-2 rounded-xl bg-zinc-900/90 border border-white/10 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
-                >
-                    <X className="w-4 h-4" />
-                </button>
-                <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-white/10 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
-                >
-                    <ExternalLink className="w-3 h-3" />
-                    Ouvrir
-                </a>
-            </div>
-        </div>
-    );
-}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Raid Eligibility Badge
@@ -130,12 +89,10 @@ function MemberRow({
     member,
     rank,
     isOfficer,
-    onProofClick,
 }: {
     member: KamaWeeklyMemberSummary;
     rank: number;
     isOfficer: boolean;
-    onProofClick: (url: string) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const displayName = member.discordNickname || member.pseudoDofus || "Membre inconnu";
@@ -256,66 +213,44 @@ function MemberRow({
                     {statusCfg.label}
                 </div>
 
-                {/* Expand toggle */}
-                {(member.donations.length > 1 || (isOfficer && member.proofUrls.length > 0)) && (
-                    <button
-                        onClick={() => setExpanded(e => !e)}
-                        className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 text-zinc-600 hover:text-zinc-300 transition-colors"
-                        title="Voir les détails"
-                    >
-                        {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
-                )}
-            </div>
-
-            {/* Expanded details */}
-            {expanded && (
-                <div className="border-t border-white/5 px-4 pb-4 pt-3 space-y-3 animate-in slide-in-from-top-1 duration-150">
-                    {/* Individual donations breakdown */}
-                    {member.donations.length > 0 && (
-                        <div className="space-y-1.5">
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">Détail des dons</p>
-                            {member.donations.map((d, i) => {
-                                const dCfg = d.status === "VALIDATED"
-                                    ? { label: "Validé", color: "text-emerald-400", dot: "bg-emerald-400" }
-                                    : { label: "En attente", color: "text-amber-400", dot: "bg-amber-400" };
-                                return (
-                                    <div key={d.id} className="flex items-center gap-2 text-xs">
-                                        <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", dCfg.dot)} />
-                                        <span className="text-zinc-400">Don #{i + 1}</span>
-                                        <span className="font-mono font-bold text-white">
-                                            {d.amount.toLocaleString("fr-FR")} k
-                                        </span>
-                                        <span className={cn("ml-auto", dCfg.color)}>{dCfg.label}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* Proof screenshots (officers only) */}
-                    {isOfficer && member.proofUrls.length > 0 && (
-                        <div className="space-y-1.5">
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold flex items-center gap-1">
-                                <Shield className="w-3 h-3" />
-                                Preuves (officier)
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {member.proofUrls.map((url, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => onProofClick(url)}
-                                        className="relative group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800/60 border border-white/10 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all text-xs text-zinc-400 hover:text-amber-300"
-                                    >
-                                        <ImageIcon className="w-3 h-3" />
-                                        Preuve {i + 1}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                    {/* Expand toggle */}
+                    {member.donations.length > 1 && (
+                        <button
+                            onClick={() => setExpanded(e => !e)}
+                            className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 text-zinc-600 hover:text-zinc-300 transition-colors"
+                            title="Voir les détails"
+                        >
+                            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
                     )}
                 </div>
-            )}
+
+                {/* Expanded details */}
+                {expanded && (
+                    <div className="border-t border-white/5 px-4 pb-4 pt-3 space-y-3 animate-in slide-in-from-top-1 duration-150">
+                        {/* Individual donations breakdown */}
+                        {member.donations.length > 0 && (
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">Détail des dons</p>
+                                {member.donations.map((d, i) => {
+                                    const dCfg = d.status === "VALIDATED"
+                                        ? { label: "Validé", color: "text-emerald-400", dot: "bg-emerald-400" }
+                                        : { label: "En attente", color: "text-amber-400", dot: "bg-amber-400" };
+                                    return (
+                                        <div key={d.id} className="flex items-center gap-2 text-xs">
+                                            <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", dCfg.dot)} />
+                                            <span className="text-zinc-400">Don #{i + 1}</span>
+                                            <span className="font-mono font-bold text-white">
+                                                {d.amount.toLocaleString("fr-FR")} k
+                                            </span>
+                                            <span className={cn("ml-auto", dCfg.color)}>{dCfg.label}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
         </div>
     );
 }
@@ -331,21 +266,13 @@ interface KamaWeeklySummaryProps {
 }
 
 export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummaryProps) {
-    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-
     const validatedCount = data.members.filter(m => m.status === "VALIDATED" || m.status === "MIXED").length;
     const raidEligibleCount = data.members.filter(m => m.totalAmount >= RAID_THRESHOLD).length;
     const maxCount = data.members.filter(m => m.totalAmount >= KAMA_MAX_PER_WEEK).length;
     const totalCollected = data.totalValidated + data.totalPending;
 
     return (
-        <>
-            {/* Lightbox */}
-            {lightboxUrl && (
-                <ProofLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
-            )}
-
-            <div className="space-y-6">
+        <div className="space-y-6">
 
                 {/* ── Raid eligibility highlight banner ── */}
                 <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-r from-red-950/40 via-zinc-950/60 to-zinc-950/40 p-5 shadow-lg shadow-red-950/20">
@@ -445,7 +372,6 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                                 member={member}
                                 rank={i + 1}
                                 isOfficer={isOfficer}
-                                onProofClick={setLightboxUrl}
                             />
                         ))}
                     </div>
@@ -457,13 +383,9 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                     <span>
                         Récapitulatif de la semaine Dofus en cours (reset mardi 07h00 Paris).
                         {" "}Le badge <span className="text-red-400 font-bold">Raid OK</span> indique que le membre a ≥30 000 kamas validés et peut s&apos;inscrire aux raids officiels de la semaine.
-                        {isOfficer
-                            ? " En tant qu'officier, vous pouvez consulter les screenshots de preuves en cliquant sur une ligne."
-                            : " Les screenshots de preuves sont réservés aux officiers."}
                     </span>
                 </div>
             </div>
-        </>
     );
 }
 

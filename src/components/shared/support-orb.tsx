@@ -27,7 +27,7 @@ export function SupportOrb() {
                 rel="noopener noreferrer"
                 initial={false}
                 animate={{
-                    width: isHovered ? "170px" : "44px",
+                    width: isHovered ? "auto" : "44px",
                     backgroundColor: isHovered ? "rgba(9, 9, 11, 0.85)" : "rgba(9, 9, 11, 0.6)"
                 }}
                 className={cn(

@@ -57,8 +57,15 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         console.error("[Guide Page] Guild progress fetch failed (non-fatal):", e);
     }
 
-    // Fetch full profile to get alignment, alignmentOrder, alignmentLevel, altPseudos
-    let userProfile: { alignment?: string | null; alignmentOrder?: string | null; alignmentLevel?: number; altPseudos?: any[] } = {};
+    // Fetch full profile to get alignment, alignmentOrder, alignmentLevel, altPseudos, class & metamob
+    let userProfile: { 
+        alignment?: string | null; 
+        alignmentOrder?: string | null; 
+        alignmentLevel?: number; 
+        altPseudos?: any[]; 
+        dofusClass?: string | null;
+        metamobPseudo?: string | null;
+    } = {};
     try {
         const profileRes = await getMemberProfile(guildId, session.user.id);
         if (profileRes.success && profileRes.data) {
@@ -68,10 +75,32 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 alignmentOrder: p.alignmentOrder,
                 alignmentLevel: p.alignmentLevel ?? 0,
                 altPseudos: Array.isArray(p.altPseudos) ? p.altPseudos : [],
+                dofusClass: p.classe,
+                metamobPseudo: p.metamobPseudo,
             };
         }
     } catch (e) {
         console.error("[Guide Page] Profile fetch failed (non-fatal):", e);
+    }
+
+    // Fetch Ocre progress stats if metamob is linked
+    let ocreStats: any = null;
+    if (userProfile.metamobPseudo) {
+        try {
+            const { getMyOcreProgress } = await import("@/server/actions/ocre-actions");
+            const ocreRes = await getMyOcreProgress(guildId);
+            if (ocreRes.success && ocreRes.data?.stats) {
+                ocreStats = {
+                    bosses: ocreRes.data.stats.bosses,
+                    archis: ocreRes.data.stats.archis,
+                    progressPercent: ocreRes.data.stats.progressPercent,
+                    currentStep: ocreRes.data.questInfo?.currentStep ?? 1,
+                    serverName: ocreRes.data.questInfo?.serverName || "Dofus Unity",
+                };
+            }
+        } catch (e) {
+            console.error("[Guide Page] Metamob stats fetch error (non-fatal):", e);
+        }
     }
 
     const mules = (user.altPseudos as any[] | undefined) || [];
@@ -121,7 +150,10 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                                 alignmentOrder: userProfile.alignmentOrder,
                                 alignmentLevel: userProfile.alignmentLevel,
                                 altPseudos: mules,
+                                dofusClass: userProfile.dofusClass,
+                                metamobPseudo: userProfile.metamobPseudo,
                             }}
+                            ocreStats={ocreStats}
                         />
                     </div>
                 ) : (

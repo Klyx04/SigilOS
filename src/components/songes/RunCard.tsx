@@ -57,6 +57,7 @@ import {
     getEpreuve 
 } from "@/lib/songes/types";
 import { ClassIcon } from "@/components/shared/class-icon";
+import { getClass } from "@/lib/dofus-assets";
 import { RunCloseModal } from "@/components/songes/RunCloseModal";
 import { RunProgressModal } from "@/components/songes/RunProgressModal";
 import { RunLeaderActions } from "@/components/songes/RunLeaderActions";
@@ -67,7 +68,7 @@ import { cn } from "@/lib/utils";
 type RunWithRelations = DreamRun & {
     members: DreamRunMember[];
     waitlist: DreamWaitlist[];
-    joinRequests?: { id: string; userId: string; message: string | null; classe: string }[];
+    joinRequests?: { id: string; userId: string; message: string | null; classe: string; status?: string }[];
     _count: { floors: number; bonuses: number };
 };
 
@@ -115,6 +116,12 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
     const progress = (run.currentFloor / 26) * 100;
     const canApplyConditions = !isMember && !isLeader && run.members.length < 4 && !pendingRequest;
     const canApply = canApplyConditions && canJoinSonges;
+
+    // Helper: get a member's class from their ACCEPTED join request
+    const getMemberClass = (userId: string): string | null => {
+        const req = run.joinRequests?.find(r => r.userId === userId && (r as any).status === 'ACCEPTED');
+        return req?.classe || null;
+    };
 
     useEffect(() => {
         async function loadData() {
@@ -319,6 +326,8 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                         const member = run.members.find((m) => m.slot === slot);
                         const pseudo = member ? getDisplayName(member.userId) : "Libre";
                         const profile = profiles.find(p => p.userId === member?.userId);
+                        const memberClassId = member ? getMemberClass(member.userId) : null;
+                        const memberClassData = memberClassId ? getClass(memberClassId) : null;
                         
                         return (
                             <div key={slot} className={cn(
@@ -336,12 +345,30 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                                     ) : <UserPlus className="w-3.5 h-3.5 text-white/10" />}
                                 </div>
                                 <span className={cn(
-                                    "text-xs font-black truncate",
+                                    "text-xs font-black truncate flex-1",
                                     member ? "text-white" : "text-white/10"
                                 )}>
                                     {pseudo}
                                 </span>
-                                {member?.userId === run.leaderId && <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0 ml-auto" />}
+                                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                                    {memberClassData && (
+                                        <div
+                                            className="w-5 h-5 rounded flex items-center justify-center"
+                                            title={memberClassData.name}
+                                            style={{ backgroundColor: `${memberClassData.color}20` }}
+                                        >
+                                            <Image
+                                                src={memberClassData.icon}
+                                                alt={memberClassData.name}
+                                                width={14}
+                                                height={14}
+                                                className="object-contain"
+                                                unoptimized
+                                            />
+                                        </div>
+                                    )}
+                                    {member?.userId === run.leaderId && <Crown className="w-3.5 h-3.5 text-amber-500" />}
+                                </div>
                             </div>
                         );
                     })}
@@ -349,7 +376,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             </div>
 
             {/* --- CANDIDACIES SECTION --- */}
-            {isLeader && run.joinRequests && run.joinRequests.length > 0 && (
+            {isLeader && run.joinRequests && run.joinRequests.filter(r => (r as any).status !== 'ACCEPTED').length > 0 && (
                 <div className="relative z-10 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 mb-6 animate-in slide-in-from-bottom-2 duration-300">
                     <div className="flex items-center gap-2 mb-4">
                         <Bell className="w-3.5 h-3.5 text-amber-500" />
@@ -357,7 +384,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
 
                     <div className="space-y-3">
-                        {run.joinRequests.map((c) => {
+                        {run.joinRequests.filter(r => (r as any).status !== 'ACCEPTED').map((c) => {
                             const profile = profiles.find(p => p.userId === c.userId);
                             const name = profile?.pseudoDofus || profile?.discordNickname || "Candidat";
                             return (

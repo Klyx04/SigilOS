@@ -18,7 +18,7 @@ import {
   Settings, Construction, Check, X,
   Link2, Pencil, Layers, Sword, ExternalLink,
   BookOpen, AlertCircle, Info, GripVertical,
-  Star, MapPin, Trophy, Sparkles, Gem, AlignLeft,
+  Star, MapPin, Trophy, Sparkles, Gem, AlignLeft, Lock, Search
 } from "lucide-react";
 import {
   upsertRushMilestone,
@@ -29,7 +29,7 @@ import {
   reorderRushMilestones,
   reorderRushSequences,
 } from "@/server/actions/optimized-guide-actions";
-import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
+import { searchDungeonsLocal, searchGuideQuests } from "@/server/actions/dofus-search-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -45,9 +45,10 @@ type ActivityTagType =
   | "donjon"
   | "plusieurs_personnes"
   | "sort"
-  | "metier";
+  | "metier"
+  | "solver";
 
-type ActivityTag = { type: ActivityTagType; name?: string; level?: number; count?: number };
+type ActivityTag = { type: ActivityTagType; name?: string; level?: number; count?: number; color?: string; url?: string };
 
 type Sequence = {
   id: string;
@@ -63,12 +64,13 @@ type Sequence = {
   alignReq?: string | null;
   alignOrderReq?: number | null;
   dungeon?: { id: string; name: string; bossName: string; imageUrl?: string | null } | null;
+  dungeons?: { id: string; name: string; bossName: string; imageUrl?: string | null }[];
   isSuccess?: boolean;
   metamobMonsterId?: number | null;
   activityTags?: ActivityTag[];
 };
 
-type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON";
+type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO";
 
 type Milestone = {
   id: string;
@@ -116,6 +118,7 @@ const MILESTONE_TYPES: { value: MilestoneType; label: string; icon: React.ReactN
   { value: "SUCCES",     label: "Succès", icon: <Trophy className="w-3 h-3" />, color: "#f97316" },
   { value: "ZONE",       label: "Zone", icon: <MapPin className="w-3 h-3" />, color: "#06b6d4" },
   { value: "DONJON",     label: "Donjon", icon: <Sword className="w-3 h-3" />, color: "#8b5cf6" },
+  { value: "INFO",       label: "Conseil / Tips", icon: <Sparkles className="w-3 h-3" />, color: "#ec4899" },
 ];
 
 // Dofus du jeu
@@ -131,12 +134,15 @@ const DOFUS_LIST = [
   { id: "dolmanax",         label: "Dolmanax",           color: "#ef4444", imageUrl: "/module-dofus/Dofus_Dolmanax.png" },
   { id: "des_glaces",       label: "Des Glaces",         color: "#93c5fd", imageUrl: "/module-dofus/Dofus_Des_Glaces.png" },
   { id: "du_cauchemar",     label: "Du Cauchemar",       color: "#7c3aed", imageUrl: "/module-dofus/Dofus_Du_Cauchemar.png" },
+  { id: "des_veilleurs",    label: "Des Veilleurs",      color: "#38bdf8", imageUrl: "/module-dofus/Dofus_Veilleur.png" },
   { id: "domakuro",         label: "Domakuro",           color: "#84cc16", imageUrl: "/module-dofus/Dofus_Domakuro.png" },
+  { id: "dorigami",         label: "Dorigami",           color: "#f472b6", imageUrl: "/module-dofus/Dofus_Dorigami.png" },
+  { id: "tachete",          label: "Tacheté",            color: "#c084fc", imageUrl: "/module-dofus/Dofus_Tacheté.png" },
   { id: "dom_de_pin",       label: "Dom de Pin",         color: "#a3e635", imageUrl: "/module-dofus/Dom_De_Pin.png" },
 ];
 
 // ─── Activity Tags ────────────────────────────────────────────────────────────
-const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; color: string; hasName?: boolean; hasLevel?: boolean }[] = [
+const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; color: string; hasName?: boolean; hasLevel?: boolean; hasUrl?: boolean }[] = [
   { type: "combat_tactique",    imagePath: "/assets/rush-sylvestre/combat-tactique.png",    label: "Combat Tactique", color: "#ef4444" },
   { type: "combat_vagues",      imagePath: "/assets/rush-sylvestre/combat-vagues.png",      label: "Vagues",          color: "#3b82f6" },
   { type: "songes",             imagePath: "/assets/rush-sylvestre/songes.png",             label: "Songes",          color: "#8b5cf6" },
@@ -147,6 +153,7 @@ const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; 
   { type: "plusieurs_personnes",imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",label: "Multi joueurs",   color: "#10b981" },
   { type: "sort",               imagePath: "/assets/rush-sylvestre/sort.png",               label: "Sort requis",     color: "#ec4899" },
   { type: "metier",             imagePath: "/assets/rush-sylvestre/façonneur.png",          label: "Métier requis",   color: "#eab308", hasName: true, hasLevel: true },
+  { type: "solver",             imagePath: "/assets/rush-sylvestre/solver.png",             label: "Solver requis",   color: "#10b981", hasUrl: true },
 ];
 
 const DOFUS_METIERS = [
@@ -1118,7 +1125,7 @@ function ActivityTagsEditor({ tags, onChange }: {
               style={active ? { color: def.color, borderColor: def.color + "50", background: def.color + "15" } : {}}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={def.imagePath} alt={def.label} className="w-4 h-4 object-contain" />
+              <img src={def.imagePath} alt={def.label} className="w-8 h-8 object-cover rounded-full overflow-hidden shrink-0 border border-white/20 bg-zinc-950 p-0.5" />
               {def.label}
             </button>
           );
@@ -1133,7 +1140,7 @@ function ActivityTagsEditor({ tags, onChange }: {
         return (
           <div key={tag.type} className="flex items-center gap-2 p-2 rounded-lg border" style={{ borderColor: def.color + "30", background: def.color + "08" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={isMetier ? getMetierIconPath(tag.name) : def.imagePath} alt={def.label} className="w-4 h-4 object-contain flex-shrink-0" />
+            <img src={isMetier ? getMetierIconPath(tag.name) : def.imagePath} alt={def.label} className="w-7 h-7 object-cover rounded-full overflow-hidden shrink-0 border border-white/20 bg-zinc-950 p-0.5 flex-shrink-0" />
             
             {isMetier ? (
               <>
@@ -1153,6 +1160,17 @@ function ActivityTagsEditor({ tags, onChange }: {
                   placeholder="Niv. min"
                 />
               </>
+            ) : tag.type === "solver" ? (
+              <div className="flex items-center gap-1.5 flex-1">
+                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Solver URL</span>
+                <input
+                  type="text"
+                  value={tag.url || ""}
+                  onChange={e => updateTag(tag.type, { url: e.target.value })}
+                  className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1 text-[10px] text-emerald-300 focus:outline-none placeholder:text-zinc-700"
+                  placeholder="ex: https://solver.dofus.com/... (optionnel)"
+                />
+              </div>
             ) : (
               <div className="flex items-center gap-1.5 flex-1">
                 <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{def.label}</span>
@@ -1190,13 +1208,170 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
   const [activityTags, setActivityTags] = useState<ActivityTag[]>(
     Array.isArray(seq.activityTags) ? seq.activityTags as ActivityTag[] : []
   );
+  const [selectedDofusId, setSelectedDofusId] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "dofus_link");
+    return existing?.name || "";
+  });
+
+  // Multiselect Prerequisites state
+  const [prereqs, setPrereqs] = useState<string[]>(() => {
+    const existingTags = (seq.activityTags as any[])?.filter(t => t.type === "prereq_text") || [];
+    if (existingTags.length > 0) {
+      return existingTags.map(t => t.name).filter(Boolean);
+    }
+    return [];
+  });
+  const [prereqQuery, setPrereqQuery] = useState("");
+  const [prereqResults, setPrereqResults] = useState<{ id: string; name: string }[]>([]);
+  const [searchingPrereqs, setSearchingPrereqs] = useState(false);
+  const prereqSearchRef = useRef<any>(null);
+
+  const handlePrereqSearch = (q: string) => {
+    setPrereqQuery(q);
+    if (q.length < 2) { setPrereqResults([]); return; }
+    clearTimeout(prereqSearchRef.current);
+    setSearchingPrereqs(true);
+    prereqSearchRef.current = setTimeout(async () => {
+      const res = await searchGuideQuests(q);
+      if (res.success && res.data) {
+        setPrereqResults(res.data);
+      }
+      setSearchingPrereqs(false);
+    }, 250);
+  };
+
+  const addPrereq = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed || prereqs.includes(trimmed)) return;
+    const nextPrereqs = [...prereqs, trimmed];
+    setPrereqs(nextPrereqs);
+    setPrereqQuery("");
+    setPrereqResults([]);
+    
+    // Sync activityTags
+    setActivityTags(prev => {
+      const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      return [...nonPrereqs, ...prereqTags];
+    });
+  };
+
+  const removePrereq = (nameToRemove: string) => {
+    const nextPrereqs = prereqs.filter(p => p !== nameToRemove);
+    setPrereqs(nextPrereqs);
+    
+    setActivityTags(prev => {
+      const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      return [...nonPrereqs, ...prereqTags];
+    });
+  };
+
+  const [positionsInput, setPositionsInput] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
+    return existing?.name || "";
+  });
+  const [tougliText, setTougliText] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "tougli_box");
+    return existing?.name || "";
+  });
+  const [tougliColor, setTougliColor] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "tougli_box");
+    return existing?.color || "emerald";
+  });
+
+  const [isInfoBlock, setIsInfoBlock] = useState<boolean>(() => {
+    return (seq.activityTags as any[])?.some(t => t.type === "is_info_block") ?? false;
+  });
+
+  const handleIsInfoBlockChange = (val: boolean) => {
+    setIsInfoBlock(val);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "is_info_block");
+      if (val) {
+        return [...filtered, { type: "is_info_block" as any }];
+      }
+      return filtered;
+    });
+  };
+
+  const handleInsertLink = () => {
+    const label = prompt("Texte affiché pour le lien (ex: Le trésor de Totankama) :");
+    if (!label) return;
+    const url = prompt("URL du lien (ex: https://dofusdb.fr/...) :");
+    if (!url) return;
+    const markdown = `[${label}](${url})`;
+    setTougliText(prev => {
+      const newText = prev ? `${prev} ${markdown}` : markdown;
+      handleTougliTextChange(newText);
+      return newText;
+    });
+  };
+
+  const handlePositionsChange = (text: string) => {
+    setPositionsInput(text);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "pos_tags");
+      if (text.trim()) {
+        return [...filtered, { type: "pos_tags" as any, name: text.trim() }];
+      }
+      return filtered;
+    });
+  };
+
+  const handleTougliTextChange = (text: string) => {
+    setTougliText(text);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "tougli_box");
+      if (text.trim()) {
+        return [...filtered, { type: "tougli_box" as any, name: text.trim(), color: tougliColor }];
+      }
+      return filtered;
+    });
+  };
+
+  const handleTougliColorChange = (color: string) => {
+    setTougliColor(color);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "tougli_box");
+      if (tougliText.trim()) {
+        return [...filtered, { type: "tougli_box" as any, name: tougliText.trim(), color }];
+      }
+      return filtered;
+    });
+  };
   const [selectedDungeons, setSelectedDungeons] = useState<DungeonResult[]>(
-    seq.dungeon ? [{ id: seq.dungeon.id, name: seq.dungeon.name, level: 0, imageUrl: seq.dungeon.imageUrl, bossName: seq.dungeon.bossName }] : []
+    seq.dungeons && seq.dungeons.length > 0
+      ? seq.dungeons.map(d => ({ id: d.id, name: d.name, level: 0, imageUrl: d.imageUrl, bossName: d.bossName }))
+      : seq.dungeon ? [{ id: seq.dungeon.id, name: seq.dungeon.name, level: 0, imageUrl: seq.dungeon.imageUrl, bossName: seq.dungeon.bossName }] : []
   );
   const [dungeonQuery, setDungeonQuery] = useState("");
   const [dungeonResults, setDungeonResults] = useState<DungeonResult[]>([]);
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<any>(null);
+
+  const isDungeonOcre = (dungeonId: string) => {
+    return activityTags.some((t: any) => t.type === "ocre_dungeon" && t.name === dungeonId);
+  };
+
+  const toggleOcreForDungeon = (dungeonId: string) => {
+    if (isDungeonOcre(dungeonId)) {
+      setActivityTags(prev => prev.filter((t: any) => !(t.type === "ocre_dungeon" && t.name === dungeonId)));
+    } else {
+      setActivityTags(prev => [...prev, { type: "ocre_dungeon" as any, name: dungeonId }]);
+    }
+  };
+
+  const handleDofusChange = (dofusId: string) => {
+    setSelectedDofusId(dofusId);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "dofus_link");
+      if (dofusId) {
+        return [...filtered, { type: "dofus_link" as any, name: dofusId }];
+      }
+      return filtered;
+    });
+  };
 
   const handleDungeonSearch = (q: string) => {
     setDungeonQuery(q);
@@ -1217,7 +1392,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
     setDungeonQuery(""); setDungeonResults([]);
   };
 
-  const removeDungeon = (id: string) => setSelectedDungeons(prev => prev.filter(d => d.id !== id));
+  const removeDungeon = (id: string) => {
+    setSelectedDungeons(prev => prev.filter(d => d.id !== id));
+    setActivityTags(prev => prev.filter((t: any) => !(t.type === "ocre_dungeon" && t.name === id)));
+  };
 
   const handleSubmit = () => {
     if (!name.trim()) return;
@@ -1246,6 +1424,143 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
         <input value={name} onChange={e => setName(e.target.value)}
           className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50"
           placeholder="Nom de la quête" autoFocus
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="relative">
+          <label className="text-[9px] font-black text-amber-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+            🔒 Prérequis de cette quête ({prereqs.length})
+          </label>
+
+          {/* Badges / Tags de prérequis choisis */}
+          {prereqs.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {prereqs.map((pName, pIdx) => (
+                <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-[9px] font-bold">
+                  <Lock className="w-2.5 h-2.5 text-amber-400" />
+                  <span className="max-w-[120px] truncate">{pName}</span>
+                  <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Autocomplete Input */}
+          <div className="relative">
+            <input
+              type="text"
+              value={prereqQuery}
+              onChange={e => handlePrereqSearch(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && prereqQuery.trim()) {
+                  e.preventDefault();
+                  addPrereq(prereqQuery.trim());
+                }
+              }}
+              className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
+              placeholder="Rechercher une quête prérequis..."
+            />
+            {searchingPrereqs && <span className="absolute right-2 top-2 text-[9px] text-zinc-500 animate-pulse">...</span>}
+          </div>
+
+          {/* Dropdown de résultats */}
+          {prereqResults.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-amber-500/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+              {prereqResults.map((res) => (
+                <button
+                  key={res.id}
+                  type="button"
+                  onClick={() => addPrereq(res.name)}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
+                >
+                  <Search className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span className="truncate">{res.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+            🥚 Dofus associé
+          </label>
+          <select value={selectedDofusId} onChange={e => handleDofusChange(e.target.value)}
+            className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 focus:outline-none focus:border-emerald-500/50"
+          >
+            <option value="">— Aucun Dofus associé —</option>
+            {DOFUS_LIST.map(d => (
+              <option key={d.id} value={d.id}>{d.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Toggle Bloc Pur d'Information */}
+      <div className="flex items-center gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+        <input
+          type="checkbox"
+          id="isInfoBlockToggle"
+          checked={isInfoBlock}
+          onChange={e => handleIsInfoBlockChange(e.target.checked)}
+          className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+        />
+        <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-purple-200 cursor-pointer select-none">
+          📌 Est un bloc d'information pur (Tips / Remarque sans quête ni case à cocher)
+        </label>
+      </div>
+
+      {/* Positions GPS & Bloc Tougli */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+            📍 Positions GPS (ex: [-2, 0], [10, -22])
+          </label>
+          <input
+            value={positionsInput}
+            onChange={e => handlePositionsChange(e.target.value)}
+            className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
+            placeholder="[-2, 0], [10, -22]"
+          />
+        </div>
+        <div>
+          <label className="text-[9px] font-black text-purple-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+            💬 Style du bloc Tougli
+          </label>
+          <select
+            value={tougliColor}
+            onChange={e => handleTougliColorChange(e.target.value)}
+            className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-300 focus:outline-none focus:border-purple-500/50"
+          >
+            <option value="emerald">🟢 Vert (Quête / Conseil)</option>
+            <option value="purple">🟣 Violet (Donjon / Boss)</option>
+            <option value="amber">🟡 Jaune (Astuce / Important)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[9px] font-black text-purple-400/80 uppercase tracking-widest block">
+            💬 Mini bloc Conseil Style Tougli
+          </label>
+          <button
+            type="button"
+            onClick={handleInsertLink}
+            className="flex items-center gap-1 text-[9px] font-bold text-purple-300 hover:text-purple-100 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-lg transition-all"
+          >
+            🔗 Insérer un lien
+          </button>
+        </div>
+        <textarea
+          value={tougliText}
+          onChange={e => handleTougliTextChange(e.target.value)}
+          className="w-full bg-black/60 border border-purple-500/20 rounded-lg px-2 py-1.5 text-xs text-purple-200 focus:outline-none focus:border-purple-500/50 resize-none font-sans"
+          placeholder="ex: Prenez la quête [Le trésor de Totankama](https://dofusdb.fr/...) qui demandera de faire..."
+          rows={2}
         />
       </div>
 
@@ -1310,7 +1625,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
       </div>
 
       {/* Badges spéciaux */}
-      <div className="flex items-center gap-3 p-2.5 bg-zinc-950/60 rounded-xl border border-white/5">
+      <div className="flex flex-wrap items-center gap-3 p-2.5 bg-zinc-950/60 rounded-xl border border-white/5">
         {/* Toggle Succès */}
         <button
           type="button"
@@ -1322,41 +1637,61 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/succès.png" alt="succès" className="w-3.5 h-3.5 object-contain" />
+          <img src="/assets/icons/succes.png" alt="succès" className="w-4 h-4 object-contain" />
           Succès
         </button>
 
-        {/* Metamob Ocre monster ID */}
-        <div className="flex items-center gap-1.5 flex-1">
+        {/* Toggle Capture Ocre global */}
+        <button
+          type="button"
+          onClick={() => setMetamobMonsterId(v => v ? "" : "1")}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+            metamobMonsterId
+              ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+              : "bg-zinc-800/60 border-white/10 text-zinc-600 hover:text-zinc-400"
+          }`}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/icons/ocre.png" alt="Ocre" className="w-4 h-4 object-contain flex-shrink-0" />
-          <input
-            type="number"
-            value={metamobMonsterId}
-            onChange={e => setMetamobMonsterId(e.target.value)}
-            className="flex-1 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300/80 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
-            placeholder="ID monstre Metamob (Ocre)"
-          />
-        </div>
+          <img src="/assets/icons/ocre.png" alt="Ocre" className="w-4 h-4 object-contain" />
+          À capturer global (Ocre)
+        </button>
       </div>
 
       {/* Multi-donjons */}
       <div>
         <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block flex items-center gap-1">
-          <Sword className="w-2.5 h-2.5 text-indigo-400" /> Donjons liés
+          <Sword className="w-2.5 h-2.5 text-indigo-400" /> Donjons liés (définir si à capturer par donjon)
         </label>
         {selectedDungeons.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-1.5">
+          <div className="space-y-1.5 mb-2">
             {selectedDungeons.map(d => (
-              <div key={d.id} className="flex items-center gap-1.5 px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
-                {d.imageUrl
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover" />
-                  : <Sword className="w-3.5 h-3.5 text-indigo-400" />}
-                <span className="text-[10px] font-bold text-white">{d.name}</span>
-                <button onClick={() => removeDungeon(d.id)} className="text-zinc-500 hover:text-red-400">
-                  <X className="w-2.5 h-2.5" />
-                </button>
+              <div key={d.id} className="flex items-center justify-between gap-2 p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                <div className="flex items-center gap-2 min-w-0">
+                  {d.imageUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={d.imageUrl} alt={d.name} className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                    : <Sword className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />}
+                  <span className="text-[10px] font-bold text-white truncate">{d.name}</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleOcreForDungeon(d.id)}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest transition-all ${
+                      isDungeonOcre(d.id)
+                        ? "bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
+                        : "bg-zinc-900 border-white/10 text-zinc-500 hover:text-zinc-300"
+                    }`}
+                    title="Marquer ce donjon comme à capturer pour le Dofus Ocre"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/assets/icons/ocre.png" alt="Ocre" className="w-3 h-3 object-contain" />
+                    {isDungeonOcre(d.id) ? "À capturer ✓" : "Ocre ?"}
+                  </button>
+                  <button type="button" onClick={() => removeDungeon(d.id)} className="text-zinc-500 hover:text-red-400 p-0.5">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -1417,6 +1752,67 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<any>(null);
 
+  const [selectedDofusId, setSelectedDofusId] = useState<string>("");
+  
+  // Multiselect Prerequisites state
+  const [prereqs, setPrereqs] = useState<string[]>([]);
+  const [prereqQuery, setPrereqQuery] = useState("");
+  const [prereqResults, setPrereqResults] = useState<{ id: string; name: string }[]>([]);
+  const [searchingPrereqs, setSearchingPrereqs] = useState(false);
+  const prereqSearchRef = useRef<any>(null);
+
+  const handlePrereqSearch = (q: string) => {
+    setPrereqQuery(q);
+    if (q.length < 2) { setPrereqResults([]); return; }
+    clearTimeout(prereqSearchRef.current);
+    setSearchingPrereqs(true);
+    prereqSearchRef.current = setTimeout(async () => {
+      const res = await searchGuideQuests(q);
+      if (res.success && res.data) {
+        setPrereqResults(res.data);
+      }
+      setSearchingPrereqs(false);
+    }, 250);
+  };
+
+  const addPrereq = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed || prereqs.includes(trimmed)) return;
+    const nextPrereqs = [...prereqs, trimmed];
+    setPrereqs(nextPrereqs);
+    setPrereqQuery("");
+    setPrereqResults([]);
+    
+    // Sync activityTags
+    setActivityTags(prev => {
+      const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      return [...nonPrereqs, ...prereqTags];
+    });
+  };
+
+  const removePrereq = (nameToRemove: string) => {
+    const nextPrereqs = prereqs.filter(p => p !== nameToRemove);
+    setPrereqs(nextPrereqs);
+    
+    setActivityTags(prev => {
+      const nonPrereqs = prev.filter((t: any) => t.type !== "prereq_text");
+      const prereqTags = nextPrereqs.map(p => ({ type: "prereq_text" as any, name: p }));
+      return [...nonPrereqs, ...prereqTags];
+    });
+  };
+
+  const handleDofusChange = (dofusId: string) => {
+    setSelectedDofusId(dofusId);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "dofus_link");
+      if (dofusId) {
+        return [...filtered, { type: "dofus_link" as any, name: dofusId }];
+      }
+      return filtered;
+    });
+  };
+
   const handleDungeonSearch = (q: string) => {
     setDungeonQuery(q);
     if (q.length < 2) { setDungeonResults([]); return; }
@@ -1450,6 +1846,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
     });
     setName(""); setDofusdbUrl(""); setNoobsUrl(""); setTips(""); setAlignReq("");
     setAlignOrderReq(""); setNote(""); setActivityTags([]); setSelectedDungeons([]); setDungeonQuery("");
+    setSelectedDofusId(""); setPrereqs([]); setPrereqQuery("");
     setExpanded(false);
   };
 
@@ -1478,6 +1875,78 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="p-3 bg-zinc-900/60 border border-indigo-500/10 rounded-xl space-y-2">
               <p className="text-[9px] font-black text-indigo-400/60 uppercase tracking-widest">Options avancées</p>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div className="relative">
+                  <label className="text-[9px] font-black text-amber-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+                    🔒 Prérequis de cette quête ({prereqs.length})
+                  </label>
+
+                  {/* Badges / Tags de prérequis choisis */}
+                  {prereqs.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {prereqs.map((pName, pIdx) => (
+                        <span key={pIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 text-[9px] font-bold">
+                          <Lock className="w-2.5 h-2.5 text-amber-400" />
+                          <span className="max-w-[120px] truncate">{pName}</span>
+                          <button type="button" onClick={() => removePrereq(pName)} className="hover:text-red-400 text-zinc-400 ml-0.5">
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Autocomplete Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={prereqQuery}
+                      onChange={e => handlePrereqSearch(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && prereqQuery.trim()) {
+                          e.preventDefault();
+                          addPrereq(prereqQuery.trim());
+                        }
+                      }}
+                      className="w-full bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs text-amber-200 focus:outline-none focus:border-amber-500/50 placeholder:text-zinc-700"
+                      placeholder="Rechercher une quête prérequis..."
+                    />
+                    {searchingPrereqs && <span className="absolute right-2 top-2 text-[9px] text-zinc-500 animate-pulse">...</span>}
+                  </div>
+
+                  {/* Dropdown de résultats */}
+                  {prereqResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-amber-500/30 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+                      {prereqResults.map((res) => (
+                        <button
+                          key={res.id}
+                          type="button"
+                          onClick={() => addPrereq(res.name)}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-200 hover:bg-amber-500/20 hover:text-amber-100 flex items-center gap-2 transition-colors"
+                        >
+                          <Search className="w-3 h-3 text-amber-400 shrink-0" />
+                          <span className="truncate">{res.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
+                    🥚 Dofus associé
+                  </label>
+                  <select value={selectedDofusId} onChange={e => handleDofusChange(e.target.value)}
+                    className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 focus:outline-none focus:border-emerald-500/50"
+                  >
+                    <option value="">— Aucun Dofus associé —</option>
+                    {DOFUS_LIST.map(d => (
+                      <option key={d.id} value={d.id}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[9px] text-zinc-600 mb-1 block">URL DofusDB</label>

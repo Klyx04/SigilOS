@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, AlertTriangle, Hash, Calendar, Users, Clock, Swords } from "lucide-react";
+import { Loader2, Save, AlertTriangle, Hash, Calendar, Users, Clock, Swords, Coins } from "lucide-react";
 import { toast } from "sonner";
-import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel } from "@/server/actions/admin-actions";
+import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel, updateRaidKamaDonationRequired } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 
@@ -36,6 +36,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     const [calendarPingRoleIds, setCalendarPingRoleIds] = useState<string[]>([]);
     const [raidPingRoleIds, setRaidPingRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
+    const [raidRequireKamaDonation, setRaidRequireKamaDonation] = useState(true);
 
     useEffect(() => {
         async function loadConfig() {
@@ -54,6 +55,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                 setIsGigalodonConfigured(!!result.data.raidGigalodonChannelId);
                 setRaidSanctuaireChannelId(result.data.raidSanctuaireChannelId || "");
                 setIsSanctuaireConfigured(!!result.data.raidSanctuaireChannelId);
+                setRaidRequireKamaDonation(result.data.raidRequireKamaDonation ?? true);
             }
             if (rolesRes.success && rolesRes.roles) {
                 setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
@@ -163,6 +165,21 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                 toast.success("Notifications Raid Sanctuaire désactivées");
             } else {
                 toast.error(result.error || "Erreur lors de la désactivation");
+            }
+        });
+    };
+
+    const handleToggleKamaDonation = (enabled: boolean) => {
+        startTransition(async () => {
+            const result = await updateRaidKamaDonationRequired(guildId, enabled);
+            if (result.success) {
+                setRaidRequireKamaDonation(enabled);
+                toast.success(enabled
+                    ? "Don de kamas requis activé pour les Raids ✅"
+                    : "Don de kamas désactivé — Accès Raids libre ⚠️"
+                );
+            } else {
+                toast.error(result.error || "Erreur lors de la mise à jour");
             }
         });
     };
@@ -469,6 +486,67 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                         </div>
                                     )}
                                 </div>
+                            </div>
+
+                            <div className="relative pl-6 border-l-2 border-transparent">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                                </div>
+                                <h3 className="text-sm font-medium text-white mb-2">3. Condition de Don de Kamas</h3>
+                                <p className="text-xs text-zinc-500 mb-4">
+                                    Quand activé, les membres doivent avoir fait un <strong className="text-amber-400">don de 30 000 kamas validé</strong> dans la semaine Dofus de l'événement pour s'inscrire aux Raids.
+                                </p>
+
+                                {/* Toggle Card */}
+                                <div className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-all duration-200 ${
+                                    raidRequireKamaDonation
+                                        ? "bg-amber-500/5 border-amber-500/20"
+                                        : "bg-zinc-800/60 border-white/5"
+                                }`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2.5 rounded-lg transition-colors ${
+                                            raidRequireKamaDonation ? "bg-amber-500/20" : "bg-zinc-700"
+                                        }`}>
+                                            <Coins className={`w-5 h-5 transition-colors ${
+                                                raidRequireKamaDonation ? "text-amber-400" : "text-zinc-400"
+                                            }`} />
+                                        </div>
+                                        <div>
+                                            <p className={`text-sm font-semibold transition-colors ${
+                                                raidRequireKamaDonation ? "text-amber-300" : "text-zinc-300"
+                                            }`}>
+                                                {raidRequireKamaDonation ? "Don requis activé" : "Don requis désactivé"}
+                                            </p>
+                                            <p className="text-xs text-zinc-500 mt-0.5">
+                                                {raidRequireKamaDonation
+                                                    ? "30 000 kamas validés obligatoires pour s'inscrire"
+                                                    : "Tous les membres avec le rôle Raid peuvent s'inscrire librement"
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleToggleKamaDonation(!raidRequireKamaDonation)}
+                                        disabled={isPending}
+                                        aria-label="Activer/désactiver don kamas requis"
+                                        className={`relative w-12 h-6 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 disabled:opacity-50 ${
+                                            raidRequireKamaDonation ? "bg-amber-500" : "bg-zinc-600"
+                                        }`}
+                                    >
+                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                                            raidRequireKamaDonation ? "translate-x-6" : "translate-x-0"
+                                        }`} />
+                                    </button>
+                                </div>
+
+                                {!raidRequireKamaDonation && (
+                                    <div className="mt-3 flex items-start gap-2 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                                        <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+                                        <p className="text-xs text-orange-300/80 leading-relaxed">
+                                            Le don de kamas est <strong>fortement recommandé</strong> pour financer les raids. Pensez à rappeler son importance à vos membres via le module Kamas.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="relative pl-6 border-l-2 border-transparent">

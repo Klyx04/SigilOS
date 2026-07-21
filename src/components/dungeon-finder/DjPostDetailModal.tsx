@@ -185,36 +185,46 @@ export function DjPostDetailModal({
                             )}
                         </div>
 
-                        {/* Quest info */}
-                        {post.questName && (
-                            <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                                <div className="flex flex-1 items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-cyan-950/50 flex items-center justify-center shrink-0 border border-cyan-900/50">
-                                        <Map className="w-4 h-4 text-cyan-400" />
-                                    </div>
-                                    <div>
-                                        {post.mode === "DONJON" && (
-                                            <p className="text-[10px] text-cyan-500/70 font-bold uppercase tracking-widest mb-0.5">Quête associée</p>
-                                        )}
-                                        <span className="text-sm text-cyan-300 font-bold">{post.questName}</span>
-                                    </div>
+                        {/* Quest & Dungeon Guide Links (DPLN & Dofensive) */}
+                        <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="flex flex-1 items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-cyan-950/50 flex items-center justify-center shrink-0 border border-cyan-900/50">
+                                    <Map className="w-4 h-4 text-cyan-400" />
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    {post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && (
-                                        <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
-                                            className="text-[11px] font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
-                                            <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
-                                        </a>
-                                    )}
-                                    {post.questId && post.questId !== -1 && (
-                                        <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
-                                            className="text-[11px] font-bold text-slate-300 hover:text-white border border-white/5 hover:border-white/10 bg-white/5 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
-                                            <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" /> DofusDB
-                                        </a>
-                                    )}
+                                <div>
+                                    <p className="text-[10px] text-cyan-500/70 font-bold uppercase tracking-widest mb-0.5">Guides & Base de données</p>
+                                    <span className="text-sm text-cyan-300 font-bold">
+                                        {post.mode === "DONJON" ? post.dungeon?.name : post.questName || "Quête"}
+                                    </span>
                                 </div>
                             </div>
-                        )}
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                {post.dungeon?.dofuspourlesnoobsUrl && (
+                                    <a href={post.dungeon.dofuspourlesnoobsUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-[11px] font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
+                                        <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
+                                    </a>
+                                )}
+                                {post.dungeon?.dofensiveUrl && (
+                                    <a href={post.dungeon.dofensiveUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 border border-emerald-900/40 hover:border-emerald-500/50 bg-emerald-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5 shadow-sm">
+                                        <span>🛡️</span> Dofensive
+                                    </a>
+                                )}
+                                {post.questUrl && post.questUrl.includes("dofuspourlesnoobs") && !post.dungeon?.dofuspourlesnoobsUrl && (
+                                    <a href={post.questUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-[11px] font-bold text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-500/50 bg-amber-950/20 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                                        <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="DPLN" className="w-3.5 h-3.5 rounded-sm" /> DofusPourLesNoobs
+                                    </a>
+                                )}
+                                {post.questId && post.questId !== -1 && (
+                                    <a href={`https://dofusdb.fr/fr/database/quest/${post.questId}`} target="_blank" rel="noopener noreferrer"
+                                        className="text-[11px] font-bold text-slate-300 hover:text-white border border-white/5 hover:border-white/10 bg-white/5 rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                                        <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="DofusDB" className="w-3.5 h-3.5 rounded-sm" /> DofusDB
+                                    </a>
+                                )}
+                            </div>
+                        </div>
 
                         {/* Message */}
                         {post.message && (

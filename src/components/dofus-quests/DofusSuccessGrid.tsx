@@ -169,7 +169,7 @@ export function DofusSuccessGrid({
                                             <div className="flex flex-col gap-3 max-w-xl">
                                                 <div className="flex items-center gap-3">
                                                     <img 
-                                                        src="/succès.png" 
+                                                        src="/assets/icons/succes.png" 
                                                         alt="Succès" 
                                                         className={`w-6 h-6 object-contain transition-all duration-300 ${
                                                             isComplete ? "drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" : "opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-85"
@@ -228,7 +228,7 @@ export function DofusSuccessGrid({
                     {/* Header Section */}
                     <div className="p-8 border-b border-white/5 flex items-start justify-between bg-zinc-950/50 flex-shrink-0">
                         <div className="flex items-center gap-4">
-                            <img src="/succès.png" alt="Succès" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                            <img src="/assets/icons/succes.png" alt="Succès" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
                             <div>
                                 <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-1">
                                     {selectedChain ? (SECTION_TYPES[selectedChain.sectionType]?.label || "Exploration") : ""}

@@ -34,7 +34,7 @@ export default async function MiniJeuxPage({ params }: Props) {
 
     return (
         <div className="w-full h-[calc(100vh-120px)] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-500 rounded-2xl border border-white/5">
-            <div className="flex-shrink-0 px-4 md:px-6 pt-3 pb-1 border-b border-white/5 bg-black/20 backdrop-blur-md">
+            <div className="flex-shrink-0 px-3 md:px-5 py-2 border-b border-white/5 bg-black/20 backdrop-blur-md">
                 <UnifiedModuleHeader
                     title="Mini-Jeux"
                     description="Sigil-Guesser & Sigil-Bomb : Défiez vos alliés !"
@@ -42,6 +42,7 @@ export default async function MiniJeuxPage({ params }: Props) {
                     backHref={`/dashboard/${guildId}`}
                     middleContent={<div id="sigil-geoguesser-header-hud" className="w-full flex justify-center" />}
                     actions={<div id="sigil-geoguesser-header-actions" className="flex items-center gap-4" />}
+                    compact={true}
                     className="mb-0"
                 />
             </div>

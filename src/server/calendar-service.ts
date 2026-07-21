@@ -57,7 +57,7 @@ const INTERACTION_COOLDOWN_MS = 10 * 1000; // 10 seconds
 export async function processRegistration(guildId: string, eventId: string, userId: string, data?: { classe?: string; comment?: string }) {
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true }
+        select: { id: true, raidRequireKamaDonation: true }
     });
     if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
@@ -85,30 +85,33 @@ export async function processRegistration(guildId: string, eventId: string, user
             return { success: false, error: "Permission requise: Participation aux Raids" };
         }
 
-        // Kamas gate: user must have donated ≥30 000 kamas (validated) in the Dofus week of the event
-        const eventWeek = getDofusWeek(event.startDate);
-        const userProfile = await db.userProfile.findFirst({
-            where: { userId, guildId: guildConfig.id },
-            select: { id: true },
-        });
-        if (!userProfile) {
-            return { success: false, error: "Profil introuvable dans cette guilde." };
-        }
-        const weekDonations = await db.kamaDonation.aggregate({
-            _sum: { amount: true },
-            where: {
-                profileId: userProfile.id,
-                status: "VALIDATED",
-                weekNumber: eventWeek.week,
-                yearNumber: eventWeek.year,
-            },
-        });
-        const totalDonated = weekDonations._sum.amount ?? 0;
-        if (totalDonated < 30000) {
-            return {
-                success: false,
-                error: `🪙 Don de 30 000 kamas requis pour s'inscrire aux raids de cette semaine. Tu as donné ${totalDonated.toLocaleString("fr-FR")} kamas. Fais ton don sur le site !`,
-            };
+        // Kamas gate: user must have at least 30 Purple Kamas in their balance (10 000 k = 10 Purple Kamas)
+        // Only enforced when the admin toggle is ON (raidRequireKamaDonation = true, default)
+        if (guildConfig.raidRequireKamaDonation) {
+            const userProfile = await db.userProfile.findFirst({
+                where: { userId, guildId: guildConfig.id },
+                select: { id: true, purpleKamasConsumed: true },
+            });
+            if (!userProfile) {
+                return { success: false, error: "Profil introuvable dans cette guilde." };
+            }
+            const allDonations = await db.kamaDonation.aggregate({
+                _sum: { amount: true },
+                where: {
+                    profileId: userProfile.id,
+                    status: "VALIDATED",
+                },
+            });
+            const totalDonated = allDonations._sum.amount ?? 0;
+            const purpleKamasEarned = Math.floor(totalDonated / 1000);
+            const purpleKamasBalance = Math.max(0, purpleKamasEarned - (userProfile.purpleKamasConsumed || 0));
+
+            if (purpleKamasBalance < 30) {
+                return {
+                    success: false,
+                    error: `🪙 30 Kamas Violets requis dans votre bourse pour vous inscrire aux raids. Solde actuel : ${purpleKamasBalance} Kamas Violets (1 tranche de 10 000 k = 10 Kamas Violets).`,
+                };
+            }
         }
     }
 

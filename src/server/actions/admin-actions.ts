@@ -452,7 +452,7 @@ export async function updateSongesChannel(
 // CALENDAR NOTIFICATION CONFIGURATION
 // ============================================================================
 
-export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[]; raidChannelId: string | null; raidPingRoleIds: string[]; raidGigalodonChannelId: string | null; raidSanctuaireChannelId: string | null } }> {
+export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[]; raidChannelId: string | null; raidPingRoleIds: string[]; raidGigalodonChannelId: string | null; raidSanctuaireChannelId: string | null; raidRequireKamaDonation: boolean } }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -470,7 +470,8 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
                 raidNotifyChannelId: true, 
                 raidPingRoleIds: true,
                 raidGigalodonNotifyChannelId: true,
-                raidSanctuaireNotifyChannelId: true
+                raidSanctuaireNotifyChannelId: true,
+                raidRequireKamaDonation: true
             }
         });
 
@@ -484,7 +485,8 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
                 raidChannelId: config.raidNotifyChannelId,
                 raidPingRoleIds: config.raidPingRoleIds || [],
                 raidGigalodonChannelId: config.raidGigalodonNotifyChannelId,
-                raidSanctuaireChannelId: config.raidSanctuaireNotifyChannelId
+                raidSanctuaireChannelId: config.raidSanctuaireNotifyChannelId,
+                raidRequireKamaDonation: config.raidRequireKamaDonation
             }
         };
     } catch (error) {
@@ -666,6 +668,43 @@ export async function updateRaidSanctuaireChannel(
         return { success: false, error: "Erreur serveur" };
     }
 }
+
+export async function updateRaidKamaDonationRequired(
+    guildId: string,
+    required: boolean
+): Promise<ActionResponse> {
+    const { requireGuildAdmin } = await import("./guards");
+    const guard = await requireGuildAdmin(guildId, "updateRaidKamaDonationRequired");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
+
+    try {
+        const old = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { raidRequireKamaDonation: true }
+        });
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { raidRequireKamaDonation: required }
+        });
+
+        await logAction({
+            guildId,
+            action: "SETTINGS_UPDATED",
+            targetType: "CONFIG",
+            oldValue: old?.raidRequireKamaDonation,
+            newValue: required,
+            metadata: { operation: "UPDATE_RAID_KAMA_DONATION_REQUIRED" }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Raid Kama Donation Required Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 // ============================================================================
 // DOFUS CONFIGURATION
 // ============================================================================

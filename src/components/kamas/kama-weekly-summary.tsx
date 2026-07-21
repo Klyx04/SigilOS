@@ -104,20 +104,20 @@ function ProofLightbox({ url, onClose }: { url: string; onClose: () => void }) {
 // Raid Eligibility Badge
 // ──────────────────────────────────────────────────────────────────────────────
 
-function RaidEligibilityBadge({ totalAmount }: { totalAmount: number }) {
-    const isEligible = totalAmount >= RAID_THRESHOLD;
+function RaidEligibilityBadge({ purpleKamasBalance }: { purpleKamasBalance: number }) {
+    const isEligible = purpleKamasBalance >= 30;
     if (isEligible) {
         return (
-            <span className="flex items-center gap-1 text-[9px] font-black bg-red-500/15 border border-red-500/25 text-red-400 px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+            <span className="flex items-center gap-1 text-[9px] font-black bg-red-500/15 border border-red-500/25 text-red-400 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
                 <Swords className="w-2.5 h-2.5" />
-                Raid OK
+                Raid Éligible ({purpleKamasBalance} 🟣)
             </span>
         );
     }
     return (
-        <span className="flex items-center gap-1 text-[9px] font-black bg-zinc-800/60 border border-zinc-700/40 text-zinc-500 px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+        <span className="flex items-center gap-1 text-[9px] font-black bg-zinc-800/60 border border-zinc-700/40 text-zinc-500 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
             <Lock className="w-2.5 h-2.5" />
-            Raid verrouillé
+            Raid verrouillé ({purpleKamasBalance}/30 🟣)
         </span>
     );
 }
@@ -212,7 +212,13 @@ function MemberRow({
                         <span className="text-sm font-bold text-white truncate" style={{ color: roleColor !== "#71717a" ? roleColor : undefined }}>
                             {displayName}
                         </span>
-                        <RaidEligibilityBadge totalAmount={member.totalAmount} />
+                        <RaidEligibilityBadge purpleKamasBalance={member.purpleKamasBalance || 0} />
+                        <span className="text-[9px] font-black bg-violet-500/15 border border-violet-500/25 text-violet-300 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0 flex items-center gap-1">
+                            🟣 Bourse: {member.purpleKamasBalance || 0} Violets
+                        </span>
+                        <span className="text-[9px] font-bold bg-zinc-800/80 border border-white/10 text-zinc-300 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+                            4 Semaines: {(member.fourWeekAmount || 0).toLocaleString("fr-FR")} k
+                        </span>
                         {isMax && (
                             <span className="text-[9px] font-black bg-amber-500/15 border border-amber-500/25 text-amber-400 px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
                                 MAX ✓
@@ -220,23 +226,22 @@ function MemberRow({
                         )}
                     </div>
 
-                    {/* Dual progress bar: raid threshold + max */}
+                    {/* Dual progress bar */}
                     <div className="space-y-1">
-                        {/* Raid threshold bar (30k) */}
                         <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden relative">
                                 <div
                                     className={cn(
                                         "h-full rounded-full transition-all duration-700",
-                                        isRaidEligible
-                                            ? "bg-gradient-to-r from-red-600 to-rose-400"
+                                        member.purpleKamasBalance >= 30
+                                            ? "bg-gradient-to-r from-violet-600 via-fuchsia-500 to-rose-400"
                                             : "bg-gradient-to-r from-zinc-700 to-zinc-500"
                                     )}
-                                    style={{ width: `${raidPct}%` }}
+                                    style={{ width: `${Math.min(100, ((member.purpleKamasBalance || 0) / 30) * 100)}%` }}
                                 />
                             </div>
-                            <span className="text-[10px] text-zinc-600 font-mono shrink-0 w-16 text-right">
-                                {member.totalAmount.toLocaleString("fr-FR")} k
+                            <span className="text-[10px] text-zinc-400 font-mono shrink-0 w-24 text-right">
+                                Semaine: {member.totalAmount.toLocaleString("fr-FR")} k
                             </span>
                         </div>
                     </div>
@@ -352,20 +357,20 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                             </div>
                             <div>
                                 <p className="text-sm font-black text-white uppercase tracking-wide">
-                                    Condition d&apos;accès aux Raids
+                                    Condition d&apos;accès aux Raids de Guilde
                                 </p>
                                 <p className="text-xs text-zinc-400 mt-0.5">
-                                    Minimum <span className="text-amber-400 font-black">30 000 kamas validés</span> dans la semaine en cours pour s&apos;inscrire aux raids officiels.
+                                    Solde de bourse minimum : <span className="text-amber-400 font-black">30 Kamas Violets 🟣</span> (10 000 k validés = 10 Kamas Violets). Un raid consomme 30 Kamas Violets.
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="text-center px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20">
-                                <div className="text-2xl font-black text-red-400">{raidEligibleCount}</div>
+                                <div className="text-2xl font-black text-red-400">{data.members.filter(m => m.purpleKamasBalance >= 30).length}</div>
                                 <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Éligibles</div>
                             </div>
                             <div className="text-center px-4 py-2 rounded-xl bg-zinc-800/50 border border-zinc-700/30">
-                                <div className="text-2xl font-black text-zinc-300">{data.memberCount - raidEligibleCount}</div>
+                                <div className="text-2xl font-black text-zinc-300">{data.memberCount - data.members.filter(m => m.purpleKamasBalance >= 30).length}</div>
                                 <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Verrouillés</div>
                             </div>
                         </div>
@@ -394,8 +399,8 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                     />
                     <StatCard
                         icon={<TrendingUp className="w-4 h-4 text-violet-400" />}
-                        label="Max atteint"
-                        value={`${maxCount} mbr`}
+                        label="Max ce cycle"
+                        value={`${maxCount} ${maxCount > 1 ? "membres" : "membre"}`}
                         color="violet"
                     />
                 </div>

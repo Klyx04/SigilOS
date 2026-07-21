@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, ChevronRight, Sparkles } from "lucide-react";
+import { X, Crown, ChevronRight, Sparkles, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -46,27 +46,27 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                     <div className="relative bg-zinc-950 border border-white/10 rounded-3xl overflow-hidden shadow-[0_32px_80px_-16px_rgba(0,0,0,0.8)]">
 
                         {/* Top gradient bar */}
-                        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
+                        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
 
                         {/* Background glow */}
-                        <div className="absolute top-[-40%] left-[-10%] w-[80%] h-[80%] bg-emerald-500/6 rounded-full blur-[140px] pointer-events-none" />
+                        <div className="absolute top-[-40%] left-[-10%] w-[80%] h-[80%] bg-amber-500/6 rounded-full blur-[140px] pointer-events-none" />
                         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
 
                         {/* Header */}
                         <div className="relative flex items-start justify-between p-6 sm:p-10 pb-6 sm:pb-8">
                             <div>
                                 <div className="flex items-center gap-2.5 mb-4">
-                                    <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center">
-                                        <Users className="w-4 h-4 text-emerald-400" />
+                                    <div className="h-8 w-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center">
+                                        <Crown className="w-4 h-4 text-amber-400" />
                                     </div>
-                                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.35em]">Accès Chef de Guilde</span>
+                                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.35em]">Réservé Chefs de Guilde & Admins</span>
                                 </div>
                                 <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight mb-3">
-                                    Rejoindre SigilOS,<br />
-                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-300">c&apos;est simple.</span>
+                                    Activer SigilOS <br />
+                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">pour votre guilde.</span>
                                 </h2>
-                                <p className="text-xs sm:text-sm text-zinc-500 leading-relaxed max-w-sm">
-                                    Bêta privée réservée aux chefs de guilde actifs sur Dofus Unity.<br />
+                                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-sm">
+                                    Bêta privée réservée aux chefs de guilde et admins Discord sur Dofus Unity.<br />
                                     Rejoins le Discord et ouvre un ticket — on répond sous 24-48h.
                                 </p>
                             </div>
@@ -84,6 +84,15 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                         {/* CTA Zone */}
                         <div className="relative p-6 sm:p-10 pt-6 sm:pt-8 space-y-4">
 
+                            {/* Member Clarification Alert */}
+                            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-200/90 flex items-start gap-3">
+                                <LogIn className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-bold text-white block mb-0.5">Vous êtes membre d&apos;une guilde déjà sur SigilOS ?</span>
+                                    <span>Vous n&apos;avez pas besoin d&apos;ouvrir un ticket. Fermez ce pop-up et cliquez sur <strong className="text-emerald-400 font-bold">Se Connecter avec Discord</strong>.</span>
+                                </div>
+                            </div>
+
                             {/* Main Discord CTA */}
                             <Button
                                 asChild
@@ -100,9 +109,9 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                                         <DiscordIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white/90" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <span className="font-black text-white text-lg sm:text-xl block mb-1 truncate">Rejoindre le Discord</span>
+                                        <span className="font-black text-white text-lg sm:text-xl block mb-1 truncate">Ouvrir un ticket Discord</span>
                                         <div className="text-[10px] sm:text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors flex flex-wrap items-center gap-x-2 gap-y-1">
-                                            <span>Ticket dans <span className="text-indigo-400 font-mono">#OUVRIR-TICKET</span></span>
+                                            <span>Salons <span className="text-indigo-400 font-mono">#OUVRIR-TICKET</span></span>
                                             <span className="inline-flex items-center gap-1 text-emerald-400/80 font-semibold">
                                                 <Sparkles className="w-3 h-3" /> 24–48h
                                             </span>
@@ -113,10 +122,10 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                             </Button>
 
                             {/* Already have access */}
-                            <p className="text-center text-[10px] sm:text-[11px] text-zinc-700 pt-2">
+                            <p className="text-center text-[10px] sm:text-[11px] text-zinc-500 pt-1">
                                 Déjà membre ?{" "}
-                                <button onClick={onClose} className="text-zinc-500 hover:text-white underline underline-offset-2 transition-colors">
-                                    Connecte-toi via Discord en haut ↑
+                                <button onClick={onClose} className="text-emerald-400 font-semibold hover:text-emerald-300 underline underline-offset-2 transition-colors">
+                                    Fermer et se connecter via Discord ↑
                                 </button>
                             </p>
                         </div>

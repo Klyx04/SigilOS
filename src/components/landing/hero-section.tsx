@@ -194,39 +194,43 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                         </div>
                     ) : (
                         /* Logged Out View */
-                        <div className="flex flex-col items-center gap-5">
-                            {/* CTA principal : membres existants */}
-                            <form action={loginWithDiscord}>
+                        <div className="flex flex-col items-center gap-6">
+                            {/* CTA principal : membres d'une guilde */}
+                            <form action={loginWithDiscord} className="flex flex-col items-center">
                                 <Button
                                     type="submit"
                                     variant="sigil-emerald"
-                                    className="h-auto py-6 px-14 rounded-2xl"
+                                    className="h-auto py-6 px-14 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)]"
                                 >
                                     <DiscordIcon className="w-8 h-8 flex-shrink-0 text-white" />
                                     <span className="flex flex-col items-start leading-none gap-1 text-left">
-                                        <span className="text-[10px] tracking-widest text-emerald-950/60 uppercase font-black">Accès Membre</span>
-                                        <span className="text-xl">Se Connecter</span>
+                                        <span className="text-[10px] tracking-widest text-emerald-950/80 uppercase font-black">Accès Membre</span>
+                                        <span className="text-xl">Se Connecter avec Discord</span>
                                     </span>
                                     <ChevronRight className="w-5 h-5 ml-2" />
                                 </Button>
+                                <span className="text-[11px] font-medium text-zinc-400 mt-2">
+                                    Accès direct pour tous les membres des guildes inscrites
+                                </span>
                             </form>
 
-                            {/* Séparateur contextuel */}
-                            <div className="flex items-center gap-4 w-full max-w-xs">
-                                <div className="h-px flex-1 bg-white/5" />
-                                <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest whitespace-nowrap">
+                            {/* Séparateur contextuel pour chefs de guilde */}
+                            <div className="flex items-center gap-4 w-full max-w-sm pt-4 border-t border-white/10">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-500/30" />
+                                <span className="text-[11px] font-black text-amber-400/90 uppercase tracking-widest whitespace-nowrap flex items-center gap-1.5">
+                                    <Crown className="w-3.5 h-3.5 text-amber-400" />
                                     Vous gérez une guilde ?
                                 </span>
-                                <div className="h-px flex-1 bg-white/5" />
+                                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-500/30" />
                             </div>
 
-                            {/* CTA secondaire : admins/staff Discord */}
+                            {/* CTA secondaire : inscription nouvelle guilde (admins/chefs) */}
                             <Button
                                 variant="sigil"
                                 onClick={() => setShowAccessModal(true)}
-                                className="h-auto py-3 px-6 rounded-xl text-xs gap-2"
+                                className="h-auto py-3.5 px-7 rounded-xl text-xs gap-2"
                             >
-                                <span className="text-zinc-300 font-bold">Demander l&apos;accès à SigilOS</span>
+                                <span className="text-amber-100 font-bold">Activer SigilOS pour ma guilde</span>
                                 <ChevronRight className="w-3.5 h-3.5" />
                             </Button>
                         </div>

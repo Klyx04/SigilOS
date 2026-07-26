@@ -19,6 +19,13 @@ function ErrorContent() {
     if (error === "OAuthCallbackError") {
         title = "Connexion interrompue";
         message = "L'échange avec Discord a été coupé. Vous avez peut-être annulé la connexion ou le service a eu un hoquet.";
+        // Vérifier si le message contient "verify" — Discord renvoie cette erreur
+        // quand l'email du compte Discord n'est pas vérifié.
+        const msg = searchParams.get("message") || "";
+        if (msg.toLowerCase().includes("verify") || msg.toLowerCase().includes("vérifi")) {
+            title = "Email Discord non vérifié";
+            message = "Discord exige que votre adresse email soit vérifiée pour utiliser l'authentification. Ouvrez Discord → Paramètres → Mon Compte → Vérifier votre email, puis réessayez.";
+        }
     } else if (error === "AccessDenied") {
         title = "Accès Refusé";
         message = "Désolé, mais vous n'avez pas les accréditaitons pour entrer ici. Il faut montrer patte blanche !";

@@ -375,8 +375,7 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
   }
   if (li < content.length) parts.push(content.slice(li));
   const hasTitle = !!milestone.title && !content.startsWith(milestone.title);
-  // Determine icon + border color based on hex
-  const iconColor = color;
+  // Determine icon based on hex color
   const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
   const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
   const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");

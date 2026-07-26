@@ -24,6 +24,8 @@ export type GalleryBuild = {
     };
     votesCount: number;
     hasVoted: boolean;
+    createdAt?: string | null; // Date d'ajout du stuff
+    updatedAt?: string | null; // Date de dernière modification
 };
 
 export type GalleryPage = {
@@ -170,7 +172,9 @@ export async function getStuffGalleryPage(
                             image: profile.user.image
                         },
                         votesCount: votesCountMap.get(buildId) || 0,
-                        hasVoted: userVotesSet.has(buildId)
+                        hasVoted: userVotesSet.has(buildId),
+                        createdAt: link.createdAt || null,
+                        updatedAt: link.updatedAt || null
                     });
                 }
             });

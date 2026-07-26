@@ -602,6 +602,23 @@ export function GalleryClient({
                                         <span className="text-[11px] text-zinc-500">
                                             Par <span className="text-zinc-300 font-bold">{build.author.name}</span>
                                         </span>
+                                        {build.createdAt && (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="text-[9px] text-zinc-600 font-medium ml-1 cursor-default">
+                                                            {new Date(build.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" className="bg-zinc-900 border-zinc-700 text-[10px] text-zinc-300">
+                                                        <p>Ajouté le {new Date(build.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+                                                        {build.updatedAt && build.updatedAt !== build.createdAt && (
+                                                            <p className="text-zinc-500">Mis à jour le {new Date(build.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+                                                        )}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        )}
                                     </div>
                                     <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                                         DofusBook
@@ -954,4 +971,3 @@ function EmptyState({ guildId, tab, searchQuery, onReset }: { guildId: string, t
         </div>
     );
 }
-

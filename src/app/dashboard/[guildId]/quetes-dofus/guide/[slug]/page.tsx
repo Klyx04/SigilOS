@@ -90,6 +90,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
 
     // Fetch Ocre progress stats if metamob is linked
     let ocreStats: any = null;
+    let capturedOcreMonsterIds: number[] = [];
+    let capturedMonsterNames: string[] = [];
     if (userProfile.metamobPseudo) {
         try {
             const { getMyOcreProgress } = await import("@/server/actions/ocre-actions");
@@ -102,6 +104,15 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                     currentStep: ocreRes.data.questInfo?.currentStep ?? 1,
                     serverName: ocreRes.data.questInfo?.serverName || "Dofus Unity",
                 };
+                // Build lists of captured monster IDs and names for dungeon detection
+                const monsters = ocreRes.data.monsters;
+                if (Array.isArray(monsters)) {
+                    const captured = monsters.filter((m: any) => m.owned != null && m.owned > 0);
+                    capturedOcreMonsterIds = captured.map((m: any) => m.id);
+                    capturedMonsterNames = captured
+                        .map((m: any) => m.name?.fr || m.name || "")
+                        .filter(Boolean);
+                }
             }
         } catch (e) {
             console.error("[Guide Page] Metamob stats fetch error (non-fatal):", e);
@@ -159,6 +170,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                                 metamobPseudo: userProfile.metamobPseudo,
                             }}
                             ocreStats={ocreStats}
+                            capturedOcreMonsterIds={Array.from(capturedOcreMonsterIds)}
+                            capturedMonsterNames={capturedMonsterNames}
                         />
                     </div>
                 ) : (

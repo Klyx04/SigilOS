@@ -29,6 +29,10 @@ vi.mock("@/server/actions/super-admin-actions", () => ({
     isSuperAdmin: vi.fn(),
 }));
 
+vi.mock("@/server/actions/user-actions", () => ({
+    getUserContext: vi.fn(),
+}));
+
 // Import after mocks
 import { requireGuildAdmin, requireGuildMember } from "@/server/actions/guards";
 import { auth } from "@/auth";
@@ -121,6 +125,10 @@ describe("guards.ts", () => {
             (fetchGuildRoles as ReturnType<typeof vi.fn>).mockResolvedValue([
                 { id: "member-role-id", permissions: "0" }, // No special permissions
             ]);
+
+            // Mock getUserContext fallback to avoid dynamic import hang in CI
+            const { getUserContext } = await import("@/server/actions/user-actions");
+            (getUserContext as ReturnType<typeof vi.fn>).mockResolvedValue({ isDiscordAdmin: false });
 
             const result = await requireGuildAdmin("123456789");
 

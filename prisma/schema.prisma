@@ -1947,15 +1947,16 @@ model PlayerGuideProgress {
 }
 
 enum GuideMilestoneType {
-  DOFUS         // Obtention d'un Dofus
-  ZONE          // Débloquer une zone/région
-  DONJON        // Compléter un donjon clé
-  QUETE_SERIE   // Série de quêtes majeures
-  ALIGNEMENT    // Progression d'alignement
-  PREREQUIS     // Prérequis technique (non visible dans l'arbre principal)
-  SUCCES        // Succès spécifique
-  INFO          // Bloc d'information / tips autonome
-  SEPARATEUR    // Titre simple de section / séparateur visuel
+  DOFUS           // Obtention d'un Dofus
+  DOFUS_OBTAINED  // Bloc visuel premium "Dofus Obtenu" (grande icône, message personnalisable, non cochable)
+  ZONE            // Débloquer une zone/région
+  DONJON          // Compléter un donjon clé
+  QUETE_SERIE     // Série de quêtes majeures
+  ALIGNEMENT      // Progression d'alignement
+  PREREQUIS       // Prérequis technique (non visible dans l'arbre principal)
+  SUCCES          // Succès spécifique
+  INFO            // Bloc d'information / tips autonome
+  SEPARATEUR      // Titre simple de section / séparateur visuel
 }
 
 // Stocke le JSON complet d'un sous-guide Ganymède (GP1, GP2, etc.)

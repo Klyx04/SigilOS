@@ -1051,6 +1051,8 @@ const UpdateDofusBookLinksSchema = z.object({
         source: z.enum(["dofusbook", "dofusroom"]).nullable().optional(),
         previewData: z.any().nullable().optional(),
         discordMessageId: z.string().nullable().optional(),
+        createdAt: z.string().nullable().optional(),
+        updatedAt: z.string().nullable().optional(),
     }).passthrough()).max(20, "Maximum 20 builds"),
     targetUserId: z.string().optional(),
 });
@@ -1098,24 +1100,43 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
         });
         const existingLinks = (existingProfile?.dofusBookLinks as any[]) || [];
 
+        const now = new Date().toISOString();
         const bakedLinks = await Promise.all(links.map(async (link) => {
             // Find if we already have this URL in our DB to avoid re-fetching metadata
             const matchingOld = existingLinks.find(l => l.id === link.id);
             
             if (matchingOld && matchingOld.url === link.url && matchingOld.previewData) {
-                return { ...link, previewData: matchingOld.previewData };
+                // Existing build — keep original createdAt, update updatedAt
+                return { 
+                    ...link, 
+                    previewData: matchingOld.previewData,
+                    createdAt: matchingOld.createdAt || now,
+                    updatedAt: now 
+                };
             }
 
+            // NEW build or changed URL — set both timestamps
             // DofusBook: try to fetch and bake preview
             try {
                 const res = await getDofusbookPreview(link.url, true);
                 if (res.success && res.data) {
-                    return { ...link, previewData: res.data, source: "dofusbook" as const };
+                    return { 
+                        ...link, 
+                        previewData: res.data, 
+                        source: "dofusbook" as const,
+                        createdAt: now,
+                        updatedAt: now
+                    };
                 }
             } catch (e) {
                 console.error(`[Server Baking] Failed for ${link.url}:`, e);
             }
-            return { ...link, source: "dofusbook" as const };
+            return { 
+                ...link, 
+                source: "dofusbook" as const,
+                createdAt: now,
+                updatedAt: now
+            };
         }));
 
         const filteredLinks = bakedLinks.filter((link) => {

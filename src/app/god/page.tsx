@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import {
     Shield,
@@ -53,12 +55,23 @@ import { TelemetryDashboard } from "./components/telemetry-dashboard";
 export default async function SuperAdminPage(props: {
     searchParams: Promise<{ tab?: string }>;
 }) {
+    const session = await auth();
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) redirect("/");
+    if (!isAdmin) {
+        // Log failed GOD attempt
+        if (session?.user?.id) {
+            const { logAdminAccessDenied } = await import("@/server/actions/audit-actions");
+            // Crée un log dans la première guilde disponible pour tracer qui tente le GOD
+            const firstGuild = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
+            if (firstGuild) {
+                await logAdminAccessDenied(firstGuild.discordGuildId, "/god");
+            }
+        }
+        redirect("/");
+    }
 
     const resolvedSearchParams = await props.searchParams;
     const tab = resolvedSearchParams.tab || "overview";
-
 
 
     // Fetch data for LifecyclePanel

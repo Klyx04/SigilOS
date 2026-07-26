@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Clock, User, Plus, Minus, Filter, ChevronLeft, ChevronRight, Search, X, Shield } from "lucide-react";
+import { Clock, User, Plus, Minus, Filter, ChevronLeft, ChevronRight, Search, X, Shield, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -204,6 +204,10 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
     const [actionFilter, setActionFilter] = useState<string>("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [actorFilter, setActorFilter] = useState("");
+    const [debouncedActor, setDebouncedActor] = useState("");
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
@@ -214,6 +218,14 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
         }, 300);
         return () => clearTimeout(timer);
     }, [searchQuery]);
+
+    // Debounce actor filter
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedActor(actorFilter);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [actorFilter]);
 
     // Fetch logs when filters or page change
     const fetchLogs = useCallback(async () => {
@@ -230,6 +242,15 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
             if (debouncedSearch) {
                 params.set("search", debouncedSearch);
             }
+            if (debouncedActor) {
+                params.set("actor", debouncedActor);
+            }
+            if (dateFrom) {
+                params.set("dateFrom", dateFrom);
+            }
+            if (dateTo) {
+                params.set("dateTo", dateTo);
+            }
 
             const res = await fetch(`/api/guild/${guildId}/audit-logs?${params.toString()}`);
             if (res.ok) {
@@ -242,29 +263,33 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
         } finally {
             setLoading(false);
         }
-    }, [guildId, page, actionFilter, debouncedSearch]);
+    }, [guildId, page, actionFilter, debouncedSearch, debouncedActor, dateFrom, dateTo]);
 
     useEffect(() => {
         // Skip initial fetch since we have initialLogs
-        if (page === 1 && actionFilter === "all" && !debouncedSearch) {
+        if (page === 1 && actionFilter === "all" && !debouncedSearch && !debouncedActor && !dateFrom && !dateTo) {
             return;
         }
         fetchLogs();
-    }, [page, actionFilter, debouncedSearch, fetchLogs]);
+    }, [page, actionFilter, debouncedSearch, debouncedActor, dateFrom, dateTo, fetchLogs]);
 
     // Reset page when filters change
     useEffect(() => {
         setPage(1);
-    }, [actionFilter, debouncedSearch]);
+    }, [actionFilter, debouncedSearch, debouncedActor, dateFrom, dateTo]);
 
     const clearFilters = () => {
         setActionFilter("all");
         setSearchQuery("");
         setDebouncedSearch("");
+        setActorFilter("");
+        setDebouncedActor("");
+        setDateFrom("");
+        setDateTo("");
         setPage(1);
     };
 
-    const hasActiveFilters = actionFilter !== "all" || debouncedSearch;
+    const hasActiveFilters = actionFilter !== "all" || debouncedSearch || debouncedActor || dateFrom || dateTo;
 
     return (
         <Card className="bg-zinc-900/60 border-white/5">
@@ -303,10 +328,38 @@ export function AuditLogsClient({ guildId, initialLogs, initialTotal, roleNames 
                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                         <input
                             type="text"
-                            placeholder="Rechercher..."
+                            placeholder="Mot-clé..."
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            className="h-8 w-[160px] pl-7 pr-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+                            className="h-8 w-[140px] pl-7 pr-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+                        />
+                    </div>
+
+                    <div className="relative">
+                        <User className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Acteur..."
+                            value={actorFilter}
+                            onChange={e => setActorFilter(e.target.value)}
+                            className="h-8 w-[140px] pl-7 pr-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <input
+                            type="date"
+                            value={dateFrom}
+                            onChange={e => setDateFrom(e.target.value)}
+                            className="h-8 w-[140px] px-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all [color-scheme:dark]"
+                        />
+                        <span className="text-xs text-muted-foreground">→</span>
+                        <input
+                            type="date"
+                            value={dateTo}
+                            onChange={e => setDateTo(e.target.value)}
+                            className="h-8 w-[140px] px-2 rounded-md border border-white/10 bg-zinc-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all [color-scheme:dark]"
                         />
                     </div>
 

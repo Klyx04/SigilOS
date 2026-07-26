@@ -1556,6 +1556,7 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
 
     const targetName = updated.pseudoDofus || updated.discordNickname || profileId;
 
+    const oldPseudo = profile.pseudoDofus || "aucun";
     await logAction({
         guildId: profile.guild.discordGuildId,
         action: "MEMBER_PSEUDO_UPDATE",
@@ -1563,7 +1564,10 @@ export async function updateMemberPseudo(profileId: string, pseudoDofus: string)
         targetId: profileId,
         oldValue: { pseudo: profile.pseudoDofus },
         newValue: { pseudo: pseudoDofus },
-        metadata: { operation: "MEMBER_PSEUDO_UPDATE", description: targetName }
+        metadata: {
+            operation: "MEMBER_PSEUDO_UPDATE",
+            description: `Pseudo Dofus de ${targetName} modifié : "${oldPseudo}" → "${pseudoDofus}"`
+        }
     });
 
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);
@@ -1601,6 +1605,7 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
 
     const targetName = updated.pseudoDofus || updated.discordNickname || profileId;
 
+    const oldAnkama = profile.ankamaId || "aucun";
     await logAction({
         guildId: profile.guild.discordGuildId,
         action: "MEMBER_ANKAMA_ID_UPDATE",
@@ -1608,7 +1613,10 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
         targetId: profileId,
         oldValue: { ankamaId: profile.ankamaId },
         newValue: { ankamaId: ankamaId },
-        metadata: { operation: "MEMBER_ANKAMA_ID_UPDATE", description: targetName }
+        metadata: {
+            operation: "MEMBER_ANKAMA_ID_UPDATE",
+            description: `ID Dofus (Ankama) de ${targetName} modifié : "${oldAnkama}" → "${ankamaId}"`
+        }
     });
 
     revalidatePath(`/dashboard/${profile.guild.discordGuildId}/admin/settings`);

@@ -256,3 +256,30 @@ Le script `maintenance.sh` tourne chaque nuit à 4h00 pour purger les caches Doc
 - [.antigravity](./.antigravity) - Full project context
 - [SECURITY.md](./SECURITY.md) - Security policy
 - [README.md](./README.md) - Project overview
+
+## ⏱️ Rate Limiting
+
+| Rule | Implementation |
+|------|----------------|
+| **Server Actions publiques** | Limiter les appels par `userId` + `guildId` (ex: 1 requête / 500ms) |
+| **Actions d'écriture (mutations)** | Rate limit plus strict que les lectures (ex: 10 mutations/min par user) |
+| **Endpoints exposés aux membres** | Toujours throttle avant d'atteindre la DB, jamais après |
+| **Stockage des compteurs** | Utiliser un store léger (Redis/Upstash ou table `RateLimit` en DB) — pas de variable en mémoire process (perdue au redeploy) |
+| **Réponse en cas de dépassement** | Retourner `429` avec un message clair, jamais un crash silencieux |
+
+### Pattern recommandé (Server Action)
+
+```typescript
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const allowed = await checkRateLimit(userId, "quest:toggle", { max: 10, windowMs: 60_000 });
+if (!allowed) {
+  return { success: false, error: "Trop de requêtes, réessaie dans quelques secondes" };
+}
+```
+
+### Cas d'usage prioritaires dans SigilOS
+
+- **Module Rush Sylvestre** : cochage/décochage de quêtes par un membre (évite le spam de clics qui surcharge la sync temps réel de `GuildStatusPanel`)
+- **Discord Bot Actions** : toute action déclenchée depuis Discord doit être throttle côté serveur, pas seulement côté bot
+- **GOD Dashboard** : rate limit strict sur les actions super-admin, même si rares, pour tracer toute anomalie de comportement

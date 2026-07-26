@@ -71,7 +71,7 @@ type Sequence = {
   activityTags?: ActivityTag[];
 };
 
-type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR";
+type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR" | "DOFUS_OBTAINED";
 
 type Milestone = {
   id: string;
@@ -121,6 +121,7 @@ const MILESTONE_TYPES: { value: MilestoneType; label: string; icon: React.ReactN
   { value: "DONJON",     label: "Donjon", icon: <Sword className="w-3 h-3" />, color: "#8b5cf6" },
   { value: "INFO",       label: "Conseil / Tips", icon: <Sparkles className="w-3 h-3" />, color: "#ec4899" },
   { value: "SEPARATEUR", label: "Séparateur", icon: <Sparkles className="w-3 h-3" />, color: "#f59e0b" },
+  { value: "DOFUS_OBTAINED", label: "Obtention Dofus", icon: <Gem className="w-3 h-3" />, color: "#d4a853" },
 ];
 
 // Dofus du jeu
@@ -323,18 +324,20 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const handleAddStep = useCallback(() => {
     if (!newStepTitle.trim()) { toast.error(newStepType === "SEPARATEUR" ? "Titre de section requis" : "Nom de l'étape requis"); return; }
     const isSeparator = newStepType === "SEPARATEUR";
+    const isDofusBanner = newStepType === "DOFUS_OBTAINED";
+    const isOutsideChapter = isSeparator || isDofusBanner;
     startTransition(async () => {
       try {
         await upsertRushMilestone({
-          chapter: isSeparator ? "0" : String(newChapterNum),
-          chapterLabel: isSeparator ? "" : (newChapterLabel.trim() || `Chapitre ${newChapterNum}`),
+          chapter: isOutsideChapter ? "0" : String(newChapterNum),
+          chapterLabel: isOutsideChapter ? "" : (newChapterLabel.trim() || `Chapitre ${newChapterNum}`),
           label: newStepTitle.trim(),
-          accentColor: isSeparator ? (newStepColor || "#d4a853") : newStepColor,
+          accentColor: isOutsideChapter ? (newStepColor || "#d4a853") : newStepColor,
           order: localMilestones.length,
           type: newStepType,
           dofusId: isSeparator ? null : newDofusId,
         });
-        toast.success(isSeparator ? "Séparateur ajouté ✓" : "Étape ajoutée ✓");
+        toast.success(isSeparator ? "Séparateur ajouté ✓" : isDofusBanner ? "Bannière Dofus ajoutée ✓" : "Étape ajoutée ✓");
         setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setAddingStep(false);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
@@ -519,7 +522,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </div>
                     </div>
 
-                    {newStepType !== "SEPARATEUR" ? (
+                    {newStepType !== "SEPARATEUR" && newStepType !== "DOFUS_OBTAINED" ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">N° chapitre *</label>
@@ -536,9 +539,13 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                         />
                       </div>
                     </div>
+                    ) : newStepType === "SEPARATEUR" ? (
+                      <p className="text-[10px] text-amber-400/70 leading-relaxed">
+                        Le séparateur est un titre visuel entre les blocs — il n'appartient à aucun chapitre.
+                      </p>
                     ) : (
                       <p className="text-[10px] text-amber-400/70 leading-relaxed">
-                        Le séparateur est un titre visuel entre les blocs — il n&apos;appartient à aucun chapitre.
+                        La bannière d'obtention est un bloc visuel autonome — il n'appartient à aucun chapitre et n'est pas cochable.
                       </p>
                     )}
                     <div>
@@ -553,8 +560,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       />
                     </div>
 
-                    {/* Dofus selector (si type DOFUS) */}
-                    {newStepType === "DOFUS" && (
+                    {/* Dofus selector (si type DOFUS ou DOFUS_OBTAINED) */}
+                    {(newStepType === "DOFUS" || newStepType === "DOFUS_OBTAINED") && (
                       <div>
                         <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Dofus associé <span className="text-zinc-600">(clic pour sélectionner)</span></label>
                         <div className="flex flex-wrap gap-2">
@@ -961,6 +968,18 @@ function MilestoneRow({
                   />
                 ))}
               </div>
+              {/* Preview icon for INFO blocks */}
+              {(editingData?.type ?? milestone.type) === "INFO" && (() => {
+                const ac = editingData?.accentColor ?? milestone.accentColor;
+                let icon = "💡";
+                if (ac) {
+                  const c = ac.toLowerCase();
+                  if (c.startsWith("#ef")||c.startsWith("#f4")||c.startsWith("#f5")||c.startsWith("#eab")||c.startsWith("#dc")||c.startsWith("#f9")) icon = "⚠️";
+                  else if (c.startsWith("#3b")||c.startsWith("#06")||c.startsWith("#4f")||c.startsWith("#63")||c.startsWith("#0e")||c.startsWith("#38")) icon = "📖";
+                  else if (c.startsWith("#7c")||c.startsWith("#a8")||c.startsWith("#8b")||c.startsWith("#c0")) icon = "🔮";
+                }
+                return <span className="text-base ml-2" title="Icône d'aperçu pour ce type INFO">{icon}</span>;
+              })()}
               <div className="flex items-center gap-1 ml-auto">
                 <button onClick={onSave} disabled={isPending} className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
                 <button onClick={onCancelEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>

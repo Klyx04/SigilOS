@@ -49,11 +49,11 @@ export const QuestGroupRenderer = memo(function QuestGroupRenderer({
   const someDone = members.some((m) => completedIds.has(m.seqId));
 
   return (
-    <div className="border border-emerald-500/20 rounded-2xl bg-zinc-900/30 overflow-hidden">
+    <div className="border border-emerald-500/25 bg-zinc-950/80 rounded-2xl shadow-sm shadow-emerald-500/5 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 p-3 transition-colors hover:bg-zinc-800/40"
+        className="w-full flex items-center gap-3 p-3 transition-colors hover:bg-zinc-900/60"
       >
         <div className="flex-shrink-0">
           {isLoading ? (
@@ -83,7 +83,7 @@ export const QuestGroupRenderer = memo(function QuestGroupRenderer({
                 e.stopPropagation();
                 onToggleAll(true);
               }}
-              className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all"
+              className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-sm"
               title="Tout marquer fait"
             >
               Tout ✓
@@ -106,10 +106,10 @@ export const QuestGroupRenderer = memo(function QuestGroupRenderer({
               {members.map((m) => (
                 <div
                   key={m.seqId}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all ${
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all shadow-sm ${
                     completedIds.has(m.seqId)
-                      ? "bg-zinc-900/50 border-zinc-700/40 opacity-70"
-                      : "bg-zinc-900/60 border-zinc-800/60 hover:border-zinc-700/60"
+                      ? "bg-zinc-950/60 border-zinc-800/40 opacity-70"
+                      : "bg-zinc-950/80 border-zinc-800/50 hover:border-zinc-700/60"
                   }`}
                 >
                   <div className="flex-shrink-0">
@@ -125,7 +125,7 @@ export const QuestGroupRenderer = memo(function QuestGroupRenderer({
                     <img
                       src={m.dungeonImageUrl}
                       alt={m.dungeonName || ""}
-                      className="w-6 h-6 rounded-lg object-cover border border-white/10 flex-shrink-0"
+                      className="w-6 h-6 rounded-lg object-cover border border-zinc-700/50 flex-shrink-0"
                     />
                   )}
 

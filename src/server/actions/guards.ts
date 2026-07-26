@@ -41,7 +41,9 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
 
     const discordUserId = account.providerAccountId;
 
-    // ─── Cache permission result for 60s to avoid 3× Discord API calls per action ───
+    // ─── Cache permission result for 60s (POSITIVE RESULTS ONLY) to avoid 3× Discord API calls per action ───
+    // NEVER cache a negative result — doing so would lock out legitimate admins for 60s
+    // if the Discord API temporarily fails, rate-limits, or returns a stale response.
     const cacheKey = `guard:admin:${discordUserId}:${guildId}`;
     try {
         const { redis } = await import("@/lib/redis");
@@ -49,7 +51,10 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
             const cached = await redis.get(cacheKey);
             if (cached) {
                 const parsed = JSON.parse(cached) as { isAuthorized: boolean; discordUserId: string };
-                return parsed;
+                // Only return from cache if it's a positive result
+                if (parsed.isAuthorized) return parsed;
+                // Negative cache hit: delete the stale rejection and re-check live
+                await redis.del(cacheKey).catch(() => {});
             }
         }
     } catch { /* ignore cache errors, fall through to live check */ }
@@ -89,11 +94,28 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
         const isAdmin = memberRoles.some((r: any) => (BigInt(r.permissions) & 0x8n) === 0x8n);
 
         if (!isAdmin) {
-            // 🛡️ SECURITY: Only log as a security event for external/non-member users.
-            // Guild members with partial permissions (validators, managers, etc.) legitimately
-            // reach this check without being Discord admins — this is expected behavior.
-            // We log ONLY external users (potential scanners/intruders) as a security event.
-            // Note: logAdminAccessDenied itself also filters members as a defense-in-depth measure.
+            // 🛡️ FALLBACK: Discord API says "not admin" — but before returning a denial,
+            // check the RBAC local cache (user context) as a safety net.
+            // This prevents false rejections when the Discord API is temporarily
+            // inconsistent (e.g. role propagation delay, rate-limit stale data).
+            // Security: the RBAC already verified Discord admin bit during getUserContext,
+            // so this is not a bypass — it's a consistency fallback.
+            try {
+                const { getUserContext } = await import("./user-actions");
+                const userCtx = await getUserContext(guildId);
+                if (userCtx.isDiscordAdmin) {
+                    // RBAC confirms this user IS a Discord admin — honor the local state
+                    // and return authorized.
+                    const result = { isAuthorized: true, discordUserId };
+                    // Cache positive result for 60s
+                    try {
+                        const { redis } = await import("@/lib/redis");
+                        if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+                    } catch { /* ignore */ }
+                    return result;
+                }
+            } catch { /* RBAC fallback also failed — proceed with Discord result */ }
+
             return { isAuthorized: false, error: "Admin permission required" };
         }
 

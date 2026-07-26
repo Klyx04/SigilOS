@@ -253,9 +253,8 @@ export async function getAbsenceConfig(guildId: string): Promise<{ success: bool
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // SECURITY: Verify user is admin of this guild
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -277,8 +276,8 @@ export async function updateAbsenceChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateAbsenceChannel");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateAbsenceChannel");
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
@@ -322,8 +321,8 @@ export async function getOcreConfig(guildId: string): Promise<{ success: boolean
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -345,8 +344,8 @@ export async function updateOcreChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateOcreChannel");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateOcreChannel");
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
@@ -388,9 +387,8 @@ export async function getSongesConfig(guildId: string): Promise<{ success: boole
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // SECURITY: Verify user is admin of this guild
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -412,8 +410,8 @@ export async function updateSongesChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateSongesChannel");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateSongesChannel");
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
@@ -456,9 +454,8 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // SECURITY: Verify user is admin of this guild
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -499,8 +496,8 @@ export async function updateCalendarChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateCalendarChannel");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateCalendarChannel");
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
@@ -544,8 +541,8 @@ export async function updateRaidChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateRaidChannel");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateRaidChannel");
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
@@ -589,8 +586,8 @@ export async function updateRaidGigalodonChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateRaidGigalodonChannel");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateRaidGigalodonChannel");
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
@@ -631,8 +628,8 @@ export async function updateRaidSanctuaireChannel(
     guildId: string,
     channelId: string | null
 ): Promise<ActionResponse> {
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateRaidSanctuaireChannel");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateRaidSanctuaireChannel");
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
@@ -673,8 +670,8 @@ export async function updateRaidKamaDonationRequired(
     guildId: string,
     required: boolean
 ): Promise<ActionResponse> {
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateRaidKamaDonationRequired");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateRaidKamaDonationRequired");
     if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
@@ -730,9 +727,8 @@ export async function getDofusConfig(guildId: string): Promise<{
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // SECURITY: Verify user is admin of this guild
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -797,8 +793,8 @@ export async function updateDofusServer(
 
     // 🔒 SECURITY FIX: Add admin authorization check
     // Ref: Security Audit Report #2 - Authorization bypass vulnerability
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) {
         console.warn(`[Security] updateDofusServer blocked: ${guard.error} for user ${session.user.id}`);
         return { success: false, error: guard.error || "Admin required" };
@@ -856,9 +852,8 @@ export async function updateGuildGameConfig(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // SECURITY: Verify user is admin of this guild
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -936,9 +931,8 @@ export async function updateGuildHallConfig(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // SECURITY: Verify user is admin of this guild
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -984,8 +978,8 @@ export async function getMissionConfig(guildId: string): Promise<{
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -1049,8 +1043,8 @@ export async function updateMissionNotifySettings(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -1186,8 +1180,8 @@ export async function getLoansConfig(guildId: string): Promise<{ success: boolea
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -1211,8 +1205,8 @@ export async function updateLoansChannel(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -1359,8 +1353,8 @@ export async function getServicesStatusConfig(guildId: string): Promise<{
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -1408,8 +1402,8 @@ export async function updateServicesStatusConfig(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -1442,8 +1436,8 @@ export async function getGalleryConfig(guildId: string): Promise<{
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -1480,8 +1474,8 @@ export async function updateGallerySettings(
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId, "updateGallerySettings");
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateGallerySettings");
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {
@@ -1535,8 +1529,8 @@ export async function getGuildChannels(guildId: string): Promise<{
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const { requireGuildAdmin } = await import("./guards");
-    const guard = await requireGuildAdmin(guildId);
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) return { success: false, error: guard.error };
 
     try {

@@ -19,6 +19,10 @@
 /**
  * Vérifie la signature du secret CRON via comparaison à temps constant
  * pour résister aux attaques de timing (timing attack).
+ *
+ * Accepte DEUX formats de header (compatibilité scripts existants) :
+ *   - x-cron-secret: <secret>     (nouveau format, recommandé)
+ *   - Authorization: Bearer <secret> (format legacy utilisé par maintenance.sh)
  */
 export function verifyCronSecret(req: Request): boolean {
     const secret = process.env.CRON_SECRET;
@@ -29,7 +33,16 @@ export function verifyCronSecret(req: Request): boolean {
         return false;
     }
 
-    const incoming = req.headers.get("x-cron-secret");
+    // Extraire le secret depuis le header, en acceptant deux formats :
+    let incoming = req.headers.get("x-cron-secret");
+    
+    // Fallback : Authorization: Bearer <secret> (format legacy)
+    if (!incoming) {
+        const auth = req.headers.get("Authorization");
+        if (auth && auth.startsWith("Bearer ")) {
+            incoming = auth.slice(7);
+        }
+    }
 
     // Pas de header = refus immédiat
     if (!incoming) return false;

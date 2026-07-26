@@ -134,6 +134,123 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
 }
 
 /**
+ * Require the current user to have access to guild configuration settings.
+ * 
+ * This is a LESS restrictive guard than requireGuildAdmin — it accepts:
+ * 1. Discord Administrators (owner OR permission bit 0x8)
+ * 2. Users with the RBAC permission "system:config" (Paramétrage Technique)
+ * 
+ * The RBAC fallback allows guild officers with delegated settings access
+ * to modify configurations without needing the full Discord Admin toggle.
+ * 
+ * @param guildId - Discord Guild ID
+ * @param context - Human-readable name of the action being accessed (for logging)
+ * @returns GuardResult with authorization status
+ */
+export async function requireGuildConfigAccess(guildId: string, context: string = "Accès Configuration Guilde"): Promise<GuardResult> {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { isAuthorized: false, error: "Unauthorized" };
+    }
+
+    // Platform Guard: Is the guild allowed/active?
+    const allowed = await isGuildAllowed(guildId);
+    if (!allowed) {
+        return { isAuthorized: false, error: "This guild is currently deactivated or banned." };
+    }
+
+    const account = await db.account.findFirst({
+        where: { userId: session.user.id, provider: "discord" },
+        select: { providerAccountId: true }
+    });
+
+    if (!account) {
+        return { isAuthorized: false, error: "No Discord account linked" };
+    }
+
+    const discordUserId = account.providerAccountId;
+
+    // ─── Cache permission result for 60s (POSITIVE RESULTS ONLY) ───
+    const cacheKey = `guard:config:${discordUserId}:${guildId}`;
+    try {
+        const { redis } = await import("@/lib/redis");
+        if (redis.status === "ready") {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached) as { isAuthorized: boolean; discordUserId: string };
+                if (parsed.isAuthorized) return parsed;
+                await redis.del(cacheKey).catch(() => {});
+            }
+        }
+    } catch { /* ignore cache errors */ }
+
+    try {
+        const { fetchGuild, fetchGuildMember, fetchGuildRoles } = await import("@/server/discord");
+        const { isSuperAdmin } = await import("./super-admin-actions");
+
+        // Super-admin bypass (Platform God Mode)
+        if (await isSuperAdmin()) return { isAuthorized: true, discordUserId };
+
+        // Parallel fetch for performance
+        const [guildInfo, member, guildRoles] = await Promise.all([
+            fetchGuild(guildId),
+            fetchGuildMember(guildId, discordUserId),
+            fetchGuildRoles(guildId, { excludeManaged: false })
+        ]);
+
+        // Check 1: Is Owner?
+        if (guildInfo.owner_id === discordUserId) {
+            const result = { isAuthorized: true, discordUserId };
+            try {
+                const { redis } = await import("@/lib/redis");
+                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+            } catch { /* ignore */ }
+            return result;
+        }
+
+        // Check 2: Is guild member?
+        if (!member) {
+            return { isAuthorized: false, error: "Not a member of this guild" };
+        }
+
+        // Check 3: Has Administrator Permission (0x8)?
+        const memberRoles = guildRoles.filter((r: any) => member.roles.includes(r.id));
+        const isDiscordAdmin = memberRoles.some((r: any) => (BigInt(r.permissions) & 0x8n) === 0x8n);
+
+        if (isDiscordAdmin) {
+            const result = { isAuthorized: true, discordUserId };
+            try {
+                const { redis } = await import("@/lib/redis");
+                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+            } catch { /* ignore */ }
+            return result;
+        }
+
+        // 🛡️ FALLBACK: Not a Discord admin — check RBAC for system:config permission.
+        // This allows guild officers with delegated settings access via the RBAC matrix
+        // to modify configurations without needing the full Discord Admin toggle.
+        try {
+            const { getUserContext } = await import("./user-actions");
+            const userCtx = await getUserContext(guildId);
+            if (userCtx.canViewSettings) {
+                // User has system:config RBAC — authorized for config actions
+                const result = { isAuthorized: true, discordUserId };
+                try {
+                    const { redis } = await import("@/lib/redis");
+                    if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+                } catch { /* ignore */ }
+                return result;
+            }
+        } catch { /* RBAC fallback failed — proceed with denial */ }
+
+        return { isAuthorized: false, error: "Admin permission required" };
+    } catch (error) {
+        console.error(`[Guard] Config access check failed for ${context}:`, error);
+        return { isAuthorized: false, error: "Permission check failed" };
+    }
+}
+
+/**
  * Require the current user to be a member of the guild.
  * 
  * @param guildId - Discord Guild ID

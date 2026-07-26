@@ -38,7 +38,7 @@ const ACTION_COLORS: Record<string, string> = {
 
 const ACTION_OPTIONS = [
     { value: "all", label: "Toutes les actions" },
-    { value: "SECURITY_ALERT,ACCESS_ATTEMPT", label: "🚨 Alertes Sécurité & Accès (IP)" },
+    { value: "SECURITY_ALERT,ADMIN_FULL_DENIED", label: "🚨 Alertes Sécurité & Accès" },
     { value: "RBAC_UPDATE", label: "Permissions modifiées" },
     { value: "MISSION_CREATED,MISSION_DELETED,MISSION_VALIDATED,MISSION_REJECTED", label: "⚔️ Missions" },
     { value: "BONUS_PURCHASED,BONUS_CANCELLED", label: "🔮 Bonus" },
@@ -163,10 +163,36 @@ export function AuditFeedPanel({ logs, total }: { logs: any[]; total: number }) 
                                                 <Shield className="w-2.5 h-2.5" /> IP: {metadata.ip}
                                             </span>
                                         )}
+                                        {metadata.geo?.country && (
+                                            <span className="text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded font-medium">
+                                                {metadata.geo.country}{metadata.geo.region ? `, ${metadata.geo.region}` : ""}{metadata.geo.city ? `, ${metadata.geo.city}` : ""}
+                                            </span>
+                                        )}
+                                        {metadata.geo?.isp && (
+                                            <span className="text-zinc-500 bg-zinc-800/50 px-1 py-0.5 rounded font-mono text-[9px]">
+                                                {metadata.geo.isp}
+                                            </span>
+                                        )}
+                                        {metadata.geo?.proxy && (
+                                            <span className="text-amber-400/80 bg-amber-500/10 px-1 py-0.5 rounded font-black">
+                                                VPN/PROXY
+                                            </span>
+                                        )}
+                                        {metadata.geo?.hosting && (
+                                            <span className="text-cyan-400/80 bg-cyan-500/10 px-1 py-0.5 rounded font-black">
+                                                HOSTING
+                                            </span>
+                                        )}
                                         {metadata.reason && <span className="text-amber-500/70 italic">- {metadata.reason}</span>}
                                     </div>
                                     
-                                    {displayMsg && (
+                                    {metadata.description && (
+                                        <div className="mt-1 bg-black/50 border border-white/5 p-1.5 rounded italic break-all max-w-[80%]">
+                                            {metadata.description}
+                                        </div>
+                                    )}
+                                    
+                                    {displayMsg && !metadata.description && (
                                         <div className="mt-1 bg-black/50 border border-white/5 p-1.5 rounded italic break-all max-w-[80%]">
                                             "{displayMsg}"
                                         </div>

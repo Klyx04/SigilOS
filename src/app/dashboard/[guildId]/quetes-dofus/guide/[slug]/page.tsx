@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { auth } from "@/auth";
 import { getUserContext } from "@/server/actions/user-actions";
@@ -65,9 +66,12 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
         altPseudos?: any[]; 
         dofusClass?: string | null;
         metamobPseudo?: string | null;
+        pseudoDofus?: string | null;
     } = {};
     try {
-        const profileRes = await getMemberProfile(guildId, session.user.id);
+        const profileId = user.profileId;
+        if (!profileId) throw new Error("Profile ID not found");
+        const profileRes = await getMemberProfile(guildId, profileId);
         if (profileRes.success && profileRes.data) {
             const p = profileRes.data;
             userProfile = {
@@ -77,6 +81,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 altPseudos: Array.isArray(p.altPseudos) ? p.altPseudos : [],
                 dofusClass: p.classe,
                 metamobPseudo: p.metamobPseudo,
+                pseudoDofus: p.pseudoDofus,
             };
         }
     } catch (e) {

@@ -116,14 +116,9 @@ export default async function RootLayout({
   const nonce = headersList.get('x-nonce') ?? '';
 
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" className="dark" suppressHydrationWarning>
       <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} ${cinzel.variable} ${rajdhani.variable} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          forcedTheme="dark"
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
           <AuthProvider session={session}>
             <TooltipProvider>
               <GodBypassCookie />

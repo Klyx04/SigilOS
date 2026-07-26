@@ -849,10 +849,10 @@ export default function OptimizedGuideAdminClient({ initialGuides }: { initialGu
                             <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Catégorie</label>
                             <select value={editingMs.type} onChange={e => setEditingMs(p => ({ ...p!, type: e.target.value }))} 
                               className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-white font-bold outline-none appearance-none">
-                              {["DOFUS", "DONJON", "ALIGNEMENT", "QUETE_SERIE", "METIER", "PREREQUIS"].map(t => <option key={t}>{t}</option>)}
+                              {["INFO", "SEPARATEUR", "DOFUS", "DONJON", "ALIGNEMENT", "QUETE_SERIE", "METIER", "PREREQUIS"].map(t => <option key={t}>{t}</option>)}
                             </select>
                           </div>
-                        </div>
+                      </div>
 
                         <div className="flex items-center gap-4 bg-zinc-950/50 p-4 rounded-2xl border border-white/5">
                            <input type="checkbox" id="isOpt" checked={editingMs.isOptional} onChange={e => setEditingMs(p => ({ ...p!, isOptional: e.target.checked }))} 

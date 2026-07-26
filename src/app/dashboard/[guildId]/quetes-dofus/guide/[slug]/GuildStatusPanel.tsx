@@ -140,7 +140,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-400" />
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-              Progression Dofus (Guilde)
+              Progression Dofus
             </span>
           </div>
           <span className="text-[9px] font-black text-indigo-400">
@@ -148,81 +148,49 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
           </span>
         </div>
 
-        {/* Dofus cards grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+        {/* Dofus cards — horizontal scroll, compact */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent -mx-1 px-1">
           {dofusStats.map((d) => {
             const isAllDone = d.completedMilestones === d.totalMilestones && d.totalMilestones > 0;
-            const topMembers = d.membersInProgress.slice(0, 3);
-            const extraMembers = d.membersInProgress.length - 3;
 
             return (
               <button
                 key={d.id}
                 onClick={() => setModalDofus(d.id)}
-                className="relative flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center group cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                className="relative flex flex-col items-center gap-1 p-2 rounded-xl border transition-all text-center group cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0 w-[72px]"
                 style={{
                   borderColor: isAllDone ? `${d.color}50` : `${d.color}20`,
                   background: isAllDone ? `${d.color}08` : undefined,
                 }}
+                title={`${d.label} — ${d.pct}% (${d.completedMilestones}/${d.totalMilestones})`}
               >
                 {/* Dofus icon */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={d.imageUrl}
                   alt={d.label}
-                  className="w-10 h-10 object-contain drop-shadow-lg group-hover:scale-110 transition-transform"
+                  className="w-7 h-7 object-contain drop-shadow-lg group-hover:scale-110 transition-transform"
                 />
 
-                {/* Label */}
-                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: d.color }}>
+                {/* Label — truncated */}
+                <span className="text-[7px] font-black uppercase tracking-widest truncate max-w-full leading-tight" style={{ color: d.color }}>
                   {d.label}
                 </span>
 
-                {/* Progress circle */}
-                <div className="relative w-full">
-                  <div className="h-1 bg-zinc-800/60 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${d.pct}%`,
-                        background: `linear-gradient(90deg, ${d.color}, ${d.color}99)`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-[8px] font-mono font-bold text-zinc-500 mt-0.5 block">
-                    {d.pct}% ({d.completedMilestones}/{d.totalMilestones})
-                  </span>
+                {/* Mini progress bar */}
+                <div className="w-full h-1 bg-zinc-800/60 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${d.pct}%`,
+                      background: `linear-gradient(90deg, ${d.color}, ${d.color}99)`,
+                    }}
+                  />
                 </div>
 
-                {/* Member avatars */}
-                {topMembers.length > 0 && (
-                  <div className="flex items-center justify-center -space-x-1.5 mt-0.5">
-                    {topMembers.map((m) => (
-                      <div
-                        key={m.profileId}
-                        className="w-5 h-5 rounded-full border-2 border-zinc-950 overflow-hidden bg-zinc-800 flex items-center justify-center ring-1 shrink-0"
-                        style={{ boxShadow: `0 0 0 1px ${d.color}60` }}
-                        title={`${m.userName} — ${m.pct}%`}
-                      >
-                        {m.userAvatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.userAvatar} alt={m.userName} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-[7px] font-black text-zinc-300">
-                            {m.userName[0]?.toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                    {extraMembers > 0 && (
-                      <span className="text-[7px] font-black text-zinc-500 ml-1">+{extraMembers}</span>
-                    )}
-                  </div>
-                )}
-
-                {/* Clic pour voir + */}
-                <span className="text-[7px] font-black uppercase tracking-widest text-zinc-600 group-hover:text-zinc-400 transition-colors">
-                  Détails →
+                {/* Percentage compact */}
+                <span className="text-[7px] font-mono font-bold text-zinc-500">
+                  {d.pct}%
                 </span>
               </button>
             );

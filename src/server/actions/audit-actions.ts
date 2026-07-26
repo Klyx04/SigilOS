@@ -55,9 +55,6 @@ export type AuditAction =
     | "GOD_DATABASE_SYNC"         // Massive data synchronization (DofusDB, etc)
     | "GOD_NEWS_PUBLISH"          // Platform-wide news published
     | "GOD_MAINTENANCE_MODE"
-    | "MISSION_VALIDATED"
-    | "MISSION_REJECTED"
-    | "MISSION_PUBLISH_DISCORD"
     | "MISSION_XP_OVERRIDE"
     | "GUILDATON_UPDATE"
     | "GUILDATON_CSV_IMPORT"
@@ -135,7 +132,7 @@ export async function reportSecurityIncident(
         // 🛡️ FORENSICS: Get real security headers
         const { headers } = await import("next/headers");
         const headersList = await headers();
-        const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+        const ip = maskIp(headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1");
 
         const result = await createAuditLog({
             guildId,
@@ -147,7 +144,7 @@ export async function reportSecurityIncident(
             metadata: {
                 description,
                 ...metadata,
-                ip: ip.substring(0, 45),
+                ip,
                 severity: "HIGH"
             }
         });
@@ -256,8 +253,28 @@ export async function createAuditLog({
 }
 
 /**
+ * Masque une IP pour ne stocker que les 2 premiers octets visibles.
+ * Ex: "192.168.1.45" → "192.168.x.xx"
+ *     "2001:db8::1" → "2001:db8:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx"
+ */
+function maskIp(ip: string): string {
+    if (!ip) return "0.0.0.0";
+    if (ip.includes(".")) {
+        const parts = ip.split(".");
+        if (parts.length === 4) return `${parts[0]}.${parts[1]}.x.xx`;
+        return ip;
+    }
+    if (ip.includes(":")) {
+        const parts = ip.split(":");
+        if (parts.length >= 2) return `${parts[0]}:${parts[1]}:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx`;
+        return ip;
+    }
+    return "0.0.0.0";
+}
+
+/**
  * 🚀 PRO VERBOSE LOGGER
- * Automatically captures IP, User-Agent and handles Discord IDs.
+ * Automatically captures IP (masked), User-Agent and handles Discord IDs.
  */
 export async function logAction({
     guildId,
@@ -284,7 +301,7 @@ export async function logAction({
         const { headers } = await import("next/headers");
         const headersList = await headers();
         const userAgent = headersList.get("user-agent") || "Inconnu";
-        const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+        const ip = maskIp(headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1");
 
         // Get fresh server pseudo
         let actorName = session.user.name || "Anonymous";
@@ -305,7 +322,7 @@ export async function logAction({
             metadata: {
                 ...metadata,
                 userAgent,
-                ip: ip.substring(0, 45),
+                ip,
                 timestamp: new Date().toISOString(),
                 source: "SERVER_ACTION_VERBOSE"
             }
@@ -316,10 +333,47 @@ export async function logAction({
 }
 
 /**
+ * Interroge ip-api.com (gratuit, 45 req/min, pas de clé API) pour enrichir
+ * une IP avec des infos de géolocalisation.
+ * Retourne un objet vide si la requête échoue (timeout, rate-limit, etc).
+ */
+async function enrichIp(ip: string): Promise<Record<string, any>> {
+    try {
+        // Ne pas enrichir les IP locales/masquées
+        if (!ip || ip.startsWith("127.") || ip.startsWith("0.") || ip === "0.0.0.0") return {};
+        
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000); // 2s timeout max
+        
+        const res = await fetch(`http://ip-api.com/json/${ip}?fields=country,regionName,city,isp,proxy,mobile,hosting`, {
+            signal: controller.signal,
+            headers: { "Accept": "application/json" }
+        });
+        clearTimeout(timeout);
+        
+        if (!res.ok) return {};
+        const data = await res.json();
+        if (data.status !== "success") return {};
+        
+        return {
+            country: data.country || null,
+            region: data.regionName || null,
+            city: data.city || null,
+            isp: data.isp || null,
+            proxy: !!data.proxy,
+            mobile: !!data.mobile,
+            hosting: !!data.hosting,
+        };
+    } catch {
+        return {};
+    }
+}
+
+/**
  * Log unauthorized admin access attempt
  * This function can be called WITHOUT admin permissions (since it logs failed access attempts)
  * It uses internal auth to get user info
- * Differentiates between internal members (with role) and external users
+ * Logs ALL attempts (members AND externals) avec enrichissement IP.
  */
 export async function logAdminAccessDenied(
     discordGuildId: string,
@@ -332,19 +386,21 @@ export async function logAdminAccessDenied(
         // Get guild config
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId },
-            select: { id: true }
+            select: { id: true, name: true }
         });
 
         if (!guildConfig) return;
 
-        // Try to get user context to determine if they're a guild member
+        // Try to get user context
         let isMember = false;
         let roleName: string | null = null;
+        let guildName = guildConfig.name || "Guilde inconnue";
 
         try {
             const user = await getUserContext(discordGuildId);
             isMember = user.isMember;
             roleName = user.roleName || null;
+            if (user.guildName) guildName = user.guildName;
         } catch {
             // If we can't get context, they're likely external
         }
@@ -353,27 +409,19 @@ export async function logAdminAccessDenied(
         const { headers } = await import("next/headers");
         const headersList = await headers();
         
-        // 🛡️ SECURITY: Detect and ignore prefetch attempts (avoid spamming logs with false positives)
+        // 🛡️ SECURITY: Detect and ignore prefetch attempts
         const isPrefetch = 
             headersList.get("Next-Router-Prefetch") === "1" || 
             headersList.get("Purpose") === "prefetch" ||
             headersList.get("x-middleware-prefetch") === "1" ||
             headersList.get("sec-purpose") === "prefetch" ||
-            headersList.get("rsc") === "1"; // RSC fetch (React Server Components streaming)
+            headersList.get("rsc") === "1";
         if (isPrefetch) return;
 
-        // 🛡️ SECURITY: Avoid false positives for legitimate guild members.
-        // Members can have partial permissions (canValidateMissions, canManageMembers, etc.)
-        // without being Discord admins. This is NOT a security threat — only log for
-        // external users (potential intruders/scanners) attempting to access admin resources.
-        if (isMember) {
-            return;
-        }
-
         const userAgent = headersList.get("user-agent") || "Inconnu";
-        const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+        const rawIp = headersList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+        const ip = maskIp(rawIp);
 
-        // Import Prisma for JsonNull handling
         const { Prisma } = await import("@prisma/client");
 
         // Get fresh server pseudo
@@ -382,6 +430,9 @@ export async function logAdminAccessDenied(
             const ctx = await getUserContext(discordGuildId);
             if (ctx.name) actorName = ctx.name;
         } catch {}
+
+        // Enrichissement IP (fire & forget — on ne bloque pas le log si ça échoue)
+        const geoPromise = enrichIp(rawIp);
 
         await db.auditLog.create({
             data: {
@@ -395,16 +446,19 @@ export async function logAdminAccessDenied(
                 newValue: Prisma.JsonNull,
                 metadata: {
                     userAgent,
-                    ip: ip.substring(0, 45), // Protection contre les headers trop longs
+                    ip,
+                    geo: await geoPromise.catch(() => ({})),
                     timestamp: new Date().toISOString(),
                     isMember,
                     roleName: roleName || "Aucun rôle (externe)",
+                    guildName,
                     accessType: isMember ? "internal_member" : "external_user",
+                    description: isMember
+                        ? `Membre ${actorName} (${roleName}) de ${guildName} a tenté d'accéder à ${targetPage}`
+                        : `Utilisateur externe ${actorName} a tenté d'accéder à ${targetPage}`
                 }
             }
         });
-
-        const memberStatus = isMember ? `membre (${roleName})` : "utilisateur externe";
     } catch (error) {
         // Silent fail - logging shouldn't break the app
         console.error("[logAdminAccessDenied] Error:", error);
@@ -563,23 +617,11 @@ export async function getAuditLogs(
             }
         });
 
-        // 🛡️ SECURITY: Mask IP for non-super-admins
-        const { isSuperAdmin } = await import("./super-admin-actions");
-        const isGod = await isSuperAdmin();
-
-        const filteredLogs = logs.map(log => {
-            if (!isGod && log.metadata && typeof log.metadata === "object") {
-                const cleanMetadata = { ...(log.metadata as Record<string, any>) };
-                delete cleanMetadata.ip;
-                return { ...log, metadata: cleanMetadata };
-            }
-            return log;
-        });
-
+        // IP est déjà masquée au stockage (maskIp) — tout le monde voit l'IP partielle
         return {
             success: true,
             data: {
-                logs: filteredLogs as AuditLogEntry[],
+                logs: logs as AuditLogEntry[],
                 total,
                 hasMore: page * limit < total
             }
@@ -637,9 +679,10 @@ export async function getAuditActionTypes(
 // AUDIT LOG CLEANUP (Retention Policy)
 // ============================================================================
 
-// RGPD Art. 5: 90 days minimum for security audit logs
-// Admins can request manual export before purge (RGPD Art. 20)
-const RETENTION_DAYS = 90;
+// Rétention à 30 jours pour les logs d'audit
+// — Évite le gonflement de la BDD sur le VPS multi-guildes
+// — Les admins peuvent exporter manuellement avant purge si besoin
+const RETENTION_DAYS = 30;
 
 /**
  * Cleanup old audit logs for a guild
@@ -771,7 +814,6 @@ export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deleted
         if (!isAdmin) return { success: false, error: "Unauthorized" };
 
         const cutoffDate = new Date();
-        const RETENTION_DAYS = 90; // 90 days retention for audit logs (RGPD Art. 5)
         cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
 
         const result = await db.auditLog.deleteMany({

@@ -509,7 +509,12 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
 
 
     // --- NON-MEMBER CHECK (Not on Discord and not already handled) ---
-    if (!member) {
+    // RESILIENCE: If fetchGuildMember failed due to Discord API issue (rate-limit, timeout),
+    // but the user has an active profile in the DB, we trust the DB and don't block them.
+    if (!member && profile && profile.status === "ACTIVE" && memberFetchFailed) {
+        // Discord API errored, but DB says user is active — trust DB, fall through to RBAC
+        logger.warn(`[UserContext] Discord API error for known active member ${discordUserId} — falling back to DB`);
+    } else if (!member) {
         return {
             ...baseContext,
             isAuthenticated: true,

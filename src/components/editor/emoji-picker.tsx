@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/popover";
 import { Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 
 interface EmojiPickerProps {
     onSelect: (emoji: string) => void;

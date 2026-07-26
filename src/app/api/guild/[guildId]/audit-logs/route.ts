@@ -14,9 +14,9 @@ export async function GET(
 
     const { guildId } = await params;
 
-    // Verify admin access
+    // Verify access: canViewAuditLogs (RBAC staff:audit OR Discord Admin)
     const user = await getUserContext(guildId);
-    if (!user.isAdmin) {
+    if (!user.canViewAuditLogs) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -26,13 +26,19 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "20", 10);
     const action = searchParams.get("action") || undefined;
     const search = searchParams.get("search") || undefined;
+    const actor = searchParams.get("actor") || undefined;
+    const dateFrom = searchParams.get("dateFrom") || undefined;
+    const dateTo = searchParams.get("dateTo") || undefined;
 
-    // Get logs
+    // Get logs with all filters
     const result = await getAuditLogs(guildId, {
         page,
         limit: Math.min(limit, 100), // Cap at 100
         actionFilter: action,
-        // Note: search is for future use - can filter by actorName
+        search: search || undefined,
+        actorFilter: actor || undefined,
+        dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+        dateTo: dateTo ? new Date(dateTo) : undefined,
     });
 
     if (!result.success) {

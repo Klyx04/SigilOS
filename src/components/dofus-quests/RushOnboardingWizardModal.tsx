@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Users, CheckCircle, ArrowRight, ArrowLeft, Shield, Sparkles, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { getClass } from "@/lib/dofus-assets";
 
 type CharacterOption = {
   id: string; // "PRINCIPAL" | mule pseudo
@@ -97,9 +98,9 @@ export function RushOnboardingWizardModal({
               <div className="space-y-4">
                 {hasNoClassDeclared && (
                   <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between text-xs text-amber-200">
-                    <span>Aucune classe n&apos;est déclarée sur votre profil !</span>
+                    <span>Aucune classe n'est déclarée sur votre profil !</span>
                     <Link
-                      href={`/dashboard/${guildId}/profil`}
+                      href={`/dashboard/${guildId}/profile`}
                       className="px-2.5 py-1 rounded-xl bg-amber-500 text-black font-black text-[10px] uppercase flex items-center gap-1 hover:bg-amber-400 transition-colors"
                     >
                       Mon Profil <ExternalLink className="w-3 h-3" />
@@ -114,6 +115,7 @@ export function RushOnboardingWizardModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {characters.map((char) => {
                     const isSelected = char.id === selectedCharacter;
+                    const classDef = char.dofusClass ? getClass(char.dofusClass) : null;
                     return (
                       <button
                         key={char.id}
@@ -126,20 +128,24 @@ export function RushOnboardingWizardModal({
                         }`}
                       >
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
-                            isSelected ? "bg-emerald-500 text-black" : "bg-zinc-800 text-zinc-300 border border-white/10"
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 overflow-hidden ${
+                            isSelected ? "bg-emerald-500/20 border border-emerald-500/30" : "bg-zinc-800 border border-white/10"
                           }`}
                         >
-                          {char.dofusClass ? (
-                            <span className="uppercase text-[10px]">{char.dofusClass.substring(0, 3)}</span>
+                          {classDef ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={classDef.icon} alt={classDef.name} className="w-full h-full object-contain p-1" />
+                          ) : char.dofusClass ? (
+                            <span className="uppercase text-[10px] text-zinc-300">{char.dofusClass.substring(0, 3)}</span>
                           ) : (
-                            <User className="w-5 h-5" />
+                            <User className="w-5 h-5 text-zinc-400" />
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-black text-white truncate">{char.name}</p>
                           <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
                             {char.isMule ? "Mule" : "Personnage Principal"}
+                            {classDef && <span className="ml-1 text-zinc-500">({classDef.name})</span>}
                           </p>
                         </div>
                         {isSelected && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}

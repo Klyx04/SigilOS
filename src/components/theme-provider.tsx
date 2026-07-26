@@ -1,29 +1,41 @@
 "use client";
 
 import * as React from "react";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
 
-export function ThemeProvider({
-    children,
-    ...props
-}: React.ComponentProps<typeof NextThemesProvider>) {
-    const [mounted, setMounted] = React.useState(false);
+interface ThemeContextValue {
+    themes: string[];
+    forcedTheme?: string;
+    setTheme: React.Dispatch<React.SetStateAction<string>>;
+    theme?: string;
+    resolvedTheme?: string;
+    systemTheme?: "dark" | "light";
+}
 
-    React.useEffect(() => {
-        setMounted(true);
-    }, []);
+const ThemeContext = React.createContext<ThemeContextValue>({
+    themes: ["dark"],
+    forcedTheme: "dark",
+    setTheme: () => {},
+    theme: "dark",
+    resolvedTheme: "dark",
+    systemTheme: "dark",
+});
 
-    if (!mounted) {
-        return <>{children}</>;
-    }
-
-    return (
-        <NextThemesProvider
-            {...props}
-            defaultTheme="dark"
-            enableSystem={false}
-        >
-            {children}
-        </NextThemesProvider>
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+    const value = React.useMemo<ThemeContextValue>(
+        () => ({
+            themes: ["dark"],
+            forcedTheme: "dark",
+            setTheme: () => {},
+            theme: "dark",
+            resolvedTheme: "dark",
+            systemTheme: "dark",
+        }),
+        [],
     );
+
+    return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+    return React.useContext(ThemeContext);
 }

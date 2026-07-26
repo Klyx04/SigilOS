@@ -1955,6 +1955,7 @@ enum GuideMilestoneType {
   PREREQUIS     // Prérequis technique (non visible dans l'arbre principal)
   SUCCES        // Succès spécifique
   INFO          // Bloc d'information / tips autonome
+  SEPARATEUR    // Titre simple de section / séparateur visuel
 }
 
 // Stocke le JSON complet d'un sous-guide Ganymède (GP1, GP2, etc.)

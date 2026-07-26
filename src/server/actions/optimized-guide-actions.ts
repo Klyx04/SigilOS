@@ -85,6 +85,33 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
 
   if (!guide) return { success: false, error: "Guide introuvable" };
 
+  // Resolve all dungeons from dungeonIds for each sequence
+  const allDungeonIds = new Set<string>();
+  for (const ms of guide.milestones) {
+    for (const seq of ms.sequences) {
+      if (Array.isArray((seq as any).dungeonIds)) {
+        for (const did of (seq as any).dungeonIds) {
+          if (did) allDungeonIds.add(did);
+        }
+      }
+    }
+  }
+  if (allDungeonIds.size > 0) {
+    const dungeons = await db.dungeon.findMany({
+      where: { id: { in: Array.from(allDungeonIds) } },
+      select: { id: true, name: true, bossName: true, imageUrl: true, level: true }
+    });
+    const dungeonMap = new Map(dungeons.map(d => [d.id, d]));
+    for (const ms of guide.milestones) {
+      for (const seq of ms.sequences) {
+        const ids = (seq as any).dungeonIds as string[] | undefined;
+        if (ids && ids.length > 0) {
+          (seq as any).dungeons = ids.map(id => dungeonMap.get(id)).filter(Boolean);
+        }
+      }
+    }
+  }
+
   return { success: true, guide, resolvedProfileId: profileId };
 }
 
@@ -291,19 +318,33 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     profileId = `${ctx.profileId}::${altPseudo}`;
   }
 
+  const milestoneWithSequences = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: {
+      sequences: {
+        select: { id: true }
+      },
+      guide: { select: { slug: true } }
+    }
+  });
+
+  const completedSteps = isCompleted ? (milestoneWithSequences?.sequences.map((seq) => seq.id) ?? []) : [];
+
   const progress = await db.playerGuideProgress.upsert({
     where: {
       profileId_milestoneId: { profileId, milestoneId }
     },
     update: {
       isCompleted,
-      completedAt: isCompleted ? new Date() : null
+      completedAt: isCompleted ? new Date() : null,
+      completedSteps,
     },
     create: {
       profileId,
       milestoneId,
       isCompleted,
-      completedAt: isCompleted ? new Date() : null
+      completedAt: isCompleted ? new Date() : null,
+      completedSteps,
     }
   });
 
@@ -1277,67 +1318,6 @@ export async function updateGuideSettings(
 }
 
 /**
- * Valide TOUTES les séquences/étapes d'un milestone (bouton "Valider tout ce bloc").
- * Passe le milestone isCompleted=true et enregistre toutes ses stepKeys en completedSteps.
- */
-export async function validateEntireMilestone(
-  guildId: string,
-  milestoneId: string,
-  altPseudo?: string
-) {
-  const ctx = await getUserContext(guildId);
-  if (!ctx.isAuthenticated || !ctx.profileId) throw new Error("Non autorisé");
-
-  let profileId = ctx.profileId;
-  if (altPseudo && altPseudo !== "PRINCIPAL") {
-    profileId = `${ctx.profileId}::${altPseudo}`;
-  }
-
-  // Fetch milestone sequences to build the full list of step keys
-  const milestone = await db.guideMilestone.findUnique({
-    where: { id: milestoneId },
-    include: {
-      sequences: {
-        orderBy: { order: "asc" },
-      },
-    },
-  });
-
-  if (!milestone) return { success: false, error: "Milestone introuvable" };
-
-  // Build all step keys from sequences
-  const allStepKeys: string[] = [];
-  for (const seq of milestone.sequences) {
-    if (seq.stepFrom !== null && seq.stepTo !== null) {
-      for (let i = seq.stepFrom; i <= seq.stepTo; i++) {
-        allStepKeys.push(`${seq.subGuideRef}-${i}`);
-      }
-    } else {
-      allStepKeys.push(`${seq.subGuideRef}-all`);
-    }
-  }
-
-  await db.playerGuideProgress.upsert({
-    where: { profileId_milestoneId: { profileId, milestoneId } },
-    create: {
-      profileId,
-      milestoneId,
-      isCompleted: true,
-      completedAt: new Date(),
-      completedSteps: allStepKeys,
-    },
-    update: {
-      isCompleted: true,
-      completedAt: new Date(),
-      completedSteps: allStepKeys,
-    },
-  });
-
-  revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
-  return { success: true };
-}
-
-/**
  * Retourne tous les guides avec displayMode=TIMELINE qui sont actifs.
  */
 export async function getTimelineGuides(guildId: string) {
@@ -1412,6 +1392,35 @@ export async function getOrCreateRushSylvestreGuide() {
     });
   }
 
+  // Resolve all dungeons from dungeonIds for each sequence
+  if (guide) {
+    const allDungeonIds = new Set<string>();
+    for (const ms of guide.milestones) {
+      for (const seq of ms.sequences) {
+        if (Array.isArray((seq as any).dungeonIds)) {
+          for (const did of (seq as any).dungeonIds) {
+            if (did) allDungeonIds.add(did);
+          }
+        }
+      }
+    }
+    if (allDungeonIds.size > 0) {
+      const dungeons = await db.dungeon.findMany({
+        where: { id: { in: Array.from(allDungeonIds) } },
+        select: { id: true, name: true, bossName: true, imageUrl: true }
+      });
+      const dungeonMap = new Map(dungeons.map(d => [d.id, d]));
+      for (const ms of guide.milestones) {
+        for (const seq of ms.sequences) {
+          const ids = (seq as any).dungeonIds as string[] | undefined;
+          if (ids && ids.length > 0) {
+            (seq as any).dungeons = ids.map(id => dungeonMap.get(id)).filter(Boolean);
+          }
+        }
+      }
+    }
+  }
+
   return guide;
 }
 
@@ -1458,10 +1467,19 @@ export async function upsertRushMilestone(data: {
 
   const guide = await db.optimizedGuide.findUniqueOrThrow({ where: { slug: "rush-sylvestre" } });
 
+  const isSeparator = data.type === "SEPARATEUR";
+
   let parsedChapter = parseInt(data.chapter, 10);
   if (isNaN(parsedChapter)) {
-    parsedChapter = 1;
+    parsedChapter = isSeparator ? 0 : 1;
   }
+  if (isSeparator) {
+    parsedChapter = 0;
+  }
+
+  const chapterLabel = isSeparator ? "" : data.chapterLabel;
+  const dofusId = isSeparator ? null : data.dofusId;
+  const accentColor = data.accentColor ?? (isSeparator ? "#d4a853" : "#10b981");
 
   let milestone;
   if (data.id) {
@@ -1469,15 +1487,15 @@ export async function upsertRushMilestone(data: {
       where: { id: data.id },
       data: {
         chapter: parsedChapter,
-        chapterLabel: data.chapterLabel,
+        chapterLabel,
         title: data.label,
         description: data.description,
-        accentColor: data.accentColor,
+        accentColor,
         isOptional: data.isOptional ?? false,
         order: data.order ?? 0,
         type: data.type ?? undefined,
         tips: data.tips,
-        dofusId: data.dofusId,
+        dofusId,
       },
       include: {
         sequences: {
@@ -1493,14 +1511,14 @@ export async function upsertRushMilestone(data: {
         guideId: guide.id,
         type: data.type ?? "QUETE_SERIE",
         chapter: parsedChapter,
-        chapterLabel: data.chapterLabel,
+        chapterLabel,
         title: data.label,
         description: data.description,
-        accentColor: data.accentColor ?? "#10b981",
+        accentColor,
         isOptional: data.isOptional ?? false,
         order: data.order ?? maxOrder,
         tips: data.tips,
-        dofusId: data.dofusId,
+        dofusId,
       },
       include: {
         sequences: {
@@ -1618,6 +1636,7 @@ export async function upsertRushSequence(data: {
       where: { id: data.id },
       data: {
         ...commonFields,
+        dungeonIds: data.dungeonIds ?? [],
         ...(data.dungeonId !== undefined
           ? { dungeon: data.dungeonId ? { connect: { id: data.dungeonId } } : { disconnect: true } }
           : {}),

@@ -46,7 +46,8 @@ type ActivityTagType =
   | "plusieurs_personnes"
   | "sort"
   | "metier"
-  | "solver";
+  | "solver"
+  | "quest_group";
 
 type ActivityTag = { type: ActivityTagType; name?: string; level?: number; count?: number; color?: string; url?: string };
 
@@ -70,7 +71,7 @@ type Sequence = {
   activityTags?: ActivityTag[];
 };
 
-type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO";
+type MilestoneType = "PREREQUIS" | "ALIGNEMENT" | "DOFUS" | "SUCCES" | "ZONE" | "QUETE_SERIE" | "DONJON" | "INFO" | "SEPARATEUR";
 
 type Milestone = {
   id: string;
@@ -119,6 +120,7 @@ const MILESTONE_TYPES: { value: MilestoneType; label: string; icon: React.ReactN
   { value: "ZONE",       label: "Zone", icon: <MapPin className="w-3 h-3" />, color: "#06b6d4" },
   { value: "DONJON",     label: "Donjon", icon: <Sword className="w-3 h-3" />, color: "#8b5cf6" },
   { value: "INFO",       label: "Conseil / Tips", icon: <Sparkles className="w-3 h-3" />, color: "#ec4899" },
+  { value: "SEPARATEUR", label: "Séparateur", icon: <Sparkles className="w-3 h-3" />, color: "#f59e0b" },
 ];
 
 // Dofus du jeu
@@ -144,16 +146,17 @@ const DOFUS_LIST = [
 // ─── Activity Tags ────────────────────────────────────────────────────────────
 const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; color: string; hasName?: boolean; hasLevel?: boolean; hasUrl?: boolean }[] = [
   { type: "combat_tactique",    imagePath: "/assets/rush-sylvestre/combat-tactique.png",    label: "Combat Tactique", color: "#ef4444" },
-  { type: "combat_vagues",      imagePath: "/assets/rush-sylvestre/combat-vagues.png",      label: "Vagues",          color: "#3b82f6" },
+  { type: "combat_vagues",      imagePath: "/assets/rush-sylvestre/combat-vagues.png",      label: "Combat à vagues",          color: "#3b82f6" },
   { type: "songes",             imagePath: "/assets/rush-sylvestre/songes.png",             label: "Songes",          color: "#8b5cf6" },
   { type: "combat_solo",        imagePath: "/assets/rush-sylvestre/combat-solo.png",        label: "Combat Solo",     color: "#f43f5e" },
-  { type: "combat_plusieurs",   imagePath: "/assets/rush-sylvestre/combat-plusieurs.png",   label: "Multi Combat",    color: "#a855f7" },
+  { type: "combat_plusieurs",   imagePath: "/assets/rush-sylvestre/combat-plusieurs.png",   label: "Combat à plusieurs",    color: "#a855f7" },
   { type: "contrainte_horaire", imagePath: "/assets/rush-sylvestre/contrainte-horaire.png", label: "Horaire Spec.",   color: "#f59e0b" },
   { type: "donjon",             imagePath: "/assets/rush-sylvestre/donjon.png",             label: "Donjon requis",   color: "#3b82f6" },
   { type: "plusieurs_personnes",imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",label: "Multi joueurs",   color: "#10b981" },
   { type: "sort",               imagePath: "/assets/rush-sylvestre/sort.png",               label: "Sort requis",     color: "#ec4899" },
   { type: "metier",             imagePath: "/assets/rush-sylvestre/façonneur.png",          label: "Métier requis",   color: "#eab308", hasName: true, hasLevel: true },
   { type: "solver",             imagePath: "/assets/rush-sylvestre/solver.png",             label: "Solver requis",   color: "#10b981", hasUrl: true },
+  { type: "quest_group",        imagePath: "/assets/rush-sylvestre/group.png",              label: "À faire ensemble", color: "#f59e0b", hasName: true },
 ];
 
 const DOFUS_METIERS = [
@@ -177,21 +180,18 @@ function getMilestoneTypeInfo(type?: MilestoneType) {
   return MILESTONE_TYPES.find(t => t.value === type) ?? MILESTONE_TYPES[0];
 }
 
-function groupByChapter(milestones: Milestone[]) {
-  const map = new Map<string, { chapterLabel: string; num: number; items: Milestone[] }>();
-  for (const m of milestones) {
-    const key = String(m.chapter);
-    if (!map.has(key)) map.set(key, { chapterLabel: m.chapterLabel, num: m.chapter, items: [] });
-    map.get(key)!.items.push(m);
-  }
-  return Array.from(map.entries())
-    .sort(([, a], [, b]) => a.num - b.num)
-    .map(([key, v]) => ({
-      key,
-      chapterLabel: v.chapterLabel,
-      num: v.num,
-      milestones: v.items.sort((a, b) => a.order - b.order),
-    }));
+function isSeparatorMilestone(m: Pick<Milestone, "type">) {
+  return m.type === "SEPARATEUR";
+}
+
+function sortMilestonesByOrder(milestones: Milestone[]) {
+  return [...milestones].sort((a, b) => a.order - b.order);
+}
+
+function countContentChapters(milestones: Milestone[]) {
+  return new Set(
+    milestones.filter((m) => !isSeparatorMilestone(m) && m.chapter > 0).map((m) => m.chapter),
+  ).size;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -205,19 +205,16 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [localMilestones, setLocalMilestones] = useState<Milestone[]>(initialGuide.milestones as Milestone[]);
   useEffect(() => { setLocalMilestones(initialGuide.milestones as Milestone[]); }, [initialGuide.milestones]);
 
-  const chapters = useMemo(() => groupByChapter(localMilestones), [localMilestones]);
+  const sortedMilestones = useMemo(() => sortMilestonesByOrder(localMilestones), [localMilestones]);
+  const chapterCount = useMemo(() => countContentChapters(localMilestones), [localMilestones]);
 
-  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(() => {
-    const first = chapters[0]?.key;
-    return first ? new Set([first]) : new Set();
-  });
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [addingStep, setAddingStep] = useState(false);
   const [activeTab, setActiveTab] = useState<"content" | "settings">("content");
 
   // New step form
-  const [newChapterNum, setNewChapterNum] = useState<number>(chapters.length + 1);
+  const [newChapterNum, setNewChapterNum] = useState<number>(1);
   const [newChapterLabel, setNewChapterLabel] = useState("");
   const [newStepTitle, setNewStepTitle] = useState("");
   const [newStepColor, setNewStepColor] = useState("#10b981");
@@ -225,8 +222,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [newDofusId, setNewDofusId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!addingStep) setNewChapterNum(chapters.length + 1);
-  }, [chapters.length, addingStep]);
+    if (!addingStep) setNewChapterNum(chapterCount + 1);
+  }, [chapterCount, addingStep]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -244,6 +241,16 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
 
     const activeMs = localMilestones[activeIndex];
     const overMs = localMilestones[overIndex];
+
+    if (isSeparatorMilestone(activeMs) || isSeparatorMilestone(overMs)) {
+      setLocalMilestones(prev => {
+        const updated = [...prev];
+        const [item] = updated.splice(activeIndex, 1);
+        updated.splice(overIndex, 0, item);
+        return updated.map((m, idx) => ({ ...m, order: idx }));
+      });
+      return;
+    }
 
     // Si on survole un bloc dans un chapitre différent
     if (activeMs.chapter !== overMs.chapter) {
@@ -271,8 +278,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     // Finaliser le tri
     const updatedMilestones = [...localMilestones];
     const [movedItem] = updatedMilestones.splice(oldIndex, 1);
-    
-    if (movedItem.chapter !== targetMilestone.chapter) {
+
+    if (!isSeparatorMilestone(movedItem) && !isSeparatorMilestone(targetMilestone) && movedItem.chapter !== targetMilestone.chapter) {
       movedItem.chapter = targetMilestone.chapter;
       movedItem.chapterLabel = targetMilestone.chapterLabel;
     }
@@ -289,7 +296,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
       try {
         await reorderRushMilestones(finalMilestones.map(m => m.id));
         // Si le chapitre a changé, on persiste
-        if (sourceMilestone.chapter !== targetMilestone.chapter) {
+        if (!isSeparatorMilestone(sourceMilestone) && !isSeparatorMilestone(targetMilestone) && sourceMilestone.chapter !== targetMilestone.chapter) {
           await upsertRushMilestone({
             id: sourceMilestone.id,
             chapter: String(targetMilestone.chapter),
@@ -311,71 +318,23 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     });
   }, [localMilestones, router]);
 
-  const handleMoveChapter = useCallback((chapterNum: number, direction: 'up' | 'down') => {
-    // Récupérer tous les chapitres uniques et triés
-    const uniqueChapters = Array.from(new Set(localMilestones.map(m => m.chapter))).sort((a, b) => a - b);
-    const currentIdx = uniqueChapters.indexOf(chapterNum);
-    const targetIdx = direction === 'up' ? currentIdx - 1 : currentIdx + 1;
-    
-    if (targetIdx < 0 || targetIdx >= uniqueChapters.length) return;
-    const targetChapterNum = uniqueChapters[targetIdx];
-
-    // Mettre à jour optimistement
-    const finalMilestones = localMilestones.map(m => {
-      if (m.chapter === chapterNum) {
-        return { ...m, chapter: targetChapterNum, chapterLabel: `Chapitre ${targetChapterNum}` };
-      }
-      if (m.chapter === targetChapterNum) {
-        return { ...m, chapter: chapterNum, chapterLabel: `Chapitre ${chapterNum}` };
-      }
-      return m;
-    });
-
-    setLocalMilestones(finalMilestones);
-
-    startTransition(async () => {
-      try {
-        // Sauvegarder les modifications pour tous les milestones affectés
-        const affected = finalMilestones.filter(m => m.chapter === chapterNum || m.chapter === targetChapterNum);
-        for (const m of affected) {
-          await upsertRushMilestone({
-            id: m.id,
-            chapter: String(m.chapter),
-            chapterLabel: m.chapterLabel,
-            label: m.title,
-            description: m.description ?? undefined,
-            accentColor: m.accentColor ?? "#10b981",
-            isOptional: m.isOptional,
-            order: m.order,
-            tips: m.tips ?? undefined,
-            dofusId: m.dofusId,
-            type: m.type,
-          });
-        }
-        router.refresh();
-        toast.success("Chapitre déplacé ✓");
-      } catch {
-        toast.error("Erreur lors du déplacement du chapitre");
-      }
-    });
-  }, [localMilestones, router]);
-
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleAddStep = useCallback(() => {
-    if (!newStepTitle.trim()) { toast.error("Nom de l'étape requis"); return; }
+    if (!newStepTitle.trim()) { toast.error(newStepType === "SEPARATEUR" ? "Titre de section requis" : "Nom de l'étape requis"); return; }
+    const isSeparator = newStepType === "SEPARATEUR";
     startTransition(async () => {
       try {
         await upsertRushMilestone({
-          chapter: String(newChapterNum),
-          chapterLabel: newChapterLabel.trim() || `Chapitre ${newChapterNum}`,
+          chapter: isSeparator ? "0" : String(newChapterNum),
+          chapterLabel: isSeparator ? "" : (newChapterLabel.trim() || `Chapitre ${newChapterNum}`),
           label: newStepTitle.trim(),
-          accentColor: newStepColor,
+          accentColor: isSeparator ? (newStepColor || "#d4a853") : newStepColor,
           order: localMilestones.length,
           type: newStepType,
-          dofusId: newDofusId,
+          dofusId: isSeparator ? null : newDofusId,
         });
-        toast.success("Étape ajoutée ✓");
+        toast.success(isSeparator ? "Séparateur ajouté ✓" : "Étape ajoutée ✓");
         setNewStepTitle(""); setNewChapterLabel(""); setNewDofusId(null); setAddingStep(false);
         router.refresh();
       } catch (e: any) { toast.error(e.message); }
@@ -387,8 +346,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
       try {
         await upsertRushMilestone({
           id: m.id,
-          chapter: String(m.chapter),
-          chapterLabel: m.chapterLabel,
+          chapter: String(isSeparatorMilestone(m) ? 0 : m.chapter),
+          chapterLabel: isSeparatorMilestone(m) ? "" : m.chapterLabel,
           label: m.title,
           description: m.description ?? undefined,
           accentColor: m.accentColor ?? "#10b981",
@@ -505,9 +464,9 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             {/* Stats */}
             <div className="flex items-center gap-6 px-5 py-3 bg-zinc-900/60 border border-white/5 rounded-2xl">
-              <StatPill label="Chapitres" value={chapters.length} />
+              <StatPill label="Chapitres" value={chapterCount} />
               <div className="w-px h-8 bg-white/5" />
-              <StatPill label="Blocs" value={localMilestones.length} />
+              <StatPill label="Blocs" value={localMilestones.filter((m) => !isSeparatorMilestone(m)).length} />
               <div className="w-px h-8 bg-white/5" />
               <StatPill label="Quêtes" value={localMilestones.reduce((s, m) => s + m.sequences.length, 0)} />
               <div className="flex-1" />
@@ -547,7 +506,10 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Type de bloc</label>
                       <div className="flex flex-wrap gap-2">
                         {MILESTONE_TYPES.map(t => (
-                          <button key={t.value} onClick={() => setNewStepType(t.value)}
+                          <button key={t.value} onClick={() => {
+                            setNewStepType(t.value);
+                            if (t.value === "SEPARATEUR") setNewStepColor("#d4a853");
+                          }}
                             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black border transition-all ${newStepType === t.value ? "border-white/30 text-white bg-white/10" : "border-white/5 text-zinc-500 hover:text-zinc-300"}`}
                             style={newStepType === t.value ? { color: t.color, borderColor: t.color + "60", background: t.color + "15" } : {}}
                           >
@@ -557,6 +519,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </div>
                     </div>
 
+                    {newStepType !== "SEPARATEUR" ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">N° chapitre *</label>
@@ -573,11 +536,18 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                         />
                       </div>
                     </div>
+                    ) : (
+                      <p className="text-[10px] text-amber-400/70 leading-relaxed">
+                        Le séparateur est un titre visuel entre les blocs — il n&apos;appartient à aucun chapitre.
+                      </p>
+                    )}
                     <div>
-                      <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Nom du bloc *</label>
+                      <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">
+                        {newStepType === "SEPARATEUR" ? "Titre de section *" : "Nom du bloc *"}
+                      </label>
                       <input value={newStepTitle} onChange={e => setNewStepTitle(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && handleAddStep()}
-                        placeholder="ex: Quêtes Incarnam de base"
+                        placeholder={newStepType === "SEPARATEUR" ? "ex: Dofus Turquoise" : "ex: Quêtes Incarnam de base"}
                         className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/50"
                         autoFocus
                       />
@@ -640,93 +610,65 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
               )}
             </AnimatePresence>
 
-            {/* Chapters wrapped in global DndContext */}
-            {chapters.length === 0 ? (
+            {/* Liste ordonnée (séparateurs + blocs) */}
+            {localMilestones.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 border border-dashed border-white/5 rounded-3xl">
                 <Zap className="w-12 h-12 text-zinc-800 mb-4" />
-                <p className="text-zinc-600 font-black uppercase text-xs tracking-widest italic">Aucun bloc — clique sur "Ajouter un bloc"</p>
+                <p className="text-zinc-600 font-black uppercase text-xs tracking-widest italic">Aucun bloc — clique sur &quot;Ajouter un bloc&quot;</p>
               </div>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragOver={handleMilestoneDragOver} onDragEnd={handleMilestoneDragEnd}>
                 <SortableContext items={localMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-3">
-                    {chapters.map(({ key, chapterLabel, num, milestones: cms }, chapterIdx) => (
-                      <div key={key} className="space-y-4">
-                        {/* Séparation de Chapitre Élégante */}
-                        {chapterIdx > 0 && (
-                          <div className="flex items-center justify-center gap-4 py-4 my-2 select-none">
-                            <div className="h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent flex-1" />
-                            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/50 flex items-center gap-1.5 italic font-mono">
-                              ✦ Chapitre {num} ✦
-                            </div>
-                            <div className="h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent flex-1" />
-                          </div>
-                        )}
-                        <div className="border border-white/5 rounded-2xl overflow-hidden bg-zinc-900/10">
-                          <div className="flex items-center bg-zinc-900/60 hover:bg-zinc-900 transition-colors">
-                          {/* Boutons de déplacement chapitre */}
-                          <div className="flex flex-col border-r border-white/5 px-1.5 py-1 gap-0.5">
-                            <button
-                              onClick={() => handleMoveChapter(num, 'up')}
-                              disabled={chapterIdx === 0 || isPending}
-                              className="p-1 rounded text-zinc-600 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
-                              title="Monter ce chapitre"
-                            >
-                              <ChevronUp className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => handleMoveChapter(num, 'down')}
-                              disabled={chapterIdx === chapters.length - 1 || isPending}
-                              className="p-1 rounded text-zinc-600 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
-                              title="Descendre ce chapitre"
-                            >
-                              <ChevronDown className="w-3 h-3" />
-                            </button>
-                          </div>
-                          {/* Bouton collapse / expand */}
-                          <button
-                            onClick={() => setExpandedChapters(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })}
-                            className="flex-1 flex items-center justify-between px-5 py-3.5"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[9px] font-black font-mono rounded tracking-widest border border-white/5">CH.{num}</span>
-                              <span className="text-sm font-black text-white italic uppercase tracking-wide">{chapterLabel}</span>
-                              <span className="text-[9px] text-zinc-600 font-bold">{cms.length} bloc{cms.length > 1 ? "s" : ""}</span>
-                            </div>
-                            {expandedChapters.has(key) ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />}
-                          </button>
-                        </div>
+                  <div className="space-y-2">
+                    {sortedMilestones.map((m, index) => {
+                      const prevContent = sortedMilestones.slice(0, index).reverse().find((item) => !isSeparatorMilestone(item));
+                      const showChapterLabel = !isSeparatorMilestone(m) && (!prevContent || prevContent.chapter !== m.chapter);
 
-                        <AnimatePresence>
-                          {expandedChapters.has(key) && (
-                            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
-                              <div className="divide-y divide-white/5">
-                                {cms.map(m => (
-                                  <SortableMilestoneRow
-                                    key={m.id}
-                                    milestone={m}
-                                    isExpanded={expandedMilestones.has(m.id)}
-                                    isEditing={editingMilestone?.id === m.id}
-                                    editingData={editingMilestone?.id === m.id ? editingMilestone : null}
-                                    isPending={isPending}
-                                    onToggle={() => setExpandedMilestones(prev => { const n = new Set(prev); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })}
-                                    onEdit={() => setEditingMilestone({ ...m })}
-                                    onEditChange={patch => setEditingMilestone(prev => prev ? { ...prev, ...patch } : prev)}
-                                    onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
-                                    onCancelEdit={() => setEditingMilestone(null)}
-                                    onDelete={() => handleDeleteMilestone(m.id)}
-                                    onSaveSequence={handleSaveSequence}
-                                    onDeleteSequence={handleDeleteSequence}
-                                    onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
-                                  />
-                                ))}
-                              </div>
-                            </motion.div>
+                      return (
+                        <div key={m.id} className="space-y-2">
+                          {showChapterLabel && (
+                            <div className="flex items-center gap-2 pt-2 pb-1 px-1">
+                              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[9px] font-black font-mono rounded tracking-widest border border-white/5">
+                                CH.{m.chapter}
+                              </span>
+                              <span className="text-xs font-black text-zinc-400 uppercase tracking-wide">{m.chapterLabel}</span>
+                            </div>
                           )}
-                        </AnimatePresence>
+                          {isSeparatorMilestone(m) ? (
+                            <SortableSeparatorRow
+                              milestone={m}
+                              isEditing={editingMilestone?.id === m.id}
+                              editingData={editingMilestone?.id === m.id ? editingMilestone : null}
+                              isPending={isPending}
+                              onEdit={() => setEditingMilestone({ ...m })}
+                              onEditChange={(patch) => setEditingMilestone((prev) => prev ? { ...prev, ...patch } : prev)}
+                              onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
+                              onCancelEdit={() => setEditingMilestone(null)}
+                              onDelete={() => handleDeleteMilestone(m.id)}
+                            />
+                          ) : (
+                            <div className="border border-white/5 rounded-2xl overflow-hidden bg-zinc-900/10">
+                              <SortableMilestoneRow
+                                milestone={m}
+                                isExpanded={expandedMilestones.has(m.id)}
+                                isEditing={editingMilestone?.id === m.id}
+                                editingData={editingMilestone?.id === m.id ? editingMilestone : null}
+                                isPending={isPending}
+                                onToggle={() => setExpandedMilestones(prev => { const n = new Set(prev); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })}
+                                onEdit={() => setEditingMilestone({ ...m })}
+                                onEditChange={patch => setEditingMilestone(prev => prev ? { ...prev, ...patch } : prev)}
+                                onSave={() => editingMilestone && handleSaveMilestone(editingMilestone)}
+                                onCancelEdit={() => setEditingMilestone(null)}
+                                onDelete={() => handleDeleteMilestone(m.id)}
+                                onSaveSequence={handleSaveSequence}
+                                onDeleteSequence={handleDeleteSequence}
+                                onReorderSequences={(ids) => handleReorderSequences(m.id, ids)}
+                              />
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </SortableContext>
               </DndContext>
@@ -779,6 +721,110 @@ function ToggleRow({ label, description, value, onToggle, disabled, color }: { l
       >
         <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${value ? "left-6" : "left-0.5"}`} />
       </button>
+    </div>
+  );
+}
+
+// ─── SortableSeparatorRow ─────────────────────────────────────────────────────
+function SortableSeparatorRow(props: {
+  milestone: Milestone;
+  isEditing: boolean;
+  editingData: Milestone | null;
+  isPending: boolean;
+  onEdit: () => void;
+  onEditChange: (patch: Partial<Milestone>) => void;
+  onSave: () => void;
+  onCancelEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.milestone.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SeparatorRowAdmin {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+}
+
+function SeparatorRowAdmin({
+  milestone,
+  isEditing,
+  editingData,
+  isPending,
+  onEdit,
+  onEditChange,
+  onSave,
+  onCancelEdit,
+  onDelete,
+  dragHandleProps,
+}: {
+  milestone: Milestone;
+  isEditing: boolean;
+  editingData: Milestone | null;
+  isPending: boolean;
+  onEdit: () => void;
+  onEditChange: (patch: Partial<Milestone>) => void;
+  onSave: () => void;
+  onCancelEdit: () => void;
+  onDelete: () => void;
+  dragHandleProps?: any;
+}) {
+  const color = milestone.accentColor || "#d4a853";
+
+  return (
+    <div className="group rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-zinc-700 hover:text-zinc-400 transition-colors flex-shrink-0 touch-none">
+          <GripVertical className="w-3.5 h-3.5" />
+        </div>
+        <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color }} />
+
+        {isEditing ? (
+          <div className="flex-1 space-y-2">
+            <input
+              value={editingData?.title ?? ""}
+              onChange={(e) => onEditChange({ title: e.target.value })}
+              className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500/50 font-[family-name:var(--font-cinzel)] uppercase tracking-wider"
+              placeholder="Titre de section"
+              autoFocus
+            />
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                {COLOR_PALETTE.map((c) => (
+                  <button
+                    key={c.value}
+                    onClick={() => onEditChange({ accentColor: c.value })}
+                    title={c.label}
+                    className={`w-4 h-4 rounded-full border-2 transition-all ${(editingData?.accentColor ?? color) === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                    style={{ backgroundColor: c.value }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-1 ml-auto">
+                <button onClick={onSave} disabled={isPending} className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all"><Check className="w-3.5 h-3.5" /></button>
+                <button onClick={onCancelEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 min-w-0 py-1">
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-amber-400/60 mb-1">Séparateur</p>
+              <p
+                className="font-[family-name:var(--font-cinzel)] text-sm sm:text-base font-bold uppercase tracking-[0.14em] truncate"
+                style={{ color, textShadow: `0 0 18px ${color}30` }}
+              >
+                {milestone.title}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <button onClick={onEdit} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg transition-all"><Pencil className="w-3 h-3" /></button>
+              <button onClick={onDelete} disabled={isPending} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"><Trash2 className="w-3 h-3" /></button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1015,28 +1061,54 @@ function SequenceRowAdmin({ seq, color, onEdit, onDelete, dragHandleProps }: {
   const dofusdbUrl = seq.dofusdbUrl || `https://dofusdb.fr/fr/database/quest?name=${encodeURIComponent(seq.subGuideName || seq.subGuideRef)}`;
   const noobsUrl = seq.dofuspourlesnoobsUrl || `https://www.dofuspourlesnoobs.com/?s=${encodeURIComponent(seq.subGuideName || seq.subGuideRef)}`;
 
+  // Collect all dungeons to display
+  const displayDungeons = (Array.isArray(seq.dungeons) && seq.dungeons.length > 0) ? seq.dungeons : (seq.dungeon ? [seq.dungeon] : []);
+
   return (
     <div className="flex items-center gap-2 group/seq px-2 py-1.5 bg-zinc-900/40 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
       <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-zinc-700 hover:text-zinc-500 flex-shrink-0 touch-none">
         <GripVertical className="w-3 h-3" />
       </div>
 
-      {/* Boss image(s) */}
-      {seq.dungeon?.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={seq.dungeon.imageUrl} alt={seq.dungeon.bossName} className="w-6 h-6 rounded object-cover flex-shrink-0 border border-white/10" />
-      ) : seq.dungeon ? (
-        <div className="w-6 h-6 rounded flex-shrink-0 bg-zinc-800 border border-white/10 flex items-center justify-center">
-          <Sword className="w-3 h-3 text-zinc-500" />
+      {/* Boss image(s) — now shows ALL dungeons */}
+      {displayDungeons.length > 0 ? (
+        <div className="flex items-center -space-x-1.5 flex-shrink-0">
+          {displayDungeons.map((dd: any, di: number) => (
+            dd.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={dd.id || di} src={dd.imageUrl} alt={dd.bossName || dd.name} title={dd.name} className={`w-6 h-6 rounded object-cover border border-white/10 ${di > 0 ? "ring-1 ring-zinc-950" : ""}`} />
+            ) : (
+              <div key={dd.id || di} title={dd.name} className="w-6 h-6 rounded bg-zinc-800 border border-white/10 flex items-center justify-center">
+                <Sword className="w-3 h-3 text-zinc-500" />
+              </div>
+            )
+          ))}
         </div>
       ) : (
-        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color + "80" }} />
+        <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color + "80" }} />
+        </div>
       )}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-xs text-zinc-300 font-medium">{seq.subGuideName || seq.subGuideRef}</span>
-          {seq.dungeon && <span className="text-[9px] text-zinc-500 italic">{seq.dungeon.name}</span>}
+          {displayDungeons.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              {displayDungeons.map((dd: any, di: number) => (
+                <span key={dd.id || di} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-300 truncate max-w-[140px]">
+                  <Sword className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+                  <span className="truncate">{dd.name}</span>
+                  {Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "ocre_dungeon" && t.name === dd.id) && (
+                    <span className="flex items-center gap-0.5 px-1 py-0 rounded-full bg-amber-500/20 text-amber-300 text-[6px] font-black uppercase tracking-widest">
+                      <img src="/assets/icons/ocre.png" alt="" className="w-2 h-2 object-contain" />
+                      Ocre
+                    </span>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
           {seq.alignReq && (
             <span className="px-1 py-0.5 rounded text-[8px] font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
               {seq.alignReq}{seq.alignOrderReq ? ` lv.${seq.alignOrderReq}` : ""}
@@ -1517,13 +1589,13 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
-            📍 Positions GPS (ex: [-2, 0], [10, -22])
+            📍 Positions GPS (ex: -2, 0 ; 10, -22)
           </label>
           <input
             value={positionsInput}
             onChange={e => handlePositionsChange(e.target.value)}
             className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
-            placeholder="[-2, 0], [10, -22]"
+            placeholder="-2, 0 ; 10, -22"
           />
         </div>
         <div>

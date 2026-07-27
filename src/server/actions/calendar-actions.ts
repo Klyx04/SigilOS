@@ -560,30 +560,38 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
 
         if (event.type === "RAID_OFFICIAL") {
             // Kamas gate applies to the creator too — consistent with processRegistration
-            const { getDofusWeek } = await import("@/lib/date-utils");
-            const eventWeek = getDofusWeek(event.startDate);
-            const creatorProfile = await db.userProfile.findFirst({
-                where: { userId: ctx.id!, guildId: guildConfig.id },
-                select: { id: true },
+            // Only enforced when the admin toggle is ON (raidRequireKamaDonation = true, default)
+            const guildConfigFull = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { raidRequireKamaDonation: true, raidKamaDonationThreshold: true }
             });
-            if (creatorProfile) {
-                const weekDonations = await (db as any).kamaDonation.aggregate({
-                    _sum: { amount: true },
-                    where: {
-                        profileId: creatorProfile.id,
-                        status: "VALIDATED",
-                        weekNumber: eventWeek.week,
-                        yearNumber: eventWeek.year,
-                    },
+            if (guildConfigFull?.raidRequireKamaDonation) {
+                const threshold = (guildConfigFull.raidKamaDonationThreshold ?? 3) * 10_000;
+                const { getDofusWeek } = await import("@/lib/date-utils");
+                const eventWeek = getDofusWeek(event.startDate);
+                const creatorProfile = await db.userProfile.findFirst({
+                    where: { userId: ctx.id!, guildId: guildConfig.id },
+                    select: { id: true },
                 });
-                const totalDonated = weekDonations._sum.amount ?? 0;
-                if (totalDonated < 30000) {
-                    // Roll back the event creation — creator can't participate
-                    await db.guildEvent.delete({ where: { id: event.id } });
-                    return {
-                        success: false,
-                        error: `🪙 Don de 30 000 kamas requis pour créer et participer aux raids cette semaine. Tu as donné ${totalDonated.toLocaleString("fr-FR")} kamas validés. Effectue ton don sur le site.`,
-                    };
+                if (creatorProfile) {
+                    const weekDonations = await (db as any).kamaDonation.aggregate({
+                        _sum: { amount: true },
+                        where: {
+                            profileId: creatorProfile.id,
+                            status: "VALIDATED",
+                            weekNumber: eventWeek.week,
+                            yearNumber: eventWeek.year,
+                        },
+                    });
+                    const totalDonated = weekDonations._sum.amount ?? 0;
+                    if (totalDonated < threshold) {
+                        // Roll back the event creation — creator can't participate
+                        await db.guildEvent.delete({ where: { id: event.id } });
+                        return {
+                            success: false,
+                            error: `🪙 Don de ${threshold.toLocaleString("fr-FR")} kamas requis pour créer et participer aux raids cette semaine. Tu as donné ${totalDonated.toLocaleString("fr-FR")} kamas validés. Effectue ton don sur le site.`,
+                        };
+                    }
                 }
             }
 
@@ -817,7 +825,50 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
 }
 
 /**
- * Delete an event
+ * Cancel an event (soft delete — status becomes CANCELLED)
+ */
+export async function cancelCalendarEvent(guildId: string, eventId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { id: true, creatorId: true, status: true, discordChannelId: true, discordMessageId: true }
+        });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.status !== "PUBLISHED") return { success: false, error: "Seuls les événements publiés peuvent être annulés" };
+        if (event.creatorId !== ctx.id && !ctx.isAdmin) {
+            return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut l'annuler." };
+        }
+
+        if (event?.discordChannelId && event?.discordMessageId) {
+            deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
+        }
+
+        await db.guildEvent.update({
+            where: { id: eventId, guildId: guildConfig.id },
+            data: { status: "CANCELLED" }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("[Calendar] cancelEvent Error:", error);
+        return { success: false, error: "Erreur lors de l'annulation" };
+    }
+}
+
+/**
+ * Delete an event (hard delete — only for CANCELLED events)
  */
 export async function deleteCalendarEvent(guildId: string, eventId: string) {
     const ctx = await getUserContext(guildId);
@@ -833,10 +884,11 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { creatorId: true, discordChannelId: true, discordMessageId: true }
+            select: { id: true, creatorId: true, status: true, discordChannelId: true, discordMessageId: true }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.status !== "CANCELLED") return { success: false, error: "Seuls les événements annulés peuvent être supprimés définitivement." };
         if (event.creatorId !== ctx.id && !ctx.isAdmin) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le supprimer." };
         }
@@ -983,7 +1035,7 @@ export async function completeRaidEvent(
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { id: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
+            select: { id: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
@@ -1010,8 +1062,14 @@ export async function completeRaidEvent(
             deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
         }
 
-        // Distribute XP + deduct 30 Purple Kamas for present members
+        // Distribute XP + deduct Purple Kamas for present members (dynamic threshold + stored for undo)
+        let purpleKamasCost = 30; // default fallback
         if (presentUserIds.length > 0) {
+            const raidConfig = await db.guildConfig.findUnique({
+                where: { discordGuildId: guildId },
+                select: { raidKamaDonationThreshold: true }
+            });
+            purpleKamasCost = (raidConfig?.raidKamaDonationThreshold ?? 3) * 10;
             await db.userProfile.updateMany({
                 where: {
                     userId: { in: presentUserIds },
@@ -1019,13 +1077,95 @@ export async function completeRaidEvent(
                 },
                 data: {
                     xp: { increment: 50 },
-                    purpleKamasConsumed: { increment: 30 }
+                    purpleKamasConsumed: { increment: purpleKamasCost }
                 }
             });
         }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, rewarded: presentUserIds.length, score };
+    } catch (error) {
+        console.error("[Calendar] completeRaidEvent Error:", error);
+        return { success: false, error: "Erreur lors de la clôture du raid" };
+    }
+}
+
+/**
+ * Undo a raid completion within 24h — refunds Purple Kamas and reverts to PUBLISHED
+ */
+export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+    if (!ctx.canManageCalendar) return { success: false, error: "Permission insuffisante" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { id: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
+        });
+
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.status !== "COMPLETED") return { success: false, error: "Le raid n'est pas clôturé" };
+
+        // 24h window check
+        const meta = (event.metadata as any) || {};
+        const completedAt = meta.completedAt ? new Date(meta.completedAt) : null;
+        if (!completedAt || (Date.now() - completedAt.getTime()) > 24 * 60 * 60 * 1000) {
+            return { success: false, error: "Délai de 24h dépassé. Vous ne pouvez plus annuler cette clôture." };
+        }
+
+        // Only the raid creator (initiateur) or someone with calendar management permission can undo
+        if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
+            return { success: false, error: "Seul l'initiateur du raid ou un gestionnaire du calendrier peut annuler la clôture." };
+        }
+
+        // Refund Purple Kamas + XP to present members (prevents double-counting on re-complete)
+        const presentUserIds: string[] = meta.raidPresentUserIds || [];
+        const purpleKamasCost = meta.raidPurpleKamasCost ?? 30;
+        if (presentUserIds.length > 0) {
+            await db.userProfile.updateMany({
+                where: {
+                    userId: { in: presentUserIds },
+                    guildId: guildConfig.id
+                },
+                data: {
+                    purpleKamasConsumed: { decrement: purpleKamasCost },
+                    xp: { decrement: 50 }
+                }
+            });
+        }
+
+        // Revert event to PUBLISHED
+        await db.guildEvent.update({
+            where: { id: eventId },
+            data: {
+                status: "PUBLISHED",
+                metadata: {
+                    ...meta,
+                    raidScore: null,
+                    raidPresentUserIds: [],
+                    completedAt: null,
+                    completedBy: null,
+                    raidUndoneAt: new Date().toISOString(),
+                    raidUndoneBy: ctx.id
+                }
+            }
+        });
+
+        // Re-send Discord embed if previously had one
+        if (event.discordChannelId) {
+            const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+            updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+        }
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, refunded: presentUserIds.length };
     } catch (error) {
         console.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };

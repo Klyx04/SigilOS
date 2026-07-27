@@ -248,9 +248,9 @@ export async function saveSystemAnnouncementSettings(
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
     try {
-        const { getUserContext } = await import("@/server/actions/user-actions");
-        const user = await getUserContext(guildId);
-        if (!user.isAdmin) return { success: false, error: "Admin required" };
+        const { requireGuildConfigAccess } = await import("./guards");
+        const guard = await requireGuildConfigAccess(guildId);
+        if (!guard.isAuthorized) return { success: false, error: guard.error || "Admin required" };
 
         if (channelId) {
             const { validateChannelBelongsToGuild } = await import("@/server/discord");

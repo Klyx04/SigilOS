@@ -102,6 +102,15 @@ const QuestMonsterSchema = z.object({
         quantite: z.coerce.number().optional().nullable(),
         amount: z.coerce.number().optional().nullable(),
     }).optional(),
+    // Zone data — present on quest template monsters, stripped without this field
+    zones: z.array(z.object({
+        id: z.number(),
+        name: LocalizedNameSchema,
+        subzones: z.array(z.object({
+            id: z.number(),
+            name: LocalizedNameSchema,
+        })).optional(),
+    })).optional(),
 });
 
 const QuestTemplateSchema = z.object({

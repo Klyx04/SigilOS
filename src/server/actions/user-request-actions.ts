@@ -42,20 +42,22 @@ export async function sendUserRequest(
     }
 
     try {
-        // 1. Fetch Target User & Guild Config
-        const [targetUser, guildConfig] = await Promise.all([
-            db.user.findUnique({
-                where: { id: targetUserId },
-                include: { 
-                    profiles: { where: { guildId } },
-                    accounts: { where: { provider: "discord" } }
-                }
-            }),
-            db.guildConfig.findUnique({
-                where: { discordGuildId: guildId },
-                select: { userRequestChannelId: true, dofusServerName: true }
-            })
-        ]);
+        // 1. Fetch Guild Config first to get internal DB guildId
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true, userRequestChannelId: true, dofusServerName: true }
+        });
+
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // 2. Fetch Target User (use internal guild id for profile lookup)
+        const targetUser = await db.user.findUnique({
+            where: { id: targetUserId },
+            include: { 
+                profiles: { where: { guildId: guildConfig.id } },
+                accounts: { where: { provider: "discord" } }
+            }
+        });
 
         if (!targetUser || targetUser.profiles.length === 0) {
             return { success: false, error: "Utilisateur introuvable" };

@@ -32,8 +32,9 @@ const GrantBadgeSchema = z.object({
 });
 
 export async function getOnboardingSettings(guildId: string) {
-    const user = await getUserContext(guildId);
-    if (!user.isAdmin) return { success: false, error: "Unauthorized" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
         const guild = await db.guildConfig.findUnique({
@@ -76,8 +77,9 @@ export async function getOnboardingSettings(guildId: string) {
 }
 
 export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettingsSchema>) {
-    const user = await getUserContext(data.guildId);
-    if (!user.isAdmin) return { success: false, error: "Unauthorized" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(data.guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
 
     try {
         // SECURITY: Validate that the channel belongs to the guild

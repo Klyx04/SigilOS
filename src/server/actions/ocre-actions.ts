@@ -42,6 +42,7 @@ import {
 } from "@/lib/metamob-client";
 import { decrypt } from "@/lib/encryption";
 import { metamobQueue } from "@/lib/queue/metamob-queue";
+import { redis } from "@/lib/redis";
 
 // -----------------------------------------------------------------------------
 // TYPES
@@ -583,25 +584,59 @@ export async function getMyOcreProgress(
                 let skeletonMonsters: QuestMonster[] = [];
                 try { skeletonMonsters = await getQuestTemplateMonsters(templateId, { guildApiKey: effectiveApiKey }); } catch { }
 
-                let zonesData: any[] = [];
-                try {
-                    const { getQuestZones } = await import('@/lib/metamob-client');
-                    zonesData = await getQuestZones(questSlug!, { guildApiKey: effectiveApiKey });
-                } catch { }
+                // ===========================================================================
+                // ZONE MAP — Source : /v1/quests/{slug}/zones?monster_type_id=3
+                // Endpoint authentifié Metamob : 1 seul appel, retourne zones → subzones → archis.
+                // Matching par nom FR (stable, évite les mismatches d'IDs entre endpoints).
+                // Cachépar slug dans Redis 2h.
+                // ===========================================================================
+                const archiZoneCacheKey = `metamob:archi-zones:${questSlug}`;
+                const nameToZoneMap = new Map<string, string>();    // archiNameFr.lower → zone.name.fr
+                const nameToSubzoneMap = new Map<string, string>(); // archiNameFr.lower → subzone.name.fr
 
-                // Process Zones
-                const monsterZoneMap = new Map<number, Set<string>>();
-                const addZone = (m: any, name: string) => {
-                    const mid = m.id || m.monster_id;
-                    if (mid && name) {
-                        if (!monsterZoneMap.has(mid)) monsterZoneMap.set(mid, new Set());
-                        monsterZoneMap.get(mid)!.add(name);
+                try {
+                    const cachedZones = await redis.get(archiZoneCacheKey);
+                    if (cachedZones) {
+                        const cachedData: Record<string, { zone?: string; subzone?: string }> = JSON.parse(cachedZones);
+                        Object.entries(cachedData).forEach(([k, v]) => {
+                            if (v.zone) nameToZoneMap.set(k, v.zone);
+                            if (v.subzone) nameToSubzoneMap.set(k, v.subzone);
+                        });
+                    } else {
+                        const zoneEndpoint = `https://www.metamob.fr/api/v1/quests/${encodeURIComponent(questSlug!)}/zones?monster_type_id=3`;
+                        const zoneHeaders: Record<string, string> = { 'Accept': 'application/json' };
+                        if (effectiveApiKey) zoneHeaders['Authorization'] = `Bearer ${effectiveApiKey}`;
+
+                        const zoneRes = await fetch(zoneEndpoint, { headers: zoneHeaders, signal: AbortSignal.timeout(10000) });
+                        if (zoneRes.ok) {
+                            const zoneJson = await zoneRes.json();
+                            const zones: any[] = zoneJson.data || [];
+                            const cacheStore: Record<string, { zone?: string; subzone?: string }> = {};
+
+                            zones.forEach((z: any) => {
+                                const zoneName: string = z.name?.fr || '';
+                                (z.subzones || []).forEach((sz: any) => {
+                                    const subzoneName: string = sz.name?.fr || '';
+                                    (sz.monsters || []).forEach((m: any) => {
+                                        const nameFr: string | undefined = m.name?.fr;
+                                        if (nameFr) {
+                                            const key = nameFr.toLowerCase().trim();
+                                            if (!nameToZoneMap.has(key)) {
+                                                if (zoneName) nameToZoneMap.set(key, zoneName);
+                                                if (subzoneName) nameToSubzoneMap.set(key, subzoneName);
+                                                cacheStore[key] = { zone: zoneName || undefined, subzone: subzoneName || undefined };
+                                            }
+                                        }
+                                    });
+                                });
+                            });
+
+                            if (Object.keys(cacheStore).length > 0) {
+                                await redis.set(archiZoneCacheKey, JSON.stringify(cacheStore), 'EX', 7200).catch(() => {});
+                            }
+                        }
                     }
-                };
-                zonesData.forEach(z => {
-                    z.subzones?.forEach((sz: any) => sz.monsters?.forEach((m: any) => addZone(m, sz.name?.fr || z.name?.fr)));
-                    z.monsters?.forEach((m: any) => addZone(m, z.name?.fr));
-                });
+                } catch { /* silent — zones are best-effort */ }
 
                 // Mapping
                 const masterList = skeletonMonsters.length > 0 ? skeletonMonsters : userQuestData;
@@ -630,8 +665,12 @@ export async function getMyOcreProgress(
                     if (!um) { norm.owned = PQ; norm.state = "POSSEDE"; }
                     if (norm.type === "monstre") continue;
 
-                    const zones = monsterZoneMap.get(norm.id);
-                    if (zones) norm.zone = Array.from(zones).join(", ");
+                    // Zone par nom FR — fiable, évite les mismatches d'IDs entre endpoints Metamob
+                    const zoneKey = norm.nameFr.toLowerCase().trim();
+                    const zVal = nameToZoneMap.get(zoneKey);
+                    const szVal = nameToSubzoneMap.get(zoneKey);
+                    if (zVal) norm.zone = zVal;
+                    if (szVal) norm.subzone = szVal;
 
                     finalMonsters.push(norm);
                     cT++;
@@ -642,6 +681,7 @@ export async function getMyOcreProgress(
                     const tk = norm.type as keyof typeof statsByType;
                     if (statsByType[tk]) { statsByType[tk].total++; if (isGath) statsByType[tk].gathered++; }
                 }
+
 
                 const gathered = finalMonsters.filter(m => (m.state !== "MANQUANT") || (m.step && firstPage.current_step && m.step < firstPage.current_step)).length;
                 const resData: OcreProgressData = {
@@ -2126,15 +2166,15 @@ export async function getZoneArchmonsters(guildId: string, zoneName: string): Pr
             if (m.type !== "archimonstre") return false;
 
             const search = normalizedZone;
+
+            // Zone parente (ex: "Forêt des Abraknydes") — noms exacts tels que retournés par Metamob
             const mZone = (m.zone || "").toLowerCase();
-            const mSubzone = (m.subzone || "").toLowerCase();
-
-            // Split zones by comma to handle multi-zone monsters
             const monsterZones = mZone.split(",").map(z => z.trim()).filter(Boolean);
-            const monsterSubzones = mSubzone.split(",").map(z => z.trim()).filter(Boolean);
-
-            // Strict: exact equality only (avoids "Incarnam" matching "Champs de l'Incarnam")
             const matchesZone = monsterZones.some(mz => mz === search);
+
+            // Sous-zone (ex: "Plaine des Abraknydes") — noms exacts tels que retournés par Metamob
+            const mSubzone = (m.subzone || "").toLowerCase();
+            const monsterSubzones = mSubzone.split(",").map(z => z.trim()).filter(Boolean);
             const matchesSubzone = monsterSubzones.some(msz => msz === search);
 
             return matchesZone || matchesSubzone;

@@ -39,6 +39,23 @@ export default function GodBountiesPage() {
     const [selectedBounty, setSelectedBounty] = useState<any>(null);
     const [saving, setSaving] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
+    const [subareaNames, setSubareaNames] = useState<string[]>([]);
+    const [zoneSearch, setZoneSearch] = useState('');
+    const [zoneOpen, setZoneOpen] = useState(false);
+
+    // Load worldmap subarea names client-side (public file, no server action needed)
+    useEffect(() => {
+        fetch('/game-data/worldmap.json')
+            .then(r => r.json())
+            .then(data => {
+                const names: string[] = (data.subareas || [])
+                    .map((sa: any) => typeof sa.name === 'string' ? sa.name : (sa.name?.fr || ''))
+                    .filter(Boolean)
+                    .sort((a: string, b: string) => a.localeCompare(b, 'fr'));
+                setSubareaNames([...new Set(names)] as string[]);
+            })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         setLoading(true);
@@ -384,13 +401,70 @@ export default function GodBountiesPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-3">
-                                                <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1">Localisation (Zones)</label>
-                                                <Input
-                                                    value={selectedBounty.zoneName || ""}
-                                                    onChange={(e) => setSelectedBounty({ ...selectedBounty, zoneName: e.target.value })}
-                                                    className="bg-black/40 border-white/5 font-bold h-14 rounded-2xl focus-visible:ring-amber-500/30"
-                                                />
+                                            <div className="space-y-3 relative">
+                                                <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] italic ml-1 flex items-center justify-between">
+                                                    <span className="flex items-center gap-2"><MapPin size={11} /> Localisation (Zones)</span>
+                                                    {selectedBounty.zoneName && (
+                                                        <span className={cn(
+                                                            "text-[8px] font-black uppercase px-2 py-0.5 rounded-md",
+                                                            subareaNames.includes(selectedBounty.zoneName)
+                                                                ? "bg-emerald-500/10 text-emerald-400"
+                                                                : "bg-rose-500/10 text-rose-400"
+                                                        )}>
+                                                            {subareaNames.includes(selectedBounty.zoneName) ? '✓ Zone trouvée' : '⚠ Zone introuvable'}
+                                                        </span>
+                                                    )}
+                                                </label>
+                                                <div className="relative">
+                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={16} />
+                                                    <input
+                                                        value={zoneOpen ? zoneSearch : (selectedBounty.zoneName || '')}
+                                                        onChange={(e) => {
+                                                            setZoneSearch(e.target.value);
+                                                            if (!zoneOpen) setZoneOpen(true);
+                                                        }}
+                                                        onFocus={() => {
+                                                            setZoneSearch(selectedBounty.zoneName || '');
+                                                            setZoneOpen(true);
+                                                        }}
+                                                        onBlur={() => setTimeout(() => setZoneOpen(false), 150)}
+                                                        placeholder="Rechercher une zone du worldmap..."
+                                                        className="w-full pl-12 pr-4 bg-black/40 border border-white/5 font-bold h-14 rounded-2xl text-white text-sm focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20 transition-all"
+                                                    />
+                                                    {zoneOpen && (
+                                                        <div className="absolute top-full left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl z-50">
+                                                            {(() => {
+                                                                const q = zoneSearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                                                                const filtered = subareaNames.filter(n =>
+                                                                    n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)
+                                                                ).slice(0, 40);
+                                                                if (filtered.length === 0) return (
+                                                                    <div className="px-4 py-3 text-zinc-600 text-[10px] italic text-center">Aucune zone trouvée</div>
+                                                                );
+                                                                return filtered.map(name => (
+                                                                    <button
+                                                                        key={name}
+                                                                        type="button"
+                                                                        onMouseDown={() => {
+                                                                            setSelectedBounty({ ...selectedBounty, zoneName: name });
+                                                                            setZoneSearch(name);
+                                                                            setZoneOpen(false);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "w-full text-left px-4 py-2.5 text-sm font-bold transition-colors border-b border-white/5 last:border-0 flex items-center justify-between group",
+                                                                            selectedBounty.zoneName === name
+                                                                                ? "bg-amber-500/10 text-amber-400"
+                                                                                : "text-zinc-300 hover:bg-white/5 hover:text-white"
+                                                                        )}
+                                                                    >
+                                                                        <span>{name}</span>
+                                                                        {selectedBounty.zoneName === name && <Check size={12} className="text-amber-400 flex-shrink-0" />}
+                                                                    </button>
+                                                                ));
+                                                            })()}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

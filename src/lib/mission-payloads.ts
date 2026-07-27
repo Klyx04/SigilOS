@@ -40,6 +40,12 @@ export type SongesPayload = {
     tier: 1 | 2 | 3 | 4 | 5;
 }
 
+// === ÉPREUVE SONGE (4 épreuves spéciales : Fonsocac, Nilezaff, Reversed, Sinjsonj) ===
+export type SongesEpreuvePayload = {
+    epreuve: 'Fonsocac' | 'Nilezaff' | 'Reversed' | 'Sinjsonj';
+    imageUrl?: string;
+}
+
 // === EXPEDITION ===
 export type ExpeditionPayload = {
     dungeonId: string;
@@ -62,6 +68,7 @@ export type MissionPayload =
     | RegulationPayload
     | AnomaliePayload
     | SongesPayload
+    | SongesEpreuvePayload
     | ExpeditionPayload
     | EventPayload;
 
@@ -74,6 +81,7 @@ export const SONGES_CONFIG = {
         'Cauchemar': ['I', 'II', 'III'] as const,
     },
     tiers: [1, 2, 3, 4, 5] as const,
+    epreuves: ['Fonsocac', 'Nilezaff', 'Reversed', 'Sinjsonj'] as const,
 };
 
 // Anomalie level ranges

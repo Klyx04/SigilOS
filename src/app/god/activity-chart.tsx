@@ -92,7 +92,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
                         }}
                         itemStyle={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em" }}
                         labelStyle={{ color: "#a1a1aa", marginBottom: "1rem", fontSize: "9px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.3em" }}
-                        labelFormatter={(str) => new Date(str).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                        labelFormatter={(str: any) => new Date(str as string).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                         cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
                     />
 

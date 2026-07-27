@@ -57,7 +57,7 @@ const INTERACTION_COOLDOWN_MS = 10 * 1000; // 10 seconds
 export async function processRegistration(guildId: string, eventId: string, userId: string, data?: { classe?: string; comment?: string }) {
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true, raidRequireKamaDonation: true }
+        select: { id: true, raidRequireKamaDonation: true, raidKamaDonationThreshold: true }
     });
     if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
@@ -88,6 +88,7 @@ export async function processRegistration(guildId: string, eventId: string, user
         // Kamas gate: user must have at least 30 Purple Kamas in their balance (10 000 k = 10 Purple Kamas)
         // Only enforced when the admin toggle is ON (raidRequireKamaDonation = true, default)
         if (guildConfig.raidRequireKamaDonation) {
+            const threshold = (guildConfig.raidKamaDonationThreshold ?? 3) * 10_000;
             const userProfile = await db.userProfile.findFirst({
                 where: { userId, guildId: guildConfig.id },
                 select: { id: true, purpleKamasConsumed: true },
@@ -105,11 +106,12 @@ export async function processRegistration(guildId: string, eventId: string, user
             const totalDonated = allDonations._sum.amount ?? 0;
             const purpleKamasEarned = Math.floor(totalDonated / 1000);
             const purpleKamasBalance = Math.max(0, purpleKamasEarned - (userProfile.purpleKamasConsumed || 0));
+            const requiredPurpleKamas = Math.floor(threshold / 1000);
 
-            if (purpleKamasBalance < 30) {
+            if (purpleKamasBalance < requiredPurpleKamas) {
                 return {
                     success: false,
-                    error: `🪙 30 Kamas Violets requis dans votre bourse pour vous inscrire aux raids. Solde actuel : ${purpleKamasBalance} Kamas Violets (1 tranche de 10 000 k = 10 Kamas Violets).`,
+                    error: `🪙 ${requiredPurpleKamas} Kamas Violets requis dans votre bourse pour vous inscrire aux raids (${threshold.toLocaleString("fr-FR")} k). Solde actuel : ${purpleKamasBalance} Kamas Violets (1 tranche de 10 000 k = 10 Kamas Violets).`,
                 };
             }
         }
@@ -145,7 +147,7 @@ export async function processRegistration(guildId: string, eventId: string, user
 
     revalidatePath(`/dashboard/${guildId}/calendar`);
     revalidatePath(`/dashboard/${guildId}`, "layout");
-    return { success: true, isReserve };
+    return { success: true, isReserve, reserveMessage: isReserve ? "Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid." : undefined };
 }
 
 export async function processUnregistration(guildId: string, eventId: string, userId: string) {
@@ -331,6 +333,10 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
             ? reserve.map(formatParticipant).join("\n")
             : "*Personne en file d'attente*";
 
+        const reserveNote = reserve.length > 0 && isRaid
+            ? "\n💡 *Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid.*"
+            : "";
+
         const fields = [
             { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
             { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
@@ -361,7 +367,7 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
 
         fields.push(
             { name: `✅ Inscrits (${registered.length})`, value: registeredList, inline: true },
-            { name: `⏳ File d'attente (${reserve.length})`, value: reserveList, inline: true },
+            { name: `⏳ File d'attente (${reserve.length})`, value: reserveList + reserveNote, inline: true },
         );
 
         const components = [
@@ -517,6 +523,10 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
         const isRaid = event.type === "RAID_OFFICIAL";
         const raidMeta = isRaid ? (event.metadata as any) : null;
 
+        const reserveNote = reserve.length > 0 && isRaid
+            ? "\n💡 *Tes Kamas Violets ne seront pas déduits si tu ne participes pas au raid.*"
+            : "";
+
         const fields = [
             { name: "📅 Date", value: `<t:${startTs}:d> (<t:${startTs}:D>)`, inline: true },
             { name: "⏰ Horaire", value: `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`, inline: true },
@@ -547,7 +557,7 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
 
         fields.push(
             { name: `✅ Inscrits (${registered.length})`, value: registeredList, inline: true },
-            { name: `⏳ File d'attente (${reserve.length})`, value: reserveList, inline: true },
+            { name: `⏳ File d'attente (${reserve.length})`, value: reserveList + reserveNote, inline: true },
         );
 
         const components = [

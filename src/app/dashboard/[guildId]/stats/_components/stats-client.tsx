@@ -19,6 +19,7 @@ import { MessageSquare, Gamepad2, Timer, TrendingUp, Compass } from "lucide-reac
 
 interface StatsClientProps {
     stats: GuildStats;
+    missionsEnabled?: boolean;
 }
 
 function formatKamas(val: number): string {
@@ -28,7 +29,12 @@ function formatKamas(val: number): string {
     return val.toLocaleString();
 }
 
-export default function StatsClient({ stats }: StatsClientProps) {
+export default function StatsClient({ stats, missionsEnabled = true }: StatsClientProps) {
+    const showMissionStats = missionsEnabled && stats.totalMissionsValidated > 0;
+
+    // Check if Discord social data is populated (message count > 0)
+    const hasSocialData = (stats.social?.totalMessages || 0) > 0;
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header */}
@@ -45,26 +51,32 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 </div>
             </div>
 
-            {/* KPI Cards — Row 1 (Activity) */}
+            {/* KPI Cards — Row 1 (Core) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <StatCard icon={Users} label="Membres actifs" value={stats.activeMembers} accent="violet" />
                 <StatCard icon={Star} label="XP Total" value={stats.totalXp.toLocaleString()} accent="teal" />
-                <StatCard icon={CheckCircle2} label="Missions validées" value={stats.totalMissionsValidated} accent="emerald" />
-                <StatCard icon={Target} label="Taux validation" value={`${stats.validationRate}%`} accent="rose" />
-            </div>
-
-            {/* KPI Cards — Row 2 (Kamas & Guildatons) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard icon={Coins} label="Guildatons Actuels" value={stats.totalGuildatons.toLocaleString()} accent="amber" />
-                <StatCard icon={Coins} label="Guildatons Gagnés" value={(stats.totalGuildatonsEarned || 0).toLocaleString()} accent="yellow" />
-                <StatCard icon={Coins} label="Kamas Collectés" value={formatKamas(stats.totalKamasCollected || 0)} accent="orange" />
-                <StatCard icon={HandHeart} label="Pts Entraide" value={stats.totalEntraidePoints} accent="pink" />
-            </div>
-
-            {/* KPI Cards — Row 3 (Social/Game) */}
-            <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
+                {showMissionStats ? (
+                    <StatCard icon={CheckCircle2} label="Missions validées" value={stats.totalMissionsValidated} accent="emerald" />
+                ) : (
+                    <StatCard icon={Target} label="Succès guilde" value={`${stats.quests?.guildCompletionRate || 0}%`} accent="emerald" />
+                )}
                 <StatCard icon={Moon} label="Songes complétés" value={stats.totalSongesCompleted} accent="blue" />
+            </div>
+
+            {/* KPI Cards — Row 2 (Kamas & Guildatons — only if missions enabled) */}
+            {showMissionStats && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard icon={Coins} label="Guildatons Actuels" value={stats.totalGuildatons.toLocaleString()} accent="amber" />
+                    <StatCard icon={Coins} label="Guildatons Gagnés" value={(stats.totalGuildatonsEarned || 0).toLocaleString()} accent="yellow" />
+                    <StatCard icon={Coins} label="Kamas Collectés" value={formatKamas(stats.totalKamasCollected || 0)} accent="orange" />
+                    <StatCard icon={HandHeart} label="Pts Entraide" value={stats.totalEntraidePoints} accent="pink" />
+                </div>
+            )}
+
+            {/* KPI Cards — Row 3 (Events) */}
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
                 <StatCard icon={CalendarDays} label="Events organisés" value={stats.totalEvents} accent="sky" />
+                <StatCard icon={Target} label="Taux validation" value={showMissionStats ? `${stats.validationRate}%` : "—"} accent="rose" />
             </div>
 
             {/* Activity Chart */}
@@ -76,21 +88,23 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 <ActivityChart data={stats.weeklyActivity} />
             </section>
 
-            {/* Missions & Songes — 2 columns */}
+            {/* Missions & Songes — 2 columns (conditional missions) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
-                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <Target className="w-5 h-5 text-teal-400" />
-                        Missions
-                    </h3>
-                    <MissionsStats
-                        categories={stats.missionsByCategory}
-                        topValidators={stats.topValidators}
-                        topDonors={stats.topDonors}
-                    />
-                </section>
+                {showMissionStats && (
+                    <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                            <Target className="w-5 h-5 text-teal-400" />
+                            Missions
+                        </h3>
+                        <MissionsStats
+                            categories={stats.missionsByCategory}
+                            topValidators={stats.topValidators}
+                            topDonors={stats.topDonors}
+                        />
+                    </section>
+                )}
 
-                <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <section className={`rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5 ${showMissionStats ? "" : "lg:col-span-2"}`}>
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <Moon className="w-5 h-5 text-blue-400" />
                         Songes Infinis
@@ -99,7 +113,7 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 </section>
             </div>
 
-            {/* Events & Community & Services — 3 sections en grilles */}
+            {/* Events & Community — 3 sections en grilles */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -127,7 +141,7 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 <ServicesStats services={stats.services} />
             </section>
 
-            {/* NEW: Quests & Dofus Stats */}
+            {/* Quests & Dofus Stats */}
             <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Compass className="w-5 h-5 text-emerald-400" />
@@ -136,16 +150,18 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 <QuestsStats quests={stats.quests} />
             </section>
 
-            {/* NEW: Discord Activity */}
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-violet-400" />
-                    Activité Discord — Top Bavards & Vocal
-                </h3>
-                <SocialStats social={stats.social} />
-            </section>
+            {/* Discord Activity — only if data is populated */}
+            {hasSocialData && (
+                <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5 text-violet-400" />
+                        Activité Discord — Top Bavards & Vocal
+                    </h3>
+                    <SocialStats social={stats.social} />
+                </section>
+            )}
 
-            {/* NEW: Mini-Games Records */}
+            {/* Mini-Games Records */}
             <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Gamepad2 className="w-5 h-5 text-indigo-400" />
@@ -154,7 +170,7 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 <MiniGamesStats miniGames={stats.miniGames} />
             </section>
 
-            {/* NEW: Admin Performance */}
+            {/* Admin Performance */}
             <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Timer className="w-5 h-5 text-rose-400" />
@@ -163,7 +179,7 @@ export default function StatsClient({ stats }: StatsClientProps) {
                 <PerformanceStats performance={stats.performance} />
             </section>
 
-            {/* NEW: Retention & Growth */}
+            {/* Retention & Growth */}
             <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-emerald-400" />

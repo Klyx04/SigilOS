@@ -872,9 +872,21 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
 
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, raidRequireKamaDonation: true, raidKamaDonationThreshold: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        // If the admin has disabled the kamas donation requirement, everyone is eligible
+        if (!guildConfig.raidRequireKamaDonation) {
+            const { week, year } = getDofusWeek();
+            return {
+                success: true,
+                totalDonated: 0,
+                isEligible: true,
+                weekNumber: week,
+                yearNumber: year,
+            };
+        }
 
         const profile = await db.userProfile.findFirst({
             where: { userId: session.user.id, guildId: guildConfig.id },
@@ -895,11 +907,13 @@ export async function getUserRaidEligibility(guildId: string): Promise<{
         const totalDonated = result._sum.amount ?? 0;
         const purpleKamasEarned = Math.floor(totalDonated / 1000);
         const purpleKamasBalance = Math.max(0, purpleKamasEarned - (profile.purpleKamasConsumed || 0));
+        const threshold = (guildConfig.raidKamaDonationThreshold ?? 3) * 10_000;
+        const requiredPurpleKamas = Math.floor(threshold / 1000);
 
         return {
             success: true,
             totalDonated,
-            isEligible: purpleKamasBalance >= 30,
+            isEligible: purpleKamasBalance >= requiredPurpleKamas,
             weekNumber: week,
             yearNumber: year,
         };

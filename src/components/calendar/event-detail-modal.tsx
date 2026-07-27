@@ -219,8 +219,10 @@ interface EventDetailModalProps {
     onUnregister?: () => Promise<void>;
     onEdit?: () => void;
     onDelete?: () => Promise<void>;
+    onCancel?: () => Promise<void>;
     onPublish?: () => Promise<void>;
     onComplete?: () => Promise<void>;
+    onUndoComplete?: () => Promise<void>;
     onSendReminder?: (roleId?: string) => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; error?: string }>;
     onShareDiscord?: (roleId?: string) => Promise<{ success: boolean; error?: string }>;
     hasMetamobKey?: boolean;
@@ -247,8 +249,10 @@ export function EventDetailModal({
     onUnregister,
     onEdit,
     onDelete,
+    onCancel,
     onPublish,
     onComplete,
+    onUndoComplete,
     onSendReminder,
     onShareDiscord,
     hasMetamobKey = false,
@@ -270,6 +274,7 @@ export function EventDetailModal({
     const [raidScore, setRaidScore] = useState("");
     const [presentParticipants, setPresentParticipants] = useState<Set<string>>(new Set());
     const [isCompletingRaid, setIsCompletingRaid] = useState(false);
+    const [confirmRaidComplete, setConfirmRaidComplete] = useState(false);
 
     const eventMetadata = (event as any)?.metadata as any;
     const missionIds = eventMetadata?.missionIds as string[] | undefined;
@@ -295,6 +300,7 @@ export function EventDetailModal({
         const registered = event.participants.filter(p => p.status === "REGISTERED").map(p => p.user.id);
         setPresentParticipants(new Set(registered));
         setRaidScore("");
+        setConfirmRaidComplete(false);
         setShowRaidCompletion(true);
     };
 
@@ -354,6 +360,21 @@ export function EventDetailModal({
             toast.success("Événement supprimé");
         } catch (error) {
             toast.error("Erreur lors de la suppression");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCancel = async () => {
+        if (!onCancel) return;
+
+        setIsLoading(true);
+        try {
+            await onCancel();
+            onOpenChange(false);
+            toast.success("Événement annulé");
+        } catch (error) {
+            toast.error("Erreur lors de l'annulation");
         } finally {
             setIsLoading(false);
         }
@@ -433,8 +454,35 @@ export function EventDetailModal({
                                         </Button>
                                     )}
 
-                                    {/* Delete button — only creator or admin */}
-                                    {onDelete && (isCreator || isAdmin) && (
+                                    {/* Cancel button — only creator or admin (soft delete → CANCELLED) */}
+                                    {event.status === "PUBLISHED" && onCancel && (isCreator || isAdmin) && (
+                                        <Button
+                                            size="sm"
+                                            variant={isDeleteConfirming ? "destructive" : "ghost"}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isDeleteConfirming) {
+                                                    handleCancel();
+                                                } else {
+                                                    setIsDeleteConfirming(true);
+                                                    setTimeout(() => setIsDeleteConfirming(false), 3000);
+                                                }
+                                            }}
+                                            disabled={isLoading}
+                                            className={cn(
+                                                "transition-all",
+                                                isDeleteConfirming
+                                                    ? "bg-red-600 hover:bg-red-700 text-white"
+                                                    : "text-zinc-400 hover:text-red-400 hover:bg-red-950/20"
+                                            )}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-1.5" />
+                                            {isDeleteConfirming ? "Confirmer" : "Annuler"}
+                                        </Button>
+                                    )}
+
+                                    {/* Hard delete button — only for admin on CANCELLED events */}
+                                    {event.status === "CANCELLED" && onDelete && (isCreator || isAdmin) && (
                                         <Button
                                             size="sm"
                                             variant={isDeleteConfirming ? "destructive" : "ghost"}
@@ -456,7 +504,7 @@ export function EventDetailModal({
                                             )}
                                         >
                                             <Trash2 className="h-4 w-4 mr-1.5" />
-                                            {isDeleteConfirming ? "Confirmer" : "Supprimer"}
+                                            {isDeleteConfirming ? "Confirmer" : "Supprimer définitivement"}
                                         </Button>
                                     )}
 
@@ -485,9 +533,23 @@ export function EventDetailModal({
                                         )
                                     )}
                                     {event.status === "COMPLETED" && (
-                                        <Badge variant="secondary" className="bg-zinc-950/50 text-zinc-400 border-zinc-700 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider">
-                                            Event terminé
-                                        </Badge>
+                                        <div className="flex items-center gap-2">
+                                            {isRaid && onUndoComplete && (isCreator || canManage) && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => handleAction(onUndoComplete)}
+                                                    disabled={isLoading}
+                                                    className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                                >
+                                                    <span className="mr-1.5">↩</span>
+                                                    Annuler la clôture
+                                                </Button>
+                                            )}
+                                            <Badge variant="secondary" className="bg-zinc-950/50 text-zinc-400 border-zinc-700 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider">
+                                                {isRaid ? "Raid terminé" : "Event terminé"}
+                                            </Badge>
+                                        </div>
                                     )}
                                 </div>
                             )}
@@ -1097,6 +1159,20 @@ export function EventDetailModal({
                                 </div>
                             </div>
 
+                            {/* Confirmation checkbox */}
+                            <div className="flex items-start gap-3 p-3 rounded-xl border border-red-500/15 bg-red-500/5">
+                                <input
+                                    type="checkbox"
+                                    id="confirm-raid-complete"
+                                    checked={confirmRaidComplete}
+                                    onChange={(e) => setConfirmRaidComplete(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-800 text-red-500 focus:ring-red-500/50"
+                                />
+                                <label htmlFor="confirm-raid-complete" className="text-xs text-zinc-400 leading-relaxed cursor-pointer">
+                                    <span className="font-bold text-red-400">J'atteste</span> avoir coordonné la clôture avec mon équipe. Les <strong>{presentParticipants.size} participant{ presentParticipants.size > 1 ? "s" : "" } présent{ presentParticipants.size > 1 ? "s" : "" }</strong> sélectionné{ presentParticipants.size > 1 ? "s" : "" } verront leurs Kamas Violets déduits.
+                                </label>
+                            </div>
+
                             {/* Actions */}
                             <div className="flex gap-3 pt-2">
                                 <Button
@@ -1108,7 +1184,7 @@ export function EventDetailModal({
                                 </Button>
                                 <Button
                                     className="flex-1 bg-gradient-to-r from-red-600 to-rose-500 hover:from-red-500 hover:to-rose-400 text-white font-black shadow-lg shadow-red-500/20"
-                                    disabled={isCompletingRaid}
+                                    disabled={isCompletingRaid || !confirmRaidComplete}
                                     onClick={async () => {
                                         if (!onComplete) return;
                                         setIsCompletingRaid(true);

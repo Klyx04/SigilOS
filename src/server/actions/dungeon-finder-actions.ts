@@ -97,8 +97,9 @@ export type DjSettings = {
 };
 
 export async function getDungeonFinderConfig(guildId: string): Promise<ActionResponse<DjSettings>> {
-    const user = await getUserContext(guildId);
-    if (!user.isAuthenticated) return { success: false, error: "Unauthorized" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
 
     try {
         const config = await db.guildConfig.findUnique({
@@ -1703,8 +1704,9 @@ export async function getDjPostsForDungeon(
  * RBAC: admin only.
  */
 export async function getDjSettings(guildId: string): Promise<ActionResponse<DjSettings>> {
-    const user = await getUserContext(guildId);
-    if (!user.isAdmin) return { success: false, error: "Accès refusé" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
 
     try {
         const guildConfig = await (db as any).guildConfig.findUnique({
@@ -1756,8 +1758,9 @@ export async function updateDjSettings(
     guildId: string,
     data: { djNotifyChannelId: string | null }
 ): Promise<ActionResponse> {
-    const user = await getUserContext(guildId);
-    if (!user.isAdmin) return { success: false, error: "Accès refusé" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
 
     try {
         if (data.djNotifyChannelId) {

@@ -191,7 +191,7 @@ export default async function DashboardLayout({
                     </div>
 
                     {/* Scrollable Main Content area */}
-                    <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <main data-scroll-container="true" className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                         <div className="relative z-10">
                             {/* System Announcement Banner */}
                             <Suspense fallback={null}>

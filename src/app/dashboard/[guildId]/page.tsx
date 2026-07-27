@@ -13,6 +13,7 @@ import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actio
 import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
 import { getPolls } from "@/server/actions/poll-actions";
 
+import { QuickStatsRow } from "./_components/quick-stats-row";
 import { RecentDjPosts } from "./_components/recent-dj-posts";
 import { RecentStuffGallery } from "./_components/recent-stuff-gallery";
 import { AlmanaxWidget } from "./_components/almanax-widget";
@@ -95,6 +96,19 @@ export default async function DashboardPage({
     const polls = pollsResult.success && pollsResult.data ? (pollsResult.data as any[]) : [];
     const hasRaidNow = !!activeRaid;
 
+    // Quick Stats Data
+    const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
+    const dofusCompletionRate = guildStats?.quests?.guildCompletionRate || 0;
+    const onlineCount = (weeklyLadder?.success && Array.isArray(weeklyLadder.data?.entries) ? weeklyLadder.data.entries : []).filter((u: any) => {
+        const lastActive = u.lastActivityAt ? new Date(u.lastActivityAt) : null;
+        return lastActive && (Date.now() - lastActive.getTime() < 120_000);
+    }).length;
+    const totalMembers = guildStats?.activeMembers || 0;
+    const songesCompleted = guildStats?.totalSongesCompleted || 0;
+    const eventsCount = guildStats?.totalEvents || 0;
+    const topActivityName = guildStats?.records?.[0]?.label || "";
+    const topActivityValue = guildStats?.records?.[0]?.value || "";
+
     return (
         <div className="relative w-full min-h-full pb-20">
             {/* Background Decorators */}
@@ -123,31 +137,42 @@ export default async function DashboardPage({
                     </h1>
                 </header>
 
-                {/* ── 1. RAID HERO (prioritaire — conditionnel) ────────── */}
+                {/* ── 1. QUICK STATS ROW ───────────────────────────────── */}
+                <section className="animate-in fade-in slide-in-from-top-2 duration-500">
+                    <QuickStatsRow
+                        onlineCount={onlineCount}
+                        totalMembers={totalMembers}
+                        songesCompleted={songesCompleted}
+                        eventsCount={eventsCount}
+                        dofusCompletionRate={dofusCompletionRate}
+                        topActivityName={topActivityName}
+                        topActivityValue={topActivityValue}
+                        onlineUsers={[]}
+                    />
+                </section>
+
+                {/* ── 2. RAID HERO (prioritaire — conditionnel) ────────── */}
                 {hasRaidNow && (
                     <section className="animate-in fade-in slide-in-from-top-2 duration-500">
                         <RaidHeroBanner guildId={guildId} raid={activeRaid as any} />
                     </section>
                 )}
 
-                {/* ── 2. INTELLIGENCE FOCUS (masqué si raid actif) ─────── */}
+                {/* ── 3. INTELLIGENCE FOCUS (masqué si raid actif) ─────── */}
                 {focusData && !hasRaidNow && (
                     <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
                         <EchoDuSigil data={focusData} />
                     </section>
                 )}
 
-                {/* ── 3. EVENTS + SONDAGES (zone principale) ───────────── */}
+                {/* ── 4. EVENTS + SONDAGES ─────────────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-                    {/* Events — large */}
                     <section className="lg:col-span-7 min-h-[340px]">
                         <UpcomingEventsWidget
                             guildId={guildId}
                             events={upcomingEvents as any}
                         />
                     </section>
-
-                    {/* Polls — medium */}
                     <section className="lg:col-span-5 min-h-[340px]">
                         <ActivePollsWidget
                             guildId={guildId}
@@ -156,7 +181,7 @@ export default async function DashboardPage({
                     </section>
                 </div>
 
-                {/* ── 4. GROUPES ACTIFS + GALERIE (secondaire) ─────────── */}
+                {/* ── 5. GROUPES ACTIFS + GALERIE ──────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
                     <section className="min-h-[360px]">
                         <RecentDjPosts guildId={guildId} groups={activeGroups} />
@@ -166,7 +191,7 @@ export default async function DashboardPage({
                     </section>
                 </div>
 
-                {/* ── 5. ALMANAX + ACTIVITÉ (widgets bas) ──────────────── */}
+                {/* ── 6. ALMANAX + ACTIVITÉ ────────────────────────────── */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
                     <section>
                         <AlmanaxWidget
@@ -175,7 +200,7 @@ export default async function DashboardPage({
                         />
                     </section>
                     <section>
-                        <GuildActivityFeed logs={guildLogs} />
+                        <GuildActivityFeed logs={guildLogs} guildId={guildId} />
                     </section>
                 </div>
 

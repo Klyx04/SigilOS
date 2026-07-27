@@ -18,6 +18,9 @@ export default async function StatsPage({ params }: { params: Promise<{ guildId:
         redirect(`/dashboard/${guildId}`);
     }
 
+    // Check if missions module is in vitrine mode (disabled = hidden stats)
+    const missionsEnabled = await isModuleEnabled(guildId, "missions");
+
     const result = await getGuildStats(guildId);
 
     if (!result.success || !result.stats) {
@@ -29,12 +32,12 @@ export default async function StatsPage({ params }: { params: Promise<{ guildId:
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-white">Statistiques Guilde</h1>
-                        <p className="text-zinc-400">Erreur lors du chargement des données.</p>
+                        <p className="text-zinc-400">Erreur lors du téléchargement des données.</p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    return <StatsClient stats={result.stats} />;
+    return <StatsClient stats={result.stats} missionsEnabled={missionsEnabled} />;
 }

@@ -11,8 +11,9 @@ export async function getDirectorySettings(guildId: string) {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const context = await getUserContext(guildId);
-    if (!context.isAdmin) return { success: false, error: "Forbidden" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Forbidden" };
 
     try {
         const config = await db.guildConfig.findUnique({
@@ -31,8 +32,9 @@ export async function saveDirectorySettings(guildId: string, channelId: string |
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const context = await getUserContext(guildId);
-    if (!context.isAdmin) return { success: false, error: "Forbidden" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Forbidden" };
 
     if (channelId) {
         const belongs = await validateChannelBelongsToGuild(channelId, guildId);

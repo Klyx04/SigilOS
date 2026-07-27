@@ -22,6 +22,7 @@ import {
     RegulationForm,
     AnomalieForm,
     SongesForm,
+    SongesEpreuveForm,
     ExpeditionForm,
     EventForm
 } from "./category-forms";
@@ -779,12 +780,54 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                     />
                                 )}
                                 {currentMission.category === 'SONGES' && (
-                                    <SongesForm
-                                        payload={currentMission.payload}
-                                        onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
-                                        onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
-                                        onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
-                                    />
+                                    <>
+                                        <div className="flex items-center gap-2 mb-4 bg-zinc-800/30 rounded-xl p-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => updateMission(currentMission.slotIndex, { 
+                                                    payload: { difficulty: 'Paradoxe', level: 'I', tier: 2 },
+                                                    title: ''
+                                                })}
+                                                className={cn(
+                                                    "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                                                    !currentMission.payload?.epreuve
+                                                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                                                        : "text-zinc-500 hover:text-zinc-300"
+                                                )}
+                                            >
+                                                Songes Classiques
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateMission(currentMission.slotIndex, { 
+                                                    payload: { epreuve: 'Fonsocac' },
+                                                    title: ''
+                                                })}
+                                                className={cn(
+                                                    "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                                                    currentMission.payload?.epreuve
+                                                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                                                        : "text-zinc-500 hover:text-zinc-300"
+                                                )}
+                                            >
+                                                Épreuve Songe
+                                            </button>
+                                        </div>
+                                        {currentMission.payload?.epreuve ? (
+                                            <SongesEpreuveForm
+                                                payload={currentMission.payload}
+                                                onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                            />
+                                        ) : (
+                                            <SongesForm
+                                                payload={currentMission.payload}
+                                                onPayloadChange={(payload) => updateMission(currentMission.slotIndex, { payload })}
+                                                onTitleChange={(title) => updateMission(currentMission.slotIndex, { title })}
+                                                onRankChange={(rank) => updateMission(currentMission.slotIndex, { rank })}
+                                            />
+                                        )}
+                                    </>
                                 )}
                                 {currentMission.category === 'EXPEDITION' && (
                                     <ExpeditionForm

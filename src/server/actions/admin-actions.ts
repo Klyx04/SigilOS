@@ -450,7 +450,7 @@ export async function updateSongesChannel(
 // CALENDAR NOTIFICATION CONFIGURATION
 // ============================================================================
 
-export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[]; raidChannelId: string | null; raidPingRoleIds: string[]; raidGigalodonChannelId: string | null; raidSanctuaireChannelId: string | null; raidRequireKamaDonation: boolean } }> {
+export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[]; raidChannelId: string | null; raidPingRoleIds: string[]; raidGigalodonChannelId: string | null; raidSanctuaireChannelId: string | null; raidRequireKamaDonation: boolean; raidKamaDonationThreshold: number } }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -468,7 +468,8 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
                 raidPingRoleIds: true,
                 raidGigalodonNotifyChannelId: true,
                 raidSanctuaireNotifyChannelId: true,
-                raidRequireKamaDonation: true
+                raidRequireKamaDonation: true,
+                raidKamaDonationThreshold: true
             }
         });
 
@@ -483,7 +484,8 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
                 raidPingRoleIds: config.raidPingRoleIds || [],
                 raidGigalodonChannelId: config.raidGigalodonNotifyChannelId,
                 raidSanctuaireChannelId: config.raidSanctuaireNotifyChannelId,
-                raidRequireKamaDonation: config.raidRequireKamaDonation
+                raidRequireKamaDonation: config.raidRequireKamaDonation,
+                raidKamaDonationThreshold: config.raidKamaDonationThreshold ?? 3
             }
         };
     } catch (error) {
@@ -662,6 +664,46 @@ export async function updateRaidSanctuaireChannel(
         return { success: true };
     } catch (error) {
         console.error("Update Raid Sanctuaire Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateRaidKamaDonationThreshold(
+    guildId: string,
+    threshold: number
+): Promise<ActionResponse> {
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId, "updateRaidKamaDonationThreshold");
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Unauthorized" };
+
+    // Validate: 1 to 5 tranches only
+    const validated = Math.max(1, Math.min(5, Math.round(threshold)));
+    if (validated !== threshold) threshold = validated;
+
+    try {
+        const old = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { raidKamaDonationThreshold: true }
+        });
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { raidKamaDonationThreshold: threshold }
+        });
+
+        await logAction({
+            guildId,
+            action: "SETTINGS_UPDATED",
+            targetType: "CONFIG",
+            oldValue: old?.raidKamaDonationThreshold,
+            newValue: threshold,
+            metadata: { operation: "UPDATE_RAID_KAMA_DONATION_THRESHOLD" }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Raid Kama Donation Threshold Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

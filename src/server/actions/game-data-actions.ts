@@ -922,7 +922,6 @@ export async function getQuestsByZone(zoneName: string): Promise<ActionResponse<
                 posX: true,
                 posY: true,
                 isDungeon: true,
-                bossName: true,
                 isOptional: true,
                 chain: {
                     select: {
@@ -972,7 +971,6 @@ export async function getQuestsAndGuidesByPosition(x: number, y: number): Promis
                 posX: true,
                 posY: true,
                 isDungeon: true,
-                bossName: true,
                 isOptional: true,
                 chain: {
                     select: {
@@ -1189,3 +1187,490 @@ export async function updateDungeonNoobsUrl(
     }
 }
 
+// ─── Bounty / Archimonstre Search (for WorldMap) ──────────────────────
+
+/** Shared: resolve subAreaIds + center coords + worldMapId from a zone name against worldmap.json */
+function resolveZoneInWorldmap(
+    zoneName: string | null,
+    subareas: any[],
+    mapsBySubAreaId: Map<number, any[]>,
+    normalize: (s: string) => string
+): { subAreaIds: number[]; centerX: number | null; centerY: number | null; worldMapId: number } {
+    const subAreaIds: number[] = [];
+    let centerX: number | null = null;
+    let centerY: number | null = null;
+    let worldMapId = 1;
+
+    if (!zoneName || subareas.length === 0) return { subAreaIds, centerX, centerY, worldMapId };
+
+    const normalizedZone = normalize(zoneName);
+
+    // Strategy 1: exact match
+    let matching = subareas.filter(sa => {
+        const saName = typeof sa.name === 'string' ? sa.name : (sa.name?.fr || '');
+        return normalize(saName) === normalizedZone;
+    });
+    // Strategy 2: partial
+    if (matching.length === 0) {
+        matching = subareas.filter(sa => {
+            const saName = typeof sa.name === 'string' ? sa.name : (sa.name?.fr || '');
+            const n = normalize(saName);
+            return n.includes(normalizedZone) || normalizedZone.includes(n);
+        });
+    }
+    matching.forEach(sa => subAreaIds.push(sa.id));
+
+    if (subAreaIds.length > 0) {
+        let bestMap: any = null;
+        for (const saId of subAreaIds) {
+            for (const m of mapsBySubAreaId.get(saId) || []) {
+                if (!bestMap) { bestMap = m; continue; }
+                const mOut = m.outdoor !== false;
+                const bOut = bestMap.outdoor !== false;
+                if (mOut && !bOut) { bestMap = m; continue; }
+                const mW = m.worldMap === -1 ? 1 : m.worldMap;
+                const bW = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
+                if (mOut === bOut && mW > bW) { bestMap = m; }
+            }
+        }
+        if (bestMap) {
+            centerX = bestMap.x;
+            centerY = bestMap.y;
+            worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
+        }
+    }
+
+    return { subAreaIds, centerX, centerY, worldMapId };
+}
+
+/**
+ * Search archimonstres/bounties by name for the worldmap.
+ * Priority order :
+ * 1. db.Archimonstre — données pre-synced depuis Metamob+DofusDB (zero réseau)
+ * 2. db.Bounty       — avis de recherche seedés localement
+ * 3. DofusDB API     — fallback si aucun résultat local (ex: DB non encore synced)
+ */
+export async function searchArchimonstresForMap(query: string): Promise<ActionResponse<Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    level: number;
+    zoneName: string | null;
+    subAreaIds: number[];
+    centerX: number | null;
+    centerY: number | null;
+    worldMapId: number;
+    source: 'local' | 'dofusdb';
+}>>> {
+    if (!query || query.trim().length < 2) return { success: true, data: [] };
+
+    const normalize = (s: string) =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    try {
+        // ── 1. Load worldmap.json once ──────────────────────────────
+        let subareas: any[] = [];
+        const mapsBySubAreaId = new Map<number, any[]>();
+        try {
+            const filePath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+            if (fs.existsSync(filePath)) {
+                const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+                subareas = raw.subareas || [];
+                for (const m of (raw.maps || [])) {
+                    if (m.subAreaId == null) continue;
+                    if (!mapsBySubAreaId.has(m.subAreaId)) mapsBySubAreaId.set(m.subAreaId, []);
+                    mapsBySubAreaId.get(m.subAreaId)!.push(m);
+                }
+            }
+        } catch (err) {
+            logger.error('[searchArchimonstresForMap] worldmap.json error:', { error: err });
+        }
+
+        // ── 2. Archimonstre table (priority — pre-synced from Metamob+DofusDB) ──
+        const archiRows = await db.archimonstre.findMany({
+            where: { name: { contains: query.trim(), mode: 'insensitive' } },
+            take: 10,
+            orderBy: { name: 'asc' },
+        });
+
+        const archiResults = archiRows.map(a => ({
+            id: a.id,
+            name: a.name,
+            imageUrl: a.imageUrl,
+            level: a.level,
+            zoneName: a.zone,
+            source: 'local' as const,
+            subAreaIds: Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [],
+            centerX: a.centerX,
+            centerY: a.centerY,
+            worldMapId: a.worldMapId,
+        }));
+
+        const seenFromArchi = new Set(archiResults.map(r => normalize(r.name)));
+
+        // ── 3. Bounty table (avis de recherche seedés) ───────────────────────
+        const localBounties = await db.bounty.findMany({
+            where: { name: { contains: query.trim(), mode: 'insensitive' } },
+            take: 10,
+            orderBy: { name: 'asc' },
+            select: { id: true, name: true, imageUrl: true, level: true, zoneName: true }
+        });
+
+        const bountyResults = localBounties
+            .filter(b => !seenFromArchi.has(normalize(b.name)))
+            .map(b => ({
+                id: b.id,
+                name: b.name,
+                imageUrl: b.imageUrl,
+                level: b.level,
+                zoneName: b.zoneName,
+                source: 'local' as const,
+                ...resolveZoneInWorldmap(b.zoneName, subareas, mapsBySubAreaId, normalize)
+            }));
+
+        const localResults = [...archiResults, ...bountyResults];
+
+        // Build a subareaId → subarea lookup for DofusDB ID resolution
+        const subareaById = new Map<number, any>();
+        for (const sa of subareas) {
+            if (sa.id != null) subareaById.set(sa.id, sa);
+        }
+
+        // ── 3. DofusDB fallback ────────────────────────────────────
+        const seenNames = new Set(localResults.map(r => normalize(r.name)));
+        const dofusDbResults: any[] = [];
+
+        try {
+            // Use (?i) inline flag — DofusDB rejects $options=i (not whitelisted)
+            const encodedQuery = encodeURIComponent(`(?i)${query.trim()}`);
+            const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encodedQuery}&$limit=10`;
+            const resp = await fetch(url, {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            });
+
+            if (resp.ok) {
+                const json = await resp.json();
+                const monsters: any[] = json.data || [];
+
+                for (const m of monsters) {
+                    const name: string = m.name?.fr || '';
+                    if (!name || seenNames.has(normalize(name))) continue;
+                    seenNames.add(normalize(name));
+
+                    const imageUrl: string | null = m.img || null;
+                    const level: number = m.grades?.[0]?.level ?? 0;
+
+                    // DofusDB subareas = array of IDs [169, ...] — resolve via local worldmap
+                    const rawSubareaIds: number[] = (m.subareas || [])
+                        .map((s: any) => typeof s === 'number' ? s : s?.id)
+                        .filter((id: any): id is number => typeof id === 'number');
+
+                    let zoneName: string | null = null;
+                    let centerX: number | null = null;
+                    let centerY: number | null = null;
+                    let worldMapId = 1;
+
+                    if (rawSubareaIds.length > 0) {
+                        // Get zone name from first matched subarea
+                        const firstSa = subareaById.get(rawSubareaIds[0]);
+                        if (firstSa) {
+                            zoneName = typeof firstSa.name === 'string' ? firstSa.name : (firstSa.name?.fr || null);
+                        }
+
+                        // Find best map across all subarea IDs
+                        let bestMap: any = null;
+                        for (const saId of rawSubareaIds) {
+                            for (const map of mapsBySubAreaId.get(saId) || []) {
+                                if (!bestMap) { bestMap = map; continue; }
+                                const mOut = map.outdoor !== false;
+                                const bOut = bestMap.outdoor !== false;
+                                if (mOut && !bOut) { bestMap = map; continue; }
+                                const mW = map.worldMap === -1 ? 1 : map.worldMap;
+                                const bW = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
+                                if (mOut === bOut && mW > bW) { bestMap = map; }
+                            }
+                        }
+                        if (bestMap) {
+                            centerX = bestMap.x;
+                            centerY = bestMap.y;
+                            worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
+                        }
+                    }
+
+                    dofusDbResults.push({
+                        id: `ddb-${m.id || normalize(name)}`,
+                        name,
+                        imageUrl,
+                        level,
+                        zoneName,
+                        source: 'dofusdb',
+                        subAreaIds: rawSubareaIds,
+                        centerX,
+                        centerY,
+                        worldMapId,
+                    });
+                }
+            } else {
+                logger.error('[searchArchimonstresForMap] DofusDB non-ok:', { status: resp.status });
+            }
+        } catch (err) {
+            logger.error('[searchArchimonstresForMap] DofusDB API error:', { error: err });
+            // Fail silently – local results still returned
+        }
+
+        const combined = [...localResults, ...dofusDbResults].slice(0, 12);
+        return { success: true, data: combined };
+
+    } catch (error) {
+        logger.error('[searchArchimonstresForMap] Error:', { error });
+        return { success: false, error: 'Erreur lors de la recherche' };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ARCHIMONSTRES — Admin CRUD + Sync
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getArchimonstres(filter?: { type?: string; search?: string }): Promise<ActionResponse<any[]>> {
+    const admin = await isSuperAdmin();
+    if (!admin) return { success: false, error: 'Accès refusé' };
+
+    try {
+        const where: any = {};
+        if (filter?.type && filter.type !== 'all') where.type = filter.type;
+        if (filter?.search) where.name = { contains: filter.search, mode: 'insensitive' };
+
+        const rows = await db.archimonstre.findMany({
+            where,
+            orderBy: { name: 'asc' },
+        });
+        return { success: true, data: rows };
+    } catch (error: any) {
+        logger.error('[getArchimonstres] Error:', {
+            message: error?.message,
+            code: error?.code,
+            meta: error?.meta,
+        });
+        return { success: false, error: 'Erreur chargement' };
+    }
+}
+
+export async function deleteArchimonstre(id: string): Promise<ActionResponse> {
+    const admin = await isSuperAdmin();
+    if (!admin) return { success: false, error: 'Accès refusé' };
+
+    try {
+        await db.archimonstre.delete({ where: { id } });
+        return { success: true };
+    } catch (error) {
+        logger.error('[deleteArchimonstre] Error:', { error });
+        return { success: false, error: 'Erreur suppression' };
+    }
+}
+
+/**
+ * Sync one-shot des archimonstres de la Quête Ocre depuis Metamob + DofusDB.
+ *
+ * Flow :
+ * 1. Trouve un profil utilisateur lié à Metamob avec quest slug dans la DB
+ * 2. Appelle l'endpoint zones de Metamob (/quests/{slug}/zones?monster_type_id=3)
+ * 3. Pour chaque archimonstre, recherche dans DofusDB par nom pour obtenir subareaIds + image + level
+ * 4. Résout les subareaIds → coordonnées worldmap via worldmap.json
+ * 5. Upsert dans la table Archimonstre
+ */
+export async function syncOcreArchimonstres(guildId?: string): Promise<ActionResponse<{ synced: number; skipped: number }>> {
+    const admin = await isSuperAdmin();
+    if (!admin) return { success: false, error: 'Accès refusé' };
+
+    try {
+        // ── 1. Load worldmap.json ────────────────────────────────────────────
+        const worldmapPath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+        const worldmapRaw = fs.readFileSync(worldmapPath, 'utf-8');
+        const worldmap = JSON.parse(worldmapRaw);
+        const subareas: any[] = worldmap.subareas || [];
+        const allMaps: any[] = worldmap.maps || [];
+
+        const subareaById = new Map<number, any>();
+        for (const sa of subareas) { if (sa.id != null) subareaById.set(sa.id, sa); }
+
+        const mapsBySubAreaId = new Map<number, any[]>();
+        for (const m of allMaps) {
+            if (m.subAreaId == null) continue;
+            if (!mapsBySubAreaId.has(m.subAreaId)) mapsBySubAreaId.set(m.subAreaId, []);
+            mapsBySubAreaId.get(m.subAreaId)!.push(m);
+        }
+
+        const normalize = (s: string) => s.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/['']/g, "'").trim();
+
+        // ── 2. Find a linked Metamob profile with quest slug ─────────────────
+        const profile = await db.userProfile.findFirst({
+            where: {
+                metamobPseudo: { not: null },
+                metamobQuestSlug: { not: null },
+                metamobVerified: true,
+                ...(guildId ? { guild: { discordGuildId: guildId } } : {}),
+            },
+            select: { metamobPseudo: true, metamobQuestSlug: true, metamobApiKey: true },
+        });
+
+        if (!profile?.metamobQuestSlug) {
+            return { success: false, error: 'Aucun profil Metamob lié trouvé avec un quest slug. Liez d\'abord un compte Metamob.' };
+        }
+
+        // ── 3. Fetch zones from Metamob ──────────────────────────────────────
+        const slug = profile.metamobQuestSlug;
+        const headers: Record<string, string> = { Accept: 'application/json' };
+        if (profile.metamobApiKey) {
+            const { decrypt } = await import('@/lib/encryption');
+            try { headers['Authorization'] = `Bearer ${decrypt(profile.metamobApiKey)}`; } catch { }
+        }
+
+        const zoneUrl = `https://www.metamob.fr/api/v1/quests/${encodeURIComponent(slug)}/zones?monster_type_id=3`;
+        const zoneRes = await fetch(zoneUrl, { headers, signal: AbortSignal.timeout(30000) });
+        if (!zoneRes.ok) {
+            return { success: false, error: `Metamob zones API erreur ${zoneRes.status}. Vérifiez la clé API.` };
+        }
+
+        const zoneJson = await zoneRes.json();
+        const zones: any[] = zoneJson.data || [];
+
+        // Extract all archimonstres/boss with their zone/subzone
+        const monstersToSync: Array<{ name: string; type: string; zone: string; subzone: string }> = [];
+        for (const z of zones) {
+            const zoneName: string = z.name?.fr || z.name || '';
+            for (const sz of z.subzones || []) {
+                const subzoneName: string = sz.name?.fr || sz.name || '';
+                for (const m of sz.monsters || []) {
+                    const nameFr: string = m.name?.fr || m.name || '';
+                    // Metamob returns type as an object {id, name:{fr,en}} — extract the French label
+                    const mtype: string = typeof m.type === 'string'
+                        ? m.type
+                        : (m.type?.name?.fr ?? m.type?.name?.en ?? 'archimonstre');
+                    if (nameFr) {
+                        monstersToSync.push({ name: nameFr, type: mtype, zone: zoneName, subzone: subzoneName });
+                    }
+                }
+            }
+        }
+
+        if (monstersToSync.length === 0) {
+            return { success: false, error: 'Aucun monstre trouvé dans la réponse Metamob zones. Vérifiez le slug de la quête.' };
+        }
+
+        // Deduplicate by name — some monsters appear in multiple zones in Metamob response
+        // Keep first occurrence (first zone encountered = primary zone)
+        const seen = new Set<string>();
+        const uniqueMonsters = monstersToSync.filter(m => {
+            if (seen.has(m.name)) return false;
+            seen.add(m.name);
+            return true;
+        });
+
+        // ── 4. For each monster, search DofusDB for subareaIds + image + level ──
+        let synced = 0;
+        let skipped = 0;
+        const BATCH = 3; // reduce concurrency to avoid DofusDB timeouts
+
+        for (let i = 0; i < uniqueMonsters.length; i += BATCH) {
+            const batch = uniqueMonsters.slice(i, i + BATCH);
+            await Promise.all(batch.map(async (monster) => {
+                try {
+                    // DofusDB search by exact name
+                    const encoded = encodeURIComponent(`(?i)^${monster.name.trim()}$`);
+                    const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encoded}&$limit=1`;
+                    const resp = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+
+                    let imageUrl: string | null = null;
+                    let level = 0;
+                    let dofusdbId: number | null = null;
+                    let rawSubareaIds: number[] = [];
+
+                    if (resp.ok) {
+                        const json = await resp.json();
+                        const m = json.data?.[0];
+                        if (m) {
+                            imageUrl = m.img || null;
+                            level = m.grades?.[0]?.level ?? 0;
+                            dofusdbId = m.id ?? null;
+                            rawSubareaIds = (m.subareas || [])
+                                .map((s: any) => typeof s === 'number' ? s : s?.id)
+                                .filter((id: any): id is number => typeof id === 'number');
+                        }
+                    }
+
+                    // Resolve worldmap coords from subareaIds
+                    let centerX: number | null = null;
+                    let centerY: number | null = null;
+                    let worldMapId = 1;
+
+                    if (rawSubareaIds.length > 0) {
+                        let bestMap: any = null;
+                        for (const saId of rawSubareaIds) {
+                            for (const map of mapsBySubAreaId.get(saId) || []) {
+                                if (!bestMap) { bestMap = map; continue; }
+                                const mOut = map.outdoor !== false;
+                                const bOut = bestMap.outdoor !== false;
+                                if (mOut && !bOut) { bestMap = map; continue; }
+                                const mW = map.worldMap === -1 ? 1 : map.worldMap;
+                                const bW = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
+                                if (mOut === bOut && mW > bW) { bestMap = map; }
+                            }
+                        }
+                        if (bestMap) {
+                            centerX = bestMap.x;
+                            centerY = bestMap.y;
+                            worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
+                        }
+                    }
+
+                    await db.archimonstre.upsert({
+                        where: { name: monster.name },
+                        update: {
+                            type: monster.type,
+                            imageUrl,
+                            level,
+                            dofusdbId,
+                            zone: monster.zone || null,
+                            subzone: monster.subzone || null,
+                            subareaIds: rawSubareaIds,
+                            worldMapId,
+                            centerX,
+                            centerY,
+                        },
+                        create: {
+                            name: monster.name,
+                            type: monster.type,
+                            imageUrl,
+                            level,
+                            dofusdbId,
+                            zone: monster.zone || null,
+                            subzone: monster.subzone || null,
+                            subareaIds: rawSubareaIds,
+                            worldMapId,
+                            centerX,
+                            centerY,
+                        },
+                    });
+                    synced++;
+                } catch (err) {
+                    logger.error('[syncOcreArchimonstres] Error for monster:', { name: monster.name, error: err });
+                    skipped++;
+                }
+            }));
+
+            // Small delay between batches to be nice to DofusDB
+            if (i + BATCH < uniqueMonsters.length) {
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
+
+        return { success: true, data: { synced, skipped } };
+
+    } catch (error) {
+        logger.error('[syncOcreArchimonstres] Error:', { error });
+        return { success: false, error: 'Erreur lors de la synchronisation' };
+    }
+}

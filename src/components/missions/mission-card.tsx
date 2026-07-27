@@ -163,9 +163,12 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
     const Icon = config.icon;
     const payload = mission.payload as any;
 
-    // Extract image URL from payload — SONGES gets a per-difficulty/level image
+    // Extract image URL from payload — SONGES gets per-difficulty/level image, épreuves get custom image
     const getSongesImage = () => {
         if (mission.category !== 'SONGES') return null;
+        if (payload.epreuve) {
+            return `/assets/missions/epreuves-songes/${payload.epreuve}.png`;
+        }
         const diff: string = (payload.difficulty || 'Reve').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const levelMap: Record<string, number> = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4 };
         const lvl = levelMap[payload.level as string] || 1;
@@ -204,7 +207,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
         (mission.category === 'DONJON' && !payload.dungeonName) ||
         (mission.category === 'REGULATION' && !payload.monsterName && !payload.familyName) ||
         (mission.category === 'ANOMALIE' && !payload.levelRange && !payload.type) ||
-        (mission.category === 'SONGES' && !payload.difficulty) ||
+        (mission.category === 'SONGES' && !payload.difficulty && !payload.epreuve) ||
         (mission.category === 'EXPEDITION' && !payload.dungeonName) ||
         (mission.category === 'EVENT' && !payload.description)
     );
@@ -449,7 +452,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                                             </Link>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="bg-zinc-900 border-zinc-800 text-amber-500 font-bold text-[10px] uppercase tracking-widest px-3 py-1.5">
-                                            Voir l&apos;événement sur le calendrier ?
+                                            Voir l'événement sur le calendrier ?
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -634,7 +637,7 @@ function getAutoTitle(category: MissionCategory, payload: any): string {
         case "DONJON": return payload.dungeonName || "Donjon Mystérieux";
         case "REGULATION": return (payload.monsterName || payload.familyName) ? `Régulation des ${payload.monsterName || payload.familyName}` : "Régulation";
         case "ANOMALIE": return payload.type === 'BOSS' ? `Gardien d'anomalie ${payload.levelRange || '200'}` : payload.type === 'FRAGMENTS' ? `Collecte Fragments` : payload.type === 'STABILISATION' ? `Stabilisation Gardiens` : "Au cœur de l'anomalie";
-        case "SONGES": return payload.difficulty && payload.level ? `Plongée en ${payload.difficulty} ${payload.level}` : "Songes Infinis";
+        case "SONGES": return payload.epreuve ? `Réaliser l'épreuve de Songe ${payload.epreuve}` : (payload.difficulty && payload.level ? `Plongée en ${payload.difficulty} ${payload.level}` : "Songes Infinis");
         case "EXPEDITION": return payload.dungeonName ? `Expédition de ${payload.dungeonName}` : "Expédition";
         case "EVENT": return payload.title || "Événement Spécial";
         default: return "Mission";
@@ -696,6 +699,11 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 <>Vaincre <span className="text-fuchsia-400 font-bold">50 monstres</span> dans une zone de niveau <span className="text-fuchsia-400 font-bold">{range}</span> sous l'effet d'un <span className="text-fuchsia-400 font-bold">Elixir uchronique</span></>
             );
         case "SONGES":
+            if (payload.epreuve) {
+                return (
+                    <>Terminer l'épreuve de Songe <span className="text-cyan-400 font-bold">{payload.epreuve}</span></>
+                );
+            }
             const palierNames: Record<number, string> = {
                 1: "Pensées oniriques",
                 2: "Balades fantastiques",

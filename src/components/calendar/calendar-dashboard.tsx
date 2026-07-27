@@ -38,6 +38,8 @@ import {
     publishEvent,
     completeEvent,
     completeRaidEvent,
+    cancelCalendarEvent,
+    undoCompleteRaidEvent,
     sendEventReminder,
     autoCloseExpiredEvents,
     sendCalendarDiscordNotification,
@@ -259,8 +261,12 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         if (!selectedEventId) return;
         const result = await registerForEvent(guildId, selectedEventId, data);
         if (result.success) {
-            // @ts-ignore - isReserve is present on success
-            toast.success(result.isReserve ? "Ajouté à la file d'attente" : "Inscription réussie !");
+            if ((result as any).isReserve) {
+                const msg = (result as any).reserveMessage || "Tes Kamas Violets ne seront pas déduits si tu ne participes pas.";
+                toast.success(`Ajouté à la file d'attente — ${msg}`);
+            } else {
+                toast.success("Inscription réussie !");
+            }
             fetchEventDetails(selectedEventId);
             fetchEvents();
         } else {
@@ -361,6 +367,31 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
     const handleShareDiscord = async (roleId?: string) => {
         if (!selectedEventId) return { success: false, error: "Aucun événement" };
         return await sendCalendarDiscordNotification(guildId, selectedEventId, roleId);
+    };
+
+    const handleCancel = async () => {
+        if (!selectedEventId) return;
+        const result = await cancelCalendarEvent(guildId, selectedEventId);
+        if (result.success) {
+            toast.success("Événement annulé");
+            setSelectedEvent(null);
+            setSelectedEventId(null);
+            fetchEvents();
+        } else {
+            toast.error(result.error);
+        }
+    };
+
+    const handleUndoComplete = async () => {
+        if (!selectedEventId) return;
+        const result = await undoCompleteRaidEvent(guildId, selectedEventId);
+        if (result.success) {
+            toast.success(`Clôture annulée ! ${result.refunded} joueur(s) remboursé(s).`);
+            fetchEventDetails(selectedEventId);
+            fetchEvents();
+        } else {
+            toast.error(result.error);
+        }
     };
 
     const handleEventClick = (eventId: string) => {
@@ -658,8 +689,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     setSelectedEventId(null);
                 }}
                 onDelete={handleDelete}
+                onCancel={handleCancel}
                 onPublish={handlePublish}
                 onComplete={handleComplete}
+                onUndoComplete={handleUndoComplete}
                 onSendReminder={handleSendReminder}
                 onShareDiscord={handleShareDiscord}
             />

@@ -123,12 +123,14 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 // -------------------------------------------------------------------------------------
 const TOOLTIP_THROTTLE_MS = 100;
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId }: any) {
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
     const hoveredSubAreaIdRef = useRef<number | null>(null);
     const rafRef = useRef<number>(0);
+    const blinkRafRef = useRef<number>(0);
+    const highlightSubareaIdsRef = useRef<number[]>([]);
 
     // ────────────────────────────────────────────────────────────────
     // Attache le canvas DIRECTEMENT sur le container du map (position fixe)
@@ -261,7 +263,61 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.restore();
         }
 
-        // ── 1b. Hover cellule individuelle (toujours visible qd en survol) ──
+        // ── 1b. Archimonstre Highlight (pulsing orange for searched monsters) ──
+        const activeHighlights = highlightSubareaIdsRef.current;
+        if (activeHighlights.length > 0 && mapsBySubAreaId && subAreasById) {
+            const pulse = (Math.sin(Date.now() / 400) + 1) / 2; // 0..1, ~1.25Hz
+            const alpha = 0.25 + pulse * 0.35; // 0.25..0.60
+            ctx.save();
+            ctx.fillStyle = `rgba(251, 146, 60, ${alpha})`;
+            ctx.strokeStyle = `rgba(251, 146, 60, ${0.7 + pulse * 0.3})`;
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            ctx.shadowBlur = 12 + pulse * 8;
+            ctx.shadowColor = 'rgba(251, 146, 60, 0.8)';
+
+            activeHighlights.forEach((highlightId: number) => {
+                const subArea = subAreasById.get(highlightId);
+                if (subArea && subArea.shape && subArea.shape.length > 2) {
+                    const shape = subArea.shape;
+                    let isFirstPoint = true;
+                    ctx.beginPath();
+                    for (let i = 0; i < shape.length; i += 2) {
+                        const gx = shape[i];
+                        const gy = shape[i + 1];
+                        if (Math.abs(gx) > 1000 || Math.abs(gy) > 1000) {
+                            if (!isFirstPoint) { ctx.closePath(); ctx.fill(); ctx.stroke(); }
+                            ctx.beginPath();
+                            isFirstPoint = true;
+                            continue;
+                        }
+                        const pt = toCP(gx, gy);
+                        if (isFirstPoint) { ctx.moveTo(pt.x, pt.y); isFirstPoint = false; }
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    if (!isFirstPoint) { ctx.closePath(); ctx.fill(); ctx.stroke(); }
+                } else {
+                    const mapsInZone = mapsBySubAreaId.get(highlightId);
+                    if (mapsInZone) {
+                        const polygons = mergeCellEdges(mapsInZone);
+                        polygons.forEach((poly: any) => {
+                            if (poly.length < 3) return;
+                            ctx.beginPath();
+                            const first = toCP(poly[0].x, poly[0].y);
+                            ctx.moveTo(first.x, first.y);
+                            for (let i = 1; i < poly.length; i++) {
+                                const pt = toCP(poly[i].x, poly[i].y);
+                                ctx.lineTo(pt.x, pt.y);
+                            }
+                            ctx.closePath(); ctx.fill(); ctx.stroke();
+                        });
+                    }
+                }
+            });
+            ctx.restore();
+        }
+
+        // ── 1c. Hover cellule individuelle (toujours visible qd en survol) ──
         if (cellKey) {
             const [hx, hy] = cellKey.split(',').map(Number);
             const tl = toCP(hx, hy);
@@ -469,7 +525,26 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         // Labels de coordonnées sur la grille debug
         ctx.font = 'bold 9px Inter, sans-serif';
         // L'affichage du texte des coordonnées en mode debug a été supprimé à la demande de l'utilisateur.
-    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId]);
+    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds]);
+
+    // ── Sync highlight ref & manage blink animation loop ──
+    useEffect(() => {
+        const ids: number[] = highlightSubareaIds || [];
+        highlightSubareaIdsRef.current = ids;
+
+        if (ids.length > 0) {
+            const animate = () => {
+                drawGrid();
+                blinkRafRef.current = requestAnimationFrame(animate);
+            };
+            blinkRafRef.current = requestAnimationFrame(animate);
+        } else {
+            cancelAnimationFrame(blinkRafRef.current);
+            drawGrid(); // Clear the highlight
+        }
+
+        return () => cancelAnimationFrame(blinkRafRef.current);
+    }, [highlightSubareaIds, drawGrid]);
 
 
 
@@ -899,6 +974,8 @@ interface LeafletMapCoreProps {
     interactive?: boolean;
     autoCopyTravel?: boolean;
     onHoverMap?: (pos: { x: number, y: number, found: boolean } | null) => void;
+    highlightSubareaIds?: number[];
+    minZoom?: number;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
     const [hoveredCoords, setHoveredCoords] = React.useState<{ x: number, y: number, found?: boolean } | null>(null);
@@ -909,7 +986,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
         participants, currentUserId, isSpectator, hideUI, interactive = true, 
-        autoCopyTravel = false, onHoverMap
+        autoCopyTravel = false, onHoverMap, highlightSubareaIds
     } = props;
 
     const correctedActiveWorld = useMemo(() => {
@@ -1104,6 +1181,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     selectedPosition={selectedPosition}
                     participants={participants}
                     currentUserId={currentUserId}
+                    highlightSubareaIds={highlightSubareaIds}
                 />
 
                 {/* 4. Interactions */}

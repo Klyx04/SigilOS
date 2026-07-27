@@ -77,6 +77,31 @@ export default async function GameDataPage() {
                 </p>
                 <EventZoneManager />
             </div>
+
+            {/* ── Archimonstres Quête Ocre ───────────────────── */}
+            <div className="border-t border-white/5 pt-12 space-y-6">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-black text-amber-400 uppercase tracking-widest">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Quête Ocre</span>
+                </div>
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 className="text-3xl font-black text-white tracking-tighter">
+                            Archimonstres <span className="text-amber-500/70 text-xl font-bold">· 286 monstres</span>
+                        </h2>
+                        <p className="text-zinc-500 text-sm max-w-xl mt-2">
+                            Gérez la base locale des archimonstres de l'Éternelle Moisson.
+                            Synchronisez depuis Metamob pour enrichir la carte interactive avec zones et positions.
+                        </p>
+                    </div>
+                    <a
+                        href="/god/game-data/archimonstres"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 font-bold text-sm transition-all"
+                    >
+                        Gérer les archimonstres <ChevronRight size={16} />
+                    </a>
+                </div>
+            </div>
         </div>
     );
 }

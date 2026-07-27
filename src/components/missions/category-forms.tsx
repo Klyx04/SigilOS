@@ -19,7 +19,7 @@ import {
     type ExpeditionPayload,
     type EventPayload
 } from "@/lib/mission-payloads";
-import { Loader2, ExternalLink, Skull, MapPin, CheckCircle2, Sparkles } from "lucide-react";
+import { Loader2, ExternalLink, Skull, MapPin, CheckCircle2, Sparkles, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // --- Types ---
@@ -614,6 +614,86 @@ export function SongesForm({ payload, onPayloadChange, onTitleChange, onRankChan
                     </div>
                 </div>
             </div>
+        </div>
+    );
+}
+
+// --- ÉPREUVE SONGE FORM (Fonsocac, Nilezaff, Reversed, Sinjsonj) ---
+
+export function SongesEpreuveForm({ payload, onPayloadChange, onTitleChange }: FormProps) {
+    const epreuve = payload.epreuve || '';
+    const epreuves = ['Fonsocac', 'Nilezaff', 'Reversed', 'Sinjsonj'];
+
+    const handleSelect = (name: string) => {
+        onPayloadChange({ epreuve: name, imageUrl: `/assets/missions/epreuves-songes/${name}.png` });
+        onTitleChange(`Réaliser l'épreuve de Songe ${name}`);
+    };
+
+    return (
+        <div className="space-y-5">
+            <div className="space-y-2">
+                <Label className="text-xs text-zinc-500 font-black uppercase tracking-widest text-[9px]">
+                    Épreuve de Songe
+                </Label>
+                <p className="text-[10px] text-zinc-500 italic">
+                    Choisissez une épreuve de Songe à réaliser.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                    {epreuves.map(name => {
+                        const isActive = epreuve === name;
+                        return (
+                            <button
+                                key={name}
+                                type="button"
+                                onClick={() => handleSelect(name)}
+                                className={cn(
+                                    "relative overflow-hidden rounded-2xl border-2 p-4 flex flex-col items-center gap-3 transition-all duration-200",
+                                    isActive
+                                        ? "border-cyan-400/60 bg-cyan-500/10 shadow-lg shadow-cyan-500/10"
+                                        : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-600 hover:bg-zinc-900/60"
+                                )}
+                            >
+                                <div className="w-20 h-20 rounded-xl bg-zinc-800/60 border border-white/5 flex items-center justify-center overflow-hidden">
+                                    <img
+                                        src={`/assets/missions/epreuves-songes/${name}.png`}
+                                        alt={name}
+                                        className="w-16 h-16 object-contain"
+                                    />
+                                </div>
+                                <span className={cn(
+                                    "text-xs font-black uppercase tracking-wider text-center",
+                                    isActive ? "text-cyan-300" : "text-zinc-400"
+                                )}>
+                                    {name}
+                                </span>
+                                {isActive && (
+                                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center">
+                                        <Check className="h-3 w-3 text-white" />
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {epreuve && (
+                <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-900/5 p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
+                    <div className="w-16 h-16 rounded-2xl bg-zinc-900/50 backdrop-blur-md border border-cyan-500/20 flex items-center justify-center overflow-hidden shrink-0">
+                        <img
+                            src={`/assets/missions/epreuves-songes/${epreuve}.png`}
+                            className="w-14 h-14 object-contain z-10"
+                            alt={epreuve}
+                        />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Aperçu Mission</span>
+                        <p className="text-[11px] text-zinc-400 leading-tight">
+                            Réaliser l'épreuve de Songe <span className="text-white font-black">{epreuve}</span>.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

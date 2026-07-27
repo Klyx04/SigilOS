@@ -26,8 +26,9 @@ export async function getBlacklistConfig(guildId: string): Promise<ActionRespons
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const ctx = await getUserContext(guildId);
-    if (!ctx.isAdmin) return { success: false, error: "Accès refusé" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Accès refusé" };
 
     try {
         const config = await db.guildConfig.findUnique({
@@ -51,8 +52,9 @@ export async function updateBlacklistSettings(guildId: string, channelId: string
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
-    const ctx = await getUserContext(guildId);
-    if (!ctx.isAdmin) return { success: false, error: "Permission Administrateur requise" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Permission Administrateur requise" };
 
     if (channelId) {
         const belongs = await validateChannelBelongsToGuild(channelId, guildId);
@@ -68,7 +70,7 @@ export async function updateBlacklistSettings(guildId: string, channelId: string
         await createAuditLog({
             guildId: guildId,
             actorUserId: session.user.id,
-            actorName: ctx.name || "Admin",
+            actorName: session.user.name || "Admin",
             action: "CONFIG_UPDATED",
             targetType: "GUILD",
             targetId: guildId,

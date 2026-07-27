@@ -35,7 +35,7 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
             setLoading(true);
             Promise.all([
                 getZoneMonsters(zoneName),
-                (worldId === undefined || worldId === 1) ? getZoneArchmonsters(guildId, zoneName) : Promise.resolve({ success: true, data: [] }),
+                (worldId === undefined || worldId === 1) ? getZoneArchmonsters(guildId, zoneName) : getZoneArchmonsters(guildId, zoneName),
                 getBountiesForZone(zoneName),
                 searchDungeonsAdvanced({ query: zoneName }),
             ]).then(([mRes, aRes, bRes, dRes]) => {
@@ -124,14 +124,12 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                         </div>
                     ) : (
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 pt-6">
-                            <Tabs defaultValue={(worldId === undefined || worldId === 1) ? "archis" : "bounties"} className="w-full flex flex-col gap-8">
+                            <Tabs defaultValue="archis" className="w-full flex flex-col gap-8">
                                 <div className="flex items-center justify-between border-b border-white/10 pb-4 sticky top-0 bg-[#080a10] z-20 pt-4">
                                     <TabsList className="bg-white/5 p-1.5 rounded-2xl gap-1">
-                                        {(worldId === undefined || worldId === 1) && (
-                                            <TabsTrigger value="archis" className="rounded-xl px-6 py-3 font-black uppercase italic text-[12px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
+                                        <TabsTrigger value="archis" className="rounded-xl px-6 py-3 font-black uppercase italic text-[12px] tracking-widest data-[state=active]:bg-amber-500 data-[state=active]:text-black transition-all">
                                                 ✦ Archimonstres
                                             </TabsTrigger>
-                                        )}
                                         <TabsTrigger value="bounties" className="rounded-xl px-6 py-3 font-black uppercase italic text-[12px] tracking-widest data-[state=active]:bg-rose-500 data-[state=active]:text-white transition-all">
                                             ⚔ Avis de Recherche
                                         </TabsTrigger>
@@ -142,19 +140,16 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                     </TabsList>
 
                                     {/* Capture Stats (Only relevant for Archis, but can show generally) */}
-                                    {(worldId === undefined || worldId === 1) && (
-                                        <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3">
                                             <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Archis Capturés :</span>
                                             <span className="text-[10px] font-black text-amber-500/80 uppercase tracking-widest bg-amber-500/5 px-3 py-1 rounded-full border border-amber-500/10 italic">
                                                 {archis.filter(a => a.state !== 'MANQUANT').length} / {archis.length}
                                             </span>
                                         </div>
-                                    )}
                                 </div>
 
                                 {/* TAB: ARCHIMONSTRES */}
-                                {(worldId === undefined || worldId === 1) && (
-                                    <TabsContent value="archis" className="m-0 space-y-8">
+                                <TabsContent value="archis" className="m-0 space-y-8">
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                                         {/* Left Column: Archimonstres List */}
                                         <div className="space-y-4">
@@ -270,7 +265,6 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                                         </div>
                                     </div>
                                 </TabsContent>
-                                )}
 
                                 {/* TAB: AVIS DE RECHERCHE */}
                                 <TabsContent value="bounties" className="m-0">

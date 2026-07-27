@@ -8,6 +8,7 @@ import { WorldMapService } from "../games/SigilGuesser/WorldMapService";
 import { BombManager } from "../games/SigilBomb/BombManager";
 import { rateLimit } from "../../lib/ratelimit";
 import { DiscordVoiceService } from "../discord/voice-service";
+import { getRushActiveMembers } from "../actions/rush-actions";
 import { logger as AppLogger } from "../../lib/logger";
 
 // Fallback if logger is not correctly initialized
@@ -156,6 +157,44 @@ io.on("connection", (socket: Socket) => {
         const residents = voiceService.getVoiceUsers(data.guildId);
         socket.emit("discord:voice:update", { guildId: data.guildId, users: residents });
         logger.info(`[WS] 🎤 Manual Voice Sync (${residents.length} users) for ${socket.id}`);
+    });
+
+    // === RUSH SYLVESTRE PRESENCE ===
+    socket.on("rush:join", async (data: { guildId: string }) => {
+        if (!data.guildId) return;
+        logger.info(`[WS] 🏃 ${socket.id} joined rush in guild ${data.guildId}`);
+        // Broadcast to guild room so everyone sees the update
+        const result = await getRushActiveMembers(data.guildId);
+        if (result.success) {
+            io.to(`guild:${data.guildId}`).emit("rush:presence:update", {
+                guildId: data.guildId,
+                members: result.members,
+            });
+        }
+    });
+
+    socket.on("rush:leave", async (data: { guildId: string }) => {
+        if (!data.guildId) return;
+        logger.info(`[WS] 🏃 ${socket.id} left rush in guild ${data.guildId}`);
+        const result = await getRushActiveMembers(data.guildId);
+        if (result.success) {
+            io.to(`guild:${data.guildId}`).emit("rush:presence:update", {
+                guildId: data.guildId,
+                members: result.members,
+            });
+        }
+    });
+
+    socket.on("rush:heartbeat", async (data: { guildId: string }) => {
+        if (!data.guildId) return;
+        // Broadcast updated presence to guild room
+        const result = await getRushActiveMembers(data.guildId);
+        if (result.success) {
+            io.to(`guild:${data.guildId}`).emit("rush:presence:update", {
+                guildId: data.guildId,
+                members: result.members,
+            });
+        }
     });
 
     // Gestion de la déconnexion

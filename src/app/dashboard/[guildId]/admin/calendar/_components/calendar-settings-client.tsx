@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, AlertTriangle, Hash, Calendar, Users, Clock, Swords, Coins } from "lucide-react";
 import { toast } from "sonner";
-import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel, updateRaidKamaDonationRequired } from "@/server/actions/admin-actions";
+import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel, updateRaidKamaDonationRequired, updateRaidKamaDonationThreshold } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 
@@ -37,6 +37,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     const [raidPingRoleIds, setRaidPingRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
     const [raidRequireKamaDonation, setRaidRequireKamaDonation] = useState(true);
+    const [raidKamaDonationThreshold, setRaidKamaDonationThreshold] = useState(3);
 
     useEffect(() => {
         async function loadConfig() {
@@ -56,6 +57,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                 setRaidSanctuaireChannelId(result.data.raidSanctuaireChannelId || "");
                 setIsSanctuaireConfigured(!!result.data.raidSanctuaireChannelId);
                 setRaidRequireKamaDonation(result.data.raidRequireKamaDonation ?? true);
+                setRaidKamaDonationThreshold(result.data.raidKamaDonationThreshold ?? 3);
             }
             if (rolesRes.success && rolesRes.roles) {
                 setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
@@ -492,9 +494,9 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                 <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
                                     <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                                 </div>
-                                <h3 className="text-sm font-medium text-white mb-2">3. Condition de Don de Kamas</h3>
+                                <h3 className="text-sm font-medium text-white mb-2">3. Don de Kamas</h3>
                                 <p className="text-xs text-zinc-500 mb-4">
-                                    Quand activé, les membres doivent avoir fait un <strong className="text-amber-400">don de 30 000 kamas validé</strong> dans la semaine Dofus de l'événement pour s'inscrire aux Raids.
+                                    Quand activé, les membres doivent avoir fait un <strong className="text-amber-400">don de 30 000 kamas validé</strong> dans la semaine Dofus de l'événement pour s'inscrire aux Raids, et le <strong className="text-amber-400">widget d'upload de don</strong> apparaît sur la page Missions.
                                 </p>
 
                                 {/* Toggle Card */}
@@ -519,8 +521,8 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             </p>
                                             <p className="text-xs text-zinc-500 mt-0.5">
                                                 {raidRequireKamaDonation
-                                                    ? "30 000 kamas validés obligatoires pour s'inscrire"
-                                                    : "Tous les membres avec le rôle Raid peuvent s'inscrire librement"
+                                                    ? "Don obligatoire pour les raids • Widget d'upload visible sur Missions"
+                                                    : "Tous les membres avec le rôle Raid peuvent s'inscrire librement • Widget d'upload masqué sur Missions"
                                                 }
                                             </p>
                                         </div>
@@ -539,11 +541,58 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     </button>
                                 </div>
 
+                                {/* Threshold selector — visible when donation is enabled */}
+                                {raidRequireKamaDonation && (
+                                    <div className="mt-3 p-3 rounded-xl bg-zinc-800/40 border border-white/5">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="p-1.5 rounded-lg bg-violet-500/15">
+                                                    <img src="/kamas-violet.png" alt="🟣" className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-zinc-200">
+                                                        Seuil de don requis
+                                                    </p>
+                                                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                                                        1 🟣 = 1 000 k • Actuellement {raidKamaDonationThreshold * 10} 🟣 ({raidKamaDonationThreshold * 10_000} k)
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                {[1, 2, 3, 4, 5].map(t => (
+                                                    <button
+                                                        key={t}
+                                                        onClick={() => {
+                                                            startTransition(async () => {
+                                                                const res = await updateRaidKamaDonationThreshold(guildId, t);
+                                                                if (res.success) {
+                                                                    setRaidKamaDonationThreshold(t);
+                                                                    toast.success(`Seuil défini à ${t * 10} 🟣 (${t * 10_000} k)`);
+                                                                } else {
+                                                                    toast.error(res.error || "Erreur");
+                                                                }
+                                                            });
+                                                        }}
+                                                        disabled={isPending}
+                                                        className={`w-9 h-9 rounded-lg text-xs font-bold transition-all ${
+                                                            raidKamaDonationThreshold === t
+                                                                ? "bg-violet-500/30 text-violet-300 border border-violet-500/40 shadow-sm"
+                                                                : "bg-zinc-800 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-700"
+                                                        }`}
+                                                    >
+                                                        {t * 10}🟣
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {!raidRequireKamaDonation && (
                                     <div className="mt-3 flex items-start gap-2 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
                                         <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
                                         <p className="text-xs text-orange-300/80 leading-relaxed">
-                                            Le don de kamas est <strong>fortement recommandé</strong> pour financer les raids. Pensez à rappeler son importance à vos membres via le module Kamas.
+                                            Le don de kamas est <strong>fortement recommandé</strong> pour financer les raids et faire progresser la guilde. Pensez à réactiver ce toggle pour que le widget d'upload de don réapparaisse sur la page Missions.
                                         </p>
                                     </div>
                                 )}

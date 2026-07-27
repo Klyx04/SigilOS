@@ -1643,8 +1643,8 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
         let filteredRoles = roles;
 
         // Apply whitelist filtering (strict-whitelist-by-default for everyone)
-        // Admins can bypass ONLY if explicitly configured (like in settings panels)
-        const shouldIgnoreWhitelist = options?.ignoreWhitelist && user.isAdmin;
+        // Users with settings access can bypass ONLY if explicitly configured (like in settings panels)
+        const shouldIgnoreWhitelist = options?.ignoreWhitelist && (user.isAdmin || user.canViewSettings);
         if (!shouldIgnoreWhitelist) {
             let allowedIds: string[] = [];
             if (options?.context === "calendar") allowedIds = guildConfig?.calendarPingRoleIds || [];
@@ -1677,8 +1677,9 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
-    const user = await getUserContext(guildId);
-    if (!user.isAdmin) return { success: false, error: "Forbidden: Admin access required" };
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Forbidden: Admin access required" };
 
     try {
         const data: any = {};

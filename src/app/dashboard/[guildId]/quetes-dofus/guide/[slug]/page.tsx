@@ -168,6 +168,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                                 altPseudos: mules,
                                 dofusClass: userProfile.dofusClass,
                                 metamobPseudo: userProfile.metamobPseudo,
+                                pseudoDofus: userProfile.pseudoDofus,
                             }}
                             ocreStats={ocreStats}
                             capturedOcreMonsterIds={Array.from(capturedOcreMonsterIds)}

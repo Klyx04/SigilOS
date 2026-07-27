@@ -177,6 +177,23 @@ export function ProfileBentoGrid({
 
     const displayName = discordNickname || profile.pseudoDofus || user.name || "Voyageur";
 
+    // Compute empty section flags for readOnly mode (hide tabs/sections that have no data)
+    const isEmpty: Record<string, boolean> = {
+        combat: readOnly && (!localProfile.dofusBookLinks || localProfile.dofusBookLinks.length === 0),
+        skins: readOnly && (!localProfile.skins || localProfile.skins.length === 0),
+        mules: readOnly && (!localProfile.altPseudos || localProfile.altPseudos.length === 0),
+        achievements: readOnly && !localProfile.successPoints,
+        metiers: readOnly && (!localProfile.metiers || localProfile.metiers.length === 0),
+        artisanat: readOnly && (!localProfile.metiers || localProfile.metiers.length === 0) && !localProfile.hasLegendaryPet,
+        planning: readOnly && (
+            (!localProfile.availability || Object.keys(localProfile.availability).length === 0) &&
+            !localProfile.vacationStart &&
+            !localProfile.vacationEnd
+        ),
+        metamob: readOnly && !localProfile.metamobPseudo,
+        alignment: readOnly && (!localProfile.alignment || localProfile.alignment === "neutre") && !localProfile.alignmentOrder,
+    };
+
     const now = new Date();
     const startDate = localProfile.vacationStart ? new Date(localProfile.vacationStart) : null;
     const endDate = localProfile.vacationEnd ? new Date(localProfile.vacationEnd) : null;
@@ -401,20 +418,20 @@ export function ProfileBentoGrid({
                                         { id: "skins", label: "Skins", icon: Sparkles, activeColor: "text-pink-400", bgActive: "bg-pink-500/10", indicator: "bg-pink-500 shadow-pink-500/50" },
                                         { id: "mules", icon: Users, label: "Mules", activeColor: "text-indigo-400", bgActive: "bg-indigo-500/10", indicator: "bg-indigo-500 shadow-indigo-500/50" },
                                         { id: "achievements", label: "Succès", icon: Trophy, activeColor: "text-amber-400", bgActive: "bg-amber-500/10", indicator: "bg-amber-500 shadow-amber-500/50" },
-                                    ]
+                                    ].filter(t => !isEmpty[t.id]),
                                 },
                                 {
                                     name: "Artisanat",
                                     tabs: [
                                         { id: "metiers", label: "Métiers", icon: Hammer, activeColor: "text-orange-400", bgActive: "bg-orange-500/10", indicator: "bg-orange-500 shadow-orange-500/50" },
                                         { id: "artisanat", label: "Légendaire", icon: Sparkles, activeColor: "text-fuchsia-400", bgActive: "bg-fuchsia-500/10", indicator: "bg-fuchsia-500 shadow-fuchsia-500/50" },
-                                    ]
+                                    ].filter(t => !isEmpty[t.id]),
                                 },
                                 {
                                     name: "Activité",
                                     tabs: [
                                         { id: "planning", label: "Planning", icon: Calendar, activeColor: "text-cyan-400", bgActive: "bg-cyan-500/10", indicator: "bg-cyan-500 shadow-cyan-500/50" },
-                                    ]
+                                    ].filter(t => !isEmpty[t.id]),
                                 },
                                 ...(canEdit ? [{
                                     name: "Administration",
@@ -492,7 +509,7 @@ export function ProfileBentoGrid({
                         </div>
 
                         {/* Metamob */}
-                        {canViewOcre && (
+                        {canViewOcre && !isEmpty.metamob && (
                             <MetamobLink
                                 guildId={guildId}
                                 metamobPseudo={profile.metamobPseudo}
@@ -505,13 +522,15 @@ export function ProfileBentoGrid({
                         )}
 
                         {/* Alignment & Order */}
-                        <AlignmentSection
-                            alignment={localProfile.alignment}
-                            alignmentOrder={localProfile.alignmentOrder}
-                            alignmentLevel={localProfile.alignmentLevel}
-                            onSave={handleAlignmentSave}
-                            readOnly={!canEdit}
-                        />
+                        {!isEmpty.alignment && (
+                            <AlignmentSection
+                                alignment={localProfile.alignment}
+                                alignmentOrder={localProfile.alignmentOrder}
+                                alignmentLevel={localProfile.alignmentLevel}
+                                onSave={handleAlignmentSave}
+                                readOnly={!canEdit}
+                            />
+                        )}
                     </div>
                 </TabsContent>
 

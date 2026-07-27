@@ -16,7 +16,6 @@ import { OcreSettingsClient } from "../archimonstres/_components/ocre-settings-c
 import { SongesSettingsClient } from "../songes/_components/songes-settings-client";
 import { CalendarSettingsClient } from "../calendar/_components/calendar-settings-client";
 import { MissionSettingsClient } from "../_components/mission-settings-client";
-import { OnboardingSettingsClient } from "../_components/onboarding-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
@@ -27,7 +26,6 @@ import { PollSettingsClient } from "../_components/poll-settings-client";
 import { DjSettingsClient } from "../_components/dj-settings-client";
 import { LoansSettingsClient } from "../_components/loans-settings-client";
 import { SystemSettingsClient } from "../_components/system-settings-client";
-import { getOnboardingSettings } from "@/server/actions/onboarding-admin-actions";
 import { BonusSettingsClient } from "@/components/admin/bonus-settings-client";
 import { BlacklistSettingsClient } from "../_components/blacklist-settings-client";
 import { GallerySettingsClient } from "../_components/gallery-settings-client";
@@ -66,7 +64,6 @@ function buildNavGroups(): SettingsGroup[] {
         {
             title: "Gestion de Guilde",
             items: [
-                { id: "onboarding", label: "Accueil & Intro", icon: Sparkles, description: "Welcome & Badges", accent: "rose" },
                 { id: "dofus", label: "Serveur Dofus", icon: Sword, description: "Configuration du serveur", accent: "indigo" },
                 { id: "annuaire", label: "Annuaire", icon: UserCheck, description: "Sollicitations de membres", accent: "indigo" },
                 { id: "blacklist", label: "Blacklist Sync", icon: ShieldAlert, description: "Synchro Discord Blacklist", accent: "rose" },
@@ -118,10 +115,11 @@ export default async function FeatureSettingsPage({
     const { guildId } = await params;
     const { tab } = await searchParams;
     
-    // Redirect old 'songes' tab to merged 'donjons'
+    // Redirect old tabs
     if (tab === "songes") redirect(`/dashboard/${guildId}/admin/settings?tab=donjons`);
     if (tab === "bonus") redirect(`/dashboard/${guildId}/admin/settings?tab=missions`);
     if (tab === "discord") redirect(`/dashboard/${guildId}/admin/settings?tab=annonces`);
+    if (tab === "onboarding") redirect(`/dashboard/${guildId}/admin/settings?tab=annonces`);
     
     const activeTab = tab || "annonces";
 
@@ -131,16 +129,11 @@ export default async function FeatureSettingsPage({
         return <AccessDenied />;
     }
 
-    const onboardingRes = await getOnboardingSettings(guildId);
-    const welcomeBadgeName = onboardingRes.success ? (onboardingRes.data as any).welcomeBadgeName : "Nouveau";
-
     const guild = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
         select: { dofusServerId: true }
     });
     const isDofusConfigured = !!guild?.dofusServerId;
-
-    // Removed mandatory redirect, now relying on inline content banner
 
     const navGroups = buildNavGroups();
     const navItems = navGroups.flatMap(g => g.items);
@@ -293,7 +286,6 @@ export default async function FeatureSettingsPage({
                             )}
                             {activeTab === "dofus" && <DofusSettingsClient guildId={guildId} />}
                             {activeTab === "sondages" && <PollSettingsClient guildId={guildId} />}
-                            {activeTab === "onboarding" && <OnboardingSettingsClient guildId={guildId} />}
                             { activeTab === "blacklist" && <BlacklistSettingsClient guildId={guildId} /> }
                             { activeTab === "gallery" && <GallerySettingsClient guildId={guildId} /> }
                             { activeTab === "annuaire" && <DirectorySettingsClient guildId={guildId} /> }

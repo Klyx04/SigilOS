@@ -1,12 +1,13 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronUp,
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck, ArrowUp,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
-  Layers, Pencil, Crown, ChevronRight, ListCollapse, Info
+  Layers, Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -20,7 +21,13 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
-import { getClass, getAlignment, ORDERS } from "@/lib/dofus-assets";
+import { RushLivePopover } from "@/components/dofus-quests/RushLivePopover";
+import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
+import { linkOcreAccount } from "@/server/actions/ocre-actions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { getClass, getAlignment, ORDERS, ALIGNMENTS } from "@/lib/dofus-assets";
+import { updateUserProfile } from "@/server/actions/profile-actions";
 import {
   toggleMilestoneProgress,
   resetMilestoneProgress,
@@ -194,12 +201,30 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     }
     return false;
   })();
-  return <div data-seq-id={seq.id} tabIndex={prereqBlocked?-1:0} className={`flex flex-col gap-2 px-3 py-2.5 rounded-xl border transition-all ${isSeqCompleted?"bg-zinc-950/60 border-zinc-800/30 opacity-40":prereqBlocked?"bg-zinc-950/50 border-zinc-700/30 pointer-events-none select-none":"bg-zinc-950/80 border-zinc-800/50 hover:border-amber-500/30 hover:bg-zinc-900/80 shadow-sm shadow-black/10"} ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
+  // When prereqBlocked, show the quest name + prerequisite tags prominently, hide everything else.
+  if (prereqBlocked) {
+    return <div data-seq-id={seq.id} className={`flex flex-col gap-2 px-3 py-2.5 rounded-xl border transition-all bg-zinc-950/50 border-zinc-700/30 opacity-60 ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
+      {/* Quest name — always visible so user knows which quest this is */}
+      <div className="flex items-center gap-2 ml-1">
+        <Circle className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+        <span className="text-xs font-bold leading-tight tracking-wide text-white/70">{questName}</span>
+      </div>
+      {/* Only the prerequisite tags — fully visible, interactive, no graying */}
+      <div className="flex items-start justify-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {(()=>{const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);if(prereqTags.length===0)return null;return<>{prereqTags.map((t:any,i:number)=><button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}} className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-full bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-100 border border-amber-400/60 shadow-md shadow-amber-500/30 hover:bg-amber-500/40 hover:border-amber-300/80 hover:scale-110 active:scale-95 transition-all cursor-pointer opacity-100" title={`Cliquer pour aller à: ${t.name}`}><Lock className="w-3.5 h-3.5 text-amber-300"/><span className="text-amber-400/90">📋</span><span className="text-amber-300/90 font-black">Quête prérequis :</span><span className="underline decoration-amber-400/50 underline-offset-2 decoration-dotted font-bold">{t.name}</span></button>)}</>;})()}
+        </div>
+      </div>
+    </div>;
+  }
+
+  return <div data-seq-id={seq.id} tabIndex={0} className={`flex flex-col gap-2 px-3 py-2.5 rounded-xl border transition-all ${isSeqCompleted?"bg-zinc-950/60 border-zinc-800/30 opacity-40":"bg-zinc-950/80 border-zinc-800/50 hover:border-amber-500/30 hover:bg-zinc-900/80 shadow-sm shadow-black/10"} ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
     <div className="flex items-start justify-between gap-3">
       <div className="flex items-start gap-2 min-w-0 flex-1">
         {onToggleSeq&&<button type="button" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 mt-0.5 p-0.5 rounded text-zinc-500 hover:text-emerald-400 transition-colors">{isSeqCompleted?<CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/20"/>:<Circle className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}</button>}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
           <span className={`text-xs font-bold leading-tight tracking-wide ${isSeqCompleted?"line-through text-zinc-500":"text-white"}`}>{questName}</span>
+          {(()=>{const posTag=Array.isArray(seq.activityTags)?(seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags"):null;if(!posTag?.name)return null;const posStr=String(posTag.name);return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500/15 to-violet-500/15 border border-indigo-500/25 text-[8px] font-bold text-indigo-200 shadow-sm cursor-pointer hover:bg-indigo-500/25 transition-all active:scale-95 shrink-0" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success("📍 Position copiée !",{duration:1500,icon:"📋"});}).catch(()=>{});}} title="Cliquer pour copier /travel"><MapPin className="w-2.5 h-2.5 text-indigo-400"/><span className="text-[7px] text-indigo-300/70 font-black uppercase tracking-widest">Lancement en</span><span className="font-mono text-[7px] tracking-wide">{posStr}</span></span>;})()}
         </div>
       </div>
       {/* Dofus icon + name in external links row */}
@@ -212,15 +237,14 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     {/* Tags and badges row */}
     <div className="flex flex-wrap items-center gap-1.5 ml-6">
       {/* Prereq text — show ALL prerequisites, each clickable (even when quest is blocked) */}
-      {(()=>{const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);if(prereqTags.length===0)return null;return<>{prereqTags.map((t:any,i:number)=><button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}} className={`flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-200 border border-amber-500/50 shadow-sm shadow-amber-500/20 hover:bg-amber-500/30 hover:border-amber-400/70 hover:scale-110 active:scale-95 transition-all cursor-pointer animate-pulse ${prereqBlocked?"pointer-events-auto":""}`} title={`Cliquer pour aller à: ${t.name}`}><Lock className="w-3 h-3 text-amber-400"/><span className="text-amber-500/80">📋</span><span className="text-amber-400/80 font-black">Quête prérequis :</span><span className="underline decoration-amber-500/40 underline-offset-2 decoration-dotted font-bold">{t.name}</span></button>)}</>;})()}
+      {(()=>{const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);if(prereqTags.length===0)return null;return<>{prereqTags.map((t:any,i:number)=><button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}} className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-200 border border-amber-500/50 shadow-sm shadow-amber-500/20 hover:bg-amber-500/30 hover:border-amber-400/70 hover:scale-110 active:scale-95 transition-all cursor-pointer animate-pulse" title={`Cliquer pour aller à: ${t.name}`}><Lock className="w-3 h-3 text-amber-400"/><span className="text-amber-500/80">📋</span><span className="text-amber-400/80 font-black">Quête prérequis :</span><span className="underline decoration-amber-500/40 underline-offset-2 decoration-dotted font-bold">{t.name}</span></button>)}</>;})()}
       {/* Alignment */}
       {alignInfo&&<span className={`text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border flex items-center gap-1 shadow-sm ${isReqMet?"text-emerald-400 border-emerald-500/30 bg-emerald-500/10":"text-orange-400 border-orange-500/30 bg-orange-500/10"}`}>{alignInfo.label}{seq.alignOrderReq?` lv.${seq.alignOrderReq}`:""}{isReqMet?"✓":"⚠"}</span>}
       {/* Optional */}
       {seq.isOptional&&<span className="text-[7px] text-purple-400 font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 shadow-sm">Bonus</span>}
       {/* Success */}
       {seq.isSuccess&&<span className="flex items-center gap-1 text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/30 shadow-sm"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
-      {/* Position tags - compact */}
-      {(()=>{const tags=seq.activityTags;const posTag=Array.isArray(tags)?(tags as any[]).find((t:any)=>t.type==="pos_tags"):null;if(!posTag?.name)return null;const posStr=String(posTag.name);return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-indigo-500/15 to-violet-500/15 border border-indigo-500/25 text-[9px] font-bold text-indigo-200 shadow-sm cursor-pointer hover:bg-indigo-500/25 transition-all active:scale-95" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success("📍 Position copiée !",{duration:1500,icon:"📋"});}).catch(()=>{});}} title="Cliquer pour copier /travel"><MapPin className="w-3 h-3 text-indigo-400"/><span className="font-mono text-[8px] tracking-wide">{posStr}</span></span>;})()}
+      {/* Position tags — moved inline with quest name */}
       {/* Activity tags filtered — neutral bg, bigger icons */}
       {Array.isArray(seq.activityTags)&&seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)).map((tag:any,i:number)=>{
         if(tag.type==="solver"){const su=tag.url||null;return su?<a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm shadow-emerald-500/10"><img src="/assets/rush-sylvestre/solver.png" alt="" className="w-4 h-4 rounded-full ring-1 ring-emerald-500/30"/>Solver<ExternalLink className="w-2.5 h-2.5"/></a>:<span key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 shadow-sm shadow-emerald-500/10"><img src="/assets/rush-sylvestre/solver.png" alt="" className="w-4 h-4 rounded-full ring-1 ring-emerald-500/30"/>Solver</span>;}
@@ -489,7 +513,7 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
   const selClass=selectedCharacter==="PRINCIPAL"?mainClass:mules.find((m:any)=>m.pseudo===selectedCharacter)?.classe||null;
   const selIcon=selClass?(()=>{const d=getClass(selClass);return d?<img src={d.icon} alt={d.name} className="w-4 h-4 object-contain"/>:null;})():selectedCharacter==="PRINCIPAL"?<Crown className="w-3.5 h-3.5 text-amber-500"/>:<Users className="w-3.5 h-3.5 text-blue-400"/>;
   const handleSelect=(char:string)=>{const params=new URLSearchParams(window.location.search);if(char==="PRINCIPAL")params.delete("character");else params.set("character",char);router.push(`${window.location.pathname}?${params.toString()}`);};
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-zinc-950/60 backdrop-blur-md border-zinc-800/60 hover:border-emerald-500/20 text-white justify-between min-w-[160px] transition-all rounded-xl h-9 px-2.5 cursor-pointer text-xs font-black"><div className="flex items-center gap-2 truncate">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-zinc-950/95 backdrop-blur-xl border-zinc-800/60 text-white min-w-[180px] rounded-xl p-1.5 shadow-2xl z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-amber-500"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-white/5 my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-blue-400"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-zinc-950/60 backdrop-blur-md border-zinc-800/60 hover:border-emerald-500/20 text-white justify-between w-full min-w-0 max-w-full transition-all rounded-xl h-9 px-2.5 cursor-pointer text-xs font-black"><div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-zinc-950/95 backdrop-blur-xl border-zinc-800/60 text-white min-w-[180px] rounded-xl p-1.5 shadow-2xl z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-amber-500"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-white/5 my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-blue-400"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
 }
 
 // ─── Contexts ────────────────────────────────────────────────────────────────
@@ -512,18 +536,44 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [completedStepsByMs,setCompletedStepsByMs]=useState<Map<string,Set<string>>>(()=>{const m=new Map;milestones.forEach(ms=>{const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];m.set(ms.id,new Set(a));});return m;});
   useEffect(()=>{const nc=new Set<string>,ns=new Map<string,Set<string>>;milestones.forEach(ms=>{if(ms.playerProgress?.[0]?.isCompleted)nc.add(ms.id);const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];ns.set(ms.id,new Set(a));});setCompletedIds(nc);setCompletedStepsByMs(ns);},[milestones]);
   const [bookmarkedMsId,setBookmarkedMsId]=useState<string|null>(()=>{for(const ms of milestones){if(ms.playerProgress?.[0]?.currentStep)return ms.id;}return null;});
-  const [hideDone,setHideDone]=useState(false);const[showScrollTop,setShowScrollTop]=useState(false);
-  useEffect(()=>{const o=()=>setShowScrollTop(window.scrollY>300);window.addEventListener("scroll",o,{passive:true});return()=>window.removeEventListener("scroll",o);},[]);
+  const [hideDone,setHideDone]=useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  useEffect(() => {
+    const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
+    const target: HTMLElement | Window = scrollEl || window;
+    const getY = () => (scrollEl ? scrollEl.scrollTop : window.scrollY);
+    const handleScroll = () => setShowScrollTop(getY() > 300);
+    target.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => target.removeEventListener('scroll', handleScroll);
+  }, []);
   const [loadingIds,setLoadingIds]=useState<Set<string>>(new Set);
   const [dofusFilter,setDofusFilter]=useState<string|null>(null);
   const [focusedSeqId,setFocusedSeqId]=useState<string|null>(null);
   const [djModal,setDjModal]=useState<{open:boolean;dungeonId?:string;questName?:string}>({open:false});
   const [wizardOpen,setWizardOpen]=useState(false);
-  const [activeMembersModalOpen,setActiveMembersModalOpen]=useState(false);
+  const [resetModalOpen,setResetModalOpen]=useState(false);
+  const [resetLoading,setResetLoading]=useState(false);
+  const [isOnRush,setIsOnRush]=useState(false);
+  const [metamobLinkOpen,setMetamobLinkOpen]=useState(false);
+  const [metamobStep,setMetamobStep]=useState(1);
+  const [metamobPseudoInput,setMetamobPseudoInput]=useState("");
+  const [metamobApiKeyInput,setMetamobApiKeyInput]=useState("");
+  const [metamobLinkError,setMetamobLinkError]=useState<string|null>(null);
+  const [metamobLinking,setMetamobLinking]=useState(false);
   const [continueModalOpen,setContinueModalOpen]=useState(false);
   const continueShownThisSession=useRef(false);
+  // Alignment edit modal
+  const [alignEditOpen,setAlignEditOpen]=useState(false);
+  const [alignEditSaving,setAlignEditSaving]=useState(false);
+  const [alignEditStep,setAlignEditStep]=useState<"alignment"|"order"|"tranche">("alignment");
+  const [alignEditAlignment,setAlignEditAlignment]=useState<string|null>(null);
+  const [alignEditOrder,setAlignEditOrder]=useState<string|null>(null);
+  const [alignEditLevel,setAlignEditLevel]=useState<number>(0);
   const effectiveAltPseudo=useMemo(()=>{if(!altPseudo)return undefined;const mp=currentUserProfile?.pseudoDofus;if(mp&&altPseudo===mp)return undefined;return altPseudo;},[altPseudo,currentUserProfile?.pseudoDofus]);
   const resolvedCharacterInfo=useMemo(()=>{if(!effectiveAltPseudo)return{alignment:currentUserProfile?.alignment,alignmentOrder:currentUserProfile?.alignmentOrder,alignmentLevel:currentUserProfile?.alignmentLevel??0};const m=currentUserProfile?.altPseudos?.find((m:any)=>m.pseudo===effectiveAltPseudo);return{alignment:m?.alignment,alignmentOrder:m?.alignmentOrder,alignmentLevel:m?.level??0};},[effectiveAltPseudo,currentUserProfile]);
+  const openAlignEdit=useCallback(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;setAlignEditAlignment(alignment||"neutre");setAlignEditOrder(alignmentOrder||null);setAlignEditLevel(alignmentLevel||0);setAlignEditStep("alignment");setAlignEditOpen(true);},[resolvedCharacterInfo]);
+  const handleAlignEditSave=useCallback(async()=>{setAlignEditSaving(true);try{const res=await updateUserProfile({guildId,alignment:alignEditAlignment,alignmentOrder:alignEditOrder,alignmentLevel:alignEditLevel});if((res as any).success){toast.success("Alignement mis à jour !");setAlignEditOpen(false);}else{toast.error((res as any).error||"Erreur lors de la sauvegarde");}}catch{toast.error("Erreur réseau");}finally{setAlignEditSaving(false);}},[guildId,alignEditAlignment,alignEditOrder,alignEditLevel]);
   const handleFocusSequence=useCallback((seqId:string)=>setFocusedSeqId(seqId),[]);
   const handleDungeonClick=useCallback((dungeonId:string,questName:string)=>setDjModal({open:true,dungeonId,questName}),[]);
   useEffect(()=>{const k=`rush-onboarding-${guide.id}`;if(!localStorage.getItem(k)){const t=setTimeout(()=>setWizardOpen(true),800);return()=>clearTimeout(t);}},[guide.id]);
@@ -605,7 +655,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     completedStepsByMs.forEach(steps => steps.forEach(id => all.add(id)));
     return all;
   }, [completedStepsByMs]);
-  return(<CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  return(<><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   <div className="flex flex-col gap-5">
     <Link href={`/dashboard/${guildId}/quetes-dofus`} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors self-start group"><ChevronDown className="w-4 h-4 rotate-90 group-hover:-translate-x-1 transition-transform"/> Retour au Hub</Link>
     <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 backdrop-blur-md shadow-sm"><div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-amber-400 animate-pulse"/></div><div><p className="text-[10px] font-black uppercase tracking-wider text-amber-400">⚠️ Prérequis Recommandé</p><p className="text-xs text-amber-200/90">Conseillé dès le <strong className="text-white font-black">Niveau 200</strong>.</p></div></div>
@@ -624,19 +674,38 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.6)] flex-shrink-0"/>
         </div>
 
-        {/* Infos cards row — wrap propre */}
+        {/* Infos cards row — 4 colonnes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Personnage */}
+          {/* Personnage + Reset */}
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
             <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center overflow-hidden shrink-0">{(()=>{const d=currentUserProfile?.dofusClass?getClass(currentUserProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/>:<span className="text-[9px] font-black text-zinc-400">?</span>;})()}</div>
             <div className="text-left min-w-0 flex-1">
               <p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Personnage</p>
-              <CharacterSelectorDropdown selectedCharacter={selectedCharacter} mainPseudo={currentUserProfile?.pseudoDofus||"Principal"} mainClass={currentUserProfile?.dofusClass||null} mules={mules||[]} guildId={guildId} />
+              <div className="flex flex-nowrap items-center gap-1.5 min-w-0">
+                <div className="min-w-0 shrink">
+                  {currentUserProfile?.pseudoDofus ? (
+                    <CharacterSelectorDropdown selectedCharacter={selectedCharacter} mainPseudo={currentUserProfile.pseudoDofus} mainClass={currentUserProfile?.dofusClass||null} mules={mules||[]} guildId={guildId} />
+                  ) : (
+                    <Link href={`/dashboard/${guildId}/profile`} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg border border-amber-500/30">
+                      <Pencil className="w-3 h-3" />
+                      Lier mon pseudo
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  )}
+                </div>
+                <button
+                  onClick={() => setResetModalOpen(true)}
+                  className="flex items-center justify-center p-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all shadow-sm shrink-0"
+                  title={`Réinitialiser ${selectedCharacter}`}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Alignement / Ordre */}
-          <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><p className="text-xs font-bold text-zinc-400">{!alignment?"Non défini":"Neutre"}</p></div><Link href={`/dashboard/${guildId}/profile`}><Pencil className="w-3.5 h-3.5 text-zinc-500 hover:text-emerald-400 transition-colors"/></Link></>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Ordre</p><p className={`text-xs font-black ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p></div><Link href={`/dashboard/${guildId}/profile`}><Pencil className="w-3.5 h-3.5 text-zinc-500 hover:text-emerald-400 transition-colors"/></Link></>;}return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><div className="flex items-center gap-1.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-[9px] font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div><Link href={`/dashboard/${guildId}/profile`}><Pencil className="w-3.5 h-3.5 text-zinc-500 hover:text-emerald-400 transition-colors"/></Link></>;})()}</div>
+          <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;const editBtn=<button type="button" onClick={openAlignEdit} title="Modifier l'alignement" className="p-1 rounded-lg hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-400 transition-all shrink-0"><Pencil className="w-3.5 h-3.5"/></button>;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><p className="text-xs font-bold text-zinc-400">{!alignment?"Non défini":"Neutre"}</p></div>{editBtn}</>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Ordre</p><p className={`text-xs font-black ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p>{alignmentLevel>0&&<span className="inline-flex items-center gap-0.5 mt-0.5 text-[8px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Tranche {alignmentLevel}</span>}</div>{editBtn}</>;}return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><div className="flex items-center gap-1.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-[9px] font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div>{editBtn}</>;})()}</div>
 
           {/* Metamob */}
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
@@ -654,18 +723,32 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
                       }
                       <ExternalLink className="w-3 h-3 text-amber-400/60 shrink-0"/>
                     </Link>
-                  : <Link href={`/dashboard/${guildId}/profile`} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30">
+                  : <button onClick={()=>setMetamobLinkOpen(true)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30">
                       <img src="/assets/icons/ocre.png" alt="" className="w-3.5 h-3.5 object-contain" />
                       Lier Metamob
-                      <ExternalLink className="w-3 h-3"/>
-                    </Link>
+                    </button>
                 }
               </div>
             </div>
           </div>
 
-          {/* Reset */}
-          <button onClick={async()=>{if(confirm(`Réinitialiser la progression de ${selectedCharacter}?`)){try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);toast.success("Réinitialisée !");router.refresh();}catch{toast.error("Erreur");}}}} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl text-[9px] font-black uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all shadow-sm"><RotateCcw className="w-5 h-5"/><span>Tout Reset</span></button>
+          {/* Rush Live */}
+          <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div className="text-left min-w-0 flex-1">
+              <p className="text-[8px] font-black text-emerald-400/70 uppercase tracking-wider font-[family-name:var(--font-cinzel)]">Rush Live</p>
+              <RushLivePopover
+                guildId={guildId}
+                currentPseudo={currentUserProfile?.pseudoDofus || selectedCharacter}
+                currentClass={currentUserProfile?.dofusClass || null}
+                currentMilestoneId={bookmarkedMsId}
+                currentMilestoneTitle={bookmarkedMsId ? (milestones.find(m => m.id === bookmarkedMsId)?.title || null) : null}
+                isOnRush={isOnRush}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Progress bar */}
@@ -673,19 +756,209 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Progression</span>
           <span className="text-lg font-black text-white">{overallPercent}%</span>
           <span className="text-[10px] text-zinc-600 font-mono">({completedCount}/{tMs})</span>
-          {activeMembersCount>0&&<button onClick={()=>setActiveMembersModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all"><Users className="w-3.5 h-3.5 text-indigo-400"/><span className="text-[10px] font-black text-indigo-400">{activeMembersCount} actif{activeMembersCount>1?"s":""}</span></button>}
           <div className="h-2 bg-zinc-800/60 rounded-full flex-1 max-w-[300px] ml-auto shadow-inner">
             <div className="h-full rounded-full transition-all duration-700 shadow-sm" style={{width:`${overallPercent}%`,background:"linear-gradient(90deg, #10b981, #34d399)"}}/>
           </div>
         </div>
     </div></div>
-    <div className="flex flex-wrap items-center gap-2"><button onClick={()=>setHideDone(v=>!v)} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg border transition-all text-[10px] font-black uppercase tracking-widest shadow-sm ${hideDone?"bg-emerald-500/15 border-emerald-500/40 text-emerald-400":"bg-zinc-900/80 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600/60"}`}>{hideDone?<EyeOff className="w-3.5 h-3.5"/>:<Eye className="w-3.5 h-3.5"/>}{hideDone?"Afficher tout":"Masquer le fait"}</button></div>
+    <div className="flex flex-wrap items-center gap-2 sticky top-20 z-30"><button onClick={()=>setHideDone(v=>!v)} className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-2 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${hideDone?"bg-amber-600/25 border-amber-400/60 text-amber-300 shadow-amber-500/20 hover:bg-amber-600/30":"bg-emerald-600/20 border-emerald-400/50 text-emerald-300 shadow-emerald-500/20 hover:bg-emerald-600/30 hover:border-emerald-300/70"}`}>{hideDone?<Eye className="w-4 h-4"/>:<EyeOff className="w-4 h-4"/>}{hideDone?"Afficher tout":"Masquer le fait"}</button></div>
     <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
     {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3"/><p className="text-zinc-600 font-black uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="relative pl-[28px] space-y-1">{timelineItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#d4a853"}/>:item.kind==="info"?<div key={item.ms.id} className="-ml-1">{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarkedMsId={bookmarkedMsId} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onBookmark={handleBookmark} onDungeonClick={handleDungeonClick}/>)}</div>}
-    {showScrollTop&&<button onClick={()=>window.scrollTo({top:0,behavior:"smooth"})} className="fixed bottom-6 right-6 z-50 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 backdrop-blur-xl shadow-lg hover:bg-emerald-500/30 transition-all"><ArrowUp className="w-5 h-5"/></button>}
+    {showScrollTop && typeof document !== 'undefined' && createPortal(
+      <button
+        id="rush-scroll-top-btn"
+        onClick={() => {
+          const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
+          if (scrollEl) {
+            scrollEl.scrollTo({ top: 0, behavior: 'smooth' });
+          } else {
+            window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+          }
+        }}
+        style={{
+          position: 'fixed',
+          bottom: '90px',
+          right: '24px',
+          zIndex: 999999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '52px',
+          height: '52px',
+          borderRadius: '50%',
+          backgroundColor: '#059669',
+          color: 'white',
+          border: 'none',
+          boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
+          cursor: 'pointer',
+          transition: 'transform 0.2s, opacity 0.2s',
+        }}
+        title="Retour en haut de page"
+      >
+        <ArrowUp className="w-5 h-5" />
+      </button>,
+      document.body
+    )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
     {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={(c:string)=>router.push(`?character=${encodeURIComponent(c)}`)} activeMembers={guildProgress.map(p=>{const tc=contentMilestones.length;const mp=guildProgress.filter(x=>x.profileId===p.profileId);const d=mp.filter(x=>x.isCompleted).length;const pct=tc>0?Math.round((d/tc)*100):0;return{profileId:p.profileId,userName:p.userName,userAvatar:p.userAvatar,percent:pct};})}/>}
     {continueModalOpen&&bookmarkedMsId&&(()=>{const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;return<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md" onClick={()=>setContinueModalOpen(false)}><div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e=>e.stopPropagation()}><div className="flex items-center gap-3 mb-3"><Flag className="w-5 h-5 text-emerald-400"/><h3 className="text-sm font-black text-white" style={{fontFamily:"var(--font-cinzel)"}}>Reprendre ?</h3></div><p className="text-xs text-zinc-400 mb-4">Tu étais à <strong className="text-white">{ms.title}</strong>.</p><div className="flex gap-2"><button onClick={()=>{const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-widest">Reprendre</button><button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest">Plus tard</button></div></div></div>;})()}
-    {activeMembersModalOpen&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md" onClick={()=>setActiveMembersModalOpen(false)}><div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e=>e.stopPropagation()}><h3 className="text-sm font-black text-white mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-indigo-400"/>Membres actifs</h3><div className="space-y-2">{Array.from(new Set(guildProgress.map(p=>p.profileId))).slice(0,50).map(pid=>{const mp=guildProgress.filter(p=>p.profileId===pid);const name=mp[0]?.userName||"Inconnu";const done=mp.filter(p=>p.isCompleted).length;const total=milestones.filter((ms:any)=>ms.type!=="SEPARATEUR").length;const pct=total>0?Math.round((done/total)*100):0;const avatar=mp[0]?.userAvatar;return<div key={pid} className="flex items-center gap-3 p-2.5 bg-zinc-950/80 border border-zinc-800/50 rounded-xl"><div className="w-7 h-7 rounded-full bg-indigo-900 flex items-center justify-center overflow-hidden shrink-0">{avatar?<img src={avatar} alt="" className="w-full h-full object-cover"/>:<span className="text-[9px] font-black text-indigo-300">{name[0]}</span>}</div><div className="flex-1"><p className="text-xs font-bold text-white">{name}</p><div className="h-1.5 bg-zinc-800/60 rounded-full max-w-[100px] mt-1 shadow-inner"><div className="h-full rounded-full bg-emerald-500" style={{width:`${pct}%`}}/></div></div><span className="text-[8px] font-bold text-zinc-500 font-mono">{pct}%</span></div>;})}</div></div></div>}
-  </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider>);
-}
+    {resetModalOpen&&<ResetConfirmModal
+      isOpen={resetModalOpen}
+      onClose={()=>setResetModalOpen(false)}
+      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);setResetModalOpen(false);toast.success("Réinitialisée !");router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
+      characterName={selectedCharacter}
+      isLoading={resetLoading}
+    />}
+    {/* Metamob Linking Dialog — 2-step (Pseudo + API Key) same as profile */}
+    <Dialog open={metamobLinkOpen} onOpenChange={(open) => {
+      setMetamobLinkOpen(open);
+      if (!open) { setMetamobLinkError(null); setMetamobPseudoInput(""); setMetamobApiKeyInput(""); setMetamobStep(1); }
+    }}>
+      <DialogContent className="sm:max-w-2xl bg-zinc-950 border-white/10 shadow-2xl p-0 gap-0">
+        <DialogHeader className="p-8 border-b border-white/5">
+          <DialogTitle className="text-2xl font-black text-white flex items-center gap-3">
+            <img src="/assets/icons/ocre.png" alt="" className="w-6 h-6 object-contain" />
+            Lier votre compte Metamob
+          </DialogTitle>
+        </DialogHeader>
+        <div className="p-8 space-y-6">
+          <div className="flex items-center gap-4">
+            <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase ${metamobStep === 1 ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>1. Pseudo</div>
+            <div className="flex-1 h-0.5 bg-zinc-800" />
+            <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase ${metamobStep === 2 ? "bg-amber-500/20 text-amber-400" : "bg-zinc-900 text-zinc-600"}`}>2. Clé API</div>
+          </div>
+          {metamobStep === 1 ? (
+            <div className="space-y-4">
+              <label className="text-sm font-bold text-zinc-200">Pseudo Metamob</label>
+              <Input placeholder="Ex: MonPseudo" value={metamobPseudoInput} onChange={(e) => setMetamobPseudoInput(e.target.value)} className="h-12 bg-zinc-900/50 border-zinc-800" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-zinc-200">Clé API V2</label>
+                <a href="https://www.metamob.fr/settings#api" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-500 hover:text-amber-400 font-semibold flex items-center gap-1 transition-colors">
+                  Où trouver ma clé API ? <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <Input type="password" placeholder="64 caractères..." value={metamobApiKeyInput} onChange={(e) => setMetamobApiKeyInput(e.target.value)} className="h-12 bg-zinc-900/50 border-zinc-800" />
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Votre clé API est requise pour synchroniser automatiquement vos archimonstres et vos quêtes. Elle est disponible dans l'onglet <strong>API</strong> des paramètres de votre compte Metamob.fr.
+              </p>
+            </div>
+          )}
+          {metamobLinkError && <div className="p-4 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 text-sm font-bold">{metamobLinkError}</div>}
+        </div>
+        <DialogFooter className="p-8 border-t border-white/5 flex gap-3">
+          {metamobStep === 1 ? (
+            <Button onClick={() => setMetamobStep(2)} disabled={!metamobPseudoInput.trim()} className="w-full bg-amber-600 font-bold">Suivant</Button>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setMetamobStep(1)} className="text-zinc-400">Retour</Button>
+              <Button onClick={async () => {
+                if (!metamobPseudoInput.trim()) { toast.error("Veuillez entrer un pseudo"); return; }
+                setMetamobLinking(true); setMetamobLinkError(null);
+                try {
+                  const res = await linkOcreAccount({ guildId, pseudo: metamobPseudoInput.trim(), apiKey: metamobApiKeyInput.trim() || undefined, force: false });
+                  if (res.success) { toast.success("Compte Metamob lié !"); setMetamobLinkOpen(false); setMetamobPseudoInput(""); setMetamobApiKeyInput(""); window.location.reload(); }
+                  else { setMetamobLinkError(res.error || "Erreur de liaison"); }
+                } catch { setMetamobLinkError("Erreur réseau"); }
+                finally { setMetamobLinking(false); }
+              }} disabled={metamobLinking} className="bg-emerald-600 font-bold">
+                {metamobLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lier le compte"}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider>
+  {/* ── Alignment Edit Dialog ───────────────────────────────────────────── */}
+  <Dialog open={alignEditOpen} onOpenChange={setAlignEditOpen}>
+    <DialogContent className="max-w-lg w-[95vw] bg-zinc-950 border-zinc-800 rounded-3xl p-0 overflow-hidden shadow-2xl">
+      <DialogHeader className="p-6 pb-4 border-b border-white/5">
+        <DialogTitle className="text-lg font-black uppercase tracking-widest text-white flex items-center gap-2">
+          <Shield className="w-5 h-5 text-emerald-400"/>Alignement & Ordre
+        </DialogTitle>
+        {/* Step pills */}
+        <div className="flex items-center gap-2 mt-3">
+          {(["alignment","order","tranche"] as const).map((s,i)=>(
+            <button key={s} type="button" onClick={()=>{if(s==="order"&&(!alignEditAlignment||alignEditAlignment==="neutre"))return;if(s==="tranche"&&!alignEditOrder)return;setAlignEditStep(s);}} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${alignEditStep===s?"bg-emerald-500/20 border-emerald-500/40 text-emerald-300":"border-zinc-700/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}>
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black ${alignEditStep===s?"bg-emerald-500 text-white":"bg-zinc-800 text-zinc-500"}`}>{i+1}</span>
+              {s==="alignment"?"Alignement":s==="order"?"Ordre":"Tranche"}
+            </button>
+          ))}
+        </div>
+      </DialogHeader>
+
+      <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+        {/* STEP 1 — Alignment */}
+        {alignEditStep==="alignment"&&(
+          <div className="grid grid-cols-3 gap-3">
+            {ALIGNMENTS.map(align=>(
+              <button key={align.id} type="button" onClick={()=>{setAlignEditAlignment(align.id);if(align.id==="neutre"){setAlignEditOrder(null);setAlignEditLevel(0);}else setAlignEditStep("order");}} className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${alignEditAlignment===align.id?"border-emerald-500/60 bg-emerald-500/10":"border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/70"}`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center border overflow-hidden ${align.id==="bontarien"?"bg-blue-500/20 border-blue-500/30":align.id==="brakmarien"?"bg-red-500/20 border-red-500/30":"bg-zinc-800 border-zinc-700"}`}>
+                  <img src={align.icon} alt={align.name} className="w-8 h-8 object-contain"/>
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${alignEditAlignment===align.id?"text-white":"text-zinc-400"}`}>{align.name}</span>
+                {alignEditAlignment===align.id&&<div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center"><Check className="w-3 h-3 text-white"/></div>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* STEP 2 — Order */}
+        {alignEditStep==="order"&&alignEditAlignment&&alignEditAlignment!=="neutre"&&(
+          <div className="grid grid-cols-1 gap-3">
+            {((ORDERS as any)[alignEditAlignment]||[]).map((order:any)=>{
+              const isSel=alignEditOrder===order.id;
+              const ib=alignEditAlignment==="bontarien";
+              return(
+                <button key={order.id} type="button" onClick={()=>{setAlignEditOrder(order.id);setAlignEditStep("tranche");}} className={`relative flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${isSel?(ib?"border-blue-500/60 bg-blue-500/10":"border-red-500/60 bg-red-500/10"):"border-zinc-800/60 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/70"}`}>
+                  <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                    <img src={order.icon} alt={order.name} className="w-9 h-9 object-contain p-1"/>
+                  </div>
+                  <span className={`text-sm font-black ${isSel?"text-white":"text-zinc-300"}`}>{order.name}</span>
+                  {isSel&&<div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center ${ib?"bg-blue-500":"bg-red-500"}`}><Check className="w-3 h-3 text-white"/></div>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* STEP 3 — Tranche */}
+        {alignEditStep==="tranche"&&(
+          <div className="space-y-4">
+            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Niveau d'alignement (Tranche)</p>
+            <div className="grid grid-cols-1 gap-2">
+              {[20,40,60,80,100].map(lvl=>{
+                const isSel=alignEditLevel===lvl;
+                const orderData=alignEditAlignment&&alignEditOrder?(ORDERS as any)[alignEditAlignment]?.find((o:any)=>o.id===alignEditOrder):null;
+                const title=orderData?.levels?.[lvl]||"";
+                return(
+                  <button key={lvl} type="button" onClick={()=>setAlignEditLevel(lvl)} className={`flex items-center gap-4 px-4 py-3 rounded-xl border-2 transition-all text-left ${isSel?"border-amber-500 bg-amber-500/15 shadow-[0_0_12px_rgba(245,158,11,0.15)]":"border-zinc-800/60 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-900"}`}>
+                    <span className={`text-sm font-black w-8 shrink-0 ${isSel?"text-amber-400":"text-zinc-500"}`}>{">"}{lvl}</span>
+                    <span className={`text-xs font-bold flex-1 ${isSel?"text-white":"text-zinc-400"}`}>{title}</span>
+                    {isSel&&<Check className="w-4 h-4 text-amber-400 shrink-0"/>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      <DialogFooter className="p-5 border-t border-white/5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {alignEditStep!=="alignment"&&<Button variant="ghost" size="sm" onClick={()=>setAlignEditStep(alignEditStep==="tranche"?"order":"alignment")} className="text-zinc-400 hover:text-white text-xs">← Retour</Button>}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={()=>setAlignEditOpen(false)} className="text-zinc-500 hover:text-white text-xs">Annuler</Button>
+          <Button onClick={handleAlignEditSave} disabled={alignEditSaving||(!alignEditAlignment)} size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-5">
+            {alignEditSaving?<Loader2 className="w-3.5 h-3.5 animate-spin"/>:"Enregistrer"}
+          </Button>
+        </div>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+</>);}

@@ -12,6 +12,7 @@ import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
+import { searchArchimonstresForMap } from '@/server/actions/game-data-actions';
 import {
     createGeoguesserSession,
     getActiveGeoguesserSessions,
@@ -105,6 +106,12 @@ export default function InteractiveMapV2({
     const [autoCopyTravel, setAutoCopyTravel] = useState(false);
     const [activePanelTab, setActivePanelTab] = useState<'map' | 'scores'>('map');
 
+    // Archimonstre search state
+    const [archiResults, setArchiResults] = useState<any[]>([]);
+    const [isSearchingArchi, setIsSearchingArchi] = useState(false);
+    const [highlightSubareaIds, setHighlightSubareaIds] = useState<number[]>([]);
+    const [searchFilter, setSearchFilter] = useState<'all' | 'zones' | 'archis'>('all');
+
     // Mini-Jeux States
     const [gamePhase, setGamePhase] = useState<'idle' | 'countdown' | 'playing' | 'result' | 'summary'>('idle');
     const [activeSession, setActiveSession] = useState<any>(null);
@@ -158,6 +165,31 @@ export default function InteractiveMapV2({
             setTriggerCenterPosition({ x: initialX, y: initialY });
         }
     }, [initialWorldId, initialX, initialY]);
+
+    // ── Debounced archimonstre search ──
+    useEffect(() => {
+        if (!search || search.trim().length < 2) {
+            setArchiResults([]);
+            // Note: highlightSubareaIds has its own 8s timer — don't clear it here
+            return;
+        }
+        const timer = setTimeout(async () => {
+            setIsSearchingArchi(true);
+            try {
+                const res = await searchArchimonstresForMap(search.trim());
+                if (res.success && res.data) {
+                    setArchiResults(res.data);
+                } else {
+                    setArchiResults([]);
+                }
+            } catch {
+                setArchiResults([]);
+            } finally {
+                setIsSearchingArchi(false);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search]);
 
     // --- HOOKS DE CALCUL (useMemo) ---
     // On les place au début pour éviter les erreurs "Used before assigned" dans les useEffect
@@ -247,6 +279,33 @@ export default function InteractiveMapV2({
             return;
         }
 
+        // Archimonstre result
+        if (item.isArchi) {
+            const needsWorldChange = item.worldMapId && item.worldMapId !== selectedWorldId;
+
+            const applyHighlight = () => {
+                if (item.centerX !== null && item.centerY !== null) {
+                    setTriggerCenterPosition({ x: item.centerX, y: item.centerY });
+                }
+                if (item.subAreaIds?.length > 0) {
+                    setHighlightSubareaIds(item.subAreaIds);
+                    setTimeout(() => setHighlightSubareaIds([]), 8000);
+                }
+            };
+
+            if (needsWorldChange) {
+                setSelectedWorldId(item.worldMapId);
+                // Wait for Leaflet canvas to remount before applying highlight
+                setTimeout(applyHighlight, 650);
+            } else {
+                applyHighlight();
+            }
+
+            setSearch('');
+            setArchiResults([]);
+            return;
+        }
+
         // Search the maps to find one belonging to this subarea
         const map = worldMap.maps?.find(m => m.subAreaId === item.id);
         if (map) {
@@ -260,7 +319,7 @@ export default function InteractiveMapV2({
             }
         }
         setSearch('');
-    }, [worldMap.maps]);
+    }, [worldMap.maps, selectedWorldId]);
 
     const mapsByCoords = useMemo(() => {
         const index = new Map<string, any>();
@@ -1070,31 +1129,129 @@ export default function InteractiveMapV2({
                                     )}
                                 </AnimatePresence>
 
-                                {/* Zone Search - Optimized for space */}
+                                {/* Zone Search + Filter */}
                                 <div className="relative hidden md:block">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={12} />
+                                    {isSearchingArchi && (
+                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400/50 animate-spin" size={10} />
+                                    )}
                                     <input
                                         type="text"
                                         value={search}
-                                        onChange={e => setSearch(e.target.value)}
-                                        placeholder="Zone..."
-                                        className="w-32 lg:w-48 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
+                                        onChange={e => { setSearch(e.target.value); setSearchFilter('all'); }}
+                                        placeholder="Zone, avis, archimonstre..."
+                                        className="w-36 lg:w-56 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
                                     />
-                                    {searchResults.length > 0 && (
-                                        <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[700]">
-                                            {searchResults.map((s: any) => (
-                                                <button key={s.id === -999 ? `coord-${s.x}-${s.y}` : s.id} onClick={() => handleSearchResultClick(s)} className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-white text-[10px] font-black uppercase italic">{typeof s.name === 'string' ? s.name : s.name?.fr || 'Inconnu'}</span>
-                                                        {!s.isCoord && (
-                                                            <span className="text-emerald-500/50 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-500/5">Lvl {s.level || '?'}</span>
-                                                        )}
-                                                    </div>
-                                                </button>
-                                            ))}
+
+                                    {/* Dropdown with filter chips + results */}
+                                    {(searchResults.length > 0 || archiResults.length > 0 || isSearchingArchi) && (
+                                        <div className="absolute top-full right-0 mt-2 w-80 bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[700]">
+
+                                            {/* Filter chips */}
+                                            {(searchResults.length > 0 && archiResults.length > 0) && (
+                                                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5 bg-white/2">
+                                                    {(['all', 'zones', 'archis'] as const).map(f => (
+                                                        <button
+                                                            key={f}
+                                                            onClick={() => setSearchFilter(f)}
+                                                            className={cn(
+                                                                "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
+                                                                searchFilter === f
+                                                                    ? f === 'archis'
+                                                                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                                                                        : 'bg-white/10 text-white border border-white/15'
+                                                                    : 'text-white/30 hover:text-white/60 border border-transparent'
+                                                            )}
+                                                        >
+                                                            {f === 'all' ? 'Tout' : f === 'zones' ? '🗺 Zones' : '🎯 Avis & Archis'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Subarea / Zone results */}
+                                            {(searchFilter === 'all' || searchFilter === 'zones') && searchResults.length > 0 && (
+                                                <>
+                                                    {searchFilter === 'all' && archiResults.length > 0 && (
+                                                        <div className="px-3 py-1.5 bg-white/3 border-b border-white/5">
+                                                            <span className="text-white/20 text-[8px] font-black uppercase tracking-widest">🗺 Zones</span>
+                                                        </div>
+                                                    )}
+                                                    {searchResults.slice(0, searchFilter === 'zones' ? 10 : 4).map((s: any) => (
+                                                        <button key={s.id === -999 ? `coord-${s.x}-${s.y}` : s.id} onClick={() => handleSearchResultClick(s)} className="w-full text-left px-4 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-white text-[10px] font-black uppercase italic">{typeof s.name === 'string' ? s.name : s.name?.fr || 'Inconnu'}</span>
+                                                                {!s.isCoord && (
+                                                                    <span className="text-emerald-500/50 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-500/5">Lvl {s.level || '?'}</span>
+                                                                )}
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </>
+                                            )}
+
+                                            {/* Bounty / Archimonstre results */}
+                                            {(searchFilter === 'all' || searchFilter === 'archis') && archiResults.length > 0 && (
+                                                <>
+                                                    {searchFilter === 'all' && searchResults.length > 0 && (
+                                                        <div className="px-3 py-1.5 bg-orange-500/5 border-b border-orange-500/10 border-t border-t-white/5">
+                                                            <span className="text-orange-400/60 text-[8px] font-black uppercase tracking-widest">🎯 Avis & Archimonstres</span>
+                                                        </div>
+                                                    )}
+                                                    {archiResults.slice(0, searchFilter === 'archis' ? 10 : 5).map((a: any) => (
+                                                        <button
+                                                            key={a.id}
+                                                            onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
+                                                            className={cn(
+                                                                "w-full text-left px-4 py-2.5 border-b border-white/5 last:border-0 transition-colors group",
+                                                                a.subAreaIds?.length > 0 ? "hover:bg-orange-500/5" : "hover:bg-white/3 opacity-70"
+                                                            )}
+                                                        >
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    {a.imageUrl ? (
+                                                                        <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
+                                                                    ) : (
+                                                                        <div className="w-7 h-7 rounded bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                                                                            <span className="text-[10px]">🎯</span>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="min-w-0">
+                                                                        <div className="text-orange-300 text-[10px] font-black uppercase italic truncate">{a.name}</div>
+                                                                        <div className="text-white/25 text-[8px] uppercase truncate">
+                                                                            {a.zoneName
+                                                                                ? a.subAreaIds?.length > 0
+                                                                                    ? a.zoneName
+                                                                                    : `⚠ ${a.zoneName} (zone introuvable)`
+                                                                                : '⚠ Zone inconnue'
+                                                                            }
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                                                    {a.level > 0 && (
+                                                                        <span className="text-orange-500/50 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-orange-500/5">Lvl {a.level}</span>
+                                                                    )}
+                                                                    {a.worldMapId > 1 && (
+                                                                        <span className="text-sky-400/50 text-[7px] font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </>
+                                            )}
+
+                                            {isSearchingArchi && archiResults.length === 0 && searchResults.length === 0 && (
+                                                <div className="px-4 py-3 text-white/20 text-[10px] italic text-center flex items-center justify-center gap-2">
+                                                    <Loader2 size={10} className="animate-spin" />
+                                                    Recherche...
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
+
 
                                 {/* Mobile Tools Overflow */}
                                 <div className="lg:hidden relative group">
@@ -1411,7 +1568,7 @@ export default function InteractiveMapV2({
                             setSelectedPosition={handleMapClick}
                             setSelectedDungeon={setSelectedDungeon}
                             triggerCenterPosition={triggerCenterPosition}
-                            triggerWorldId={initialWorldId} // Use the parsed param from URL
+                            triggerWorldId={initialWorldId}
                             mapsBySubAreaId={mapsBySubAreaId}
                             guessResult={guessResult}
                             isMiniMap={false}
@@ -1421,6 +1578,7 @@ export default function InteractiveMapV2({
                                     isSpectator={isCurrentUserSpectator}
                                     hideUI={hideUI}
                                     minZoom={Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
+                            highlightSubareaIds={highlightSubareaIds}
                         />
                     </div>
                 )}

@@ -9,6 +9,20 @@ import { isSuperAdmin } from "./super-admin-actions";
 import { revalidatePath } from "next/cache";
 
 /**
+ * Résout le profileId et characterSlot à utiliser pour les actions de progression.
+ * Lorsqu'un altPseudo est fourni, on utilise un characterSlot pour distinguer
+ * la progression du personnage principal (characterSlot = null) 
+ * de celle d'un personnage alternatif (characterSlot = altPseudo),
+ * tout en gardant l'intégrité de la clé étrangère profileId -> UserProfile.
+ */
+function resolvePlayerProgressKey(profileId: string, altPseudo?: string): { profileId: string; characterSlot: string } {
+  if (altPseudo && altPseudo !== "PRINCIPAL") {
+    return { profileId, characterSlot: altPseudo };
+  }
+  return { profileId, characterSlot: "PRINCIPAL" };
+}
+
+/**
  * Récupère tous les guides disponibles.
  */
 export async function getOptimizedGuides(guildId?: string) {
@@ -44,25 +58,10 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
 
-  let profileId = ctx.profileId;
+  if (!ctx.profileId) return { success: false, error: "Profile non trouvé" };
 
-  // If an altPseudo is provided, resolve its profileId from the main profile's altPseudos JSON
-  if (altPseudo && altPseudo !== "PRINCIPAL" && ctx.profileId) {
-    const mainProfile = await db.userProfile.findUnique({
-      where: { id: ctx.profileId },
-      select: { altPseudos: true }
-    });
-    const altList = Array.isArray(mainProfile?.altPseudos) ? (mainProfile.altPseudos as any[]) : [];
-    const muleEntry = altList.find((m: any) =>
-      (typeof m === "string" ? m : m.pseudo) === altPseudo
-    );
-    // Mules share the same profileId but use a different "character slot" key in PlayerGuideProgress
-    // For guides, we use a dedicated per-mule progress record keyed by a virtual profileId.
-    // We embed the mule name as a suffix on the profileId to create a unique slot.
-    if (muleEntry) {
-      profileId = `${ctx.profileId}::${altPseudo}`;
-    }
-  }
+  // Use characterSlot to distinguish main vs. alt character progress
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
   const guide = await db.optimizedGuide.findUnique({
     where: { slug },
@@ -74,9 +73,8 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
             orderBy: { order: "asc" },
             include: { dungeon: true }
           },
-          // Only filter by profile if one exists (SuperAdmins may not have one)
           playerProgress: profileId
-            ? { where: { profileId } }
+            ? { where: { profileId, characterSlot } }
             : { where: { profileId: "__NONE__" } },
         }
       }
@@ -311,12 +309,9 @@ export async function getMemberAllGuidesProgress(profileId: string, guildId: str
 export async function toggleMilestoneProgress(guildId: string, milestoneId: string, isCompleted: boolean, altPseudo?: string) {
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
-  if (!ctx.id) throw new Error("Profile ID manquant");
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
 
-  let profileId: string = ctx.profileId!;
-  if (altPseudo && altPseudo !== "PRINCIPAL") {
-    profileId = `${ctx.profileId}::${altPseudo}`;
-  }
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
   const milestoneWithSequences = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
@@ -332,7 +327,7 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
-      profileId_milestoneId: { profileId, milestoneId }
+      profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot }
     },
     update: {
       isCompleted,
@@ -342,6 +337,7 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     create: {
       profileId,
       milestoneId,
+      characterSlot,
       isCompleted,
       completedAt: isCompleted ? new Date() : null,
       completedSteps,
@@ -368,14 +364,11 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
-  let profileId: string = ctx.profileId;
-  if (altPseudo && altPseudo !== "PRINCIPAL") {
-    profileId = `${ctx.profileId}::${altPseudo}`;
-  }
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
   // Delete the progress record entirely (cleaner than zeroing out)
   await db.playerGuideProgress.deleteMany({
-    where: { profileId, milestoneId }
+    where: { profileId, milestoneId, characterSlot }
   });
 
   const milestone = await db.guideMilestone.findUnique({
@@ -397,10 +390,7 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
-  let profileId: string = ctx.profileId;
-  if (altPseudo && altPseudo !== "PRINCIPAL") {
-    profileId = `${ctx.profileId}::${altPseudo}`;
-  }
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
   // Fetch all milestone IDs for this guide
   const milestones = await db.guideMilestone.findMany({
@@ -411,7 +401,7 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
 
   if (milestoneIds.length > 0) {
     await db.playerGuideProgress.deleteMany({
-      where: { profileId, milestoneId: { in: milestoneIds } }
+      where: { profileId, characterSlot, milestoneId: { in: milestoneIds } }
     });
   }
 
@@ -435,10 +425,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
-  let profileId: string = ctx.profileId;
-  if (altPseudo && altPseudo !== "PRINCIPAL") {
-    profileId = `${ctx.profileId}::${altPseudo}`;
-  }
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
   const milestone = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
@@ -453,7 +440,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
-      profileId_milestoneId: { profileId, milestoneId }
+      profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot }
     },
     update: {
       completedSteps: completedSteps,
@@ -463,6 +450,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     create: {
       profileId,
       milestoneId,
+      characterSlot,
       completedSteps: completedSteps,
       isCompleted: isAllCompleted,
       completedAt: isAllCompleted ? new Date() : null
@@ -483,11 +471,12 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
 export async function updateBookmarkedStep(guildId: string, milestoneId: string, stepKey: string | null) {
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
-  const profileId: string = ctx.profileId!;
+  if (!ctx.profileId) throw new Error("Profile ID manquant");
+  const profileId: string = ctx.profileId;
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
-      profileId_milestoneId: { profileId, milestoneId }
+      profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot: "PRINCIPAL" }
     },
     update: {
       currentStep: stepKey 
@@ -495,6 +484,7 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
     create: {
       profileId,
       milestoneId,
+      characterSlot: "PRINCIPAL",
       currentStep: stepKey,
       isCompleted: false
     }

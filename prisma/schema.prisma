@@ -197,6 +197,7 @@ model GuildConfig {
   presentationHistory              String?
   presentationMinLevel             Int?
   presentationMinSuccesses         Int?
+  presentationMemberCount          Int?
   presentationPhotoUrl             String?
   presentationRecruitReq           String?
   presentationRecruiting           Boolean                 @default(false)
@@ -1949,24 +1950,28 @@ model GuideSequence {
 }
 
 // Progression d'un membre sur un milestone donné
+// characterSlot permet de distinguer la progression du personnage principal vs personnages alternatifs (mules)
+// "PRINCIPAL" = personnage principal, pseudo = personnage alternatif (mule)
 model PlayerGuideProgress {
-  id          String         @id @default(cuid())
-  profileId   String
-  milestoneId String
-  isCompleted Boolean        @default(false)
-  completedAt DateTime?
-  completedSteps Json?       @default("[]")
-  currentStep String?        // Active/bookmarked step key (e.g., "GP1-5")
-  notes       String?        // Note personnelle du membre
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id            String         @id @default(cuid())
+  profileId     String
+  milestoneId   String
+  characterSlot String         @default("PRINCIPAL") // "PRINCIPAL" = main, pseudo = mule
+  isCompleted   Boolean        @default(false)
+  completedAt   DateTime?
+  completedSteps Json?         @default("[]")
+  currentStep   String?        // Active/bookmarked step key (e.g., "GP1-5")
+  notes         String?        // Note personnelle du membre
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  profile     UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  milestone   GuideMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  profile       UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  milestone     GuideMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
 
-  @@unique([profileId, milestoneId])
+  @@unique([profileId, milestoneId, characterSlot])
   @@index([profileId])
   @@index([milestoneId])
+  @@index([characterSlot])
 }
 
 enum GuideMilestoneType {

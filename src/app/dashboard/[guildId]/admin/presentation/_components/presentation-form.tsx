@@ -159,6 +159,7 @@ export function PresentationForm({ guildId }: Props) {
     const [bannerUrl, setBannerUrl] = useState<string | null>(null);
     const [photoUrl, setPhotoUrl] = useState<string | null>(null);
     const [foundedDate, setFoundedDate] = useState<Date | null>(null);
+    const [memberCount, setMemberCount] = useState<string>("");
     const [discordRequired, setDiscordRequired] = useState(false);
     const [minLevel, setMinLevel] = useState<string>("");
     const [minSuccesses, setMinSuccesses] = useState<string>("");
@@ -191,9 +192,11 @@ export function PresentationForm({ guildId }: Props) {
                 setBannerType(d.bannerType || "discord");
                 setBannerUrl(d.bannerUrl);
                 setPhotoUrl(d.photoUrl);
+                setFoundedDate(d.foundedDate);
                 setDiscordRequired(d.discordRequired);
                 setMinLevel(d.minLevel?.toString() || "");
                 setMinSuccesses(d.minSuccesses?.toString() || "");
+                setMemberCount(d.memberCount?.toString() || "");
             }
 
             if (membersResult.success && membersResult.members) {
@@ -265,6 +268,7 @@ export function PresentationForm({ guildId }: Props) {
                 minLevel: minLevel ? parseInt(minLevel, 10) : null,
                 minSuccesses: minSuccesses ? parseInt(minSuccesses, 10) : null,
                 foundedDate,
+                memberCount: memberCount ? parseInt(memberCount, 10) : null,
             };
 
             const result = await updateGuildPresentation(guildId, data);

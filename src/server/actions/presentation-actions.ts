@@ -107,6 +107,7 @@ export type GuildPresentation = {
     bannerUrl: string | null;
     photoUrl: string | null;
     foundedDate: string | null;
+    memberCount: number | null;
     // Recruitment specific
     discordRequired: boolean;
     minLevel: number | null;
@@ -156,6 +157,7 @@ export async function getGuildPresentation(
             presentationMinLevel: true,
             presentationMinSuccesses: true,
             presentationFoundedDate: true,
+            presentationMemberCount: true,
         },
     });
 
@@ -188,6 +190,7 @@ export async function getGuildPresentation(
         bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
         photoUrl: g.presentationPhotoUrl ? g.presentationPhotoUrl.replace(/^\/uploads\//, "/api/storage/") : null,
         foundedDate: g.presentationFoundedDate ? (g.presentationFoundedDate as Date).toISOString() : null,
+        memberCount: g.presentationMemberCount as number | null,
         discordRequired: g.presentationDiscordReq,
         minLevel: g.presentationMinLevel,
         minSuccesses: g.presentationMinSuccesses,
@@ -299,6 +302,7 @@ export type PresentationUpdateData = {
     bannerUrl: string | null;
     photoUrl: string | null;
     foundedDate: Date | null;
+    memberCount: number | null;
     discordRequired: boolean;
     minLevel: number | null;
     minSuccesses: number | null;
@@ -368,6 +372,7 @@ export async function updateGuildPresentation(
                 presentationBannerUrl: data.bannerUrl, // Can be null to delete
                 presentationPhotoUrl: data.photoUrl, // Can be null to delete
                 presentationFoundedDate: data.foundedDate,
+                presentationMemberCount: data.memberCount,
                 presentationDiscordReq: data.discordRequired,
                 presentationMinLevel: validatedLevel,
                 presentationMinSuccesses: validatedSuccesses,
@@ -532,6 +537,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
             presentationMinLevel: true,
             presentationMinSuccesses: true,
             presentationFoundedDate: true,
+            presentationMemberCount: true,
             // presentationIsActive: true, // If I needed to check active status
         },
     });
@@ -560,6 +566,7 @@ export async function getAdminPresentationData(guildId: string): Promise<{
             bannerUrl: d.presentationBannerUrl ? d.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
             photoUrl: d.presentationPhotoUrl ? d.presentationPhotoUrl.replace(/^\/uploads\//, "/api/storage/") : null,
             foundedDate: d.presentationFoundedDate,
+            memberCount: d.presentationMemberCount as number | null,
             discordRequired: d.presentationDiscordReq,
             minLevel: d.presentationMinLevel,
             minSuccesses: d.presentationMinSuccesses,

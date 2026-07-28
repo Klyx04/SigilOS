@@ -150,7 +150,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                             </CardHeader>
                             <CardContent>
                                 <div className="prose prose-invert prose-zinc max-w-none">
-                                    <p className="whitespace-pre-wrap text-zinc-300 leading-relaxed">
+                                    <p className="whitespace-pre-wrap break-words text-zinc-300 leading-relaxed">
                                         {guild.history}
                                     </p>
                                 </div>

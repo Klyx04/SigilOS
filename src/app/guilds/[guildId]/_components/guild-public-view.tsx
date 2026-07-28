@@ -39,6 +39,7 @@ const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
     "roleplay": <Theater className="w-4 h-4" />,
     "kolizeum": <Target className="w-4 h-4" />,
     "percepteur": <Shield className="w-4 h-4" />,
+    "raids": <Swords className="w-4 h-4" />,
 };
 
 const getActivityLabel = (id: string) => {
@@ -96,9 +97,11 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
 
     return (
         <div className="relative min-h-screen bg-black text-white selection:bg-accent-teal/30 font-sans flex flex-col overflow-x-hidden">
-            {/* Ambient Background Layer (2026 Standard) */}
-            <div className="fixed inset-0 z-0 pointer-events-none opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03),transparent_70%)]" />
-            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-5 saturate-100 blur-3xl scale-125" />
+            {/* Ambient Background Layer (2026 Standard) - Fixed container prevents double scrollbar from Aurora's -inset overflow */}
+            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                <div className="w-full h-full opacity-5 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03),transparent_70%)]" />
+                <AuroraBackground className="w-full h-full opacity-5 saturate-100 blur-3xl scale-125" />
+            </div>
 
             {/* Hero Image / Banner */}
             <div className="relative h-[40vh] md:h-[50vh] min-h-[350px] overflow-hidden">
@@ -259,7 +262,7 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                     Manifeste
                                 </h2>
                                 <div className="bg-zinc-900/30 border border-white/5 rounded-2xl p-8 leading-relaxed text-zinc-300 text-lg">
-                                    <p className="whitespace-pre-wrap">{guild.history}</p>
+                                    <p className="whitespace-pre-wrap break-words">{guild.history}</p>
                                 </div>
                             </section>
                         )}
@@ -296,6 +299,17 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                 </h3>
 
                                 <div className="space-y-6">
+                                    {/* Member Count */}
+                                    {guild.memberCount !== null && guild.memberCount !== undefined && (
+                                        <div className="flex items-center justify-between p-4 rounded-xl border bg-indigo-500/5 border-indigo-500/20">
+                                            <span className="text-sm font-medium text-zinc-400">Membres</span>
+                                            <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-400">
+                                                <Users className="w-4 h-4" />
+                                                {guild.memberCount} / 350
+                                            </span>
+                                        </div>
+                                    )}
+
                                     {/* Status */}
                                     <div className={`flex items-center justify-between p-4 rounded-xl border ${guild.isRecruiting
                                         ? "bg-emerald-500/5 border-emerald-500/20"

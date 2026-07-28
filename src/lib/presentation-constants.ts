@@ -46,4 +46,5 @@ export const AVAILABLE_ACTIVITIES = [
     { id: "roleplay", label: "Roleplay", subtitle: "" },
     { id: "kolizeum", label: "Kolizéum", subtitle: "" },
     { id: "percepteur", label: "Percepteur", subtitle: "" },
+    { id: "raids", label: "Raids de Guilde", subtitle: "Dungeons, Gigalodon, Sanctuaire" },
 ] as const;

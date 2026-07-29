@@ -107,6 +107,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      {
+        // Imgur — user-submitted proof screenshots & guide images
+        protocol: "https",
+        hostname: "i.imgur.com",
+      },
     ],
   },
   outputFileTracingExcludes: {
@@ -157,6 +162,8 @@ const nextConfig: NextConfig = {
       "https://ganymede-dofus.com https://ganymede-app.com",
       // Unsplash for raid selection illustrations
       "https://images.unsplash.com",
+      // Imgur — user-submitted proof screenshots & guide images
+      "https://i.imgur.com",
     ].join(" ");
 
     const connectSrc = [

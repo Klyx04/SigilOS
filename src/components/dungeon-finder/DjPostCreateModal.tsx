@@ -127,15 +127,19 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
         }
     }, [isOpen, isDiscordConfigured, initialQuestName]);
 
-    // Fetch Discord Roles
+    // Fetch Discord Roles and auto-fill whitelisted ping roles
     useEffect(() => {
         if (isOpen && isDiscordPublished && discordRoles.length === 0) {
             setIsLoadingRoles(true);
             getDiscordRolesAction(guildId, { context: "dj" })
                 .then(res => {
                     if (res.success && res.roles) {
-                        // Filter out @everyone if possible or just keep all
-                        setDiscordRoles(res.roles.filter(r => r.name !== "@everyone") as any);
+                        const filtered = res.roles.filter(r => r.name !== "@everyone") as any;
+                        setDiscordRoles(filtered);
+                        // Auto-fill all whitelisted ping roles (they come pre-filtered by context)
+                        if (filtered.length > 0) {
+                            setMentionRoleIds(filtered.map((r: any) => r.id));
+                        }
                     }
                 })
                 .catch(console.error)

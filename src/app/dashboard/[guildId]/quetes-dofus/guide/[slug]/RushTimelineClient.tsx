@@ -328,7 +328,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {onToggleSeq && (
-            <button type="button" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 p-0.5 rounded-lg text-zinc-500 hover:text-emerald-400 transition-colors">
+            <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 p-0.5 rounded-lg text-zinc-500 hover:text-emerald-400 transition-colors" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
               {isSeqCompleted ? <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/20"/> : <Circle className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}
             </button>
           )}
@@ -1073,8 +1073,12 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     else window.scrollTo({ top: document.documentElement.scrollHeight, left: 0, behavior: 'smooth' });
   }, []);
 
+  // ─── Search state ───────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+
   // resumeRush priorité : 1) bookmarkedSeqId 2) activeSeqId 3) toast
   const resumeRush = useCallback(() => {
+    if (searchQuery) setSearchQuery("");
     if (effectiveBookmarkSeqId) {
       scrollToSequence(effectiveBookmarkSeqId);
     } else if (activeSeqId) {
@@ -1082,10 +1086,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     } else {
       toast("Aucune étape à reprendre", { duration: 2000 });
     }
-  }, [effectiveBookmarkSeqId, activeSeqId, scrollToSequence]);
-
-  // ─── Search state ───────────────────────────────────────────────────────
-  const [searchQuery, setSearchQuery] = useState("");
+  }, [effectiveBookmarkSeqId, activeSeqId, scrollToSequence, searchQuery]);
   const normalizeSearch = useCallback((s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(), []);
 
   const searchResults = useMemo(() => {

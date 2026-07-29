@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CheckCircle2, Circle, ChevronDown, ChevronUp,
+  CheckCircle2, Square, ChevronDown, ChevronUp,
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck, ArrowUp,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
@@ -313,12 +313,12 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {onToggleSeq && (
-              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-xl text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
-                {isSeqCompleted ? <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-400/20"/> : <Circle className="w-5 h-5 text-zinc-500 hover:text-zinc-300"/>}
+              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors border border-zinc-700 hover:border-emerald-500/40" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
+                {isSeqCompleted ? <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-400/20"/> : <Square className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}
               </button>
             )}
             <div className="flex-1 min-w-0 flex items-center gap-2.5 flex-wrap">
-              <span className={`text-xs font-bold leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>{questName}</span>
+              <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>{questName}</span>
               {(()=>{
                 const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
                 if(!posTag?.name) return null;

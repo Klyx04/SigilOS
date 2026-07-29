@@ -1306,9 +1306,9 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         >
           <ChevronUp className="w-4 h-4" />
         </button>
-        <button onClick={scrollToActive}
+        <button onClick={resumeRush}
           className="p-2 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"
-          title="Reprendre mon étape" aria-label="Reprendre mon étape"
+          title="Reviens à la quête où tu t'es arrêté." aria-label="Reviens à la quête où tu t'es arrêté."
         >
           <MapPin className="w-4 h-4" />
         </button>

@@ -632,6 +632,42 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
   );
 }
 
+// ─── InfoSequenceBanner (bandeau informatif non-cliquable dans un bloc) ─────
+function InfoSequenceBanner({ seq, accentColor }: { seq: Sequence; accentColor: string }) {
+  const color = seq.activityTags?.find((t: any) => t.type === "info_sequence")?.color || accentColor || "#10b981";
+  const content = seq.tips || seq.subGuideName || seq.subGuideRef || "";
+  const parts = renderContentWithCoords(content);
+  const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
+  const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
+  const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
+  let icon = "💡";
+  if (isWarm) icon = "⚠️";
+  else if (isCool) icon = "📖";
+  else if (isPurple) icon = "🔮";
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden border select-none"
+      style={{
+        borderColor: `${color}25`,
+        boxShadow: `0 0 10px ${color}10, inset 0 0 20px ${color}05`,
+        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 50%, ${color}06 100%)`,
+      }}
+    >
+      <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 rounded-tl-xl pointer-events-none" style={{ borderColor: `${color}35` }} />
+      <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 rounded-tr-xl pointer-events-none" style={{ borderColor: `${color}35` }} />
+      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 rounded-bl-xl pointer-events-none" style={{ borderColor: `${color}35` }} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 rounded-br-xl pointer-events-none" style={{ borderColor: `${color}35` }} />
+
+      <div className="relative flex items-start gap-2.5 p-3">
+        <span className="text-base leading-none mt-0.5 shrink-0">{icon}</span>
+        <div className="text-xs sm:text-sm text-zinc-200/90 leading-relaxed font-medium flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {parts}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MilestoneRow ─────────────────────────────────────────────────────────────
 const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching }: any) {
   const [expanded,setExpanded]=useState(false);
@@ -692,7 +728,11 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                     <div className="py-6 text-center text-zinc-600 text-[10px] font-black uppercase tracking-widest">Aucune quête</div>
                   ) : (
                     ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id)).map((s:any)=>(
-                      <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick}/>
+                      isInfoSequence(s) ? (
+                        <InfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                      ) : (
+                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick}/>
+                      )
                     ))
                   )}
                 </CompletedStepsCtx.Provider>

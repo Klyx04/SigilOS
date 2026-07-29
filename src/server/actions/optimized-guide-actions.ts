@@ -468,15 +468,16 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
 /**
  * Met à jour l'étape active/marque-page pour un milestone (J'en suis là).
  */
-export async function updateBookmarkedStep(guildId: string, milestoneId: string, stepKey: string | null) {
+export async function updateBookmarkedStep(guildId: string, milestoneId: string, stepKey: string | null, altPseudo?: string) {
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
   if (!ctx.profileId) throw new Error("Profile ID manquant");
-  const profileId: string = ctx.profileId;
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
-      profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot: "PRINCIPAL" }
+      profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot }
     },
     update: {
       currentStep: stepKey 
@@ -484,7 +485,7 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
     create: {
       profileId,
       milestoneId,
-      characterSlot: "PRINCIPAL",
+      characterSlot,
       currentStep: stepKey,
       isCompleted: false
     }

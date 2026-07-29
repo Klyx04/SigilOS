@@ -41,7 +41,8 @@ export async function GET(req: Request) {
                 name: true,
                 discordGuildId: true,
                 missionManagementNotifyChannelId: true,
-                missionManagementNotifyRoleId: true
+                missionManagementNotifyRoleId: true,
+                missionVitrineMode: true
             }
         });
 
@@ -57,26 +58,50 @@ export async function GET(req: Request) {
             
             // Build the Ping & Embed
             const pings = roleId ? `<@&${roleId}>` : "";
-            const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guild.discordGuildId}/admin/validation`;
+            const isVitrine = guild.missionVitrineMode === true;
+            const dashboardBase = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${guild.discordGuildId}`;
+            const targetUrl = isVitrine ? `${dashboardBase}/missions/manage` : `${dashboardBase}/admin/validation`;
+
+            const embedTitle = isVitrine
+                ? "🚀 Nouvelle Semaine de Missions ✨"
+                : "🚀 Reset Hebdomadaire & Nouvelles Missions";
+
+            const embedDescription = isVitrine
+                ? [
+                    "Le reset Dofus vient d'avoir lieu — une nouvelle semaine commence !",
+                    "",
+                    "Les missions sont automatiquement renouvelées. **Planifiez les objectifs de la semaine** dans l'interface de gestion.",
+                    "",
+                    "👉 Les membres peuvent soumettre leurs preuves directement depuis le dashboard.",
+                ].join("\n")
+                : [
+                    "Le reset Dofus vient d'avoir lieu !",
+                    "",
+                    "Il est temps de **générer les nouvelles missions** hebdomadaires **et** de **valider les preuves en attente** de la semaine dernière.",
+                    "",
+                    "Accédez à l'interface de validation pour traiter les soumissions en attente.",
+                ].join("\n");
+
+            const buttonLabel = isVitrine ? "📋 Gérer les Missions" : "✅ Valider les Missions";
 
             const messageId = await sendChannelMessage(
                 channelId,
                 "", // empty content if using mentionContent
                 {
-                    embedTitle: "🚀 Reset Hebdomadaire & Nouvelles Missions",
-                    embedDescription: `Le reset Dofus vient d'avoir lieu !\n\nIl est temps de **générer les nouvelles missions** hebdomadaires et de vérifier si des preuves de la semaine dernière sont encore en attente.\n\nCliquez sur le bouton ci-dessous pour accéder directement à l'interface de gestion.`,
+                    embedTitle,
+                    embedDescription,
                     embedColor: 0x6366f1, // Indigo
                     mentionContent: pings,
-                    embedThumbnail: "https://sigilos.fr/assets/ui/mission-reset.png", // Use a generic image or placeholder
+                    embedThumbnail: "https://sigilos.fr/assets/ui/mission-reset.png",
                     components: [
                         {
                             type: 1, // Action Row
                             components: [
                                 {
                                     type: 2, // Button
-                                    label: "Gérer les Missions",
+                                    label: buttonLabel,
                                     style: 5, // Link
-                                    url: dashboardUrl,
+                                    url: targetUrl,
                                     emoji: { name: "🛠️" }
                                 }
                             ]

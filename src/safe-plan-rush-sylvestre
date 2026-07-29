@@ -1,0 +1,388 @@
+Tu dois améliorer un composant EXISTANT, critique et déjà fonctionnel :
+
+`RushTimelineClient.tsx`
+
+Je vais te fournir le fichier complet.
+
+# RÈGLE ZÉRO — SÉCURISER L’EXISTANT
+
+Tu ne dois PAS refaire l’écran de zéro.
+
+Interdictions absolues :
+- Ne remplace pas tout le fichier par une version simplifiée.
+- Ne supprime aucun import, state, type, context, callback, composant local ou prop existante sans prouver qu’il est inutilisé.
+- Ne supprime ni ne modifies la logique de :
+  - progression de milestone et de sequence ;
+  - bookmarks `Rendu ici` ;
+  - prérequis ;
+  - alignement ;
+  - Ocre / Metamob ;
+  - donjons ;
+  - DofusDB / DofusPourLesNoobs ;
+  - guild progress ;
+  - sélection de personnage/mules ;
+  - modales ;
+  - toasts ;
+  - filtre Dofus ;
+  - `hideDone` ;
+  - `RushOnboardingWizardModal` déjà présent ;
+  - `RushLivePopover` ;
+  - `DjPostCreateModal` ;
+  - `ResetConfirmModal`.
+- Ne crée pas un second écran, une page de démonstration, une nouvelle timeline ou un composant parallèle de remplacement.
+- Ne touche pas à Prisma, au backend, aux server actions, aux routes, aux schémas ou à l’admin.
+- Ne crée pas de données de démonstration ni de noms de quêtes en dur.
+- Ne change pas les signatures des server actions existantes.
+- Ne retire pas Framer Motion, les contexts React existants ou les composants UI déjà employés.
+- Ne fais pas de modification massive et opaque du fichier.
+
+Tu dois travailler avec des changements incrémentaux, ciblés et compatibles avec le code fourni.
+
+# ÉTAPE A — ANALYSE OBLIGATOIRE, SANS CODE
+
+Avant d’écrire une ligne de code :
+
+1. Lis entièrement le fichier fourni.
+2. Liste les sous-composants locaux et leur rôle.
+3. Liste les states, refs, contexts et handlers existants.
+4. Identifie précisément :
+   - l’emplacement de `DofusProgressStrip` ;
+   - l’emplacement du header de guide ;
+   - l’emplacement des contrôles `hideDone` et filtre Dofus ;
+   - le rendu des `ChapterBlock`, `MilestoneRow`, `SequenceRow` ;
+   - le bookmark de sequence et de milestone ;
+   - la validation de quête ;
+   - le rendu des `prereqtext` ;
+   - `handleScrollToPrereq` ;
+   - le bouton de retour en haut ;
+   - le conteneur de scroll.
+5. Donne un plan bref, ordonné en petites étapes.
+6. Attends ma validation avant de modifier quoi que ce soit.
+
+# DIRECTION VISUELLE À RESPECTER
+
+La référence est la maquette desktop déjà validée :
+
+- Vue de guide **verticale**, jamais une timeline horizontale.
+- Conserver le bandeau existant des Dofus et de leurs pourcentages.
+- Ne pas ajouter d’anneaux Dofus, de gros médaillons, ni d’icônes décoratives au-dessus des sections.
+- La structure membre doit rester :
+
+  1. Header/guide existant
+  2. Bandeau de progression Dofus existant
+  3. Barre de recherche et actions
+  4. Chapitres verticaux
+  5. Milestones/blocs
+  6. Quêtes
+  7. Tips, notes, tags, donjons et liens existants
+
+- Il ne faut PAS ajouter de nouveau panneau latéral, tableau, dashboard concurrent ou énorme hero.
+- Éviter les énormes espaces vides et les cartes surdimensionnées.
+- Style actuel à préserver :
+  - fonds zinc très sombres ;
+  - emerald pour les actions/états positifs ;
+  - ambre seulement pour les prérequis, priorités et avertissements ;
+  - bordures fines ;
+  - arrondis `rounded-xl` / `rounded-2xl` ;
+  - ombres discrètes ;
+  - animation courte seulement ;
+  - design dense, premium, lisible et desktop-first.
+- Aucun fond orange/jaune opaque.
+- Pas de glassmorphism excessif, pas de glow permanent, pas de design “template IA”.
+
+Le but UX est qu’en moins de 5 secondes, un joueur comprenne :
+1. où il en est ;
+2. quelle quête faire ;
+3. comment retrouver une quête ;
+4. pourquoi une quête est bloquée ;
+5. comment enregistrer sa progression.
+
+# ÉTAPE B — BARRE D’ACTIONS ET RECHERCHE
+
+Ajouter une barre d’actions juste sous le bandeau de progression Dofus existant et avant la timeline verticale.
+
+Ordre desktop :
+
+[ 🔍 Rechercher une quête, un donjon ou une zone…                    ] [Masquer les quêtes terminées] [Reprendre mon étape] [Aide]
+
+Ordre mobile :
+- champ de recherche pleine largeur sur une première ligne ;
+- actions sur une seconde ligne avec wrap ;
+- ne jamais rendre les boutons minuscules ou seulement en icône sans aria-label.
+
+Conserver le toggle existant `hideDone`, mais son libellé membre doit être exactement :
+
+`Masquer les quêtes terminées`
+
+Ajouter :
+
+```ts
+const [searchQuery, setSearchQuery] = useState("")
+```
+
+Créer une normalisation de recherche insensible :
+- aux accents ;
+- à la casse ;
+- aux espaces initiaux/finals.
+
+La recherche est 100 % cliente et doit chercher dans les données existantes :
+- `subGuideName`
+- `subGuideRef`
+- `tips`
+- `note`
+- `dungeon?.name`
+- `dungeon?.bossName`
+- `dungeons[].name`
+- `dungeons[].bossName`
+- `activityTags[].name`
+- `activityTags[].type`
+
+Règles :
+- Recherche instantanée, pas d’appel réseau.
+- Placeholder exact :
+  `Rechercher une quête, un donjon ou une zone…`
+- Ajouter une icône Search.
+- Ajouter un bouton X pour effacer seulement quand un texte est saisi.
+- Ajouter un label accessible sr-only :
+  `Rechercher dans le guide`
+- Ajouter `data-tour="quest-search"` sur le champ.
+- Respecter le filtre Dofus existant.
+- Si la recherche est active :
+  - ouvrir automatiquement les chapitres/blocs contenant un résultat ;
+  - n’afficher que les milestones qui possèdent un résultat ;
+  - n’afficher que les sequences correspondantes ;
+  - conserver éventuellement les INFO associées à un milestone visible, mais une INFO ne doit jamais produire seule un résultat ;
+  - inclure les quêtes terminées même si `hideDone` est actif ;
+  - afficher le texte discret :
+    `Les résultats incluent les quêtes terminées.`
+  - afficher le compteur :
+    `X quête(s) trouvée(s) pour « … »`.
+- Si aucun résultat :
+  - titre : `Aucune quête trouvée`
+  - texte : `Essaie un autre nom de quête, donjon ou zone.`
+  - bouton : `Effacer la recherche`
+- Ne pas déclencher de scroll pendant la frappe.
+- Ne pas utiliser `dangerouslySetInnerHTML`.
+- Si le terme est surligné dans le titre, utiliser un rendu React sûr.
+- Ne duplique pas le rendu de la timeline : calculer des Sets/Maps avec `useMemo` et transmettre seulement des props de filtre minimales aux composants actuels.
+
+# ÉTAPE C — QUÊTE PRIORITAIRE
+
+Ne crée pas une grosse carte séparée “Continuer le rush” ni un nouveau hero.
+
+Dans la timeline existante, améliorer uniquement les états réels de `SequenceRow`.
+
+Déterminer une `activeSequenceId` :
+
+1. La sequence bookmarkée, seulement si elle n’est pas terminée.
+2. Sinon la première sequence non terminée réellement actionnable dans l’ordre du guide.
+3. Ignorer les sequences INFO.
+4. Ne jamais définir une quête bloquée par prérequis comme actionnable.
+
+Déterminer une `nextSequenceId` :
+- première quête actionnable après `activeSequenceId` ;
+- ne pas afficher ce statut si elle n’existe pas.
+
+Style de la quête active :
+- petit label `À FAIRE MAINTENANT` ;
+- fond `bg-amber-500/[0.04]` ou équivalent ;
+- bordure `border-amber-500/30` ;
+- ring/halo très discret ;
+- le nom de quête reste l’élément le plus lisible ;
+- aucun fond ambre opaque ;
+- ne pas retirer bookmark, liens, tags, tips, notes, donjons ou alignement.
+
+Style de la prochaine quête :
+- petit label `À VENIR` ;
+- sobriété, pas de glow ni bordure amber ;
+- moins visible que la quête active.
+
+États à conserver :
+- quête terminée : apparence actuelle réduite, mais lisible ;
+- quête bookmarkée : badge `Rendu ici` actuel ;
+- quête bloquée : nom lisible, prérequis actionnable dominant ;
+- ne pas empiler plus de deux badges majeurs sur la même ligne.
+
+# ÉTAPE D — VALIDATION FACILE
+
+Conserver la logique existante de validation de sequence.
+
+Modifier seulement l’ergonomie :
+- zone cliquable au moins 36 x 36 px desktop ;
+- zone cliquable au moins 44 x 44 px mobile ;
+- garder l’icône Check/Circle actuelle ;
+- conserver les toasts et chargements existants ;
+- ajouter title/aria-label adapté ;
+- ajouter `data-tour="quest-completion"` uniquement sur le premier contrôle de validation pertinent visible.
+
+# ÉTAPE E — PRÉREQUIS CLAIRS ET CLIQUABLES
+
+Conserver la logique de blocage actuelle reposant sur `activityTags` avec `type === "prereqtext"` et conserver `scrollToPrereq`.
+
+Remplacer seulement l’affichage joueur du type :
+
+`Quête prérequis : Nom`
+
+par un bloc actionnable plus clair.
+
+Pour un prérequis :
+
+- `<button type="button">` sur toute la surface.
+- Icône `Lock` dans un petit carré arrondi.
+- Texte secondaire :
+  `À TERMINER AVANT`
+- Texte principal :
+  le vrai nom de la quête prérequise.
+- `ChevronRight` à droite.
+- `aria-label` :
+  `Voir la quête requise : {nom}`
+- Classe de base :
+  - `bg-amber-500/[0.06]`
+  - `border border-amber-500/25`
+  - `rounded-xl`
+  - hover : `bg-amber-500/[0.10] border-amber-400/50`
+- Pas de fond orange opaque.
+- Chaque clic doit appeler exactement la logique existante `scrollToPrereq(prereqName)`.
+
+Plusieurs prérequis :
+- titre `X prérequis à terminer` ;
+- afficher les noms dans des boutons compacts et indépendants ;
+- chaque bouton navigue vers sa propre quête ;
+- pas de gros panneau inutile.
+
+Ajouter `data-tour="quest-prerequisite"` uniquement sur le premier bloc de prérequis visible.
+
+# ÉTAPE F — REPRENDRE MON ÉTAPE
+
+Ajouter une fonction unique `resumeRush()` sans dupliquer des algorithmes existants.
+
+Elle doit :
+1. effacer `searchQuery` si une recherche est active ;
+2. prioriser la sequence bookmarkée si elle existe ;
+3. sinon cibler `activeSequenceId` ;
+4. ouvrir le chapitre et milestone concernés si nécessaire ;
+5. définir `focusedSeqId` ;
+6. scroll vers `[data-seq-id="..."]` ;
+7. utiliser le conteneur `[data-scroll-container]` si disponible, sinon `window`;
+8. gérer l’absence d’étape à reprendre avec un toast/état utile ;
+9. ne pas introduire de timer infini ni de scroll concurrent avec les modales existantes.
+
+Ajouter le bouton `Reprendre mon étape` dans la barre d’actions.
+
+Ne pas créer une nouvelle grosse carte de reprise : le bouton dans la barre et la mise en avant de la quête active suffisent.
+
+# ÉTAPE G — NAVIGATION FLOTTANTE
+
+Remplacer le bouton fixe isolé de retour vers le haut uniquement si cela peut se faire sans retirer une interaction existante.
+
+Créer une pilule verticale compacte, à droite :
+- haut : remonter en haut ;
+- milieu : reprendre mon étape ;
+- bas : aller en bas du conteneur.
+
+Règles :
+- `fixed`, `z-40`, position non intrusive ;
+- ne masque aucun CTA mobile ;
+- tooltips/title :
+  - `Remonter en haut`
+  - `Reprendre mon étape`
+  - `Aller en bas`
+- le bouton milieu appelle `resumeRush()`;
+- scroll smooth seulement si l’utilisateur ne préfère pas réduire les animations ;
+- conserver ou améliorer proprement la logique existante `showScrollTop`.
+
+# ÉTAPE H — AIDE CONTEXTUELLE DÉSACTIVABLE
+
+Ne pas afficher des tooltips partout par défaut sans contrôle utilisateur.
+
+Ajouter dans la barre d’actions un réglage :
+- desktop : `Aide : activée` / `Aide : désactivée`
+- mobile : icône `CircleHelp`, avec aria-label complet.
+
+Créer un state local :
+```ts
+const helpStorageKey = `rush-contextual-help:${guideId}`
+const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false)
+```
+
+Persistance :
+- lire uniquement après montage client ;
+- si aucune préférence existe, activer par défaut la première fois ;
+- sauvegarder le choix dans localStorage ;
+- aucun changement backend/base de données.
+
+Créer un composant local léger `ContextualHelp` seulement si nécessaire :
+- ne s’affiche que si l’aide globale est active ;
+- une aide ouverte à la fois ;
+- hover + focus sur desktop ;
+- tap/click sur mobile ;
+- fermeture via Escape et clic extérieur ;
+- tooltip très courte, maximum deux phrases ;
+- support clavier ;
+- `aria-describedby` ;
+- rôle `tooltip` pour les aides non interactives ;
+- pas d’animation lourde ;
+- ne jamais cacher du contenu essentiel derrière une aide.
+
+Aides uniquement sur les éléments réellement ambigus :
+
+- Recherche :
+  `Recherche aussi les donjons, zones, notes et tags.`
+- Toggle terminées :
+  `Allège la timeline sans effacer ta progression.`
+- `Rendu ici` :
+  `Utilise ce repère pour reprendre rapidement plus tard.`
+- Validation :
+  `Valide cette quête lorsqu’elle est terminée.`
+- Prérequis :
+  `Clique ici pour revenir à la quête qui débloque cette étape.`
+- Tags de contrainte :
+  `Indique une contrainte importante à prévoir pour cette quête.`
+- Avatars de membres :
+  `Membres de la guilde arrivés à cette étape.`
+- Bouton milieu de navigation :
+  `Reviens à la quête où tu t’es arrêté.`
+
+Ne pas ajouter d’aide sur les boutons déjà suffisamment explicites :
+- DofusDB ;
+- Noobs ;
+- Reset ;
+- Reprendre ;
+- Valider.
+
+# ÉTAPE I — ONBOARDING
+
+NE PAS modifier ou remplacer `RushOnboardingWizardModal` existant.
+
+Ne crée pas de nouveau product tour dans cette tâche.
+Si une future amélioration est demandée, elle devra s’appuyer sur le composant existant et non créer une nouvelle dépendance sans validation.
+
+# VALIDATION TECHNIQUE OBLIGATOIRE
+
+Avant de conclure :
+
+1. Liste les fichiers réellement modifiés.
+2. Montre un diff clair ou les blocs précis changés.
+3. Vérifie TypeScript.
+4. Vérifie le lint.
+5. Ne masque jamais une erreur TypeScript avec `any`, `@ts-ignore`, `eslint-disable`, cast abusif ou suppression de types.
+6. Liste les risques de régression.
+7. Donne les tests manuels à effectuer.
+
+Tests indispensables :
+- pas de bookmark ;
+- bookmark de milestone ;
+- bookmark de sequence ;
+- toutes les quêtes terminées ;
+- quête avec un prérequis ;
+- plusieurs prérequis ;
+- prérequis dans un chapitre fermé ;
+- recherche avec accents ;
+- recherche de donjon ;
+- recherche d’une quête terminée lorsque hideDone est actif ;
+- recherche sans résultat ;
+- filtre Dofus actif ;
+- desktop ;
+- mobile ;
+- clavier ;
+- SSR sans `window` / `document`.

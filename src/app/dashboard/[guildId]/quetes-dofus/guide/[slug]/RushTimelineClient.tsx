@@ -1216,31 +1216,28 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     </div></div>
     {/* ── Barre d'actions ────────────────────────────────────────────────── */}
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sticky top-20 z-30">
-      <div className="relative flex-1 min-w-0 max-w-md flex items-center gap-1">
-        <ContextualHelp label="Recherche">Recherche aussi les donjons, zones, notes et tags.</ContextualHelp>
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-          <input
-            type="text"
-            data-tour="quest-search"
-            aria-label="Rechercher dans le guide"
-            placeholder="Rechercher une quête, un donjon ou une zone…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900/80 border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/40 transition-all"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-white">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+      <div className="relative flex-1 min-w-0 max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+        <input
+          type="text"
+          data-tour="quest-search"
+          aria-label="Rechercher dans le guide"
+          placeholder="Rechercher une quête, un donjon ou une zone…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="w-full bg-zinc-900/80 border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/40 transition-all"
+        />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
       <button onClick={()=>setHideDone(v=>!v)}
         className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${
           hideDone
             ? "bg-amber-600/25 border-amber-400/60 text-amber-300"
-            : "bg-emerald-600/20 border-emerald-400/50 text-emerald-300 hover:bg-emerald-600/30"
+            : "bg-zinc-900 border-zinc-700/60 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
         }`}
       >
         {hideDone ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -1258,11 +1255,11 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${
           contextualHelpEnabled
             ? "bg-emerald-600/20 border-emerald-400/50 text-emerald-300"
-            : "bg-zinc-900 border-white/10 text-zinc-500"
+            : "bg-zinc-900 border-white/10 text-zinc-600 hover:text-zinc-400"
         }`}
       >
         <CircleHelp className="w-3.5 h-3.5" />
-        <span className="hidden md:inline">Aide</span>
+        <span className="hidden md:inline">{contextualHelpEnabled ? "Aide : activée" : "Aide : désactivée"}</span>
       </button>
     </div>
     {/* ── Résultats de recherche ─────────────────────────────────────────── */}

@@ -360,8 +360,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
           {/* Compact external links */}
           <div className="flex flex-col items-end gap-1.5 flex-shrink-0 self-stretch justify-between">
-            {/* Ligne 1 : Noobs + DB */}
-            <div className="flex items-center gap-1.5">
+            {/* Noobs + DB en vertical */}
+            <div className="flex flex-col items-end gap-1.5">
               {noobsUrl && (
                 <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
                   <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>

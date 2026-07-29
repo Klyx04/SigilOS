@@ -1105,8 +1105,9 @@ function MilestoneRow({
                         seq={seq}
                         milestoneId={milestone.id}
                         isPending={isPending}
-                        onSave={(data) => {
-                          onSaveSequence({ ...data, id: seq.id, milestoneId: milestone.id });
+                        milestones={[milestone]}
+                        onSave={(data, targetMilestoneId) => {
+                          onSaveSequence({ ...data, id: seq.id, milestoneId: targetMilestoneId || milestone.id });
                           setEditingSeqId(null);
                         }}
                         onCancel={() => setEditingSeqId(null)}
@@ -1361,9 +1362,10 @@ function ActivityTagsEditor({ tags, onChange }: {
 
 
 // ─── SequenceEditForm ─────────────────────────────────────────────────────────
-function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
+function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, milestones }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
-  onSave: (data: any) => void; onCancel: () => void;
+  onSave: (data: any, targetMilestoneId?: string) => void; onCancel: () => void;
+  milestones?: Milestone[];
 }) {
   const [name, setName] = useState(seq.subGuideName || seq.subGuideRef);
   const [dofusdbUrl, setDofusdbUrl] = useState(seq.dofusdbUrl || "");
@@ -1932,6 +1934,28 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
         )}
       </div>
 
+      {/* ── Déplacer vers un autre bloc ─────────────────────────────── */}
+      {seq.id && milestones && milestones.length > 1 && (
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
+          <select
+            value=""
+            onChange={e => {
+              const targetId = e.target.value;
+              if (targetId && targetId !== milestoneId) {
+                onSave({ subGuideRef: name.trim(), activityTags }, targetId);
+              }
+            }}
+            className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-[10px] text-emerald-200 focus:outline-none"
+          >
+            <option value="">— Choisir un bloc —</option>
+            {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m)).map(m => (
+              <option key={m.id} value={m.id}>{m.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="flex items-center gap-2 pt-1">
         <button onClick={handleSubmit} disabled={isPending || !name.trim()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all"

@@ -654,7 +654,7 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
       const key = `${x},${y}`;
       parts.push(
         <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
-          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x} ${y}`).then(()=>{toast.success(`📍 Position [${x} ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
+          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x}, ${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
           title="Cliquer pour copier /travel"
         >
           <MapPin className="w-3 h-3 text-indigo-400" />
@@ -666,11 +666,11 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
       const x = m[6], y = m[7];
       parts.push(
         <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
-          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x} ${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
+          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x}, ${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
           title="Cliquer pour copier /travel"
         >
           <MapPin className="w-3 h-3 text-indigo-400" />
-          [{x} {y}]
+          [{x}, {y}]
         </span>
       );
     }

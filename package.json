@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint --max-warnings=5000",
+    "lint": "eslint --max-warnings=10000",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",

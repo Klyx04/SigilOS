@@ -585,7 +585,7 @@ export async function shareGalleryItemOnDiscord(
             embedDescription = `Partagé par **${authorName}** via SigilOS.`;
             
             // Premium UI 2026: Large image for the build + Site icon as thumbnail
-            let rawBuildImg = build.previewData?.thumbnail?.trim();
+            const rawBuildImg = build.previewData?.thumbnail?.trim();
             if (rawBuildImg) {
                 try {
                     embedImage = new URL(rawBuildImg).href;

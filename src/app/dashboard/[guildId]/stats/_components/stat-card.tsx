@@ -26,7 +26,7 @@ export default function StatCard({ icon: Icon, label, value, accent = "violet" }
     const a = accentColors[accent];
 
     return (
-        <div className={`relative overflow-hidden rounded-xl border ${a.border} ${a.bg} backdrop-blur-sm p-4 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group`}>
+        <div className={`relative overflow-hidden rounded-xl border ${a.border} ${a.bg} p-4 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group`}>
             {/* Glow effect */}
             <div
                 className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-40"

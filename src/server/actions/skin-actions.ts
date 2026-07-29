@@ -51,10 +51,19 @@ async function scrapeSkinMetadata(url: string): Promise<SkinData> {
             }
         });
 
-        // Extract Equipment
+        // Extract Equipment — all item types (Objet vivant, Objet d'apparat, Mimibiotable, etc.)
+        const BARBOFUS_ITEM_TYPES = new Set([
+            "Objet d'apparat",
+            "Objet vivant",
+            "Mimibiotable",
+            "Familier",
+            "Dragodinde",
+            "Monture",
+        ]);
+
         $('p').each((_, el) => {
             const text = $(el).text().trim();
-            if (text === "Objet d'apparat") {
+            if (BARBOFUS_ITEM_TYPES.has(text)) {
                 const itemDiv = $(el).closest('div').next('div');
                 if (itemDiv.length) {
                     const name = itemDiv.find('p').text().trim();
@@ -65,6 +74,7 @@ async function scrapeSkinMetadata(url: string): Promise<SkinData> {
                 }
             }
         });
+
         
         // Extract Author (Robust)
         const author = $('h2:contains("par") span').first().text().trim() || 

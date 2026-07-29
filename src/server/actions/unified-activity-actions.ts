@@ -45,57 +45,93 @@ export async function getUnifiedGuildActivity(guildId: string, limit = 15): Prom
 
         const internalGuildId = guildConfig.id;
 
-        // Parallel fetching from multiple tables
-        const [
-            serviceLogs,
-            missionSubmissions,
-            ocreTrades,
-            donations
-        ] = await Promise.all([
-            // 1. Service Activity Logs
-            db.serviceActivityLog.findMany({
-                where: { guildId: internalGuildId },
-                orderBy: { createdAt: "desc" },
-                take: limit,
-                include: { actor: { include: { user: { select: { image: true } } } } }
-            }),
-            // 2. Validated Mission Submissions
-            db.submission.findMany({
-                where: { 
-                    mission: { guildId: internalGuildId },
-                    status: "VALIDATED"
-                },
-                orderBy: { updatedAt: "desc" },
-                take: limit,
-                include: { 
-                    profile: { include: { user: { select: { image: true } } } },
-                    mission: true
+        // Sequential queries or slim selects to avoid pool starvation
+        const serviceLogs = await db.serviceActivityLog.findMany({
+            where: { guildId: internalGuildId },
+            orderBy: { createdAt: "desc" },
+            take: limit,
+            select: {
+                id: true,
+                module: true,
+                summary: true,
+                createdAt: true,
+                actor: {
+                    select: {
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { image: true } }
+                    }
                 }
-            }),
-            // 3. Completed Ocre Trades
-            db.ocreTradeRequest.findMany({
-                where: { 
-                    guildId: internalGuildId,
-                    status: "ACCEPTED"
+            }
+        });
+
+        const missionSubmissions = await db.submission.findMany({
+            where: { 
+                mission: { guildId: internalGuildId },
+                status: "VALIDATED"
+            },
+            orderBy: { updatedAt: "desc" },
+            take: limit,
+            select: {
+                id: true,
+                updatedAt: true,
+                profile: {
+                    select: {
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { image: true } }
+                    }
                 },
-                orderBy: { updatedAt: "desc" },
-                take: limit,
-                include: { 
-                    requester: { include: { user: { select: { image: true } } } },
-                    target: { include: { user: { select: { image: true } } } }
+                mission: { select: { title: true } }
+            }
+        });
+
+        const ocreTrades = await db.ocreTradeRequest.findMany({
+            where: { 
+                guildId: internalGuildId,
+                status: "ACCEPTED"
+            },
+            orderBy: { updatedAt: "desc" },
+            take: limit,
+            select: {
+                id: true,
+                updatedAt: true,
+                monsterName: true,
+                requester: {
+                    select: {
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { image: true } }
+                    }
+                },
+                target: {
+                    select: {
+                        pseudoDofus: true
+                    }
                 }
-            }),
-            // 4. Validated Kama Donations
-            db.kamaDonation.findMany({
-                where: {
-                    guildId: internalGuildId,
-                    status: "VALIDATED"
-                },
-                orderBy: { updatedAt: "desc" },
-                take: limit,
-                include: { profile: { include: { user: { select: { image: true } } } } }
-            })
-        ]);
+            }
+        });
+
+        const donations = await db.kamaDonation.findMany({
+            where: {
+                guildId: internalGuildId,
+                status: "VALIDATED"
+            },
+            orderBy: { updatedAt: "desc" },
+            take: limit,
+            select: {
+                id: true,
+                updatedAt: true,
+                amount: true,
+                profile: {
+                    select: {
+                        pseudoDofus: true,
+                        discordNickname: true,
+                        user: { select: { image: true } }
+                    }
+                }
+            }
+        });
 
         const unified: UnifiedLog[] = [];
 

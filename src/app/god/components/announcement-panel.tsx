@@ -120,21 +120,7 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
     };
 
     return (
-        <div className="space-y-12">
-            {/* Header */}
-            <div className="flex items-center gap-4 border-b border-white/5 pb-8">
-                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-lg shadow-amber-500/5">
-                    <Megaphone className="w-8 h-8 text-amber-400" />
-                </div>
-                <div>
-                    <h2 className="text-3xl font-black text-white uppercase tracking-tight">
-                        Communication
-                    </h2>
-                    <p className="text-zinc-500 text-sm font-medium">Bandeaux dashboard et annonces globales discord.</p>
-                </div>
-            </div>
-
-            <div className="space-y-8">
+        <div className="space-y-8">
                 {/* 1. DASHBOARD BANNER SECTION */}
                 <div className="bg-zinc-900/40 border border-white/5 rounded-[2.5rem] p-6 md:p-10 space-y-8 overflow-hidden relative group">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
@@ -324,22 +310,22 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                                 </label>
                             </div>
 
-                            {stelliumChannels.length > 0 && (
-                                <div className="p-6 rounded-3xl bg-violet-500/5 border border-violet-500/10 space-y-4">
+                            {stelliumChannels && stelliumChannels.length > 0 && (
+                                <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/10 space-y-2 backdrop-blur-md">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
-                                        <span className="text-xs font-black text-violet-400 uppercase tracking-widest">
-                                            Destination Stellium
+                                        <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                                        <span className="text-[10px] font-black text-violet-300 uppercase tracking-widest">
+                                            Cibleur de Salon Spécifique (Guilde Dev)
                                         </span>
                                     </div>
                                     <select
                                         value={stelliumChannelId}
                                         onChange={(e) => setStelliumChannelId(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/5 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:border-violet-500/30 transition-all"
+                                        className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-violet-500/50 cursor-pointer"
                                     >
-                                        <option value="">Par défaut (Config Guilde)</option>
+                                        <option value="" className="bg-zinc-900 text-zinc-300">Toutes les guildes (Salons d'annonces configurés)</option>
                                         {stelliumChannels.map(c => (
-                                            <option key={c.id} value={c.id}># {c.name}</option>
+                                            <option key={c.id} value={c.id} className="bg-zinc-900 text-white"># {c.name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -394,6 +380,5 @@ export function AnnouncementPanel({ currentAnnouncement }: AnnouncementPanelProp
                     </div>
                 </div>
             </div>
-        </div>
     );
 }

@@ -182,36 +182,31 @@ const UpdatePollSchema = z.object({
 
 // --- Category Config ---
 
-const POLL_CATEGORY_CONFIG: Record<PollCategory, { label: string; color: number; emoji: string; imageUrl: string }> = {
+const POLL_CATEGORY_CONFIG: Record<PollCategory, { label: string; color: number; emoji: string }> = {
     SUGGESTION: {
         label: "💡 Suggestion",
         color: 0x06b6d4,
         emoji: "💡",
-        imageUrl: "/assets/sondages/suggestion.png"
     },
     AMELIORATION: {
         label: "🔧 Amélioration",
         color: 0x10b981,
         emoji: "🔧",
-        imageUrl: "/assets/sondages/amelioration.png"
     },
     EVENT: {
         label: "🎉 Événement",
         color: 0xf59e0b,
         emoji: "🎉",
-        imageUrl: "/assets/sondages/evenement.png"
     },
     MISSION: {
         label: "🎯 Mission",
         color: 0xef4444,
         emoji: "🎯",
-        imageUrl: "/assets/sondages/mission.png"
     },
     AUTRE: {
         label: "📋 Autres",
         color: 0x8b5cf6,
         emoji: "📋",
-        imageUrl: "/assets/sondages/autres.png"
     },
 };
 
@@ -855,7 +850,6 @@ async function sendPollOutcomeToDiscord(
     await sendChannelMessage(poll.discordChannelId, description, {
         embedTitle: `🏁 SONDAGE TERMINÉ : ${poll.title.toUpperCase()}`,
         embedColor: catConfig.color,
-        embedImage: `${appUrl}${catConfig.imageUrl}`,
         embedFooter: `SigilOS • Résultat acté par un admin`,
         embedUrl: voteUrl,
     });
@@ -1100,7 +1094,6 @@ async function publishPollToDiscord(
         const embedOptions = {
             embedTitle: `📊 ${poll.title.toUpperCase()}`,
             embedColor: catConfig.color,
-            embedImage: `${appUrl}${catConfig.imageUrl}`,
             embedFooter: `SigilOS • ${catConfig.label}`,
             embedAuthor: {
                 name: `Sondage lancé par ${poll.creatorName}`,

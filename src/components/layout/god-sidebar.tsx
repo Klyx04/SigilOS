@@ -38,7 +38,7 @@ import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
 const CONSOLE_PAGES = [
-    { name: "Stats Plateforme", id: "overview", icon: LayoutDashboard, color: "text-blue-400" },
+    { name: "Command Center", id: "overview", icon: Terminal, color: "text-blue-400" },
     { name: "Activité Dashboard", id: "telemetry", icon: Activity, color: "text-violet-400" },
     { name: "Guildes & Users", id: "guilds", icon: Settings2, color: "text-emerald-400" },
 

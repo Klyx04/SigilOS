@@ -72,7 +72,7 @@ export const GarticLayout = ({
             {/* RETOUR SELECTION */}
             <div className="absolute top-2 left-2 md:top-6 md:left-6 z-[200] flex flex-col gap-2">
                 <button 
-                    onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
+                    onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux#mini-jeux`}
                     className="group flex flex-col items-center justify-center w-10 h-10 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl border border-white/10 shadow-lg transition-all hover:scale-110 active:scale-95 group"
                     title="Retour à la sélection"
                 >

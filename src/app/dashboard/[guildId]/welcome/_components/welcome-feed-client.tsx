@@ -106,9 +106,9 @@ export function WelcomeFeedClient({ initialPosts, reactorNames, currentProfileId
                         <div className="absolute left-[19px] top-6 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] border-2 border-zinc-950 z-10 hidden md:block" />
 
                         <div className="md:pl-16">
-                            <div className="relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#030303]/40 backdrop-blur-md hover:bg-[#050505]/60 hover:border-amber-500/20 transition-all duration-500 p-6 md:p-8 shadow-xl">
+                            <div className="relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-[#030303]/80 hover:bg-[#050505] hover:border-amber-500/20 transition-all duration-500 p-6 md:p-8 shadow-xl">
                                 {/* Visual Accent */}
-                                <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/5 blur-[80px] rounded-full group-hover:bg-amber-500/10 transition-colors duration-1000" />
+                                <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full group-hover:bg-amber-500/20 transition-colors duration-1000 pointer-events-none" />
 
                                 <div className="flex flex-col md:flex-row gap-6 relative z-10">
                                     <div className="shrink-0">

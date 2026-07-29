@@ -609,6 +609,7 @@ export type KamaWeeklySummaryResult = {
     totalValidated: number;
     totalPending: number;
     memberCount: number;
+    requiredPurpleKamas: number;
 };
 
 export async function getWeeklyKamaSummary(
@@ -621,9 +622,11 @@ export async function getWeeklyKamaSummary(
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true },
+            select: { id: true, raidKamaDonationThreshold: true },
         });
         if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const requiredPurpleKamas = (guildConfig.raidKamaDonationThreshold ?? 3) * 10;
 
         // Check if viewer is officer/admin (to expose proof URLs)
         const isOfficer = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
@@ -789,6 +792,7 @@ export async function getWeeklyKamaSummary(
                 totalValidated,
                 totalPending,
                 memberCount: members.length,
+                requiredPurpleKamas,
             },
         };
     } catch (error) {

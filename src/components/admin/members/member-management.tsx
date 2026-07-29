@@ -446,12 +446,12 @@ export default function MemberManagement({
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 {/* Tabs with scroll on mobile */}
-                <div className="overflow-x-auto no-scrollbar -mx-2 px-2">
-                    <TabsList className="bg-zinc-900/50 p-1.5 rounded-[22px] border border-white/5 backdrop-blur-xl w-fit flex-nowrap whitespace-nowrap">
+                <div className="overflow-x-auto no-scrollbar -mx-2 px-2 pb-2">
+                    <TabsList className="bg-zinc-950/80 p-2 rounded-2xl border border-white/10 backdrop-blur-xl w-full sm:w-fit flex flex-wrap sm:flex-nowrap gap-3">
                     {[
-                        { id: "audit", label: "Audit & Sync", icon: ShieldCheck, requiresFull: true },
-                        { id: "management", label: "Roster & Historique", icon: UserCircle, requiresFull: true },
-                        { id: "blacklist", label: "Blacklist (Jeu)", icon: Ban, requiresFull: true },
+                        { id: "audit", label: "📊 Audit Discord vs Dashboard", icon: ShieldCheck, requiresFull: true },
+                        { id: "management", label: "👥 Liste Roster & Membres", icon: UserCircle, requiresFull: true },
+                        { id: "blacklist", label: "🚫 Blacklist Guilde", icon: Ban, requiresFull: true },
                     ].map(tab => {
                         const isDisabled = tab.requiresFull && !canManageMembers;
                         
@@ -459,11 +459,11 @@ export default function MemberManagement({
                             <TooltipProvider key={tab.id}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <div className="inline-block">
+                                        <div className="inline-block flex-1 sm:flex-none">
                                             <TabsTrigger 
                                                 value={tab.id} 
                                                 disabled={isDisabled}
-                                                className={`rounded-[16px] px-6 py-2.5 data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-violet-600/20 data-[state=active]:border-t data-[state=active]:border-white/20 transition-all text-[11px] font-black uppercase tracking-[0.15em] gap-2.5 ${isDisabled ? 'opacity-40 cursor-not-allowed saturate-0' : ''}`}
+                                                className={`w-full rounded-xl px-5 py-3 data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-violet-600/30 transition-all text-xs font-black uppercase tracking-wider gap-2.5 ${isDisabled ? 'opacity-40 cursor-not-allowed saturate-0' : ''}`}
                                             >
                                                 {isDisabled ? <ShieldAlert className="w-4 h-4 text-zinc-500" /> : <tab.icon className="w-4 h-4" />}
                                                 {tab.label}
@@ -485,9 +485,6 @@ export default function MemberManagement({
                 {/* --- TAB 1: AUDIT --- */}
                 <TabsContent value="audit" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
                     <div className="space-y-8">
-                        {/* Advanced Discord Activity Charts */}
-                        {data && <MemberDiscordCharts members={data.members} roleStats={data.stats} />}
-
                         {/* Bottom Utility Cards */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Embedded Sync Card */}

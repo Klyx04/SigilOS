@@ -140,18 +140,6 @@ export function PollCard({ poll, guildId, index = 0 }: PollCardProps) {
 
                     {/* Body */}
                     <div className="px-6 py-7 space-y-7 relative z-10">
-                        {/* Background category image with mask */}
-                        <div className="absolute inset-0 z-[-1] opacity-40 group-hover:opacity-50 transition-opacity duration-700 pointer-events-none">
-                            <img
-                                src={`/assets/sondages/${poll.category === 'EVENT' ? 'evenement' :
-                                    poll.category === 'AUTRE' ? 'autres' :
-                                        poll.category.toLowerCase()
-                                    }.png`}
-                                alt=""
-                                className="w-full h-full object-cover grayscale brightness-[0.3] contrast-[1.2] scale-105 group-hover:scale-110 transition-transform duration-[2s]"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
-                        </div>
 
                         {poll.outcome && (
                             <div className="flex items-center gap-2 px-3.5 py-1.5 w-fit rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md">

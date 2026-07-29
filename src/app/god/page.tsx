@@ -31,7 +31,6 @@ import {
 } from "@/server/actions/god-lifecycle-actions";
 import { LiveStats } from "./components/live-stats";
 import { GuildTable } from "./components/guild-table";
-import { LifecyclePanel } from "./components/lifecycle-panel";
 import { ActivityChart } from "./activity-chart";
 import { JanitorButton } from "./janitor-button";
 import { GodDashboardClient } from "./god-dashboard-client";
@@ -43,6 +42,7 @@ import GameDataInterface from "@/components/admin/GameDataInterface";
 import { EventZoneManager } from "@/components/admin/EventZoneManager";
 
 import { OverviewTabs } from "./components/overview-tabs";
+import { BlacklistSection } from "./components/blacklist-section";
 import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
 import { Suspense } from "react";
@@ -113,20 +113,20 @@ export default async function SuperAdminPage(props: {
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 pb-12 border-b border-white/5">
                                 <div className="space-y-4 min-w-0">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-xl bg-violet-500/10 border border-violet-500/20 shrink-0">
-                                            <Activity className="w-5 h-5 text-violet-400" />
+                                        <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 shrink-0">
+                                            <Activity className="w-5 h-5 text-blue-400" />
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
-                                            Performance Overview
+                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                                            Central Operations
                                         </span>
                                     </div>
 
                                     <div className="space-y-2">
                                         <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white tracking-tight">
-                                            Console
+                                            Command Center
                                         </h1>
                                         <p className="text-zinc-500 text-base md:text-lg font-medium max-w-3xl leading-relaxed">
-                                            Gestion centrale de SigilOS : Analytics, Communication globale et Systèmes.
+                                            Supervision directe des services, diffusion des annonces système et déclencheurs d'infrastructures.
                                         </p>
                                     </div>
                                 </div>
@@ -167,15 +167,7 @@ export default async function SuperAdminPage(props: {
                                 <GuildsServer />
                             </Suspense>
 
-                            <LifecyclePanel
-                                guilds={resolvedData.softDeletedGuilds as any}
-                                profiles={resolvedData.softDeletedProfiles as any}
-                                archivedProfiles={resolvedData.archivedProfiles as any}
-                                bans={resolvedData.platformBans as any}
-                                activeGuilds={resolvedData.activeGuilds as any}
-                                ghostUsers={resolvedData.ghostUsers as any}
-                                unauthorizedConnections={resolvedData.unauthorizedConnections as any}
-                            />
+                            <BlacklistSection bans={resolvedData.platformBans as any} />
                         </div>
                     )}
 

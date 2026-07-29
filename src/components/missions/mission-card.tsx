@@ -185,10 +185,20 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
         }
     };
 
+    const getEventImage = () => {
+        if (mission.category !== 'EVENT') return null;
+        if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
+            return "/assets/missions/fragment.png";
+        }
+        return payload.imageUrl || null;
+    };
+
     const imageUrl = mission.category === 'SONGES'
         ? getSongesImage()
         : mission.category === 'ANOMALIE'
         ? getAnomalieImage()
+        : mission.category === 'EVENT'
+        ? getEventImage()
         : (payload.imageUrl || payload.image || (config as any).fallbackImage || null);
 
     // Check user's submission status for this mission
@@ -209,7 +219,7 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
         (mission.category === 'ANOMALIE' && !payload.levelRange && !payload.type) ||
         (mission.category === 'SONGES' && !payload.difficulty && !payload.epreuve) ||
         (mission.category === 'EXPEDITION' && !payload.dungeonName) ||
-        (mission.category === 'EVENT' && !payload.description)
+        (mission.category === 'EVENT' && !payload.description && payload.eventType !== 'FRAGMENTS_ANOMALIE')
     );
 
     if (isEmpty) {
@@ -639,7 +649,9 @@ function getAutoTitle(category: MissionCategory, payload: any): string {
         case "ANOMALIE": return payload.type === 'BOSS' ? `Gardien d'anomalie ${payload.levelRange || '200'}` : payload.type === 'FRAGMENTS' ? `Collecte Fragments` : payload.type === 'STABILISATION' ? `Stabilisation Gardiens` : "Au cœur de l'anomalie";
         case "SONGES": return payload.epreuve ? `Réaliser l'épreuve de Songe ${payload.epreuve}` : (payload.difficulty && payload.level ? `Plongée en ${payload.difficulty} ${payload.level}` : "Songes Infinis");
         case "EXPEDITION": return payload.dungeonName ? `Expédition de ${payload.dungeonName}` : "Expédition";
-        case "EVENT": return payload.title || "Événement Spécial";
+        case "EVENT":
+            if (payload.eventType === 'FRAGMENTS_ANOMALIE') return payload.title || "Fragments d'anomalie";
+            return payload.title || "Événement Spécial";
         default: return "Mission";
     }
 }
@@ -721,6 +733,30 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 <>Vaincre <span className="text-amber-400 font-medium">{payload.bossName || "le Boss"}</span> dans son expédition{modeText}</>
             );
         case "EVENT":
+            if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
+                return (
+                    <>Obtenir <span className="text-fuchsia-400 font-bold">20 Fragments d'anomalie</span> dans une anomalie (tous niveaux)</>
+                );
+            }
+            if (payload.eventType === 'OBJECTIF' || payload.description) {
+                return <>{payload.description || "Participer à l'événement."}</>;
+            }
+            if (payload.eventType === 'MONSTRE_SPECIAL' && payload.monsterName) {
+                return (
+                    <>Vaincre <span className="text-purple-400 font-bold">{payload.targetCount || 50} {payload.monsterName}</span></>
+                );
+            }
+            if (payload.eventType === 'DONJON' && payload.bossName) {
+                return (
+                    <>Vaincre <span className="text-rose-400 font-medium">{payload.bossName}</span> dans son donjon</>
+                );
+            }
+            if (payload.eventType === 'REGULATION' && (payload.familyName || payload.zoneName)) {
+                const target = payload.familyName || "monstres";
+                return (
+                    <>Vaincre <span className="text-amber-400 font-medium">50 {target}</span> sur leur territoire</>
+                );
+            }
             return <>{payload.description || "Participer à l'événement."}</>;
         default:
             return "Compléter l'objectif demandé.";

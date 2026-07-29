@@ -386,18 +386,18 @@ export async function getGuildStats(guildId: string): Promise<{
             // NEW: Quest Stats Batching
             db.playerDofusProgress.groupBy({
                 by: ["dofusId"],
-                where: { guildId, isObtained: true },
+                where: { guildId: internalGuildId, isObtained: true },
                 _count: true,
             }),
             db.playerDofusQuestProgress.groupBy({
                 by: ["questId"],
-                where: { guildId, status: "IN_PROGRESS" },
+                where: { guildId: internalGuildId, status: "IN_PROGRESS" },
                 _count: true,
                 orderBy: { _count: { questId: "desc" } },
                 take: 10,
             }),
             db.playerDofusProgress.findMany({
-                where: { guildId, isObtained: true },
+                where: { guildId: internalGuildId, isObtained: true },
                 orderBy: { obtainedAt: "desc" },
                 take: 5,
                 select: {
@@ -408,7 +408,7 @@ export async function getGuildStats(guildId: string): Promise<{
             }),
             db.playerDofusProgress.groupBy({
                 by: ["profileId"],
-                where: { guildId },
+                where: { guildId: internalGuildId },
                 _avg: { completionPercent: true },
                 orderBy: { _avg: { completionPercent: "desc" } },
                 take: 10
@@ -508,7 +508,7 @@ export async function getGuildStats(guildId: string): Promise<{
                 select: { id: true, slug: true, name: true }
             }),
             db.dofusQuestEntry.findMany({
-                where: { id: { in: (resultsBatch3[16] as any[]).map(q => q.questId) } },
+                where: { id: { in: (resultsBatch3[15] as any[]).map(q => q.questId) } },
                 select: { id: true, name: true }
             })
         ]);
@@ -678,9 +678,14 @@ export async function getGuildStats(guildId: string): Promise<{
             retention: {
                 growth: [], // Calculated below if needed
                 totalJoins: retentionData.length,
-                avgTenureDays: retentionData.filter((r: any) => r.archivedAt).length > 0
-                    ? Math.round(retentionData.filter((r: any) => r.archivedAt).reduce((acc: number, r: any) => acc + (r.archivedAt!.getTime() - r.createdAt.getTime()), 0) / retentionData.filter((r: any) => r.archivedAt).length / (1000 * 60 * 60 * 24))
-                    : 365, // Default/Placeholder
+                avgTenureDays: retentionData.length > 0
+                    ? Math.round(
+                        retentionData.reduce((acc: number, r: any) => {
+                            const end = r.archivedAt ? r.archivedAt.getTime() : Date.now();
+                            return acc + (end - r.createdAt.getTime());
+                        }, 0) / retentionData.length / (1000 * 60 * 60 * 24)
+                    )
+                    : 0,
             },
             quests: {
                 ownership: dofusTemplates.map((t: any) => ({

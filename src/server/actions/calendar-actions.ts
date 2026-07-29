@@ -1929,7 +1929,8 @@ export async function getCalendarPublicConfig(guildId: string) {
                 calendarNotifyChannelId: true, 
                 raidNotifyChannelId: true,
                 raidGigalodonNotifyChannelId: true,
-                raidSanctuaireNotifyChannelId: true
+                raidSanctuaireNotifyChannelId: true,
+                raidAllowedSignUpRoleIds: true
             }
         });
 

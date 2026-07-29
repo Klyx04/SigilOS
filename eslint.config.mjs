@@ -25,6 +25,13 @@ const eslintConfig = defineConfig([
     "prisma/**",
     "tmp/**",
     "artifacts/**",
+    // Legacy / scratch / debug — jamais lintés
+    "cloudflare-workers/**",
+    "scratch-*.ts",
+    "scratch/**",
+    ".gemini/**",
+    "services/**",
+    "prisma.config.js",
   ]),
 
   // ── 3. NOS OVERRIDES (DERNIER = GAGNE en flat config) ──
@@ -48,6 +55,7 @@ const eslintConfig = defineConfig([
       "@next/next/no-assign-module-variable": "warn",
       "@typescript-eslint/no-this-alias": "warn",
       "@typescript-eslint/no-unused-expressions": "warn",
+      "prefer-const": "warn",
 
       // React Hooks — classiques
       "react-hooks/rules-of-hooks": "warn",

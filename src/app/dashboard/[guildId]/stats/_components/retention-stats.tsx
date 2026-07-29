@@ -57,13 +57,10 @@ export default function RetentionStats({ retention, totalMembers }: RetentionSta
                 </div>
                 <div className="space-y-1">
                     <p className="text-3xl font-black text-white italic tracking-tighter">
-                        {Math.round(totalMembers * 0.7)}
+                        {totalMembers}
                     </p>
-                    <p className="text-xs font-medium text-indigo-400/80 uppercase tracking-widest font-bold">Membres actifs (7j)</p>
+                    <p className="text-xs font-medium text-indigo-400/80 uppercase tracking-widest font-bold">Membres actifs</p>
                 </div>
-                <p className="text-[10px] text-zinc-500 italic bg-white/5 px-2 py-1 rounded border border-white/10 text-center uppercase tracking-widest font-bold">
-                    Estimation par activité SQL
-                </p>
             </div>
         </div>
     );

@@ -185,9 +185,6 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
     } else if (event.type === "GAME_GEOGUESSER") {
         const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
         href = `/dashboard/${guildId}/mini-jeux?room=${(event.metadata as any).roomId}${spec}#mini-jeux`;
-    } else if (event.type === "GAME_KING") {
-        const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
-        href = `/dashboard/${guildId}/mini-jeux/sigil-invader?room=${(event.metadata as any).roomId}${spec}`;
     }
 
     return (

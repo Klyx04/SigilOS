@@ -8,9 +8,10 @@ interface PerformanceStatsProps {
 }
 
 export default function PerformanceStats({ performance }: PerformanceStatsProps) {
+    const hasValidations = performance.totalValidations > 0;
     const avgHours = performance.avgValidationHours || 0;
-    const performanceRating = avgHours <= 1 ? "Éclair ⚡" : avgHours <= 4 ? "Rapide 🚀" : avgHours <= 24 ? "Correct ✅" : "Peut mieux faire 🐢";
-    const ratingColor = avgHours <= 4 ? "text-amber-400" : avgHours <= 24 ? "text-emerald-400" : "text-rose-400";
+    const performanceRating = !hasValidations ? "N/A" : avgHours <= 1 ? "Éclair ⚡" : avgHours <= 4 ? "Rapide 🚀" : avgHours <= 24 ? "Correct ✅" : "Peut mieux faire 🐢";
+    const ratingColor = !hasValidations ? "text-zinc-500" : avgHours <= 4 ? "text-amber-400" : avgHours <= 24 ? "text-emerald-400" : "text-rose-400";
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

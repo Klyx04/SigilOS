@@ -49,6 +49,7 @@ export function RushOnboardingWizardModal({
   if (!isOpen) return null;
 
   const currentSelectedChar = characters.find((c) => c.id === selectedCharacter) || characters[0];
+  const uniqueActiveMembers = Array.from(new Map(activeMembers.map(m => [m.profileId || m.userName, m])).values());
 
   return (
     <AnimatePresence>
@@ -160,14 +161,14 @@ export function RushOnboardingWizardModal({
             {step === 2 && (
               <div className="space-y-3">
                 <p className="text-xs text-zinc-300 font-medium">
-                  {activeMembers.length > 0
-                    ? `${activeMembers.length} membre(s) de guilde sont actuellement sur ce Rush :`
+                  {uniqueActiveMembers.length > 0
+                    ? `${uniqueActiveMembers.length} membre(s) de guilde sont actuellement sur ce Rush :`
                     : "Vous êtes le premier de la guilde à vous lancer dans ce Rush !"}
                 </p>
 
-                {activeMembers.length > 0 ? (
+                {uniqueActiveMembers.length > 0 ? (
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {activeMembers.map((m, idx) => (
+                    {uniqueActiveMembers.map((m, idx) => (
                       <div
                         key={idx}
                         className="flex items-center justify-between p-3 rounded-2xl bg-zinc-900/60 border border-white/5"

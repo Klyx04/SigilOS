@@ -59,7 +59,23 @@ export type ExpeditionPayload = {
 
 // === EVENT ===
 export type EventPayload = {
-    description: string;
+    eventType?: 'REGULATION' | 'DONJON' | 'MONSTRE_SPECIAL' | 'OBJECTIF' | 'FRAGMENTS_ANOMALIE';
+    contextPreset?: 'VULKANIA' | 'NOWEL' | 'PWAK' | 'HALOUINE' | 'AUTRE';
+    contextManual?: string;
+    description?: string;
+    dungeonId?: string;
+    dungeonName?: string;
+    bossName?: string;
+    level?: number;
+    imageUrl?: string;
+    zoneId?: string;
+    zoneName?: string;
+    familyId?: string;
+    familyName?: string;
+    targetCount?: number;
+    monsterName?: string;
+    title?: string;
+    customObjective?: string;
 }
 
 // Union type for all payloads

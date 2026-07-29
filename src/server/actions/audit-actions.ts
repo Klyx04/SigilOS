@@ -574,8 +574,8 @@ export async function getAuditLogs(
             }
         }
 
-        if (actorFilter) {
-            where.actorUserId = actorFilter;
+        if (actorFilter && actorFilter.trim()) {
+            where.actorName = { contains: actorFilter.trim(), mode: 'insensitive' };
         }
 
         if (dateFrom || dateTo) {
@@ -762,7 +762,9 @@ export async function getGlobalAuditLogs(
                 where.action = actionFilter;
             }
         }
-        if (actorFilter) where.actorUserId = actorFilter;
+        if (actorFilter && actorFilter.trim()) {
+            where.actorName = { contains: actorFilter.trim(), mode: 'insensitive' };
+        }
         if (dateFrom || dateTo) {
             where.createdAt = {};
             if (dateFrom) (where.createdAt as any).gte = dateFrom;

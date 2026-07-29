@@ -1214,7 +1214,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </div>
     </div></div>
     {/* ── Barre d'actions ────────────────────────────────────────────────── */}
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sticky top-20 z-30">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sticky top-20 z-30 flex-wrap">
       <div className="relative flex-1 min-w-0 max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
         <input
@@ -1235,30 +1235,37 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       <button onClick={()=>setHideDone(v=>!v)}
         className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${
           hideDone
-            ? "bg-amber-600/25 border-amber-400/60 text-amber-300"
-            : "bg-zinc-900 border-zinc-700/60 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+            ? "bg-amber-600/25 border-amber-400/60 text-amber-300 shadow-amber-500/10"
+            : "bg-zinc-900/60 border-zinc-700/50 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
         }`}
       >
         {hideDone ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-        {hideDone ? "Afficher tout" : "Masquer les quêtes terminées"}
+        {hideDone ? "Afficher tout" : "Masquer les terminées"}
       </button>
       <button onClick={resumeRush}
-        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-emerald-400/50 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0"
+        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-2 border-emerald-400/50 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 shrink-0"
         title="Aller à l'étape active"
       >
         <MapPin className="w-3.5 h-3.5" />
         Reprendre mon étape
       </button>
-      <button onClick={toggleContextualHelp}
+      <button onClick={() => {
+        toggleContextualHelp();
+        if (!contextualHelpEnabled) {
+          toast("💡 Aide activée : des bulles d'aide apparaissent sur les éléments clés", { duration: 3000, icon: "❓" });
+        } else {
+          toast("Aide désactivée", { duration: 1500 });
+        }
+      }}
         aria-label="Activer/désactiver les aides"
         className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${
           contextualHelpEnabled
             ? "bg-emerald-600/20 border-emerald-400/50 text-emerald-300"
-            : "bg-zinc-900 border-white/10 text-zinc-600 hover:text-zinc-400"
+            : "bg-zinc-950 border-white/5 text-zinc-600 hover:border-white/20"
         }`}
       >
         <CircleHelp className="w-3.5 h-3.5" />
-        <span className="hidden md:inline">{contextualHelpEnabled ? "Aide : activée" : "Aide : désactivée"}</span>
+        <span className="hidden md:inline">Aide</span>
       </button>
     </div>
     {/* ── Résultats de recherche ─────────────────────────────────────────── */}

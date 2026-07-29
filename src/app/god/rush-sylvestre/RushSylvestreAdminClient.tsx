@@ -186,6 +186,10 @@ function isSeparatorMilestone(m: Pick<Milestone, "type">) {
   return m.type === "SEPARATEUR";
 }
 
+function isOutsideChapterMilestone(m: Pick<Milestone, "type">) {
+  return m.type === "SEPARATEUR" || m.type === "DOFUS_OBTAINED" || m.type === "INFO";
+}
+
 function sortMilestonesByOrder(milestones: Milestone[]) {
   return [...milestones].sort((a, b) => a.order - b.order);
 }
@@ -286,7 +290,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     }
 
     // Si on survole un bloc dans un chapitre différent
-    if (activeMs.chapter !== overMs.chapter) {
+    // INFO, DOFUS_OBTAINED etc. stay outside chapters — don't reassign
+    if (activeMs.chapter !== overMs.chapter && !isOutsideChapterMilestone(activeMs)) {
       setLocalMilestones(prev => {
         const updated = [...prev];
         const item = { ...updated[activeIndex], chapter: overMs.chapter, chapterLabel: overMs.chapterLabel };
@@ -312,7 +317,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     const updatedMilestones = [...localMilestones];
     const [movedItem] = updatedMilestones.splice(oldIndex, 1);
 
-    if (!isSeparatorMilestone(movedItem) && !isSeparatorMilestone(targetMilestone) && movedItem.chapter !== targetMilestone.chapter) {
+    // INFO, DOFUS_OBTAINED, SEPARATEUR stay outside chapters — don't reassign
+    if (!isOutsideChapterMilestone(movedItem) && !isOutsideChapterMilestone(targetMilestone) && movedItem.chapter !== targetMilestone.chapter) {
       movedItem.chapter = targetMilestone.chapter;
       movedItem.chapterLabel = targetMilestone.chapterLabel;
     }
@@ -329,7 +335,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
       try {
         await reorderRushMilestones(finalMilestones.map(m => m.id));
         // Si le chapitre a changé, on persiste
-        if (!isSeparatorMilestone(sourceMilestone) && !isSeparatorMilestone(targetMilestone) && sourceMilestone.chapter !== targetMilestone.chapter) {
+        if (!isOutsideChapterMilestone(sourceMilestone) && !isOutsideChapterMilestone(targetMilestone) && sourceMilestone.chapter !== targetMilestone.chapter) {
           await upsertRushMilestone({
             id: sourceMilestone.id,
             chapter: String(targetMilestone.chapter),
@@ -357,7 +363,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     if (!newStepTitle.trim()) { toast.error(newStepType === "SEPARATEUR" ? "Titre de section requis" : "Nom de l'étape requis"); return; }
     const isSeparator = newStepType === "SEPARATEUR";
     const isDofusBanner = newStepType === "DOFUS_OBTAINED";
-    const isOutsideChapter = isSeparator || isDofusBanner;
+    const isInfoBlock = newStepType === "INFO";
+    const isOutsideChapter = isSeparator || isDofusBanner || isInfoBlock;
     startTransition(async () => {
       try {
         await upsertRushMilestone({
@@ -381,8 +388,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
       try {
         await upsertRushMilestone({
           id: m.id,
-          chapter: String(isSeparatorMilestone(m) ? 0 : m.chapter),
-          chapterLabel: isSeparatorMilestone(m) ? "" : m.chapterLabel,
+          chapter: String(isOutsideChapterMilestone(m) ? 0 : m.chapter),
+          chapterLabel: isOutsideChapterMilestone(m) ? "" : m.chapterLabel,
           label: m.title,
           description: m.description ?? undefined,
           accentColor: m.accentColor ?? "#10b981",
@@ -554,7 +561,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </div>
                     </div>
 
-                    {newStepType !== "SEPARATEUR" && newStepType !== "DOFUS_OBTAINED" ? (
+                    {newStepType !== "SEPARATEUR" && newStepType !== "DOFUS_OBTAINED" && newStepType !== "INFO" ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">N° chapitre *</label>
@@ -571,6 +578,10 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                         />
                       </div>
                     </div>
+                    ) : newStepType === "INFO" ? (
+                      <p className="text-[10px] text-purple-400/70 leading-relaxed">
+                        Le bloc Conseil/Tips est un bandeau informatif autonome — il n'appartient à aucun chapitre et peut être déplacé librement entre les quêtes.
+                      </p>
                     ) : newStepType === "SEPARATEUR" ? (
                       <p className="text-[10px] text-amber-400/70 leading-relaxed">
                         Le séparateur est un titre visuel entre les blocs — il n'appartient à aucun chapitre.

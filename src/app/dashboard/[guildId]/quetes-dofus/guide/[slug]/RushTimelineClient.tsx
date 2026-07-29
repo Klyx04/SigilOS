@@ -359,23 +359,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           </div>
 
           {/* Compact external links */}
-          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-            {/* Ligne 1 : Dofus link badge + Noobs + DB */}
+          <div className="flex flex-col items-end gap-1.5 flex-shrink-0 self-stretch justify-between">
+            {/* Ligne 1 : Noobs + DB */}
             <div className="flex items-center gap-1.5">
-              {(()=>{
-                const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
-                const tn = t?.name;
-                if(tn){
-                  const d = DOFUS_DEFS.find(x=>x.id===tn);
-                  if(d) return (
-                    <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10" style={{color:d.color}}>
-                      <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain" />
-                      {d.label}
-                    </span>
-                  );
-                }
-                return null;
-              })()}
               {noobsUrl && (
                 <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
                   <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
@@ -391,6 +377,21 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 </a>
               )}
             </div>
+            {/* Dofus icon — large, fills available space */}
+            {(()=>{
+              const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
+              const tn = t?.name;
+              if(tn){
+                const d = DOFUS_DEFS.find(x=>x.id===tn);
+                if(d) return (
+                  <div className="flex flex-col items-center gap-0.5 mt-auto pt-1">
+                    <img src={d.imageUrl} alt={d.label} title={d.label} className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_12px_rgba(0,0,0,0.6)]" />
+                    <span className="text-[8px] font-black uppercase tracking-wider opacity-60" style={{color:d.color}}>{d.label}</span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         </div>
 

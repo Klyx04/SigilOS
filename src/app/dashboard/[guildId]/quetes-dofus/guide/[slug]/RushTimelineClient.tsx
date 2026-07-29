@@ -300,34 +300,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   return (
     <>
       <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""}`}>
-        {/* Floating member avatars (top-right) */}
-        {seqMembers.length > 0 && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
-            className="absolute -top-2.5 -right-2.5 z-10 flex items-center hover:scale-105 transition-transform cursor-pointer"
-            title={`${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''} sur cette quête`}
-          >
-            <div className="flex -space-x-1.5">
-              {floatAvatars.map((m) => (
-                <div
-                  key={m.profileId}
-                  className="w-6 h-6 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0 shadow-lg shadow-black/30"
-                  title={m.userName}
-                >
-                  {m.userAvatar ? (
-                    <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-[8px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            {floatExtra > 0 && (
-              <span className="ml-0.5 text-[8px] font-black text-indigo-400">+{floatExtra}</span>
-            )}
-          </button>
-        )}
         {isActive && !isSeqCompleted && (
           <span className="text-[9px] font-black uppercase tracking-widest text-amber-400/70 mb-0">
             À FAIRE MAINTENANT
@@ -366,49 +338,82 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           </div>
 
           {/* Compact external links */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {(()=>{
-              const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
-              const tn = t?.name;
-              if(tn){
-                const d = DOFUS_DEFS.find(x=>x.id===tn);
-                if(d) return (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10" style={{color:d.color}}>
-                    <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain" />
-                    {d.label}
-                  </span>
-                );
-              }
-              return null;
-            })()}
-            {noobsUrl && (
-              <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
-                <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
-                <span className="hidden md:inline">Noobs</span>
-                <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
-              </a>
-            )}
-            {dbUrl && (
-              <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusDB">
-                <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
-                <span className="hidden md:inline">DofusDB</span>
-                <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
-              </a>
-            )}
-            {/* ── Rendu ici (bookmark au niveau quête) ───────────────────── */}
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg border transition-all text-[8px] font-black uppercase tracking-wider ${
-                isThisBookmarked
-                  ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-                  : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-amber-300 hover:border-amber-500/30"
-              }`}
-              title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
-            >
-              {isThisBookmarked ? <BookmarkCheck className="w-3 h-3 text-amber-400"/> : <Flag className="w-3 h-3"/>}
-              <span className="hidden md:inline">Rendu ici</span>
-            </button>
+          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+            {/* Ligne 1 : Dofus link badge + Noobs + DB */}
+            <div className="flex items-center gap-1.5">
+              {(()=>{
+                const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
+                const tn = t?.name;
+                if(tn){
+                  const d = DOFUS_DEFS.find(x=>x.id===tn);
+                  if(d) return (
+                    <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10" style={{color:d.color}}>
+                      <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain" />
+                      {d.label}
+                    </span>
+                  );
+                }
+                return null;
+              })()}
+              {noobsUrl && (
+                <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
+                  <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
+                  <span className="hidden md:inline">Noobs</span>
+                  <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
+                </a>
+              )}
+              {dbUrl && (
+                <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusDB">
+                  <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
+                  <span className="hidden md:inline">DofusDB</span>
+                  <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
+                </a>
+              )}
+            </div>
+            {/* Ligne 2 : Avatars + Rendu ici */}
+            <div className="flex items-center gap-1.5">
+              {seqMembers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
+                  className="flex items-center gap-0.5 px-1.5 py-1 rounded-lg border border-white/10 bg-zinc-900 hover:bg-zinc-800 transition-all cursor-pointer"
+                  title={`${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''} sur cette quête`}
+                >
+                  <div className="flex -space-x-1">
+                    {floatAvatars.map((m) => (
+                      <div
+                        key={m.profileId}
+                        className="w-5 h-5 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0"
+                        title={m.userName}
+                      >
+                        {m.userAvatar ? (
+                          <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[7px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {floatExtra > 0 && (
+                    <span className="text-[8px] font-black text-indigo-400">+{floatExtra}</span>
+                  )}
+                </button>
+              )}
+              {/* ── Rendu ici (bookmark au niveau quête) ───────────────────── */}
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 transition-all text-[9px] font-black uppercase tracking-wider ${
+                  isThisBookmarked
+                    ? "bg-amber-500/25 border-amber-500/60 text-amber-300 shadow-sm shadow-amber-500/20"
+                    : "bg-zinc-800/80 border-zinc-600/50 text-zinc-300 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
+                }`}
+                title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
+              >
+                {isThisBookmarked ? <BookmarkCheck className="w-3.5 h-3.5 text-amber-400"/> : <Flag className="w-3.5 h-3.5"/>}
+                Rendu ici
+              </button>
+            </div>
           </div>
         </div>
 

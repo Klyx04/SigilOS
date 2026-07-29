@@ -249,9 +249,11 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
         raidNotifyChannelId?: string | null;
         raidGigalodonNotifyChannelId?: string | null;
         raidSanctuaireNotifyChannelId?: string | null;
+        calendarPingRoleIds?: string[];
+        raidPingRoleIds?: string[];
     }>({});
 
-    // Fetch Target Channels & Whitelisted Roles
+    // Fetch Target Channels & Whitelisted Roles + Ping Roles
     useEffect(() => {
         if (guildId) {
             import("@/server/actions/calendar-actions").then(m => {
@@ -261,10 +263,21 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                             calendarNotifyChannelId: res.data.calendarNotifyChannelId,
                             raidNotifyChannelId: res.data.raidNotifyChannelId,
                             raidGigalodonNotifyChannelId: res.data.raidGigalodonNotifyChannelId,
-                            raidSanctuaireNotifyChannelId: res.data.raidSanctuaireNotifyChannelId
+                            raidSanctuaireNotifyChannelId: res.data.raidSanctuaireNotifyChannelId,
+                            calendarPingRoleIds: res.data.calendarPingRoleIds || [],
+                            raidPingRoleIds: res.data.raidPingRoleIds || [],
                         });
 
                         setWhitelistedRoleIds(res.data.raidAllowedSignUpRoleIds || []);
+
+                        // Auto-fill ping roles if not already set (initial load, no initialData)
+                        if (!initialData) {
+                            const isRaidType = res.data.raidPingRoleIds && res.data.raidPingRoleIds.length > 0;
+                            const autoRoles = isRaidType ? (res.data.raidPingRoleIds || []) : (res.data.calendarPingRoleIds || []);
+                            if (autoRoles.length > 0) {
+                                form.setValue("mentionRoleIds", autoRoles);
+                            }
+                        }
                     }
                 });
             });

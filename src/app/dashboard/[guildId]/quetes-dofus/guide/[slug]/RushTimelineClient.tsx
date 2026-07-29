@@ -369,9 +369,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
                 </a>
               )}
-            </div>
-            {/* Ligne 2 : Avatars + Rendu ici */}
-            <div className="flex items-center gap-1.5">
               {seqMembers.length > 0 && (
                 <button
                   type="button"
@@ -399,18 +396,20 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   )}
                 </button>
               )}
-              {/* ── Rendu ici (bookmark au niveau quête) ───────────────────── */}
+            </div>
+            {/* Ligne 2 : Rendu ici (bookmark au niveau quête) — ligne dédiée pour être visible */}
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 transition-all text-[9px] font-black uppercase tracking-wider ${
+                className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border-2 transition-all text-[10px] font-black uppercase tracking-wider ${
                   isThisBookmarked
-                    ? "bg-amber-500/25 border-amber-500/60 text-amber-300 shadow-sm shadow-amber-500/20"
+                    ? "bg-amber-500/25 border-amber-500/60 text-amber-300 shadow-sm shadow-amber-500/20 ring-1 ring-amber-500/30"
                     : "bg-zinc-800/80 border-zinc-600/50 text-zinc-300 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
                 }`}
                 title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
               >
-                {isThisBookmarked ? <BookmarkCheck className="w-3.5 h-3.5 text-amber-400"/> : <Flag className="w-3.5 h-3.5"/>}
+                {isThisBookmarked ? <BookmarkCheck className="w-4 h-4 text-amber-400"/> : <Flag className="w-4 h-4"/>}
                 Rendu ici
               </button>
             </div>

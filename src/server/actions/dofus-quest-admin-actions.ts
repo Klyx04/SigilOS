@@ -250,40 +250,36 @@ async function syncEntryToLocalJson(
         dofusdbId?: number | null 
     }
 ) {
-    try {
-        const filePath = path.join(process.cwd(), "prisma", "seed-data", "dofus-quests", `${dofusSlug}-compiled.json`);
-        if (!fs.existsSync(filePath)) return;
-        
-        const fileContent = fs.readFileSync(filePath, "utf-8");
-        const dofusData = JSON.parse(fileContent);
-        
-        let modified = false;
-        if (dofusData && Array.isArray(dofusData.chains)) {
-            for (const chain of dofusData.chains) {
-                if (Array.isArray(chain.entries)) {
-                    for (const entry of chain.entries) {
-                        if (entry.name === entryName) {
-                            if (updatedFields.externalRef !== undefined) {
-                                entry.externalRef = updatedFields.externalRef;
-                            }
-                            if (updatedFields.coords !== undefined) {
-                                entry.coords = updatedFields.coords;
-                            }
-                            if (updatedFields.dofusdbId !== undefined) {
-                                entry.dofusdbId = updatedFields.dofusdbId;
-                            }
-                            modified = true;
+    const filePath = path.join(process.cwd(), "prisma", "seed-data", "dofus-quests", `${dofusSlug}-compiled.json`);
+    if (!fs.existsSync(filePath)) return;
+    
+    const fileContent = fs.readFileSync(filePath, "utf-8");
+    const dofusData = JSON.parse(fileContent);
+    
+    let modified = false;
+    if (dofusData && Array.isArray(dofusData.chains)) {
+        for (const chain of dofusData.chains) {
+            if (Array.isArray(chain.entries)) {
+                for (const entry of chain.entries) {
+                    if (entry.name === entryName) {
+                        if (updatedFields.externalRef !== undefined) {
+                            entry.externalRef = updatedFields.externalRef;
                         }
+                        if (updatedFields.coords !== undefined) {
+                            entry.coords = updatedFields.coords;
+                        }
+                        if (updatedFields.dofusdbId !== undefined) {
+                            entry.dofusdbId = updatedFields.dofusdbId;
+                        }
+                        modified = true;
                     }
                 }
             }
         }
-        
-        if (modified) {
-            fs.writeFileSync(filePath, JSON.stringify(dofusData, null, 2), "utf-8");
-        }
-    } catch (e) {
-        console.error("Error syncing entry to local JSON:", e);
+    }
+    
+    if (modified) {
+        fs.writeFileSync(filePath, JSON.stringify(dofusData, null, 2), "utf-8");
     }
 }
 

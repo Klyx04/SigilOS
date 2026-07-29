@@ -623,13 +623,13 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
 }
 
 // ─── MilestoneRow ─────────────────────────────────────────────────────────────
-const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick }: any) {
+const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching }: any) {
   const [expanded,setExpanded]=useState(false);
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
   useEffect(()=>{if(isBookmarked)setExpanded(true);},[isBookmarked]);
   useEffect(()=>{if(focusedSeqId&&ms.sequences.some((s:any)=>s.id===focusedSeqId))setExpanded(true);},[focusedSeqId,ms.sequences]);
-  if(hideDone&&isCompleted)return null;
+  if(hideDone&&isCompleted&&!isSearching)return null;
   const cs=ms.sequences.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
   const all=isCompleted||(ms.sequences.length>0&&cs===ms.sequences.length);
   const c=accentColor||"#10b981";
@@ -722,7 +722,7 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
   </button>}<AnimatePresence>{(open||!showHeader)&&<motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="relative ml-5 pl-5 pb-3 border-l border-zinc-800/40 space-y-3">{filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
   if(ms.type==="INFO")return <div key={ms.id} className="-ml-2 my-1"><InfoBanner milestone={ms}/></div>;
   const filteredSeqs = searchFilter ? ms.sequences.filter((s:any)=>searchFilter.has(s.id)) : ms.sequences;
-  return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={ms.id===bookmarkedMsId} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={hideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick}/></div>;
+  return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={ms.id===bookmarkedMsId} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={hideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;
 })}</div></motion.div>}</AnimatePresence></div>;
 });
 

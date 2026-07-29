@@ -326,8 +326,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {onToggleSeq && (
-            <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 p-0.5 rounded-lg text-zinc-500 hover:text-emerald-400 transition-colors" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
-              {isSeqCompleted ? <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/20"/> : <Circle className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}
+            <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-xl text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
+              {isSeqCompleted ? <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-400/20"/> : <Circle className="w-5 h-5 text-zinc-500 hover:text-zinc-300"/>}
             </button>
           )}
           <div className="flex-1 min-w-0 flex items-center gap-2.5 flex-wrap">

@@ -236,6 +236,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const nextSeqId = React.useContext(NextSeqIdCtx);
   const bookmarkedSeqId = React.useContext(BookmarkedSeqCtx);
   const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
+  const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
+  const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
   const isActive = seq.id === activeSeqId && !isSeqCompleted;
   const isNext = seq.id === nextSeqId && !isSeqCompleted && !isActive;
   const isThisBookmarked = seq.id === bookmarkedSeqId;
@@ -249,19 +251,15 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const prereqBlocked = !isSeqCompleted && (() => {
     const prereqNames = Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text").map((x:any)=>x.name?.toLowerCase()) : [];
     if (prereqNames.length === 0) return false;
-    const allCompleted = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
-    const allMs = React.useContext(AllMilestonesCtx) as Milestone[];
-    for (const candidateMs of allMs) {
-      if (candidateMs.type === "SEPARATEUR" || candidateMs.type === "INFO") continue;
-      for (const candidateSeq of candidateMs.sequences) {
-        if (candidateSeq.id === seq.id) continue;
+    return allMilestones.some((candidateMs) =>
+      candidateMs.type !== "SEPARATEUR" &&
+      candidateMs.type !== "INFO" &&
+      candidateMs.sequences.some((candidateSeq) => {
+        if (candidateSeq.id === seq.id) return false;
         const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
-        if (prereqNames.includes(candidateName) && !allCompleted.has(candidateSeq.id)) {
-          return true;
-        }
-      }
-    }
-    return false;
+        return prereqNames.includes(candidateName) && !allCompletedSeqIds.has(candidateSeq.id);
+      })
+    );
   })();
 
   if (prereqBlocked) {
@@ -977,6 +975,23 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     });
   }, [helpStorageKey]);
 
+  // ─── Helper pur : vérifier si une séquence a un prérequis réellement non terminé ──
+  const isActuallyBlocked = useCallback((seq: Sequence): boolean => {
+    const prereqNames = Array.isArray(seq.activityTags)
+      ? seq.activityTags.filter((x:any) => x.type === "prereq_text").map((x:any) => x.name?.toLowerCase()).filter(Boolean)
+      : [];
+    if (prereqNames.length === 0) return false;
+    return milestones.some((candidateMs) =>
+      candidateMs.type !== "SEPARATEUR" &&
+      candidateMs.type !== "INFO" &&
+      candidateMs.sequences.some((candidateSeq) => {
+        if (candidateSeq.id === seq.id) return false;
+        const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
+        return prereqNames.includes(candidateName) && !allCompletedSeqIds.has(candidateSeq.id);
+      })
+    );
+  }, [milestones, allCompletedSeqIds]);
+
   // ─── Computed active/next sequences ─────────────────────────────────────
   const findNextActionableSequence = useCallback(() => {
     // 1. Bookmarked sequence (prioritaire, même si terminée)
@@ -994,16 +1009,13 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       if (ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
       for (const seq of ms.sequences) {
         if (isInfoSequence(seq)) continue;
-        if (!allCompletedSeqIds.has(seq.id)) {
-          const hasPrereq = Array.isArray(seq.activityTags) && seq.activityTags.some((t:any) => t.type === "prereq_text");
-          if (!hasPrereq) {
-            return { milestone: ms, sequence: seq };
-          }
+        if (!allCompletedSeqIds.has(seq.id) && !isActuallyBlocked(seq)) {
+          return { milestone: ms, sequence: seq };
         }
       }
     }
     return null;
-  }, [milestones, effectiveBookmarkSeqId, allCompletedSeqIds]);
+  }, [milestones, effectiveBookmarkSeqId, allCompletedSeqIds, isActuallyBlocked]);
 
   const findNextSequenceAfter = useCallback((currentMsId: string, currentSeqId: string) => {
     let foundCurrent = false;
@@ -1017,13 +1029,13 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           }
           continue;
         }
-        if (!allCompletedSeqIds.has(seq.id)) {
+        if (!allCompletedSeqIds.has(seq.id) && !isActuallyBlocked(seq)) {
           return { milestone: ms, sequence: seq };
         }
       }
     }
     return null;
-  }, [milestones, allCompletedSeqIds]);
+  }, [milestones, allCompletedSeqIds, isActuallyBlocked]);
 
   const actionableSeq = useMemo(() => findNextActionableSequence(), [findNextActionableSequence]);
   const activeSeqId = actionableSeq?.sequence.id || null;

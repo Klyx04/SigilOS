@@ -30,20 +30,23 @@ type TelemetryStatsType = Awaited<ReturnType<typeof getTelemetryStats>>;
 
 export function TelemetryDashboard({ initialStats }: { initialStats: TelemetryStatsType }) {
     const [stats, setStats] = useState<TelemetryStatsType>(initialStats);
+    const [selectedGuildId, setSelectedGuildId] = useState<string>("all");
     const [isAutoRefresh, setIsAutoRefresh] = useState(true);
     const [countdown, setCountdown] = useState(5);
     const [isPending, setIsPending] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [telemetryTab, setTelemetryTab] = useState<"live" | "analytics" | "users" | "guilds">("live");
+    const [telemetryTab, setTelemetryTab] = useState<"live" | "modules" | "analytics" | "users" | "guilds">("live");
     const isRefreshingRef = useRef(false);
 
-    // Stable refresh function — never called during render
-    const refreshData = useCallback(async () => {
+    // Stable refresh function — accepts target guild filter
+    const refreshData = useCallback(async (overrideGuildId?: string) => {
         if (isRefreshingRef.current) return;
         isRefreshingRef.current = true;
         setIsPending(true);
         try {
-            const newStats = await getTelemetryStats();
+            const targetGuild = overrideGuildId !== undefined ? overrideGuildId : selectedGuildId;
+            const filterArg = targetGuild === "all" ? undefined : targetGuild;
+            const newStats = await getTelemetryStats(filterArg);
             setStats(newStats);
             setCountdown(5);
         } catch (err) {
@@ -52,7 +55,13 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
             isRefreshingRef.current = false;
             setIsPending(false);
         }
-    }, []);
+    }, [selectedGuildId]);
+
+    // Handle guild selection change
+    const handleGuildChange = (newGuildId: string) => {
+        setSelectedGuildId(newGuildId);
+        refreshData(newGuildId);
+    };
 
     // Auto-refresh timer — countdown only, triggers refresh outside render via ref
     useEffect(() => {
@@ -61,7 +70,6 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
         const interval = setInterval(() => {
             setCountdown((prev) => {
                 if (prev <= 1) {
-                    // Schedule outside of the setCountdown updater to avoid calling during render
                     Promise.resolve().then(() => refreshData());
                     return 5;
                 }
@@ -94,14 +102,31 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                 <div className="space-y-1">
                     <h2 className="text-2xl font-black text-white uppercase italic tracking-tight flex items-center gap-3">
                         <Cpu className="w-6 h-6 text-violet-400 animate-pulse" />
-                        Télémétrie en temps réel
+                        Télémétrie & Analyse d'usage
                     </h2>
                     <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest">
-                        Activité et interactions des utilisateurs sur le Dashboard
+                        Activité, fréquentation des modules et comportements par guilde
                     </p>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
+                    {/* Guild Filter Dropdown */}
+                    <div className="flex items-center gap-2 bg-zinc-900/80 border border-white/10 px-3 py-1.5 rounded-xl">
+                        <Globe className="w-4 h-4 text-violet-400 shrink-0" />
+                        <select
+                            value={selectedGuildId}
+                            onChange={(e) => handleGuildChange(e.target.value)}
+                            className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer pr-2"
+                        >
+                            <option value="all" className="bg-zinc-900 text-white">Toutes les Guildes (Global)</option>
+                            {stats.availableGuilds?.map((g: any) => (
+                                <option key={g.id} value={g.id} className="bg-zinc-900 text-white">
+                                    Guilde: {g.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* Auto-Refresh Toggle */}
                     <button
                         onClick={() => setIsAutoRefresh(!isAutoRefresh)}
@@ -116,12 +141,12 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                             "w-2.5 h-2.5 rounded-full",
                             isAutoRefresh ? "bg-violet-400 animate-ping" : "bg-zinc-600"
                         )} />
-                        {isAutoRefresh ? `Auto-Refresh : ${countdown}s` : "Auto-Refresh Off"}
+                        {isAutoRefresh ? `Auto : ${countdown}s` : "Auto-Refresh Off"}
                     </button>
 
                     {/* Manual Refresh Button */}
                     <button
-                        onClick={refreshData}
+                        onClick={() => refreshData()}
                         disabled={isPending}
                         className="p-2.5 rounded-xl bg-zinc-900 border border-white/5 hover:border-white/10 text-zinc-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
                     >
@@ -134,6 +159,7 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
             <div className="flex border-b border-white/5 pb-1 gap-2 overflow-x-auto no-scrollbar">
                 {[
                     { id: "live", label: "Flux Temps Réel", count: filteredEvents.length },
+                    { id: "modules", label: "Consommation Modules", count: stats.moduleStats?.length || 0 },
                     { id: "analytics", label: "Analyses de Trafic", count: null },
                     { id: "users", label: "Membres Actifs", count: activeUserCount },
                     { id: "guilds", label: "Activité Guildes", count: stats.guildActivity.length },
@@ -347,6 +373,116 @@ export function TelemetryDashboard({ initialStats }: { initialStats: TelemetrySt
                                 );
                             })
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* TAB CONTENT: MODULES & FEATURES */}
+            {telemetryTab === "modules" && (
+                <div className="space-y-8 animate-in fade-in duration-200">
+                    {/* Header Banner */}
+                    <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/20 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <Cpu className="w-4 h-4 text-violet-400" />
+                                Cartographie des Modules SigilOS
+                            </h3>
+                            <p className="text-zinc-500 text-xs font-semibold">
+                                Analyse de la fréquentation et de l'adoption de chaque module du Dashboard.
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-xs font-black text-violet-400 block font-mono">
+                                {stats.moduleStats?.length || 0} Modules analysés
+                            </span>
+                            <span className="text-[9px] text-zinc-500 uppercase font-bold">
+                                {selectedGuildId === "all" ? "Périmètre Global" : "Filtre Guilde Actif"}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Modules Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {stats.moduleStats?.map((mod: any) => {
+                            const maxActions = stats.moduleStats[0]?.totalActions || 1;
+                            const pct = Math.max(5, (mod.totalActions / maxActions) * 100);
+                            
+                            return (
+                                <div key={mod.name} className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 hover:bg-zinc-900/30 transition-all flex flex-col justify-between space-y-4">
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-start">
+                                            <span className="text-xs font-black text-white uppercase tracking-wider block">
+                                                {mod.name}
+                                            </span>
+                                            <span className="text-[9px] font-black text-violet-300 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-md">
+                                                {mod.uniqueUsersCount} membres actifs
+                                            </span>
+                                        </div>
+
+                                        <div className="h-1.5 w-full bg-zinc-950 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full" 
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/5 text-center">
+                                        <div>
+                                            <span className="text-[8px] font-black text-zinc-500 uppercase block">Pages Vues</span>
+                                            <span className="text-xs font-black text-zinc-200">{mod.views}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[8px] font-black text-zinc-500 uppercase block">Clics</span>
+                                            <span className="text-xs font-black text-amber-400">{mod.interactions}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[8px] font-black text-zinc-500 uppercase block">Total</span>
+                                            <span className="text-xs font-black text-violet-400">{mod.totalActions}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Top vs Flop Features */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Top Features */}
+                        <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 space-y-4">
+                            <h4 className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                                <Flame className="w-4 h-4" />
+                                Features les plus sollicitées
+                            </h4>
+                            <div className="space-y-3">
+                                {stats.topInteractions.slice(0, 7).map((item: any) => (
+                                    <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
+                                        <code className="text-emerald-300 font-mono text-[10px] bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
+                                            {item.elementId}
+                                        </code>
+                                        <span className="text-zinc-400 font-mono text-[10px]">{item.count} clics</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Less Used Features (Needs Attention) */}
+                        <div className="p-6 rounded-3xl border border-white/5 bg-zinc-900/10 space-y-4">
+                            <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-amber-400" />
+                                Features à faible engagement (À promouvoir / retravailler)
+                            </h4>
+                            <div className="space-y-3">
+                                {stats.topInteractions.slice(-7).reverse().map((item: any) => (
+                                    <div key={item.elementId} className="flex justify-between items-center text-xs font-bold py-1 border-b border-white/5 last:border-0">
+                                        <code className="text-amber-300/80 font-mono text-[10px] bg-zinc-950 px-2 py-0.5 rounded truncate max-w-[300px]">
+                                            {item.elementId}
+                                        </code>
+                                        <span className="text-zinc-500 font-mono text-[10px]">{item.count} clic(s)</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

@@ -833,12 +833,14 @@ export function ExpeditionForm({ payload, onPayloadChange, onTitleChange, onRank
 // --- EVENT FORM ---
 // Flow: 1) Event context  2) Sub-type  3) Detail form
 
-type EventSubType = 'REGULATION' | 'DONJON' | 'MONSTRE_SPECIAL';
+type EventSubType = 'REGULATION' | 'DONJON' | 'MONSTRE_SPECIAL' | 'OBJECTIF' | 'FRAGMENTS_ANOMALIE';
 
 const EVENT_SUBTYPES: { value: EventSubType; label: string; emoji: string; desc: string; color: string; border: string }[] = [
     { value: 'REGULATION', label: 'Régulation', emoji: '⚔️', desc: '50 monstres de l\'événement', color: 'text-amber-300', border: 'border-amber-500/50 bg-amber-500/10' },
-    { value: 'DONJON', label: 'Donjon', emoji: '🏰', desc: 'Vaincre le boss du donjon événement', color: 'text-rose-300', border: 'border-rose-500/50 bg-rose-500/10' },
-    { value: 'MONSTRE_SPECIAL', label: 'Monstre Spécial', emoji: '💀', desc: 'Monstre unique / boss temporaire', color: 'text-purple-300', border: 'border-purple-500/50 bg-purple-500/10' },
+    { value: 'DONJON', label: 'Donjon', emoji: '🏰', desc: 'Vaincre le boss du donjon', color: 'text-rose-300', border: 'border-rose-500/50 bg-rose-500/10' },
+    { value: 'MONSTRE_SPECIAL', label: 'Monstre Spécial', emoji: '💀', desc: 'Monstre unique / boss', color: 'text-purple-300', border: 'border-purple-500/50 bg-purple-500/10' },
+    { value: 'OBJECTIF', label: 'Objectif Manuel', emoji: '📜', desc: 'Objectif à rédiger à la main', color: 'text-cyan-300', border: 'border-cyan-500/50 bg-cyan-500/10' },
+    { value: 'FRAGMENTS_ANOMALIE', label: 'Fragments', emoji: '⚡', desc: '20 fragments d\'anomalie', color: 'text-fuchsia-300', border: 'border-fuchsia-500/50 bg-fuchsia-500/10' },
 ];
 
 type EventContextPreset = 'VULKANIA' | 'NOWEL' | 'PWAK' | 'HALOUINE' | 'AUTRE';
@@ -882,8 +884,31 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
     };
 
     const handleSubTypeChange = (newType: EventSubType) => {
-        onPayloadChange({ eventType: newType, contextPreset, contextManual: payload.contextManual });
-        onTitleChange('');
+        if (newType === 'FRAGMENTS_ANOMALIE') {
+            const defaultDesc = "Obtenir 20 Fragments d'anomalie dans une anomalie (tous niveaux)";
+            onPayloadChange({
+                ...payload,
+                eventType: newType,
+                contextPreset,
+                contextManual: payload.contextManual,
+                description: defaultDesc,
+                targetCount: 20,
+                imageUrl: '/assets/missions/fragment.png'
+            });
+            onTitleChange("Fragments d'anomalie");
+        } else if (newType === 'OBJECTIF') {
+            const currentDesc = payload.description || '';
+            onPayloadChange({
+                ...payload,
+                eventType: newType,
+                contextPreset,
+                contextManual: payload.contextManual,
+                description: currentDesc
+            });
+        } else {
+            onPayloadChange({ eventType: newType, contextPreset, contextManual: payload.contextManual });
+            onTitleChange('');
+        }
     };
 
     const rebuildTitle = (type: EventSubType, ctx: EventContextPreset, ctxName: string, p: Record<string, any>) => {
@@ -891,6 +916,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
         if (type === 'DONJON' && p.dungeonName) onTitleChange(`${p.dungeonName}${suffix}`);
         else if (type === 'REGULATION' && p.familyName) onTitleChange(`Régulation des ${p.familyName}${suffix}`);
         else if (type === 'MONSTRE_SPECIAL' && p.monsterName) onTitleChange(`Vaincre ${p.monsterName}${suffix}`);
+        else if (type === 'FRAGMENTS_ANOMALIE') onTitleChange(`Fragments d'anomalie${suffix}`);
     };
 
     // --- Dungeon fetcher: filtered by event zone if preset active ---
@@ -979,6 +1005,15 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
         onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', targetCount: count });
     };
 
+    // --- Objectif Manuel ---
+    const handleManualTitle = (title: string) => {
+        onTitleChange(title);
+    };
+
+    const handleManualDescription = (desc: string) => {
+        onPayloadChange({ ...payload, eventType: 'OBJECTIF', description: desc });
+    };
+
     return (
         <div className="space-y-6">
             {/* ── STEP 1: Event Context ────────────────── */}
@@ -1034,7 +1069,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                     <span className="text-xs text-zinc-400 font-black uppercase tracking-widest">Type de mission</span>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {EVENT_SUBTYPES.map(st => (
                         <button
                             key={st.value}
@@ -1156,6 +1191,57 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                                 <p className="text-[10px] text-zinc-500 font-bold">Objectif : Vaincre {payload.targetCount || 50} spécimens</p>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* OBJECTIF MANUEL */}
+                {eventType === 'OBJECTIF' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400">Titre de la mission</Label>
+                            <Input
+                                className="bg-zinc-950 border-zinc-800 rounded-xl text-sm h-11 focus:border-cyan-500/50"
+                                placeholder="Ex: Chasse à l'ambre fossile, Kilukru..."
+                                value={payload.title || ''}
+                                onChange={e => handleManualTitle(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400">Description / Objectif (écrit à la main)</Label>
+                            <textarea
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-white focus:border-cyan-500/50 outline-none resize-none h-24"
+                                placeholder="Ex: Demander de l'aide à Edgar Kéolog pour obtenir une ambre fossile durant la saison Ocre..."
+                                value={payload.description || ''}
+                                onChange={e => handleManualDescription(e.target.value)}
+                            />
+                        </div>
+                        {payload.description && (
+                            <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
+                                        <Sparkles className="w-3.5 h-3.5" /> Objectif Personnel
+                                    </span>
+                                </div>
+                                <h4 className="text-white font-black uppercase text-sm leading-tight mb-1">{payload.title || "Sans titre"}</h4>
+                                <p className="text-[11px] text-zinc-300 font-medium leading-snug">{payload.description}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* FRAGMENTS D'ANOMALIE */}
+                {eventType === 'FRAGMENTS_ANOMALIE' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <div className="relative overflow-hidden rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4 flex gap-4">
+                            <div className="w-14 h-14 rounded-xl bg-zinc-900/80 border border-fuchsia-500/20 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
+                                <img src="/assets/missions/fragment.png" className="w-10 h-10 object-contain z-10" alt="Fragments" />
+                                <div className="absolute inset-0 bg-fuchsia-500/10 blur-xl scale-150" />
+                            </div>
+                            <div className="flex-1 text-[11px] text-zinc-400 leading-relaxed py-0.5">
+                                <div className="font-black text-fuchsia-400 uppercase tracking-widest text-[9px] mb-1">Mission Événement Fragments</div>
+                                Obtenir <span className="text-white font-black">20 Fragments d'anomalie</span> dans une anomalie <span className="text-fuchsia-300 font-bold">(tous niveaux)</span>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

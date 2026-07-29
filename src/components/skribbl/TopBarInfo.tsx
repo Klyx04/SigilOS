@@ -34,7 +34,7 @@ export default function TopBarInfo({ gameState, socket, isDrawer }: TopBarInfoPr
         <div className="flex items-center w-full grow relative h-full gap-2 md:gap-4">
             {/* RETOUR SELECTION */}
             <button 
-                onClick={() => window.location.href = `/dashboard/${gameState.guildId || ""}/mini-jeux`}
+                onClick={() => window.location.href = `/dashboard/${gameState.guildId || ""}/mini-jeux#mini-jeux`}
                 className="group flex flex-col items-center justify-center w-10 h-10 md:w-16 md:h-16 bg-white/50 backdrop-blur-md rounded-xl md:rounded-[2rem] border-b-4 border-black/5 shadow-lg transition-all hover:scale-110 active:scale-95 group shrink-0"
                 title="Retour à la sélection"
             >

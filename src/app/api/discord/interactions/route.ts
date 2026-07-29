@@ -417,18 +417,34 @@ export async function POST(request: NextRequest) {
                         return NextResponse.json({ type: 4, data: { content: `❌ Erreur: ${res.error}`, flags: 64 } });
                     }
                 } else if (entityType === "reactivation") {
+                    // custom_id format: validate:reactivation:{action}:{profileId}:{guildId}
+                    // where action is "approve" or "reject"
+                    // The standard parts[2] = "approve"|"reject" (not the entity ID)
+                    // For reactivation, entityId is at parts[3] and guildId at parts[4]
+                    const reactivationProfileId = parts[3];
+                    const reactivationGuildId = parts[4];
+                    
                     const status = isReject ? "ARCHIVED" : "ACTIVE";
                     const { internalUpdateMemberProfileStatus } = await import("@/server/actions/user-actions");
                     
                     try {
                         await internalUpdateMemberProfileStatus(
-                            entityId, 
+                            reactivationProfileId, 
                             status, 
                             isReject ? "REACTIVATION_REJECTED" : "REACTIVATION_APPROVED",
                             undefined,
                             undefined,
                             member.user.id
                         );
+
+                        // Also 🔔 send lifecycle notification if approved
+                        if (!isReject) {
+                            try {
+                                const { reactivateProfileByAdmin } = await import("@/server/actions/lifecycle-actions");
+                                await reactivateProfileByAdmin(reactivationGuildId, reactivationProfileId, "Approbation via Discord");
+                            } catch (_) { /* notification is best-effort */ }
+                        }
+
                         resultMsg = isReject
                             ? `❌ Demande de **réintégration refusée** par ${adminTag}`
                             : `✅ Demande de **réintégration validée** par ${adminTag}`;

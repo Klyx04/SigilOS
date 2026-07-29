@@ -28,8 +28,7 @@
           "npcSubArea": "Salle de combat 1",
           "coords": {
             "x": 4,
-            "y": 4,
-            "worldId": 1
+            "y": 4
           },
           "isDungeon": false,
           "itemsRequired": [],
@@ -49,7 +48,8 @@
           ],
           "stepOrder": 0,
           "isSynergyCandidate": false,
-          "requirements": []
+          "requirements": [],
+          "externalRef": ""
         },
         {
           "name": "Le cinquième élément",
@@ -87,8 +87,7 @@
           "npcSubArea": "Clairière de l'orme",
           "coords": {
             "x": -5,
-            "y": -2,
-            "worldId": 1
+            "y": -2
           },
           "isDungeon": false,
           "itemsRequired": [],
@@ -118,7 +117,8 @@
               "type": "QUEST",
               "dofusdbId": 1294
             }
-          ]
+          ],
+          "externalRef": ""
         },
         {
           "name": "Qui botte le cul des Culs Bottés ?",
@@ -170,9 +170,8 @@
           "npcName": null,
           "npcSubArea": null,
           "coords": {
-            "x": 27,
-            "y": -28,
-            "worldId": 1
+            "x": 3,
+            "y": 1
           },
           "isDungeon": true,
           "itemsRequired": [
@@ -254,7 +253,8 @@
           ],
           "stepOrder": 0,
           "isSynergyCandidate": true,
-          "requirements": []
+          "requirements": [],
+          "externalRef": ""
         },
         {
           "name": "L'amour perdu de Nabur",
@@ -405,8 +405,7 @@
           "npcSubArea": null,
           "coords": {
             "x": -6,
-            "y": -3,
-            "worldId": 1
+            "y": -3
           },
           "isDungeon": true,
           "itemsRequired": [],
@@ -431,7 +430,8 @@
               "type": "QUEST",
               "dofusdbId": 1469
             }
-          ]
+          ],
+          "externalRef": "https://www.dofuspourlesnoobs.com/quetes-du-dofus-argente.html"
         },
         {
           "name": "Ultime réminiscence",

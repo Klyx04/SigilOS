@@ -1070,7 +1070,7 @@ export function PresentationForm({ guildId }: Props) {
                                 </p>
 
                                 {/* Requirements Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     {/* Discord Required */}
                                     <div className="p-4 bg-zinc-800/50 rounded-xl border border-white/5">
                                         <div className="flex items-center justify-between mb-2">
@@ -1153,6 +1153,32 @@ export function PresentationForm({ guildId }: Props) {
                                         ) : (
                                             <p className="text-xs text-zinc-500 mt-1">Optionnel</p>
                                         )}
+                                    </div>
+
+                                    {/* Member Count */}
+                                    <div className="p-4 bg-zinc-800/50 rounded-xl border border-white/5">
+                                        <Label className="text-zinc-300 text-sm mb-2 flex items-center gap-2">
+                                            <Users className="w-4 h-4 text-indigo-400" />
+                                            Membres actuels
+                                        </Label>
+                                        <Input
+                                            type="number"
+                                            value={memberCount}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const num = parseInt(val, 10);
+                                                if (val === "" || (num >= 0 && num <= 350)) {
+                                                    setMemberCount(val);
+                                                }
+                                            }}
+                                            placeholder="0-350"
+                                            min={0}
+                                            max={350}
+                                            className="bg-zinc-900/50 border-white/10"
+                                        />
+                                        <p className="text-xs text-zinc-500 mt-1">
+                                            {memberCount ? `Places disponibles : ${350 - parseInt(memberCount)}` : "Optionnel"}
+                                        </p>
                                     </div>
                                 </div>
 

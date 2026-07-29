@@ -63,7 +63,8 @@ if [ "$TARGET" == "beta" ]; then
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npm run migrate:uploads
 
     echo "🧹 Synchronisation des migrations BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx prisma migrate deploy
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx --yes prisma migrate deploy
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx --yes prisma db push
     echo "🌱 Seeding des données de jeu BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npm run seed:game-data:prod
     
@@ -81,7 +82,8 @@ else
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npm run migrate:uploads
 
     echo "🧹 Synchronisation des migrations PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx prisma migrate deploy
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx --yes prisma migrate deploy
+    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx --yes prisma db push
     echo "🌱 Seeding des données de jeu PRODUCTION..."
     sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npm run seed:game-data:prod
 fi

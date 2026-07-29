@@ -592,15 +592,6 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 </DropdownMenuItem>
                                             )}
                                             <DropdownMenuSeparator className="bg-white/5" />
-                                            <DropdownMenuLabel className="text-[9px] text-zinc-650 font-black uppercase tracking-widest px-2 py-1.5">Nouveau Membre</DropdownMenuLabel>
-                                            <DropdownMenuItem onClick={() => setBadgeTarget({ id: member.id, name: member.user.name || "Membre" })} className="gap-2 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
-                                                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                                                Attribuer Badge
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleWelcome(member.id, member.pseudoDofus || member.user.name || "Nouveau membre")} className="gap-2 focus:bg-violet-500/10 focus:text-violet-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
-                                                <Send className="h-3.5 w-3.5 text-violet-500" />
-                                                Bienvenue
-                                            </DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => openIdDialog(member)} className="gap-2 focus:bg-indigo-500/10 focus:text-indigo-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                 <Edit className="h-3.5 w-3.5 text-indigo-400" />
                                                 Modifier ID Dofus

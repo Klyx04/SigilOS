@@ -53,6 +53,10 @@ const EntrySchema = z.object({
     chainId: z.string(),
     name: z.string().min(1),
     zone: z.string().optional().nullable(),
+    npcName: z.string().optional().nullable(),
+    npcSubArea: z.string().optional().nullable(),
+    level: z.number().int().optional().nullable(),
+    isDungeon: z.boolean().optional().default(false),
     questType: z.string().default("QUEST"),
     stepOrder: z.number().int().default(0),
     isOptional: z.boolean().default(false),
@@ -66,7 +70,9 @@ const EntrySchema = z.object({
     requirements: z.any().optional(),
     notes: z.string().optional().nullable(),
     externalRef: z.string().optional().nullable(),
-    dungeonsRequired: z.any().optional().nullable(),
+    objectives: z.array(z.any()).optional().default([]),
+    itemsRequired: z.array(z.any()).optional().default([]),
+    dungeonsRequired: z.array(z.any()).optional().default([]),
 });
 
 // --- Actions ---
@@ -291,7 +297,6 @@ export async function upsertQuestEntry(id: string | null, data: z.infer<typeof E
             ? await (db as any).dofusQuestEntry.update({ where: { id }, data: validated })
             : await (db as any).dofusQuestEntry.create({ data: validated });
         
-        // Find Dofus Slug to sync to file
         const chain = await (db as any).dofusQuestChain.findUnique({
             where: { id: validated.chainId },
             include: { dofus: true }
@@ -328,9 +333,203 @@ export async function deleteQuestEntry(id: string): Promise<ActionResponse> {
 }
 
 /**
- * "Pumper" de quêtes DofusDB
- * Prélève les données brutes de l'API DofusDB pour pré-remplir la chaîne
+ * Move a quest chain (section) up or down in the dofus
  */
+export async function reorderQuestChain(chainId: string, direction: "up" | "down"): Promise<ActionResponse> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const chain = await (db as any).dofusQuestChain.findUnique({
+            where: { id: chainId },
+            select: { id: true, dofusId: true, chainOrder: true }
+        });
+
+        if (!chain) return { success: false, error: "Section introuvable" };
+
+        const neighbor = direction === "up"
+            ? await (db as any).dofusQuestChain.findFirst({
+                where: { dofusId: chain.dofusId, chainOrder: { lt: chain.chainOrder } },
+                orderBy: { chainOrder: "desc" }
+              })
+            : await (db as any).dofusQuestChain.findFirst({
+                where: { dofusId: chain.dofusId, chainOrder: { gt: chain.chainOrder } },
+                orderBy: { chainOrder: "asc" }
+              });
+
+        if (!neighbor) return { success: false, error: direction === "up" ? "Déjà en première position" : "Déjà en dernière position" };
+
+        const tempOrder = chain.chainOrder;
+        await (db as any).dofusQuestChain.update({ where: { id: chain.id }, data: { chainOrder: neighbor.chainOrder } });
+        await (db as any).dofusQuestChain.update({ where: { id: neighbor.id }, data: { chainOrder: tempOrder } });
+
+        revalidatePath("/god/quetes-dofus");
+        revalidatePath("/god/game-data");
+        return { success: true };
+    } catch (error) {
+        console.error("[reorderQuestChain] Error:", error);
+        return { success: false, error: "Erreur lors du réordonnancement" };
+    }
+}
+
+/**
+ * Move a quest entry up or down in the chain order
+ */
+export async function reorderQuestEntry(entryId: string, direction: "up" | "down"): Promise<ActionResponse> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const entry = await (db as any).dofusQuestEntry.findUnique({
+            where: { id: entryId },
+            select: { id: true, chainId: true, stepOrder: true }
+        });
+
+        if (!entry) return { success: false, error: "Étape introuvable" };
+
+        // Find the neighbor entry to swap with
+        const neighbor = direction === "up"
+            ? await (db as any).dofusQuestEntry.findFirst({
+                where: { chainId: entry.chainId, stepOrder: { lt: entry.stepOrder } },
+                orderBy: { stepOrder: "desc" }
+              })
+            : await (db as any).dofusQuestEntry.findFirst({
+                where: { chainId: entry.chainId, stepOrder: { gt: entry.stepOrder } },
+                orderBy: { stepOrder: "asc" }
+              });
+
+        if (!neighbor) return { success: false, error: direction === "up" ? "Déjà en première position" : "Déjà en dernière position" };
+
+        // Swap stepOrder
+        const tempOrder = entry.stepOrder;
+        await (db as any).dofusQuestEntry.update({ where: { id: entry.id }, data: { stepOrder: neighbor.stepOrder } });
+        await (db as any).dofusQuestEntry.update({ where: { id: neighbor.id }, data: { stepOrder: tempOrder } });
+
+        revalidatePath("/god/quetes-dofus");
+        revalidatePath("/god/game-data");
+        return { success: true };
+    } catch (error) {
+        console.error("[reorderQuestEntry] Error:", error);
+        return { success: false, error: "Erreur lors du réordonnancement" };
+    }
+}
+
+// =============================================================================
+// PREREQUISITES — DofusQuestPrerequisite CRUD
+// =============================================================================
+
+export async function getQuestPrerequisites(questId: string): Promise<ActionResponse<{ from: any[]; to: any[] }>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const from = await (db as any).dofusQuestPrerequisite.findMany({
+            where: { toQuestId: questId },
+            include: {
+                fromQuest: { select: { id: true, name: true, stepOrder: true, questType: true } }
+            }
+        });
+
+        const to = await (db as any).dofusQuestPrerequisite.findMany({
+            where: { fromQuestId: questId },
+            include: {
+                toQuest: { select: { id: true, name: true, stepOrder: true, questType: true } }
+            }
+        });
+
+        return { success: true, data: { from, to } };
+    } catch (error) {
+        console.error("[getQuestPrerequisites] Error:", error);
+        return { success: false, error: "Erreur lors du chargement" };
+    }
+}
+
+export async function getSiblingQuestEntries(chainId: string, excludeQuestId: string): Promise<ActionResponse<any[]>> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        const chain = await (db as any).dofusQuestChain.findUnique({
+            where: { id: chainId },
+            select: { dofusId: true }
+        });
+
+        if (!chain) return { success: false, error: "Chaîne introuvable" };
+
+        const entries = await (db as any).dofusQuestEntry.findMany({
+            where: {
+                chain: { dofusId: chain.dofusId },
+                id: { not: excludeQuestId }
+            },
+            select: {
+                id: true,
+                name: true,
+                stepOrder: true,
+                questType: true,
+                zone: true,
+                chain: { select: { sectionName: true } }
+            },
+            orderBy: [{ stepOrder: "asc" }]
+        });
+
+        return { success: true, data: entries };
+    } catch (error) {
+        console.error("[getSiblingQuestEntries] Error:", error);
+        return { success: false, error: "Erreur lors du chargement" };
+    }
+}
+
+export async function addQuestPrerequisite(fromQuestId: string, toQuestId: string): Promise<ActionResponse> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    if (fromQuestId === toQuestId) {
+        return { success: false, error: "Une quête ne peut pas être son propre prérequis" };
+    }
+
+    try {
+        const existing = await (db as any).dofusQuestPrerequisite.findUnique({
+            where: { fromQuestId_toQuestId: { fromQuestId, toQuestId } }
+        });
+
+        if (existing) return { success: false, error: "Ce prérequis existe déjà" };
+
+        const reverseExists = await (db as any).dofusQuestPrerequisite.findUnique({
+            where: { fromQuestId_toQuestId: { fromQuestId: toQuestId, toQuestId: fromQuestId } }
+        });
+
+        if (reverseExists) return { success: false, error: "Dépendance circulaire détectée" };
+
+        await (db as any).dofusQuestPrerequisite.create({
+            data: { fromQuestId, toQuestId }
+        });
+
+        revalidatePath("/god/quetes-dofus");
+        return { success: true };
+    } catch (error) {
+        console.error("[addQuestPrerequisite] Error:", error);
+        return { success: false, error: "Erreur lors de l'ajout du prérequis" };
+    }
+}
+
+export async function removeQuestPrerequisite(id: string): Promise<ActionResponse> {
+    const userId = await requireSuperAdmin();
+    if (!userId) return { success: false, error: "Accès refusé" };
+
+    try {
+        await (db as any).dofusQuestPrerequisite.delete({ where: { id } });
+        revalidatePath("/god/quetes-dofus");
+        return { success: true };
+    } catch (error) {
+        console.error("[removeQuestPrerequisite] Error:", error);
+        return { success: false, error: "Erreur lors de la suppression du prérequis" };
+    }
+}
+
+// =============================================================================
+// DOFUSDB PUMPER — legacy, kept for data imports
+// =============================================================================
+
 export async function pumpQuestsFromDofusDB(
     chainId: string,
     questIds: number[]
@@ -342,13 +541,11 @@ export async function pumpQuestsFromDofusDB(
         let count = 0;
 
         for (const qid of questIds) {
-            // Fetch raw data from DofusDB
             const response = await fetch(`https://api.dofusdb.fr/quests/${qid}`);
             if (!response.ok) continue;
             
             const qData = await response.json();
             
-            // Get last order in chain
             const lastEntry = await (db as any).dofusQuestEntry.findFirst({
                 where: { chainId },
                 orderBy: { stepOrder: 'desc' },
@@ -356,14 +553,13 @@ export async function pumpQuestsFromDofusDB(
             });
             const nextOrder = (lastEntry?.stepOrder ?? -1) + 1;
 
-            // Create entry
             await (db as any).dofusQuestEntry.create({
                 data: {
                     chainId,
                     name: qData.name?.fr || qData.className,
                     zone: qData.category?.name?.fr || "DofusDB Import",
                     questType: "QUEST",
-                    stepOrder: nextOrder, // We use the same 'nextOrder' for bulk for simplicity or increment it
+                    stepOrder: nextOrder,
                     dofusdbId: qid,
                     notes: qData.steps?.[0]?.description?.fr || "Pumped from DofusDB",
                     requirements: qData.need ? { 
@@ -388,13 +584,11 @@ export async function compileDofusChain(slug: string): Promise<ActionResponse<{ 
     if (!userId) return { success: false, error: "Accès refusé" };
 
     try {
-        // 1. Compile
         const { stdout: compileOut } = await execAsync(
             `npx tsx scripts/dofus-compiler-v3.ts --dofus=${slug}`,
             { cwd: process.cwd() }
         );
         
-        // 2. Seed
         const { stdout: seedOut } = await execAsync(
             `npx tsx scripts/seed-argent-tree.ts --dofus=${slug}`,
             { cwd: process.cwd() }
@@ -426,8 +620,6 @@ export async function compileAllDofus(): Promise<ActionResponse<{ log: string }>
         return { success: false, error: "Erreur globale: " + (error?.message || "Inconnue") };
     }
 }
-
-
 
 export async function getDofusHealthReport(): Promise<ActionResponse<any[]>> {
     const userId = await requireSuperAdmin();
@@ -470,4 +662,3 @@ export async function getDofusHealthReport(): Promise<ActionResponse<any[]>> {
         return { success: false, error: "Erreur lors du rapport de santé" };
     }
 }
-

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, AlertTriangle, Hash, Calendar, Users, Clock, Swords, Coins } from "lucide-react";
 import { toast } from "sonner";
-import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel, updateRaidKamaDonationRequired, updateRaidKamaDonationThreshold } from "@/server/actions/admin-actions";
+import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel, updateRaidKamaDonationRequired, updateRaidKamaDonationThreshold, updateRaidAllowedSignUpRolesAction } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 
@@ -35,6 +35,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
     
     const [calendarPingRoleIds, setCalendarPingRoleIds] = useState<string[]>([]);
     const [raidPingRoleIds, setRaidPingRoleIds] = useState<string[]>([]);
+    const [raidAllowedSignUpRoleIds, setRaidAllowedSignUpRoleIds] = useState<string[]>([]);
     const [discordRoles, setDiscordRoles] = useState<{ id: string, name: string, color: string }[]>([]);
     const [raidRequireKamaDonation, setRaidRequireKamaDonation] = useState(true);
     const [raidKamaDonationThreshold, setRaidKamaDonationThreshold] = useState(3);
@@ -58,6 +59,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                 setIsSanctuaireConfigured(!!result.data.raidSanctuaireChannelId);
                 setRaidRequireKamaDonation(result.data.raidRequireKamaDonation ?? true);
                 setRaidKamaDonationThreshold(result.data.raidKamaDonationThreshold ?? 3);
+                setRaidAllowedSignUpRoleIds(result.data.raidAllowedSignUpRoleIds || []);
             }
             if (rolesRes.success && rolesRes.roles) {
                 setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
@@ -85,12 +87,13 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
         startTransition(async () => {
             const result = await updateRaidChannel(guildId, raidChannelId.trim() || null);
             const pingRolesResult = await updateAllowedPingRolesAction(guildId, raidPingRoleIds, "raid");
+            const signUpRolesResult = await updateRaidAllowedSignUpRolesAction(guildId, raidAllowedSignUpRoleIds);
 
-            if (result.success && pingRolesResult.success) {
+            if (result.success && pingRolesResult.success && signUpRolesResult.success) {
                 toast.success("Configuration Raids sauvegardée !");
                 setIsRaidConfigured(!!raidChannelId.trim());
             } else {
-                toast.error(result.error || pingRolesResult.error || "Erreur lors de la sauvegarde");
+                toast.error(result.error || pingRolesResult.error || signUpRolesResult.error || "Erreur lors de la sauvegarde");
             }
         });
     };
@@ -602,7 +605,18 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                 <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-zinc-800 border-2 border-zinc-950 flex items-center justify-center">
                                     <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                                 </div>
-                                <h3 className="text-sm font-medium text-white mb-2">3. Rôles de Ping Autorisés (Raids)</h3>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-sm font-medium text-white">3. Rôles de Ping Autorisés (Raids)</h3>
+                                    <Button 
+                                        onClick={handleSaveRaid} 
+                                        disabled={isPending} 
+                                        size="sm"
+                                        className="bg-red-600 hover:bg-red-500 text-white font-bold"
+                                    >
+                                        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                                        Sauvegarder les Pings
+                                    </Button>
+                                </div>
                                 <p className="text-xs text-zinc-500 mb-4">
                                     Définissez quels rôles Discord les membres peuvent mentionner spécifiquement pour les événements de Raid Officiel.
                                 </p>
@@ -611,6 +625,31 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                     onChange={setRaidPingRoleIds} 
                                     roles={discordRoles} 
                                     description="Si vide, la configuration par défaut du calendrier sera utilisée (aucun rôle à moins que configuré)." 
+                                />
+                            </div>
+
+                            <div className="relative pl-6 border-l-2 border-transparent">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-red-500 border-2 border-zinc-950 shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-sm font-medium text-white">4. Whitelist des Rôles d'Inscription (Raid Guilde)</h3>
+                                    <Button 
+                                        onClick={handleSaveRaid} 
+                                        disabled={isPending} 
+                                        size="sm"
+                                        className="bg-red-600 hover:bg-red-500 text-white font-bold"
+                                    >
+                                        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                                        Sauvegarder la Whitelist
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-zinc-500 mb-4">
+                                    Définissez la liste des rôles Discord parmi lesquels l'initiateur d'un raid (lorsque "Guilde uniquement" est coché) pourra choisir quels rôles sont autorisés à s'inscrire.
+                                </p>
+                                <PingRolesSelector 
+                                    value={raidAllowedSignUpRoleIds} 
+                                    onChange={setRaidAllowedSignUpRoleIds} 
+                                    roles={discordRoles} 
+                                    description="Si vide, tous les rôles de membres de la guilde ayant accès aux raids pourront s'inscrire par défaut." 
                                 />
                             </div>
                         </CardContent>

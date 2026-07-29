@@ -419,8 +419,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;
             const lb=isMetier&&tag.name?`${tag.name}(${tag.level||1})`:def.label;
             return (
-              <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
-                <img src={ip} alt="" className="w-3.5 h-3.5 object-cover rounded-full"/>
+              <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
+                <img src={ip} alt="" className="w-5 h-5 object-cover rounded-lg"/>
                 {tag.count&&tag.count>1&&<span className="text-[8px] text-amber-400 font-bold">x{tag.count}</span>}
                 <span className="truncate max-w-[90px]">{isMetier&&tag.name?`${tag.name} ${tag.level?`N${tag.level}`:""}`:lb}</span>
               </span>

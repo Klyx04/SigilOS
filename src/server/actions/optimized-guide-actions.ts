@@ -431,12 +431,16 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     where: { id: milestoneId },
     select: {
       guide: { select: { slug: true } },
-      sequences: { select: { id: true } }
+      sequences: { select: { id: true, activityTags: true } }
     }
   });
 
-  const totalSeqCount = milestone?.sequences.length || 0;
-  const isAllCompleted = totalSeqCount > 0 && milestone!.sequences.every(s => completedSteps.includes(s.id));
+  // Exclude info_sequence from completion count (they are decorative banners, not checkable quests)
+  const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
+    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+  const regularSeqs = milestone?.sequences.filter(s => !isInfoSeq(s)) || [];
+  const totalSeqCount = regularSeqs.length;
+  const isAllCompleted = totalSeqCount > 0 && regularSeqs.every(s => completedSteps.includes(s.id));
 
   const progress = await db.playerGuideProgress.upsert({
     where: {

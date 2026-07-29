@@ -218,16 +218,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const isActive = seq.id === activeSeqId && !isSeqCompleted;
   const isNext = seq.id === nextSeqId && !isSeqCompleted && !isActive;
   const isThisBookmarked = seq.id === bookmarkedSeqId;
-  const [bookmarkHighlight, setBookmarkHighlight] = useState(false);
-  const prevBookmarked = useRef(isThisBookmarked);
-  useEffect(() => {
-    if (isThisBookmarked && !prevBookmarked.current) {
-      setBookmarkHighlight(true);
-      const timer = setTimeout(() => setBookmarkHighlight(false), 3000);
-      return () => clearTimeout(timer);
-    }
-    prevBookmarked.current = isThisBookmarked;
-  }, [isThisBookmarked]);
   // ─── Guild members with bookmark on this seq (pour l'affichage flottant) ──
   const seqMembers = useMemo(() => {
     const raw = guildProgressBySeq.get(seq.id) || [];
@@ -309,7 +299,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${bookmarkHighlight ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-950" : ""}`}>
+      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "ring-2 ring-amber-500/60 ring-offset-2 ring-offset-zinc-950 border-amber-500/60 bg-amber-500/[0.06]" : ""}`}>
         {isActive && !isSeqCompleted && (
           <span className="text-[9px] font-black uppercase tracking-widest text-amber-400/70 mb-0">
             À FAIRE MAINTENANT
@@ -761,8 +751,10 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   useEffect(()=>{if(isBookmarked)setExpanded(true);},[isBookmarked]);
   useEffect(()=>{if(focusedSeqId&&ms.sequences.some((s:any)=>s.id===focusedSeqId))setExpanded(true);},[focusedSeqId,ms.sequences]);
   if(hideDone&&isCompleted&&!isSearching)return null;
-  const cs=ms.sequences.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
-  const all=isCompleted||(ms.sequences.length>0&&cs===ms.sequences.length);
+  const nonInfoSeqs = ms.sequences.filter((s:any)=>!isInfoSequence(s));
+  const cs=nonInfoSeqs.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
+  const totalQuests=nonInfoSeqs.length;
+  const all=isCompleted||(totalQuests>0&&cs===totalQuests);
   const c=accentColor||"#10b981";
 
   return (
@@ -786,7 +778,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
               {(()=>{if(!ms.dofusId)return null;const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return null;return<img src={d.imageUrl} alt={d.label} title={d.label} className="w-5 h-5 object-contain drop-shadow-lg flex-shrink-0"/>;})()}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[9px] font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${ms.sequences.length}`:`${ms.sequences.length} quête${ms.sequences.length>1?"s":""}`}</span>
+              <span className="text-[9px] font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${totalQuests}`:`${totalQuests} quête${totalQuests>1?"s":""}`}</span>
             </div>
           </div>
           {/* Actions */}
@@ -1036,7 +1028,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
   const overallPercent=tMs>0?Math.round((completedCount/tMs)*100):0;
   const activeMembersCount=useMemo(()=>new Set(guildProgress.map(p=>p.profileId)).size,[guildProgress]);
   const setLoading=useCallback((msId:string,val:boolean)=>setLoadingIds(prev=>{const n=new Set(prev);val?n.add(msId):n.delete(msId);return n;}),[]);
-  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{const cur=new Set(completedStepsByMs.get(ms.id)||[]);const was=cur.has(seqId);was?cur.delete(seqId):cur.add(seqId);const arr=Array.from(cur);const allChecked=ms.sequences.length>0&&ms.sequences.every(s=>cur.has(s.id));setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.add(ms.id):n.delete(ms.id);return n;});setLoading(ms.id,true);try{const res=await updateStepProgress(guildId,ms.id,arr,effectiveAltPseudo);if((res as any).success)toast.success(was?"Décocher":"✅ Validée !",{duration:1500});else toast.error("Erreur");}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedStepsByMs,guildId,effectiveAltPseudo,setLoading]);
+  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{const cur=new Set(completedStepsByMs.get(ms.id)||[]);const was=cur.has(seqId);was?cur.delete(seqId):cur.add(seqId);const arr=Array.from(cur);const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));const allChecked=regularSeqs.length>0&&regularSeqs.every((s:any)=>cur.has(s.id));const wasMilestoneCompleted=completedIds.has(ms.id);setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.add(ms.id):n.delete(ms.id);return n;});setLoading(ms.id,true);try{const res=await updateStepProgress(guildId,ms.id,arr,effectiveAltPseudo);if((res as any).success){if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});}else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}}else{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur");}}catch{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedStepsByMs,completedIds,guildId,effectiveAltPseudo,setLoading]);
   const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500});}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
   // ─── Bookmark par séquence ─────────────────────────────────────────────

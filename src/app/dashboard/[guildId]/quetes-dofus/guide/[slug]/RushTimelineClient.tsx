@@ -78,31 +78,7 @@ function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:stri
     ? "from-amber-950/30 via-zinc-950/80 to-zinc-950/90" 
     : "from-emerald-950/30 via-zinc-950/80 to-zinc-950/90";
   const icon = isPurple ? "👿" : isAmber ? "💡" : "✨";
-  
-  const parts: (string | React.ReactNode)[] = [];
-  const rx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
-  let li = 0, m: RegExpExecArray | null;
-  while ((m = rx.exec(text)) !== null) {
-    if (m.index > li) parts.push(text.slice(li, m.index));
-    if (m[1] && m[2]) {
-      parts.push(
-        <a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">
-          {m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/>
-        </a>
-      );
-    } else if (m[3]) {
-      let dl = m[3];
-      if (m[3].includes("dofusdb.fr")) dl = "Lien DofusDB ↗";
-      else if (m[3].includes("dofuspourlesnoobs.com")) dl = "Lien DofusNoobs ↗";
-      parts.push(
-        <a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">
-          {dl}
-        </a>
-      );
-    }
-    li = rx.lastIndex;
-  }
-  if (li < text.length) parts.push(text.slice(li));
+  const parts = renderContentWithCoords(text);
 
   return (
     <div className={`flex items-start gap-3 p-3 rounded-2xl border-l-4 ${borderCol} bg-gradient-to-r ${bgGrad} border border-y-white/5 border-r-white/5 shadow-lg my-2 backdrop-blur-md`}>
@@ -456,7 +432,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
       {seq.tips && (
         <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text.xs font-medium text-amber-300">
           <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-          <span>{seq.tips}</span>
+          <div className="flex-1 flex flex-wrap items-center gap-1">{renderContentWithCoords(seq.tips)}</div>
         </div>
       )}
       {seq.note && (
@@ -570,25 +546,59 @@ function getInfoStyle(accentColor?: string|null): { border: string; bg: string; 
     return { border:"border-purple-500/30", bg:"from-purple-950/30 via-zinc-950 to-zinc-950", icon:"🔮" };
   return { border:"border-emerald-500/30", bg:"from-emerald-950/30 via-zinc-950 to-zinc-950", icon:"💡" };
 }
-function InfoBanner({ milestone }: { milestone: Milestone }) {
-  const color = milestone.accentColor || "#10b981";
-  const content = milestone.tips || milestone.description || milestone.title || "";
+function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
   const parts: (string | React.ReactNode)[] = [];
-  const rx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
+  // Combine link regex and coordinate regex in one pass
+  // Order matters: [text](url), raw urls, /travel X Y, /travel X,Y, [X, Y], [X, Y, W]
+  const combinedRx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)|(?:\/travel\s+(-?\d+)\s*[,;]\s*(-?\d+)(?!\d))|\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g;
   let li = 0, m: RegExpExecArray | null;
-  while ((m = rx.exec(content)) !== null) {
-    if (m.index > li) parts.push(content.slice(li, m.index));
+  while ((m = combinedRx.exec(text)) !== null) {
+    if (m.index > li) parts.push(text.slice(li, m.index));
     if (m[1] && m[2]) {
+      // Markdown link [text](url)
       parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">{m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/></a>);
     } else if (m[3]) {
+      // Raw URL
       let label = m[3];
       if (m[3].includes("dofusdb.fr")) label = "Lien DofusDB ↗";
       else if (m[3].includes("dofuspourlesnoobs.com")) label = "Lien DofusNoobs ↗";
       parts.push(<a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">{label}</a>);
+    } else if (m[4] && m[5]) {
+      // /travel X, Y format
+      const x = m[4], y = m[5];
+      const key = `${x},${y}`;
+      parts.push(
+        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
+          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x} ${y}`).then(()=>{toast.success(`📍 Position [${x} ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
+          title="Cliquer pour copier /travel"
+        >
+          <MapPin className="w-3 h-3 text-indigo-400" />
+          [{x}, {y}]
+        </span>
+      );
+    } else if (m[6] && m[7]) {
+      // [x, y] or [x, y, world] format
+      const x = m[6], y = m[7];
+      parts.push(
+        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
+          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x} ${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
+          title="Cliquer pour copier /travel"
+        >
+          <MapPin className="w-3 h-3 text-indigo-400" />
+          [{x} {y}]
+        </span>
+      );
     }
-    li = rx.lastIndex;
+    li = combinedRx.lastIndex;
   }
-  if (li < content.length) parts.push(content.slice(li));
+  if (li < text.length) parts.push(text.slice(li));
+  return parts;
+}
+
+function InfoBanner({ milestone }: { milestone: Milestone }) {
+  const color = milestone.accentColor || "#10b981";
+  const content = milestone.tips || milestone.description || milestone.title || "";
+  const parts = renderContentWithCoords(content);
   const hasTitle = !!milestone.title && !content.startsWith(milestone.title);
   const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
   const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
@@ -674,7 +684,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                 {ms.tips && (
                   <div className="mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-300 font-medium">
                     <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 leading-relaxed">{ms.tips}</div>
+                    <div className="flex-1 leading-relaxed flex flex-wrap items-center gap-1">{renderContentWithCoords(ms.tips)}</div>
                   </div>
                 )}
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
@@ -1205,7 +1215,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 px-1">
-          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Progression</span>
+          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">Progression<ContextualHelp label="Aide progression">La progression se synchronise en temps réel avec les autres membres connectés. Chaque quête cochée met à jour le pourcentage global.</ContextualHelp></span>
           <span className="text-lg font-black text-white">{overallPercent}%</span>
           <span className="text-[10px] text-zinc-600 font-mono">({completedCount}/{tMs})</span>
           <div className="h-2 bg-zinc-800/60 rounded-full flex-1 max-w-[300px] ml-auto shadow-inner">
@@ -1231,6 +1241,9 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             <X className="w-3.5 h-3.5" />
           </button>
         )}
+        <div className="absolute right-10 top-1/2 -translate-y-1/2">
+          <ContextualHelp label="Aide recherche">Recherche par nom de quête, donjon ou zone. Les résultats s'affichent en temps réel et incluent les quêtes terminées.</ContextualHelp>
+        </div>
       </div>
       <button onClick={()=>setHideDone(v=>!v)}
         className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${

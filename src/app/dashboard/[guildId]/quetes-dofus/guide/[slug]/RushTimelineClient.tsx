@@ -390,33 +390,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
                 </a>
               )}
-              {seqMembers.length > 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
-                  className="flex items-center gap-0.5 px-1.5 py-1 rounded-lg border border-white/10 bg-zinc-900 hover:bg-zinc-800 transition-all cursor-pointer"
-                  title={`${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''} sur cette quête`}
-                >
-                  <div className="flex -space-x-1">
-                    {floatAvatars.map((m) => (
-                      <div
-                        key={m.profileId}
-                        className="w-5 h-5 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0"
-                        title={m.userName}
-                      >
-                        {m.userAvatar ? (
-                          <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-[7px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {floatExtra > 0 && (
-                    <span className="text-[8px] font-black text-indigo-400">+{floatExtra}</span>
-                  )}
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -461,9 +434,14 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           })()}
         </div>
 
-        {/* Social row — joueurs sur cette quête (uniquement si bookmarkée) */}
+        {/* Social row — joueurs sur cette quête (uniquement si bookmarkée) — clic ouvre la modale */}
         {isThisBookmarked && !isSeqCompleted && seqMembers.length > 0 && (
-          <div className="flex items-center gap-2 pt-0.5">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
+            className="flex items-center gap-2 pt-0.5 cursor-pointer text-left"
+            title={`Voir les ${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''}`}
+          >
             <div className="flex -space-x-1.5">
               {seqMembers.slice(0, 5).map((m) => (
                 <div
@@ -482,7 +460,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             <span className="text-[10px] font-bold text-amber-400/70">
               {seqMembers.length} joueur{seqMembers.length > 1 ? 's' : ''} ici
             </span>
-          </div>
+          </button>
         )}
 
         {/* Dungeons Row */}

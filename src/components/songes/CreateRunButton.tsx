@@ -634,32 +634,47 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                             </div>
 
                             {selectedStuffId === "none" ? (
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-2 gap-2.5">
                                     {stuffs.slice(0, 6).map((stuff) => {
                                         const isSelected = selectedStuffId === stuff.id;
+                                        const classId = stuff.classId;
+                                        const classData = classId ? getClass(String(classId).toLowerCase()) : null;
                                         return (
                                             <button
                                                 key={stuff.id}
                                                 type="button"
                                                 onClick={() => setSelectedStuffId(stuff.id)}
-                                                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                                                className={`flex flex-col items-stretch gap-1.5 p-2.5 rounded-xl border transition-all ${
                                                     isSelected
                                                         ? "border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                                         : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
                                                 }`}
                                             >
-                                                {(() => {
-                                                    const thumb = stuff.previewData?.thumbnail;
-                                                    return thumb ? (
-                                                        <div className="w-12 h-12 rounded-lg overflow-hidden relative">
-                                                            <img src={thumb} alt={stuff.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                                                            <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center text-zinc-500 text-[18px] pointer-events-none" style={{ display: 'none' }} onLoad={() => {}}>🛡️</div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 text-[18px]">🛡️</div>
-                                                    );
-                                                })()}
-                                                <span className="text-[10px] font-bold text-zinc-300 truncate max-w-full text-center leading-tight">{stuff.name}</span>
+                                                <div className="flex items-center gap-2.5">
+                                                    {(() => {
+                                                        const thumb = stuff.previewData?.thumbnail;
+                                                        return thumb ? (
+                                                            <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 relative bg-zinc-900">
+                                                                <img src={thumb} alt={stuff.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 text-lg shrink-0">🛡️</div>
+                                                        );
+                                                    })()}
+                                                    <div className="flex-1 min-w-0 text-left">
+                                                        <span className="text-xs font-black text-zinc-100 truncate block leading-tight">{stuff.name}</span>
+                                                        {classData && (
+                                                            <div className="flex items-center gap-1 mt-0.5">
+                                                                <img src={classData.icon} alt={classData.name} className="w-3.5 h-3.5 object-contain" />
+                                                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-tight">{classData.name}</span>
+                                                            </div>
+                                                        )}
+                                                        {stuff.votesCount > 0 && (
+                                                            <span className="text-[9px] text-amber-500/60 font-bold">★ {stuff.votesCount}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {isSelected && <div className="absolute top-1 right-1 w-3 h-3 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />}
                                             </button>
                                         );
                                     })}

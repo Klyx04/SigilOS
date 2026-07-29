@@ -1572,8 +1572,10 @@ export async function publishMissionsToDiscord(
             return { success: false, error: "Aucune mission n'est publiée pour cette semaine." };
         }
 
-        const hasEvents = missions.some(m => m.category === "EVENT");
-        const missionLabel = hasEvents ? "Missions Classiques et Événements" : "Missions Classiques";
+        const specialCategories = ["EVENT", "SONGES", "ANOMALIE"];
+        const hasSpecialMissions = missions.some(m => specialCategories.includes(m.category));
+        const specialMissionsList = missions.filter(m => specialCategories.includes(m.category));
+        const missionLabel = hasSpecialMissions ? "Missions Classiques et Spéciales" : "Missions Classiques";
 
         // Pick a thematic thumbnail for the embed
         const thumbnailUrl = getMissionThumbnailUrl(missions);
@@ -1599,31 +1601,64 @@ export async function publishMissionsToDiscord(
         const { sendChannelMessage } = await import("@/server/discord");
         const { formatDofusRange } = await import("@/lib/date-utils");
 
+        // Build special missions description line
+        const specialMissionsLines = specialMissionsList.length > 0
+            ? [
+                "\n🎯 **Missions Spéciales cette semaine :**",
+                ...specialMissionsList.map(m => {
+                    const label = m.title || m.category;
+                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
+                    return `${icon} ${label}`;
+                }),
+            ].join("\n")
+            : "";
+
+        const embedTitle = hasSpecialMissions
+            ? `📅 Objectifs + Spéciales — ${formatDofusRange()}`
+            : `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`;
+
+        const manageUrl = `${getAppBaseUrl()}/dashboard/${guildId}/missions/manage`;
+
+        const fields: any[] = [
+            {
+                name: "📊 Progression du Palier",
+                value: `${progressDisplay}\n\u200B`,
+                inline: false
+            },
+            {
+                name: "📍 Jalons de la Semaine",
+                value: `${milestonesDisplay}\n\u200B`,
+                inline: false
+            },
+        ];
+
+        if (specialMissionsList.length > 0) {
+            fields.push({
+                name: "🎯 Missions Spéciales",
+                value: `${specialMissionsList.map(m => {
+                    const label = m.title || m.category;
+                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
+                    return `${icon}  **${label}**`;
+                }).join("\n")}\n\u200B`,
+                inline: false
+            });
+        }
+
+        fields.push({
+            name: "🔗 Liens Rapides",
+            value: `[Accéder au Dashboard](${dashboardUrl})${hasSpecialMissions ? ` · [Gérer les Spéciales](${manageUrl})` : ""}`,
+            inline: true
+        });
+
         const messageId = await sendChannelMessage(guild.missionNotifyChannelId, "", {
             mentionContent,
-            embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
-            embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.\n\u200B`,
+            embedTitle,
+            embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.${specialMissionsLines}\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
             embedThumbnail: thumbnailUrl,
             embedFooter: `SigilOS • Système de Gestion de Guilde`,
-            fields: [
-                {
-                    name: "📊 Progression du Palier",
-                    value: `${progressDisplay}\n\u200B`,
-                    inline: false
-                },
-                {
-                    name: "📍 Jalons de la Semaine",
-                    value: `${milestonesDisplay}\n\u200B`,
-                    inline: false
-                },
-                {
-                    name: "🔗 Liens Rapides",
-                    value: `[Accéder au Dashboard](${dashboardUrl})`,
-                    inline: true
-                }
-            ]
+            fields
         });
 
         if (!messageId) {
@@ -1716,8 +1751,10 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
             where: { guildId: guild.id, weekNumber: week, year }
         });
         
-        const hasEvents = missions.some(m => m.category === "EVENT");
-        const missionLabel = hasEvents ? "Missions Classiques et Événements" : "Missions Classiques";
+        const specialCategories = ["EVENT", "SONGES", "ANOMALIE"];
+        const hasSpecialMissions = missions.some(m => specialCategories.includes(m.category));
+        const specialMissionsList = missions.filter(m => specialCategories.includes(m.category));
+        const missionLabel = hasSpecialMissions ? "Missions Classiques et Spéciales" : "Missions Classiques";
 
         // Pick a thematic thumbnail for the embed
         const thumbnailUrl = getMissionThumbnailUrl(missions);
@@ -1741,33 +1778,51 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
 
         const { getAppBaseUrl } = await import("@/lib/utils");
         const dashboardUrl = `${getAppBaseUrl()}/dashboard/${discordGuildId}/missions`;
+        const manageUrl = `${getAppBaseUrl()}/dashboard/${discordGuildId}/missions/manage`;
         const { updateChannelMessage } = await import("@/server/discord");
         const { formatDofusRange } = await import("@/lib/date-utils");
 
+        const fields: any[] = [
+            {
+                name: "📊 Progression du Palier",
+                value: `${progressDisplay}\n\u200B`,
+                inline: false
+            },
+            {
+                name: "📍 Jalons de la Semaine",
+                value: `${milestonesDisplay}\n\u200B`,
+                inline: false
+            },
+        ];
+
+        if (specialMissionsList.length > 0) {
+            fields.push({
+                name: "🎯 Missions Spéciales",
+                value: `${specialMissionsList.map(m => {
+                    const label = m.title || m.category;
+                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
+                    return `${icon}  **${label}**`;
+                }).join("\n")}\n\u200B`,
+                inline: false
+            });
+        }
+
+        fields.push({
+            name: "🔗 Liens Rapides",
+            value: `[Accéder au Dashboard](${dashboardUrl})${hasSpecialMissions ? ` · [Gérer les Spéciales](${manageUrl})` : ""}`,
+            inline: true
+        });
+
         await updateChannelMessage(channelId, messageId, "", {
-            embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
+            embedTitle: hasSpecialMissions
+                ? `📅 Objectifs + Spéciales — ${formatDofusRange()}`
+                : `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
             embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
             embedThumbnail: thumbnailUrl,
             embedFooter: `SigilOS • Système de Gestion de Guilde`,
-            fields: [
-                {
-                    name: "📊 Progression du Palier",
-                    value: `${progressDisplay}\n\u200B`,
-                    inline: false
-                },
-                {
-                    name: "📍 Jalons de la Semaine",
-                    value: `${milestonesDisplay}\n\u200B`,
-                    inline: false
-                },
-                {
-                    name: "🔗 Liens Rapides",
-                    value: `[Accéder au Dashboard](${dashboardUrl})`,
-                    inline: true
-                }
-            ]
+            fields
         });
     } catch (e) {
         console.error("[Discord] refreshMissionDiscordEmbed failed:", e);
@@ -1901,4 +1956,4 @@ export async function getMissionsByIds(ids: string[]) {
         console.error("getMissionsByIds Error:", error);
         return [];
     }
-}
+}

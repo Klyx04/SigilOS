@@ -128,7 +128,11 @@ async function StatsTabContent({ guildId, user }: { guildId: string, user: any }
 
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { missionVitrineMode: true },
+        select: { 
+            missionVitrineMode: true,
+            serviceLoansEnabled: true,
+            serviceVaultEnabled: true,
+        },
     });
 
     const missionsModuleEnabled = await isModuleEnabled(guildId, "missions");
@@ -137,6 +141,10 @@ async function StatsTabContent({ guildId, user }: { guildId: string, user: any }
     const servicesEnabled = await isModuleEnabled(guildId, "services");
     const songesEnabled = await isModuleEnabled(guildId, "songes");
     const minigamesEnabled = await isModuleEnabled(guildId, "minigames");
+
+    const vitrineMode = !!guildConfig?.missionVitrineMode;
+    const loansEnabled = guildConfig?.serviceLoansEnabled ?? true;
+    const vaultEnabled = guildConfig?.serviceVaultEnabled ?? true;
 
     const result = await getGuildStats(guildId);
     if (!result.success || !result.stats) {
@@ -155,6 +163,9 @@ async function StatsTabContent({ guildId, user }: { guildId: string, user: any }
             servicesEnabled={servicesEnabled}
             songesEnabled={songesEnabled}
             minigamesEnabled={minigamesEnabled}
+            vitrineMode={vitrineMode}
+            loansEnabled={loansEnabled}
+            vaultEnabled={vaultEnabled}
         />
     );
 }

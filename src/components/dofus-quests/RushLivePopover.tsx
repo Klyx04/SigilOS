@@ -31,6 +31,7 @@ type RushLivePopoverProps = {
   currentClass: string | null;
   currentMilestoneId?: string | null;
   currentMilestoneTitle?: string | null;
+  currentSequenceTitle?: string | null;
   isOnRush: boolean;
 };
 

@@ -7,7 +7,7 @@ import {
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck, ArrowUp,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
-  Layers, Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield
+  Layers, Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield, Search, X, CircleHelp
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -692,6 +692,66 @@ const ScrollToPrereqCtx=React.createContext<(name:string)=>void>(()=>{});
 const AllMilestonesCtx=React.createContext<Milestone[]>([]);
 const CompletedStepsCtx=React.createContext<Set<string>>(new Set);
 const AllCompletedSeqIdsCtx=React.createContext<Set<string>>(new Set);
+const ContextualHelpCtx=React.createContext<boolean>(true);
+const ActiveSeqIdCtx=React.createContext<string|null>(null);
+const NextSeqIdCtx=React.createContext<string|null>(null);
+
+// ─── ContextualHelp ──────────────────────────────────────────────────────────
+function ContextualHelp({ label, children, className }: { label: string; children?: React.ReactNode; className?: string }) {
+  const enabled = React.useContext(ContextualHelpCtx);
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
+          triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
+  if (!enabled) return null;
+
+  return (
+    <span className={`relative inline-flex ${className || ''}`}>
+      <button
+        type="button"
+        ref={triggerRef}
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setTimeout(() => setOpen(false), 150); }}
+        aria-label={label}
+        className="flex items-center justify-center w-6 h-6 rounded-md text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all shrink-0"
+      >
+        <CircleHelp className="w-3.5 h-3.5" />
+      </button>
+      {open && (
+        <div
+          ref={popoverRef}
+          role="tooltip"
+          className="absolute z-[99999] bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 p-3 rounded-xl bg-zinc-950 border border-white/10 text-xs text-zinc-200 leading-relaxed shadow-2xl pointer-events-auto"
+        >
+          {children}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-950 border-r border-b border-white/10 rotate-45 -mt-px" />
+        </div>
+      )}
+    </span>
+  );
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -824,7 +884,162 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     completedStepsByMs.forEach(steps => steps.forEach(id => all.add(id)));
     return all;
   }, [completedStepsByMs]);
-  return(<><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  // ─── Contextual help state ───────────────────────────────────────────────────
+  const helpStorageKey = `rush-contextual-help:${guide.id}`;
+  const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(helpStorageKey);
+      if (stored === null) {
+        setContextualHelpEnabled(true);
+        localStorage.setItem(helpStorageKey, 'true');
+      } else {
+        setContextualHelpEnabled(stored === 'true');
+      }
+    }
+  }, [helpStorageKey]);
+  const toggleContextualHelp = useCallback(() => {
+    setContextualHelpEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem(helpStorageKey, next ? 'true' : 'false');
+      return next;
+    });
+  }, [helpStorageKey]);
+
+  // ─── Computed active/next sequences ─────────────────────────────────────
+  const findNextActionableSequence = useCallback(() => {
+    // 1. Bookmarked sequence if not completed
+    if (bookmarkedMsId) {
+      for (const ms of milestones) {
+        if (ms.id === bookmarkedMsId) {
+          // Check if any sequence in this milestone is bookmarked via completedSteps matching
+          // For now just find first non-completed sequence
+          for (const seq of ms.sequences) {
+            if (!allCompletedSeqIds.has(seq.id) && !seq.activityTags?.some(t => t.type === "prereq_text")) {
+              return { milestone: ms, sequence: seq };
+            }
+          }
+        }
+      }
+    }
+    // 2. First non-completed, non-blocked sequence
+    for (const ms of milestones) {
+      if (ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
+      for (const seq of ms.sequences) {
+        if (isInfoSequence(seq)) continue;
+        if (!allCompletedSeqIds.has(seq.id)) {
+          const hasPrereq = Array.isArray(seq.activityTags) && seq.activityTags.some((t:any) => t.type === "prereq_text");
+          if (!hasPrereq) {
+            return { milestone: ms, sequence: seq };
+          }
+        }
+      }
+    }
+    return null;
+  }, [milestones, bookmarkedMsId, allCompletedSeqIds]);
+
+  const findNextSequenceAfter = useCallback((currentMsId: string, currentSeqId: string) => {
+    let foundCurrent = false;
+    for (const ms of milestones) {
+      if (ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
+      for (const seq of ms.sequences) {
+        if (isInfoSequence(seq)) continue;
+        if (!foundCurrent) {
+          if (ms.id === currentMsId && seq.id === currentSeqId) {
+            foundCurrent = true;
+          }
+          continue;
+        }
+        if (!allCompletedSeqIds.has(seq.id)) {
+          return { milestone: ms, sequence: seq };
+        }
+      }
+    }
+    return null;
+  }, [milestones, allCompletedSeqIds]);
+
+  const actionableSeq = useMemo(() => findNextActionableSequence(), [findNextActionableSequence]);
+  const activeSeqId = actionableSeq?.sequence.id || null;
+  const activeMsId = actionableSeq?.milestone.id || null;
+  const nextSeq = useMemo(() => {
+    if (!activeSeqId || !activeMsId) return null;
+    return findNextSequenceAfter(activeMsId, activeSeqId);
+  }, [activeMsId, activeSeqId, findNextSequenceAfter]);
+  const nextSeqId = nextSeq?.sequence.id || null;
+
+  // ─── Scroll / resume helpers ────────────────────────────────────────────
+  const scrollToSequence = useCallback((seqId: string) => {
+    handleFocusSequence(seqId);
+    let attempts = 0;
+    const maxAttempts = 10;
+    const tryScroll = () => {
+      const el = document.querySelector(`[data-seq-id="${seqId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-amber-400", "ring-offset-2", "ring-offset-zinc-950", "animate-pulse");
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-amber-400", "ring-offset-2", "ring-offset-zinc-950", "animate-pulse");
+        }, 3000);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(tryScroll, 200 + attempts * 100);
+      }
+    };
+    setTimeout(tryScroll, 300);
+  }, [handleFocusSequence]);
+
+  const scrollToActive = useCallback(() => {
+    if (activeSeqId) scrollToSequence(activeSeqId);
+  }, [activeSeqId, scrollToSequence]);
+
+  const scrollToTop = useCallback(() => {
+    const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
+    if (scrollEl) scrollEl.scrollTo({ top: 0, behavior: 'smooth' });
+    else window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
+    if (scrollEl) scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' });
+    else window.scrollTo({ top: document.documentElement.scrollHeight, left: 0, behavior: 'smooth' });
+  }, []);
+
+  const resumeRush = useCallback(() => {
+    if (bookmarkedMsId && activeSeqId) {
+      scrollToSequence(activeSeqId);
+    } else if (activeSeqId) {
+      scrollToSequence(activeSeqId);
+    } else {
+      toast("Aucune étape à reprendre", { duration: 2000 });
+    }
+  }, [bookmarkedMsId, activeSeqId, scrollToSequence]);
+
+  // ─── Search state ───────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+  const normalizeSearch = useCallback((s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(), []);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const q = normalizeSearch(searchQuery);
+    const matchingSeqIds = new Set<string>();
+    for (const ms of milestones) {
+      if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+      for (const seq of ms.sequences) {
+        const fields = [
+          seq.subGuideName, seq.subGuideRef, seq.tips, seq.note,
+          seq.dungeon?.name, seq.dungeon?.bossName,
+          ...(seq.dungeons || []).flatMap(d => [d.name, d.bossName]),
+          ...(seq.activityTags || []).flatMap(t => [t.name, t.type])
+        ];
+        if (fields.some(f => f && normalizeSearch(f).includes(q))) {
+          matchingSeqIds.add(seq.id);
+        }
+      }
+    }
+    return matchingSeqIds;
+  }, [searchQuery, milestones, normalizeSearch]);
+
+  return(<><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   <div className="flex flex-col gap-5">
     <Link href={`/dashboard/${guildId}/quetes-dofus`} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors self-start group"><ChevronDown className="w-4 h-4 rotate-90 group-hover:-translate-x-1 transition-transform"/> Retour au Hub</Link>
     <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 backdrop-blur-md shadow-sm"><div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-amber-400 animate-pulse"/></div><div><p className="text-[10px] font-black uppercase tracking-wider text-amber-400">⚠️ Prérequis Recommandé</p><p className="text-xs text-amber-200/90">Conseillé dès le <strong className="text-white font-black">Niveau 200</strong>.</p></div></div>
@@ -930,7 +1145,18 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           </div>
         </div>
     </div></div>
-    <div className="flex flex-wrap items-center gap-2 sticky top-20 z-30"><button onClick={()=>setHideDone(v=>!v)} className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-2 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${hideDone?"bg-amber-600/25 border-amber-400/60 text-amber-300 shadow-amber-500/20 hover:bg-amber-600/30":"bg-emerald-600/20 border-emerald-400/50 text-emerald-300 shadow-emerald-500/20 hover:bg-emerald-600/30 hover:border-emerald-300/70"}`}>{hideDone?<Eye className="w-4 h-4"/>:<EyeOff className="w-4 h-4"/>}{hideDone?"Afficher tout":"Masquer le fait"}</button></div>
+    <div className="flex flex-wrap items-center gap-2 sticky top-20 z-30">
+      <button
+        type="button"
+        onClick={toggleContextualHelp}
+        aria-label="Afficher ou masquer les aides contextuelles"
+        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${contextualHelpEnabled ? "bg-emerald-600/20 border-emerald-400/50 text-emerald-300" : "bg-zinc-900 border-white/10 text-zinc-500 hover:border-zinc-600"}`}
+      >
+        <CircleHelp className="w-4 h-4" />
+        <span className="hidden md:inline">{contextualHelpEnabled ? "Aide" : "Aide"}</span>
+      </button>
+      <button onClick={()=>setHideDone(v=>!v)} className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-2 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${hideDone?"bg-amber-600/25 border-amber-400/60 text-amber-300 shadow-amber-500/20 hover:bg-amber-600/30":"bg-emerald-600/20 border-emerald-400/50 text-emerald-300 shadow-emerald-500/20 hover:bg-emerald-600/30 hover:border-emerald-300/70"}`}>{hideDone?<Eye className="w-4 h-4"/>:<EyeOff className="w-4 h-4"/>}{hideDone?"Afficher tout":"Masquer le fait"}</button>
+    </div>
     <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
     {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3"/><p className="text-zinc-600 font-black uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="relative pl-[28px] space-y-1">{timelineItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#d4a853"}/>:item.kind==="info"?<div key={item.ms.id} className="-ml-1">{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarkedMsId={bookmarkedMsId} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onBookmark={handleBookmark} onDungeonClick={handleDungeonClick}/>)}</div>}
     {showScrollTop && typeof document !== 'undefined' && createPortal(
@@ -1040,7 +1266,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider>
+  </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></ContextualHelpCtx.Provider>
   {/* ── Alignment Edit Dialog ───────────────────────────────────────────── */}
   <Dialog open={alignEditOpen} onOpenChange={setAlignEditOpen}>
     <DialogContent className="max-w-lg w-[95vw] bg-zinc-950 border-zinc-800 rounded-3xl p-0 overflow-hidden shadow-2xl">

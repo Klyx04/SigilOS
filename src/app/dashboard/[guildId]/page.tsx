@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
+import { getActivePresence } from "@/server/actions/presence-actions";
 import { getActivityLadder } from "@/server/actions/ladder-actions";
 import { getDashboardFocus } from "@/server/actions/intelligence-actions";
 import { getMyOcreProgress } from "@/server/actions/ocre-actions";
@@ -60,6 +61,7 @@ export default async function DashboardPage({
 
     // Parallel Data Fetching
     const [
+        onlineUsersResult,
         weeklyLadder,
         monthlyLadder,
         profileResult,
@@ -73,6 +75,7 @@ export default async function DashboardPage({
         pollsResult,
         activeRaid,
     ] = await Promise.all([
+        getActivePresence(guildId, 50),
         getActivityLadder(guildId, "weekly"),
         getActivityLadder(guildId, "monthly"),
         getUserProfile(guildId),
@@ -99,10 +102,8 @@ export default async function DashboardPage({
     // Quick Stats Data
     const guildStats = guildStatsResult.success && guildStatsResult.stats ? guildStatsResult.stats : null;
     const dofusCompletionRate = guildStats?.quests?.guildCompletionRate || 0;
-    const onlineCount = (weeklyLadder?.success && Array.isArray(weeklyLadder.data?.entries) ? weeklyLadder.data.entries : []).filter((u: any) => {
-        const lastActive = u.lastActivityAt ? new Date(u.lastActivityAt) : null;
-        return lastActive && (Date.now() - lastActive.getTime() < 120_000);
-    }).length;
+    const onlineCount = onlineUsersResult.success ? (onlineUsersResult.totalActive || 0) : 0;
+    const onlineUsers = onlineUsersResult.success ? onlineUsersResult.data : [];
     const totalMembers = guildStats?.activeMembers || 0;
     const songesCompleted = guildStats?.totalSongesCompleted || 0;
     const eventsCount = guildStats?.totalEvents || 0;
@@ -147,7 +148,7 @@ export default async function DashboardPage({
                         dofusCompletionRate={dofusCompletionRate}
                         topActivityName={topActivityName}
                         topActivityValue={topActivityValue}
-                        onlineUsers={[]}
+                        onlineUsers={onlineUsers}
                     />
                 </section>
 

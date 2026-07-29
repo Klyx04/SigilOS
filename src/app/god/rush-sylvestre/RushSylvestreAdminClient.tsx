@@ -3,6 +3,7 @@
 import {
   useState, useTransition, useCallback, useEffect, useRef, useMemo
 } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
@@ -201,6 +202,37 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [isPending, startTransition] = useTransition();
   const [isActive, setIsActive] = useState(initialGuide.isActive);
   const [isUnderConstruction, setIsUnderConstruction] = useState(initialGuide.isUnderConstruction);
+
+  // Scroll to top/bottom state
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  // Use a ref to self-reference for scroll detection
+  const scrollRef = useRef<HTMLElement | Window>(null);
+
+  useEffect(() => {
+    // Find the scroll container: it's the parent of our component's root element
+    // that has overflow-y-auto. The GOD layout wraps children in:
+    // .flex-1.overflow-y-auto.scrollbar-thin
+    // We need to skip the sidebar which has the same classes.
+    const ourRoot = document.querySelector('[data-rush-admin-root]');
+    const container = ourRoot?.closest('.flex-1.overflow-y-auto') as HTMLElement | null;
+    if (!container) return;
+    scrollRef.current = container;
+
+    const handleScroll = () => {
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      setShowScrollTop(container.scrollTop > 100);
+      setShowScrollBottom(container.scrollTop < maxScroll - 100);
+    };
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    handleScroll();
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, []);
 
   // Local sortable milestones for optimistic DnD
   const [localMilestones, setLocalMilestones] = useState<Milestone[]>(initialGuide.milestones as Milestone[]);
@@ -427,7 +459,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   }, [isActive, isUnderConstruction]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-zinc-950 text-white" data-rush-admin-root>
       {/* Header */}
       <div className="border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -462,7 +494,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6 relative">
         {activeTab === "content" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             {/* Stats */}
@@ -700,6 +732,41 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           </motion.div>
         )}
       </div>
+      {/* Navigation flottante — pilule verticale */}
+      {typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed right-4 z-[999999] flex flex-col items-center gap-1 bg-zinc-950/90 border border-emerald-500/20 rounded-2xl py-2 px-1.5 shadow-2xl backdrop-blur-md"
+          style={{ top: '50%', transform: 'translateY(-50%)' }}
+        >
+          <button
+            onClick={() => {
+              const container = document.querySelector<HTMLElement>('.flex-1.overflow-y-auto');
+              if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
+              else window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            disabled={!showScrollTop}
+            className={`p-2 rounded-xl transition-all ${showScrollTop ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+            title="Haut"
+            aria-label="Haut"
+          >
+            <ChevronUp className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              const container = document.querySelector<HTMLElement>('.flex-1.overflow-y-auto');
+              if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+              else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+            }}
+            disabled={!showScrollBottom}
+            className={`p-2 rounded-xl transition-all ${showScrollBottom ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+            title="Bas"
+            aria-label="Bas"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -1372,17 +1439,29 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
   });
 
   const [isInfoBlock, setIsInfoBlock] = useState<boolean>(() => {
-    return (seq.activityTags as any[])?.some(t => t.type === "is_info_block") ?? false;
+    return (seq.activityTags as any[])?.some(t => t.type === "info_sequence") ?? false;
+  });
+  const [infoBlockColor, setInfoBlockColor] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "info_sequence");
+    return existing?.color || "#10b981";
   });
 
   const handleIsInfoBlockChange = (val: boolean) => {
     setIsInfoBlock(val);
     setActivityTags(prev => {
-      const filtered = prev.filter((t: any) => t.type !== "is_info_block");
+      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
       if (val) {
-        return [...filtered, { type: "is_info_block" as any }];
+        return [...filtered, { type: "info_sequence" as any, color: infoBlockColor }];
       }
       return filtered;
+    });
+  };
+
+  const handleInfoBlockColorChange = (color: string) => {
+    setInfoBlockColor(color);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+      return [...filtered, { type: "info_sequence" as any, color }];
     });
   };
 
@@ -1591,17 +1670,32 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
       </div>
 
       {/* Toggle Bloc Pur d'Information */}
-      <div className="flex items-center gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
-        <input
-          type="checkbox"
-          id="isInfoBlockToggle"
-          checked={isInfoBlock}
-          onChange={e => handleIsInfoBlockChange(e.target.checked)}
-          className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
-        />
-        <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-purple-200 cursor-pointer select-none">
-          📌 Est un bloc d'information pur (Tips / Remarque sans quête ni case à cocher)
-        </label>
+      <div className="flex flex-col gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="isInfoBlockToggle"
+            checked={isInfoBlock}
+            onChange={e => handleIsInfoBlockChange(e.target.checked)}
+            className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+          />
+          <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-purple-200 cursor-pointer select-none">
+            📌 Est un bloc d'information pur (Tips / Remarque sans quête ni case à cocher)
+          </label>
+        </div>
+        {isInfoBlock && (
+          <div className="flex items-center gap-2 pl-6">
+            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Couleur du bandeau</span>
+            <div className="flex gap-1">
+              {COLOR_PALETTE.map(c => (
+                <button key={c.value} onClick={() => handleInfoBlockColorChange(c.value)} title={c.label}
+                  className={`w-4 h-4 rounded-full border-2 transition-all ${infoBlockColor === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                  style={{ backgroundColor: c.value }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Positions GPS & Bloc Tougli */}
@@ -1694,7 +1788,24 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
       </div>
 
       <div>
-        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">💡 Tips</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">💡 Tips <span className="text-zinc-600 font-normal normal-case tracking-normal">(/travel X,Y pour position cliquable)</span></label>
+          <button
+            type="button"
+            onClick={() => {
+              const x = prompt("Position X :");
+              if (!x) return;
+              const y = prompt("Position Y :");
+              if (!y) return;
+              const pos = `/travel ${x},${y}`;
+              setTips(prev => prev ? `${prev} ${pos}` : pos);
+              toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
+            }}
+            className="flex items-center gap-1 text-[9px] font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
+          >
+            <MapPin className="w-3 h-3" /> Ajouter position
+          </button>
+        </div>
         <textarea value={tips} onChange={e => setTips(e.target.value)}
           className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
           placeholder="Conseil affiché côté membre..." rows={2}
@@ -1842,6 +1953,10 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [dungeonResults, setDungeonResults] = useState<DungeonResult[]>([]);
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<any>(null);
+
+  // Info block state
+  const [isInfoBlockNew, setIsInfoBlockNew] = useState(false);
+  const [infoBlockColorNew, setInfoBlockColorNew] = useState("#10b981");
 
   const [selectedDofusId, setSelectedDofusId] = useState<string>("");
   
@@ -2084,6 +2199,49 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-amber-300/70 focus:outline-none resize-none"
                   placeholder="Conseil pour le membre…" rows={2}
                 />
+              </div>
+              <div className="flex flex-col gap-1 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isInfoBlockNew"
+                    checked={isInfoBlockNew}
+                    onChange={e => {
+                      setIsInfoBlockNew(e.target.checked);
+                      setActivityTags(prev => {
+                        const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+                        if (e.target.checked) {
+                          return [...filtered, { type: "info_sequence" as any, color: infoBlockColorNew }];
+                        }
+                        return filtered;
+                      });
+                    }}
+                    className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+                  />
+          <label htmlFor="isInfoBlockNew" className="text-[9px] font-bold text-purple-200 cursor-pointer select-none">
+            📌 Bloc d'info sans check ni bookmark
+          </label>
+          <span className="text-[7px] text-zinc-600 ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
+                </div>
+                {isInfoBlockNew && (
+                  <div className="flex items-center gap-2 pl-6">
+                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Couleur</span>
+                    <div className="flex gap-1">
+                      {COLOR_PALETTE.map(c => (
+                        <button key={c.value} onClick={() => {
+                          setInfoBlockColorNew(c.value);
+                          setActivityTags(prev => {
+                            const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+                            return [...filtered, { type: "info_sequence" as any, color: c.value }];
+                          });
+                        }} title={c.label}
+                          className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                          style={{ backgroundColor: c.value }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-[9px] text-zinc-600 mb-1 block">⚠️ Note courte</label>

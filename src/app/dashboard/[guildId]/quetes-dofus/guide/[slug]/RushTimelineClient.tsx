@@ -299,7 +299,13 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "ring-2 ring-amber-500/60 ring-offset-2 ring-offset-zinc-950 border-amber-500/60 bg-amber-500/[0.06]" : ""}`}>
+      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.02] shadow-[0_0_12px_rgba(245,158,11,0.04)]" : ""}`}>
+        {isThisBookmarked && !isSeqCompleted && (
+          <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-[9px] font-black uppercase tracking-widest text-amber-300">
+            <MapPin className="w-3 h-3" />
+            Étape actuelle
+          </span>
+        )}
         {isActive && !isSeqCompleted && (
           <span className="text-[9px] font-black uppercase tracking-widest text-amber-400/70 mb-0">
             À FAIRE MAINTENANT
@@ -319,6 +325,21 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             )}
             <div className="flex-1 min-w-0 flex items-center gap-2.5 flex-wrap">
               <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>{questName}</span>
+              {onToggleSeq && (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
+                  className={`ml-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all shrink-0 ${
+                    isThisBookmarked
+                      ? "bg-amber-500/20 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/30"
+                      : "bg-zinc-800/60 border-zinc-700/40 text-zinc-500 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
+                  }`}
+                  title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
+                >
+                  {isThisBookmarked ? <BookmarkCheck className="w-3 h-3" /> : <Flag className="w-3 h-3" />}
+                  Rendu ici
+                </button>
+              )}
               {(()=>{
                 const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
                 if(!posTag?.name) return null;
@@ -397,22 +418,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 </button>
               )}
             </div>
-            {/* Ligne 2 : Rendu ici (bookmark au niveau quête) — ligne dédiée pour être visible */}
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-                className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border-2 transition-all text-[10px] font-black uppercase tracking-wider ${
-                  isThisBookmarked
-                    ? "bg-amber-500/25 border-amber-500/60 text-amber-300 shadow-sm shadow-amber-500/20 ring-1 ring-amber-500/30"
-                    : "bg-zinc-800/80 border-zinc-600/50 text-zinc-300 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
-                }`}
-                title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
-              >
-                {isThisBookmarked ? <BookmarkCheck className="w-4 h-4 text-amber-400"/> : <Flag className="w-4 h-4"/>}
-                Rendu ici
-              </button>
-            </div>
           </div>
         </div>
 
@@ -455,6 +460,30 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             return <TougliCallout text={t.name} colorStyle={t.color||"emerald"}/>;
           })()}
         </div>
+
+        {/* Social row — joueurs sur cette quête (uniquement si bookmarkée) */}
+        {isThisBookmarked && !isSeqCompleted && seqMembers.length > 0 && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex -space-x-1.5">
+              {seqMembers.slice(0, 5).map((m) => (
+                <div
+                  key={m.profileId}
+                  className="w-6 h-6 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center border-2 border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0"
+                  title={m.userName}
+                >
+                  {m.userAvatar ? (
+                    <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[7px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <span className="text-[10px] font-bold text-amber-400/70">
+              {seqMembers.length} joueur{seqMembers.length > 1 ? 's' : ''} ici
+            </span>
+          </div>
+        )}
 
         {/* Dungeons Row */}
         {allDungeons.length > 0 && (

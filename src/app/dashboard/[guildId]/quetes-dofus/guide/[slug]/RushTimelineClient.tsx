@@ -382,6 +382,20 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
             </a>
           )}
+          {/* ── Rendu ici (bookmark au niveau quête) ───────────────────── */}
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg border transition-all text-[8px] font-black uppercase tracking-wider ${
+              isThisBookmarked
+                ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-amber-300 hover:border-amber-500/30"
+            }`}
+            title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
+          >
+            {isThisBookmarked ? <BookmarkCheck className="w-3 h-3 text-amber-400"/> : <Flag className="w-3 h-3"/>}
+            <span className="hidden md:inline">Rendu ici</span>
+          </button>
         </div>
       </div>
 
@@ -454,22 +468,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
         </div>
       )}
 
-      {/* ── Rendu ici (bookmark au niveau quête) ───────────────────── */}
-      <div className="flex items-center gap-1.5 mt-1">
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest ${
-            isThisBookmarked
-              ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-              : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-amber-300 hover:border-amber-500/30"
-          }`}
-          title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
-        >
-          {isThisBookmarked ? <BookmarkCheck className="w-3 h-3 text-amber-400"/> : <Flag className="w-3 h-3"/>}
-          Rendu ici
-        </button>
-      </div>
     </div>
   );
 });

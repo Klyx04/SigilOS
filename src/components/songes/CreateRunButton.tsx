@@ -615,43 +615,82 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                         </div>
                     </div>
 
-                    {/* STUFF SELECTION (Lead) */}
-                    <div className="space-y-3 pt-2 border-t border-white/5">
-                        <Label className="text-sm font-bold text-white flex items-center gap-2">
-                            🛡️ Ton Stuff pour cette Run
-                        </Label>
-                        
-                        <Select value={selectedStuffId} onValueChange={setSelectedStuffId}>
-                            <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/8 transition-colors">
-                                <SelectValue placeholder="Choisir un stuff (Optionnel)" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-zinc-950 border-white/10">
-                                <SelectItem value="none" className="text-zinc-500 italic">Aucun stuff</SelectItem>
-                                {stuffs.map((stuff) => (
-                                    <SelectItem key={stuff.id} value={stuff.id} className="text-white focus:bg-white/10">
-                                        <div className="flex items-center gap-2">
-                                            {stuff.previewData?.thumbnail && (
-                                                <img src={stuff.previewData.thumbnail} className="w-5 h-5 rounded object-cover border border-white/10" alt="" />
-                                            )}
-                                            <span className="truncate max-w-[250px]">{stuff.name}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-
-                        {selectedStuffId !== "none" && (
-                            <div className="animate-in fade-in slide-in-from-top-1 duration-300">
-                                <input
-                                    type="text"
-                                    placeholder="Nom personnalisé du stuff..."
-                                    value={customStuffName}
-                                    onChange={(e) => setCustomStuffName(e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-white/20"
-                                />
+                    {/* STUFF SELECTION (Lead) — only if user has stuffs in gallery */}
+                    {stuffs.length > 0 && (
+                        <div className="space-y-3 pt-2 border-t border-white/5">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-sm font-bold text-white flex items-center gap-2">
+                                    🛡️ Ton Stuff pour cette Run
+                                </Label>
+                                {selectedStuffId !== "none" && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setSelectedStuffId("none"); setCustomStuffName(""); }}
+                                        className="text-[10px] font-black text-zinc-500 hover:text-red-400 uppercase tracking-widest transition-colors"
+                                    >
+                                        ✕ Retirer
+                                    </button>
+                                )}
                             </div>
-                        )}
-                    </div>
+
+                            {selectedStuffId === "none" ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {stuffs.slice(0, 6).map((stuff) => {
+                                        const isSelected = selectedStuffId === stuff.id;
+                                        return (
+                                            <button
+                                                key={stuff.id}
+                                                type="button"
+                                                onClick={() => setSelectedStuffId(stuff.id)}
+                                                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                                                    isSelected
+                                                        ? "border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                                        : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                                                }`}
+                                            >
+                                                {stuff.previewData?.thumbnail ? (
+                                                    <img src={stuff.previewData.thumbnail} alt={stuff.name} className="w-12 h-12 rounded-lg object-cover" />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 text-[18px]">🛡️</div>
+                                                )}
+                                                <span className="text-[10px] font-bold text-zinc-300 truncate max-w-full text-center leading-tight">{stuff.name}</span>
+                                            </button>
+                                        );
+                                    })}
+                                    {stuffs.length > 6 && (
+                                        <p className="text-[10px] text-zinc-500 italic col-span-2 text-center pt-1">+{stuffs.length - 6} autres dans la galerie</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="animate-in fade-in slide-in-from-top-1 duration-300 space-y-2">
+                                    {/* Selected stuff preview */}
+                                    {(() => {
+                                        const selected = stuffs.find(s => s.id === selectedStuffId);
+                                        return selected ? (
+                                            <div className="flex items-center gap-3 p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                                                {selected.previewData?.thumbnail ? (
+                                                    <img src={selected.previewData.thumbnail} alt={selected.name} className="w-10 h-10 rounded-lg object-cover" />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500">🛡️</div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-white truncate">{selected.name}</p>
+                                                </div>
+                                                <Check className="w-4 h-4 text-indigo-400 shrink-0" />
+                                            </div>
+                                        ) : null;
+                                    })()}
+                                    <input
+                                        type="text"
+                                        placeholder="Nom personnalisé du stuff (optionnel)..."
+                                        value={customStuffName}
+                                        onChange={(e) => setCustomStuffName(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-white/20"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {!countdown && error && (
                         <div className="text-red-400 text-sm bg-red-900/15 p-3 rounded-lg border border-red-500/25">

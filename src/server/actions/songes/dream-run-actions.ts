@@ -276,7 +276,7 @@ export async function getDreamRuns(guildId: string, statusFilter?: string[]) {
             },
             joinRequests: {
                 where: { status: { in: ["PENDING", "ACCEPTED"] } },
-                select: { id: true, userId: true, message: true, classe: true },
+                select: { id: true, userId: true, message: true, classe: true, status: true },
             },
             _count: {
                 select: { floors: true, bonuses: true },

@@ -656,7 +656,6 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[9px] font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${ms.sequences.length}`:`${ms.sequences.length} quête${ms.sequences.length>1?"s":""}`}</span>
-              {isBookmarked&&<span className="text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30"><Flag className="w-2 h-2 inline mr-1"/>Rendu ici</span>}
             </div>
           </div>
           {/* Actions */}

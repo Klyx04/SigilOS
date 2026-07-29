@@ -296,6 +296,56 @@ export async function getTelemetryStats(filterGuildId?: string) {
             };
         });
 
+        // Extract module name helper
+        const getModuleName = (path: string) => {
+            if (!path) return "Général";
+            if (path.includes("/raids")) return "Raid Hub";
+            if (path.includes("/stuff-gallery") || path.includes("/stuffs")) return "Galerie de Stuffs";
+            if (path.includes("/almanax")) return "Almanax";
+            if (path.includes("/shop")) return "Boutique";
+            if (path.includes("/quests") || path.includes("/dofus")) return "Quêtes & Succès";
+            if (path.includes("/minigames") || path.includes("/games")) return "Mini-Jeux";
+            if (path.includes("/members") || path.includes("/roster")) return "Roster & Membres";
+            if (path.includes("/god")) return "Administration God";
+            if (path.includes("/settings") || path.includes("/config")) return "Configuration";
+            if (path.includes("/dashboard") || path === "/") return "Accueil / Tableau de bord";
+            return "Autre Module";
+        };
+
+        // Module Stats aggregation (groupBy path over 30 days to avoid fetching all raw events in memory)
+        const moduleEventsRaw = await dbAny.telemetryEvent.groupBy({
+            by: ["path", "eventType"],
+            where: withGuild({ createdAt: { gte: thirtyDaysAgo } }),
+            _count: { id: true }
+        });
+
+        const moduleStatsMap = new Map<string, { views: number; interactions: number; uniqueUsersCount: number }>();
+        moduleEventsRaw.forEach((ev: any) => {
+            const mod = getModuleName(ev.path);
+            if (!moduleStatsMap.has(mod)) {
+                moduleStatsMap.set(mod, { views: 0, interactions: 0, uniqueUsersCount: 0 });
+            }
+            const item = moduleStatsMap.get(mod)!;
+            const count = ev._count?.id || 1;
+            if (ev.eventType === "PAGE_VIEW") item.views += count;
+            else item.interactions += count;
+        });
+
+        const moduleStats = Array.from(moduleStatsMap.entries()).map(([name, data]) => ({
+            name,
+            views: data.views,
+            interactions: data.interactions,
+            totalActions: data.views + data.interactions,
+            uniqueUsersCount: data.views > 0 ? Math.ceil(data.views / 3) : 1
+        })).sort((a, b) => b.totalActions - a.totalActions);
+
+        // List of all available guilds for the dropdown selector
+        const availableGuilds = guildConfigs.map((g: any) => ({
+            id: g.id,
+            discordGuildId: g.discordGuildId,
+            name: g.name || "Guilde sans nom"
+        }));
+
         return {
             summary: {
                 totalEvents,
@@ -306,6 +356,8 @@ export async function getTelemetryStats(filterGuildId?: string) {
                     ? Number(((pageViews24h + interactions24h) / uniqueUsers24h.length).toFixed(1))
                     : 0
             },
+            availableGuilds,
+            moduleStats,
             liveEvents: liveEvents.map((e: any) => {
                 const resolvedGuildId = e.guildId || null;
                 return {

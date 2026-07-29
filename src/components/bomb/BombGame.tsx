@@ -381,7 +381,7 @@ export default function BombGame({
         window.history.replaceState(null, "", url.pathname);
         
         // Hard redirect after short delay to ensure clean state if still stuck
-        const doRedirect = () => { window.location.href = "/dashboard"; }; // nosemgrep
+        const doRedirect = () => { window.location.href = `/dashboard/${guildId}/mini-jeux#mini-jeux`; }; // nosemgrep
         setTimeout(doRedirect, 100);
     };
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -537,7 +537,7 @@ export default function BombGame({
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="z-10 text-center space-y-8 p-12 bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[3rem] shadow-2xl max-w-2xl w-full mx-4 relative">
                     {/* Back to mini-games */}
                     <button
-                        onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
+                        onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux#mini-jeux`}
                         className="absolute top-8 left-8 flex items-center gap-2 text-white/30 hover:text-white/70 transition-colors group"
                     >
                         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />

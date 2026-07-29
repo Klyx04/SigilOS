@@ -1,9 +1,10 @@
-import { BarChart3, Users, Star, Coins, CheckCircle2, Target, Moon, CalendarDays, HandHeart } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { getUserContext } from "@/server/actions/user-actions";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
+import { db } from "@/lib/prisma";
 import StatsClient from "./_components/stats-client";
 
 export default async function StatsPage({ params }: { params: Promise<{ guildId: string }> }) {
@@ -18,8 +19,17 @@ export default async function StatsPage({ params }: { params: Promise<{ guildId:
         redirect(`/dashboard/${guildId}`);
     }
 
-    // Check if missions module is in vitrine mode (disabled = hidden stats)
-    const missionsEnabled = await isModuleEnabled(guildId, "missions");
+    const guildConfig = await db.guildConfig.findUnique({
+        where: { discordGuildId: guildId },
+        select: { missionVitrineMode: true },
+    });
+
+    const missionsModuleEnabled = await isModuleEnabled(guildId, "missions");
+    const missionsEnabled = missionsModuleEnabled && !guildConfig?.missionVitrineMode;
+    const questsEnabled = await isModuleEnabled(guildId, "quests");
+    const servicesEnabled = await isModuleEnabled(guildId, "services");
+    const songesEnabled = await isModuleEnabled(guildId, "songes");
+    const minigamesEnabled = await isModuleEnabled(guildId, "minigames");
 
     const result = await getGuildStats(guildId);
 
@@ -39,5 +49,14 @@ export default async function StatsPage({ params }: { params: Promise<{ guildId:
         );
     }
 
-    return <StatsClient stats={result.stats} missionsEnabled={missionsEnabled} />;
+    return (
+        <StatsClient
+            stats={result.stats}
+            missionsEnabled={missionsEnabled}
+            questsEnabled={questsEnabled}
+            servicesEnabled={servicesEnabled}
+            songesEnabled={songesEnabled}
+            minigamesEnabled={minigamesEnabled}
+        />
+    );
 }

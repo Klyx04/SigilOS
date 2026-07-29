@@ -10,6 +10,10 @@ const { auth } = NextAuth(authConfig)
 // NOTE: In multi-instance prod, prefer Upstash Redis rate limiter.
 const ipCounters = new Map<string, { count: number; reset: number }>()
 
+// ─── Maintenance Mode Cache (30s TTL, avoids a DB fetch on every request) ───
+let _maintenanceCache: { value: boolean; expiresAt: number } | null = null
+const MAINTENANCE_CACHE_TTL_MS = 30_000
+
 function ipRateLimit(ip: string, limit: number, windowMs: number): boolean {
     const now = Date.now()
     const entry = ipCounters.get(ip)
@@ -93,21 +97,39 @@ export default auth(async (req) => {
     const isGodUser = req.cookies.get("sigil-god-bypass")?.value;
 
     if (!isMaintenanceBypassPath && !isGodUser) {
-        try {
-            const res = await fetch(`${nextUrl.origin}/api/health/maintenance`, {
-                headers: { "x-middleware-check": "1" },
-                signal: AbortSignal.timeout(2000),
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.maintenanceMode === true) {
-                    const url = nextUrl.clone();
-                    url.pathname = "/maintenance";
-                    return NextResponse.rewrite(url);
+        // 1. Fast path: read env var set by the admin panel action (no network, no Turbopack cold-start 404)
+        const envMaintenance = process.env.MAINTENANCE_MODE;
+        let isInMaintenance = envMaintenance === "true";
+
+        // 2. Slow path (prod only): if env var not explicitly set, fallback to cached DB check
+        if (envMaintenance === undefined && process.env.NODE_ENV === "production") {
+            const now = Date.now()
+            if (_maintenanceCache && now < _maintenanceCache.expiresAt) {
+                // Cache hit: reuse last known value
+                isInMaintenance = _maintenanceCache.value
+            } else {
+                // Cache miss: fetch from API and store result for 30s
+                try {
+                    const res = await fetch(`${nextUrl.origin}/api/health/maintenance`, {
+                        headers: { "x-middleware-check": "1" },
+                        signal: AbortSignal.timeout(2000),
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        isInMaintenance = data.maintenanceMode === true;
+                        _maintenanceCache = { value: isInMaintenance, expiresAt: now + MAINTENANCE_CACHE_TTL_MS }
+                    }
+                } catch {
+                    // Fail open — keep last cached value if any
+                    if (_maintenanceCache) isInMaintenance = _maintenanceCache.value
                 }
             }
-        } catch {
-            // Fail open
+        }
+
+        if (isInMaintenance) {
+            const url = nextUrl.clone();
+            url.pathname = "/maintenance";
+            return NextResponse.rewrite(url);
         }
     }
 

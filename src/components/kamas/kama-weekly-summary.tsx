@@ -77,8 +77,8 @@ function KamasVioletIcon({ size = 16 }: { size?: number }) {
 // Raid Eligibility Badge
 // ──────────────────────────────────────────────────────────────────────────────
 
-function RaidEligibilityBadge({ purpleKamasBalance }: { purpleKamasBalance: number }) {
-    const isEligible = purpleKamasBalance >= 30;
+function RaidEligibilityBadge({ purpleKamasBalance, requiredPurpleKamas = 30 }: { purpleKamasBalance: number; requiredPurpleKamas?: number }) {
+    const isEligible = purpleKamasBalance >= requiredPurpleKamas;
     if (isEligible) {
         return (
             <span className="flex items-center gap-1.5 text-[9px] font-black bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
@@ -116,10 +116,12 @@ function MemberRow({
     member,
     rank,
     isOfficer,
+    requiredPurpleKamas = 30,
 }: {
     member: KamaWeeklyMemberSummary;
     rank: number;
     isOfficer: boolean;
+    requiredPurpleKamas?: number;
 }) {
     const [expanded, setExpanded] = useState(false);
     const displayName = member.discordNickname || member.pseudoDofus || "Membre inconnu";
@@ -127,7 +129,7 @@ function MemberRow({
     const statusCfg = getStatusConfig(member);
     const isMax = member.totalAmount >= KAMA_MAX_PER_WEEK;
     const purpleBalance = member.purpleKamasBalance || 0;
-    const isEligible = purpleBalance >= 30;
+    const isEligible = purpleBalance >= requiredPurpleKamas;
 
     // Convert total donated to purple kamas equivalent
     const purpleEarned = Math.floor((member.totalAmount || 0) / 1000);
@@ -198,7 +200,7 @@ function MemberRow({
                         <span className="text-sm font-bold text-white truncate" style={{ color: roleColor !== "#71717a" ? roleColor : undefined }}>
                             {displayName}
                         </span>
-                        <RaidEligibilityBadge purpleKamasBalance={purpleBalance} />
+                        <RaidEligibilityBadge purpleKamasBalance={purpleBalance} requiredPurpleKamas={requiredPurpleKamas} />
                         <PurpleKamasBadge balance={purpleBalance} />
                         {member.totalAmount > 0 && (
                             <span className="text-[9px] font-bold bg-zinc-800/80 border border-white/10 text-zinc-300 px-2.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">
@@ -223,12 +225,12 @@ function MemberRow({
                                             ? "bg-gradient-to-r from-violet-600 via-fuchsia-500 to-rose-400"
                                             : "bg-gradient-to-r from-zinc-700 to-zinc-500"
                                     )}
-                                    style={{ width: `${Math.min(100, (purpleBalance / 30) * 100)}%` }}
+                                    style={{ width: `${Math.min(100, (purpleBalance / requiredPurpleKamas) * 100)}%` }}
                                 />
                             </div>
                             <div className="flex items-center gap-1 shrink-0 text-[10px] text-zinc-400 font-mono">
                                 <KamasVioletIcon size={10} />
-                                <span>{purpleBalance}/30</span>
+                                <span>{purpleBalance}/{requiredPurpleKamas}</span>
                             </div>
                         </div>
                     </div>
@@ -296,8 +298,9 @@ interface KamaWeeklySummaryProps {
 }
 
 export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummaryProps) {
+    const requiredKamas = data.requiredPurpleKamas ?? 30;
     const validatedCount = data.members.filter(m => m.status === "VALIDATED" || m.status === "MIXED").length;
-    const eligibleCount = data.members.filter(m => m.purpleKamasBalance >= 30).length;
+    const eligibleCount = data.members.filter(m => m.purpleKamasBalance >= requiredKamas).length;
     const maxCount = data.members.filter(m => m.totalAmount >= KAMA_MAX_PER_WEEK).length;
     const totalCollected = data.totalValidated + data.totalPending;
     const totalPurpleKamas = data.members.reduce((sum, m) => sum + (m.purpleKamasBalance || 0), 0);
@@ -379,7 +382,7 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                             Tu obtiens des Kamas Violets dès que ton don est <strong className="text-emerald-400">validé</strong> par un officier.
                         </p>
                         <p>
-                            <Swords className="w-3 h-3 inline text-red-400" /> Pour t'inscrire à un raid, tu dois avoir <strong className="text-violet-300">30 <KamasVioletIcon size={10} /> (30 000 k)</strong> dans ta bourse.
+                            <Swords className="w-3 h-3 inline text-red-400" /> Pour t'inscrire à un raid, tu dois avoir <strong className="text-violet-300">{requiredKamas} <KamasVioletIcon size={10} /> ({(requiredKamas * 1000).toLocaleString("fr-FR")} k)</strong> dans ta bourse.
                             À la clôture du raid, ils sont consommés.
                         </p>
                         <p>
@@ -431,6 +434,7 @@ export function KamaWeeklySummary({ data, isOfficer, guildId }: KamaWeeklySummar
                                 member={member}
                                 rank={i + 1}
                                 isOfficer={isOfficer}
+                                requiredPurpleKamas={requiredKamas}
                             />
                         ))}
                     </div>

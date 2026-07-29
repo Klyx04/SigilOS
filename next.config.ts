@@ -88,6 +88,11 @@ const nextConfig: NextConfig = {
         hostname: "www.barbofus.com",
       },
       {
+        // Barbofus static CDN — item icons used in look compositions
+        protocol: "https",
+        hostname: "static.barbofus.com",
+      },
+      {
         // Ganymede-dofus.com — quest/dungeon/guide icon assets used in guide web_text
         protocol: "https",
         hostname: "ganymede-dofus.com",
@@ -145,7 +150,7 @@ const nextConfig: NextConfig = {
       "https://static-cdn.jtvnw.net",
       "https://i.ytimg.com",
       "https://dofusskinmanga.com",
-      "https://barbofus.com https://www.barbofus.com",
+      "https://barbofus.com https://www.barbofus.com https://static.barbofus.com",
       // Google Favicon service domains
       "https://www.google.com https://*.gstatic.com",
       // Ganymede CDNs for guide quest/dungeon/step icons

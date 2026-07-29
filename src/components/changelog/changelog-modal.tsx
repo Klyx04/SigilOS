@@ -9,19 +9,19 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, X } from "lucide-react";
+import { ChevronRight, X, Sparkles, Rocket, Shield, Zap, BookOpen, Bug, ExternalLink } from "lucide-react";
 import { checkChangelogVisibility, markChangelogAsSeen } from "@/server/actions/changelog-actions";
 import { Badge } from "@/components/ui/badge";
 import { DocContent } from "@/components/doc/doc-content";
 import { cn } from "@/lib/utils";
 import { ChangelogCategory } from "@prisma/client";
 
-const categoryColors: Record<ChangelogCategory, string> = {
-    FEATURE: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    BUGFIX: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-    SECURITY: "bg-red-500/10 text-red-400 border-red-500/20",
-    PERFORMANCE: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    DOCUMENTATION: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+const categoryConfig: Record<ChangelogCategory, { label: string; bg: string; text: string; border: string; icon: any }> = {
+    FEATURE: { label: "Nouveauté", bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30", icon: Rocket },
+    BUGFIX: { label: "Correction", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30", icon: Bug },
+    SECURITY: { label: "Sécurité", bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30", icon: Shield },
+    PERFORMANCE: { label: "Performance", bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/30", icon: Zap },
+    DOCUMENTATION: { label: "Documentation", bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/30", icon: BookOpen },
 };
 
 export function ChangelogModal() {
@@ -56,41 +56,46 @@ export function ChangelogModal() {
 
     if (!changelog) return null;
 
-    const catColor = categoryColors[changelog.category as ChangelogCategory] ?? "bg-zinc-500/10 text-zinc-400 border-zinc-500/20";
+    const cat = categoryConfig[changelog.category as ChangelogCategory] || {
+        label: changelog.category || "Mise à jour",
+        bg: "bg-indigo-500/10",
+        text: "text-indigo-400",
+        border: "border-indigo-500/30",
+        icon: Sparkles,
+    };
+    const CatIcon = cat.icon;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent className="max-w-3xl bg-[#09090b] border-white/10 p-0 shadow-2xl focus:outline-none focus:ring-0 rounded-3xl max-h-[85vh] flex flex-col [&>button:first-of-type]:hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 pointer-events-none rounded-3xl" />
+            <DialogContent className="max-w-2xl w-[92vw] max-h-[85vh] bg-zinc-950/95 border border-white/10 p-0 shadow-[0_0_60px_rgba(0,0,0,0.8)] focus:outline-none focus:ring-0 rounded-2xl flex flex-col overflow-hidden backdrop-blur-xl [&>button:first-of-type]:hidden">
+                {/* Header Banner */}
+                <div className="relative pt-6 px-6 pb-4 border-b border-white/10 shrink-0 bg-gradient-to-b from-indigo-500/10 via-purple-500/5 to-transparent">
+                    {/* Background glow */}
+                    <div className="absolute -top-12 -left-12 w-48 h-48 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
 
-                {/* Close Button */}
-                <button
-                    onClick={handleClose}
-                    className="absolute top-4 right-4 z-50 p-1.5 bg-black/40 hover:bg-black/60 border border-white/5 rounded-full text-zinc-400 hover:text-white transition-all backdrop-blur-md"
-                >
-                    <X className="w-4 h-4" />
-                </button>
+                    {/* Close Button */}
+                    <button
+                        onClick={handleClose}
+                        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-zinc-400 hover:text-white transition-all shadow-md"
+                        title="Fermer"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
 
-                {/* Header */}
-                <div className="relative h-32 sm:h-40 w-full overflow-hidden flex items-center justify-center shrink-0">
-                    <div className="absolute inset-0 z-0">
-                        <div className="w-full h-full bg-gradient-to-br from-indigo-600/20 via-purple-600/15 to-pink-600/10 animate-pulse-slow" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-transparent" />
-                    </div>
-
-                    <div className="relative z-10 flex flex-col items-center text-center px-6 mt-2 gap-2">
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 font-black tracking-widest uppercase py-0.5 px-2.5 text-[10px]">
-                                Mise à jour {changelog.version}
-                            </Badge>
+                    <div className="relative z-10 flex flex-col items-start gap-2 pr-8">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                                <Sparkles className="w-3 h-3 text-amber-400" /> Version {changelog.version}
+                            </span>
                             {changelog.category && (
-                                <Badge variant="outline" className={cn("font-black tracking-widest uppercase py-0.5 px-2.5 text-[10px]", catColor)}>
-                                    {changelog.category}
-                                </Badge>
+                                <span className={cn("px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm", cat.bg, cat.text, cat.border)}>
+                                    <CatIcon className="w-3 h-3" /> {cat.label}
+                                </span>
                             )}
                         </div>
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl sm:text-3xl font-black text-white tracking-tighter uppercase drop-shadow-2xl">
+
+                        <DialogHeader className="text-left space-y-1">
+                            <DialogTitle className="text-xl sm:text-2xl font-black text-zinc-100 tracking-tight leading-tight">
                                 {changelog.title}
                             </DialogTitle>
                             <DialogDescription className="sr-only">
@@ -100,42 +105,43 @@ export function ChangelogModal() {
                     </div>
                 </div>
 
-                {/* Content — uses DocContent to render TipTap HTML correctly */}
-                <div className="px-6 pb-6 sm:px-8 sm:pb-8 flex flex-col flex-1 min-h-0 overflow-hidden relative z-10 -mt-2">
-                    <div className="flex-1 overflow-y-auto pr-2 min-h-0 w-full overflow-x-hidden">
-                        <DocContent
-                            content={changelog.content}
-                            className="
-                                prose-p:text-base prose-p:leading-relaxed prose-p:text-zinc-300
-                                prose-headings:text-white prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-headings:mb-3 prose-headings:mt-6
-                                prose-h3:text-xl
-                                prose-strong:text-indigo-400
-                                prose-ul:list-disc prose-li:text-zinc-300 prose-li:text-base prose-li:my-1.5
-                                prose-hr:border-white/5 prose-hr:my-4
-                                [&_.callout]:my-4 [&_.callout]:p-4
-                                [&_img]:max-w-full [&_img]:h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:border [&_img]:border-white/5
-                                [&_figure]:my-4 [&_figure]:flex [&_figure]:flex-col [&_figure]:items-start
-                            "
-                        />
+                {/* Single Scrollable Content Container (Prevents Double Scrollbars) */}
+                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                    <DocContent
+                        content={changelog.content}
+                        className="
+                            prose-p:text-sm prose-p:leading-relaxed prose-p:text-zinc-300
+                            prose-headings:text-zinc-100 prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-headings:mb-3 prose-headings:mt-6
+                            prose-h2:text-lg prose-h2:text-amber-400 prose-h2:border-b-0 prose-h2:pb-0
+                            prose-h3:text-base prose-h3:text-indigo-400
+                            prose-strong:text-amber-300 prose-strong:font-bold
+                            prose-ul:list-disc prose-ul:ml-4 prose-li:text-zinc-300 prose-li:text-sm prose-li:my-1
+                            prose-hr:border-white/10 prose-hr:my-4
+                            [&_.callout]:my-4 [&_.callout]:p-4 [&_.callout]:rounded-xl
+                            [&_img]:max-w-full [&_img]:max-h-[380px] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:border [&_img]:border-white/10 [&_img]:my-3 [&_img]:shadow-lg [&_img]:mx-auto
+                            [&_figure]:my-4 [&_figure]:flex [&_figure]:flex-col [&_figure]:items-center
+                        "
+                    />
+                </div>
+
+                {/* Footer Controls */}
+                <div className="px-6 py-4 bg-zinc-950 border-t border-white/10 shrink-0 flex items-center justify-between gap-3">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                            SigilOS Platform
+                        </span>
+                        <span className="text-[9px] font-bold text-zinc-600">
+                            Build {changelog.version}
+                        </span>
                     </div>
 
-                    <div className="pt-4 flex items-center justify-end gap-3 mt-auto shrink-0 border-t border-white/5">
-                        <div className="mr-auto hidden sm:flex flex-col">
-                            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">
-                                SigilOS Platform
-                            </span>
-                            <span className="text-[9px] font-medium text-zinc-700 uppercase">
-                                Build {changelog.version}
-                            </span>
-                        </div>
-                        <Button
-                            onClick={handleClose}
-                            className="bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest text-[10px] h-10 rounded-xl px-6 shadow-[0_0_20px_rgba(255,255,255,0.1)] group transition-all"
-                        >
-                            D&apos;accord
-                            <ChevronRight className="w-3.5 h-3.5 ml-1.5 transition-transform group-hover:translate-x-0.5" />
-                        </Button>
-                    </div>
+                    <Button
+                        onClick={handleClose}
+                        className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black uppercase tracking-wider text-xs h-9 px-5 rounded-xl shadow-lg shadow-amber-500/20 transition-all hover:scale-105"
+                    >
+                        Compris
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>

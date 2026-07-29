@@ -69,8 +69,66 @@ const DOFUS_DEFS = [
   { id:"domakuro", label:"Domakuro", color:"#84cc16", imageUrl:"/module-dofus/Dofus_Domakuro.png" }, { id:"dorigami", label:"Dorigami", color:"#f472b6", imageUrl:"/module-dofus/Dofus_Dorigami.png" },
   { id:"tachete", label:"Tacheté", color:"#c084fc", imageUrl:"/module-dofus/Dofus_Tacheté.png" }, { id:"dom_de_pin", label:"Dom de Pin", color:"#a3e635", imageUrl:"/module-dofus/Dom_De_Pin.png" },
 ];
-function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:string}){const p=colorStyle==="purple",a=colorStyle==="amber";const bc=p?"border-purple-500":a?"border-amber-500":"border-emerald-500";const bg=p?"from-purple-950/50 via-zinc-950 to-zinc-950":a?"from-amber-950/50 via-zinc-950 to-zinc-950":"from-emerald-950/50 via-zinc-950 to-zinc-950";const parts=[];const rx=/\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;let li=0,m;while((m=rx.exec(text))!==null){if(m.index>li)parts.push(text.slice(li,m.index));if(m[1]&&m[2])parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">{m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/></a>);else if(m[3]){let dl=m[3];if(m[3].includes("dofusdb.fr"))dl="Lien DofusDB ↗";else if(m[3].includes("dofuspourlesnoobs.com"))dl="Lien DofusNoobs ↗";parts.push(<a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">{dl}</a>);}li=rx.lastIndex;}if(li<text.length)parts.push(text.slice(li));return <div className={`flex items-start gap-3 p-3 rounded-2xl border-l-4 ${bc} bg-gradient-to-r ${bg} border border-y-white/5 border-r-white/5 shadow-md my-2`}><div className="mt-0.5 shrink-0">{p?"👿":a?"💡":<span className="font-black text-base leading-none text-emerald-400">!</span>}</div><div className="text-xs text-zinc-200 leading-relaxed font-medium">{parts}</div></div>;}
-const MemberAvatars=memo(function MemberAvatars({members,max=5}:{members:GuildMemberProgress[];max?:number}){if(!members.length)return null;const s=members.slice(0,max),e=members.length-max;return<div className="flex items-center gap-1"><div className="flex -space-x-1">{s.map(m=><div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-zinc-950 overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0 ring-1 ring-indigo-500/30" title={m.userName}>{m.userAvatar?<img src={m.userAvatar} alt="" className="w-full h-full object-cover"/>:<span className="text-[7px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>}</div>)}</div>{e>0&&<span className="text-[7px] font-black text-indigo-400">+{e}</span>}</div>;});
+function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:string}){
+  const isPurple = colorStyle === "purple", isAmber = colorStyle === "amber";
+  const borderCol = isPurple ? "border-purple-500/40" : isAmber ? "border-amber-500/40" : "border-emerald-500/40";
+  const bgGrad = isPurple 
+    ? "from-purple-950/30 via-zinc-950/80 to-zinc-950/90" 
+    : isAmber 
+    ? "from-amber-950/30 via-zinc-950/80 to-zinc-950/90" 
+    : "from-emerald-950/30 via-zinc-950/80 to-zinc-950/90";
+  const icon = isPurple ? "👿" : isAmber ? "💡" : "✨";
+  
+  const parts: (string | React.ReactNode)[] = [];
+  const rx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
+  let li = 0, m: RegExpExecArray | null;
+  while ((m = rx.exec(text)) !== null) {
+    if (m.index > li) parts.push(text.slice(li, m.index));
+    if (m[1] && m[2]) {
+      parts.push(
+        <a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">
+          {m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/>
+        </a>
+      );
+    } else if (m[3]) {
+      let dl = m[3];
+      if (m[3].includes("dofusdb.fr")) dl = "Lien DofusDB ↗";
+      else if (m[3].includes("dofuspourlesnoobs.com")) dl = "Lien DofusNoobs ↗";
+      parts.push(
+        <a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">
+          {dl}
+        </a>
+      );
+    }
+    li = rx.lastIndex;
+  }
+  if (li < text.length) parts.push(text.slice(li));
+
+  return (
+    <div className={`flex items-start gap-3 p-3 rounded-2xl border-l-4 ${borderCol} bg-gradient-to-r ${bgGrad} border border-y-white/5 border-r-white/5 shadow-lg my-2 backdrop-blur-md`}>
+      <div className="mt-0.5 shrink-0 text-sm">{icon}</div>
+      <div className="text-xs text-zinc-200 leading-relaxed font-medium">{parts}</div>
+    </div>
+  );
+}
+
+const MemberAvatars = memo(function MemberAvatars({ members, max = 5 }: { members: GuildMemberProgress[]; max?: number }) {
+  if (!members.length) return null;
+  const uniqueMembers = Array.from(new Map(members.map(m => [m.profileId || m.userName, m])).values());
+  const s = uniqueMembers.slice(0, max), e = uniqueMembers.length - max;
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex -space-x-1">
+        {s.map(m => (
+          <div key={m.profileId} className="w-5 h-5 rounded-full border-2 border-zinc-950 overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0 ring-1 ring-indigo-500/30" title={m.userName}>
+            {m.userAvatar ? <img src={m.userAvatar} alt="" className="w-full h-full object-cover"/> : <span className="text-[7px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>}
+          </div>
+        ))}
+      </div>
+      {e > 0 && <span className="text-[7px] font-black text-indigo-400">+{e}</span>}
+    </div>
+  );
+});
 
 // ─── DungeonGroup sub-component for multi-dungeon display ─────────────────────
 const DungeonGroup = memo(function DungeonGroup({
@@ -110,7 +168,7 @@ const DungeonGroup = memo(function DungeonGroup({
     return (
       <button
         onClick={(e) => { e.stopPropagation(); onDungeonClick(dj.id, questName); }}
-        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl border transition-all group hover:scale-[1.02] active:scale-[0.98] ${
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all group hover:scale-[1.02] active:scale-[0.98] ${
           captured
             ? "bg-emerald-500/15 border-emerald-500/40 hover:bg-emerald-500/25 shadow-sm shadow-emerald-500/10"
             : "bg-red-500/10 border-red-500/25 hover:bg-red-500/20"
@@ -118,11 +176,11 @@ const DungeonGroup = memo(function DungeonGroup({
         title={`${dj.name}${captured ? " ✓ Déjà capturé (Metamob)" : ""}`}
       >
         {dj.imageUrl ? (
-          <img src={dj.imageUrl} alt={dj.bossName || dj.name} className={`w-6 h-6 rounded-lg object-cover border flex-shrink-0 ${captured ? "border-emerald-500/50 ring-1 ring-emerald-500/30" : "border-white/10"}`} />
+          <img src={dj.imageUrl} alt={dj.bossName || dj.name} className={`w-5 h-5 rounded-lg object-cover border flex-shrink-0 ${captured ? "border-emerald-500/50 ring-1 ring-emerald-500/30" : "border-white/10"}`} />
         ) : (
-          <div className="w-6 h-6 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center"><Sword className="w-3 h-3 text-amber-400" /></div>
+          <div className="w-5 h-5 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center"><Sword className="w-3 h-3 text-amber-400" /></div>
         )}
-        <span className={`text-[8px] font-black ${captured ? "text-emerald-300" : "text-red-300"} ${compact ? "hidden sm:inline" : ""}`}>{dj.name}</span>
+        <span className={`text-[9px] font-black ${captured ? "text-emerald-300" : "text-red-300"} ${compact ? "hidden sm:inline" : ""}`}>{dj.name}</span>
         {isOcreDungeon && !captured && (
           <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[7px] font-black uppercase tracking-widest">
             <img src="/assets/icons/ocre.png" alt="" className="w-2.5 h-2.5 object-contain" />Ocre
@@ -174,104 +232,189 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const capturedMonsterSet=React.useContext(CapturedMonsterCtx);
   const capturedMonsterNames=React.useContext(CapturedMonsterNamesCtx);
   const scrollToPrereq=React.useContext(ScrollToPrereqCtx);
-  const allMilestones=React.useContext(AllMilestonesCtx);
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
-  const hasDungeons=(seq.dungeons&&seq.dungeons.length>0)||!!seq.dungeon;
   const allDungeons=seq.dungeons&&seq.dungeons.length>0?seq.dungeons:(seq.dungeon?[seq.dungeon]:[]);
   const dbUrl=seq.dofusdbUrl, noobsUrl=seq.dofuspourlesnoobsUrl;
   const hasAlignment=!!(seq.alignReq&&seq.alignOrderReq);
   let isReqMet=false;let alignInfo:any=null;
   if(hasAlignment&&seq.alignReq&&seq.alignOrderReq){const ua=userAlignmentInfo.alignment?.toLowerCase(),uo=userAlignmentInfo.alignmentOrder?.toLowerCase(),ul=userAlignmentInfo.alignmentLevel??0;if(ua===seq.alignReq.toLowerCase()&&typeof uo==="string"&&ul>=seq.alignOrderReq)isReqMet=true;const ad=getAlignment(seq.alignReq);alignInfo={label:ad?.name||seq.alignReq,met:isReqMet};}
-  // Check if prerequisites across ALL milestones are not yet completed → gray out
+
   const prereqBlocked = !isSeqCompleted && (() => {
     const prereqNames = Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text").map((x:any)=>x.name?.toLowerCase()) : [];
     if (prereqNames.length === 0) return false;
     const allCompleted = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
     const allMs = React.useContext(AllMilestonesCtx) as Milestone[];
-    // Search across ALL milestones for matching prereq names
     for (const candidateMs of allMs) {
       if (candidateMs.type === "SEPARATEUR" || candidateMs.type === "INFO") continue;
       for (const candidateSeq of candidateMs.sequences) {
         if (candidateSeq.id === seq.id) continue;
         const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
         if (prereqNames.includes(candidateName) && !allCompleted.has(candidateSeq.id)) {
-          return true; // This prerequisite is not completed yet
+          return true;
         }
       }
     }
     return false;
   })();
-  // When prereqBlocked, show the quest name + prerequisite tags prominently, hide everything else.
+
   if (prereqBlocked) {
-    return <div data-seq-id={seq.id} className={`flex flex-col gap-2 px-3 py-2.5 rounded-xl border transition-all bg-zinc-950/50 border-zinc-700/30 opacity-60 ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
-      {/* Quest name — always visible so user knows which quest this is */}
-      <div className="flex items-center gap-2 ml-1">
-        <Circle className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-        <span className="text-xs font-bold leading-tight tracking-wide text-white/70">{questName}</span>
-      </div>
-      {/* Only the prerequisite tags — fully visible, interactive, no graying */}
-      <div className="flex items-start justify-center gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {(()=>{const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);if(prereqTags.length===0)return null;return<>{prereqTags.map((t:any,i:number)=><button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}} className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-full bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-100 border border-amber-400/60 shadow-md shadow-amber-500/30 hover:bg-amber-500/40 hover:border-amber-300/80 hover:scale-110 active:scale-95 transition-all cursor-pointer opacity-100" title={`Cliquer pour aller à: ${t.name}`}><Lock className="w-3.5 h-3.5 text-amber-300"/><span className="text-amber-400/90">📋</span><span className="text-amber-300/90 font-black">Quête prérequis :</span><span className="underline decoration-amber-400/50 underline-offset-2 decoration-dotted font-bold">{t.name}</span></button>)}</>;})()}
+    return (
+      <div data-seq-id={seq.id} className={`flex flex-col gap-2 p-3 rounded-2xl border transition-all bg-zinc-950/40 border-zinc-800/40 opacity-60 ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
+        <div className="flex items-center gap-2">
+          <Circle className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+          <span className="text-xs font-bold leading-tight tracking-wide text-zinc-400">{questName}</span>
+        </div>
+        <div className="flex items-start justify-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {(()=>{
+              const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);
+              if(prereqTags.length===0)return null;
+              return<>{prereqTags.map((t:any,i:number)=>(
+                <button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-400 transition-all cursor-pointer">
+                  <Lock className="w-3 h-3 text-amber-400"/>
+                  <span>Quête prérequis :</span>
+                  <span className="underline underline-offset-2 font-bold">{t.name}</span>
+                </button>
+              ))}</>;
+            })()}
+          </div>
         </div>
       </div>
-    </div>;
+    );
   }
 
-  return <div data-seq-id={seq.id} tabIndex={0} className={`flex flex-col gap-2 px-3 py-2.5 rounded-xl border transition-all ${isSeqCompleted?"bg-zinc-950/60 border-zinc-800/30 opacity-40":"bg-zinc-950/80 border-zinc-800/50 hover:border-amber-500/30 hover:bg-zinc-900/80 shadow-sm shadow-black/10"} ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex items-start gap-2 min-w-0 flex-1">
-        {onToggleSeq&&<button type="button" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 mt-0.5 p-0.5 rounded text-zinc-500 hover:text-emerald-400 transition-colors">{isSeqCompleted?<CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/20"/>:<Circle className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}</button>}
-        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-          <span className={`text-xs font-bold leading-tight tracking-wide ${isSeqCompleted?"line-through text-zinc-500":"text-white"}`}>{questName}</span>
-          {(()=>{const posTag=Array.isArray(seq.activityTags)?(seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags"):null;if(!posTag?.name)return null;const posStr=String(posTag.name);return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500/15 to-violet-500/15 border border-indigo-500/25 text-[8px] font-bold text-indigo-200 shadow-sm cursor-pointer hover:bg-indigo-500/25 transition-all active:scale-95 shrink-0" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success("📍 Position copiée !",{duration:1500,icon:"📋"});}).catch(()=>{});}} title="Cliquer pour copier /travel"><MapPin className="w-2.5 h-2.5 text-indigo-400"/><span className="text-[7px] text-indigo-300/70 font-black uppercase tracking-widest">Lancement en</span><span className="font-mono text-[7px] tracking-wide">{posStr}</span></span>;})()}
+  return (
+    <div data-seq-id={seq.id} tabIndex={0} className={`flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {onToggleSeq && (
+            <button type="button" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 p-0.5 rounded-lg text-zinc-500 hover:text-emerald-400 transition-colors">
+              {isSeqCompleted ? <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/20"/> : <Circle className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}
+            </button>
+          )}
+          <div className="flex-1 min-w-0 flex items-center gap-2.5 flex-wrap">
+            <span className={`text-xs font-bold leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>{questName}</span>
+            {(()=>{
+              const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
+              if(!posTag?.name) return null;
+              const posStr = String(posTag.name);
+              return (
+                <span 
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
+                  onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
+                  title="Cliquer pour copier /travel"
+                >
+                  <MapPin className="w-3 h-3 text-indigo-400" />
+                  <span>{posStr}</span>
+                </span>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Compact external links */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {(()=>{
+            const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
+            const tn = t?.name;
+            if(tn){
+              const d = DOFUS_DEFS.find(x=>x.id===tn);
+              if(d) return (
+                <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10" style={{color:d.color}}>
+                  <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain" />
+                  {d.label}
+                </span>
+              );
+            }
+            return null;
+          })()}
+          {noobsUrl && (
+            <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
+              <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
+              <span className="hidden md:inline">Noobs</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
+            </a>
+          )}
+          {dbUrl && (
+            <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusDB">
+              <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
+              <span className="hidden md:inline">DofusDB</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
+            </a>
+          )}
         </div>
       </div>
-      {/* Dofus icon + name in external links row */}
-      <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-        {(()=>{const t=seq.activityTags?.find((x:any)=>x.type==="dofus_link");const tn=t?.name;if(tn){const d=DOFUS_DEFS.find(x=>x.id===tn);if(d)return<span className="flex items-center gap-1 px-1.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider" style={{color:d.color}}><img src={d.imageUrl} alt={d.label} title={d.label} className="w-4 h-4 object-contain drop-shadow-lg flex-shrink-0" style={{filter:`drop-shadow(0 0 4px ${d.color}80)`}}/>{d.label}</span>;}return null;})()}
-        {noobsUrl&&<a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[8px] font-black uppercase tracking-wider" title="DofusPourLesNoobs"><img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-4 h-4 rounded-sm shrink-0"/><span className="hidden sm:inline">dofuspourlesnoobs</span><ExternalLink className="w-3 h-3 ml-0.5 opacity-70 shrink-0"/></a>}
-        {dbUrl&&<a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-wider" title="DofusDB"><img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-4 h-4 rounded-sm shrink-0"/><span className="hidden sm:inline">DofusDB</span><ExternalLink className="w-3 h-3 ml-0.5 opacity-70 shrink-0"/></a>}
+
+      {/* Badges & Tags */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {alignInfo && <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md border flex items-center gap-1 ${isReqMet?"text-emerald-400 border-emerald-500/30 bg-emerald-500/10":"text-orange-400 border-orange-500/30 bg-orange-500/10"}`}>{alignInfo.label}{seq.alignOrderReq?` lv.${seq.alignOrderReq}`:""}{isReqMet?"✓":"⚠"}</span>}
+        {seq.isOptional && <span className="text-[8px] text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
+        {seq.isSuccess && <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
+
+        {Array.isArray(seq.activityTags) && seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)).map((tag:any,i:number)=>{
+          if(tag.type==="solver"){
+            const su=tag.url||null;
+            return su ? (
+              <a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 hover:bg-emerald-500/30">
+                <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver<ExternalLink className="w-2.5 h-2.5"/>
+              </a>
+            ) : (
+              <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">
+                <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver
+              </span>
+            );
+          }
+          const def=ACTIVITY_TAGS.find(x=>x.type===tag.type);if(!def)return null;
+          const isMetier=tag.type==="metier";
+          const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;
+          const lb=isMetier&&tag.name?`${tag.name}(${tag.level||1})`:def.label;
+          return (
+            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
+              <img src={ip} alt="" className="w-3.5 h-3.5 object-cover rounded-full"/>
+              {tag.count&&tag.count>1&&<span className="text-[8px] text-amber-400 font-bold">x{tag.count}</span>}
+              <span className="truncate max-w-[90px]">{isMetier&&tag.name?`${tag.name} ${tag.level?`N${tag.level}`:""}`:lb}</span>
+            </span>
+          );
+        })}
+
+        {/* Tougli Callout Box */}
+        {(()=>{
+          const t = seq.activityTags?.find((x:any)=>x.type==="tougli_box");
+          if(!t?.name) return null;
+          return <TougliCallout text={t.name} colorStyle={t.color||"emerald"}/>;
+        })()}
       </div>
+
+      {/* Dungeons Row */}
+      {allDungeons.length > 0 && (
+        <div className="pt-1">
+          <DungeonGroup
+            dungeons={allDungeons as DungeonRef[]}
+            capturedMonsterSet={capturedMonsterSet}
+            capturedMonsterNames={capturedMonsterNames}
+            activityTags={seq.activityTags}
+            metamobMonsterId={seq.metamobMonsterId}
+            questName={questName}
+            onDungeonClick={onDungeonClick}
+          />
+        </div>
+      )}
+
+      {/* Embedded Tips & Notes as sleek callouts */}
+      {seq.tips && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text.xs font-medium text-amber-300">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+          <span>{seq.tips}</span>
+        </div>
+      )}
+      {seq.note && (
+        <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-start gap-2 text-xs font-medium text-orange-300">
+          <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
+          <span>{seq.note}</span>
+        </div>
+      )}
     </div>
-    {/* Tags and badges row */}
-    <div className="flex flex-wrap items-center gap-1.5 ml-6">
-      {/* Prereq text — show ALL prerequisites, each clickable (even when quest is blocked) */}
-      {(()=>{const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);if(prereqTags.length===0)return null;return<>{prereqTags.map((t:any,i:number)=><button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}} className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-200 border border-amber-500/50 shadow-sm shadow-amber-500/20 hover:bg-amber-500/30 hover:border-amber-400/70 hover:scale-110 active:scale-95 transition-all cursor-pointer animate-pulse" title={`Cliquer pour aller à: ${t.name}`}><Lock className="w-3 h-3 text-amber-400"/><span className="text-amber-500/80">📋</span><span className="text-amber-400/80 font-black">Quête prérequis :</span><span className="underline decoration-amber-500/40 underline-offset-2 decoration-dotted font-bold">{t.name}</span></button>)}</>;})()}
-      {/* Alignment */}
-      {alignInfo&&<span className={`text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border flex items-center gap-1 shadow-sm ${isReqMet?"text-emerald-400 border-emerald-500/30 bg-emerald-500/10":"text-orange-400 border-orange-500/30 bg-orange-500/10"}`}>{alignInfo.label}{seq.alignOrderReq?` lv.${seq.alignOrderReq}`:""}{isReqMet?"✓":"⚠"}</span>}
-      {/* Optional */}
-      {seq.isOptional&&<span className="text-[7px] text-purple-400 font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 shadow-sm">Bonus</span>}
-      {/* Success */}
-      {seq.isSuccess&&<span className="flex items-center gap-1 text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/30 shadow-sm"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
-      {/* Position tags — moved inline with quest name */}
-      {/* Activity tags filtered — neutral bg, bigger icons */}
-      {Array.isArray(seq.activityTags)&&seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)).map((tag:any,i:number)=>{
-        if(tag.type==="solver"){const su=tag.url||null;return su?<a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm shadow-emerald-500/10"><img src="/assets/rush-sylvestre/solver.png" alt="" className="w-4 h-4 rounded-full ring-1 ring-emerald-500/30"/>Solver<ExternalLink className="w-2.5 h-2.5"/></a>:<span key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 shadow-sm shadow-emerald-500/10"><img src="/assets/rush-sylvestre/solver.png" alt="" className="w-4 h-4 rounded-full ring-1 ring-emerald-500/30"/>Solver</span>;}
-        const def=ACTIVITY_TAGS.find(x=>x.type===tag.type);if(!def)return null;const isMetier=tag.type==="metier";const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;const lb=isMetier&&tag.name?`${tag.name}(${tag.level||1})`:def.label;
-        return<span key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest border bg-zinc-900/90 text-zinc-100 border-zinc-700/50 shadow-sm"><img src={ip} alt="" className="w-5 h-5 object-cover rounded-full ring-1 ring-white/10"/>{tag.count&&tag.count>1&&<span className="text-[8px] text-amber-400 font-bold">x{tag.count}</span>}<span className="truncate max-w-[80px]">{isMetier&&tag.name?`${tag.name} ${tag.level?`N${tag.level}`:""}`:lb}</span></span>;
-      })}
-      {/* Tougli box */}
-      {(()=>{const t=seq.activityTags?.find((x:any)=>x.type==="tougli_box");if(!t?.name)return null;return <TougliCallout text={t.name} colorStyle={t.color||"emerald"}/>;})()}
-    </div>
-    {/* Dungeons row */}
-    {allDungeons.length > 0 && (
-      <div className="ml-6 -mt-0.5">
-        <DungeonGroup
-          dungeons={allDungeons as DungeonRef[]}
-          capturedMonsterSet={capturedMonsterSet}
-          capturedMonsterNames={capturedMonsterNames}
-          activityTags={seq.activityTags}
-          metamobMonsterId={seq.metamobMonsterId}
-          questName={questName}
-          onDungeonClick={onDungeonClick}
-        />
-      </div>
-    )}
-    {/* Tips & Notes */}
-    {seq.tips&&<div className="flex items-start gap-1 ml-6 mt-0.5"><Sparkles className="w-2.5 h-2.5 text-amber-400/75 flex-shrink-0 mt-0.5"/><span className="text-[9px] text-amber-300/80 leading-tight">{seq.tips}</span></div>}
-    {seq.note&&<div className="flex items-start gap-1 ml-6 mt-0.5"><AlertTriangle className="w-2.5 h-2.5 text-orange-400/75 flex-shrink-0 mt-0.5"/><span className="text-[9px] text-orange-300/80 leading-tight">{seq.note}</span></div>}
-  </div>;
+  );
 });
 
 // ─── DofusObtainedBanner (premium card style — high fantasy Dofus UI) ─────────
@@ -444,44 +587,70 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const cs=ms.sequences.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
   const all=isCompleted||(ms.sequences.length>0&&cs===ms.sequences.length);
   const c=accentColor||"#10b981";
-  return <div className={`relative transition-all duration-200 ${isCompleted?"opacity-60":isBookmarked?"opacity-100":"opacity-95 hover:opacity-100"}`}>
-    <div className="absolute -left-[25px] top-5 w-3 h-3 rounded-full z-10 transition-all ring-1 ring-black/30" style={{background:all?c:"transparent",border:`2px solid ${all?c:`${c}60`}`,boxShadow:isBookmarked?`0 0 10px ${c}80`:undefined}}/>
-    <div className={`ml-2 rounded-2xl border transition-all shadow-sm ${all?"border-emerald-500/20 bg-zinc-950/60 shadow-emerald-500/5":isBookmarked?"border-amber-500/30 bg-zinc-950/90 shadow-amber-500/5 ring-1 ring-amber-500/10":"border-zinc-800/50 bg-zinc-950/80 hover:border-amber-500/25 shadow-black/10"}`}>
-      {/* Header row */}
-      <div className="flex items-center gap-3 p-3 cursor-pointer select-none" onClick={()=>setExpanded((v:boolean)=>!v)}>
-        {/* Status indicator */}
-        <div className="flex-shrink-0 relative">
-          {isLoading?<Loader2 className="w-5 h-5 animate-spin" style={{color:c}}/>:
-           all?<div className="w-5 h-5 rounded-full flex items-center justify-center" style={{background:`${c}30`}}><CheckCheck className="w-4 h-4" style={{color:c}}/></div>:
-           cs>0?<div className="w-5 h-5 rounded-full border-2 border-amber-400/50 flex items-center justify-center bg-amber-500/10"><span className="w-2.5 h-2.5 rounded-full bg-amber-400/70"/></div>:
-           <div className="w-5 h-5 rounded-full border-2 border-zinc-600 flex items-center justify-center"><span className="w-2.5 h-2.5 rounded-full bg-zinc-600"/></div>}
-        </div>
-        {/* Title */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={`text-sm font-black leading-tight tracking-wide font-[family-name:var(--font-cinzel)] ${all?"text-zinc-500":"text-white"}`} style={!all?{color:c}:undefined}>{ms.title}</span>
-            {ms.isOptional&&<span className="text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">Bonus</span>}
-            {/* Dofus badge on milestone */}
-            {(()=>{if(!ms.dofusId)return null;const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return null;return<img src={d.imageUrl} alt={d.label} title={d.label} className="w-5 h-5 object-contain drop-shadow-lg flex-shrink-0" style={{filter:`drop-shadow(0 0 4px ${d.color}80)`}}/>;})()}
+
+  return (
+    <div className={`relative transition-all duration-200 ${isCompleted?"opacity-60":isBookmarked?"opacity-100":"opacity-95 hover:opacity-100"}`}>
+      <div className="absolute -left-[25px] top-5 w-3 h-3 rounded-full z-10 transition-all ring-1 ring-black/30" style={{background:all?c:"transparent",border:`2px solid ${all?c:`${c}60`}`,boxShadow:isBookmarked?`0 0 10px ${c}80`:undefined}}/>
+      <div className={`ml-2 rounded-2xl border transition-all shadow-md ${all?"border-emerald-500/20 bg-zinc-950/40 shadow-emerald-500/5":isBookmarked?"border-amber-500/30 bg-zinc-950/80 shadow-amber-500/5 ring-1 ring-amber-500/20":"border-white/10 bg-zinc-900/40 hover:border-white/20 shadow-black/20"}`}>
+        {/* Header row */}
+        <div className="flex items-center gap-3 p-3.5 cursor-pointer select-none" onClick={()=>setExpanded((v:boolean)=>!v)}>
+          {/* Status indicator */}
+          <div className="flex-shrink-0 relative">
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-emerald-400"/> :
+             all ? <div className="w-5 h-5 rounded-full flex items-center justify-center bg-emerald-500/20 border border-emerald-500/40"><CheckCheck className="w-3.5 h-3.5 text-emerald-400"/></div> :
+             cs > 0 ? <div className="w-5 h-5 rounded-full border-2 border-amber-400/50 flex items-center justify-center bg-amber-500/10"><span className="w-2 h-2 rounded-full bg-amber-400"/></div> :
+             <div className="w-5 h-5 rounded-full border border-zinc-700 flex items-center justify-center bg-zinc-900"><span className="w-2 h-2 rounded-full bg-zinc-700"/></div>}
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[8px] font-mono font-black text-zinc-500">{completedStepsSet.size>0?`${cs}/${ms.sequences.length}`:`${ms.sequences.length} quête${ms.sequences.length>1?"s":""}`}</span>
-            {isBookmarked&&<span className="text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full" style={{background:`${c}25`,color:c}}><Flag className="w-2 h-2 inline mr-0.5"/>Rendu ici</span>}
+          {/* Title */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-black leading-tight tracking-wide font-[family-name:var(--font-cinzel)] ${all?"text-zinc-500":"text-white"}`} style={!all?{color:c}:undefined}>{ms.title}</span>
+              {ms.isOptional&&<span className="text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">Bonus</span>}
+              {(()=>{if(!ms.dofusId)return null;const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return null;return<img src={d.imageUrl} alt={d.label} title={d.label} className="w-5 h-5 object-contain drop-shadow-lg flex-shrink-0"/>;})()}
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[9px] font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${ms.sequences.length}`:`${ms.sequences.length} quête${ms.sequences.length>1?"s":""}`}</span>
+              {isBookmarked&&<span className="text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30"><Flag className="w-2 h-2 inline mr-1"/>Rendu ici</span>}
+            </div>
+          </div>
+          {/* Actions */}
+          <div className={`flex items-center gap-1.5 flex-shrink-0 ${isCompleted?"opacity-100":""}`}>
+            {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-widest shadow-sm" title="Valider le bloc"><CheckCircle2 className="w-3 h-3"/>Valider</button>}
+            <button onClick={e=>{e.stopPropagation();onBookmark();}} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${isBookmarked?"bg-amber-500/20 border-amber-500/40 text-amber-300":"bg-zinc-900 border-white/10 text-zinc-400 hover:text-amber-300 hover:border-amber-500/30"}`}>{isBookmarked?<BookmarkCheck className="w-3 h-3 text-amber-400"/>:<Flag className="w-3 h-3"/>}{isBookmarked?"Rendu ici ✓":"J'en suis là"}</button>
+            <button onClick={e=>{e.stopPropagation();onReset();}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${isCompleted?"bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-red-400 hover:border-red-500/30"}`}><RotateCcw className="w-3 h-3"/>Reset</button>
+            {membersHere.length>0&&<MemberAvatars members={membersHere}/>}
+            <div className="text-zinc-500 ml-1">{expanded?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
           </div>
         </div>
-        {/* Actions */}
-        <div className={`flex items-center gap-1 flex-shrink-0 ${isCompleted?"opacity-100":""}`}>
-          {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-widest shadow-sm" title="Valider le bloc"><CheckCircle2 className="w-3 h-3"/>Valider</button>}
-          <button onClick={e=>{e.stopPropagation();onBookmark();}} className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${isBookmarked?"bg-amber-500/15 border-amber-500/40 text-amber-400":"bg-zinc-800/60 border-zinc-700/50 text-zinc-400 hover:text-amber-300 hover:border-amber-500/30"}`}>{isBookmarked?<BookmarkCheck className="w-3 h-3 text-amber-400"/>:<Flag className="w-3 h-3"/>}{isBookmarked?"Rendu ici ✓":"J'en suis là"}</button>
-          <button onClick={e=>{e.stopPropagation();onReset();}} className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${isCompleted?"bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30":"bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"}`}><RotateCcw className="w-3 h-3"/>Reset</button>
-          {membersHere.length>0&&<MemberAvatars members={membersHere}/>}
-          <div className="text-zinc-600 ml-0.5">{expanded?<ChevronUp className="w-3.5 h-3.5"/>:<ChevronDown className="w-3.5 h-3.5"/>}</div>
-        </div>
+        {/* Expanded content */}
+        <AnimatePresence>
+          {expanded && (
+            <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
+              <div className="px-3 pb-3 space-y-2 pt-2 border-t border-white/5">
+                {/* Tip banner inside block if provided */}
+                {ms.tips && (
+                  <div className="mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-300 font-medium">
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 leading-relaxed">{ms.tips}</div>
+                  </div>
+                )}
+
+                <CompletedStepsCtx.Provider value={completedStepsSet}>
+                  {ms.sequences.length===0 ? (
+                    <div className="py-6 text-center text-zinc-600 text-[10px] font-black uppercase tracking-widest">Aucune quête</div>
+                  ) : (
+                    ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id)).map((s:any)=>(
+                      <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick}/>
+                    ))
+                  )}
+                </CompletedStepsCtx.Provider>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      {/* Expanded */}
-      <AnimatePresence>{expanded&&<motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="px-3 pb-3 space-y-2 pt-1 border-t border-zinc-800/30"><CompletedStepsCtx.Provider value={completedStepsSet}>{ms.sequences.length===0?<div className="py-6 text-center text-zinc-600 text-[10px] font-black uppercase tracking-widest">Aucune quête</div>:ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id)).map((s:any)=><SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick}/>)}</CompletedStepsCtx.Provider></div></motion.div>}</AnimatePresence>
     </div>
-  </div>;
+  );
 });
 
 // ─── SectionDivider (style Dofus premium) ──────────────────────────────────────

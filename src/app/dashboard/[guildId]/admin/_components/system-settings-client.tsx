@@ -185,33 +185,54 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                         </CardContent>
                     </Card>
 
-                    {/* ALERTE DISCORD LIFECYCLE */}
+                    {/* NOTIFICATIONS LIFECYCLE — Départs, Bans, Archivages, Suppressions */}
                     <Card className="bg-zinc-900/60 border-white/5 overflow-hidden group relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-white font-black uppercase tracking-tighter text-sm">
-                                <span className="bg-purple-500/20 text-purple-400 p-1.5 rounded-lg">
+                                <span className="bg-rose-500/20 text-rose-400 p-1.5 rounded-lg">
                                     <Users className="w-4 h-4" />
                                 </span>
-                                Alerte Discord Lifecycle
+                                🔔 Cycle de Vie des Membres
                             </CardTitle>
+                            <CardDescription className="text-[11px] text-zinc-500 font-medium leading-relaxed">
+                                Reçois une notification Discord riche (embed) quand un membre :
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            {/* Liste des événements */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {[
+                                    { emoji: "💤", label: "Archive son profil", color: "text-indigo-400" },
+                                    { emoji: "📤", label: "Quitte le Discord", color: "text-amber-400" },
+                                    { emoji: "🚫", label: "Est banni", color: "text-red-400" },
+                                    { emoji: "🗑️", label: "Est supprimé (admin)", color: "text-rose-400" },
+                                    { emoji: "🔄", label: "Est réactivé", color: "text-emerald-400" },
+                                ].map((evt, idx) => (
+                                    <div key={idx} className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-medium">
+                                        <span>{evt.emoji}</span>
+                                        <span className={evt.color}>{evt.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+
                             <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-black text-zinc-500 ml-1">Salon Lifecycle (Départs / Bans)</Label>
+                                <Label className="text-[10px] uppercase font-black text-zinc-500 ml-1">
+                                    Salon des notifications <span className="text-rose-400">(lifecycle)</span>
+                                </Label>
                                 <div className="relative group/input">
                                     <Input
                                         value={lifecycleChannelId}
                                         onChange={(e) => setLifecycleChannelId(e.target.value)}
-                                        placeholder="Si vide, utilise le salon principal"
-                                        className="font-mono bg-black/20 border-white/10 h-11 pl-10 focus:border-purple-500/50 transition-colors"
+                                        placeholder="Ex: 123456789012345678"
+                                        className="font-mono bg-black/20 border-white/10 h-11 pl-10 focus:border-rose-500/50 transition-colors"
                                     />
-                                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-purple-400 transition-colors" />
+                                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-rose-400 transition-colors" />
                                 </div>
-                                <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10 flex items-start gap-3">
-                                    <ShieldAlert className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" />
-                                    <p className="text-[10px] text-zinc-400 leading-relaxed italic">
-                                        Laisse vide pour tout centraliser dans le salon principal configuré en haut. Recommandé pour une journalisation staff séparée.
+                                <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 flex items-start gap-3">
+                                    <ShieldAlert className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0" />
+                                    <p className="text-[10px] text-zinc-400 leading-relaxed">
+                                        <strong className="text-rose-300">Laisse vide</strong> pour désactiver. L'embed contiendra : pseudo Discord, pseudo Dofus, qui a fait l'action, le statut, l'heure, la guilde et la durée de rétention.
                                     </p>
                                 </div>
                             </div>

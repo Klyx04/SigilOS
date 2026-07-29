@@ -255,7 +255,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 case 'REGULATION': return "Sélectionnez une zone ou une famille de monstres.";
                 case 'ANOMALIE': return "Configurez l’anomalie (zone requise).";
                 case 'SONGES': return "Configurez les songes.";
-                case 'EVENT': return "Configurez le type d’événement (donjon, régulation ou monstre spécial).";
+                case 'EVENT': return "Renseignez le titre et le type de mission événement.";
                 default: return "Champs requis manquants.";
             }
         }
@@ -266,6 +266,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
             return "Sélectionnez un donjon pour l’expédition.";
         if (m.category === 'REGULATION' && !m.payload?.familyId && !m.payload?.zoneId)
             return "Sélectionnez au moins une zone ou une famille.";
+        if (m.category === 'EVENT' && m.payload?.eventType === 'OBJECTIF' && !m.payload?.description?.trim())
+            return "Rédigez l'objectif de la mission.";
         return null;
     };
 
@@ -587,6 +589,12 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                                 return <span className="text-emerald-300">{[name, mode].filter(Boolean).join(' · ')}</span>;
                             }
                             case 'EVENT': {
+                                if (payload.eventType === 'FRAGMENTS_ANOMALIE') {
+                                    return <span className="text-fuchsia-300 font-medium">⚡ 20 Fragments d'anomalie</span>;
+                                }
+                                if (payload.eventType === 'OBJECTIF') {
+                                    return payload.description ? <span className="text-cyan-300 truncate font-medium">📜 {payload.description}</span> : null;
+                                }
                                 return payload.description ? <span className="text-rose-300 truncate">{payload.description}</span> : null;
                             }
                             default: {
@@ -682,8 +690,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
 
             {/* Editing Dialog */}
             <Dialog open={editingSlot !== null} onOpenChange={(open) => !open && setEditingSlot(null)}>
-                <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-lg shadow-2xl">
-                    <DialogHeader>
+                <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+                    <DialogHeader className="shrink-0">
                         <DialogTitle className="text-xl font-black flex items-center gap-2">
                             {editingSlot !== null && editingSlot >= 12
                                 ? <><Sparkles className="w-4 h-4 text-yellow-400" /> Éditer Slot Spécial #{editingSlot - 11}</>
@@ -692,7 +700,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                     </DialogHeader>
 
                     {currentMission && (
-                        <div className="grid gap-4 py-4">
+                        <div className="overflow-y-auto pr-1 flex-1 py-2 space-y-4">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
                                     <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Catégorie</label>
@@ -847,7 +855,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                             </div>
                         </div>
                     )}
-                    <DialogFooter className="gap-2 flex-col sm:flex-row items-center">
+                    <DialogFooter className="shrink-0 gap-2 flex-col sm:flex-row items-center pt-3 border-t border-zinc-800">
                         {currentMission && (() => {
                             const err = validateMission(currentMission);
                             return err ? (

@@ -169,7 +169,7 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                 {guild.foundedDate && (
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-zinc-900/50 text-zinc-400 text-xs font-medium border border-white/5 backdrop-blur-md">
                                         <Calendar className="w-3 h-3" />
-                                        Fondée en {new Date(guild.foundedDate).getFullYear()}
+                                        Fondée le {new Date(guild.foundedDate).toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}
                                     </span>
                                 )}
                             </motion.div>
@@ -299,6 +299,17 @@ export function GuildPublicView({ guild, foundedYear, isMember }: Props) {
                                 </h3>
 
                                 <div className="space-y-6">
+                                    {/* Founded Date */}
+                                    {guild.foundedDate && (
+                                        <div className="flex items-center justify-between p-4 rounded-xl border bg-amber-500/5 border-amber-500/20">
+                                            <span className="text-sm font-medium text-zinc-400">Fondation</span>
+                                            <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
+                                                <Calendar className="w-4 h-4" />
+                                                {new Date(guild.foundedDate).toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' })}
+                                            </span>
+                                        </div>
+                                    )}
+
                                     {/* Member Count */}
                                     {guild.memberCount !== null && guild.memberCount !== undefined && (
                                         <div className="flex items-center justify-between p-4 rounded-xl border bg-indigo-500/5 border-indigo-500/20">

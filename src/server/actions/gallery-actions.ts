@@ -182,12 +182,21 @@ export async function getStuffGalleryPage(
 
 
 
-        // Default logical order
-        allBuilds = allBuilds.reverse();
-
         // Apply sort
         if (sortBy === "votes") {
             allBuilds = allBuilds.sort((a, b) => b.votesCount - a.votesCount);
+        } else {
+            // Default: newest first (by updatedAt or createdAt timestamp if available)
+            allBuilds = allBuilds.sort((a, b) => {
+                const dateA = a.updatedAt || a.createdAt;
+                const dateB = b.updatedAt || b.createdAt;
+                if (dateA && dateB) {
+                    return new Date(dateB).getTime() - new Date(dateA).getTime();
+                }
+                if (dateA) return -1;
+                if (dateB) return 1;
+                return 0;
+            });
         }
 
         // Apply search filter server-side
@@ -576,8 +585,18 @@ export async function shareGalleryItemOnDiscord(
             embedDescription = `Partagé par **${authorName}** via SigilOS.`;
             
             // Premium UI 2026: Large image for the build + Site icon as thumbnail
-            embedImage = build.previewData?.thumbnail || undefined;
+            const rawBuildImg = build.previewData?.thumbnail?.trim();
+            if (rawBuildImg) {
+                try {
+                    embedImage = new URL(rawBuildImg).href;
+                } catch {
+                    embedImage = undefined;
+                }
+            } else {
+                embedImage = undefined;
+            }
             embedThumbnail = "https://sigilos.fr/assets/ui/dofusbook.png";
+
             
             if (build.classId) {
                 fields.push({ name: "Classe", value: String(build.classId).charAt(0).toUpperCase() + String(build.classId).slice(1), inline: true });
@@ -603,7 +622,24 @@ export async function shareGalleryItemOnDiscord(
             embedDescription = `Look partagé par **${authorName}**.`;
             
             // Premium UI 2026: Large image for the skin + Provider icon as thumbnail
-            embedImage = skin.thumbnailUrl || undefined;
+            let rawImage = skin.thumbnailUrl?.trim();
+            if (rawImage) {
+                if (rawImage.startsWith("//")) {
+                    rawImage = `https:${rawImage}`;
+                } else if (!rawImage.startsWith("http://") && !rawImage.startsWith("https://")) {
+                    rawImage = `https://${rawImage.replace(/^\/+/, '')}`;
+                }
+                try {
+                    const parsedUrl = new URL(rawImage);
+                    embedImage = parsedUrl.href;
+                } catch {
+                    embedImage = undefined;
+                }
+            } else {
+                embedImage = undefined;
+            }
+
+
             embedThumbnail = (skin.provider === "BARBOFUS" ? 
                 "https://sigilos.fr/assets/ui/barbofus.png" : 
                 "https://sigilos.fr/assets/ui/dofusskinmanga.png"
@@ -614,11 +650,18 @@ export async function shareGalleryItemOnDiscord(
                     const match = c.icon.match(/\/(\d+)\.png$/);
                     return match && match[1] === String((skin.metadata as any).class);
                 });
-                fields.push({ name: "Classe", value: classData ? classData.name : (skin.metadata as any).class, inline: true });
+                fields.push({ name: "Classe", value: classData ? classData.name : String((skin.metadata as any).class), inline: true });
             }
             if ((skin.metadata as any)?.gender) {
-                fields.push({ name: "Sexe", value: (skin.metadata as any).gender, inline: true });
+                fields.push({ name: "Sexe", value: String((skin.metadata as any).gender), inline: true });
             }
+            if (Array.isArray(skin.equipment) && skin.equipment.length > 0) {
+                const itemsList = skin.equipment.map((eq: any) => `• ${eq.name}${eq.type ? ` *(${eq.type})*` : ''}`).join("\n");
+                if (itemsList.length <= 1024) {
+                    fields.push({ name: "Équipements", value: itemsList, inline: false });
+                }
+            }
+
         }
 
         // 4. Determine Channel Type and Send

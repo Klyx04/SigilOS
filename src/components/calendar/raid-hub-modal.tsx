@@ -81,60 +81,84 @@ function LinkPreviewCard({
     })();
 
     return (
-        <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700/80 transition-all">
+        <a
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+                if (isEditing) e.preventDefault();
+            }}
+            className={cn(
+                "group relative flex items-stretch gap-3.5 p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 hover:border-amber-500/40 hover:bg-zinc-900/90 shadow-md transition-all duration-200 overflow-hidden",
+                !isEditing && "cursor-pointer"
+            )}
+        >
+            {/* Ambient hover glow */}
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/0 to-amber-500/5 group-hover:from-amber-500/5 transition-all pointer-events-none" />
+
             {/* Thumbnail */}
-            {link.thumbnail && (
-                <div className="shrink-0 w-20 h-14 rounded-lg overflow-hidden bg-zinc-800">
+            {link.thumbnail ? (
+                <div className="shrink-0 w-24 h-16 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800/80 relative">
                     <img
                         src={link.thumbnail}
                         alt={link.title ?? "Aperçu"}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
                             (e.target as HTMLImageElement).style.display = "none";
                         }}
                     />
                 </div>
+            ) : (
+                <div className="shrink-0 w-12 h-16 rounded-lg bg-zinc-900/80 border border-zinc-800/80 flex items-center justify-center text-amber-500/60 group-hover:text-amber-400 transition-colors">
+                    <Link className="h-5 w-5" />
+                </div>
             )}
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-0.5">{domain}</p>
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-[10px] font-black text-amber-400/90 uppercase tracking-widest bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        {domain}
+                    </span>
+                </div>
                 {link.title && (
-                    <p className="text-sm font-bold text-zinc-100 leading-tight line-clamp-1">{link.title}</p>
+                    <p className="text-xs font-bold text-zinc-100 group-hover:text-amber-200 leading-snug line-clamp-1 transition-colors">
+                        {link.title}
+                    </p>
                 )}
                 {link.description && (
-                    <p className="text-xs text-zinc-500 leading-tight line-clamp-2 mt-0.5">{link.description}</p>
+                    <p className="text-[11px] text-zinc-400 leading-snug line-clamp-1 mt-0.5">
+                        {link.description}
+                    </p>
                 )}
                 {!link.title && (
-                    <p className="text-sm text-zinc-400 truncate">{link.url}</p>
+                    <p className="text-xs text-zinc-400 truncate">{link.url}</p>
                 )}
             </div>
 
             {/* Actions */}
-            <div className="shrink-0 flex items-center gap-2">
+            <div className="shrink-0 flex items-center gap-2 pl-2">
                 {!isEditing && (
-                    <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg bg-zinc-800/50 hover:bg-amber-500/20 text-zinc-500 hover:text-amber-400 transition-all"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Ouvrir le lien"
-                    >
+                    <div className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 group-hover:bg-amber-500 group-hover:text-zinc-950 text-zinc-400 transition-all shadow-sm">
                         <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
+                    </div>
                 )}
                 {isEditing && onRemove && (
                     <button
-                        onClick={onRemove}
-                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onRemove();
+                        }}
+                        className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
                         title="Supprimer le lien"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
                     </button>
                 )}
             </div>
-        </div>
+        </a>
     );
 }
 
@@ -166,7 +190,6 @@ function AddLinkForm({
                 thumbnail: result.thumbnail,
             });
         } else {
-            // Still allow adding, just without preview
             setPreview({ url: url.trim() });
             toast.warning("Prévisualisation indisponible — lien ajouté sans vignette");
         }
@@ -182,8 +205,10 @@ function AddLinkForm({
     };
 
     return (
-        <div className="space-y-3 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-            <p className="text-xs font-black uppercase tracking-widest text-amber-400">Ajouter un lien</p>
+        <div className="space-y-3 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-sm">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                <Link className="h-3.5 w-3.5" /> Ajouter un lien externe
+            </p>
 
             {/* URL Input */}
             <div className="flex gap-2">
@@ -192,15 +217,16 @@ function AddLinkForm({
                     value={url}
                     onChange={(e) => { setUrl(e.target.value); setPreview(null); }}
                     onKeyDown={(e) => e.key === "Enter" && handleFetchPreview()}
-                    placeholder="https://..."
-                    className="flex-1 px-3 py-2 rounded-lg bg-zinc-900/80 border border-zinc-700/80 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+                    placeholder="https://www.dofuspourlesnoobs.com/..."
+                    className="flex-1 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700/80 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 transition-colors"
                 />
                 <button
+                    type="button"
                     onClick={handleFetchPreview}
                     disabled={!url.trim() || loading}
-                    className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 disabled:opacity-40 transition-all flex items-center gap-1.5 text-xs font-bold"
+                    className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-40 transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 border border-zinc-700"
                 >
-                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5 text-amber-400" />}
                     Aperçu
                 </button>
             </div>
@@ -211,19 +237,21 @@ function AddLinkForm({
             )}
 
             {/* Actions */}
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end pt-1">
                 <button
+                    type="button"
                     onClick={onCancel}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-400 hover:text-zinc-200 transition-colors"
                 >
                     Annuler
                 </button>
                 <button
+                    type="button"
                     onClick={handleAdd}
                     disabled={!url.trim() && !preview}
-                    className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs disabled:opacity-40 transition-all"
+                    className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs disabled:opacity-40 transition-all shadow-md"
                 >
-                    Ajouter
+                    Ajouter le lien
                 </button>
             </div>
         </div>
@@ -269,14 +297,11 @@ function TipSectionEditor({
     };
 
     return (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 overflow-hidden">
+        <div className="group/card relative rounded-2xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/60 to-zinc-950/80 backdrop-blur-md shadow-lg overflow-hidden transition-all duration-200 hover:border-zinc-700/80">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/50 border-b border-zinc-800">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-900/70 border-b border-zinc-800/80">
                 <div className="flex items-center gap-2">
-                    {isAdmin && (
-                        <GripVertical className="h-4 w-4 text-zinc-700 cursor-grab" />
-                    )}
-                    <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                    <span className="h-5 px-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest flex items-center">
                         Conseil #{index + 1}
                     </span>
                 </div>
@@ -284,24 +309,27 @@ function TipSectionEditor({
                     <div className="flex items-center gap-1">
                         {!isEditing ? (
                             <button
+                                type="button"
                                 onClick={() => { setIsEditing(true); setEditContent(section.content); }}
-                                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-all"
-                                title="Modifier"
+                                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-all"
+                                title="Modifier ce conseil"
                             >
                                 <Edit3 className="h-3.5 w-3.5" />
                             </button>
                         ) : (
                             <>
                                 <button
+                                    type="button"
                                     onClick={handleSave}
-                                    className="p-1.5 rounded-lg hover:bg-emerald-500/20 text-emerald-400 transition-all"
+                                    className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all flex items-center gap-1 text-xs font-bold px-2"
                                     title="Sauvegarder"
                                 >
-                                    <Save className="h-3.5 w-3.5" />
+                                    <Save className="h-3.5 w-3.5" /> OK
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => setIsEditing(false)}
-                                    className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-all"
+                                    className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-all"
                                     title="Annuler"
                                 >
                                     <X className="h-3.5 w-3.5" />
@@ -309,9 +337,10 @@ function TipSectionEditor({
                             </>
                         )}
                         <button
+                            type="button"
                             onClick={onDelete}
-                            className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-500/60 hover:text-red-400 transition-all"
-                            title="Supprimer"
+                            className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400/70 hover:text-red-400 transition-all"
+                            title="Supprimer ce conseil"
                         >
                             <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -326,20 +355,22 @@ function TipSectionEditor({
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                         rows={4}
-                        placeholder="Décrivez ce conseil (stratégie, composition, timing...)..."
-                        className="w-full px-3 py-2 rounded-lg bg-zinc-900/80 border border-zinc-700 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 resize-none transition-colors"
+                        placeholder="Ex: Lumière 0–4 : baisse toutes les 2 min, remonte avec Sel aux machines..."
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 resize-none transition-colors"
                     />
                 ) : (
                     section.content ? (
-                        <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{section.content}</p>
+                        <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap font-medium">
+                            {section.content}
+                        </p>
                     ) : (
-                        <p className="text-sm text-zinc-600 italic">Aucun texte — cliquez sur Modifier pour ajouter</p>
+                        <p className="text-sm text-zinc-600 italic">Aucun texte pour ce conseil — cliquez sur modifier pour remplir</p>
                     )
                 )}
 
                 {/* Links */}
                 {section.links.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 pt-1">
                         {section.links.map((link, idx) => (
                             <LinkPreviewCard
                                 key={idx}
@@ -354,11 +385,12 @@ function TipSectionEditor({
                 {/* Add link */}
                 {isAdmin && !showAddLink && (
                     <button
+                        type="button"
                         onClick={() => setShowAddLink(true)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-zinc-700 hover:border-amber-500/40 text-zinc-600 hover:text-amber-400 text-xs font-bold w-full transition-all group"
+                        className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-zinc-800 hover:border-amber-500/40 bg-zinc-950/40 hover:bg-amber-500/5 text-zinc-500 hover:text-amber-400 text-xs font-bold w-full transition-all group"
                     >
-                        <Link className="h-3.5 w-3.5 group-hover:text-amber-400" />
-                        Ajouter un lien avec prévisualisation
+                        <Plus className="h-3.5 w-3.5 group-hover:text-amber-400" />
+                        Ajouter une ressource ou un lien de guide
                     </button>
                 )}
 

@@ -299,10 +299,10 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-2 p-3 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "border-l border-l-amber-500/50 bg-amber-500/[0.02] shadow-[0_0_8px_rgba(245,158,11,0.03)]" : ""}`}>
+      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 p-2.5 rounded-xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.03] shadow-[0_0_12px_rgba(245,158,11,0.05)]" : ""}`}>
         {isThisBookmarked && !isSeqCompleted && (
-          <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-[9px] font-black uppercase tracking-widest text-amber-300">
-            <MapPin className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-[8px] font-black uppercase tracking-widest text-amber-300">
+            <MapPin className="w-2.5 h-2.5" />
             Étape actuelle
           </span>
         )}
@@ -319,24 +319,24 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {onToggleSeq && (
-              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors border border-zinc-700 hover:border-emerald-500/40" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
+              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors border border-zinc-700 hover:border-emerald-500/40" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
                 {isSeqCompleted ? <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-400/20"/> : <Square className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}
               </button>
             )}
-            <div className="flex-1 min-w-0 flex items-center gap-2.5 flex-wrap">
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
               <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>{questName}</span>
               {onToggleSeq && (
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-                  className={`ml-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all shrink-0 ${
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border text-[7px] font-black uppercase tracking-widest transition-all shrink-0 ${
                     isThisBookmarked
                       ? "bg-amber-500/20 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/30"
                       : "bg-zinc-800/60 border-zinc-700/40 text-zinc-500 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
                   }`}
                   title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
                 >
-                  {isThisBookmarked ? <BookmarkCheck className="w-3 h-3" /> : <Flag className="w-3 h-3" />}
+                  {isThisBookmarked ? <BookmarkCheck className="w-2.5 h-2.5" /> : <Flag className="w-2.5 h-2.5" />}
                   Rendu ici
                 </button>
               )}
@@ -359,7 +359,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           </div>
 
           {/* Compact external links */}
-          <div className="flex flex-col items-end gap-1.5 flex-shrink-0 self-stretch justify-between">
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
             {/* Noobs + DB en vertical */}
             <div className="flex flex-col items-end gap-1.5">
               {noobsUrl && (
@@ -396,7 +396,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
         </div>
 
         {/* Badges & Tags */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1">
           {alignInfo && <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md border flex items-center gap-1 ${isReqMet?"text-emerald-400 border-emerald-500/30 bg-emerald-500/10":"text-orange-400 border-orange-500/30 bg-orange-500/10"}`}>{alignInfo.label}{seq.alignOrderReq?` lv.${seq.alignOrderReq}`:""}{isReqMet?"✓":"⚠"}</span>}
           {seq.isOptional && <span className="text-[8px] text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
           {seq.isSuccess && <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
@@ -419,8 +419,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;
             const lb=isMetier&&tag.name?`${tag.name}(${tag.level||1})`:def.label;
             return (
-              <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
-                <img src={ip} alt="" className="w-5 h-5 object-cover rounded-lg"/>
+              <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
+                <img src={ip} alt="" className="w-4 h-4 object-cover rounded-md"/>
                 {tag.count&&tag.count>1&&<span className="text-[8px] text-amber-400 font-bold">x{tag.count}</span>}
                 <span className="truncate max-w-[90px]">{isMetier&&tag.name?`${tag.name} ${tag.level?`N${tag.level}`:""}`:lb}</span>
               </span>
@@ -440,7 +440,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
-            className="flex items-center gap-2 pt-0.5 cursor-pointer text-left"
+            className="flex items-center gap-1.5 cursor-pointer text-left"
             title={`Voir les ${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''}`}
           >
             <div className="flex -space-x-1.5">

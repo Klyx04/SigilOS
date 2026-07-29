@@ -117,7 +117,15 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
             if (publishToDiscord && discordRoles.length === 0) {
                 setIsLoadingRoles(true);
                 getDiscordRolesAction(guildId, { context: "songes" })
-                    .then(res => { if (res.success && res.roles) setDiscordRoles(res.roles.filter(r => r.name !== "@everyone") as any); })
+                    .then(res => { 
+                        if (res.success && res.roles) {
+                            const filtered = res.roles.filter(r => r.name !== "@everyone") as any;
+                            setDiscordRoles(filtered);
+                            if (filtered.length > 0) {
+                                setMentionRoleIds(filtered.map((r: any) => r.id));
+                            }
+                        }
+                    })
                     .catch(console.error)
                     .finally(() => setIsLoadingRoles(false));
             }

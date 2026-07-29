@@ -218,6 +218,16 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const isActive = seq.id === activeSeqId && !isSeqCompleted;
   const isNext = seq.id === nextSeqId && !isSeqCompleted && !isActive;
   const isThisBookmarked = seq.id === bookmarkedSeqId;
+  const [bookmarkHighlight, setBookmarkHighlight] = useState(false);
+  const prevBookmarked = useRef(isThisBookmarked);
+  useEffect(() => {
+    if (isThisBookmarked && !prevBookmarked.current) {
+      setBookmarkHighlight(true);
+      const timer = setTimeout(() => setBookmarkHighlight(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    prevBookmarked.current = isThisBookmarked;
+  }, [isThisBookmarked]);
   // ─── Guild members with bookmark on this seq (pour l'affichage flottant) ──
   const seqMembers = useMemo(() => {
     const raw = guildProgressBySeq.get(seq.id) || [];
@@ -299,7 +309,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""}`}>
+      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${bookmarkHighlight ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-950" : ""}`}>
         {isActive && !isSeqCompleted && (
           <span className="text-[9px] font-black uppercase tracking-widest text-amber-400/70 mb-0">
             À FAIRE MAINTENANT

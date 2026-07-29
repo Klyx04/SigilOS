@@ -376,7 +376,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
             </div>
 
             {/* --- CANDIDACIES SECTION --- */}
-            {isLeader && run.joinRequests && run.joinRequests.filter(r => (r as any).status !== 'ACCEPTED').length > 0 && (
+            {isLeader && run.joinRequests && run.joinRequests.filter(r => r.status !== 'ACCEPTED').length > 0 && (
                 <div className="relative z-10 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 mb-6 animate-in slide-in-from-bottom-2 duration-300">
                     <div className="flex items-center gap-2 mb-4">
                         <Bell className="w-3.5 h-3.5 text-amber-500" />
@@ -384,7 +384,7 @@ export function RunCard({ run, currentUserId, canJoinSonges = true, isAdmin = fa
                     </div>
 
                     <div className="space-y-3">
-                        {run.joinRequests.filter(r => (r as any).status !== 'ACCEPTED').map((c) => {
+                        {run.joinRequests.filter(r => r.status !== 'ACCEPTED').map((c) => {
                             const profile = profiles.find(p => p.userId === c.userId);
                             const name = profile?.pseudoDofus || profile?.discordNickname || "Candidat";
                             return (

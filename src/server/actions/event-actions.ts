@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { redis } from "@/lib/redis";
+import { logger } from "@/lib/logger";
 
 import { getKralamoureEvents, getKralamoureEventDetails, MetamobApiError } from "@/lib/metamob-client";
 import { decrypt } from "@/lib/encryption";
@@ -20,23 +21,25 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     const session = await auth();
     if (!session?.user?.id) return [];
 
-    // 1. Get Guild Config (Internal ID) AND User's Server ID for Metamob
-    // We try to find the server ID from the user's profile first.
-    const [guildConfig, userProfile] = await Promise.all([
-        db.guildConfig.findUnique({
+    const cacheKey = `guild:events:upcoming:${guildId}:${session.user.id}:${limit}`;
+
+    try {
+        const cached = await redis.get(cacheKey).catch(() => null);
+        if (cached) return JSON.parse(cached) as UpcomingEvent[];
+
+        const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
             select: { id: true }
-        }),
-        db.userProfile.findFirst({
+        });
+        if (!guildConfig) return [];
+
+        const userProfile = await db.userProfile.findFirst({
             where: {
                 userId: session.user.id,
-                guild: { discordGuildId: guildId }
+                guildId: guildConfig.id
             },
             select: { metamobServerId: true, metamobApiKey: true }
-        })
-    ]);
-
-    if (!guildConfig) return [];
+        });
 
     const now = new Date();
 
@@ -190,16 +193,17 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
         // Priority to live games
         const aLive = (a.metadata as any)?.isLive;
         const bLive = (b.metadata as any)?.isLive;
-        if (aLive && !bLive) return -1;
-        if (!aLive && bLive) return 1;
-        
         return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
     });
 
-    return allEvents.slice(0, limit);
+    const result = allEvents.slice(0, limit);
+    await redis.set(cacheKey, JSON.stringify(result), "EX", 15).catch(() => {});
+    return result;
+    } catch (error) {
+        console.error("[getUpcomingGuildEvents] Error:", error);
+        return [];
+    }
 }
-
-import { logger } from "@/lib/logger";
 
 export async function getExternalKralamoureDetails(kralaId: number, guildId: string, revalidate?: number) {
     const session = await auth();

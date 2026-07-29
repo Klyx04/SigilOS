@@ -182,7 +182,55 @@ export function GuildTable({ guilds }: GuildTableProps) {
                     </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Unauthorized bot attempts button */}
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20 font-black uppercase tracking-widest text-[10px] px-4 py-5 rounded-xl gap-2 transition-all">
+                                <ShieldAlert className="w-4 h-4 text-orange-400" />
+                                Connexions non autorisées
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-zinc-950 border-white/10 text-white max-w-lg rounded-3xl p-6 backdrop-blur-2xl">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2 text-orange-400">
+                                    <ShieldAlert className="w-5 h-5" /> Serveurs ayant invité le Bot
+                                </DialogTitle>
+                                <DialogDescription className="text-zinc-400 text-xs">
+                                    Ces serveurs Discord ont ajouté le Bot SigilOS mais ne sont pas encore dans la Whitelist. Le bot y reste inactif jusqu'à votre approbation.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-3 mt-4 max-h-[350px] overflow-y-auto pr-1">
+                                {guilds.filter(g => g.isWhitelistOnly && g.tier === 'PENDING').length === 0 ? (
+                                    <div className="p-8 text-center text-zinc-500 text-xs font-bold uppercase tracking-wider bg-zinc-900/40 rounded-2xl border border-white/5">
+                                        ✅ Aucune tentative non autorisée
+                                    </div>
+                                ) : (
+                                    guilds.filter(g => g.isWhitelistOnly && g.tier === 'PENDING').map(g => (
+                                        <div key={g.id} className="flex items-center justify-between p-3 bg-zinc-900/60 border border-white/5 rounded-2xl">
+                                            <div className="space-y-0.5">
+                                                <div className="font-bold text-xs text-white">{g.name}</div>
+                                                <div className="text-[10px] font-mono text-zinc-500">{g.discordGuildId}</div>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                onClick={async () => {
+                                                    await addAllowedGuild({ discordGuildId: g.discordGuildId, name: g.name });
+                                                    toast.success(`Guilde ${g.name} Whitelistée !`);
+                                                    window.location.reload();
+                                                }}
+                                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg"
+                                            >
+                                                Autoriser
+                                            </Button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild>
                             <Button className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[10px] px-6 py-5 rounded-xl shadow-lg shadow-violet-500/10 gap-2 border border-violet-400/20 active:scale-95 transition-all">

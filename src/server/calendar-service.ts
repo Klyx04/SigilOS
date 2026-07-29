@@ -85,6 +85,19 @@ export async function processRegistration(guildId: string, eventId: string, user
             return { success: false, error: "Permission requise: Participation aux Raids" };
         }
 
+        // Role restriction check if event is "Guilde uniquement" and specifies allowedRoleIds
+        const meta = event.metadata as any;
+        if (!meta?.openToExternal && Array.isArray(meta?.allowedRoleIds) && meta.allowedRoleIds.length > 0) {
+            const { fetchGuildMember } = await import("@/server/discord");
+            const member = await fetchGuildMember(guildId, discordUserId);
+            const userRoles: string[] = member?.roles || [];
+            const hasRequiredRole = meta.allowedRoleIds.some((roleId: string) => userRoles.includes(roleId));
+            
+            if (!hasRequiredRole) {
+                return { success: false, error: "Vous ne possédez pas l'un des rôles Discord requis pour vous inscrire à ce raid." };
+            }
+        }
+
         // Kamas gate: user must have at least 30 Purple Kamas in their balance (10 000 k = 10 Purple Kamas)
         // Only enforced when the admin toggle is ON (raidRequireKamaDonation = true, default)
         if (guildConfig.raidRequireKamaDonation) {

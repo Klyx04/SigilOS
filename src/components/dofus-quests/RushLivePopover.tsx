@@ -90,8 +90,10 @@ export const RushLivePopover = memo(function RushLivePopover({
     }
   }, [guildId, currentMilestoneId, currentMilestoneTitle]);
 
-  const activeCount = members.filter(m => m.status === "ACTIVE").length;
-  const totalCount = members.length;
+  const uniqueMembers = Array.from(new Map(members.map(m => [m.profileId || m.pseudoDofus, m])).values())
+    .sort((a, b) => a.pseudoDofus.localeCompare(b.pseudoDofus));
+  const activeCount = uniqueMembers.filter(m => m.status === "ACTIVE").length;
+  const totalCount = uniqueMembers.length;
 
   return (
     <div className="flex flex-col gap-2 w-full">
@@ -109,7 +111,7 @@ export const RushLivePopover = memo(function RushLivePopover({
       {/* Inline member chips */}
       {totalCount > 0 ? (
         <div className="flex flex-wrap items-center gap-1">
-          {members.slice(0, 6).map((m) => {
+          {uniqueMembers.slice(0, 6).map((m) => {
             const cls = m.dofusClass ? getClass(m.dofusClass) : null;
             const isActive = m.status === "ACTIVE";
             const isMe = m.pseudoDofus === currentPseudo;

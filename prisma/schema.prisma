@@ -292,6 +292,7 @@ model GuildConfig {
   djPingRoleIds                    String[]                @default([])
   songesPingRoleIds                String[]                @default([])
   pollsPingRoleIds                 String[]                @default([])
+  raidAllowedSignUpRoleIds         String[]                @default([])
   raidHubConfig                    Json?
 }
 
@@ -1742,6 +1743,8 @@ model DofusQuestEntry {
   dungeonsRequired   Json?
   chain              DofusQuestChain            @relation(fields: [chainId], references: [id], onDelete: Cascade)
   playerProgress     PlayerDofusQuestProgress[]
+  prerequisitesFrom  DofusQuestPrerequisite[]   @relation("PrerequisiteFrom")
+  prerequisitesTo    DofusQuestPrerequisite[]   @relation("PrerequisiteTo")
 
   @@index([chainId])
   @@index([chainId, stepOrder])
@@ -1783,6 +1786,21 @@ model DofusRequirement {
   @@unique([fromDofusId, toDofusId])
   @@index([fromDofusId])
   @@index([toDofusId])
+}
+
+/// Lien de dépendance entre deux quêtes (ex: quête A doit être complétée avant quête B)
+model DofusQuestPrerequisite {
+  id          String         @id @default(cuid())
+  fromQuestId String         // Quête requise (doit être complétée pour débloquer toQuest)
+  toQuestId   String         // Quête cible (bloquée tant que fromQuest n'est pas COMPLETED)
+  notes       String?
+  createdAt   DateTime       @default(now())
+  fromQuest   DofusQuestEntry @relation("PrerequisiteFrom", fields: [fromQuestId], references: [id], onDelete: Cascade)
+  toQuest     DofusQuestEntry @relation("PrerequisiteTo", fields: [toQuestId], references: [id], onDelete: Cascade)
+
+  @@unique([fromQuestId, toQuestId])
+  @@index([fromQuestId])
+  @@index([toQuestId])
 }
 
 /// Progression d'un joueur sur une quête spécifique dans une chaîne Dofus

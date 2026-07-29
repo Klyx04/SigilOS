@@ -20,6 +20,10 @@ import { MessageSquare, Gamepad2, Timer, TrendingUp, Compass } from "lucide-reac
 interface StatsClientProps {
     stats: GuildStats;
     missionsEnabled?: boolean;
+    questsEnabled?: boolean;
+    servicesEnabled?: boolean;
+    songesEnabled?: boolean;
+    minigamesEnabled?: boolean;
 }
 
 function formatKamas(val: number): string {
@@ -29,7 +33,14 @@ function formatKamas(val: number): string {
     return val.toLocaleString();
 }
 
-export default function StatsClient({ stats, missionsEnabled = true }: StatsClientProps) {
+export default function StatsClient({
+    stats,
+    missionsEnabled = true,
+    questsEnabled = true,
+    servicesEnabled = true,
+    songesEnabled = true,
+    minigamesEnabled = true,
+}: StatsClientProps) {
     const showMissionStats = missionsEnabled && stats.totalMissionsValidated > 0;
 
     // Check if Discord social data is populated (message count > 0)
@@ -80,7 +91,7 @@ export default function StatsClient({ stats, missionsEnabled = true }: StatsClie
             </div>
 
             {/* Activity Chart */}
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+            <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-violet-400" />
                     Activité — 12 dernières semaines
@@ -91,7 +102,7 @@ export default function StatsClient({ stats, missionsEnabled = true }: StatsClie
             {/* Missions & Songes — 2 columns (conditional missions) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {showMissionStats && (
-                    <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                    <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
                         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                             <Target className="w-5 h-5 text-teal-400" />
                             Missions
@@ -104,18 +115,20 @@ export default function StatsClient({ stats, missionsEnabled = true }: StatsClie
                     </section>
                 )}
 
-                <section className={`rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5 ${showMissionStats ? "" : "lg:col-span-2"}`}>
-                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <Moon className="w-5 h-5 text-blue-400" />
-                        Songes Infinis
-                    </h3>
-                    <SongesStats songes={stats.songes} />
-                </section>
+                {(songesEnabled || stats.songes.total > 0) && (
+                    <section className={`rounded-xl border border-white/10 bg-zinc-950/40 p-5 ${showMissionStats ? "" : "lg:col-span-2"}`}>
+                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                            <Moon className="w-5 h-5 text-blue-400" />
+                            Songes Infinis
+                        </h3>
+                        <SongesStats songes={stats.songes} />
+                    </section>
+                )}
             </div>
 
             {/* Events & Community — 3 sections en grilles */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <CalendarDays className="w-5 h-5 text-cyan-400" />
                         Événements
@@ -123,7 +136,7 @@ export default function StatsClient({ stats, missionsEnabled = true }: StatsClie
                     <EventsStats events={stats.events} />
                 </section>
 
-                <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <HandHeart className="w-5 h-5 text-pink-400" />
                         Communauté & Entraide
@@ -133,26 +146,30 @@ export default function StatsClient({ stats, missionsEnabled = true }: StatsClie
             </div>
 
             {/* Prêts & Coffre */}
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Key className="w-5 h-5 text-amber-400" />
-                    Services Guilde — Prêts & Coffre
-                </h3>
-                <ServicesStats services={stats.services} />
-            </section>
+            {(servicesEnabled || (stats.services.loans.total > 0 || stats.services.vault.totalDeposits > 0)) && (
+                <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Key className="w-5 h-5 text-amber-400" />
+                        Services Guilde — Prêts & Coffre
+                    </h3>
+                    <ServicesStats services={stats.services} />
+                </section>
+            )}
 
             {/* Quests & Dofus Stats */}
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Compass className="w-5 h-5 text-emerald-400" />
-                    Modules Quêtes & Dofus
-                </h3>
-                <QuestsStats quests={stats.quests} />
-            </section>
+            {(questsEnabled || (stats.quests?.guildCompletionRate || 0) > 0) && (
+                <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Compass className="w-5 h-5 text-emerald-400" />
+                        Modules Quêtes & Dofus
+                    </h3>
+                    <QuestsStats quests={stats.quests} />
+                </section>
+            )}
 
             {/* Discord Activity — only if data is populated */}
             {hasSocialData && (
-                <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+                <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <MessageSquare className="w-5 h-5 text-violet-400" />
                         Activité Discord — Top Bavards & Vocal
@@ -162,25 +179,29 @@ export default function StatsClient({ stats, missionsEnabled = true }: StatsClie
             )}
 
             {/* Mini-Games Records */}
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Gamepad2 className="w-5 h-5 text-indigo-400" />
-                    Records Mini-Jeux — Hall of Fame
-                </h3>
-                <MiniGamesStats miniGames={stats.miniGames} />
-            </section>
+            {(minigamesEnabled || stats.miniGames.totalGamesPlayed > 0) && (
+                <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Gamepad2 className="w-5 h-5 text-indigo-400" />
+                        Records Mini-Jeux — Hall of Fame
+                    </h3>
+                    <MiniGamesStats miniGames={stats.miniGames} />
+                </section>
+            )}
 
-            {/* Admin Performance */}
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Timer className="w-5 h-5 text-rose-400" />
-                    Performance & Réactivité — Staff Guilde
-                </h3>
-                <PerformanceStats performance={stats.performance} />
-            </section>
+            {/* Admin Performance — only if mission stats enabled and validations exist */}
+            {showMissionStats && stats.performance.totalValidations > 0 && (
+                <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Timer className="w-5 h-5 text-rose-400" />
+                        Performance & Réactivité — Staff Guilde
+                    </h3>
+                    <PerformanceStats performance={stats.performance} />
+                </section>
+            )}
 
             {/* Retention & Growth */}
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5">
+            <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-emerald-400" />
                     Santé de la Guilde & Rétention

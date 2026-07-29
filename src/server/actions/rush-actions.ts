@@ -169,7 +169,7 @@ export async function getRushActiveMembers(guildId: string) {
         guildId,
         status: { in: ["ACTIVE", "AFK"] },
       },
-      orderBy: { lastActivity: "desc" },
+      orderBy: { pseudoDofus: "asc" },
     });
 
     return { success: true, members };

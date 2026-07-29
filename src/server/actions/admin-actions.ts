@@ -450,7 +450,7 @@ export async function updateSongesChannel(
 // CALENDAR NOTIFICATION CONFIGURATION
 // ============================================================================
 
-export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[]; raidChannelId: string | null; raidPingRoleIds: string[]; raidGigalodonChannelId: string | null; raidSanctuaireChannelId: string | null; raidRequireKamaDonation: boolean; raidKamaDonationThreshold: number } }> {
+export async function getCalendarConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { calendarChannelId: string | null; calendarPingRoleIds: string[]; raidChannelId: string | null; raidPingRoleIds: string[]; raidGigalodonChannelId: string | null; raidSanctuaireChannelId: string | null; raidRequireKamaDonation: boolean; raidKamaDonationThreshold: number; raidAllowedSignUpRoleIds: string[] } }> {
     const session = await auth();
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
@@ -469,7 +469,8 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
                 raidGigalodonNotifyChannelId: true,
                 raidSanctuaireNotifyChannelId: true,
                 raidRequireKamaDonation: true,
-                raidKamaDonationThreshold: true
+                raidKamaDonationThreshold: true,
+                raidAllowedSignUpRoleIds: true
             }
         });
 
@@ -485,12 +486,44 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
                 raidGigalodonChannelId: config.raidGigalodonNotifyChannelId,
                 raidSanctuaireChannelId: config.raidSanctuaireNotifyChannelId,
                 raidRequireKamaDonation: config.raidRequireKamaDonation,
-                raidKamaDonationThreshold: config.raidKamaDonationThreshold ?? 3
+                raidKamaDonationThreshold: config.raidKamaDonationThreshold ?? 3,
+                raidAllowedSignUpRoleIds: config.raidAllowedSignUpRoleIds || []
             }
         };
     } catch (error) {
         console.error("Get Calendar Config Error:", error);
         return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateRaidAllowedSignUpRolesAction(guildId: string, roleIds: string[]): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error || "Forbidden: Admin access required" };
+
+    try {
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { raidAllowedSignUpRoleIds: roleIds }
+        });
+
+        await logAction({
+            guildId,
+            action: "SETTINGS_UPDATED",
+            targetType: "CONFIG",
+            targetId: guildId,
+            newValue: { roleIds },
+            metadata: { description: `Mise à jour de la liste des rôles Discord autorisés à s'inscrire aux raids (${roleIds.length} rôles)` }
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/calendar`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Raid Allowed SignUp Roles Error:", error);
+        return { success: false, error: "Erreur lors de la mise à jour des rôles d'inscription" };
     }
 }
 

@@ -90,8 +90,9 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
             }
         });
 
-        // 🔔 Lifecycle Notification
-        await sendLifecycleNotification(guildId, updatedProfile, "ARCHIVED");
+        // 🔔 Lifecycle Notification — self-archive or admin archive
+        const actorName = profileId ? ctx.name ?? "Un administrateur" : undefined;
+        await sendLifecycleNotification(guildId, updatedProfile, "ARCHIVED", actorName);
 
         // Invalidate Redis cache to prevent stale restricted access
         await invalidateUserContextCache(
@@ -123,10 +124,47 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
     }
 }
 
+// =============================================================================
+// HELPER: Types for lifecycle notifications
+// =============================================================================
+
+type LifecycleEventType = "LEFT" | "BANNED" | "ARCHIVED" | "DELETED" | "REACTIVATED";
+
+const LIFECYCLE_COLORS: Record<LifecycleEventType, number> = {
+    LEFT: 0xf59e0b,       // Amber — left voluntarily
+    BANNED: 0xef4444,     // Red — banned
+    ARCHIVED: 0x6366f1,   // Indigo — archived
+    DELETED: 0xdc2626,    // Strong Red — permanently deleted
+    REACTIVATED: 0x10b981,// Green — reactivated
+};
+
+const LIFECYCLE_EMOJIS: Record<LifecycleEventType, string> = {
+    LEFT: "📤",
+    BANNED: "🚫",
+    ARCHIVED: "💤",
+    DELETED: "🗑️",
+    REACTIVATED: "🔄",
+};
+
+const LIFECYCLE_TITLES: Record<LifecycleEventType, string> = {
+    LEFT: "Membre Parti (Discord)",
+    BANNED: "Membre Banni (Discord)",
+    ARCHIVED: "Membre Archivé",
+    DELETED: "Membre Supprimé",
+    REACTIVATED: "Membre Réactivé",
+};
+
 /**
  * Helper to send lifecycle notifications to the configured Discord channel
+ * Supports: LEFT, BANNED, ARCHIVED, DELETED, REACTIVATED
+ * Shows: who did it, when, discord pseudo, avatar link, action type
  */
-async function sendLifecycleNotification(guildId: string, profile: any, type: "LEFT" | "BANNED" | "ARCHIVED") {
+async function sendLifecycleNotification(
+    guildId: string, 
+    profile: any, 
+    type: LifecycleEventType, 
+    actorName?: string // undefined = action by the member themselves
+) {
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
@@ -137,42 +175,93 @@ async function sendLifecycleNotification(guildId: string, profile: any, type: "L
 
         const { sendChannelMessage } = await import("@/server/discord");
         
-        let title = "";
-        let color = 0;
-        let description = "";
-        let statusLabel = "";
+        const color = LIFECYCLE_COLORS[type] || 0x6366f1;
+        const emoji = LIFECYCLE_EMOJIS[type] || "📋";
+        const title = `${emoji} ${LIFECYCLE_TITLES[type] || "Événement Membre"}`;
+        
+        const discordName = profile.user?.name || profile.discordNickname || "Inconnu";
+        const dofusPseudo = profile.pseudoDofus;
+        const displayName = dofusPseudo || discordName;
+        
+        // Avatar URL from Discord
+        const userAvatar = profile.user?.image || undefined;
 
-        if (type === "BANNED") {
-            title = "🚫 Membre Banni (Discord)";
-            color = 0xef4444; // Red
-            description = `Le membre **${profile.pseudoDofus || profile.discordNickname || "Inconnu"}** a été banni du serveur Discord.`;
-            statusLabel = "BANNED";
-        } else if (type === "LEFT") {
-            title = "📤 Membre Parti (Discord)";
-            color = 0xf59e0b; // Orange/Amber
-            description = `Le membre **${profile.pseudoDofus || profile.discordNickname || "Inconnu"}** a quitté le serveur Discord.`;
-            statusLabel = "ARCHIVED";
-        } else {
-             title = "💤 Membre Archivé";
-             color = 0x6366f1; // Indigo
-             description = `Le membre **${profile.pseudoDofus || profile.discordNickname || "Inconnu"}** a été archivé.`;
-             statusLabel = "ARCHIVED";
+        // Determine actor info
+        const isSelfAction = !actorName;
+        const actionBy = isSelfAction 
+            ? "👤 Par lui-même" 
+            : `🛡️ Par **${actorName}**`;
+
+        // Build description
+        let statusLabel = "";
+        let retentionInfo = "";
+        switch (type) {
+            case "ARCHIVED":
+                statusLabel = "Archivé";
+                retentionInfo = profile.scheduledDeletion 
+                    ? `Suppression programmée le <t:${Math.floor(new Date(profile.scheduledDeletion).getTime() / 1000)}:f>`
+                    : "Aucune date de suppression définie";
+                break;
+            case "LEFT":
+                statusLabel = "Parti (Discord)";
+                retentionInfo = "Profil archivé automatiquement lors de la synchro Discord";
+                break;
+            case "BANNED":
+                statusLabel = "Banni";
+                retentionInfo = "Données personnelles anonymisées immédiatement";
+                break;
+            case "DELETED":
+                statusLabel = "Supprimé définitivement";
+                retentionInfo = "Toutes les données liées ont été purgées";
+                break;
+            case "REACTIVATED":
+                statusLabel = "Réactivé";
+                retentionInfo = "Le membre a retrouvé l'accès à ses données";
+                break;
         }
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-        const adminLink = `${appUrl}/dashboard/${guildId}/admin/members?status=${statusLabel}`;
+        const rosterLink = `${appUrl}/dashboard/${guildId}/admin/members?status=${type === "REACTIVATED" ? "ACTIVE" : type === "DELETED" ? "archived" : type}`;
+
+        // Build avatar URL for Discord embed author
+        const discordId = profile.user?.accounts?.[0]?.providerAccountId;
+        const discordAvatarUrl = discordId && userAvatar
+            ? `https://cdn.discordapp.com/avatars/${discordId}/${userAvatar}.${userAvatar.startsWith("a_") ? "gif" : "png"}?size=128`
+            : undefined;
+
+        const fields = [
+            { name: "Pseudo Dofus", value: dofusPseudo || "Non défini", inline: true },
+            { name: "Nom Discord", value: discordName, inline: true },
+            { name: "Nouveau Statut", value: `**${statusLabel}**`, inline: true },
+            { name: "Action effectuée par", value: actionBy, inline: false },
+        ];
+
+        // Add retention info for non-deletion events
+        if (type !== "DELETED" && type !== "REACTIVATED") {
+            fields.push({ name: "Rétention des données", value: retentionInfo, inline: false });
+        }
+
+        // Add reactivation info
+        if (type === "REACTIVATED") {
+            fields.push({ name: "Raison", value: retentionInfo, inline: false });
+        }
+        
+        // Add guild name context
+        if (guildConfig?.name) {
+            fields.push({ name: "Guilde", value: guildConfig.name, inline: false });
+        }
 
         await sendChannelMessage(guildConfig.lifecycleNotifyChannelId, "", {
             embedTitle: title,
-            embedDescription: description,
+            embedDescription: `Le membre **${displayName}** a changé de statut dans la guilde.`,
             embedColor: color,
-            embedThumbnail: profile.user.image || undefined,
-            fields: [
-                { name: "Pseudo Dofus", value: profile.pseudoDofus || "Non défini", inline: true },
-                { name: "Nom Discord", value: profile.discordNickname || profile.user.name || "Inconnu", inline: true },
-                { name: "Action Automatique", value: `Le profil a été placé en statut **${statusLabel}**. Les données seront purgées selon les délais légaux.` },
-                { name: "Lien de Gestion", value: `[Consulter le Profil dans le Roster](${adminLink})` }
-            ]
+            embedThumbnail: discordAvatarUrl || userAvatar,
+            embedAuthor: discordAvatarUrl ? {
+                name: displayName,
+                iconUrl: discordAvatarUrl,
+            } : undefined,
+            fields,
+            embedFooter: `SigilOS · Lifecycle · ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}`,
         });
     } catch (err) {
         console.error("[Lifecycle Notification] Failed:", err);
@@ -223,6 +312,9 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
         if (guildConfig?.ownerId && targetDiscordId && guildConfig.ownerId === targetDiscordId) {
             return { success: false, error: "Le propriétaire du serveur Discord ne peut pas être supprimé depuis SigilOS." };
         }
+
+        // Send notification BEFORE deletion while we still have the profile data
+        await sendLifecycleNotification(guildId, target, "DELETED", ctx.name ?? "Un administrateur");
 
         const targetUserId = target.userId;
         const hasOtherProfiles = target.user.profiles.length > 1;
@@ -308,6 +400,9 @@ export async function reactivateProfileByAdmin(
                 } : {})
             }
         });
+
+        // 🔔 Lifecycle Notification — reactivation
+        await sendLifecycleNotification(guildId, profile, "REACTIVATED", ctx.name ?? "Un administrateur");
 
         // Invalidate Redis cache to ensure the user sees their restored access immediately
         await invalidateUserContextCache(
@@ -484,7 +579,14 @@ export async function handleGdprDeletionRequest() {
         // Get all guilds where this user is active
         const userProfiles = await db.userProfile.findMany({
             where: { userId, status: "ACTIVE" },
-            include: { guild: true }
+            include: { 
+                guild: true,
+                user: {
+                    include: {
+                        accounts: { where: { provider: "discord" }, select: { providerAccountId: true } }
+                    }
+                }
+            }
         });
 
         const { fetchGuild } = await import("@/server/discord");
@@ -492,6 +594,11 @@ export async function handleGdprDeletionRequest() {
 
         let ownedCount = 0;
         let blockedGuildName = "";
+
+        // Send notifications BEFORE deletion while we still have profile data
+        for (const profile of userProfiles) {
+            await sendLifecycleNotification(profile.guild.discordGuildId, profile, "DELETED", "RGPD (Suppression de compte)");
+        }
 
         for (const profile of userProfiles) {
             let currentOwnerId = (profile.guild as any).ownerId;
@@ -642,7 +749,7 @@ export async function syncGuildMembers(discordGuildId: string) {
                     });
 
                     // 🔔 Lifecycle Notification
-                    await sendLifecycleNotification(discordGuildId, profile, "BANNED");
+                    await sendLifecycleNotification(discordGuildId, profile, "BANNED", "SYNC (Détection automatique)");
 
                     // 📝 AUDIT LOG Departure (Banned)
                     try {
@@ -677,7 +784,7 @@ export async function syncGuildMembers(discordGuildId: string) {
                     });
 
                     // 🔔 Lifecycle Notification
-                    await sendLifecycleNotification(discordGuildId, profile, "LEFT");
+                    await sendLifecycleNotification(discordGuildId, profile, "LEFT", "SYNC (Détection automatique)");
 
                     // 📝 AUDIT LOG Departure (Left)
                     try {
@@ -750,6 +857,9 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
             return { success: false, error: "Le propriétaire du serveur Discord ne peut pas être nettoyé depuis SigilOS." };
         }
 
+        // 🔔 Lifecycle Notification — before anonymization
+        await sendLifecycleNotification(discordGuildId, profile, "BANNED", ctx.name ?? "Un administrateur");
+
         await db.userProfile.update({
             where: { id: profileId },
             data: {
@@ -771,9 +881,6 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
                 lastActivityDesc: "Données nettoyées manuellement par un administrateur.",
             }
         });
-
-        // 🔔 Lifecycle Notification
-        await sendLifecycleNotification(discordGuildId, profile, "BANNED");
 
         revalidatePath(`/dashboard/${discordGuildId}/admin`);
         return { success: true };

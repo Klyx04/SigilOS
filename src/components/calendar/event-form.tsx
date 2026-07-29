@@ -5,7 +5,7 @@
  * Types: RAID_OFFICIAL, EVENT_GUILD, SESSION_MISSIONS, SORTIE_FARM
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -239,6 +239,8 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
     const [raidType, setRaidType] = useState<"jardin" | "gigalodon">(initialData?.metadata?.raidType || "gigalodon");
     const [raidCaptain, setRaidCaptain] = useState<string>(initialData?.metadata?.raidCaptain || userPseudo || "");
     const [openToExternal, setOpenToExternal] = useState<boolean>(initialData?.metadata?.openToExternal ?? false);
+    const [allowedRoleIds, setAllowedRoleIds] = useState<string[]>(initialData?.metadata?.allowedRoleIds || []);
+    const [whitelistedRoleIds, setWhitelistedRoleIds] = useState<string[]>([]);
 
     const isRaid = selectedType === "RAID_OFFICIAL";
 
@@ -249,9 +251,9 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
         raidSanctuaireNotifyChannelId?: string | null;
     }>({});
 
-    // Fetch Target Channels
+    // Fetch Target Channels & Whitelisted Roles
     useEffect(() => {
-        if (isDiscordConfigured && guildId) {
+        if (guildId) {
             import("@/server/actions/calendar-actions").then(m => {
                 m.getCalendarPublicConfig(guildId).then(res => {
                     if (res.success && res.data) {
@@ -261,11 +263,22 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                             raidGigalodonNotifyChannelId: res.data.raidGigalodonNotifyChannelId,
                             raidSanctuaireNotifyChannelId: res.data.raidSanctuaireNotifyChannelId
                         });
+
+                        setWhitelistedRoleIds(res.data.raidAllowedSignUpRoleIds || []);
                     }
                 });
             });
         }
-    }, [isDiscordConfigured, guildId]);
+    }, [guildId]);
+
+    const whitelistedRoles = useMemo(() => {
+        if (whitelistedRoleIds && whitelistedRoleIds.length > 0 && discordRoles.length > 0) {
+            const filtered = discordRoles.filter(r => whitelistedRoleIds.includes(r.id));
+            // Fallback to all roles if none of the whitelisted IDs match current discordRoles
+            return filtered.length > 0 ? filtered : discordRoles;
+        }
+        return discordRoles;
+    }, [whitelistedRoleIds, discordRoles]);
 
     const activeChannelId = isRaid
         ? (raidType === "gigalodon"
@@ -288,20 +301,18 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
         }
     }, [isDiscordConfigured, guildId, activeChannelId]);
 
-    // Fetch roles if not provided
+    // Fetch roles if not provided or when raid type selected
     useEffect(() => {
-        if (!providedRoles && isDiscordConfigured) {
+        if (isDiscordConfigured && guildId) {
             setIsLoadingRoles(true);
-            const context = isRaid ? "raid" : "calendar";
-            getDiscordRolesAction(guildId, { context }).then(res => {
+            getDiscordRolesAction(guildId, { ignoreWhitelist: true }).then(res => {
                 if (res.success && res.roles) {
                     setDiscordRoles(normalizeRoles(res.roles.filter((r: any) => r.name !== "@everyone")));
                 }
-            }).finally(() => setIsLoadingRoles(false));
-        } else if (providedRoles) {
-            setDiscordRoles(normalizeRoles(providedRoles));
+            }).catch(err => console.error("Error fetching Discord roles:", err))
+            .finally(() => setIsLoadingRoles(false));
         }
-    }, [providedRoles, guildId, isDiscordConfigured, isRaid]);
+    }, [guildId, isDiscordConfigured, isRaid]);
 
     // Fetch raid eligibility for the creator
     useEffect(() => {
@@ -427,6 +438,7 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                     raidMax: raidDef?.max,
                     raidCaptain: raidCaptain.trim() || null,
                     openToExternal,
+                    allowedRoleIds: openToExternal ? [] : allowedRoleIds,
                 } : undefined,
             };
 
@@ -439,6 +451,9 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
     };
 
     const handleNextStep = async () => {
+        if (isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible) {
+            return;
+        }
         // Trigger validation for step 1 fields before proceeding
         const fieldsToValidate: (keyof EventFormValues)[] = ["title", "type", "date", "startTime", "endTime", "description"];
         const isValid = await form.trigger(fieldsToValidate);
@@ -667,26 +682,88 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                                 </div>
                             </button>
 
+                            {/* Role Restrict Selector when Guilde Uniquement */}
+                            {!openToExternal && (
+                                <div className="space-y-2 p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[11px] font-black text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Shield className="h-3.5 w-3.5 text-red-400" />
+                                            Rôles autorisés à s'inscrire
+                                        </label>
+                                        <span className="text-[10px] text-zinc-500 font-bold">
+                                            {allowedRoleIds.length === 0 ? "Tous les membres (par défaut)" : `${allowedRoleIds.length} rôle(s) sélectionné(s)`}
+                                        </span>
+                                    </div>
+
+                                    {isLoadingRoles ? (
+                                        <div className="flex items-center gap-2 text-xs text-zinc-500 py-2">
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" />
+                                            Chargement des rôles Discord...
+                                        </div>
+                                    ) : whitelistedRoles.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5 pt-1">
+                                            {whitelistedRoles.map(role => {
+                                                const isSelected = allowedRoleIds.includes(role.id);
+                                                return (
+                                                    <button
+                                                        key={role.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setAllowedRoleIds(prev =>
+                                                                isSelected ? prev.filter(id => id !== role.id) : [...prev, role.id]
+                                                            );
+                                                        }}
+                                                        className={cn(
+                                                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border flex items-center gap-1.5",
+                                                            isSelected
+                                                                ? "bg-red-500/20 text-red-300 border-red-500/40 shadow-sm"
+                                                                : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200"
+                                                        )}
+                                                    >
+                                                        <span
+                                                            className="w-2 h-2 rounded-full shrink-0"
+                                                            style={{ backgroundColor: role.color || "#ef4444" }}
+                                                        />
+                                                        {role.name}
+                                                        {isSelected && <Check className="w-3 h-3 text-red-400" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-zinc-500 italic py-1">
+                                            Aucun rôle spécifique configuré. Tous les membres de la guilde peuvent s'inscrire.
+                                        </p>
+                                    )}
+
+                                    <p className="text-[10px] text-zinc-500 italic mt-1">
+                                        {allowedRoleIds.length === 0
+                                            ? "Laissez vide pour autoriser tous les membres ayant accès aux raids."
+                                            : "Seuls les membres possédant l'un de ces rôles pourront s'inscrire."}
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Creator eligibility warning box */}
                             {creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible && (
-                                <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-red-500/20 bg-red-950/20 text-red-400 animate-in fade-in slide-in-from-top-1 duration-200">
+                                <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-red-500/30 bg-red-950/30 text-red-400 animate-in fade-in slide-in-from-top-1 duration-200">
                                     <div className="flex items-start gap-2.5">
                                         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
                                         <div className="text-xs leading-relaxed">
                                             <span className="font-black uppercase tracking-wide">Création de raid bloquée</span>
                                             <br />
-                                            <span className="text-red-400/80">
-                                                Pour créer et participer à un raid, tu dois avoir effectué un don de 30 000 kamas validé pour la semaine en cours.
-                                                Tu as donné <strong>{creatorRaidEligibility.totalDonated.toLocaleString("fr-FR")}</strong> kamas.
+                                            <span className="text-red-400/90">
+                                                Pour créer et vous inscrire à un raid, vous devez posséder au moins <strong>30 🟣 (30 000 k)</strong> dans votre bourse de Kamas Violets.
+                                                Votre solde actuel est de <strong>{creatorRaidEligibility.totalDonated.toLocaleString("fr-FR")} k</strong>.
                                             </span>
                                         </div>
                                     </div>
                                     <Link
                                         href={`/dashboard/${guildId}/missions#don-kamas`}
-                                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wide transition-all shadow-lg shadow-red-600/20 w-fit"
+                                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wide transition-all shadow-lg shadow-red-600/30 w-full sm:w-fit"
                                     >
-                                        <Coins className="h-3.5 w-3.5" />
-                                        Faire mon don (30 000k)
+                                        <Coins className="h-4 w-4" />
+                                        Faire mon don de kamas
                                     </Link>
                                 </div>
                             )}
@@ -872,15 +949,22 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                 <Button
                     type="button"
                     onClick={handleNextStep}
+                    disabled={isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible}
                     className={cn(
                         "w-full h-12 font-bold text-base transition-all mt-4",
-                        "bg-gradient-to-r from-amber-500 to-orange-500",
-                        "hover:from-amber-400 hover:to-orange-400",
-                        "shadow-lg shadow-amber-500/20",
-                        "text-zinc-950"
+                        isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible
+                            ? "bg-zinc-800 border border-zinc-700 text-zinc-500 cursor-not-allowed shadow-inner"
+                            : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-500/20 text-zinc-950"
                     )}
                 >
-                    Suivant
+                    {isRaid && creatorRaidEligibility !== null && !creatorRaidEligibility.isEligible ? (
+                        <>
+                            <Lock className="mr-2 h-5 w-5" />
+                            Suivant (Don de Kamas requis)
+                        </>
+                    ) : (
+                        "Suivant"
+                    )}
                 </Button>
             </motion.div>
         )}

@@ -648,11 +648,17 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                         : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
                                                 }`}
                                             >
-                                                {stuff.previewData?.thumbnail ? (
-                                                    <img src={stuff.previewData.thumbnail} alt={stuff.name} className="w-12 h-12 rounded-lg object-cover" />
-                                                ) : (
-                                                    <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 text-[18px]">🛡️</div>
-                                                )}
+                                                {(() => {
+                                                    const thumb = stuff.previewData?.thumbnail;
+                                                    return thumb ? (
+                                                        <div className="w-12 h-12 rounded-lg overflow-hidden relative">
+                                                            <img src={thumb} alt={stuff.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                            <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center text-zinc-500 text-[18px] pointer-events-none" style={{ display: 'none' }} onLoad={() => {}}>🛡️</div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 text-[18px]">🛡️</div>
+                                                    );
+                                                })()}
                                                 <span className="text-[10px] font-bold text-zinc-300 truncate max-w-full text-center leading-tight">{stuff.name}</span>
                                             </button>
                                         );
@@ -668,11 +674,18 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                         const selected = stuffs.find(s => s.id === selectedStuffId);
                                         return selected ? (
                                             <div className="flex items-center gap-3 p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                                                {selected.previewData?.thumbnail ? (
-                                                    <img src={selected.previewData.thumbnail} alt={selected.name} className="w-10 h-10 rounded-lg object-cover" />
-                                                ) : (
-                                                    <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500">🛡️</div>
-                                                )}
+                                                {(() => {
+                                                    const sel = stuffs.find(s => s.id === selectedStuffId);
+                                                    const thumb = sel?.previewData?.thumbnail;
+                                                    return thumb ? (
+                                                        <div className="w-10 h-10 rounded-lg overflow-hidden relative">
+                                                            <img src={thumb} alt={selected.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                            <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center text-zinc-500 pointer-events-none">🛡️</div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500">🛡️</div>
+                                                    );
+                                                })()}
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-bold text-white truncate">{selected.name}</p>
                                                 </div>

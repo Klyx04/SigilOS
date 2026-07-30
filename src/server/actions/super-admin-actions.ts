@@ -107,6 +107,17 @@ export async function addAllowedGuild(data: {
         });
     }
 
+    // 🔔 NOTIFY GOD
+    const adminName = session?.user?.name || "Super Admin";
+    const { notifyGod } = await import("@/server/actions/god-notif-actions");
+    await notifyGod({
+        title: "Guilde Whitelistée",
+        message: `**${data.name || data.discordGuildId}** a été ajouté à la whitelist (tier: ${data.tier || "BETA"}).\n👤 Par: **${adminName}**`,
+        type: "SYSTEM",
+        success: true,
+        metadata: { guildId: data.discordGuildId, tier: data.tier || "BETA", performedBy: adminName },
+    });
+
     revalidatePath("/god");
     return guild;
 }
@@ -118,12 +129,24 @@ export async function removeAllowedGuild(discordGuildId: string) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
 
+    // 🔔 NOTIFY GOD (must fetch name BEFORE deletion)
+    const { notifyGod } = await import("@/server/actions/god-notif-actions");
+    const session = await auth();
+    const adminName = session?.user?.name || "Super Admin";
+    const guildToRemove = await db.allowedGuild.findUnique({ where: { discordGuildId }, select: { name: true } });
+    await notifyGod({
+        title: "Guilde Retirée",
+        message: `**${guildToRemove?.name || discordGuildId}** a été retiré de la whitelist.\n👤 Par: **${adminName}**`,
+        type: "SYSTEM",
+        success: false,
+        metadata: { guildId: discordGuildId, performedBy: adminName },
+    });
+
     await db.allowedGuild.delete({
         where: { discordGuildId }
     });
 
     // 📝 LOG ACTION
-    const session = await auth();
     if (session?.user?.id) {
         await logAction({
             guildId: discordGuildId,
@@ -169,6 +192,17 @@ export async function toggleGuildActive(discordGuildId: string) {
             metadata: { operation: "TOGGLE_ACTIVE_STATUS" }
         });
     }
+
+    // 🔔 NOTIFY GOD
+    const adminName = session?.user?.name || "Super Admin";
+    const { notifyGod } = await import("@/server/actions/god-notif-actions");
+    await notifyGod({
+        title: updated.isActive ? "Guilde Activée" : "Guilde Désactivée",
+        message: `**${updated.name || discordGuildId}** a été ${updated.isActive ? "réactivé" : "désactivé"} sur la plateforme.\n👤 Par: **${adminName}**`,
+        type: "SYSTEM",
+        success: updated.isActive,
+        metadata: { guildId: discordGuildId, isActive: updated.isActive, performedBy: adminName },
+    });
 
     revalidatePath("/god");
     return updated;

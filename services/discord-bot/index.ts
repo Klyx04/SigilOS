@@ -150,13 +150,24 @@ client.on(Events.GuildCreate, async (guild) => {
         // WELCOME ONBOARDING EMBED
         // ========================
         try {
-            // 1. Find the best channel (System channel or first chatty channel)
+            // 1. Fetch ALL channels first — cache is empty on guildCreate (bot just joined)
+            await guild.channels.fetch();
+
+            // 2. Find the best channel (System channel or first chatty channel)
             const targetChannel = guild.systemChannel || guild.channels.cache.find(c => 
                 c.type === ChannelType.GuildText && 
                 guild.members.me?.permissionsIn(c).has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])
             );
 
             if (targetChannel && targetChannel.isTextBased()) {
+                // Verify we can actually send messages by checking bot member permissions
+                const botMember = guild.members.me;
+                const canSend = targetChannel.isTextBased() && botMember?.permissionsIn(targetChannel.id).has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]);
+
+                if (!canSend) {
+                    console.log(`[Discord Bot] Cannot send welcome embed to ${targetChannel.name} in ${guild.name} — missing permissions`);
+                    return;
+                }
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle('🏰 SigilOS est arrivé sur votre serveur')
                     .setDescription('Le bot est installé. Suivez ces étapes pour activer votre guilde.')

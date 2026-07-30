@@ -299,16 +299,11 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
 
   return (
     <>
-      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 p-2.5 rounded-xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.03] shadow-[0_0_12px_rgba(245,158,11,0.05)]" : ""}`}>
+      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.03] shadow-[0_0_12px_rgba(245,158,11,0.05)]" : ""}`}>
         {isThisBookmarked && !isSeqCompleted && (
           <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-[8px] font-black uppercase tracking-widest text-amber-300">
             <MapPin className="w-2.5 h-2.5" />
             Étape actuelle
-          </span>
-        )}
-        {isActive && !isSeqCompleted && (
-          <span className="text-[9px] font-black uppercase tracking-widest text-amber-400/70 mb-0">
-            À FAIRE MAINTENANT
           </span>
         )}
         {isNext && !isSeqCompleted && (
@@ -316,29 +311,18 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             À VENIR
           </span>
         )}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {onToggleSeq && (
-              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors border border-zinc-700 hover:border-emerald-500/40" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
+              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-9 w-9 sm:h-11 sm:w-11 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors border border-zinc-700 hover:border-emerald-500/40" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
                 {isSeqCompleted ? <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-400/20"/> : <Square className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}
               </button>
             )}
             <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
               <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>{questName}</span>
-              {onToggleSeq && (
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
-                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border text-[7px] font-black uppercase tracking-widest transition-all shrink-0 ${
-                    isThisBookmarked
-                      ? "bg-amber-500/20 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/30"
-                      : "bg-zinc-800/60 border-zinc-700/40 text-zinc-500 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
-                  }`}
-                  title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
-                >
-                  {isThisBookmarked ? <BookmarkCheck className="w-2.5 h-2.5" /> : <Flag className="w-2.5 h-2.5" />}
-                  Rendu ici
-                </button>
+              {isActive && !isSeqCompleted && (
+                <span className="inline-flex items-center text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 shrink-0">
+                  À FAIRE MAINTENANT
+                </span>
               )}
               {(()=>{
                 const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
@@ -356,43 +340,81 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 );
               })()}
             </div>
-          </div>
-
-          {/* Compact external links */}
-          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            {/* Noobs + DB en vertical */}
-            <div className="flex flex-col items-end gap-1.5">
-              {noobsUrl && (
-                <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
-                  <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
-                  <span className="hidden md:inline">Noobs</span>
-                  <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
-                </a>
-              )}
-              {dbUrl && (
-                <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusDB">
-                  <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
-                  <span className="hidden md:inline">DofusDB</span>
-                  <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
-                </a>
+          {/* ── Bookmark button — right side, fills the empty space ── */}
+          {onToggleSeq && (
+            <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-auto">
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-[9px] font-black uppercase tracking-widest min-w-[90px] ${
+                  isThisBookmarked
+                    ? "bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25"
+                    : "bg-zinc-800/60 border-zinc-700/40 text-zinc-400 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
+                }`}
+                title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
+              >
+                {isThisBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Flag className="w-4 h-4" />}
+                RENDU ICI
+              </button>
+              {/* Avatars des membres bookmark */}
+              {isThisBookmarked && seqMembers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
+                  className="flex items-center gap-1 cursor-pointer"
+                  title={`Voir les ${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''}`}
+                >
+                  <div className="flex -space-x-1.5">
+                    {seqMembers.slice(0, 5).map((m) => (
+                      <div
+                        key={m.profileId}
+                        className="w-5 h-5 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center border-2 border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0"
+                        title={m.userName}
+                      >
+                        {m.userAvatar ? (
+                          <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[6px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-[9px] font-bold text-amber-400/70">{seqMembers.length}</span>
+                </button>
               )}
             </div>
-            {/* Dofus icon — large, fills available space */}
-            {(()=>{
-              const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
-              const tn = t?.name;
-              if(tn){
-                const d = DOFUS_DEFS.find(x=>x.id===tn);
-                if(d) return (
-                  <div className="flex flex-col items-center gap-0.5 mt-auto pt-1">
-                    <img src={d.imageUrl} alt={d.label} title={d.label} className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_12px_rgba(0,0,0,0.6)]" />
-                    <span className="text-[8px] font-black uppercase tracking-wider opacity-60" style={{color:d.color}}>{d.label}</span>
-                  </div>
-                );
-              }
-              return null;
-            })()}
+          )}
           </div>
+
+        {/* External links & Dofus — horizontal row */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          {noobsUrl && (
+            <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[8px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
+              <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
+              <span>Noobs</span>
+            </a>
+          )}
+          {dbUrl && (
+            <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-wider" title="DofusDB">
+              <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
+              <span>DofusDB</span>
+            </a>
+          )}
+          {/* Dofus icon — compact, inline as a tag */}
+          {(()=>{
+            const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
+            const tn = t?.name;
+            if(tn){
+              const d = DOFUS_DEFS.find(x=>x.id===tn);
+              if(d) return (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
+                  <img src={d.imageUrl} alt={d.label} title={d.label} className="w-4 h-4 object-contain" />
+                  {d.label}
+                </span>
+              );
+            }
+            return null;
+          })()}
         </div>
 
         {/* Badges & Tags */}
@@ -434,35 +456,6 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             return <TougliCallout text={t.name} colorStyle={t.color||"emerald"}/>;
           })()}
         </div>
-
-        {/* Social row — joueurs sur cette quête (uniquement si bookmarkée) — clic ouvre la modale */}
-        {isThisBookmarked && !isSeqCompleted && seqMembers.length > 0 && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
-            className="flex items-center gap-1.5 cursor-pointer text-left"
-            title={`Voir les ${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''}`}
-          >
-            <div className="flex -space-x-1.5">
-              {seqMembers.slice(0, 5).map((m) => (
-                <div
-                  key={m.profileId}
-                  className="w-6 h-6 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center border-2 border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0"
-                  title={m.userName}
-                >
-                  {m.userAvatar ? (
-                    <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-[7px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            <span className="text-[10px] font-bold text-amber-400/70">
-              {seqMembers.length} joueur{seqMembers.length > 1 ? 's' : ''} ici
-            </span>
-          </button>
-        )}
 
         {/* Dungeons Row */}
         {allDungeons.length > 0 && (
@@ -800,7 +793,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
         <AnimatePresence>
           {expanded && (
             <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
-              <div className="px-3 pb-3 space-y-2 pt-2 border-t border-white/5">
+              <div className="px-3 pb-3 space-y-1.5 pt-2 border-t border-white/5">
                 {ms.tips && (
                   <div className="mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-300 font-medium">
                     <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -852,7 +845,7 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
     <div className="relative w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all group-hover:scale-105 shadow-sm" style={{borderColor:all?ac:`${ac}40`,background:all?`${ac}20`:"transparent"}}>{all?<CheckCheck className="w-5 h-5" style={{color:ac}}/>:<span className="text-sm font-black font-[family-name:var(--font-cinzel)]" style={{color:ac}}>{chapterNum}</span>}</div>
     <div className="flex-1 text-left"><div className="flex items-center gap-2"><span className="font-[family-name:var(--font-cinzel)] font-bold uppercase tracking-wider" style={{color:ac,fontSize:"clamp(0.8rem,2vw,1.1rem)"}}>{label}</span><span className="text-[8px] font-black px-2 py-0.5 rounded-full font-mono" style={{background:`${ac}15`,color:ac}}>{ci}/{ti}</span></div><div className="h-1 bg-white/5 rounded-full overflow-hidden mt-1.5"><div className="h-full rounded-full transition-all duration-500" style={{width:`${ti>0?(ci/ti)*100:0}%`,background:`linear-gradient(90deg, ${ac}, ${ac}99)`}}/></div></div>
     <div className="text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0 ml-1">{open?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
-  </button>}<AnimatePresence>{(open||!showHeader)&&<motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="relative ml-5 pl-5 pb-3 border-l border-zinc-800/40 space-y-3">{filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
+  </button>}<AnimatePresence>{(open||!showHeader)&&<motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="relative ml-5 pl-5 pb-3 border-l border-zinc-800/40 space-y-2">{filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
   if(ms.type==="INFO")return <div key={ms.id} className="-ml-2 my-1"><InfoBanner milestone={ms}/></div>;
   const filteredSeqs = searchFilter ? ms.sequences.filter((s:any)=>searchFilter.has(s.id)) : ms.sequences;
   return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={ms.id===bookmarkedMsId} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={hideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;

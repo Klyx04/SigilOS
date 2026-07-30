@@ -145,7 +145,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                 </div>
             }>
                 {isTimeline ? (
-                    <div className="flex-1 overflow-y-auto p-6">
+                    <div className="flex-1 overflow-y-auto px-6">
+                        <div className="mx-auto max-w-5xl">
                         <RushTimelineClient
                             key={character}
                             guide={{
@@ -174,7 +175,8 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             capturedOcreMonsterIds={Array.from(capturedOcreMonsterIds)}
                             capturedMonsterNames={capturedMonsterNames}
                         />
-                    </div>
+                        </div>
+                        </div>
                 ) : (
                     <OptimizedGuideClient
                         guide={guide}

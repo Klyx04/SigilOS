@@ -37,6 +37,9 @@ export async function softDeleteGuild(
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         const scheduledDeletion = new Date();
         scheduledDeletion.setDate(scheduledDeletion.getDate() + graceDays);
 
@@ -64,10 +67,11 @@ export async function softDeleteGuild(
         const { notifyGod } = await import('./god-notif-actions');
         await notifyGod({
             title: reason === 'BOT_REMOVED' ? "🤖 BOT EXPULSÉ" : "🏰 GUILDE DÉSAVOUÉE",
-            message: `La guilde "${guildId}" (ID: ${guildId}) a été marquée pour suppression (Raison: ${reason}).`,
+            message: `La guilde "${guildId}" a été marquée pour suppression (Raison: ${reason}).\n👤 Par: **${adminName}**`,
             type: 'SYSTEM',
             success: false,
-            ping: reason === 'BOT_REMOVED' // Pinger si le bot est viré (urgent)
+            ping: reason === 'BOT_REMOVED', // Pinger si le bot est viré (urgent)
+            metadata: { guildId, reason, performedBy: adminName, operation: "SOFT_DELETE_GUILD" },
         });
 
         // revalidatePath handles UI update
@@ -86,6 +90,9 @@ export async function reactivateGuild(guildId: string) {
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         await db.guildConfig.update({
             where: { id: guildId },
             data: {
@@ -110,6 +117,16 @@ export async function reactivateGuild(guildId: string) {
             }
         });
 
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "🏰 Guilde Réactivée",
+            message: `La guilde "${guildId}" a été réactivée sur la plateforme.\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { guildId, performedBy: adminName, operation: "REACTIVATE_GUILD" },
+        });
+
         // revalidatePath handles UI update
         revalidatePath('/god');
         return { success: true };
@@ -126,6 +143,9 @@ export async function hardDeleteGuild(guildId: string) {
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         // 1. Get Discord Guild ID before deleting config
         const guildConfig = await db.guildConfig.findUnique({
             where: { id: guildId },
@@ -144,6 +164,16 @@ export async function hardDeleteGuild(guildId: string) {
                 where: { discordGuildId: guildConfig.discordGuildId }
             });
         }
+
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "🗑️ Guilde Supprimée Définitivement",
+            message: `La guilde "${guildConfig?.discordGuildId || guildId}" a été supprimée définitivement de la plateforme.\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: false,
+            metadata: { guildId, discordGuildId: guildConfig?.discordGuildId, performedBy: adminName, operation: "HARD_DELETE_GUILD" },
+        });
 
         revalidatePath('/god');
         return { success: true };
@@ -164,6 +194,9 @@ export async function softDeleteProfile(
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         const scheduledDeletion = new Date();
         scheduledDeletion.setDate(scheduledDeletion.getDate() + graceDays);
 
@@ -175,6 +208,16 @@ export async function softDeleteProfile(
                 archiveReason: reason,
                 scheduledDeletion
             }
+        });
+
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "👤 Profil Archivé (Soft Delete)",
+            message: `Le profil "${profileId}" a été marqué pour suppression (Raison: ${reason}, Grace: ${graceDays}j).\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: false,
+            metadata: { profileId, reason, performedBy: adminName, scheduledDeletion: scheduledDeletion.toISOString(), operation: "SOFT_DELETE_PROFILE" },
         });
 
         // revalidatePath handles UI update
@@ -193,6 +236,9 @@ export async function reactivateProfile(profileId: string) {
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         const profile = await db.userProfile.update({
             where: { id: profileId },
             data: {
@@ -201,6 +247,16 @@ export async function reactivateProfile(profileId: string) {
                 archiveReason: null,
                 scheduledDeletion: null
             }
+        });
+
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "👤 Profil Réactivé",
+            message: `Le profil "${profileId}" a été réactivé sur la plateforme.\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { profileId, performedBy: adminName, operation: "REACTIVATE_PROFILE" },
         });
 
         // revalidatePath handles UI update
@@ -219,6 +275,9 @@ export async function hardDeleteProfile(profileId: string) {
     }
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         // Get profile data BEFORE delete
         const profile = await db.userProfile.findUnique({
             where: { id: profileId },
@@ -237,6 +296,16 @@ export async function hardDeleteProfile(profileId: string) {
 
         await db.userProfile.delete({
             where: { id: profileId }
+        });
+
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "👤 Profil Supprimé Définitivement",
+            message: `Le profil "${profileId}" a été supprimé définitivement (guilde: ${profile.guildId || "inconnue"}).\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: false,
+            metadata: { profileId, guildId: profile.guildId, performedBy: adminName, operation: "HARD_DELETE_PROFILE" },
         });
 
         revalidatePath('/god');
@@ -377,6 +446,17 @@ export async function banEntity(type: 'GUILD' | 'USER', discordId: string, reaso
             }
         });
 
+        // 🔔 NOTIFY GOD
+        const adminName = session?.user?.name || "Super Admin";
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: type === 'GUILD' ? "🚫 Guilde Bannie" : "🚫 Utilisateur Banni",
+            message: `**${type}** \`${discordId}\` a été banni de la plateforme (Raison: ${reason}).\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: false,
+            metadata: { entityType: type, discordId, reason, performedBy: adminName, operation: "BAN_ENTITY" },
+        });
+
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
@@ -394,6 +474,18 @@ export async function unbanEntity(banId: string) {
     try {
         await db.platformBan.delete({
             where: { id: banId }
+        });
+
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "✅ Ban Levé",
+            message: `Le ban \`${banId}\` a été levé de la plateforme.\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { banId, performedBy: adminName, operation: "UNBAN_ENTITY" },
         });
 
         revalidatePath('/god');
@@ -472,6 +564,9 @@ export async function transferGuildOwnership(guildId: string, newOwnerUserId: st
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
 
     try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Super Admin";
+
         await db.guildConfig.update({
             where: {
                 // Use OR to support both internal ID and discordGuildId (ID mismatch fix)
@@ -479,6 +574,16 @@ export async function transferGuildOwnership(guildId: string, newOwnerUserId: st
                 discordGuildId: guildId.length < 25 ? guildId : undefined
             },
             data: { ownerId: newOwnerUserId }
+        });
+
+        // 🔔 NOTIFY GOD
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "👑 Propriété Transférée",
+            message: `La propriété de la guilde "${guildId}" a été transférée à l'utilisateur "${newOwnerUserId}".\n👤 Par: **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { guildId, newOwnerUserId, performedBy: adminName, operation: "TRANSFER_OWNERSHIP" },
         });
 
         revalidatePath('/god');

@@ -215,7 +215,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
   const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
-  const guildProgressBySeq = React.useContext(GuildProgressBySeqCtx) as Map<string,GuildMemberProgress[]>;
+              const guildProgressBySeq = React.useContext(GuildProgressBySeqCtx) as Map<string,GuildMemberProgress[]>;
+              const guildId = React.useContext(GuildIdCtx);
   const isActive = seq.id === activeSeqId && !isSeqCompleted;
   const isNext = seq.id === nextSeqId && !isSeqCompleted && !isActive;
   const isThisBookmarked = seq.id === bookmarkedSeqId;
@@ -348,17 +349,30 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
                 if(!posTag?.name) return null;
                 const posStr = String(posTag.name);
-                return (
-                  <span 
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
-                    onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
-                    title="Cliquer pour copier /travel"
-                  >
-                    <MapPin className="w-3 h-3 text-indigo-400" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
-                    <span>[<span>{posStr}</span>]</span>
-                  </span>
-                );
+                const worldId = (posTag as any).worldId ?? undefined;
+                // Parse first coordinate pair from posStr (e.g. "-2, 0 ; 10, -22")
+                const coords = posStr.match(/(-?\d+)\s*[,;]\s*(-?\d+)/);
+                if (coords) {
+                  const x = parseInt(coords[1], 10);
+                  const y = parseInt(coords[2], 10);
+                  const chip = (
+                    <span 
+                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
+                      onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
+                      title="Cliquer pour copier /travel"
+                    >
+                      <MapPin className="w-3 h-3 text-indigo-400" />
+                      <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
+                      <span>[<span>{x}, {y}</span>]</span>
+                    </span>
+                  );
+                  return (
+                    <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`}>
+                      {chip}
+                    </MapPositionPopover>
+                  );
+                }
+                return null;
               })()}
             </div>
           {/* ── Bookmark button — right side, fills the empty space ── */}

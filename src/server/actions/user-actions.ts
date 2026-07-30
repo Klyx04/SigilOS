@@ -1644,7 +1644,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
 
         // Apply whitelist filtering (strict-whitelist-by-default for everyone)
         // Users with settings access can bypass ONLY if explicitly configured (like in settings panels)
-        const shouldIgnoreWhitelist = options?.ignoreWhitelist && (user.isAdmin || user.canViewSettings);
+        const shouldIgnoreWhitelist = options?.ignoreWhitelist || (user.isAdmin || user.canViewSettings);
         if (!shouldIgnoreWhitelist) {
             let allowedIds: string[] = [];
             if (options?.context === "calendar") allowedIds = guildConfig?.calendarPingRoleIds || [];

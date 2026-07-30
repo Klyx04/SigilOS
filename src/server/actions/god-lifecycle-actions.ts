@@ -93,6 +93,12 @@ export async function reactivateGuild(guildId: string) {
         const session = await auth();
         const adminName = session?.user?.name || "Super Admin";
 
+        // Récupérer le nom lisible avant la notif
+        const guild = await db.guildConfig.findUnique({
+            where: { id: guildId },
+            select: { name: true }
+        });
+
         await db.guildConfig.update({
             where: { id: guildId },
             data: {
@@ -118,13 +124,14 @@ export async function reactivateGuild(guildId: string) {
         });
 
         // 🔔 NOTIFY GOD
+        const guildName = guild?.name || guildId;
         const { notifyGod } = await import('./god-notif-actions');
         await notifyGod({
             title: "🏰 Guilde Réactivée",
-            message: `La guilde "${guildId}" a été réactivée sur la plateforme.\n👤 Par: **${adminName}**`,
+            message: `La guilde **"${guildName}"** a été réactivée sur la plateforme.\n👤 Par: **${adminName}**`,
             type: "SYSTEM",
             success: true,
-            metadata: { guildId, performedBy: adminName, operation: "REACTIVATE_GUILD" },
+            metadata: { guildId, guildName, performedBy: adminName, operation: "REACTIVATE_GUILD" },
         });
 
         // revalidatePath handles UI update

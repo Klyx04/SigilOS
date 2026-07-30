@@ -28,10 +28,38 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
     try {
         // 1. Check if already exists (Idempotency)
         const existing = await db.guildConfig.findUnique({
-            where: { discordGuildId: guildId }
+            where: { discordGuildId: guildId },
+            select: { id: true, isActive: true, deletedAt: true }
         });
 
         if (existing) {
+            // If it exists but is inactive/soft-deleted, reactivate it
+            if (!existing.isActive || existing.deletedAt) {
+                await db.guildConfig.update({
+                    where: { id: existing.id },
+                    data: {
+                        isActive: true,
+                        deletedAt: null,
+                        deletionReason: null,
+                        scheduledDeletion: null
+                    }
+                });
+
+                // Also reactivate archived profiles
+                await db.userProfile.updateMany({
+                    where: { guildId: existing.id, archiveReason: 'GUILD_DELETED' },
+                    data: {
+                        status: 'ACTIVE',
+                        archivedAt: null,
+                        archiveReason: null,
+                        scheduledDeletion: null
+                    }
+                });
+
+                const { invalidateGuildCache } = await import("./user-actions");
+                await invalidateGuildCache(guildId);
+                revalidatePath(`/dashboard/${guildId}`);
+            }
             return { success: true };
         }
 

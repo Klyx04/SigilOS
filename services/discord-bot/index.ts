@@ -143,7 +143,7 @@ client.on(Events.GuildCreate, async (guild) => {
                 const godChannelId = platformConfig?.godNotifyChannelId;
                 if (godChannelId) {
                     const channel = await client.channels.fetch(godChannelId).catch(() => null);
-                    if (channel && channel.isTextBased()) {
+                    if (channel && channel.isTextBased() && 'send' in channel) {
                         await channel.send({
                             embeds: [{
                                 title: '🚨 Nouveau serveur non-whitelisté',
@@ -156,7 +156,7 @@ client.on(Events.GuildCreate, async (guild) => {
                                 timestamp: new Date().toISOString(),
                                 footer: { text: 'SigilOS Gateway Bot • Sécurité' },
                             }]
-                        }).catch(e => console.error('[GodNotify] Failed to send Discord alert:', e));
+                        }).catch((e: unknown) => console.error('[GodNotify] Failed to send Discord alert:', e));
                     }
                 }
             } catch (godErr) {

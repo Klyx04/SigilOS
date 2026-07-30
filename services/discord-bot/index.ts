@@ -119,6 +119,49 @@ client.on(Events.GuildCreate, async (guild) => {
             });
 
             console.log(`[Discord Bot] ✅ Auto-whitelisted: ${guild.name}`);
+
+            // 🔔 NOTIFY GOD — New guild detected, needs manual whitelist approval
+            try {
+                // 1. Create DB notification
+                await (db as any).godNotification.create({
+                    data: {
+                        title: "🚨 Nouveau serveur non-whitelisté",
+                        message: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`) qui n'est pas dans la whitelist.\nAction requise : approuver ou rejeter depuis le GOD Dashboard.`,
+                        type: "SYSTEM",
+                        success: false,
+                        metadata: {
+                            discordGuildId: guild.id,
+                            guildName: guild.name,
+                            addedBy: 'SYSTEM_GATEWAY',
+                            operation: 'GUILD_CREATE_UNWHITELISTED'
+                        },
+                    },
+                });
+
+                // 2. Try to send Discord alert to GOD channel
+                const platformConfig = await (db as any).platformConfig.findUnique({ where: { id: "singleton" } });
+                const godChannelId = platformConfig?.godNotifyChannelId;
+                if (godChannelId) {
+                    const channel = await client.channels.fetch(godChannelId).catch(() => null);
+                    if (channel && channel.isTextBased()) {
+                        await channel.send({
+                            embeds: [{
+                                title: '🚨 Nouveau serveur non-whitelisté',
+                                description: `Le bot a été invité sur **"${guild.name}"** (\`${guild.id}\`)\n\n⚠️ Ce serveur n'est **pas dans la whitelist**. Rendez-vous sur le GOD Dashboard pour approuver ou rejeter.`,
+                                color: 0xef4444,
+                                fields: [
+                                    { name: 'Serveur', value: guild.name, inline: true },
+                                    { name: 'ID', value: guild.id, inline: true },
+                                ],
+                                timestamp: new Date().toISOString(),
+                                footer: { text: 'SigilOS Gateway Bot • Sécurité' },
+                            }]
+                        }).catch(e => console.error('[GodNotify] Failed to send Discord alert:', e));
+                    }
+                }
+            } catch (godErr) {
+                console.error('[GodNotify] Failed to notify GOD:', godErr);
+            }
         } else {
             console.log(`[Discord Bot] Guild ${guild.name} already whitelisted — sending welcome embed anyway`);
         }

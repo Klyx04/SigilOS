@@ -1,0 +1,1206 @@
+Skip to content
+Klyx04
+SigilOS
+Repository navigation
+Code
+Issues
+Pull requests
+1
+ (1)
+Agents
+Actions
+Projects
+Security and quality
+Insights
+Settings
+Back to pull request #347
+feat: audit retention, roles de raid et quetes dofus enhancements #952
+All jobs
+Run details
+Annotations
+2 errors and 10 warnings
+✅ Verify & Build
+failed 13 minutes ago in 3m 16s
+Search logs
+3s
+8s
+6s
+5s
+6s
+33s
+0s
+4s
+1s
+11s
+25s
+1m 31s
+Run npm run lint
+  npm run lint
+  shell: /usr/bin/bash -e {0}
+
+> temp-sigil@0.1.0 lint
+> eslint --max-warnings=5000
+
+
+/home/runner/work/SigilOS/SigilOS/cloudflare-workers/dofus-ladder-proxy/worker.js
+Warning:    11:1   warning  Assign object to a variable before exporting as module default         import/no-anonymous-default-export
+Warning:    12:31  warning  'ctx' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+Warning:   118:19  warning  'tableBody' is assigned a value but never used                         @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/cloudflare-workers/dofusbook-proxy/worker.js
+Warning:   12:1   warning  Assign object to a variable before exporting as module default         import/no-anonymous-default-export
+Warning:   13:31  warning  'ctx' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/next.config.ts
+Warning:   134:3  warning  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+/home/runner/work/SigilOS/SigilOS/prisma.config.js
+Warning:   3:5   warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+Warning:   4:10  warning  '_e' is defined but never used           @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/scratch-check-images-v2.ts
+Warning:   41:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   58:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/scratch-check-images.ts
+Warning:   31:16  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/scratch-check-unique-images.ts
+Warning:   40:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   55:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/services/discord-bot/index.ts
+Warning:   192:88  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   458:87  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   504:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/admin/warm-dofusbook/route.ts
+Warning:   45:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   76:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/chat/guild/[guildId]/presence/route.ts
+Warning:   42:46  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+Warning:   77:25  warning  '_fId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/chat/guild/[guildId]/stream/route.ts
+Warning:   33:46  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+Warning:   72:25  warning  '_fId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/cron/cleanup-logs/route.ts
+Warning:   31:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/cron/cleanup-proofs/route.ts
+Warning:   386:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   399:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   420:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   433:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   446:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   447:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/cron/daily-summary/route.ts
+Warning:   37:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   48:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/cron/discord-status/route.ts
+Warning:   29:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/cron/ladder-sync/route.ts
+Warning:    62:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    81:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   140:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/cron/mission-reset-notify/route.ts
+Warning:    30:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    98:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    99:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    99:97  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   101:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/cron/status-ping/route.ts
+Warning:   26:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/discord/interactions/route.ts
+Warning:   130:110  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   201:48   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   249:47   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   445:38   warning  '_' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:   451:35   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   556:59   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   573:44   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   892:33   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/discord/webhook/route.ts
+Warning:    92:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   166:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   236:64  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/dofusbook/proxy/[id]/route.ts
+Warning:    25:89  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   189:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/dofusbook/search/route.ts
+Warning:   71:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/dofusdb/items/[id]/route.ts
+Warning:   29:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/dofusdb/recipes/[id]/route.ts
+Warning:   29:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/dofusdb/search/route.ts
+Warning:   30:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   51:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   55:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   78:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/god/download-image/route.ts
+Warning:    5:10  warning  'join' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:   72:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/god/list-local-images/route.ts
+Warning:    4:10  warning  'join' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:   66:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/god/notify/route.ts
+Warning:   67:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/god/upload-image/route.ts
+Warning:   62:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   78:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/proxy-image/route.ts
+Warning:   74:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/resources/news/route.ts
+Warning:   185:26  warning  'parseErr' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   192:26  warning  'parseErr' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   274:26  warning  'e' is defined but never used         @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/rush/leave/route.ts
+Warning:   44:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/test_update/route.ts
+Warning:   14:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/api/upload/route.ts
+Warning:    7:10  warning  'detectMimeType' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   44:55  warning  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/changelog/page.tsx
+Warning:   17:114  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/almanax-widget.tsx
+Warning:   8:5  warning  'Flame' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/dashboard-news.tsx
+Warning:   10:10  warning  'cn' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/echo-du-sigil.tsx
+Warning:   9:10  warning  'cn' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/guild-activity-feed.tsx
+Warning:   20:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   32:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   58:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   62:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/ladder-preview.tsx
+Warning:    5:47  warning  'Clock' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:   16:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/missions-hero.tsx
+Warning:   5:39  warning  'Target' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/recent-stuff-gallery.tsx
+Warning:   43:71  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/top-activity-widget.tsx
+Warning:   36:46  warning  'idx' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/upcoming-events-widget.tsx
+Warning:    6:18  warning  'formatDistanceToNow' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   21:59  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/_components/validator-inbox-client.tsx
+Warning:   22:118  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   74:41   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   83:35   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   84:43   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/blacklist-settings-client.tsx
+Warning:   11:10  warning  'cn' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/discord-settings-client.tsx
+Warning:    8:38  warning  'Bell' is defined but never used            @typescript-eslint/no-unused-vars
+Warning:    8:44  warning  'Sparkles' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:   12:10  warning  'cn' is defined but never used              @typescript-eslint/no-unused-vars
+Warning:   23:50  warning  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+Warning:   24:12  warning  'roles' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/dj-settings-client.tsx
+Warning:    7:10  warning  'Label' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:    9:40  warning  'Hash' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:   40:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   40:94  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/history-wipe-button.tsx
+Warning:   30:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/loans-settings-client.tsx
+Warning:   14:10  warning  'Separator' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/mission-settings-client.tsx
+Warning:    8:52  warning  'Search' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:    8:80  warning  'Trophy' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:    8:88  warning  'Clock' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:   57:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/onboarding-settings-client.tsx
+Warning:    17:5   warning  'ChevronRight' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:    53:11  warning  'switchTabParam' is assigned a value but never used  @typescript-eslint/no-unused-vars
+Warning:   102:18  warning  'e' is defined but never used                        @typescript-eslint/no-unused-vars
+Warning:   118:18  warning  'e' is defined but never used                        @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/permissions-manager.tsx
+Warning:    10:16  warning  'Filter' is defined but never used                                                                       @typescript-eslint/no-unused-vars
+Warning:    10:24  warning  'ChevronDown' is defined but never used                                                                  @typescript-eslint/no-unused-vars
+Warning:    10:37  warning  'ChevronRight' is defined but never used                                                                 @typescript-eslint/no-unused-vars
+Warning:    10:59  warning  'X' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+Warning:    10:62  warning  'Users' is defined but never used                                                                        @typescript-eslint/no-unused-vars
+Warning:    22:14  warning  Unexpected any. Specify a different type                                                                 @typescript-eslint/no-explicit-any
+Warning:    66:12  warning  'collapsed' is assigned a value but never used                                                           @typescript-eslint/no-unused-vars
+Warning:   122:11  warning  'toggleCollapse' is assigned a value but never used                                                      @typescript-eslint/no-unused-vars
+Warning:   129:57  warning  Unexpected any. Specify a different type                                                                 @typescript-eslint/no-explicit-any
+Warning:   178:13  warning  Do not assign to the variable `module`. See: https://nextjs.org/docs/messages/no-assign-module-variable  @next/next/no-assign-module-variable
+Warning:   286:21  warning  Do not assign to the variable `module`. See: https://nextjs.org/docs/messages/no-assign-module-variable  @next/next/no-assign-module-variable
+Warning:   341:25  warning  Do not assign to the variable `module`. See: https://nextjs.org/docs/messages/no-assign-module-variable  @next/next/no-assign-module-variable
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/poll-settings-client.tsx
+Warning:   12:10  warning  'cn' is defined but never used            @typescript-eslint/no-unused-vars
+Warning:   42:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   42:94  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/probation-grant-dialog.tsx
+Warning:   61:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/sync-purge-card.tsx
+Warning:    7:35  warning  'UserX' is defined but never used            @typescript-eslint/no-unused-vars
+Warning:    7:42  warning  'Info' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:    9:5   warning  'Card' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:   10:5   warning  'CardContent' is defined but never used      @typescript-eslint/no-unused-vars
+Warning:   11:5   warning  'CardDescription' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   12:5   warning  'CardHeader' is defined but never used       @typescript-eslint/no-unused-vars
+Warning:   13:5   warning  'CardTitle' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:   35:18  warning  'error' is defined but never used            @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/_components/system-settings-client.tsx
+Warning:    9:70  warning  'Sparkles' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:   15:10  warning  'cn' is defined but never used              @typescript-eslint/no-unused-vars
+Warning:   18:5   warning  'Command' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:   19:5   warning  'CommandEmpty' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:   20:5   warning  'CommandGroup' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:   21:5   warning  'CommandInput' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:   22:5   warning  'CommandItem' is defined but never used     @typescript-eslint/no-unused-vars
+Warning:   23:5   warning  'CommandList' is defined but never used     @typescript-eslint/no-unused-vars
+Warning:   25:10  warning  'Popover' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:   25:19  warning  'PopoverContent' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   25:35  warning  'PopoverTrigger' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   26:10  warning  'X' is defined but never used               @typescript-eslint/no-unused-vars
+Warning:   37:64  warning  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/absence/_components/absence-settings-client.tsx
+Warning:    7:10  warning  'Label' is defined but never used               @typescript-eslint/no-unused-vars
+Warning:    9:40  warning  'CheckCircle2' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:    9:60  warning  'ArrowLeft' is defined but never used           @typescript-eslint/no-unused-vars
+Warning:    9:71  warning  'Copy' is defined but never used                @typescript-eslint/no-unused-vars
+Warning:    9:77  warning  'Check' is defined but never used               @typescript-eslint/no-unused-vars
+Warning:   11:8   warning  'Link' is defined but never used                @typescript-eslint/no-unused-vars
+Warning:   13:10  warning  'cn' is defined but never used                  @typescript-eslint/no-unused-vars
+Warning:   24:12  warning  'copied' is assigned a value but never used     @typescript-eslint/no-unused-vars
+Warning:   24:20  warning  'setCopied' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/absence/page.tsx
+Warning:   8:10  warning  'Bell' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/archimonstres/_components/metamob-unlocker.tsx
+Warning:   70:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/archimonstres/_components/ocre-settings-client.tsx
+Warning:   11:10  warning  'cn' is defined but never used     @typescript-eslint/no-unused-vars
+Warning:   12:10  warning  'Label' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/archimonstres/page.tsx
+Warning:   7:10  warning  'Crown' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/bonus/_components/BonusManagerClient.tsx
+Warning:    10:5   warning  'getGuildBonuses' is defined but never used                                                                         @typescript-eslint/no-unused-vars
+Warning:    66:52  warning  Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+Warning:    70:12  warning  'activating' is assigned a value but never used                                                                     @typescript-eslint/no-unused-vars
+Warning:    70:24  warning  'setActivating' is assigned a value but never used                                                                  @typescript-eslint/no-unused-vars
+Warning:    80:8   warning  React Hook useEffect has a missing dependency: 'loadActiveBonus'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+Warning:   107:25  warning  Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+Warning:   137:25  warning  Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/bounties/page.tsx
+Warning:     5:19  warning  'Info' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:    18:46  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    19:62  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    22:58  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    54:18  warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   111:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   129:41  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/calendar/_components/calendar-settings-client.tsx
+Warning:    65:59  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    65:94  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   553:53  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/getting-started/page.tsx
+Warning:   30:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/logs/_components/audit-logs-client.tsx
+Warning:     4:82   warning  'Shield' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:     8:10   warning  'Input' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:   116:14   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   484:79   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   488:79   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   491:75   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   494:82   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   498:83   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   505:79   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   507:120  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   510:79   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   512:120  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   515:79   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   517:120  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   530:79   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   533:75   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   536:82   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   540:83   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   545:71   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   548:116  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   557:71   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   558:119  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   560:71   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   561:117  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   563:71   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/logs/page.tsx
+Warning:    8:10  warning  'Card' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:    8:16  warning  'CardContent' is defined but never used   @typescript-eslint/no-unused-vars
+Warning:   54:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/members/page.tsx
+Warning:   58:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/modules/_components/modules-client.tsx
+Warning:   19:5   warning  'Compass' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:   27:5   warning  'MessageCircle' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   34:10  warning  'GuidePulse' is defined but never used     @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/page.tsx
+Warning:     5:10   warning  'cn' is defined but never used               @typescript-eslint/no-unused-vars
+Warning:    10:8    warning  'Link' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:    12:5    warning  'LayoutDashboard' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:    18:5    warning  'Sparkles' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:    22:5    warning  'ArrowRight' is defined but never used       @typescript-eslint/no-unused-vars
+Warning:    23:5    warning  'Bell' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:    24:5    warning  'Activity' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:    25:5    warning  'ShieldAlert' is defined but never used      @typescript-eslint/no-unused-vars
+Warning:    39:53   warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+Warning:   140:7    warning  'ACCENT' is assigned a value but never used  @typescript-eslint/no-unused-vars
+Warning:   263:69   warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+Warning:   263:103  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/permissions/page.tsx
+Warning:   50:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   51:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   72:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/presentation/_components/member-selector.tsx
+Warning:   11:5  warning  'CommandInput' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/presentation/_components/presentation-form.tsx
+Warning:   11:10  warning  'ScrollArea' is defined but never used       @typescript-eslint/no-unused-vars
+Warning:   47:5   warning  'Castle' is defined but never used           @typescript-eslint/no-unused-vars
+Warning:   53:10  warning  'motion' is defined but never used           @typescript-eslint/no-unused-vars
+Warning:   53:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/presentation/page.tsx
+Warning:   6:10  warning  'Globe' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/settings/page.tsx
+Warning:    9:26  warning  'Moon' is defined but never used                   @typescript-eslint/no-unused-vars
+Warning:    9:32  warning  'Users' is defined but never used                  @typescript-eslint/no-unused-vars
+Warning:   10:16  warning  'ArrowLeft' is defined but never used              @typescript-eslint/no-unused-vars
+Warning:   10:41  warning  'Loader2' is defined but never used                @typescript-eslint/no-unused-vars
+Warning:   10:50  warning  'Save' is defined but never used                   @typescript-eslint/no-unused-vars
+Warning:   10:56  warning  'AlertTriangle' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:   10:71  warning  'Hash' is defined but never used                   @typescript-eslint/no-unused-vars
+Warning:   11:29  warning  'Sparkles' is defined but never used               @typescript-eslint/no-unused-vars
+Warning:   11:39  warning  'Gem' is defined but never used                    @typescript-eslint/no-unused-vars
+Warning:   19:10  warning  'MemberSyncButton' is defined but never used       @typescript-eslint/no-unused-vars
+Warning:   22:10  warning  'MemberStatsOverview' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:   23:10  warning  'MemberManagementTable' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   24:10  warning  'getGuildMemberStats' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:   24:31  warning  'getGuildMembers' is defined but never used        @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/songes/_components/songes-settings-client.tsx
+Warning:    8:46  warning  'ArrowLeft' is defined but never used     @typescript-eslint/no-unused-vars
+Warning:   10:8   warning  'Link' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:   40:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   40:94  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/songes/page.tsx
+Warning:   7:10  warning  'Moon' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/admin/validation/page.tsx
+Warning:   4:26  warning  'internalUpdateMemberProfileStatus' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/annuaire-hub/page.tsx
+Warning:   13:5   warning  'FileText' is defined but never used      @typescript-eslint/no-unused-vars
+Warning:   20:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/calendar/page.tsx
+Warning:   5:22  warning  'CalendarIcon' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   6:8   warning  'Link' is defined but never used          @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/galerie-stuff/gallery-client.tsx
+Warning:     4:10   warning  'Link2' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:     4:128  warning  'Info' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:     4:158  warning  'Send' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:    16:10   warning  'Popover' is defined but never used                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+Warning:    16:19   warning  'PopoverContent' is defined but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+Warning:    16:35   warning  'PopoverTrigger' is defined but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+Warning:   145:11   warning  'handleSourceChange' is assigned a value but never used                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+Warning:   223:18   warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   250:18   warning  'error' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:   282:25   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   309:18   warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   346:96   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   722:53   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   891:84   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   922:41   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/guild-hub/_components/presentation-content.tsx
+Warning:   18:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/guild-hub/page.tsx
+Warning:     8:20  warning  'BookOpen' is defined but never used      @typescript-eslint/no-unused-vars
+Warning:     8:30  warning  'BarChart3' is defined but never used     @typescript-eslint/no-unused-vars
+Warning:    90:78  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   118:83  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   125:76  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/ladder/_components/ladder-client.tsx
+Warning:     7:46   warning  'ShieldCheck' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:    40:24   warning  'setRaidFilter' is assigned a value but never used  @typescript-eslint/no-unused-vars
+Warning:   328:58   warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+Warning:   345:119  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/ladder/_components/ladder-tabs.tsx
+Warning:   90:77  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/ladder/_components/leaderboard-card.tsx
+Warning:     5:10  warning  'Crown' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:     5:32  warning  'ShieldCheck' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+Warning:     5:63  warning  'Utensils' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+Warning:     5:73  warning  'Coffee' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+Warning:     5:81  warning  'Plane' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:     5:88  warning  'Clock' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:     6:10  warning  'Tooltip' is defined but never used                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+Warning:     6:19  warning  'TooltipContent' is defined but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+Warning:     6:35  warning  'TooltipProvider' is defined but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+Warning:     6:52  warning  'TooltipTrigger' is defined but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+Warning:   116:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   122:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/layout.tsx
+Warning:    22:10  warning  'PresenceProvider' is defined but never used   @typescript-eslint/no-unused-vars
+Warning:    23:10  warning  'GamesLiveWidget' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:    48:21  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+Warning:    62:85  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+Warning:    63:87  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+Warning:    66:11  warning  'pathname' is assigned a value but never used  @typescript-eslint/no-unused-vars
+Warning:    82:18  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+Warning:    89:41  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+Warning:    96:18  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+Warning:   103:41  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/members/[slug]/page.tsx
+Warning:   136:64  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   138:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/members/page.tsx
+Warning:   7:10  warning  'Users' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/mini-jeux/gartic/page.tsx
+Warning:   19:27  warning  'spectate' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/mini-jeux/page.tsx
+Warning:   29:20  warning  'bombLadder' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/mini-jeux/skribbl/page.tsx
+Warning:   19:27  warning  'spectate' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/missions/manage/page.tsx
+Warning:   41:76  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/missions/page.tsx
+Warning:    16:10  warning  'PersonalGuildatonWidget' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:    59:11  warning  'weeklyGuildatons' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   66:20  warning  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/missions/page.tsx:66:20
+  64 |     const HOURS_RESIDENCY = 24;
+  65 |     const profileCreatedAt = user.createdAt ? new Date(user.createdAt) : new Date();
+> 66 |     const diffMs = Date.now() - profileCreatedAt.getTime();
+     |                    ^^^^^^^^^^ Cannot call impure function
+  67 |     const isRestricted = (diffMs / (1000 * 60 * 60)) < HOURS_RESIDENCY && !user.isAdmin;
+  68 |     const availableAt = new Date(profileCreatedAt.getTime() + (HOURS_RESIDENCY * 60 * 60 * 1000)).toISOString();
+  69 |  react-hooks/purity
+Warning:    81:62  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+Warning:    82:44  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+Warning:    83:35  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+Warning:   101:76  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/notifications/page.tsx
+Warning:     9:30  warning  'Info' is defined but never used                      @typescript-eslint/no-unused-vars
+Warning:     9:36  warning  'AlertTriangle' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:     9:51  warning  'Shield' is defined but never used                    @typescript-eslint/no-unused-vars
+Warning:    12:10  warning  'Badge' is defined but never used                     @typescript-eslint/no-unused-vars
+Warning:    42:12  warning  'isPending' is assigned a value but never used        @typescript-eslint/no-unused-vars
+Warning:    42:23  warning  'startTransition' is assigned a value but never used  @typescript-eslint/no-unused-vars
+Warning:    43:11  warning  'router' is assigned a value but never used           @typescript-eslint/no-unused-vars
+Warning:    82:18  warning  'error' is defined but never used                     @typescript-eslint/no-unused-vars
+Warning:    93:45  warning  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+Warning:   106:18  warning  'error' is defined but never used                     @typescript-eslint/no-unused-vars
+Warning:   124:18  warning  'error' is defined but never used                     @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/page.tsx
+Warning:    64:9    warning  'monthlyLadder' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+Warning:    96:82   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+Warning:   102:138  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  104:31   warning  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/page.tsx:104:31
+  102 |     const onlineCount = (weeklyLadder?.success && Array.isArray(weeklyLadder.data?.entries) ? weeklyLadder.data.entries : []).filter((u: any) => {
+  103 |         const lastActive = u.lastActivityAt ? new Date(u.lastActivityAt) : null;
+> 104 |         return lastActive && (Date.now() - lastActive.getTime() < 120_000);
+      |                               ^^^^^^^^^^ Cannot call impure function
+  105 |     }).length;
+  106 |     const totalMembers = guildStats?.activeMembers || 0;
+  107 |     const songesCompleted = guildStats?.totalSongesCompleted || 0;  react-hooks/purity
+Warning:   157:79   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+Warning:   173:55   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/presentation/page.tsx
+Warning:     8:95   warning  'Eye' is defined but never used           @typescript-eslint/no-unused-vars
+Warning:     8:100  warning  'EyeOff' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:   294:10   warning  'Shield' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:   294:24   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/profile/page.tsx
+Warning:    11:10   warning  'UserCircle' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:    46:56   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    60:75   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    60:118  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    99:68   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   101:73   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/quetes-dofus/[dofusSlug]/page.tsx
+Warning:    78:51   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   113:36   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   117:117  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   145:36   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   153:36   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   153:70   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   169:32   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   171:42   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/GuildStatusPanel.tsx
+Warning:   4:20  warning  'ExternalLink' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   4:34  warning  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/OptimizedGuideClient.tsx
+Warning:     10:78   warning  'Crown' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:    362:9    warning  'readMode' is assigned a value but never used                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:    383:41   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    404:6    warning  React Hook useEffect has a missing dependency: 'checkedSteps'. Either include it or remove the dependency array                                                                                                                                                                          react-hooks/exhaustive-deps
+Warning:    447:85   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    448:65   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    463:25   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    467:52   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    470:81   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    474:46   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    474:69   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    737:39   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    748:39   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    882:25   warning  'chapter' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+Warning:    882:132  warning  'guildId' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+Warning:    976:29   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1038:36   warning  'mainCharacter' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+Warning:   1038:51   warning  'mules' is assigned a value but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:   1186:10   warning  'jumpMode' is assigned a value but never used                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   1186:20   warning  'setJumpMode' is assigned a value but never used                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:   1187:10   warning  'jumpInput' is assigned a value but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+Warning:   1187:21   warning  'setJumpInput' is assigned a value but never used                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:   1212:23   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1213:20   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1429:18   warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   1443:9    warning  'availableSubGuides' is assigned a value but never used                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+Warning:   1573:31   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1661:7    warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                    @typescript-eslint/no-unused-expressions
+Warning:   1682:19   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1699:24   warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   1711:6    warning  React Hook useCallback has a missing dependency: 'guide.id'. Either include it or remove the dependency array. If 'setCompletedIds' needs the current value of 'guide.id', you can also switch to useReducer instead of useState and read 'guide.id' in the reducer                      react-hooks/exhaustive-deps
+Warning:   1724:19   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1755:19   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1857:73   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1858:51   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1923:23   warning  't' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+Warning:   1979:71   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1980:49   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   2069:6    warning  React Hook useCallback has unnecessary dependencies: 'setCreateDjModal' and 'setCreateUnpopulatedDjModal'. Either exclude them or remove the dependency array                                                                                                                            react-hooks/exhaustive-deps
+Warning:   2243:39   warning  'idx' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+Warning:   2304:31   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   2443:31   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   2573:43   warning  't' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+Warning:   3185:15   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   3305:37   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   3405:43   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   3474:33   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   3520:33   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   3598:29   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   3659:29   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/QuestGroup.tsx
+Warning:   2:35  warning  'useCallback' is defined but never used   @typescript-eslint/no-unused-vars
+Warning:   4:63  warning  'Link2' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:   4:70  warning  'ExternalLink' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx
+Warning:     10:3     warning  'Layers' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+Warning:     10:26    warning  'ChevronRight' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+Warning:     10:54    warning  'Info' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:     37:10    warning  'DofusProgressStrip' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+Warning:     39:10    warning  'QuestGroupRenderer' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+Warning:     39:30    warning  'useQuestGroups' is defined but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+Warning:     59:343   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:     61:293   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:     61:406   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    124:29    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    160:11    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    166:80    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    179:11    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    186:13    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    192:15    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    229:54    warning  'ms' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+Warning:    229:88    warning  'accentColor' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:    229:149   warning  'hideSeqCompleted' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+Warning:    230:126   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    239:36    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    243:86    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    243:123   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    245:26    warning  React Hook "React.useContext" cannot be called inside a callback. React Hooks must be called in a React function component or a custom React Hook function                                                                                                                               react-hooks/rules-of-hooks
+Warning:    246:19    warning  React Hook "React.useContext" cannot be called inside a callback. React Hooks must be called in a React function component or a custom React Hook function                                                                                                                               react-hooks/rules-of-hooks
+Warning:    270:96    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    272:42    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    298:85    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    298:100   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    318:49    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    324:19    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    333:15    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    340:15    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    352:185   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    354:72    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    354:188   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    359:17    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    363:17    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    373:15    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    382:47    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    510:10    warning  'getInfoStyle' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+Warning:    580:181   warning  'onFocusSequence' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:    580:265   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    584:3     warning  React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?                                                                                              react-hooks/rules-of-hooks
+Warning:    585:3     warning  React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?                                                                                              react-hooks/rules-of-hooks
+Warning:    585:56    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    587:35    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    609:135   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    642:44    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    642:98    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    662:301   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    663:33    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    663:111   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    664:78    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    665:98    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    665:125   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    666:42    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    672:289   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    672:343   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    679:82    warning  'guildId' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+Warning:    679:163   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    682:74    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    683:68    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    685:1108  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    685:1537  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    685:1976  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    720:22    warning  'setDofusFilter' is assigned a value but never used                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+Warning:    726:19    warning  'setIsOnRush' is assigned a value but never used                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:    743:266   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    745:225   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    745:330   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    750:314   warning  React Hook useEffect has a missing dependency: 'bookmarkedMsId'. Either include it or remove the dependency array                                                                                                                                                                        react-hooks/exhaustive-deps
+Warning:    759:9     warning  'activeMembersCount' is assigned a value but never used                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+Warning:    760:102   warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                    @typescript-eslint/no-unused-expressions
+Warning:    761:155   warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                    @typescript-eslint/no-unused-expressions
+Warning:    761:420   warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                    @typescript-eslint/no-unused-expressions
+Warning:    761:583   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    762:135   warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                    @typescript-eslint/no-unused-expressions
+Warning:    762:423   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    762:482   warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                    @typescript-eslint/no-unused-expressions
+Warning:    786:32    warning  React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                                                                                                           react-hooks/rules-of-hooks
+Warning:    822:30    warning  React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                                                                                                               react-hooks/rules-of-hooks
+Warning:    843:11    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    850:247   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    877:601   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    877:1007  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    877:1081  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    877:1328  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    877:1976  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    882:15    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    896:23    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    935:293   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    972:307   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    989:13    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1069:19    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1081:26    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1081:67    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1087:21    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1104:79    warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1104:113   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/components.tsx
+Warning:    4:25   warning  'Skull' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:    4:32   warning  'Target' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:    8:69   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   14:72   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   15:17   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   29:117  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   37:78   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx
+Warning:    31:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    40:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    44:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    47:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    66:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    92:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   110:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   111:63  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   113:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   122:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   159:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   181:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   182:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/quetes-dofus/page.tsx
+Warning:    80:76  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+Warning:    83:81  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+Warning:   123:55  warning  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+Warning:   150:23  warning  'guildId' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/ressources/page.tsx
+Warning:   34:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/activity-timeline.tsx
+Warning:   5:10  warning  'Badge' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/availability-preview.tsx
+Warning:    6:44  warning  'addWeeks' is defined but never used      @typescript-eslint/no-unused-vars
+Warning:    9:6   warning  'Jour' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:   25:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/loan-card.tsx
+Warning:    6:46  warning  'History' is defined but never used              @typescript-eslint/no-unused-vars
+Warning:   41:11  warning  'isBorrower' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/proof-thumbnail.tsx
+Warning:   28:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   41:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/service-card.tsx
+Warning:   386:90  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   388:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/service-contact-dialog.tsx
+Warning:    7:5   warning  'DialogHeader' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   14:10  warning  'Checkbox' is defined but never used      @typescript-eslint/no-unused-vars
+Warning:   58:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   59:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/service-edit-dialog.tsx
+Warning:    8:5   warning  'DialogHeader' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   10:5   warning  'DialogFooter' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   14:10  warning  'Textarea' is defined but never used      @typescript-eslint/no-unused-vars
+Warning:   16:47  warning  'CheckSquare' is defined but never used   @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/service-form.tsx
+Warning:      3:20  warning  'useCallback' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+Warning:      8:5   warning  'DialogHeader' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+Warning:     10:5   warning  'DialogFooter' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+Warning:     21:10  warning  'DofusItemSearch' is defined but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+Warning:     97:12  warning  'fmItem' is assigned a value but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+Warning:     98:12  warning  'passTrans' is assigned a value but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+Warning:    651:93  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    766:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    862:65  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    920:69  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:    979:69  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1038:69  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1080:65  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1121:65  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1144:53  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1176:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1245:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1299:61  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1344:61  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1379:61  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1414:61  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/vault-form.tsx
+Warning:   8:30  warning  'Package' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/services/_components/vault-table.tsx
+Warning:   258:45  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/sondages/[pollId]/page.tsx
+Warning:   39:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/sondages/archives/page.tsx
+Warning:   17:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/sondages/page.tsx
+Warning:   39:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   74:99  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   77:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/stats/_components/missions-stats.tsx
+Warning:   39:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/stats/_components/performance-stats.tsx
+Warning:   3:22  warning  'LayoutDashboard' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/stats/_components/retention-stats.tsx
+Warning:   3:29  warning  'HandHeart' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/stats/_components/social-stats.tsx
+Warning:   3:30  warning  'Trophy' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/stuff-hub/page.tsx
+Warning:    8:5   warning  'Trophy' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:   18:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/tracker/page.tsx
+Warning:   80:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/[guildId]/welcome/_components/welcome-feed-client.tsx
+Warning:    5:10  warning  'Button' is defined but never used           @typescript-eslint/no-unused-vars
+Warning:   10:10  warning  'Smile' is defined but never used            @typescript-eslint/no-unused-vars
+Warning:   10:17  warning  'Heart' is defined but never used            @typescript-eslint/no-unused-vars
+Warning:   10:24  warning  'PartyPopper' is defined but never used      @typescript-eslint/no-unused-vars
+Warning:   10:37  warning  'Hand' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:   13:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   65:59  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/dashboard/page.tsx
+Warning:    4:10  warning  'db' is defined but never used              @typescript-eslint/no-unused-vars
+Warning:    6:68  warning  'Star' is defined but never used            @typescript-eslint/no-unused-vars
+Warning:   14:10  warning  'Button' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:   16:6   warning  'GuildData' is defined but never used       @typescript-eslint/no-unused-vars
+Warning:   23:10  warning  'unstable_cache' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/docs/[...slug]/_components/doc-viewer.tsx
+Warning:   10:10  warning  'Check' is defined but never used                                          @typescript-eslint/no-unused-vars
+Warning:   10:17  warning  'Copy' is defined but never used                                           @typescript-eslint/no-unused-vars
+Warning:   10:23  warning  'Layout' is defined but never used                                         @typescript-eslint/no-unused-vars
+Warning:   10:31  warning  'LayoutDashboard' is defined but never used                                @typescript-eslint/no-unused-vars
+Warning:   11:10  warning  'toast' is defined but never used                                          @typescript-eslint/no-unused-vars
+Warning:   24:5   warning  'guildId' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/docs/intro/page.tsx
+Warning:   2:8  warning  'Link' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/docs/layout.tsx
+Warning:    5:16  warning  'Book' is defined but never used              @typescript-eslint/no-unused-vars
+Warning:    5:22  warning  'Terminal' is defined but never used          @typescript-eslint/no-unused-vars
+Warning:    5:42  warning  'Layout' is defined but never used            @typescript-eslint/no-unused-vars
+Warning:    7:10  warning  'ResizableSidebar' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   46:87  warning  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/activity-chart.tsx
+Warning:   95:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/bugs/bugs-client.tsx
+Warning:    10:33  warning  'DialogHeader' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:    55:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    55:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    62:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   253:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   398:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/bugs/page.tsx
+Warning:   23:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/changelog/page.tsx
+Warning:     3:31   warning  'useRef' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:     7:10   warning  'Select' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:     7:18   warning  'SelectContent' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:     7:33   warning  'SelectItem' is defined but never used     @typescript-eslint/no-unused-vars
+Warning:     7:45   warning  'SelectTrigger' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:     7:60   warning  'SelectValue' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:    11:62   warning  'Layout' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:    11:101  warning  'ChevronRight' is defined but never used   @typescript-eslint/no-unused-vars
+Warning:    48:44   warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+Warning:   123:49   warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+Warning:   194:32   warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+Warning:   394:63   warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/announcement-panel.tsx
+Warning:    8:5   warning  'Megaphone' is defined but never used               @typescript-eslint/no-unused-vars
+Warning:   15:5   warning  'Rocket' is defined but never used                  @typescript-eslint/no-unused-vars
+Warning:   17:5   warning  'CheckCircle2' is defined but never used            @typescript-eslint/no-unused-vars
+Warning:   38:12  warning  'bannerResult' is assigned a value but never used   @typescript-eslint/no-unused-vars
+Warning:   45:12  warning  'discordResult' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/audit-feed-panel.tsx
+Warning:   51:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/blacklist-section.tsx
+Warning:    17:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:    84:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   120:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/ghost-radar-panel.tsx
+Warning:   28:18  warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   47:18  warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   97:45  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/god-notification-panel.tsx
+Warning:   37:15  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+Warning:   52:12  warning  'isPending' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/guild-table.tsx
+Warning:    16:21   warning  'ChevronDown' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+Warning:    16:48   warning  'Check' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:    16:62   warning  'Calendar' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+Warning:    16:72   warning  'ExternalLink' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+Warning:    16:121  warning  'ShieldCheck' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+Warning:    16:145  warning  'Plus' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:   415:18   warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   427:18   warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   443:18   warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   487:18   warning  'e' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+Warning:   515:29   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/lifecycle-panel.tsx
+Warning:    17:59  warning  'Copy' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:    17:65  warning  'Calendar' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+Warning:    17:75  warning  'MousePointer2' is defined but never used                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+Warning:    17:90  warning  'CalendarCheck' is defined but never used                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+Warning:   223:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   479:10  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/live-stats.tsx
+Warning:   9:36  warning  'Minus' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/overview-tabs.tsx
+Warning:    3:10  warning  'useState' is defined but never used                                     @typescript-eslint/no-unused-vars
+Warning:    4:10  warning  'cn' is defined but never used                                           @typescript-eslint/no-unused-vars
+Warning:    5:10  warning  'Activity' is defined but never used                                     @typescript-eslint/no-unused-vars
+Warning:    5:20  warning  'Megaphone' is defined but never used                                    @typescript-eslint/no-unused-vars
+Warning:    5:31  warning  'ShieldCheck' is defined but never used                                  @typescript-eslint/no-unused-vars
+Warning:   15:32  warning  'stats' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+Warning:   15:39  warning  'chart' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/platform-config-panel.tsx
+Warning:     7:5   warning  'Shield' is defined but never used                                                 @typescript-eslint/no-unused-vars
+Warning:    10:5   warning  'Info' is defined but never used                                                   @typescript-eslint/no-unused-vars
+Warning:    11:5   warning  'Activity' is defined but never used                                               @typescript-eslint/no-unused-vars
+Warning:    14:5   warning  'AlertCircle' is defined but never used                                            @typescript-eslint/no-unused-vars
+Warning:    16:5   warning  'MessageSquare' is defined but never used                                          @typescript-eslint/no-unused-vars
+Warning:    17:5   warning  'Bell' is defined but never used                                                   @typescript-eslint/no-unused-vars
+Warning:    21:5   warning  'Heart' is defined but never used                                                  @typescript-eslint/no-unused-vars
+Warning:    22:5   warning  'ShieldAlert' is defined but never used                                            @typescript-eslint/no-unused-vars
+Warning:    23:5   warning  'ChevronDown' is defined but never used                                            @typescript-eslint/no-unused-vars
+Warning:    30:10  warning  'Badge' is defined but never used                                                  @typescript-eslint/no-unused-vars
+Warning:    33:5   warning  'Tooltip' is defined but never used                                                @typescript-eslint/no-unused-vars
+Warning:    34:5   warning  'TooltipContent' is defined but never used                                         @typescript-eslint/no-unused-vars
+Warning:    35:5   warning  'TooltipProvider' is defined but never used                                        @typescript-eslint/no-unused-vars
+Warning:    36:5   warning  'TooltipTrigger' is defined but never used                                         @typescript-eslint/no-unused-vars
+Warning:    62:47  warning  'availableGuilds' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+Warning:    62:64  warning  'availableRoles' is defined but never used. Allowed unused args must match /^_/u   @typescript-eslint/no-unused-vars
+Warning:    82:52  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+Warning:   100:32  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+Warning:   104:30  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+Warning:   113:32  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+Warning:   117:30  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+Warning:   148:21  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+Warning:   155:11  warning  'inputClasses' is assigned a value but never used                                  @typescript-eslint/no-unused-vars
+Warning:   218:84  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+Warning:   330:57  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/storage-panel.tsx
+Warning:   8:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/system-health-dashboard.tsx
+Warning:    9:5   warning  'CheckCircle2' is defined but never used  @typescript-eslint/no-unused-vars
+Warning:   36:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/target-purge-panel.tsx
+Warning:    12:17  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    40:21  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    47:43  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    55:21  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   146:45  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/telemetry-dashboard.tsx
+Warning:    84:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   122:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   169:64  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   294:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   358:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   359:98  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   362:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   364:95  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   406:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   458:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   476:87  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   584:63  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   616:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   654:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   684:64  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   717:60  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/ticket-dashboard.tsx
+Warning:    10:5    warning  'ChevronDown' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+Warning:    95:12   warning  'total' is assigned a value but never used                                                                         @typescript-eslint/no-unused-vars
+Warning:   104:48   warning  Unexpected any. Specify a different type                                                                           @typescript-eslint/no-explicit-any
+Warning:   105:64   warning  Unexpected any. Specify a different type                                                                           @typescript-eslint/no-explicit-any
+Warning:   106:64   warning  Unexpected any. Specify a different type                                                                           @typescript-eslint/no-explicit-any
+Warning:   120:8    warning  React Hook useEffect has a missing dependency: 'refreshTickets'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+Warning:   162:58   warning  Unexpected any. Specify a different type                                                                           @typescript-eslint/no-explicit-any
+Warning:   168:8    warning  React Hook useEffect has a missing dependency: 'selectedRoleId'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+Warning:   179:8    warning  React Hook useEffect has a missing dependency: 'refreshTickets'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+Warning:   186:132  warning  Unexpected any. Specify a different type                                                                           @typescript-eslint/no-explicit-any
+Warning:   187:142  warning  Unexpected any. Specify a different type                                                                           @typescript-eslint/no-explicit-any
+Warning:   242:70   warning  Unexpected any. Specify a different type                                                                           @typescript-eslint/no-explicit-any
+Warning:   592:17   warning  Unexpected any. Specify a different type                                                                           @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/components/worker-tester.tsx
+Warning:   19:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/docs/[id]/page.tsx
+Warning:    6:11  warning  'session' is assigned a value but never used  @typescript-eslint/no-unused-vars
+Warning:   16:44  warning  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/docs/_components/doc-editor.tsx
+Warning:     7:10  warning  'Switch' is defined but never used        @typescript-eslint/no-unused-vars
+Warning:    21:39  warning  'Settings2' is defined but never used     @typescript-eslint/no-unused-vars
+Warning:    39:63  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+Warning:   175:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/docs/page.tsx
+Warning:    2:10  warning  'GalacticFooter' is defined but never used    @typescript-eslint/no-unused-vars
+Warning:    3:24  warning  'deleteDoc' is defined but never used         @typescript-eslint/no-unused-vars
+Warning:    6:22  warning  'Trash' is defined but never used             @typescript-eslint/no-unused-vars
+Warning:   11:11  warning  'session' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/SigilOS/SigilOS/src/app/god/dofus-guides/OptimizedGuideAdminClient.tsx
+Warning:     15:51   warning  'searchQuestsLocalThenDofusDB' is defined but never used                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+Warning:     15:81   warning  'getQuestPrerequisites' is defined but never used                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:     28:106  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:     41:52   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:     45:10   warning  'composerMode' is assigned a value but never used                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+Warning:     45:24   warning  'setComposerMode' is assigned a value but never used                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+Warning:     46:44   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:     47:10   warning  'batchReport' is assigned a value but never used                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:     48:44   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:     54:54   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:     55:10   warning  'isSearching' is assigned a value but never used                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+Warning:     56:10   warning  'copied' is assigned a value but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+Warning:     56:18   warning  'setCopied' is assigned a value but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+Warning:     69:113  warning  'oldW' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+Warning:     78:21   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    121:45   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    124:55   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    125:46   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    135:44   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    142:6    warning  React Hook useEffect has a missing dependency: 'loadProgress'. Either include it or remove the dependency array                                                                                                                                                                          react-hooks/exhaustive-deps
+Warning:    182:62   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    184:19   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    329:24   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    344:37   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    403:36   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    443:32   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    469:47   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    477:13   warning  'id' is assigned a value but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+Warning:    477:17   warning  'sequences' is assigned a value but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+Warning:    566:19   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:    687:105  warning  Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                    @typescript-eslint/no-unused-expressions
+Warning:    950:64   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1170:65   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1170:65   warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+Warning:   1200:112  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1217:94   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1220:87   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1221:87   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1222:87   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1227:75   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1227:75   warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+Warning:   1240:152  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1244:164  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1270:81   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1279:83   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1287:83   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1302:65   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1302:65   warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+Warning:   1305:148  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1307:154  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1317:63   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1317:63   warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+Warning:   1329:146  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1349:153  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1435:81   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1435:108  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1485:65   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+Warning:   1485:65   warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+Warning:   1651:45   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1686:67   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1686:78   warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+Warning:   1697:56   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+0s
+0s
+0s
+0s
+0s
+0s
+0s
+0s
+Footer
+© 2026 GitHub, Inc.
+Footer navigation
+Terms
+Privacy
+Security
+Status
+Community
+Docs
+Contact
+Manage cookies
+Do not share my personal information
+ 

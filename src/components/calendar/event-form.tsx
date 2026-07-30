@@ -287,11 +287,26 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
     const whitelistedRoles = useMemo(() => {
         if (whitelistedRoleIds && whitelistedRoleIds.length > 0 && discordRoles.length > 0) {
             const filtered = discordRoles.filter(r => whitelistedRoleIds.includes(r.id));
-            // Fallback to all roles if none of the whitelisted IDs match current discordRoles
-            return filtered.length > 0 ? filtered : discordRoles;
+            return filtered; // No fallback — if whitelist is set but roles don't exist, show empty
         }
         return discordRoles;
     }, [whitelistedRoleIds, discordRoles]);
+
+    // Ping whitelist: which roles the admin allows for pings on this event type
+    const pingAllowedRoleIds = useMemo(() => {
+        if (isRaid) {
+            return configChannels.raidPingRoleIds || [];
+        }
+        return configChannels.calendarPingRoleIds || [];
+    }, [isRaid, configChannels.raidPingRoleIds, configChannels.calendarPingRoleIds]);
+
+    const pingAllowedRoles = useMemo(() => {
+        if (pingAllowedRoleIds && pingAllowedRoleIds.length > 0 && discordRoles.length > 0) {
+            const filtered = discordRoles.filter(r => pingAllowedRoleIds.includes(r.id));
+            return filtered.length > 0 ? filtered : discordRoles;
+        }
+        return discordRoles;
+    }, [pingAllowedRoleIds, discordRoles]);
 
     const activeChannelId = isRaid
         ? (raidType === "gigalodon"
@@ -712,6 +727,17 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                                         <div className="flex items-center gap-2 text-xs text-zinc-500 py-2">
                                             <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" />
                                             Chargement des rôles Discord...
+                                        </div>
+                                    ) : whitelistedRoleIds.length > 0 && whitelistedRoles.length === 0 ? (
+                                        <div className="flex flex-col gap-2 py-2">
+                                            <p className="text-xs text-amber-400 font-bold flex items-center gap-1.5">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                Rôles whitelistés introuvables
+                                            </p>
+                                            <p className="text-xs text-zinc-500">
+                                                Les rôles configurés par l'admin ne sont plus disponibles sur ce serveur Discord.
+                                                Tous les membres de la guilde peuvent s'inscrire par défaut.
+                                            </p>
                                         </div>
                                     ) : whitelistedRoles.length > 0 ? (
                                         <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1135,7 +1161,7 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                                                         <span>Aucun ping</span>
                                                         {(!field.value || field.value.length === 0) && <Check className="h-4 w-4 text-amber-500" />}
                                                     </CommandItem>
-                                                    {discordRoles.map((role) => (
+                                                    {pingAllowedRoles.map((role) => (
                                                         <CommandItem
                                                             key={role.id}
                                                             value={role.name}

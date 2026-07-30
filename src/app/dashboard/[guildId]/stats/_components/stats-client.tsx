@@ -24,6 +24,9 @@ interface StatsClientProps {
     servicesEnabled?: boolean;
     songesEnabled?: boolean;
     minigamesEnabled?: boolean;
+    vitrineMode?: boolean;
+    loansEnabled?: boolean;
+    vaultEnabled?: boolean;
 }
 
 function formatKamas(val: number): string {
@@ -40,6 +43,9 @@ export default function StatsClient({
     servicesEnabled = true,
     songesEnabled = true,
     minigamesEnabled = true,
+    vitrineMode = false,
+    loansEnabled = true,
+    vaultEnabled = true,
 }: StatsClientProps) {
     const showMissionStats = missionsEnabled && stats.totalMissionsValidated > 0;
 
@@ -65,11 +71,14 @@ export default function StatsClient({
             {/* KPI Cards — Row 1 (Core) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <StatCard icon={Users} label="Membres actifs" value={stats.activeMembers} accent="violet" />
-                <StatCard icon={Star} label="XP Total" value={stats.totalXp.toLocaleString()} accent="teal" />
+                {/* Hide XP Total in vitrine mode */}
+                {!vitrineMode && (
+                    <StatCard icon={Star} label="XP Total" value={stats.totalXp.toLocaleString()} accent="teal" />
+                )}
                 {showMissionStats ? (
                     <StatCard icon={CheckCircle2} label="Missions validées" value={stats.totalMissionsValidated} accent="emerald" />
                 ) : (
-                    <StatCard icon={Target} label="Succès guilde" value={`${stats.quests?.guildCompletionRate || 0}%`} accent="emerald" />
+                    <StatCard icon={Target} label="Dofus complétés" value={`${stats.quests?.guildCompletionRate || 0}%`} accent="emerald" />
                 )}
                 <StatCard icon={Moon} label="Songes complétés" value={stats.totalSongesCompleted} accent="blue" />
             </div>
@@ -146,13 +155,13 @@ export default function StatsClient({
             </div>
 
             {/* Prêts & Coffre */}
-            {(servicesEnabled || (stats.services.loans.total > 0 || stats.services.vault.totalDeposits > 0)) && (
+            {servicesEnabled && (loansEnabled || vaultEnabled) && (
                 <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <Key className="w-5 h-5 text-amber-400" />
                         Services Guilde — Prêts & Coffre
                     </h3>
-                    <ServicesStats services={stats.services} />
+                    <ServicesStats services={stats.services} loansEnabled={loansEnabled} vaultEnabled={vaultEnabled} />
                 </section>
             )}
 

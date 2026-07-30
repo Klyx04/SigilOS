@@ -1,0 +1,51 @@
+# Rush Sylvestre — Plan d'implémentation ✅ TERMINÉ
+
+## Statut : 100% implémenté (4 commits sur `feat/rush-sylvestre-refactor`)
+
+Toutes les étapes du plan original ont été réalisées.
+
+## Résumé des commits
+
+| Hash | Description |
+|------|-------------|
+| `bc8bb716` | Refactor complet : barre actions, recherche, prérequis, styling actif/suivant, nav flottante, bookmark par séquence |
+| `c9c7ec69` | Correctifs : `data-tour="quest-completion"`, `resumeRush` clear `searchQuery`, fix TypeScript ordering |
+| `e7decbfa` | Étape H : `ContextualHelp` sur la recherche + correctif JSX |
+| `6a31bd5f` | Bouton "Rendu ici" déplacé à côté des favicons + suppression doublon |
+
+## Détail des étapes couvertes
+
+- **A** — Analyse du fichier existant (sous-composants, states, emplacements)
+- **B** — Barre d'actions complète : recherche instantanée, hideDone, Reprendre, Aide
+- **C** — Quête prioritaire : labels "À FAIRE MAINTENANT" / "À VENIR"
+- **D** — Validation facile : `data-tour="quest-completion"`, `title`, `aria-label`
+- **E** — Prérequis clairs : Lock, "À terminer avant", `data-tour="quest-prerequisite"`
+- **F** — Reprendre mon étape : priorise bookmark, clear searchQuery, toast si rien
+- **G** — Navigation flottante : pilule verticale haut/reprendre/bas
+- **H** — Aide contextuelle désactivable : `ContextualHelp`, localStorage, placé sur recherche
+- **I** — Onboarding : préservé (RushOnboardingWizardModal non modifié)
+
+### Bookmark par séquence (Étape F.1)
+
+- `handleBookmarkSequence` avec toggle via `updateBookmarkedStep`
+- `BookmarkedSeqCtx` / `OnBookmarkSeqCtx` wrappés dans le JSX
+- Bouton "Rendu ici" dans chaque `SequenceRow` (avec `Flag`/`BookmarkCheck`)
+- Bouton positionné à côté des favicons Noobs/DofusDB
+- Plus de "J'en suis là" au niveau milestone
+- Compatibilité legacy `bookmarkedMsId` conservée
+- `findNextActionableSequence` priorise `effectiveBookmarkSeqId`
+- `resumeRush` priorise bookmark
+
+## Fichier modifié uniquement
+
+- `RushTimelineClient.tsx` — seul fichier modifié
+- `TODO-rush-sylvestre-refactor.md` — mis à jour (statut terminé)
+
+## Validation
+
+- ✅ TypeScript : 0 erreur
+- ✅ ESLint : silencieux
+- ✅ Pre-commit hooks : verts (4/4)
+- ✅ Aucune modification backend/bdd
+- ✅ Aucun import supprimé
+- ✅ Compatibilité ascendante

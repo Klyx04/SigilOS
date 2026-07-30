@@ -1012,11 +1012,21 @@ export async function getGuildsSeparated() {
     const { verifyGuildAccessibility } = await import("@/server/discord");
     const allowedGuildsDB = await db.allowedGuild.findMany({
         where: { isActive: true },
-        select: { discordGuildId: true }
+        select: { discordGuildId: true, isActive: true }
     });
     const allowedIdsWhitelist = new Set(allowedGuildsDB.map(g => g.discordGuildId));
 
-    const isAllowedForDeployment = (guildId: string) => allowedIdsWhitelist.has(guildId);
+    // Also fetch ALL allowed guilds (including inactive) to detect "deleted by GOD" status
+    const allAllowedGuilds = await db.allowedGuild.findMany({
+        select: { discordGuildId: true, isActive: true, name: true }
+    });
+    const allowedGuildStatusMap = new Map(allAllowedGuilds.map(g => [g.discordGuildId, { isActive: g.isActive, name: g.name }]));
+
+    // BUGFIX: isAllowedForDeployment must check that the allowedGuild is ACTIVE, not just exists
+    const isAllowedForDeployment = (guildId: string) => {
+        const status = allowedGuildStatusMap.get(guildId);
+        return status ? status.isActive : false;
+    };
 
     const validatedActive = await Promise.all(
         activeConfigs.map(async (g) => {

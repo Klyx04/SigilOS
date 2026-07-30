@@ -17,6 +17,7 @@ import { PrismaClient } from '@prisma/client';
 
 const GRACE_PERIOD_DAYS = 7;
 const AUDIT_RETENTION_DAYS = 30;
+const GOD_NOTIF_RETENTION_DAYS = 90;
 
 async function main() {
     const isDryRun = !process.argv.includes('--execute');
@@ -134,6 +135,27 @@ async function main() {
                     where: { id: { in: oldPolls.map(p => p.id) } }
                 });
                 console.log(`  [DEL] Successfully archived/deleted ${result.count} legacy polls.`);
+            }
+        }
+
+        // 5. GodNotification Cleanup (90 days retention)
+        const godNotifCutoff = new Date();
+        godNotifCutoff.setDate(godNotifCutoff.getDate() - GOD_NOTIF_RETENTION_DAYS);
+
+        const oldNotifsCount = await (db as any).godNotification.count({
+            where: { createdAt: { lt: godNotifCutoff } }
+        });
+
+        console.log(`[GodNotif] Found ${oldNotifsCount} notifications older than ${GOD_NOTIF_RETENTION_DAYS} days.`);
+
+        if (oldNotifsCount > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldNotifsCount} old god notifications.`);
+            } else {
+                const result = await (db as any).godNotification.deleteMany({
+                    where: { createdAt: { lt: godNotifCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${result.count} old god notifications.`);
             }
         }
 

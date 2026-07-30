@@ -1394,8 +1394,8 @@ function ParticipantRow({
                     </Button>
                 )}
 
-                {/* Transfer Captaincy (visible only for raid creator on registered participants) */}
-                {isCreator && isRaid && !isCurrentUser && onTransferCaptaincy && (
+                                                {/* Transfer Captaincy (visible only for raid creator on registered participants) */}
+                                                {isRaid && !isCurrentUser && onTransferCaptaincy && (
                     <Button
                         size="sm"
                         variant="ghost"

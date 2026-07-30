@@ -920,7 +920,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewWorldmap = false;
         finalContext.canViewFinder = false;
         finalContext.canViewServices = false;
-        finalContext.canViewStuffGallery = !!applyModule(!!mod?.gallery, !!canViewStuffGallery);
+        finalContext.canViewStuffGallery = false;
         finalContext.canViewMiniGames = false;
         finalContext.canViewPolls = false;
         finalContext.canViewCalendar = false;

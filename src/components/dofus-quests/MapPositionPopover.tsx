@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, ExternalLink, Copy } from "lucide-react";
+import { MapPin, ExternalLink, Copy, Move } from "lucide-react";
 import { MapViewer } from "@/components/worldmap/map-viewer";
 import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ export default function MapPositionPopover({
   const [resolved, setResolved] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLSpanElement>(null);
+  const dragRef = useRef<{ startX: number; startY: number; startTop: number; startLeft: number } | null>(null);
   const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -84,6 +85,36 @@ export default function MapPositionPopover({
     window.open(`/dashboard/${guildId}/worldmap?x=${posX}&y=${posY}&world=${worldId}`, "_blank");
   }, [guildId, posX, posY, worldId]);
 
+  // Drag handling
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startTop: position.top,
+      startLeft: position.left,
+    };
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const dx = ev.clientX - dragRef.current.startX;
+      const dy = ev.clientY - dragRef.current.startY;
+      setPosition({
+        top: dragRef.current.startTop + dy,
+        left: dragRef.current.startLeft + dx,
+      });
+    };
+
+    const handleMouseUp = () => {
+      dragRef.current = null;
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, [position]);
+
   useEffect(() => {
     return () => {
       if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
@@ -121,32 +152,27 @@ export default function MapPositionPopover({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="fixed z-[999999] pointer-events-auto"
+            className="fixed z-[999999] pointer-events-auto select-none"
             style={{ top: position.top, left: position.left, width: 288 }}
             onMouseEnter={() => { if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current); }}
             onMouseLeave={() => { leaveTimerRef.current = setTimeout(() => setIsOpen(false), 300); }}
           >
             <div className="rounded-xl overflow-hidden border border-zinc-700/60 bg-zinc-950 shadow-2xl shadow-black/60">
-              <div className="flex items-center justify-between px-3 py-2 bg-zinc-900/80 border-b border-zinc-800/60">
+              {/* Draggable header */}
+              <div
+                className="flex items-center justify-between px-3 py-2 bg-zinc-900/80 border-b border-zinc-800/60 cursor-grab active:cursor-grabbing"
+                onMouseDown={handleDragStart}
+              >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <MapPin className="w-3 h-3 text-indigo-400 shrink-0" />
                   <span className="text-[10px] font-mono font-bold text-indigo-300">[{posX}, {posY}]</span>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-[7px] text-zinc-500 font-black uppercase tracking-widest mr-0.5">Monde</span>
-                  <select value={worldId} onChange={(e) => setWorldId(parseInt(e.target.value, 10))}
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-zinc-800 border border-zinc-700 rounded-md px-1.5 py-0.5 text-[9px] text-zinc-200 font-mono focus:outline-none focus:border-indigo-500/50 cursor-pointer max-w-[130px]"
-                  >
-                    {DOFUS_WORLDS.map((w) => (
-                      <option key={w.id} value={w.id}>{w.id} — {w.name.length > 25 ? w.name.slice(0, 25) + "..." : w.name}</option>
-                    ))}
-                  </select>
-                </div>
+                <Move className="w-3 h-3 text-zinc-500 shrink-0" />
               </div>
 
-              <div className="px-3 py-1 bg-zinc-900/40 border-b border-zinc-800/30">
-                <p className="text-[8px] text-zinc-500 font-medium truncate">{worldName}</p>
+              <div className="px-3 py-1 bg-zinc-900/40 border-b border-zinc-800/30 flex items-center gap-1.5">
+                <span className="text-[7px] text-zinc-600 font-black uppercase tracking-widest shrink-0">Monde</span>
+                <span className="text-[9px] text-zinc-300 font-medium truncate">{worldId} — {worldName}</span>
               </div>
 
               <div className="relative w-full h-44 bg-black/60">

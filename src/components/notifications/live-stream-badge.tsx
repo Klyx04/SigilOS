@@ -17,6 +17,7 @@ interface LiveStreamer {
     creatorId: string;
     url: string;
     title: string;
+    avatarUrl?: string | null;
 }
 
 export function LiveStreamBadge({ guildId }: { guildId: string }) {
@@ -132,6 +133,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                                 <div className="relative shrink-0">
                                     <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center">
                                         <Avatar className="h-10 w-10">
+                                            <AvatarImage src={streamer.avatarUrl || undefined} className="object-cover" />
                                             <AvatarFallback className="bg-red-600/20 text-red-400 text-xs font-black">
                                                 {streamer.creatorId?.[0]?.toUpperCase() || "?"}
                                             </AvatarFallback>

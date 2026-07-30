@@ -841,7 +841,7 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { id: true, creatorId: true, status: true, discordChannelId: true, discordMessageId: true }
+            select: { id: true, creatorId: true, status: true, metadata: true, discordChannelId: true, discordMessageId: true }
         });
 
         if (!event) return { success: false, error: "Événement introuvable" };
@@ -850,6 +850,12 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut l'annuler." };
         }
 
+        // Cleanup reminder messages
+        const cancelMeta = (event.metadata as any) || {};
+        const cancelReminders: { channelId: string, messageId: string }[] = cancelMeta.reminderMessages || [];
+        cancelReminders.forEach(({ channelId, messageId }) => {
+            deleteChannelMessage(channelId, messageId).catch(() => { });
+        });
         if (event?.discordChannelId && event?.discordMessageId) {
             deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
         }
@@ -984,7 +990,12 @@ export async function completeEvent(guildId: string, eventId: string) {
             data: { status: "COMPLETED" }
         });
 
-        // Close Discord message
+        // Close Discord message + cleanup reminder messages
+        const cleanupMeta = (event.metadata as any) || {};
+        const reminderMessages: { channelId: string, messageId: string }[] = cleanupMeta.reminderMessages || [];
+        reminderMessages.forEach(({ channelId, messageId }) => {
+            deleteChannelMessage(channelId, messageId).catch(() => { });
+        });
         if (event.discordChannelId && event.discordMessageId) {
             deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
         }
@@ -1057,7 +1068,12 @@ export async function completeRaidEvent(
             }
         });
 
-        // Close Discord message
+        // Close Discord message + cleanup reminder messages
+        const cleanupMeta = (event.metadata as any) || {};
+        const reminderMessages: { channelId: string, messageId: string }[] = cleanupMeta.reminderMessages || [];
+        reminderMessages.forEach(({ channelId, messageId }) => {
+            deleteChannelMessage(channelId, messageId).catch(() => { });
+        });
         if (event.discordChannelId && event.discordMessageId) {
             deleteChannelMessage(event.discordChannelId, event.discordMessageId).catch(() => { });
         }
@@ -1627,6 +1643,17 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                     }
                 );
                 discordSent = !!msgId;
+
+                // Store reminder message ID so it can be cleaned up when event is completed/cancelled
+                if (msgId) {
+                    const existingMeta = (event.metadata as any) || {};
+                    const existingReminders = existingMeta.reminderMessages || [];
+                    const newReminderMessages = [...existingReminders, { channelId: targetChannelId, messageId: msgId }];
+                    await db.guildEvent.update({
+                        where: { id: eventId },
+                        data: { metadata: { ...existingMeta, reminderMessages: newReminderMessages } }
+                    }).catch(() => {});
+                }
             }
         }
 

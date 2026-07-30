@@ -27,7 +27,7 @@ export type SkinData = {
 /**
  * Detects the provider and extracts basic metadata (thumbnail, title)
  */
-async function scrapeSkinMetadata(url: string): Promise<SkinData> {
+export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
     const lowerUrl = url.toLowerCase();
     
     // 1. Barbofus (Extraction avancée: Couleurs + Items)

@@ -304,6 +304,15 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-[8px] font-black uppercase tracking-widest text-amber-300">
             <MapPin className="w-2.5 h-2.5" />
             Étape actuelle
+            {(()=>{
+              const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
+              const tn = t?.name;
+              if(tn){
+                const d = DOFUS_DEFS.find(x=>x.id===tn);
+                if(d) return <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain ml-1" />;
+              }
+              return null;
+            })()}
           </span>
         )}
         {isNext && !isSeqCompleted && (
@@ -318,12 +327,22 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               </button>
             )}
             <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-              <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>{questName}</span>
-              {isActive && !isSeqCompleted && (
-                <span className="inline-flex items-center text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 shrink-0">
-                  À FAIRE MAINTENANT
-                </span>
-              )}
+              <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>
+                {hasAlignment && seq.alignReq && seq.alignReq !== "neutre" && (
+                  <span 
+                    className="mr-1.5 font-[family-name:var(--font-cinzel)] uppercase tracking-widest"
+                    style={{ color: seq.alignReq === "bontarien" ? "#3b82f6" : "#ef4444", textShadow: seq.alignReq === "bontarien" ? "0 0 12px rgba(59,130,246,0.25)" : "0 0 12px rgba(239,68,68,0.25)" }}
+                  >
+                    {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
+                  </span>
+                )}
+                {hasAlignment && seq.alignReq === "neutre" && (
+                  <span className="mr-1.5 text-zinc-400 font-[family-name:var(--font-cinzel)] uppercase tracking-widest">
+                    {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
+                  </span>
+                )}
+                <span className="font-[family-name:var(--font-cinzel)] tracking-wide">{questName}</span>
+              </span>
               {(()=>{
                 const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
                 if(!posTag?.name) return null;
@@ -335,7 +354,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                     title="Cliquer pour copier /travel"
                   >
                     <MapPin className="w-3 h-3 text-indigo-400" />
-                    <span>{posStr}</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
+                    <span>[<span>{posStr}</span>]</span>
                   </span>
                 );
               })()}
@@ -356,19 +376,19 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 {isThisBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Flag className="w-4 h-4" />}
                 RENDU ICI
               </button>
-              {/* Avatars des membres bookmark */}
+              {/* Avatars des membres bookmark — espacement aéré sous RENDU ICI */}
               {isThisBookmarked && seqMembers.length > 0 && (
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
-                  className="flex items-center gap-1 cursor-pointer"
+                  className="flex items-center gap-2 mt-1.5 cursor-pointer"
                   title={`Voir les ${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''}`}
                 >
-                  <div className="flex -space-x-1.5">
+                  <div className="flex -space-x-1">
                     {seqMembers.slice(0, 5).map((m) => (
                       <div
                         key={m.profileId}
-                        className="w-5 h-5 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center border-2 border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0"
+                        className="w-6 h-6 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center border-2 border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0"
                         title={m.userName}
                       >
                         {m.userAvatar ? (
@@ -400,26 +420,12 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               <span>DofusDB</span>
             </a>
           )}
-          {/* Dofus icon — compact, inline as a tag */}
-          {(()=>{
-            const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
-            const tn = t?.name;
-            if(tn){
-              const d = DOFUS_DEFS.find(x=>x.id===tn);
-              if(d) return (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
-                  <img src={d.imageUrl} alt={d.label} title={d.label} className="w-4 h-4 object-contain" />
-                  {d.label}
-                </span>
-              );
-            }
-            return null;
-          })()}
+          {/* Dofus icon moved to Étape actuelle block above */}
         </div>
 
         {/* Badges & Tags */}
         <div className="flex flex-wrap items-center gap-1">
-          {alignInfo && <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md border flex items-center gap-1 ${isReqMet?"text-emerald-400 border-emerald-500/30 bg-emerald-500/10":"text-orange-400 border-orange-500/30 bg-orange-500/10"}`}>{alignInfo.label}{seq.alignOrderReq?` lv.${seq.alignOrderReq}`:""}{isReqMet?"✓":"⚠"}</span>}
+          {/* Alignment info now displayed inline before quest name above */}
           {seq.isOptional && <span className="text-[8px] text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
           {seq.isSuccess && <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
 
@@ -438,13 +444,27 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             }
             const def=ACTIVITY_TAGS.find(x=>x.type===tag.type);if(!def)return null;
             const isMetier=tag.type==="metier";
+            const isHoraire=tag.type==="contrainte_horaire";
             const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;
-            const lb=isMetier&&tag.name?`${tag.name}(${tag.level||1})`:def.label;
+            let labelDisplay = def.label;
+            if (isMetier && tag.name) {
+              labelDisplay = `${tag.name}${tag.level != null ? ` (Niv. ${tag.level})` : ""}`;
+            }
+            // Formatter les contraintes horaires
+            if (isHoraire && tag.name) {
+              const n = String(tag.name);
+              if (n.startsWith("<")) labelDisplay = `Avant ${n.slice(1).trim()}h`;
+              else if (n.startsWith(">")) labelDisplay = `Après ${n.slice(1).trim()}h`;
+              else {
+                const p = n.split("-").map(s=>s.trim());
+                if (p.length===2) labelDisplay = `${p[0]}h → ${p[1]}h`;
+              }
+            }
             return (
               <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
-                <img src={ip} alt="" className="w-4 h-4 object-cover rounded-md"/>
+                <img src={ip} alt="" className="w-4 h-4 object-cover rounded-md shrink-0"/>
                 {tag.count&&tag.count>1&&<span className="text-[8px] text-amber-400 font-bold">x{tag.count}</span>}
-                <span className="truncate max-w-[90px]">{isMetier&&tag.name?`${tag.name} ${tag.level?`N${tag.level}`:""}`:lb}</span>
+                <span className="truncate max-w-[160px]">{labelDisplay}</span>
               </span>
             );
           })}

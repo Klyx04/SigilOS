@@ -152,7 +152,7 @@ const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; 
   { type: "songes",             imagePath: "/assets/rush-sylvestre/songes.png",             label: "Songes",          color: "#8b5cf6" },
   { type: "combat_solo",        imagePath: "/assets/rush-sylvestre/combat-solo.png",        label: "Combat Solo",     color: "#f43f5e" },
   { type: "combat_plusieurs",   imagePath: "/assets/rush-sylvestre/combat-plusieurs.png",   label: "Combat à plusieurs",    color: "#a855f7" },
-  { type: "contrainte_horaire", imagePath: "/assets/rush-sylvestre/contrainte-horaire.png", label: "Horaire Spec.",   color: "#f59e0b" },
+  { type: "contrainte_horaire", imagePath: "/assets/rush-sylvestre/contrainte-horaire.png", label: "Horaire Spec.",   color: "#f59e0b", hasName: true },
   { type: "donjon",             imagePath: "/assets/rush-sylvestre/donjon.png",             label: "Donjon requis",   color: "#3b82f6" },
   { type: "plusieurs_personnes",imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",label: "Multi joueurs",   color: "#10b981" },
   { type: "sort",               imagePath: "/assets/rush-sylvestre/sort.png",               label: "Sort requis",     color: "#ec4899" },
@@ -1307,6 +1307,7 @@ function ActivityTagsEditor({ tags, onChange }: {
         const def = ACTIVITY_TAGS.find(d => d.type === tag.type);
         if (!def) return null;
         const isMetier = tag.type === "metier";
+        const isHoraire = tag.type === "contrainte_horaire";
         return (
           <div key={tag.type} className="flex items-center gap-2 p-2 rounded-lg border" style={{ borderColor: def.color + "30", background: def.color + "08" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1330,6 +1331,77 @@ function ActivityTagsEditor({ tags, onChange }: {
                   placeholder="Niv. min"
                 />
               </>
+            ) : isHoraire ? (
+              <div className="flex items-center gap-2 flex-1 flex-wrap">
+                <select
+                  value={tag.name ? (tag.name.startsWith("<") ? "before" : tag.name.startsWith(">") ? "after" : "between") : "between"}
+                  onChange={e => {
+                    const mode = e.target.value;
+                    if (mode === "before") updateTag(tag.type, { name: "< 0" });
+                    else if (mode === "after") updateTag(tag.type, { name: "> 0" });
+                    else updateTag(tag.type, { name: "0-0" });
+                  }}
+                  className="bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none"
+                >
+                  <option value="before">Avant</option>
+                  <option value="between">Entre</option>
+                  <option value="after">Après</option>
+                </select>
+                {(() => {
+                  const currentName = tag.name || "0-0";
+                  const isBefore = currentName.startsWith("<");
+                  const isAfter = currentName.startsWith(">");
+                  const parts = isBefore || isAfter ? [currentName.slice(1).trim()] : currentName.split("-").map(s => s.trim());
+                  const h1 = parts[0] || "0";
+                  const h2 = isBefore || isAfter ? "" : (parts[1] || "0");
+                  const mode = isBefore ? "before" : isAfter ? "after" : "between";
+                  return (
+                    <div className="flex items-center gap-1">
+                      {mode === "before" ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-amber-300 font-bold">avant</span>
+                          <input
+                            type="number" min={0} max={23}
+                            value={h1}
+                            onChange={e => updateTag(tag.type, { name: `< ${parseInt(e.target.value, 10) || 0}` })}
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                          />
+                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                        </div>
+                      ) : mode === "after" ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-amber-300 font-bold">après</span>
+                          <input
+                            type="number" min={0} max={23}
+                            value={h1}
+                            onChange={e => updateTag(tag.type, { name: `> ${parseInt(e.target.value, 10) || 0}` })}
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                          />
+                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-zinc-400">de</span>
+                          <input
+                            type="number" min={0} max={23}
+                            value={h1}
+                            onChange={e => updateTag(tag.type, { name: `${parseInt(e.target.value, 10) || 0}-${h2}` })}
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                          />
+                          <span className="text-[9px] text-zinc-400">h à</span>
+                          <input
+                            type="number" min={0} max={23}
+                            value={h2}
+                            onChange={e => updateTag(tag.type, { name: `${h1}-${parseInt(e.target.value, 10) || 0}` })}
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                          />
+                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             ) : tag.type === "solver" ? (
               <div className="flex items-center gap-1.5 flex-1">
                 <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Solver URL</span>
@@ -1792,7 +1864,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           </select>
         </div>
         <div>
-          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Niveau ordre</label>
+          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Niveau</label>
           <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
             className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
             placeholder="0–100"
@@ -2217,7 +2289,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] text-zinc-600 mb-1 block">Niveau ordre</label>
+                  <label className="text-[9px] text-zinc-600 mb-1 block">Niveau</label>
                   <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                     placeholder="0–100"

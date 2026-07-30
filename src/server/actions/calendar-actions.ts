@@ -1301,9 +1301,14 @@ export async function kickParticipant(guildId: string, eventId: string, targetUs
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { creatorId: true }
+            select: { creatorId: true, type: true }
         });
         if (!event) return { success: false, error: "Événement introuvable" };
+
+        // SECURITY: For RAID_OFFICIAL, only the creator can kick
+        if (event.type === "RAID_OFFICIAL" && event.creatorId !== ctx.id) {
+            return { success: false, error: "Seul le capitaine du raid peut exclure un participant." };
+        }
 
         // Perms: Admin, has calendar manage perm, or is creator
         if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
@@ -1352,6 +1357,61 @@ export async function kickParticipant(guildId: string, eventId: string, targetUs
     } catch (error) {
         console.error("[Calendar] kickParticipant Error:", error);
         return { success: false, error: "Erreur lors de l'expulsion du participant" };
+    }
+}
+
+/**
+ * TransferRaidCaptaincy — Permet au capitaine d'un raid de transférer le capitanat à un participant inscrit.
+ */
+export async function transferRaidCaptaincy(guildId: string, eventId: string, newCaptainUserId: string) {
+    const ctx = await getUserContext(guildId);
+    if (!ctx.isAuthenticated) return { success: false, error: "Non authentifié" };
+
+    try {
+        const guildConfig = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true }
+        });
+        if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
+
+        const event = await db.guildEvent.findUnique({
+            where: { id: eventId, guildId: guildConfig.id },
+            select: { creatorId: true, type: true, metadata: true }
+        });
+        if (!event) return { success: false, error: "Événement introuvable" };
+        if (event.type !== "RAID_OFFICIAL") return { success: false, error: "Seuls les raids peuvent transférer le capitanat" };
+        if (event.creatorId !== ctx.id) return { success: false, error: "Seul le capitaine actuel peut transférer le capitanat" };
+
+        // Verify new captain is a registered participant
+        const participant = await db.eventParticipant.findUnique({
+            where: { eventId_userId: { eventId, userId: newCaptainUserId } },
+            select: { status: true }
+        });
+        if (!participant || participant.status !== "REGISTERED") {
+            return { success: false, error: "Le nouveau capitaine doit être un participant inscrit au raid." };
+        }
+
+        // Update creatorId
+        await db.guildEvent.update({
+            where: { id: eventId },
+            data: {
+                creatorId: newCaptainUserId,
+                metadata: {
+                    ...(event.metadata as any),
+                    raidCaptain: undefined // Clear the text-based captain field if it existed
+                }
+            }
+        });
+
+        // Update Discord embed
+        const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+        updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+
+        revalidatePath(`/dashboard/${guildId}/calendar`);
+        return { success: true, message: "Capitanat transféré avec succès !" };
+    } catch (error) {
+        console.error("[Calendar] transferRaidCaptaincy Error:", error);
+        return { success: false, error: "Erreur lors du transfert du capitanat" };
     }
 }
 
@@ -1463,10 +1523,11 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
         const { createNotification } = await import("./notification-actions");
 
         // Format event time
-        const { format, formatDistanceToNow } = await import("date-fns");
+        const { format: dtFormat, formatDistanceToNow } = await import("date-fns");
         const { fr } = await import("date-fns/locale");
-        const eventTime = format(event.startDate, "EEEE d MMMM à HH:mm", { locale: fr });
-        const timeUntil = formatDistanceToNow(event.startDate, { locale: fr, addSuffix: false });
+        const eventDate = new Date(event.startDate);
+        const eventTime = dtFormat(eventDate, "EEEE d MMMM 'à' HH:mm", { locale: fr }) + " (heure de Paris)";
+        const timeUntil = formatDistanceToNow(eventDate, { locale: fr, addSuffix: false });
 
         // Send in-app notifications to all participants
         let sentCount = 0;
@@ -1482,7 +1543,7 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
             sentCount++;
         }
 
-        // Send Discord reminder if channel is configured
+        // Send Discord reminder (embed only — no role ping unless explicitly requested)
         let discordSent = false;
         if (targetChannelId) {
             // Validate channel belongs to guild
@@ -1508,10 +1569,10 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                 const typeConfig = typeConfigs[event.type] || typeConfigs.OTHERS;
 
                 // Format date/time
-                const dateStr = format(event.startDate, "EEEE d MMMM", { locale: fr });
+                const dateStr = dtFormat(event.startDate, "EEEE d MMMM", { locale: fr });
                 const timeStr = event.endDate
-                    ? `${format(event.startDate, "HH:mm")} - ${format(event.endDate, "HH:mm")}`
-                    : format(event.startDate, "HH:mm");
+                    ? `${dtFormat(event.startDate, "HH:mm")} - ${dtFormat(event.endDate, "HH:mm")}`
+                    : dtFormat(event.startDate, "HH:mm");
 
                 // Build mention content
                 let mentionContent = "";

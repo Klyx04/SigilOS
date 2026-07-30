@@ -787,7 +787,7 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
-        const event = await db.guildEvent.findUnique({ where: { id: eventId }, select: { creatorId: true } });
+        const event = await db.guildEvent.findUnique({ where: { id: eventId }, select: { creatorId: true, discordMessageId: true, discordChannelId: true } });
         if (!event) return { success: false, error: "Événement introuvable" };
         if (event.creatorId !== ctx.id && !ctx.isAdmin) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut le modifier." };
@@ -815,6 +815,12 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
                 metadata: finalMetadata
             }
         });
+
+        // Sync Discord embed if the event was published on Discord
+        if (event.discordMessageId && event.discordChannelId) {
+            const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
+            updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+        }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };

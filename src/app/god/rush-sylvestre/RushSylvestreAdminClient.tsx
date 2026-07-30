@@ -31,6 +31,7 @@ import {
   reorderRushSequences,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests } from "@/server/actions/dofus-search-actions";
+import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -1514,6 +1515,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
     return existing?.name || "";
   });
+  const [positionsWorldId, setPositionsWorldId] = useState<number>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
+    return existing?.worldId ?? 1;
+  });
   const [tougliText, setTougliText] = useState<string>(() => {
     const existing = (seq.activityTags as any[])?.find(t => t.type === "tougli_box");
     return existing?.name || "";
@@ -1568,7 +1573,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     setActivityTags(prev => {
       const filtered = prev.filter((t: any) => t.type !== "pos_tags");
       if (text.trim()) {
-        return [...filtered, { type: "pos_tags" as any, name: text.trim() }];
+        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId: positionsWorldId }];
       }
       return filtered;
     });
@@ -1789,12 +1794,39 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
             📍 Positions GPS (ex: -2, 0 ; 10, -22)
           </label>
-          <input
-            value={positionsInput}
-            onChange={e => handlePositionsChange(e.target.value)}
-            className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
-            placeholder="-2, 0 ; 10, -22"
-          />
+          <div className="flex items-center gap-1.5">
+            <input
+              value={positionsInput}
+              onChange={e => handlePositionsChange(e.target.value)}
+              className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
+              placeholder="-2, 0 ; 10, -22"
+            />
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[7px] text-zinc-600 font-black uppercase tracking-widest">Monde</span>
+              <select
+                value={positionsWorldId}
+                onChange={e => {
+                  const w = parseInt(e.target.value, 10);
+                  setPositionsWorldId(w);
+                  // Re-sync activityTags with new worldId
+                  setActivityTags(prev => {
+                    const filtered = prev.filter((t: any) => t.type !== "pos_tags");
+                    if (positionsInput.trim()) {
+                      return [...filtered, { type: "pos_tags" as any, name: positionsInput.trim(), worldId: w }];
+                    }
+                    return filtered;
+                  });
+                }}
+                className="bg-zinc-800 border border-zinc-700 rounded-md px-1.5 py-1 text-[9px] text-zinc-200 font-mono focus:outline-none focus:border-emerald-500/50 cursor-pointer max-w-[100px]"
+              >
+                {DOFUS_WORLDS.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
         <div>
           <label className="text-[9px] font-black text-purple-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">

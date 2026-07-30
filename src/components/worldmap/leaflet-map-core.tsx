@@ -879,16 +879,25 @@ function MapInteractionHandler({ activeWorld, mapsByCoords, subAreasById, dungeo
     return null;
 }
 
-function ExternalController({ triggerCenterPosition, activeWorld, minimapRecenterTrigger }: any) {
+function ExternalController({ triggerCenterPosition, activeWorld, minimapRecenterTrigger, interactive, initialZoom }: any) {
     const map = useMap();
     const prevTrigger = useRef(minimapRecenterTrigger);
+    const hasCentered = useRef(false);
 
     useEffect(() => {
         if (!triggerCenterPosition || !activeWorld) return;
         const px = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
         const py = activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
-        map.flyTo([-py, px], -1, { duration: 0.5 });
-    }, [triggerCenterPosition, activeWorld, map]);
+        
+        if (interactive === false) {
+            // Mode photo/rendu : setView immédiat sans animation
+            const zoom = initialZoom !== undefined ? initialZoom : -1;
+            map.setView([-py, px], zoom, { animate: false });
+        } else {
+            // Mode interactif : flyTo animé
+            map.flyTo([-py, px], -1, { duration: 0.5 });
+        }
+    }, [triggerCenterPosition, activeWorld, map, interactive, initialZoom]);
 
     useEffect(() => {
         if (minimapRecenterTrigger !== undefined && minimapRecenterTrigger !== prevTrigger.current) {
@@ -907,11 +916,16 @@ function ExternalController({ triggerCenterPosition, activeWorld, minimapRecente
                     // Recenter command
                     const px = activeWorld.origineX + triggerCenterPosition.x * activeWorld.mapWidth + activeWorld.mapWidth / 2;
                     const py = activeWorld.origineY + triggerCenterPosition.y * activeWorld.mapHeight + activeWorld.mapHeight / 2;
-                    map.flyTo([-py, px], -1, { duration: 0.5 });
+                    if (interactive === false) {
+                        const zoom = initialZoom !== undefined ? initialZoom : -1;
+                        map.setView([-py, px], zoom, { animate: false });
+                    } else {
+                        map.flyTo([-py, px], -1, { duration: 0.5 });
+                    }
                 }
             }
         }
-    }, [minimapRecenterTrigger, map]);
+    }, [minimapRecenterTrigger, map, interactive, initialZoom]);
 
     return null;
 }
@@ -949,7 +963,7 @@ function ZoomControls() {
 // Main Component
 // -------------------------------------------------------------------------------------
 interface LeafletMapCoreProps {
-    activeWorld: any | null; // Assuming WorldInfo is a type, using 'any' for simplicity if not defined elsewhere
+    activeWorld: any | null;
     selectedWorldId: number;
     activeMaps: any[];
     mapsByCoords: Map<string, any>;
@@ -972,6 +986,7 @@ interface LeafletMapCoreProps {
     isSpectator?: boolean;
     hideUI?: boolean;
     interactive?: boolean;
+    initialZoom?: number;
     autoCopyTravel?: boolean;
     onHoverMap?: (pos: { x: number, y: number, found: boolean } | null) => void;
     highlightSubareaIds?: number[];
@@ -986,7 +1001,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
         participants, currentUserId, isSpectator, hideUI, interactive = true, 
-        autoCopyTravel = false, onHoverMap, highlightSubareaIds
+        autoCopyTravel = false, onHoverMap, highlightSubareaIds, initialZoom: initialZoomProp
     } = props;
 
     const correctedActiveWorld = useMemo(() => {
@@ -1030,9 +1045,10 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
     }, [triggerCenterPosition, correctedActiveWorld]);
 
     const initialZoom = useMemo(() => {
+        if (initialZoomProp !== undefined) return initialZoomProp;
         if (triggerCenterPosition) return 0; // Standard for quest focus
         return isMiniMap ? -3 : 0;
-    }, [triggerCenterPosition, isMiniMap]);
+    }, [triggerCenterPosition, isMiniMap, initialZoomProp]);
 
     return (
         <div className="w-full h-full cursor-crosshair relative map-core-wrapper">
@@ -1232,17 +1248,20 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                                 iconSize: [28, 28],
                                 iconAnchor: [14, 14]
                             })}
-                            eventHandlers={{ click: (e) => { e.originalEvent.stopPropagation(); setSelectedDungeon(group.dungeons); } }}
+                            interactive={interactive}
+                            {...(interactive ? { eventHandlers: { click: (e: any) => { e.originalEvent.stopPropagation(); setSelectedDungeon(group.dungeons); } } } : {})}
                         >
-                            <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                                <div className="text-amber-500 font-bold text-xs">
-                                    {dCount > 1
-                                        ? `${dCount} Donjons`
-                                        : (typeof group.dungeons[0].name === 'string'
-                                            ? group.dungeons[0].name
-                                            : group.dungeons[0].name?.fr || 'Donjon')}
-                                </div>
-                            </Tooltip>
+                            {interactive && (
+                                <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                                    <div className="text-amber-500 font-bold text-xs">
+                                        {dCount > 1
+                                            ? `${dCount} Donjons`
+                                            : (typeof group.dungeons[0].name === 'string'
+                                                ? group.dungeons[0].name
+                                                : group.dungeons[0].name?.fr || 'Donjon')}
+                                    </div>
+                                </Tooltip>
+                            )}
                         </Marker>
                     );
                 })}
@@ -1251,6 +1270,8 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     triggerCenterPosition={triggerCenterPosition} 
                     activeWorld={correctedActiveWorld} 
                     minimapRecenterTrigger={minimapRecenterTrigger} 
+                    interactive={interactive}
+                    initialZoom={initialZoom}
                 />
                 
                 {/* 7. Contrôles de zoom premium */}

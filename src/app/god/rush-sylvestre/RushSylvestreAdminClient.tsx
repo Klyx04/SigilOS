@@ -31,6 +31,7 @@ import {
   reorderRushSequences,
 } from "@/server/actions/optimized-guide-actions";
 import { searchDungeonsLocal, searchGuideQuests } from "@/server/actions/dofus-search-actions";
+import { DOFUS_WORLDS } from "@/lib/dofus-assets";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -1514,6 +1515,10 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
     return existing?.name || "";
   });
+  const [positionsWorldId, setPositionsWorldId] = useState<number>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "pos_tags");
+    return existing?.worldId ?? 1;
+  });
   const [tougliText, setTougliText] = useState<string>(() => {
     const existing = (seq.activityTags as any[])?.find(t => t.type === "tougli_box");
     return existing?.name || "";
@@ -1568,7 +1573,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
     setActivityTags(prev => {
       const filtered = prev.filter((t: any) => t.type !== "pos_tags");
       if (text.trim()) {
-        return [...filtered, { type: "pos_tags" as any, name: text.trim() }];
+        return [...filtered, { type: "pos_tags" as any, name: text.trim(), worldId: positionsWorldId }];
       }
       return filtered;
     });
@@ -1789,12 +1794,29 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           <label className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
             📍 Positions GPS (ex: -2, 0 ; 10, -22)
           </label>
-          <input
-            value={positionsInput}
-            onChange={e => handlePositionsChange(e.target.value)}
-            className="w-full bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
-            placeholder="-2, 0 ; 10, -22"
-          />
+          <div className="flex items-center gap-1.5">
+            <input
+              value={positionsInput}
+              onChange={e => handlePositionsChange(e.target.value)}
+              className="flex-1 bg-black/60 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-500/50"
+              placeholder="-2, 0 ; 10, -22"
+            />
+            <div className="relative shrink-0">
+              <WorldPicker
+                value={positionsWorldId}
+                onChange={w => {
+                  setPositionsWorldId(w);
+                  setActivityTags(prev => {
+                    const filtered = prev.filter((t: any) => t.type !== "pos_tags");
+                    if (positionsInput.trim()) {
+                      return [...filtered, { type: "pos_tags" as any, name: positionsInput.trim(), worldId: w }];
+                    }
+                    return filtered;
+                  });
+                }}
+              />
+            </div>
+          </div>
         </div>
         <div>
           <label className="text-[9px] font-black text-purple-400/80 uppercase tracking-widest mb-1 block flex items-center gap-1">
@@ -2038,6 +2060,54 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, miles
           className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg text-xs font-black uppercase tracking-widest transition-all"
         >Annuler</button>
       </div>
+    </div>
+  );
+}
+
+// ─── AddSequenceForm ──────────────────────────────────────────────────────────
+// ─── WorldPicker pour sélectionner un monde avec style ──────────────────────
+function WorldPicker({ value, onChange }: { value: number; onChange: (worldId: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = DOFUS_WORLDS.find(w => w.id === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-200 text-[10px] font-medium transition-all whitespace-nowrap"
+      >
+        <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+        <span className="truncate max-w-[100px]">{selected ? `${selected.name}` : `Monde ${value}`}</span>
+        <ChevronDown className={`w-3 h-3 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl z-50 min-w-[220px] max-h-56 overflow-y-auto p-1">
+          {DOFUS_WORLDS.map(w => (
+            <button key={w.id} type="button" onClick={() => { onChange(w.id); setOpen(false); }}
+              className={`w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-all ${
+                w.id === value
+                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                  : "text-zinc-300 hover:bg-zinc-800 border border-transparent"
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black ${
+                w.id === value ? "bg-emerald-500 text-white" : "bg-zinc-800 text-zinc-500"
+              }`}>{w.id}</span>
+              <span className="font-medium">{w.name}</span>
+              {w.id === value && <Check className="w-3 h-3 ml-auto text-emerald-400 shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

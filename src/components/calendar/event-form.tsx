@@ -438,10 +438,13 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
     const handleFormSubmit = async (values: EventFormValues) => {
         setSubmitting(true);
         try {
-            // Build proper dates
-            const dateStr = format(values.date, "yyyy-MM-dd");
-            const startDate = new Date(`${dateStr}T${values.startTime}:00`);
-            const endDate = new Date(`${dateStr}T${values.endTime}:00`);
+            // Build proper dates using local time components (NOT ISO string — avoids UTC misinterpretation)
+            const [startHours, startMinutes] = values.startTime.split(":").map(Number);
+            const [endHours, endMinutes] = values.endTime.split(":").map(Number);
+            const startDate = new Date(values.date);
+            startDate.setHours(startHours, startMinutes, 0, 0);
+            const endDate = new Date(values.date);
+            endDate.setHours(endHours, endMinutes, 0, 0);
 
             // If end time is before start time, assume next day
             if (endDate <= startDate) {

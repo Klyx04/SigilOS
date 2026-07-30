@@ -181,9 +181,10 @@ export default function MapPositionPopover({
                   initialTab="map"
                   initialX={posX}
                   initialY={posY}
-                  initialZoom={5}
+                  initialZoom={-4}
                   initialWorldId={worldId}
                   hideUI={true}
+                  interactive={false}
                 />
                 <div className="absolute top-2 right-2 bg-black/80 border border-white/10 rounded-lg px-2 py-1 pointer-events-none">
                   <span className="text-[9px] font-mono font-bold text-indigo-300">[{posX}, {posY}]</span>

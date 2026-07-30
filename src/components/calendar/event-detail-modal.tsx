@@ -1410,7 +1410,7 @@ function ParticipantRow({
                         title="Transférer le capitanat"
                     >
                         {isTransferPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-                        <span className="ml-1 hidden sm:inline">Lead</span>
+                        <span className="ml-1 hidden sm:inline">Capitanat</span>
                     </Button>
                 )}
 

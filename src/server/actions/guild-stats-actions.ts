@@ -175,10 +175,11 @@ export async function getGuildStats(guildId: string): Promise<{
 
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { id: true },
+        select: { id: true, missionVitrineMode: true },
     });
     if (!guildConfig) return { success: false, error: "Guilde introuvable" };
 
+    const vitrineMode = guildConfig.missionVitrineMode || false;
     const internalGuildId = guildConfig.id;
 
     try {
@@ -555,7 +556,8 @@ export async function getGuildStats(guildId: string): Promise<{
         // -- Records --
         const records: GuildRecord[] = [];
 
-        if (topXpMember) {
+        // Hide "Plus d'XP" record in vitrine mode (showcase)
+        if (topXpMember && !vitrineMode) {
             records.push({
                 label: "Plus d'XP",
                 value: `${getName(topXpMember)} — ${(topXpMember.xp || 0).toLocaleString("fr-FR")} XP`,

@@ -3,11 +3,11 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CheckCircle2, Circle, ChevronDown, ChevronUp,
+  CheckCircle2, Square, ChevronDown, ChevronUp,
   BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck, ArrowUp,
   Sparkles, Construction, AlertTriangle, Sword, Lock, MapPin, Plus,
-  Layers, Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield
+  Layers, Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Shield, Search, X, CircleHelp
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -57,7 +57,7 @@ const ACTIVITY_TAGS: { type: string; imagePath: string; label: string; color: st
 ];
 function getMetierIconPath(m?:string){if(!m)return"/assets/rush-sylvestre/façonneur.png";return`/assets/rush-sylvestre/${m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ç/g,"c")}.png`;}
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
-type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string };
+type GuildMemberProgress = { profileId:string; milestoneId:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
 type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; mules?:any[]; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; };
 const DOFUS_DEFS = [
   { id:"ocre", label:"Ocre", color:"#f59e0b", imageUrl:"/assets/icons/ocre.png" }, { id:"turquoise", label:"Turquoise", color:"#06b6d4", imageUrl:"/module-dofus/Dofus_Turquoise.png" },
@@ -78,31 +78,7 @@ function TougliCallout({text,colorStyle="emerald"}:{text:string;colorStyle?:stri
     ? "from-amber-950/30 via-zinc-950/80 to-zinc-950/90" 
     : "from-emerald-950/30 via-zinc-950/80 to-zinc-950/90";
   const icon = isPurple ? "👿" : isAmber ? "💡" : "✨";
-  
-  const parts: (string | React.ReactNode)[] = [];
-  const rx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
-  let li = 0, m: RegExpExecArray | null;
-  while ((m = rx.exec(text)) !== null) {
-    if (m.index > li) parts.push(text.slice(li, m.index));
-    if (m[1] && m[2]) {
-      parts.push(
-        <a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">
-          {m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/>
-        </a>
-      );
-    } else if (m[3]) {
-      let dl = m[3];
-      if (m[3].includes("dofusdb.fr")) dl = "Lien DofusDB ↗";
-      else if (m[3].includes("dofuspourlesnoobs.com")) dl = "Lien DofusNoobs ↗";
-      parts.push(
-        <a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">
-          {dl}
-        </a>
-      );
-    }
-    li = rx.lastIndex;
-  }
-  if (li < text.length) parts.push(text.slice(li));
+  const parts = renderContentWithCoords(text);
 
   return (
     <div className={`flex items-start gap-3 p-3 rounded-2xl border-l-4 ${borderCol} bg-gradient-to-r ${bgGrad} border border-y-white/5 border-r-white/5 shadow-lg my-2 backdrop-blur-md`}>
@@ -232,6 +208,25 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const capturedMonsterSet=React.useContext(CapturedMonsterCtx);
   const capturedMonsterNames=React.useContext(CapturedMonsterNamesCtx);
   const scrollToPrereq=React.useContext(ScrollToPrereqCtx);
+  const activeSeqId = React.useContext(ActiveSeqIdCtx);
+  const nextSeqId = React.useContext(NextSeqIdCtx);
+  const bookmarkedSeqId = React.useContext(BookmarkedSeqCtx);
+  const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
+  const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
+  const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
+  const guildProgressBySeq = React.useContext(GuildProgressBySeqCtx) as Map<string,GuildMemberProgress[]>;
+  const isActive = seq.id === activeSeqId && !isSeqCompleted;
+  const isNext = seq.id === nextSeqId && !isSeqCompleted && !isActive;
+  const isThisBookmarked = seq.id === bookmarkedSeqId;
+  // ─── Guild members with bookmark on this seq (pour l'affichage flottant) ──
+  const seqMembers = useMemo(() => {
+    const raw = guildProgressBySeq.get(seq.id) || [];
+    return Array.from(new Map(raw.map(m => [m.profileId || m.userName, m])).values());
+  }, [guildProgressBySeq, seq.id]);
+  const [membersModalOpen, setMembersModalOpen] = useState(false);
+  const maxFloatingAvatars = 5;
+  const floatAvatars = seqMembers.slice(0, maxFloatingAvatars);
+  const floatExtra = seqMembers.length - maxFloatingAvatars;
   const questName=seq.subGuideName||seq.subGuideRef||"Quête sans nom";
   const allDungeons=seq.dungeons&&seq.dungeons.length>0?seq.dungeons:(seq.dungeon?[seq.dungeon]:[]);
   const dbUrl=seq.dofusdbUrl, noobsUrl=seq.dofuspourlesnoobsUrl;
@@ -242,178 +237,308 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const prereqBlocked = !isSeqCompleted && (() => {
     const prereqNames = Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text").map((x:any)=>x.name?.toLowerCase()) : [];
     if (prereqNames.length === 0) return false;
-    const allCompleted = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
-    const allMs = React.useContext(AllMilestonesCtx) as Milestone[];
-    for (const candidateMs of allMs) {
-      if (candidateMs.type === "SEPARATEUR" || candidateMs.type === "INFO") continue;
-      for (const candidateSeq of candidateMs.sequences) {
-        if (candidateSeq.id === seq.id) continue;
+    return allMilestones.some((candidateMs) =>
+      candidateMs.type !== "SEPARATEUR" &&
+      candidateMs.type !== "INFO" &&
+      candidateMs.sequences.some((candidateSeq) => {
+        if (candidateSeq.id === seq.id) return false;
         const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
-        if (prereqNames.includes(candidateName) && !allCompleted.has(candidateSeq.id)) {
-          return true;
-        }
-      }
-    }
-    return false;
+        return prereqNames.includes(candidateName) && !allCompletedSeqIds.has(candidateSeq.id);
+      })
+    );
   })();
 
   if (prereqBlocked) {
+    const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);
+    const totalPrereqs = prereqTags.length;
+    const singleName = totalPrereqs === 1 ? prereqTags[0]?.name : null;
     return (
-      <div data-seq-id={seq.id} className={`flex flex-col gap-2 p-3 rounded-2xl border transition-all bg-zinc-950/40 border-zinc-800/40 opacity-60 ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
-        <div className="flex items-center gap-2">
-          <Circle className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
-          <span className="text-xs font-bold leading-tight tracking-wide text-zinc-400">{questName}</span>
+      <div data-seq-id={seq.id} className={`rounded-2xl border transition-all bg-amber-500/[0.06] border-amber-500/25 hover:border-amber-400/50 ${focusedSeqId===seq.id?"ring-1 ring-amber-400/35 border-amber-500/30":""}`}>
+        <div className="px-3 pt-2 pb-0">
+          <p className="text-[11px] font-bold text-zinc-300 truncate">{questName}</p>
         </div>
-        <div className="flex items-start justify-center gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {(()=>{
-              const prereqTags = (Array.isArray(seq.activityTags) ? seq.activityTags.filter((x:any)=>x.type==="prereq_text") : []);
-              if(prereqTags.length===0)return null;
-              return<>{prereqTags.map((t:any,i:number)=>(
-                <button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-400 transition-all cursor-pointer">
-                  <Lock className="w-3 h-3 text-amber-400"/>
-                  <span>Quête prérequis :</span>
-                  <span className="underline underline-offset-2 font-bold">{t.name}</span>
+        {totalPrereqs === 1 && singleName ? (
+          <button type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(singleName);}}
+            className="w-full flex items-center gap-3 px-3 pb-3 pt-1.5 text-left group focus-visible:outline-2 focus-visible:outline-amber-400/50 rounded-2xl"
+            aria-label={`Voir la quête requise : ${singleName}`}
+            data-tour="quest-prerequisite"
+          >
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-widest text-amber-400/70 mb-0.5">À terminer avant</p>
+              <p className="text-[11px] font-bold text-amber-200 truncate">{singleName}</p>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-amber-400/50 group-hover:text-amber-400/80 transition-colors shrink-0" />
+          </button>
+        ) : (
+          <div className="px-3 pb-3 pt-1">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-center w-5 h-5 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
+                <Lock className="w-2.5 h-2.5 text-amber-400" />
+              </div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-amber-400/70">{totalPrereqs} prérequis à terminer</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {prereqTags.map((t:any,i:number)=>(
+                <button key={i} type="button" onClick={e=>{e.stopPropagation();scrollToPrereq(t.name||"");}}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[9px] font-bold text-amber-300 bg-amber-500/[0.08] border border-amber-500/20 hover:bg-amber-500/[0.15] hover:border-amber-400/40 transition-all group focus-visible:outline-2 focus-visible:outline-amber-400/50"
+                  aria-label={`Voir la quête requise : ${t.name}`}
+                >
+                  <span className="truncate max-w-[140px]">{t.name}</span>
+                  <ChevronRight className="w-2.5 h-2.5 text-amber-400/50 group-hover:text-amber-400/80 transition-colors shrink-0" />
                 </button>
-              ))}</>;
-            })()}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div data-seq-id={seq.id} tabIndex={0} className={`flex flex-col gap-2.5 p-3.5 rounded-2xl border transition-all ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {onToggleSeq && (
-            <button type="button" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 p-0.5 rounded-lg text-zinc-500 hover:text-emerald-400 transition-colors">
-              {isSeqCompleted ? <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/20"/> : <Circle className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}
-            </button>
-          )}
-          <div className="flex-1 min-w-0 flex items-center gap-2.5 flex-wrap">
-            <span className={`text-xs font-bold leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>{questName}</span>
+    <>
+      <div data-seq-id={seq.id} tabIndex={0} className={`relative flex flex-col gap-1.5 rounded-xl border transition-all ${isSeqCompleted || (!isActive && !isNext) ? "p-2" : "p-2.5"} ${isSeqCompleted ? "bg-zinc-950/40 border-white/5 opacity-50" : isActive ? "bg-amber-500/[0.04] border-amber-500/30 ring-1 ring-amber-500/20" : isNext ? "bg-zinc-900/30 border-zinc-700/40 opacity-80" : "bg-zinc-900/40 border-white/10 hover:border-white/20 hover:bg-zinc-900/60 shadow-lg shadow-black/20"} ${focusedSeqId===seq.id?"ring-2 ring-amber-500/50 border-amber-500/50":""} ${isThisBookmarked && !isSeqCompleted ? "border-l-2 border-l-amber-500/50 bg-amber-500/[0.03] shadow-[0_0_12px_rgba(245,158,11,0.05)]" : ""}`}>
+        {isThisBookmarked && !isSeqCompleted && (
+          <span className="inline-flex items-center gap-1 self-start px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-[8px] font-black uppercase tracking-widest text-amber-300">
+            <MapPin className="w-2.5 h-2.5" />
+            Étape actuelle
             {(()=>{
-              const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
-              if(!posTag?.name) return null;
-              const posStr = String(posTag.name);
-              return (
-                <span 
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
-                  onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
-                  title="Cliquer pour copier /travel"
-                >
-                  <MapPin className="w-3 h-3 text-indigo-400" />
-                  <span>{posStr}</span>
-                </span>
-              );
+              const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
+              const tn = t?.name;
+              if(tn){
+                const d = DOFUS_DEFS.find(x=>x.id===tn);
+                if(d) return <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain ml-1" />;
+              }
+              return null;
             })()}
+          </span>
+        )}
+        {isNext && !isSeqCompleted && (
+          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-0">
+            À VENIR
+          </span>
+        )}
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            {onToggleSeq && (
+              <button type="button" data-tour="quest-completion" onClick={e=>{e.stopPropagation();onToggleSeq();}} className="flex-shrink-0 h-9 w-9 sm:h-11 sm:w-11 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors border border-zinc-700 hover:border-emerald-500/40" title={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"} aria-label={isSeqCompleted ? "Décocher cette quête" : "Valider cette quête"}>
+                {isSeqCompleted ? <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-400/20"/> : <Square className="w-4 h-4 text-zinc-500 hover:text-zinc-300"/>}
+              </button>
+            )}
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+              <span className={`text-sm font-black leading-tight ${isSeqCompleted ? "line-through text-zinc-500" : "text-white"}`}>
+                {hasAlignment && seq.alignReq && seq.alignReq !== "neutre" && (
+                  <span 
+                    className="mr-1.5 font-[family-name:var(--font-cinzel)] uppercase tracking-widest"
+                    style={{ color: seq.alignReq === "bontarien" ? "#3b82f6" : "#ef4444", textShadow: seq.alignReq === "bontarien" ? "0 0 12px rgba(59,130,246,0.25)" : "0 0 12px rgba(239,68,68,0.25)" }}
+                  >
+                    {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
+                  </span>
+                )}
+                {hasAlignment && seq.alignReq === "neutre" && (
+                  <span className="mr-1.5 text-zinc-400 font-[family-name:var(--font-cinzel)] uppercase tracking-widest">
+                    {alignInfo?.label || seq.alignReq} lv.{seq.alignOrderReq} :{' '}
+                  </span>
+                )}
+                <span className="font-[family-name:var(--font-cinzel)] tracking-wide">{questName}</span>
+              </span>
+              {(()=>{
+                const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
+                if(!posTag?.name) return null;
+                const posStr = String(posTag.name);
+                return (
+                  <span 
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
+                    onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
+                    title="Cliquer pour copier /travel"
+                  >
+                    <MapPin className="w-3 h-3 text-indigo-400" />
+                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
+                    <span>[<span>{posStr}</span>]</span>
+                  </span>
+                );
+              })()}
+            </div>
+          {/* ── Bookmark button — right side, fills the empty space ── */}
+          {onToggleSeq && (
+            <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-auto">
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onBookmarkSeq(seq.id, ms); }}
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-[9px] font-black uppercase tracking-widest min-w-[90px] ${
+                  isThisBookmarked
+                    ? "bg-amber-500/15 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25"
+                    : "bg-zinc-800/60 border-zinc-700/40 text-zinc-400 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-300"
+                }`}
+                title={isThisBookmarked ? "Cette quête est ton point de reprise. Cliquer pour retirer le repère." : "Marquer cette quête comme mon point de reprise."}
+              >
+                {isThisBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Flag className="w-4 h-4" />}
+                RENDU ICI
+              </button>
+              {/* Avatars des membres bookmark — espacement aéré sous RENDU ICI */}
+              {isThisBookmarked && seqMembers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setMembersModalOpen(true); }}
+                  className="flex items-center gap-2 mt-1.5 cursor-pointer"
+                  title={`Voir les ${seqMembers.length} membre${seqMembers.length > 1 ? 's' : ''}`}
+                >
+                  <div className="flex -space-x-1">
+                    {seqMembers.slice(0, 5).map((m) => (
+                      <div
+                        key={m.profileId}
+                        className="w-6 h-6 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center border-2 border-zinc-950 ring-1 ring-amber-500/30 flex-shrink-0"
+                        title={m.userName}
+                      >
+                        {m.userAvatar ? (
+                          <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[6px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-[9px] font-bold text-amber-400/70">{seqMembers.length}</span>
+                </button>
+              )}
+            </div>
+          )}
           </div>
-        </div>
 
-        {/* Compact external links */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {(()=>{
-            const t = seq.activityTags?.find((x:any)=>x.type==="dofus_link");
-            const tn = t?.name;
-            if(tn){
-              const d = DOFUS_DEFS.find(x=>x.id===tn);
-              if(d) return (
-                <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10" style={{color:d.color}}>
-                  <img src={d.imageUrl} alt={d.label} title={d.label} className="w-3.5 h-3.5 object-contain" />
-                  {d.label}
-                </span>
-              );
-            }
-            return null;
-          })()}
+        {/* External links & Dofus — horizontal row */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
           {noobsUrl && (
-            <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
-              <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
-              <span className="hidden md:inline">Noobs</span>
-              <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
+            <a href={noobsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-[8px] font-black uppercase tracking-wider" title="DofusPourLesNoobs">
+              <img src="https://www.google.com/s2/favicons?domain=dofuspourlesnoobs.com&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
+              <span>Noobs</span>
             </a>
           )}
           {dbUrl && (
-            <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[9px] font-black uppercase tracking-wider" title="DofusDB">
-              <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3.5 h-3.5 rounded-sm shrink-0"/>
-              <span className="hidden md:inline">DofusDB</span>
-              <ExternalLink className="w-2.5 h-2.5 opacity-70"/>
+            <a href={dbUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-wider" title="DofusDB">
+              <img src="https://www.google.com/s2/favicons?domain=dofusdb.fr&sz=32" alt="" className="w-3 h-3 rounded-sm shrink-0"/>
+              <span>DofusDB</span>
             </a>
           )}
+          {/* Dofus icon moved to Étape actuelle block above */}
         </div>
-      </div>
 
-      {/* Badges & Tags */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {alignInfo && <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md border flex items-center gap-1 ${isReqMet?"text-emerald-400 border-emerald-500/30 bg-emerald-500/10":"text-orange-400 border-orange-500/30 bg-orange-500/10"}`}>{alignInfo.label}{seq.alignOrderReq?` lv.${seq.alignOrderReq}`:""}{isReqMet?"✓":"⚠"}</span>}
-        {seq.isOptional && <span className="text-[8px] text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
-        {seq.isSuccess && <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
+        {/* Badges & Tags */}
+        <div className="flex flex-wrap items-center gap-1">
+          {/* Alignment info now displayed inline before quest name above */}
+          {seq.isOptional && <span className="text-[8px] text-purple-400 font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">Bonus</span>}
+          {seq.isSuccess && <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20"><img src="/assets/icons/succes.png" alt="" className="w-3 h-3"/>Succès</span>}
 
-        {Array.isArray(seq.activityTags) && seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)).map((tag:any,i:number)=>{
-          if(tag.type==="solver"){
-            const su=tag.url||null;
-            return su ? (
-              <a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 hover:bg-emerald-500/30">
-                <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver<ExternalLink className="w-2.5 h-2.5"/>
-              </a>
-            ) : (
-              <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">
-                <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver
+          {Array.isArray(seq.activityTags) && seq.activityTags.filter((t:any)=>!["prereq_text","dofus_link","ocre_dungeon","pos_tags","tougli_box","quest_group"].includes(t.type)).map((tag:any,i:number)=>{
+            if(tag.type==="solver"){
+              const su=tag.url||null;
+              return su ? (
+                <a key={i} href={su} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 hover:bg-emerald-500/30">
+                  <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver<ExternalLink className="w-2.5 h-2.5"/>
+                </a>
+              ) : (
+                <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">
+                  <img src="/assets/rush-sylvestre/solver.png" alt="" className="w-3.5 h-3.5 rounded-full"/>Solver
+                </span>
+              );
+            }
+            const def=ACTIVITY_TAGS.find(x=>x.type===tag.type);if(!def)return null;
+            const isMetier=tag.type==="metier";
+            const isHoraire=tag.type==="contrainte_horaire";
+            const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;
+            let labelDisplay = def.label;
+            if (isMetier && tag.name) {
+              labelDisplay = `${tag.name}${tag.level != null ? ` (Niv. ${tag.level})` : ""}`;
+            }
+            // Formatter les contraintes horaires
+            if (isHoraire && tag.name) {
+              const n = String(tag.name);
+              if (n.startsWith("<")) labelDisplay = `Avant ${n.slice(1).trim()}h`;
+              else if (n.startsWith(">")) labelDisplay = `Après ${n.slice(1).trim()}h`;
+              else {
+                const p = n.split("-").map(s=>s.trim());
+                if (p.length===2) labelDisplay = `${p[0]}h → ${p[1]}h`;
+              }
+            }
+            return (
+              <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
+                <img src={ip} alt="" className="w-4 h-4 object-cover rounded-md shrink-0"/>
+                {tag.count&&tag.count>1&&<span className="text-[8px] text-amber-400 font-bold">x{tag.count}</span>}
+                <span className="truncate max-w-[160px]">{labelDisplay}</span>
               </span>
             );
-          }
-          const def=ACTIVITY_TAGS.find(x=>x.type===tag.type);if(!def)return null;
-          const isMetier=tag.type==="metier";
-          const ip=isMetier?getMetierIconPath(tag.name):def.imagePath;
-          const lb=isMetier&&tag.name?`${tag.name}(${tag.level||1})`:def.label;
-          return (
-            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-zinc-900 border border-white/10 text-zinc-300">
-              <img src={ip} alt="" className="w-3.5 h-3.5 object-cover rounded-full"/>
-              {tag.count&&tag.count>1&&<span className="text-[8px] text-amber-400 font-bold">x{tag.count}</span>}
-              <span className="truncate max-w-[90px]">{isMetier&&tag.name?`${tag.name} ${tag.level?`N${tag.level}`:""}`:lb}</span>
-            </span>
-          );
-        })}
+          })}
 
-        {/* Tougli Callout Box */}
-        {(()=>{
-          const t = seq.activityTags?.find((x:any)=>x.type==="tougli_box");
-          if(!t?.name) return null;
-          return <TougliCallout text={t.name} colorStyle={t.color||"emerald"}/>;
-        })()}
+          {/* Tougli Callout Box */}
+          {(()=>{
+            const t = seq.activityTags?.find((x:any)=>x.type==="tougli_box");
+            if(!t?.name) return null;
+            return <TougliCallout text={t.name} colorStyle={t.color||"emerald"}/>;
+          })()}
+        </div>
+
+        {/* Dungeons Row */}
+        {allDungeons.length > 0 && (
+          <div className="pt-1">
+            <DungeonGroup
+              dungeons={allDungeons as DungeonRef[]}
+              capturedMonsterSet={capturedMonsterSet}
+              capturedMonsterNames={capturedMonsterNames}
+              activityTags={seq.activityTags}
+              metamobMonsterId={seq.metamobMonsterId}
+              questName={questName}
+              onDungeonClick={onDungeonClick}
+            />
+          </div>
+        )}
+
+        {/* Embedded Tips & Notes as sleek callouts */}
+        {seq.tips && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text.xs font-medium text-amber-300">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1 flex flex-wrap items-center gap-1">{renderContentWithCoords(seq.tips)}</div>
+          </div>
+        )}
+        {seq.note && (
+          <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-start gap-2 text-xs font-medium text-orange-300">
+            <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
+            <span>{seq.note}</span>
+          </div>
+        )}
       </div>
-
-      {/* Dungeons Row */}
-      {allDungeons.length > 0 && (
-        <div className="pt-1">
-          <DungeonGroup
-            dungeons={allDungeons as DungeonRef[]}
-            capturedMonsterSet={capturedMonsterSet}
-            capturedMonsterNames={capturedMonsterNames}
-            activityTags={seq.activityTags}
-            metamobMonsterId={seq.metamobMonsterId}
-            questName={questName}
-            onDungeonClick={onDungeonClick}
-          />
-        </div>
+      {/* ── Members modal (liste des pseudos) ───────────────────────────── */}
+      {membersModalOpen && (
+        <Dialog open={membersModalOpen} onOpenChange={(open) => { if (!open) setMembersModalOpen(false); }}>
+          <DialogContent className="sm:max-w-sm bg-zinc-950 border-white/10 shadow-2xl p-0 gap-0">
+            <DialogHeader className="p-4 border-b border-white/5">
+              <DialogTitle className="text-sm font-black text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-400" />
+                Membres sur cette quête ({seqMembers.length})
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
+              {seqMembers.map((m) => (
+                <div key={m.profileId} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                  <div className="w-7 h-7 rounded-full overflow-hidden bg-indigo-900 flex items-center justify-center flex-shrink-0">
+                    {m.userAvatar ? (
+                      <img src={m.userAvatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[9px] font-black text-indigo-300">{m.userName[0]?.toUpperCase()}</span>
+                    )}
+                  </div>
+                  <span className="text-xs font-bold text-zinc-200">{m.userName}</span>
+                </div>
+              ))}
+            </div>
+            <DialogFooter className="p-3 border-t border-white/5">
+              <Button onClick={() => setMembersModalOpen(false)} variant="ghost" size="sm" className="text-zinc-400 text-xs">
+                Fermer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
-
-      {/* Embedded Tips & Notes as sleek callouts */}
-      {seq.tips && (
-        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text.xs font-medium text-amber-300">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-          <span>{seq.tips}</span>
-        </div>
-      )}
-      {seq.note && (
-        <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-start gap-2 text-xs font-medium text-orange-300">
-          <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
-          <span>{seq.note}</span>
-        </div>
-      )}
-    </div>
+    </>
   );
 });
 
@@ -506,43 +631,71 @@ function DofusObtainedBanner({ milestone }: { milestone: Milestone }) {
 }
 
 // ─── InfoBanner (for INFO type milestones — tips/conseil bandeau) ────────────
-// Map hex colors → icon + style. The GOD color picker provides hex values like #10b981, #3b82f6, #f59e0b etc.
 function getInfoStyle(accentColor?: string|null): { border: string; bg: string; icon: string } {
   if (!accentColor) return { border:"border-emerald-500/30", bg:"from-emerald-950/30 via-zinc-950 to-zinc-950", icon:"💡" };
   const c = accentColor.toLowerCase();
-  // Warm colors (red, orange, amber, yellow) → attention
   if (c.startsWith("#ef")||c.startsWith("#f4")||c.startsWith("#f5")||c.startsWith("#eab")||c.startsWith("#dc")||c.startsWith("#f9")) 
     return { border:"border-amber-500/30", bg:"from-amber-950/30 via-zinc-950 to-zinc-950", icon:"⚠️" };
-  // Blue / cyan / indigo → conseil
   if (c.startsWith("#3b")||c.startsWith("#06")||c.startsWith("#4f")||c.startsWith("#63")||c.startsWith("#0e")||c.startsWith("#38"))
     return { border:"border-blue-500/30", bg:"from-blue-950/30 via-zinc-950 to-zinc-950", icon:"📖" };
-  // Purple / violet → info alternative
   if (c.startsWith("#7c")||c.startsWith("#a8")||c.startsWith("#8b")||c.startsWith("#c0"))
     return { border:"border-purple-500/30", bg:"from-purple-950/30 via-zinc-950 to-zinc-950", icon:"🔮" };
-  // Default: greens, grays, etc → info
   return { border:"border-emerald-500/30", bg:"from-emerald-950/30 via-zinc-950 to-zinc-950", icon:"💡" };
 }
-function InfoBanner({ milestone }: { milestone: Milestone }) {
-  const color = milestone.accentColor || "#10b981";
-  const content = milestone.tips || milestone.description || milestone.title || "";
+function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
   const parts: (string | React.ReactNode)[] = [];
-  const rx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
+  // Combine link regex and coordinate regex in one pass
+  // Order matters: [text](url), raw urls, /travel X Y, /travel X,Y, [X, Y], [X, Y, W]
+  const combinedRx = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)|(?:\/travel\s+(-?\d+)\s*[,;]\s*(-?\d+)(?!\d))|\[(-?\d+),\s*(-?\d+)(?:,\s*(\d+))?\]/g;
   let li = 0, m: RegExpExecArray | null;
-  while ((m = rx.exec(content)) !== null) {
-    if (m.index > li) parts.push(content.slice(li, m.index));
+  while ((m = combinedRx.exec(text)) !== null) {
+    if (m.index > li) parts.push(text.slice(li, m.index));
     if (m[1] && m[2]) {
+      // Markdown link [text](url)
       parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">{m[1]}<ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-80 shrink-0"/></a>);
     } else if (m[3]) {
+      // Raw URL
       let label = m[3];
       if (m[3].includes("dofusdb.fr")) label = "Lien DofusDB ↗";
       else if (m[3].includes("dofuspourlesnoobs.com")) label = "Lien DofusNoobs ↗";
       parts.push(<a key={m.index} href={m[3]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2 transition-colors text-emerald-300 hover:text-emerald-200 decoration-emerald-500/50">{label}</a>);
+    } else if (m[4] && m[5]) {
+      // /travel X, Y format
+      const x = m[4], y = m[5];
+      const key = `${x},${y}`;
+      parts.push(
+        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
+          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
+          title="Cliquer pour copier /travel"
+        >
+          <MapPin className="w-3 h-3 text-indigo-400" />
+          [{x}, {y}]
+        </span>
+      );
+    } else if (m[6] && m[7]) {
+      // [x, y] or [x, y, world] format
+      const x = m[6], y = m[7];
+      parts.push(
+        <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
+          onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
+          title="Cliquer pour copier /travel"
+        >
+          <MapPin className="w-3 h-3 text-indigo-400" />
+          [{x}, {y}]
+        </span>
+      );
     }
-    li = rx.lastIndex;
+    li = combinedRx.lastIndex;
   }
-  if (li < content.length) parts.push(content.slice(li));
+  if (li < text.length) parts.push(text.slice(li));
+  return parts;
+}
+
+function InfoBanner({ milestone }: { milestone: Milestone }) {
+  const color = milestone.accentColor || "#10b981";
+  const content = milestone.tips || milestone.description || milestone.title || "";
+  const parts = renderContentWithCoords(content);
   const hasTitle = !!milestone.title && !content.startsWith(milestone.title);
-  // Determine icon based on hex color
   const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
   const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
   const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
@@ -559,7 +712,6 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
         background: `linear-gradient(135deg, ${color}12 0%, rgba(0,0,0,0.5) 50%, ${color}08 100%)`,
       }}
     >
-      {/* Decorative corners */}
       <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 rounded-tl-xl pointer-events-none" style={{ borderColor: `${color}40` }} />
       <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 rounded-tr-xl pointer-events-none" style={{ borderColor: `${color}40` }} />
       <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 rounded-bl-xl pointer-events-none" style={{ borderColor: `${color}40` }} />
@@ -576,16 +728,54 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
   );
 }
 
+// ─── InfoSequenceBanner (bandeau informatif non-cliquable dans un bloc) ─────
+function InfoSequenceBanner({ seq, accentColor }: { seq: Sequence; accentColor: string }) {
+  const color = seq.activityTags?.find((t: any) => t.type === "info_sequence")?.color || accentColor || "#10b981";
+  const content = seq.tips || seq.subGuideName || seq.subGuideRef || "";
+  const parts = renderContentWithCoords(content);
+  const isWarm = color.startsWith("#ef")||color.startsWith("#f4")||color.startsWith("#f5")||color.startsWith("#eab")||color.startsWith("#dc")||color.startsWith("#f9");
+  const isCool = color.startsWith("#3b")||color.startsWith("#06")||color.startsWith("#4f")||color.startsWith("#63")||color.startsWith("#0e")||color.startsWith("#38");
+  const isPurple = color.startsWith("#7c")||color.startsWith("#a8")||color.startsWith("#8b")||color.startsWith("#c0");
+  let icon = "💡";
+  if (isWarm) icon = "⚠️";
+  else if (isCool) icon = "📖";
+  else if (isPurple) icon = "🔮";
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden border select-none"
+      style={{
+        borderColor: `${color}25`,
+        boxShadow: `0 0 10px ${color}10, inset 0 0 20px ${color}05`,
+        background: `linear-gradient(135deg, ${color}10 0%, rgba(0,0,0,0.4) 50%, ${color}06 100%)`,
+      }}
+    >
+      <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 rounded-tl-xl pointer-events-none" style={{ borderColor: `${color}35` }} />
+      <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 rounded-tr-xl pointer-events-none" style={{ borderColor: `${color}35` }} />
+      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 rounded-bl-xl pointer-events-none" style={{ borderColor: `${color}35` }} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 rounded-br-xl pointer-events-none" style={{ borderColor: `${color}35` }} />
+
+      <div className="relative flex items-start gap-2.5 p-3">
+        <span className="text-base leading-none mt-0.5 shrink-0">{icon}</span>
+        <div className="text-xs sm:text-sm text-zinc-200/90 leading-relaxed font-medium flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {parts}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MilestoneRow ─────────────────────────────────────────────────────────────
-const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onBookmark, onDungeonClick }: any) {
+const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStepsSet, isBookmarked, membersHere, hideDone, isLoading, accentColor, userAlignmentInfo, focusedSeqId, onFocusSequence, onToggle, onToggleSequence, onReset, onDungeonClick, isSearching }: any) {
   const [expanded,setExpanded]=useState(false);
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
   useEffect(()=>{if(isBookmarked)setExpanded(true);},[isBookmarked]);
   useEffect(()=>{if(focusedSeqId&&ms.sequences.some((s:any)=>s.id===focusedSeqId))setExpanded(true);},[focusedSeqId,ms.sequences]);
-  if(hideDone&&isCompleted)return null;
-  const cs=ms.sequences.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
-  const all=isCompleted||(ms.sequences.length>0&&cs===ms.sequences.length);
+  if(hideDone&&isCompleted&&!isSearching)return null;
+  const nonInfoSeqs = ms.sequences.filter((s:any)=>!isInfoSequence(s));
+  const cs=nonInfoSeqs.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
+  const totalQuests=nonInfoSeqs.length;
+  const all=isCompleted||(totalQuests>0&&cs===totalQuests);
   const c=accentColor||"#10b981";
 
   return (
@@ -609,16 +799,13 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
               {(()=>{if(!ms.dofusId)return null;const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return null;return<img src={d.imageUrl} alt={d.label} title={d.label} className="w-5 h-5 object-contain drop-shadow-lg flex-shrink-0"/>;})()}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[9px] font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${ms.sequences.length}`:`${ms.sequences.length} quête${ms.sequences.length>1?"s":""}`}</span>
-              {isBookmarked&&<span className="text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30"><Flag className="w-2 h-2 inline mr-1"/>Rendu ici</span>}
+              <span className="text-[9px] font-mono font-bold text-zinc-400">{completedStepsSet.size>0?`${cs}/${totalQuests}`:`${totalQuests} quête${totalQuests>1?"s":""}`}</span>
             </div>
           </div>
           {/* Actions */}
           <div className={`flex items-center gap-1.5 flex-shrink-0 ${isCompleted?"opacity-100":""}`}>
             {!all&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-widest shadow-sm" title="Valider le bloc"><CheckCircle2 className="w-3 h-3"/>Valider</button>}
-            <button onClick={e=>{e.stopPropagation();onBookmark();}} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${isBookmarked?"bg-amber-500/20 border-amber-500/40 text-amber-300":"bg-zinc-900 border-white/10 text-zinc-400 hover:text-amber-300 hover:border-amber-500/30"}`}>{isBookmarked?<BookmarkCheck className="w-3 h-3 text-amber-400"/>:<Flag className="w-3 h-3"/>}{isBookmarked?"Rendu ici ✓":"J'en suis là"}</button>
             <button onClick={e=>{e.stopPropagation();onReset();}} className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border transition-all text-[8px] font-black uppercase tracking-widest shadow-sm ${isCompleted?"bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30":"bg-zinc-900 border-white/10 text-zinc-500 hover:text-red-400 hover:border-red-500/30"}`}><RotateCcw className="w-3 h-3"/>Reset</button>
-            {membersHere.length>0&&<MemberAvatars members={membersHere}/>}
             <div className="text-zinc-500 ml-1">{expanded?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
           </div>
         </div>
@@ -626,21 +813,23 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
         <AnimatePresence>
           {expanded && (
             <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
-              <div className="px-3 pb-3 space-y-2 pt-2 border-t border-white/5">
-                {/* Tip banner inside block if provided */}
+              <div className="px-3 pb-3 space-y-1.5 pt-2 border-t border-white/5">
                 {ms.tips && (
                   <div className="mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-300 font-medium">
                     <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 leading-relaxed">{ms.tips}</div>
+                    <div className="flex-1 leading-relaxed flex flex-wrap items-center gap-1">{renderContentWithCoords(ms.tips)}</div>
                   </div>
                 )}
-
                 <CompletedStepsCtx.Provider value={completedStepsSet}>
                   {ms.sequences.length===0 ? (
                     <div className="py-6 text-center text-zinc-600 text-[10px] font-black uppercase tracking-widest">Aucune quête</div>
                   ) : (
                     ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id)).map((s:any)=>(
-                      <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick}/>
+                      isInfoSequence(s) ? (
+                        <InfoSequenceBanner key={s.id} seq={s} accentColor={c} />
+                      ) : (
+                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} userAlignmentInfo={userAlignmentInfo} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick}/>
+                      )
                     ))
                   )}
                 </CompletedStepsCtx.Provider>
@@ -653,25 +842,33 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   );
 });
 
-// ─── SectionDivider (style Dofus premium) ──────────────────────────────────────
+// ─── SectionDivider ───────────────────────────────────────────────────────────
 const SectionDivider = memo(function SectionDivider({title,accentColor="#d4a853"}:{title:string;accentColor?:string}) {
   return <div className="relative py-7 my-3 select-none"><div className="flex items-center justify-center gap-4"><div className="h-px flex-1 max-w-[120px] bg-gradient-to-r from-transparent via-current to-current opacity-40" style={{color:accentColor}}/><Sparkles className="w-4 h-4" style={{color:accentColor,opacity:0.7}}/><h2 className="font-[family-name:var(--font-cinzel)] text-base sm:text-xl font-bold uppercase tracking-[0.15em] text-center leading-tight px-1" style={{color:accentColor,textShadow:`0 0 20px ${accentColor}30`}}>{title}</h2><Sparkles className="w-4 h-4" style={{color:accentColor,opacity:0.7}}/><div className="h-px flex-1 max-w-[120px] bg-gradient-to-l from-transparent via-current to-current opacity-40" style={{color:accentColor}}/></div></div>;
 });
 
 // ─── ChapterBlock ─────────────────────────────────────────────────────────────
-const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarkedMsId,guildProgressByMs,hideDone,loadingIds,dofusFilter,userAlignmentInfo,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onBookmark,onDungeonClick }:any) {
-  const ci=milestones.filter((m:any)=>m.type!=="INFO"&&completedIds.has(m.id)).length,ti=milestones.filter((m:any)=>m.type!=="INFO").length,all=ti>0&&ci===ti;
-  const ac=milestones[0]?.accentColor||"#10b981";const hb=milestones.some((m:any)=>m.id===bookmarkedMsId);const[open,setOpen]=useState(hb||chapterNum===1);
-  useEffect(()=>{if(hb)setOpen(true);},[hb]);useEffect(()=>{if(focusedSeqId&&milestones.some((ms:any)=>ms.sequences.some((s:any)=>s.id===focusedSeqId)))setOpen(true);},[focusedSeqId,milestones]);
-  const vc=hideDone?milestones.filter((m:any)=>!completedIds.has(m.id)).length:milestones.length;
+const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarkedMsId,guildProgressByMs,hideDone,loadingIds,dofusFilter,userAlignmentInfo,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter }:any) {
+  const filteredMilestones = useMemo(() => {
+    if (!searchFilter) return milestones;
+    return milestones.filter((ms:any) => {
+      if (ms.type === "INFO") return true;
+      return ms.sequences.some((s:any) => searchFilter.has(s.id));
+    });
+  }, [milestones, searchFilter]);
+  const ci=filteredMilestones.filter((m:any)=>m.type!=="INFO"&&completedIds.has(m.id)).length,ti=filteredMilestones.filter((m:any)=>m.type!=="INFO").length,all=ti>0&&ci===ti;
+  const ac=milestones[0]?.accentColor||"#10b981";const hb=milestones.some((m:any)=>m.id===bookmarkedMsId);const[open,setOpen]=useState(hb||chapterNum===1||!!searchFilter);
+  useEffect(()=>{if(hb)setOpen(true);},[hb]);useEffect(()=>{if(searchFilter&&filteredMilestones.length>0)setOpen(true);},[searchFilter,filteredMilestones.length]);useEffect(()=>{if(focusedSeqId&&milestones.some((ms:any)=>ms.sequences.some((s:any)=>s.id===focusedSeqId)))setOpen(true);},[focusedSeqId,milestones]);
+  const vc=hideDone?filteredMilestones.filter((m:any)=>!completedIds.has(m.id)).length:filteredMilestones.length;
   if(hideDone&&vc===0)return null;
   return <div className="relative">{showHeader&&<button onClick={()=>setOpen((v:boolean)=>!v)} className="w-full flex items-center gap-3 py-3 group transition-all">
     <div className="relative w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all group-hover:scale-105 shadow-sm" style={{borderColor:all?ac:`${ac}40`,background:all?`${ac}20`:"transparent"}}>{all?<CheckCheck className="w-5 h-5" style={{color:ac}}/>:<span className="text-sm font-black font-[family-name:var(--font-cinzel)]" style={{color:ac}}>{chapterNum}</span>}</div>
     <div className="flex-1 text-left"><div className="flex items-center gap-2"><span className="font-[family-name:var(--font-cinzel)] font-bold uppercase tracking-wider" style={{color:ac,fontSize:"clamp(0.8rem,2vw,1.1rem)"}}>{label}</span><span className="text-[8px] font-black px-2 py-0.5 rounded-full font-mono" style={{background:`${ac}15`,color:ac}}>{ci}/{ti}</span></div><div className="h-1 bg-white/5 rounded-full overflow-hidden mt-1.5"><div className="h-full rounded-full transition-all duration-500" style={{width:`${ti>0?(ci/ti)*100:0}%`,background:`linear-gradient(90deg, ${ac}, ${ac}99)`}}/></div></div>
     <div className="text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0 ml-1">{open?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}</div>
-  </button>}<AnimatePresence>{(open||!showHeader)&&<motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="relative ml-5 pl-5 pb-3 border-l border-zinc-800/40 space-y-3">{milestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
+  </button>}<AnimatePresence>{(open||!showHeader)&&<motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden"><div className="relative ml-5 pl-5 pb-3 border-l border-zinc-800/40 space-y-2">{filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
   if(ms.type==="INFO")return <div key={ms.id} className="-ml-2 my-1"><InfoBanner milestone={ms}/></div>;
-  return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={ms} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={ms.id===bookmarkedMsId} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={hideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} onBookmark={()=>onBookmark(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick}/></div>;
+  const filteredSeqs = searchFilter ? ms.sequences.filter((s:any)=>searchFilter.has(s.id)) : ms.sequences;
+  return <div key={ms.id} data-ms-id={ms.id}><MilestoneRow ms={{...ms,sequences:filteredSeqs}} isCompleted={completedIds.has(ms.id)} completedStepsSet={completedStepsByMs.get(ms.id)||new Set()} isBookmarked={ms.id===bookmarkedMsId} membersHere={guildProgressByMs.get(ms.id)||[]} hideDone={hideDone} isLoading={loadingIds.has(ms.id)} onToggle={()=>onToggle(ms)} onToggleSequence={onToggleSequence} onReset={()=>onReset(ms)} accentColor={ms.accentColor||ac} userAlignmentInfo={userAlignmentInfo} focusedSeqId={focusedSeqId} onFocusSequence={onFocusSequence} onDungeonClick={onDungeonClick} isSearching={!!searchFilter}/></div>;
 })}</div></motion.div>}</AnimatePresence></div>;
 });
 
@@ -685,6 +882,11 @@ function CharacterSelectorDropdown({selectedCharacter,mainPseudo,mainClass,mules
   return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" role="combobox" aria-expanded={false} className="bg-zinc-950/60 backdrop-blur-md border-zinc-800/60 hover:border-emerald-500/20 text-white justify-between w-full min-w-0 max-w-full transition-all rounded-xl h-9 px-2.5 cursor-pointer text-xs font-black"><div className="flex items-center gap-2 truncate min-w-0">{selIcon}<span className="truncate">{currentLabel}</span></div><ChevronDown className="w-3 h-3 opacity-30 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-zinc-950/95 backdrop-blur-xl border-zinc-800/60 text-white min-w-[180px] rounded-xl p-1.5 shadow-2xl z-[100]"><DropdownMenuItem onClick={()=>handleSelect("PRINCIPAL")} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter==="PRINCIPAL"?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">{mainClass?(()=>{const d=getClass(mainClass);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Crown className="w-3 h-3 text-amber-500"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mainPseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">{mainClass||"Principal"}</span></div></DropdownMenuItem>{mules.length>0&&<div className="h-px bg-white/5 my-1"/>}{mules.map((mule:any)=><DropdownMenuItem key={mule.pseudo} onClick={()=>handleSelect(mule.pseudo)} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${selectedCharacter===mule.pseudo?"bg-white/5 text-emerald-400":"hover:bg-white/5"}`}><div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">{mule.classe?(()=>{const d=getClass(mule.classe);return d?<img src={d.icon} alt="" className="w-4 h-4 object-contain"/>:null;})():<Users className="w-3 h-3 text-blue-400"/>}</div><div className="flex flex-col text-left"><span className="text-xs font-bold">{mule.pseudo}</span><span className="text-[8px] text-zinc-500 font-medium uppercase tracking-widest">Niv. {mule.level||200}{mule.classe?` • ${mule.classe}`:""}</span></div></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function isInfoSequence(seq: Sequence): boolean {
+  return Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+}
+
 // ─── Contexts ────────────────────────────────────────────────────────────────
 const CapturedMonsterCtx=React.createContext<Set<number>>(new Set);
 const CapturedMonsterNamesCtx=React.createContext<string[]>([]);
@@ -692,6 +894,69 @@ const ScrollToPrereqCtx=React.createContext<(name:string)=>void>(()=>{});
 const AllMilestonesCtx=React.createContext<Milestone[]>([]);
 const CompletedStepsCtx=React.createContext<Set<string>>(new Set);
 const AllCompletedSeqIdsCtx=React.createContext<Set<string>>(new Set);
+const ContextualHelpCtx=React.createContext<boolean>(true);
+const ActiveSeqIdCtx=React.createContext<string|null>(null);
+const NextSeqIdCtx=React.createContext<string|null>(null);
+const BookmarkedSeqCtx=React.createContext<string|null>(null);
+const OnBookmarkSeqCtx=React.createContext<(seqId:string,ms:Milestone)=>void>(()=>{});
+const GuildProgressBySeqCtx=React.createContext<Map<string,GuildMemberProgress[]>>(new Map);
+
+// ─── ContextualHelp ──────────────────────────────────────────────────────────
+function ContextualHelp({ label, children, className }: { label: string; children?: React.ReactNode; className?: string }) {
+  const enabled = React.useContext(ContextualHelpCtx);
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
+          triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
+  if (!enabled) return null;
+
+  return (
+    <span className={`relative inline-flex ${className || ''}`}>
+      <button
+        type="button"
+        ref={triggerRef}
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setTimeout(() => setOpen(false), 150); }}
+        aria-label={label}
+        className="flex items-center justify-center w-6 h-6 rounded-md text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all shrink-0"
+      >
+        <CircleHelp className="w-3.5 h-3.5" />
+      </button>
+      {open && (
+        <div
+          ref={popoverRef}
+          role="tooltip"
+          className="absolute z-[99999] bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 p-3 rounded-xl bg-zinc-950 border border-white/10 text-xs text-zinc-200 leading-relaxed shadow-2xl pointer-events-auto"
+        >
+          {children}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-950 border-r border-b border-white/10 rotate-45 -mt-px" />
+        </div>
+      )}
+    </span>
+  );
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -704,14 +969,39 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [completedIds,setCompletedIds]=useState<Set<string>>(()=>new Set(milestones.filter(ms=>ms.playerProgress?.[0]?.isCompleted).map(ms=>ms.id)));
   const [completedStepsByMs,setCompletedStepsByMs]=useState<Map<string,Set<string>>>(()=>{const m=new Map;milestones.forEach(ms=>{const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];m.set(ms.id,new Set(a));});return m;});
   useEffect(()=>{const nc=new Set<string>,ns=new Map<string,Set<string>>;milestones.forEach(ms=>{if(ms.playerProgress?.[0]?.isCompleted)nc.add(ms.id);const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];ns.set(ms.id,new Set(a));});setCompletedIds(nc);setCompletedStepsByMs(ns);},[milestones]);
-  const [bookmarkedMsId,setBookmarkedMsId]=useState<string|null>(()=>{for(const ms of milestones){if(ms.playerProgress?.[0]?.currentStep)return ms.id;}return null;});
+  const [bookmarkedSeqId, setBookmarkedSeqId] = useState<string|null>(() => {
+    for (const ms of milestones) {
+      const step = ms.playerProgress?.[0]?.currentStep;
+      if (step && step.startsWith("seq:")) {
+        return step.slice(4);
+      }
+    }
+    return null;
+  });
+  const [bookmarkedMsId, setBookmarkedMsId] = useState<string|null>(() => {
+    for (const ms of milestones) {
+      const step = ms.playerProgress?.[0]?.currentStep;
+      if (step && step.startsWith("bookmark-")) return ms.id;
+    }
+    return null;
+  });
+  const effectiveBookmarkSeqId = bookmarkedSeqId;
   const [hideDone,setHideDone]=useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
   useEffect(() => {
     const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
     const target: HTMLElement | Window = scrollEl || window;
     const getY = () => (scrollEl ? scrollEl.scrollTop : window.scrollY);
-    const handleScroll = () => setShowScrollTop(getY() > 300);
+    const getMaxY = () => scrollEl
+      ? (scrollEl.scrollHeight - scrollEl.clientHeight)
+      : (document.documentElement.scrollHeight - window.innerHeight);
+    const handleScroll = () => {
+      const y = getY();
+      const maxY = getMaxY();
+      setShowScrollTop(y > 300);
+      setShowScrollBottom(y < maxY - 300);
+    };
     target.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => target.removeEventListener('scroll', handleScroll);
@@ -732,7 +1022,6 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [metamobLinking,setMetamobLinking]=useState(false);
   const [continueModalOpen,setContinueModalOpen]=useState(false);
   const continueShownThisSession=useRef(false);
-  // Alignment edit modal
   const [alignEditOpen,setAlignEditOpen]=useState(false);
   const [alignEditSaving,setAlignEditSaving]=useState(false);
   const [alignEditStep,setAlignEditStep]=useState<"alignment"|"order"|"tranche">("alignment");
@@ -754,37 +1043,29 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
 const contentMilestones=useMemo(()=>milestones.filter(ms=>ms.type!=="SEPARATEUR"&&ms.type!=="INFO"&&ms.type!=="DOFUS_OBTAINED"),[milestones]);
 const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.order);type TI={kind:"separator";ms:Milestone}|{kind:"info";ms:Milestone}|{kind:"chapter";chapterNum:number;label:string;showHeader:boolean;milestoneList:Milestone[]};const r:TI[]=[];let b:Milestone[]=[];let bc:number|null=null;let bl="";let bsh=true;let lch:number|null=null;const f=()=>{if(b.length){r.push({kind:"chapter",chapterNum:bc!,label:bl,showHeader:bsh,milestoneList:b});b=[];bc=null;bl="";bsh=true;}};for(const ms of s){if(ms.type==="SEPARATEUR"){f();r.push({kind:"separator",ms});continue;}if(ms.type==="INFO"||ms.type==="DOFUS_OBTAINED"){f();r.push({kind:"info",ms});continue;}if(dofusFilter&&ms.dofusId!==dofusFilter)continue;const nh=ms.chapter!==lch;if(bc===null||bc!==ms.chapter){f();bc=ms.chapter;bl=ms.chapterLabel;bsh=nh;if(nh)lch=ms.chapter;}b.push(ms);}f();return r;},[milestones,dofusFilter]);
   const guildProgressByMs=useMemo(()=>{const m=new Map<string,GuildMemberProgress[]>;guildProgress.forEach(p=>{if(!p.isCompleted){if(!m.has(p.milestoneId))m.set(p.milestoneId,[]);m.get(p.milestoneId)!.push(p);}});return m;},[guildProgress]);
+  // ─── Guild progress by sequence (members with currentStep/bookmark on a specific seq) ──
+  const guildProgressBySeq=useMemo(()=>{const m=new Map<string,GuildMemberProgress[]>;guildProgress.forEach(p=>{if(p.currentStep&&p.currentStep.startsWith("seq:")){const seqId=p.currentStep.slice(4);if(!m.has(seqId))m.set(seqId,[]);m.get(seqId)!.push(p);}});return m;},[guildProgress]);
   const tMs=contentMilestones.length;const completedCount=contentMilestones.filter(ms=>completedIds.has(ms.id)).length;
   const overallPercent=tMs>0?Math.round((completedCount/tMs)*100):0;
   const activeMembersCount=useMemo(()=>new Set(guildProgress.map(p=>p.profileId)).size,[guildProgress]);
   const setLoading=useCallback((msId:string,val:boolean)=>setLoadingIds(prev=>{const n=new Set(prev);val?n.add(msId):n.delete(msId);return n;}),[]);
-  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{const cur=new Set(completedStepsByMs.get(ms.id)||[]);const was=cur.has(seqId);was?cur.delete(seqId):cur.add(seqId);const arr=Array.from(cur);const allChecked=ms.sequences.length>0&&ms.sequences.every(s=>cur.has(s.id));setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.add(ms.id):n.delete(ms.id);return n;});setLoading(ms.id,true);try{const res=await updateStepProgress(guildId,ms.id,arr,effectiveAltPseudo);if((res as any).success)toast.success(was?"Décocher":"✅ Validée !",{duration:1500});else toast.error("Erreur");}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedStepsByMs,guildId,effectiveAltPseudo,setLoading]);
+  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{const cur=new Set(completedStepsByMs.get(ms.id)||[]);const was=cur.has(seqId);was?cur.delete(seqId):cur.add(seqId);const arr=Array.from(cur);const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));const allChecked=regularSeqs.length>0&&regularSeqs.every((s:any)=>cur.has(s.id));const wasMilestoneCompleted=completedIds.has(ms.id);setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.add(ms.id):n.delete(ms.id);return n;});setLoading(ms.id,true);try{const res=await updateStepProgress(guildId,ms.id,arr,effectiveAltPseudo);if((res as any).success){if(res.isCompleted&&!wasMilestoneCompleted){toast.success("✅ Bloc validé !",{duration:1500});}else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}}else{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur");}}catch{setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});setCompletedIds(prev=>{const n=new Set(prev);allChecked?n.delete(ms.id):n.add(ms.id);return n;});toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedStepsByMs,completedIds,guildId,effectiveAltPseudo,setLoading]);
   const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error("Erreur");}else toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500});}catch{toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,guildId,effectiveAltPseudo,setLoading]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
-  // Bookmark mixte : au niveau bloc, mais stocke la dernière quête non cochée comme point précis
-  const handleBookmark=useCallback(async(ms:Milestone)=>{
-    const currentlyBookmarked = bookmarkedMsId;
-    if (currentlyBookmarked === ms.id) {
-      // Unbookmark
+  // ─── Bookmark par séquence ─────────────────────────────────────────────
+  const handleBookmarkSequence = useCallback(async (seqId: string, ms: Milestone) => {
+    if (bookmarkedSeqId === seqId) {
+      setBookmarkedSeqId(null);
       setBookmarkedMsId(null);
-      try{await updateBookmarkedStep(guildId,ms.id,null);}catch{}
-      return;
+      try { await updateBookmarkedStep(guildId, ms.id, null); } catch {}
+    } else {
+      setBookmarkedSeqId(seqId);
+      setBookmarkedMsId(ms.id);
+      try { await updateBookmarkedStep(guildId, ms.id, `seq:${seqId}`); } catch {}
     }
-    // Find the last unchecked sequence in this milestone for precision
-    const completedSteps = completedStepsByMs.get(ms.id) || new Set();
-    let lastUncheckedSeq: Sequence | null = null;
-    for (const seq of ms.sequences) {
-      if (!completedSteps.has(seq.id)) {
-        lastUncheckedSeq = seq;
-      }
-    }
-    const stepKey = lastUncheckedSeq ? `seq:${lastUncheckedSeq.id}` : `bookmark-${ms.id}`;
-    setBookmarkedMsId(ms.id);
-    try{await updateBookmarkedStep(guildId,ms.id,stepKey);}catch{}
-  },[bookmarkedMsId, guildId, completedStepsByMs]);
+  }, [bookmarkedSeqId, guildId]);
   if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={{rotate:[0,-5,5,-5,0]}} transition={{repeat:Infinity,duration:3}} className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/20"><Construction className="w-12 h-12 text-amber-400"/></motion.div><div><h2 className="text-2xl font-black text-white mb-2">En construction 🚧</h2><p className="text-zinc-400 text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
   const handleScrollToPrereq = useCallback((seqName: string) => {
-    // First, find the sequence ID and set it to trigger expansion of collapsed blocks
     let foundId: string | null = null;
     for (const ms of milestones) {
       if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
@@ -799,7 +1080,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     }
     if (foundId) {
       setFocusedSeqId(foundId);
-      // Retry with increasing delays until element appears (for collapsed blocks)
       let attempts = 0;
       const maxAttempts = 10;
       const tryScroll = () => {
@@ -812,25 +1092,189 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           }, 3000);
         } else if (attempts < maxAttempts) {
           attempts++;
-          setTimeout(tryScroll, 200 + attempts * 100); // 300ms, 500ms, 800ms, ...
+          setTimeout(tryScroll, 200 + attempts * 100);
         }
       };
-      setTimeout(tryScroll, 300); // Start after 300ms
+      setTimeout(tryScroll, 300);
     }
   }, [milestones]);
-  // Compute all completed seq IDs across all milestones for cross-block prerequisite gating
   const allCompletedSeqIds = useMemo(() => {
     const all = new Set<string>();
     completedStepsByMs.forEach(steps => steps.forEach(id => all.add(id)));
     return all;
   }, [completedStepsByMs]);
-  return(<><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  const helpStorageKey = `rush-contextual-help:${guide.id}`;
+  const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(helpStorageKey);
+      if (stored === null) {
+        setContextualHelpEnabled(true);
+        localStorage.setItem(helpStorageKey, 'true');
+      } else {
+        setContextualHelpEnabled(stored === 'true');
+      }
+    }
+  }, [helpStorageKey]);
+  const toggleContextualHelp = useCallback(() => {
+    setContextualHelpEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem(helpStorageKey, next ? 'true' : 'false');
+      return next;
+    });
+  }, [helpStorageKey]);
+
+  // ─── Helper pur : vérifier si une séquence a un prérequis réellement non terminé ──
+  const isActuallyBlocked = useCallback((seq: Sequence): boolean => {
+    const prereqNames = Array.isArray(seq.activityTags)
+      ? seq.activityTags.filter((x:any) => x.type === "prereq_text").map((x:any) => x.name?.toLowerCase()).filter(Boolean)
+      : [];
+    if (prereqNames.length === 0) return false;
+    return milestones.some((candidateMs) =>
+      candidateMs.type !== "SEPARATEUR" &&
+      candidateMs.type !== "INFO" &&
+      candidateMs.sequences.some((candidateSeq) => {
+        if (candidateSeq.id === seq.id) return false;
+        const candidateName = (candidateSeq.subGuideName || candidateSeq.subGuideRef || "").toLowerCase();
+        return prereqNames.includes(candidateName) && !allCompletedSeqIds.has(candidateSeq.id);
+      })
+    );
+  }, [milestones, allCompletedSeqIds]);
+
+  // ─── Computed active/next sequences ─────────────────────────────────────
+  const findNextActionableSequence = useCallback(() => {
+    // 1. Bookmarked sequence (prioritaire, même si terminée)
+    if (effectiveBookmarkSeqId) {
+      for (const ms of milestones) {
+        for (const seq of ms.sequences) {
+          if (seq.id === effectiveBookmarkSeqId) {
+            return { milestone: ms, sequence: seq };
+          }
+        }
+      }
+    }
+    // 2. First non-completed, non-blocked sequence
+    for (const ms of milestones) {
+      if (ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
+      for (const seq of ms.sequences) {
+        if (isInfoSequence(seq)) continue;
+        if (!allCompletedSeqIds.has(seq.id) && !isActuallyBlocked(seq)) {
+          return { milestone: ms, sequence: seq };
+        }
+      }
+    }
+    return null;
+  }, [milestones, effectiveBookmarkSeqId, allCompletedSeqIds, isActuallyBlocked]);
+
+  const findNextSequenceAfter = useCallback((currentMsId: string, currentSeqId: string) => {
+    let foundCurrent = false;
+    for (const ms of milestones) {
+      if (ms.type === "SEPARATEUR" || ms.type === "INFO" || ms.type === "DOFUS_OBTAINED") continue;
+      for (const seq of ms.sequences) {
+        if (isInfoSequence(seq)) continue;
+        if (!foundCurrent) {
+          if (ms.id === currentMsId && seq.id === currentSeqId) {
+            foundCurrent = true;
+          }
+          continue;
+        }
+        if (!allCompletedSeqIds.has(seq.id) && !isActuallyBlocked(seq)) {
+          return { milestone: ms, sequence: seq };
+        }
+      }
+    }
+    return null;
+  }, [milestones, allCompletedSeqIds, isActuallyBlocked]);
+
+  const actionableSeq = useMemo(() => findNextActionableSequence(), [findNextActionableSequence]);
+  const activeSeqId = actionableSeq?.sequence.id || null;
+  const activeMsId = actionableSeq?.milestone.id || null;
+  const nextSeq = useMemo(() => {
+    if (!activeSeqId || !activeMsId) return null;
+    return findNextSequenceAfter(activeMsId, activeSeqId);
+  }, [activeMsId, activeSeqId, findNextSequenceAfter]);
+  const nextSeqId = nextSeq?.sequence.id || null;
+
+  // ─── Scroll / resume helpers ────────────────────────────────────────────
+  const scrollToSequence = useCallback((seqId: string) => {
+    handleFocusSequence(seqId);
+    let attempts = 0;
+    const maxAttempts = 10;
+    const tryScroll = () => {
+      const el = document.querySelector(`[data-seq-id="${seqId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-amber-400", "ring-offset-2", "ring-offset-zinc-950", "animate-pulse");
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-amber-400", "ring-offset-2", "ring-offset-zinc-950", "animate-pulse");
+        }, 3000);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(tryScroll, 200 + attempts * 100);
+      }
+    };
+    setTimeout(tryScroll, 300);
+  }, [handleFocusSequence]);
+
+  const scrollToActive = useCallback(() => {
+    if (activeSeqId) scrollToSequence(activeSeqId);
+  }, [activeSeqId, scrollToSequence]);
+
+  const scrollToTop = useCallback(() => {
+    const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
+    if (scrollEl) scrollEl.scrollTo({ top: 0, behavior: 'smooth' });
+    else window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
+    if (scrollEl) scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' });
+    else window.scrollTo({ top: document.documentElement.scrollHeight, left: 0, behavior: 'smooth' });
+  }, []);
+
+  // ─── Search state ───────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // resumeRush priorité : 1) bookmarkedSeqId 2) activeSeqId 3) toast
+  const resumeRush = useCallback(() => {
+    if (searchQuery) setSearchQuery("");
+    if (effectiveBookmarkSeqId) {
+      scrollToSequence(effectiveBookmarkSeqId);
+    } else if (activeSeqId) {
+      scrollToSequence(activeSeqId);
+    } else {
+      toast("Aucune étape à reprendre", { duration: 2000 });
+    }
+  }, [effectiveBookmarkSeqId, activeSeqId, scrollToSequence, searchQuery]);
+  const normalizeSearch = useCallback((s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(), []);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const q = normalizeSearch(searchQuery);
+    const matchingSeqIds = new Set<string>();
+    for (const ms of milestones) {
+      if (ms.type === "SEPARATEUR" || ms.type === "INFO") continue;
+      for (const seq of ms.sequences) {
+        const fields = [
+          seq.subGuideName, seq.subGuideRef, seq.tips, seq.note,
+          seq.dungeon?.name, seq.dungeon?.bossName,
+          ...(seq.dungeons || []).flatMap(d => [d.name, d.bossName]),
+          ...(seq.activityTags || []).flatMap(t => [t.name, t.type])
+        ];
+        if (fields.some(f => f && normalizeSearch(f).includes(q))) {
+          matchingSeqIds.add(seq.id);
+        }
+      }
+    }
+    return matchingSeqIds;
+  }, [searchQuery, milestones, normalizeSearch]);
+
+  return(<><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={effectiveBookmarkSeqId}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   <div className="flex flex-col gap-5">
     <Link href={`/dashboard/${guildId}/quetes-dofus`} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors self-start group"><ChevronDown className="w-4 h-4 rotate-90 group-hover:-translate-x-1 transition-transform"/> Retour au Hub</Link>
     <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 backdrop-blur-md shadow-sm"><div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-amber-400 animate-pulse"/></div><div><p className="text-[10px] font-black uppercase tracking-wider text-amber-400">⚠️ Prérequis Recommandé</p><p className="text-xs text-amber-200/90">Conseillé dès le <strong className="text-white font-black">Niveau 200</strong>.</p></div></div>
     <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-zinc-950 to-zinc-950 shadow-lg shadow-emerald-900/20">
       <div className="relative flex flex-col gap-6">
-        {/* Header title + big Sylvestre icon */}
         <div className="flex items-start justify-between gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
@@ -842,10 +1286,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           </div>
           <img src="/module-dofus/Dofus_Sylvestre.png" alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.6)] flex-shrink-0"/>
         </div>
-
-        {/* Infos cards row — 4 colonnes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Personnage + Reset */}
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
             <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center overflow-hidden shrink-0">{(()=>{const d=currentUserProfile?.dofusClass?getClass(currentUserProfile.dofusClass):null;return d?<img src={d.icon} alt={d.name} className="w-full h-full object-contain p-0.5"/>:<span className="text-[9px] font-black text-zinc-400">?</span>;})()}</div>
             <div className="text-left min-w-0 flex-1">
@@ -872,11 +1313,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               </div>
             </div>
           </div>
-
-          {/* Alignement / Ordre */}
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">{(()=>{const{alignment,alignmentOrder,alignmentLevel}=resolvedCharacterInfo;const editBtn=<button type="button" onClick={openAlignEdit} title="Modifier l'alignement" className="p-1 rounded-lg hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-400 transition-all shrink-0"><Pencil className="w-3.5 h-3.5"/></button>;if(!alignment||alignment==="neutre")return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0"><img src="/ordres/neutre.png" alt="" className="w-5 h-5 object-contain opacity-50"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><p className="text-xs font-bold text-zinc-400">{!alignment?"Non défini":"Neutre"}</p></div>{editBtn}</>;const ad=getAlignment(alignment);const ords=(ORDERS as unknown as Record<string,any[]>)[alignment.toLowerCase()]||[];const od=alignmentOrder?ords.find((o:any)=>o.id===alignmentOrder):null;if(od){const ib=alignment==="bontarien";return<><div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${ib?"bg-blue-500/10 border-blue-500/20":"bg-red-500/10 border-red-500/20"}`}><img src={od.icon} alt="" className="w-5 h-5 object-contain"/></div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Ordre</p><p className={`text-xs font-black ${ib?"text-blue-300":"text-red-300"}`}>{od.name}</p>{alignmentLevel>0&&<span className="inline-flex items-center gap-0.5 mt-0.5 text-[8px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Tranche {alignmentLevel}</span>}</div>{editBtn}</>;}return<><div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-700/50 flex items-center justify-center shrink-0">{ad&&<img src={ad.icon} alt="" className="w-5 h-5 object-contain"/>}</div><div className="text-left min-w-0 flex-1"><p className="text-[8px] font-black text-zinc-500 uppercase tracking-wider">Alignement</p><div className="flex items-center gap-1.5"><span className="text-xs font-bold text-white">{ad?.name||alignment}</span>{alignmentLevel>0&&<span className="text-[9px] font-bold text-amber-400">lv.{alignmentLevel}</span>}</div></div>{editBtn}</>;})()}</div>
-
-          {/* Metamob */}
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
             <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
               <img src="/assets/icons/ocre.png" alt="Ocre" className="w-6 h-6 object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
@@ -900,8 +1337,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               </div>
             </div>
           </div>
-
-          {/* Rush Live */}
           <div className="flex items-center gap-3 p-3 bg-zinc-950/80 border border-zinc-800/60 rounded-xl shadow-sm">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
               <Users className="w-5 h-5 text-emerald-400" />
@@ -919,10 +1354,8 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             </div>
           </div>
         </div>
-
-        {/* Progress bar */}
         <div className="flex flex-wrap items-center gap-3 px-1">
-          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Progression</span>
+          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">Progression<ContextualHelp label="Aide progression">La progression se synchronise en temps réel avec les autres membres connectés. Chaque quête cochée met à jour le pourcentage global.</ContextualHelp></span>
           <span className="text-lg font-black text-white">{overallPercent}%</span>
           <span className="text-[10px] text-zinc-600 font-mono">({completedCount}/{tMs})</span>
           <div className="h-2 bg-zinc-800/60 rounded-full flex-1 max-w-[300px] ml-auto shadow-inner">
@@ -930,42 +1363,118 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           </div>
         </div>
     </div></div>
-    <div className="flex flex-wrap items-center gap-2 sticky top-20 z-30"><button onClick={()=>setHideDone(v=>!v)} className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-2 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${hideDone?"bg-amber-600/25 border-amber-400/60 text-amber-300 shadow-amber-500/20 hover:bg-amber-600/30":"bg-emerald-600/20 border-emerald-400/50 text-emerald-300 shadow-emerald-500/20 hover:bg-emerald-600/30 hover:border-emerald-300/70"}`}>{hideDone?<Eye className="w-4 h-4"/>:<EyeOff className="w-4 h-4"/>}{hideDone?"Afficher tout":"Masquer le fait"}</button></div>
-    <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
-    {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3"/><p className="text-zinc-600 font-black uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="relative pl-[28px] space-y-1">{timelineItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#d4a853"}/>:item.kind==="info"?<div key={item.ms.id} className="-ml-1">{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarkedMsId={bookmarkedMsId} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onBookmark={handleBookmark} onDungeonClick={handleDungeonClick}/>)}</div>}
-    {showScrollTop && typeof document !== 'undefined' && createPortal(
-      <button
-        id="rush-scroll-top-btn"
-        onClick={() => {
-          const scrollEl = document.querySelector<HTMLElement>('[data-scroll-container]');
-          if (scrollEl) {
-            scrollEl.scrollTo({ top: 0, behavior: 'smooth' });
-          } else {
-            window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-          }
-        }}
-        style={{
-          position: 'fixed',
-          bottom: '90px',
-          right: '24px',
-          zIndex: 999999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '52px',
-          height: '52px',
-          borderRadius: '50%',
-          backgroundColor: '#059669',
-          color: 'white',
-          border: 'none',
-          boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
-          cursor: 'pointer',
-          transition: 'transform 0.2s, opacity 0.2s',
-        }}
-        title="Retour en haut de page"
+    {/* ── Barre d'actions ────────────────────────────────────────────────── */}
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sticky top-20 z-30 flex-wrap">
+      <div className="relative flex-1 min-w-0 max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+        <input
+          type="text"
+          data-tour="quest-search"
+          aria-label="Rechercher dans le guide"
+          placeholder="Rechercher une quête, un donjon ou une zone…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="w-full bg-zinc-900/80 border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/40 transition-all"
+        />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <div className="absolute right-10 top-1/2 -translate-y-1/2">
+          <ContextualHelp label="Aide recherche">Recherche par nom de quête, donjon ou zone. Les résultats s'affichent en temps réel et incluent les quêtes terminées.</ContextualHelp>
+        </div>
+      </div>
+      <button onClick={()=>setHideDone(v=>!v)}
+        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${
+          hideDone
+            ? "bg-amber-600/25 border-amber-400/60 text-amber-300 shadow-amber-500/10"
+            : "bg-zinc-900/60 border-zinc-700/50 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+        }`}
       >
-        <ArrowUp className="w-5 h-5" />
-      </button>,
+        {hideDone ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+        {hideDone ? "Afficher tout" : "Masquer les terminées"}
+      </button>
+      <button onClick={resumeRush}
+        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-2 border-emerald-400/50 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 shrink-0"
+        title="Aller à l'étape active"
+      >
+        <MapPin className="w-3.5 h-3.5" />
+        Reprendre mon étape
+      </button>
+      <button onClick={() => {
+        toggleContextualHelp();
+        if (!contextualHelpEnabled) {
+          toast("💡 Aide activée : des bulles d'aide apparaissent sur les éléments clés", { duration: 3000, icon: "❓" });
+        } else {
+          toast("Aide désactivée", { duration: 1500 });
+        }
+      }}
+        aria-label="Activer/désactiver les aides"
+        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${
+          contextualHelpEnabled
+            ? "bg-emerald-600/20 border-emerald-400/50 text-emerald-300"
+            : "bg-zinc-950 border-white/5 text-zinc-600 hover:border-white/20"
+        }`}
+      >
+        <CircleHelp className="w-3.5 h-3.5" />
+        <span className="hidden md:inline">Aide</span>
+      </button>
+    </div>
+    {/* ── Résultats de recherche ─────────────────────────────────────────── */}
+    {searchResults !== null && (
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[10px] text-zinc-500 font-mono">
+          {searchResults.size} quête(s) trouvée(s) pour « {searchQuery} »
+        </p>
+        <button onClick={() => setSearchQuery("")}
+          className="text-[9px] text-zinc-600 hover:text-white transition-colors underline underline-offset-2"
+        >
+          Effacer la recherche
+        </button>
+      </div>
+    )}
+    {searchResults !== null && searchResults.size > 0 && (
+      <p className="text-[9px] text-zinc-600 italic px-1">Les résultats incluent les quêtes terminées.</p>
+    )}
+    {searchResults !== null && searchResults.size === 0 && (
+      <div className="py-16 text-center">
+        <Search className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
+        <p className="text-zinc-600 font-black uppercase text-xs tracking-widest mb-1">Aucune quête trouvée</p>
+        <p className="text-[10px] text-zinc-500 mb-4">Essaie un autre nom de quête, donjon ou zone.</p>
+        <button onClick={() => setSearchQuery("")}
+          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs transition-colors"
+        >
+          Effacer la recherche
+        </button>
+      </div>
+    )}
+    <GuildStatusPanel milestones={contentMilestones} guildProgress={guildProgress}/>
+    {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-zinc-700 mx-auto mb-3"/><p className="text-zinc-600 font-black uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="relative pl-[28px] space-y-1">{timelineItems.map((item:any)=>item.kind==="separator"?<SectionDivider key={item.ms.id} title={item.ms.title} accentColor={item.ms.accentColor||"#d4a853"}/>:item.kind==="info"?<div key={item.ms.id} className="-ml-1">{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:<InfoBanner milestone={item.ms}/>}</div>:<ChapterBlock key={`ch-${item.chapterNum}`} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarkedMsId={bookmarkedMsId} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} userAlignmentInfo={resolvedCharacterInfo} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults}/>)}</div>}
+    {/* ── Navigation flottante ───────────────────────────────────────────── */}
+    {typeof document !== 'undefined' && createPortal(
+      <div className="fixed right-4 z-[999999] flex flex-col items-center gap-1 bg-zinc-950/90 border border-emerald-500/20 rounded-2xl py-2 px-1.5 shadow-2xl backdrop-blur-md"
+        style={{ top: '50%', transform: 'translateY(-50%)' }}
+      >
+        <button onClick={scrollToTop} disabled={!showScrollTop}
+          className={`p-2 rounded-xl transition-all ${showScrollTop ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+          title="Remonter en haut" aria-label="Remonter en haut"
+        >
+          <ChevronUp className="w-4 h-4" />
+        </button>
+        <button onClick={resumeRush}
+          className="p-2 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"
+          title="Reviens à la quête où tu t'es arrêté." aria-label="Reviens à la quête où tu t'es arrêté."
+        >
+          <MapPin className="w-4 h-4" />
+        </button>
+        <button onClick={scrollToBottom} disabled={!showScrollBottom}
+          className={`p-2 rounded-xl transition-all ${showScrollBottom ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+          title="Aller en bas" aria-label="Aller en bas"
+        >
+          <ChevronDown className="w-4 h-4" />
+        </button>
+      </div>,
       document.body
     )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
@@ -978,7 +1487,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
       characterName={selectedCharacter}
       isLoading={resetLoading}
     />}
-    {/* Metamob Linking Dialog — 2-step (Pseudo + API Key) same as profile */}
     <Dialog open={metamobLinkOpen} onOpenChange={(open) => {
       setMetamobLinkOpen(open);
       if (!open) { setMetamobLinkError(null); setMetamobPseudoInput(""); setMetamobApiKeyInput(""); setMetamobStep(1); }
@@ -1011,7 +1519,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               </div>
               <Input type="password" placeholder="64 caractères..." value={metamobApiKeyInput} onChange={(e) => setMetamobApiKeyInput(e.target.value)} className="h-12 bg-zinc-900/50 border-zinc-800" />
               <p className="text-xs text-zinc-500 leading-relaxed">
-                Votre clé API est requise pour synchroniser automatiquement vos archimonstres et vos quêtes. Elle est disponible dans l'onglet <strong>API</strong> des paramètres de votre compte Metamob.fr.
+                Votre clé API est requise pour synchroniser automatiquement vos archimonstres et vos quêtes.
               </p>
             </div>
           )}
@@ -1040,15 +1548,13 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider>
-  {/* ── Alignment Edit Dialog ───────────────────────────────────────────── */}
+   </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider>
   <Dialog open={alignEditOpen} onOpenChange={setAlignEditOpen}>
     <DialogContent className="max-w-lg w-[95vw] bg-zinc-950 border-zinc-800 rounded-3xl p-0 overflow-hidden shadow-2xl">
       <DialogHeader className="p-6 pb-4 border-b border-white/5">
         <DialogTitle className="text-lg font-black uppercase tracking-widest text-white flex items-center gap-2">
           <Shield className="w-5 h-5 text-emerald-400"/>Alignement & Ordre
         </DialogTitle>
-        {/* Step pills */}
         <div className="flex items-center gap-2 mt-3">
           {(["alignment","order","tranche"] as const).map((s,i)=>(
             <button key={s} type="button" onClick={()=>{if(s==="order"&&(!alignEditAlignment||alignEditAlignment==="neutre"))return;if(s==="tranche"&&!alignEditOrder)return;setAlignEditStep(s);}} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${alignEditStep===s?"bg-emerald-500/20 border-emerald-500/40 text-emerald-300":"border-zinc-700/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}>
@@ -1058,9 +1564,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
           ))}
         </div>
       </DialogHeader>
-
       <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-        {/* STEP 1 — Alignment */}
         {alignEditStep==="alignment"&&(
           <div className="grid grid-cols-3 gap-3">
             {ALIGNMENTS.map(align=>(
@@ -1074,8 +1578,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             ))}
           </div>
         )}
-
-        {/* STEP 2 — Order */}
         {alignEditStep==="order"&&alignEditAlignment&&alignEditAlignment!=="neutre"&&(
           <div className="grid grid-cols-1 gap-3">
             {((ORDERS as any)[alignEditAlignment]||[]).map((order:any)=>{
@@ -1093,8 +1595,6 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             })}
           </div>
         )}
-
-        {/* STEP 3 — Tranche */}
         {alignEditStep==="tranche"&&(
           <div className="space-y-4">
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Niveau d'alignement (Tranche)</p>
@@ -1114,9 +1614,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             </div>
           </div>
         )}
-
       </div>
-
       <DialogFooter className="p-5 border-t border-white/5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {alignEditStep!=="alignment"&&<Button variant="ghost" size="sm" onClick={()=>setAlignEditStep(alignEditStep==="tranche"?"order":"alignment")} className="text-zinc-400 hover:text-white text-xs">← Retour</Button>}

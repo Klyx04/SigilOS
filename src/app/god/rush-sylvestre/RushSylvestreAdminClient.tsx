@@ -3,6 +3,7 @@
 import {
   useState, useTransition, useCallback, useEffect, useRef, useMemo
 } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
@@ -151,7 +152,7 @@ const ACTIVITY_TAGS: { type: ActivityTagType; imagePath: string; label: string; 
   { type: "songes",             imagePath: "/assets/rush-sylvestre/songes.png",             label: "Songes",          color: "#8b5cf6" },
   { type: "combat_solo",        imagePath: "/assets/rush-sylvestre/combat-solo.png",        label: "Combat Solo",     color: "#f43f5e" },
   { type: "combat_plusieurs",   imagePath: "/assets/rush-sylvestre/combat-plusieurs.png",   label: "Combat à plusieurs",    color: "#a855f7" },
-  { type: "contrainte_horaire", imagePath: "/assets/rush-sylvestre/contrainte-horaire.png", label: "Horaire Spec.",   color: "#f59e0b" },
+  { type: "contrainte_horaire", imagePath: "/assets/rush-sylvestre/contrainte-horaire.png", label: "Horaire Spec.",   color: "#f59e0b", hasName: true },
   { type: "donjon",             imagePath: "/assets/rush-sylvestre/donjon.png",             label: "Donjon requis",   color: "#3b82f6" },
   { type: "plusieurs_personnes",imagePath: "/assets/rush-sylvestre/plusieurs-personnes.png",label: "Multi joueurs",   color: "#10b981" },
   { type: "sort",               imagePath: "/assets/rush-sylvestre/sort.png",               label: "Sort requis",     color: "#ec4899" },
@@ -185,6 +186,10 @@ function isSeparatorMilestone(m: Pick<Milestone, "type">) {
   return m.type === "SEPARATEUR";
 }
 
+function isOutsideChapterMilestone(m: Pick<Milestone, "type">) {
+  return m.type === "SEPARATEUR" || m.type === "DOFUS_OBTAINED" || m.type === "INFO";
+}
+
 function sortMilestonesByOrder(milestones: Milestone[]) {
   return [...milestones].sort((a, b) => a.order - b.order);
 }
@@ -201,6 +206,37 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   const [isPending, startTransition] = useTransition();
   const [isActive, setIsActive] = useState(initialGuide.isActive);
   const [isUnderConstruction, setIsUnderConstruction] = useState(initialGuide.isUnderConstruction);
+
+  // Scroll to top/bottom state
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  // Use a ref to self-reference for scroll detection
+  const scrollRef = useRef<HTMLElement | Window>(null);
+
+  useEffect(() => {
+    // Find the scroll container: it's the parent of our component's root element
+    // that has overflow-y-auto. The GOD layout wraps children in:
+    // .flex-1.overflow-y-auto.scrollbar-thin
+    // We need to skip the sidebar which has the same classes.
+    const ourRoot = document.querySelector('[data-rush-admin-root]');
+    const container = ourRoot?.closest('.flex-1.overflow-y-auto') as HTMLElement | null;
+    if (!container) return;
+    scrollRef.current = container;
+
+    const handleScroll = () => {
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      setShowScrollTop(container.scrollTop > 100);
+      setShowScrollBottom(container.scrollTop < maxScroll - 100);
+    };
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    handleScroll();
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, []);
 
   // Local sortable milestones for optimistic DnD
   const [localMilestones, setLocalMilestones] = useState<Milestone[]>(initialGuide.milestones as Milestone[]);
@@ -254,7 +290,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     }
 
     // Si on survole un bloc dans un chapitre différent
-    if (activeMs.chapter !== overMs.chapter) {
+    // INFO, DOFUS_OBTAINED etc. stay outside chapters — don't reassign
+    if (activeMs.chapter !== overMs.chapter && !isOutsideChapterMilestone(activeMs)) {
       setLocalMilestones(prev => {
         const updated = [...prev];
         const item = { ...updated[activeIndex], chapter: overMs.chapter, chapterLabel: overMs.chapterLabel };
@@ -280,7 +317,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     const updatedMilestones = [...localMilestones];
     const [movedItem] = updatedMilestones.splice(oldIndex, 1);
 
-    if (!isSeparatorMilestone(movedItem) && !isSeparatorMilestone(targetMilestone) && movedItem.chapter !== targetMilestone.chapter) {
+    // INFO, DOFUS_OBTAINED, SEPARATEUR stay outside chapters — don't reassign
+    if (!isOutsideChapterMilestone(movedItem) && !isOutsideChapterMilestone(targetMilestone) && movedItem.chapter !== targetMilestone.chapter) {
       movedItem.chapter = targetMilestone.chapter;
       movedItem.chapterLabel = targetMilestone.chapterLabel;
     }
@@ -297,7 +335,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
       try {
         await reorderRushMilestones(finalMilestones.map(m => m.id));
         // Si le chapitre a changé, on persiste
-        if (!isSeparatorMilestone(sourceMilestone) && !isSeparatorMilestone(targetMilestone) && sourceMilestone.chapter !== targetMilestone.chapter) {
+        if (!isOutsideChapterMilestone(sourceMilestone) && !isOutsideChapterMilestone(targetMilestone) && sourceMilestone.chapter !== targetMilestone.chapter) {
           await upsertRushMilestone({
             id: sourceMilestone.id,
             chapter: String(targetMilestone.chapter),
@@ -325,7 +363,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
     if (!newStepTitle.trim()) { toast.error(newStepType === "SEPARATEUR" ? "Titre de section requis" : "Nom de l'étape requis"); return; }
     const isSeparator = newStepType === "SEPARATEUR";
     const isDofusBanner = newStepType === "DOFUS_OBTAINED";
-    const isOutsideChapter = isSeparator || isDofusBanner;
+    const isInfoBlock = newStepType === "INFO";
+    const isOutsideChapter = isSeparator || isDofusBanner || isInfoBlock;
     startTransition(async () => {
       try {
         await upsertRushMilestone({
@@ -349,8 +388,8 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
       try {
         await upsertRushMilestone({
           id: m.id,
-          chapter: String(isSeparatorMilestone(m) ? 0 : m.chapter),
-          chapterLabel: isSeparatorMilestone(m) ? "" : m.chapterLabel,
+          chapter: String(isOutsideChapterMilestone(m) ? 0 : m.chapter),
+          chapterLabel: isOutsideChapterMilestone(m) ? "" : m.chapterLabel,
           label: m.title,
           description: m.description ?? undefined,
           accentColor: m.accentColor ?? "#10b981",
@@ -427,7 +466,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
   }, [isActive, isUnderConstruction]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-zinc-950 text-white" data-rush-admin-root>
       {/* Header */}
       <div className="border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -462,7 +501,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6 relative">
         {activeTab === "content" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             {/* Stats */}
@@ -522,7 +561,7 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                       </div>
                     </div>
 
-                    {newStepType !== "SEPARATEUR" && newStepType !== "DOFUS_OBTAINED" ? (
+                    {newStepType !== "SEPARATEUR" && newStepType !== "DOFUS_OBTAINED" && newStepType !== "INFO" ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">N° chapitre *</label>
@@ -539,6 +578,10 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
                         />
                       </div>
                     </div>
+                    ) : newStepType === "INFO" ? (
+                      <p className="text-[10px] text-purple-400/70 leading-relaxed">
+                        Le bloc Conseil/Tips est un bandeau informatif autonome — il n'appartient à aucun chapitre et peut être déplacé librement entre les quêtes.
+                      </p>
                     ) : newStepType === "SEPARATEUR" ? (
                       <p className="text-[10px] text-amber-400/70 leading-relaxed">
                         Le séparateur est un titre visuel entre les blocs — il n'appartient à aucun chapitre.
@@ -700,6 +743,41 @@ export function RushSylvestreAdminClient({ guide: initialGuide }: { guide: Guide
           </motion.div>
         )}
       </div>
+      {/* Navigation flottante — pilule verticale */}
+      {typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed right-4 z-[999999] flex flex-col items-center gap-1 bg-zinc-950/90 border border-emerald-500/20 rounded-2xl py-2 px-1.5 shadow-2xl backdrop-blur-md"
+          style={{ top: '50%', transform: 'translateY(-50%)' }}
+        >
+          <button
+            onClick={() => {
+              const container = document.querySelector<HTMLElement>('.flex-1.overflow-y-auto');
+              if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
+              else window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            disabled={!showScrollTop}
+            className={`p-2 rounded-xl transition-all ${showScrollTop ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+            title="Haut"
+            aria-label="Haut"
+          >
+            <ChevronUp className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              const container = document.querySelector<HTMLElement>('.flex-1.overflow-y-auto');
+              if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+              else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+            }}
+            disabled={!showScrollBottom}
+            className={`p-2 rounded-xl transition-all ${showScrollBottom ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer' : 'text-zinc-700 cursor-not-allowed'}`}
+            title="Bas"
+            aria-label="Bas"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -1027,8 +1105,9 @@ function MilestoneRow({
                         seq={seq}
                         milestoneId={milestone.id}
                         isPending={isPending}
-                        onSave={(data) => {
-                          onSaveSequence({ ...data, id: seq.id, milestoneId: milestone.id });
+                        milestones={[milestone]}
+                        onSave={(data, targetMilestoneId) => {
+                          onSaveSequence({ ...data, id: seq.id, milestoneId: targetMilestoneId || milestone.id });
                           setEditingSeqId(null);
                         }}
                         onCancel={() => setEditingSeqId(null)}
@@ -1228,6 +1307,7 @@ function ActivityTagsEditor({ tags, onChange }: {
         const def = ACTIVITY_TAGS.find(d => d.type === tag.type);
         if (!def) return null;
         const isMetier = tag.type === "metier";
+        const isHoraire = tag.type === "contrainte_horaire";
         return (
           <div key={tag.type} className="flex items-center gap-2 p-2 rounded-lg border" style={{ borderColor: def.color + "30", background: def.color + "08" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1251,6 +1331,77 @@ function ActivityTagsEditor({ tags, onChange }: {
                   placeholder="Niv. min"
                 />
               </>
+            ) : isHoraire ? (
+              <div className="flex items-center gap-2 flex-1 flex-wrap">
+                <select
+                  value={tag.name ? (tag.name.startsWith("<") ? "before" : tag.name.startsWith(">") ? "after" : "between") : "between"}
+                  onChange={e => {
+                    const mode = e.target.value;
+                    if (mode === "before") updateTag(tag.type, { name: "< 0" });
+                    else if (mode === "after") updateTag(tag.type, { name: "> 0" });
+                    else updateTag(tag.type, { name: "0-0" });
+                  }}
+                  className="bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none"
+                >
+                  <option value="before">Avant</option>
+                  <option value="between">Entre</option>
+                  <option value="after">Après</option>
+                </select>
+                {(() => {
+                  const currentName = tag.name || "0-0";
+                  const isBefore = currentName.startsWith("<");
+                  const isAfter = currentName.startsWith(">");
+                  const parts = isBefore || isAfter ? [currentName.slice(1).trim()] : currentName.split("-").map(s => s.trim());
+                  const h1 = parts[0] || "0";
+                  const h2 = isBefore || isAfter ? "" : (parts[1] || "0");
+                  const mode = isBefore ? "before" : isAfter ? "after" : "between";
+                  return (
+                    <div className="flex items-center gap-1">
+                      {mode === "before" ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-amber-300 font-bold">avant</span>
+                          <input
+                            type="number" min={0} max={23}
+                            value={h1}
+                            onChange={e => updateTag(tag.type, { name: `< ${parseInt(e.target.value, 10) || 0}` })}
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                          />
+                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                        </div>
+                      ) : mode === "after" ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-amber-300 font-bold">après</span>
+                          <input
+                            type="number" min={0} max={23}
+                            value={h1}
+                            onChange={e => updateTag(tag.type, { name: `> ${parseInt(e.target.value, 10) || 0}` })}
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                          />
+                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-zinc-400">de</span>
+                          <input
+                            type="number" min={0} max={23}
+                            value={h1}
+                            onChange={e => updateTag(tag.type, { name: `${parseInt(e.target.value, 10) || 0}-${h2}` })}
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                          />
+                          <span className="text-[9px] text-zinc-400">h à</span>
+                          <input
+                            type="number" min={0} max={23}
+                            value={h2}
+                            onChange={e => updateTag(tag.type, { name: `${h1}-${parseInt(e.target.value, 10) || 0}` })}
+                            className="w-14 bg-black/60 border border-amber-500/20 rounded-lg px-2 py-1 text-[10px] text-amber-300 text-center focus:outline-none"
+                          />
+                          <span className="text-[9px] text-amber-300 font-bold">h</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             ) : tag.type === "solver" ? (
               <div className="flex items-center gap-1.5 flex-1">
                 <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Solver URL</span>
@@ -1283,9 +1434,10 @@ function ActivityTagsEditor({ tags, onChange }: {
 
 
 // ─── SequenceEditForm ─────────────────────────────────────────────────────────
-function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
+function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, milestones }: {
   seq: Sequence; milestoneId: string; isPending: boolean;
-  onSave: (data: any) => void; onCancel: () => void;
+  onSave: (data: any, targetMilestoneId?: string) => void; onCancel: () => void;
+  milestones?: Milestone[];
 }) {
   const [name, setName] = useState(seq.subGuideName || seq.subGuideRef);
   const [dofusdbUrl, setDofusdbUrl] = useState(seq.dofusdbUrl || "");
@@ -1372,17 +1524,29 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
   });
 
   const [isInfoBlock, setIsInfoBlock] = useState<boolean>(() => {
-    return (seq.activityTags as any[])?.some(t => t.type === "is_info_block") ?? false;
+    return (seq.activityTags as any[])?.some(t => t.type === "info_sequence") ?? false;
+  });
+  const [infoBlockColor, setInfoBlockColor] = useState<string>(() => {
+    const existing = (seq.activityTags as any[])?.find(t => t.type === "info_sequence");
+    return existing?.color || "#10b981";
   });
 
   const handleIsInfoBlockChange = (val: boolean) => {
     setIsInfoBlock(val);
     setActivityTags(prev => {
-      const filtered = prev.filter((t: any) => t.type !== "is_info_block");
+      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
       if (val) {
-        return [...filtered, { type: "is_info_block" as any }];
+        return [...filtered, { type: "info_sequence" as any, color: infoBlockColor }];
       }
       return filtered;
+    });
+  };
+
+  const handleInfoBlockColorChange = (color: string) => {
+    setInfoBlockColor(color);
+    setActivityTags(prev => {
+      const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+      return [...filtered, { type: "info_sequence" as any, color }];
     });
   };
 
@@ -1591,17 +1755,32 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
       </div>
 
       {/* Toggle Bloc Pur d'Information */}
-      <div className="flex items-center gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
-        <input
-          type="checkbox"
-          id="isInfoBlockToggle"
-          checked={isInfoBlock}
-          onChange={e => handleIsInfoBlockChange(e.target.checked)}
-          className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
-        />
-        <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-purple-200 cursor-pointer select-none">
-          📌 Est un bloc d'information pur (Tips / Remarque sans quête ni case à cocher)
-        </label>
+      <div className="flex flex-col gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="isInfoBlockToggle"
+            checked={isInfoBlock}
+            onChange={e => handleIsInfoBlockChange(e.target.checked)}
+            className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+          />
+          <label htmlFor="isInfoBlockToggle" className="text-xs font-bold text-purple-200 cursor-pointer select-none">
+            📌 Est un bloc d'information pur (Tips / Remarque sans quête ni case à cocher)
+          </label>
+        </div>
+        {isInfoBlock && (
+          <div className="flex items-center gap-2 pl-6">
+            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Couleur du bandeau</span>
+            <div className="flex gap-1">
+              {COLOR_PALETTE.map(c => (
+                <button key={c.value} onClick={() => handleInfoBlockColorChange(c.value)} title={c.label}
+                  className={`w-4 h-4 rounded-full border-2 transition-all ${infoBlockColor === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                  style={{ backgroundColor: c.value }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Positions GPS & Bloc Tougli */}
@@ -1685,7 +1864,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
           </select>
         </div>
         <div>
-          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Niveau ordre</label>
+          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">Niveau</label>
           <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
             className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
             placeholder="0–100"
@@ -1694,7 +1873,24 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
       </div>
 
       <div>
-        <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1 block">💡 Tips</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">💡 Tips <span className="text-zinc-600 font-normal normal-case tracking-normal">(/travel X,Y pour position cliquable)</span></label>
+          <button
+            type="button"
+            onClick={() => {
+              const x = prompt("Position X :");
+              if (!x) return;
+              const y = prompt("Position Y :");
+              if (!y) return;
+              const pos = `/travel ${x},${y}`;
+              setTips(prev => prev ? `${prev} ${pos}` : pos);
+              toast.success(`📍 ${pos} ajouté !`, { duration: 1500 });
+            }}
+            className="flex items-center gap-1 text-[9px] font-bold text-indigo-300 hover:text-indigo-100 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-lg transition-all"
+          >
+            <MapPin className="w-3 h-3" /> Ajouter position
+          </button>
+        </div>
         <textarea value={tips} onChange={e => setTips(e.target.value)}
           className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-amber-300/80 focus:outline-none focus:border-amber-500/30 resize-none"
           placeholder="Conseil affiché côté membre..." rows={2}
@@ -1810,6 +2006,28 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel }: {
         )}
       </div>
 
+      {/* ── Déplacer vers un autre bloc ─────────────────────────────── */}
+      {seq.id && milestones && milestones.length > 1 && (
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest shrink-0">Déplacer vers</span>
+          <select
+            value=""
+            onChange={e => {
+              const targetId = e.target.value;
+              if (targetId && targetId !== milestoneId) {
+                onSave({ subGuideRef: name.trim(), activityTags }, targetId);
+              }
+            }}
+            className="flex-1 bg-black/60 border border-emerald-500/30 rounded-lg px-2 py-1 text-[10px] text-emerald-200 focus:outline-none"
+          >
+            <option value="">— Choisir un bloc —</option>
+            {milestones.filter(m => m.id !== milestoneId && !isSeparatorMilestone(m)).map(m => (
+              <option key={m.id} value={m.id}>{m.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="flex items-center gap-2 pt-1">
         <button onClick={handleSubmit} disabled={isPending || !name.trim()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all"
@@ -1842,6 +2060,10 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
   const [dungeonResults, setDungeonResults] = useState<DungeonResult[]>([]);
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<any>(null);
+
+  // Info block state
+  const [isInfoBlockNew, setIsInfoBlockNew] = useState(false);
+  const [infoBlockColorNew, setInfoBlockColorNew] = useState("#10b981");
 
   const [selectedDofusId, setSelectedDofusId] = useState<string>("");
   
@@ -2067,7 +2289,7 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] text-zinc-600 mb-1 block">Niveau ordre</label>
+                  <label className="text-[9px] text-zinc-600 mb-1 block">Niveau</label>
                   <input type="number" min={0} max={100} value={alignOrderReq} onChange={e => setAlignOrderReq(e.target.value)}
                     className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
                     placeholder="0–100"
@@ -2084,6 +2306,49 @@ function AddSequenceForm({ milestoneId, onAdd, isPending }: {
                   className="w-full bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-xs text-amber-300/70 focus:outline-none resize-none"
                   placeholder="Conseil pour le membre…" rows={2}
                 />
+              </div>
+              <div className="flex flex-col gap-1 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isInfoBlockNew"
+                    checked={isInfoBlockNew}
+                    onChange={e => {
+                      setIsInfoBlockNew(e.target.checked);
+                      setActivityTags(prev => {
+                        const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+                        if (e.target.checked) {
+                          return [...filtered, { type: "info_sequence" as any, color: infoBlockColorNew }];
+                        }
+                        return filtered;
+                      });
+                    }}
+                    className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+                  />
+          <label htmlFor="isInfoBlockNew" className="text-[9px] font-bold text-purple-200 cursor-pointer select-none">
+            📌 Bloc d'info sans check ni bookmark
+          </label>
+          <span className="text-[7px] text-zinc-600 ml-auto italic">Écris `/travel X Y` dans le texte → badge cliquable</span>
+                </div>
+                {isInfoBlockNew && (
+                  <div className="flex items-center gap-2 pl-6">
+                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Couleur</span>
+                    <div className="flex gap-1">
+                      {COLOR_PALETTE.map(c => (
+                        <button key={c.value} onClick={() => {
+                          setInfoBlockColorNew(c.value);
+                          setActivityTags(prev => {
+                            const filtered = prev.filter((t: any) => t.type !== "info_sequence");
+                            return [...filtered, { type: "info_sequence" as any, color: c.value }];
+                          });
+                        }} title={c.label}
+                          className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${infoBlockColorNew === c.value ? "border-white scale-125" : "border-transparent opacity-40 hover:opacity-100"}`}
+                          style={{ backgroundColor: c.value }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-[9px] text-zinc-600 mb-1 block">⚠️ Note courte</label>

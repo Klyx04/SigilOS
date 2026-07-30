@@ -431,12 +431,16 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
     where: { id: milestoneId },
     select: {
       guide: { select: { slug: true } },
-      sequences: { select: { id: true } }
+      sequences: { select: { id: true, activityTags: true } }
     }
   });
 
-  const totalSeqCount = milestone?.sequences.length || 0;
-  const isAllCompleted = totalSeqCount > 0 && milestone!.sequences.every(s => completedSteps.includes(s.id));
+  // Exclude info_sequence from completion count (they are decorative banners, not checkable quests)
+  const isInfoSeq = (seq: { id: string; activityTags?: any }) =>
+    Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "info_sequence");
+  const regularSeqs = milestone?.sequences.filter(s => !isInfoSeq(s)) || [];
+  const totalSeqCount = regularSeqs.length;
+  const isAllCompleted = totalSeqCount > 0 && regularSeqs.every(s => completedSteps.includes(s.id));
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
@@ -468,15 +472,16 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
 /**
  * Met à jour l'étape active/marque-page pour un milestone (J'en suis là).
  */
-export async function updateBookmarkedStep(guildId: string, milestoneId: string, stepKey: string | null) {
+export async function updateBookmarkedStep(guildId: string, milestoneId: string, stepKey: string | null, altPseudo?: string) {
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
   if (!ctx.profileId) throw new Error("Profile ID manquant");
-  const profileId: string = ctx.profileId;
+
+  const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
-      profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot: "PRINCIPAL" }
+      profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot }
     },
     update: {
       currentStep: stepKey 
@@ -484,7 +489,7 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
     create: {
       profileId,
       milestoneId,
-      characterSlot: "PRINCIPAL",
+      characterSlot,
       currentStep: stepKey,
       isCompleted: false
     }

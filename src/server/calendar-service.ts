@@ -177,6 +177,11 @@ export async function processUnregistration(guildId: string, eventId: string, us
 
     if (!participant) return { success: false, error: "Non inscrit" };
 
+    // SECURITY: Block captain/creator from unregistering from a RAID — must transfer lead first
+    if (participant.event.type === "RAID_OFFICIAL" && participant.event.creatorId === userId) {
+        return { success: false, error: "Vous êtes le capitaine du raid. Transférez d'abord le capitanat à un autre participant avant de vous désinscrire." };
+    }
+
     const cooldownKey = `${userId}:${eventId}`;
     const lastAction = interactionCooldowns.get(cooldownKey) || 0;
     if (Date.now() - lastAction < INTERACTION_COOLDOWN_MS) {
@@ -359,7 +364,12 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
 
         if (isRaid && raidMeta) {
             if (raidMeta.raidLabel) fields.push({ name: "⚔️ Type de Raid", value: `**${raidMeta.raidLabel}**`, inline: true });
-            if (raidMeta.raidCaptain) fields.push({ name: "👑 Capitaine", value: `**${raidMeta.raidCaptain}**`, inline: true });
+            // Use Discord mention for captain if we can resolve the Discord ID
+            const captainDiscordId = await getDiscordId(event.creatorId).catch(() => null);
+            const captainDisplay = captainDiscordId 
+                ? `<@${captainDiscordId}>` 
+                : (raidMeta.raidCaptain || `**Le capitaine**`);
+            fields.push({ name: "👑 Capitaine", value: captainDisplay, inline: true });
             fields.push({ 
                 name: "🌐 Visibilité", 
                 value: raidMeta.openToExternal ? "🟢 Ouvert aux extérieurs" : "🔒 Guilde uniquement", 
@@ -549,7 +559,12 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
 
         if (isRaid && raidMeta) {
             if (raidMeta.raidLabel) fields.push({ name: "⚔️ Type de Raid", value: `**${raidMeta.raidLabel}**`, inline: true });
-            if (raidMeta.raidCaptain) fields.push({ name: "👑 Capitaine", value: `**${raidMeta.raidCaptain}**`, inline: true });
+            // Use Discord mention for captain if we can resolve the Discord ID
+            const captainDiscordId = await getDiscordId(event.creatorId).catch(() => null);
+            const captainDisplay = captainDiscordId 
+                ? `<@${captainDiscordId}>` 
+                : (raidMeta.raidCaptain || `**Le capitaine**`);
+            fields.push({ name: "👑 Capitaine", value: captainDisplay, inline: true });
             fields.push({ 
                 name: "🌐 Visibilité", 
                 value: raidMeta.openToExternal ? "🟢 Ouvert aux extérieurs" : "🔒 Guilde uniquement", 

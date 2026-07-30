@@ -104,23 +104,24 @@ client.on(Events.GuildCreate, async (guild) => {
             where: { discordGuildId: guild.id },
         });
 
-        if (existing) {
-            console.log(`[Discord Bot] Guild ${guild.name} already whitelisted`);
-            return;
-        }
+        if (!existing) {
+            // Auto-add to whitelist but ACTIVE = FALSE by default
+            // This requires manual approval by a super-admin in the GOD Dashboard
+            await db.allowedGuild.create({
+                data: {
+                    discordGuildId: guild.id,
+                    name: guild.name,
+                    tier: 'BETA',
+                    isActive: false, // 🔒 Security: Manual activation required
+                    addedBy: 'SYSTEM_GATEWAY',
+                    notes: `Auto-detected via Gateway bot on ${new Date().toISOString()}. Activation required.`,
+                },
+            });
 
-        // Auto-add to whitelist but ACTIVE = FALSE by default
-        // This requires manual approval by a super-admin in the GOD Dashboard
-        await db.allowedGuild.create({
-            data: {
-                discordGuildId: guild.id,
-                name: guild.name,
-                tier: 'BETA',
-                isActive: false, // 🔒 Security: Manual activation required
-                addedBy: 'SYSTEM_GATEWAY',
-                notes: `Auto-detected via Gateway bot on ${new Date().toISOString()}. Activation required.`,
-            },
-        });
+            console.log(`[Discord Bot] ✅ Auto-whitelisted: ${guild.name}`);
+        } else {
+            console.log(`[Discord Bot] Guild ${guild.name} already whitelisted — sending welcome embed anyway`);
+        }
 
         // Log audit
         const guildConfig = await db.guildConfig.findUnique({

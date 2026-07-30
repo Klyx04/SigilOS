@@ -657,7 +657,7 @@ function getInfoStyle(accentColor?: string|null): { border: string; bg: string; 
     return { border:"border-purple-500/30", bg:"from-purple-950/30 via-zinc-950 to-zinc-950", icon:"🔮" };
   return { border:"border-emerald-500/30", bg:"from-emerald-950/30 via-zinc-950 to-zinc-950", icon:"💡" };
 }
-function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
+function renderContentWithCoords(text: string, guildId: string = ""): (string | React.ReactNode)[] {
   const parts: (string | React.ReactNode)[] = [];
   // Combine link regex and coordinate regex in one pass
   // Order matters: [text](url), raw urls, /travel X Y, /travel X,Y, [X, Y], [X, Y, W]
@@ -688,7 +688,7 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
         </span>
       );
       parts.push(
-        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={""} contextLabel={text}>
+        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
           {chip}
         </MapPositionPopover>
       );
@@ -706,7 +706,7 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
         </span>
       );
       parts.push(
-        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={""} contextLabel={text}>
+        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
           {chip}
         </MapPositionPopover>
       );

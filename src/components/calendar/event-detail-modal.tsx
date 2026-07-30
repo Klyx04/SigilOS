@@ -62,7 +62,7 @@ import { ClassIcon, getClassColor } from "@/components/shared/class-icon";
 import { RegistrationModal } from "./registration-modal";
 import { CalendarDiscordDialog } from "./calendar-discord-dialog";
 import { getMissionsByIds } from "@/server/actions/mission-actions";
-import { kickParticipant } from "@/server/actions/calendar-actions";
+import { kickParticipant, transferRaidCaptaincy } from "@/server/actions/calendar-actions";
 import { Skull, Zap, Clock as ClockIcon, Infinity as InfinityIcon, Sparkles as SparklesIcon } from "lucide-react";
 
 // ============================================
@@ -227,6 +227,7 @@ interface EventDetailModalProps {
     onShareDiscord?: (roleId?: string) => Promise<{ success: boolean; error?: string }>;
     hasMetamobKey?: boolean;
     isDiscordConfigured?: boolean;
+    donationsEnabled?: boolean;
     /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
     raidEligibility?: { isEligible: boolean; totalDonated: number } | null;
 }
@@ -257,6 +258,7 @@ export function EventDetailModal({
     onShareDiscord,
     hasMetamobKey = false,
     isDiscordConfigured = false,
+    donationsEnabled = true,
     raidEligibility = null,
 }: EventDetailModalProps) {
     const [isLoading, setIsLoading] = useState(false);
@@ -811,27 +813,39 @@ export function EventDetailModal({
                                                 .filter(p => p.status === "REGISTERED")
                                                 .sort((a, b) => a.position - b.position)
                                                 .map((participant) => (
-                                                    <ParticipantRow
+                                                        <ParticipantRow
                                                         key={participant.id}
                                                         participant={participant}
                                                         isCreator={participant.user.id === event.creator.id}
                                                         isCurrentUser={participant.user.id === currentUserId}
+                                                        isRaid={isRaid}
                                                         onUnregister={!isExternal && onUnregister ? () => handleAction(onUnregister) : undefined}
-                                                        onKick={(canManage || event.creator.id === currentUserId) && participant.user.id !== event.creator.id
-                                                            ? () => handleAction(async () => {
-                                                                const res = await kickParticipant(guildId, event.id, participant.user.id);
-                                                                if (res.success) {
-                                                                    toast.success("Joueur exclu de l'événement.");
-                                                                } else {
-                                                                    toast.error(res.error || "Erreur lors de l'expulsion");
-                                                                }
-                                                            })
-                                                            : undefined
-                                                        }
-                                                    />
-                                                ))}
+                                                        onKick={(isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
+                                                             ? () => handleAction(async () => {
+                                                                 const res = await kickParticipant(guildId, event.id, participant.user.id);
+                                                                 if (res.success) {
+                                                                     toast.success("Joueur exclu de l'événement.");
+                                                                 } else {
+                                                                     toast.error(res.error || "Erreur lors de l'expulsion");
+                                                                 }
+                                                             })
+                                                             : undefined
+                                                         }
+                                                         onTransferCaptaincy={isRaid && isCreator && participant.user.id !== event.creator.id && participant.status === "REGISTERED"
+                                                             ? async () => {
+                                                                 const res = await transferRaidCaptaincy(guildId, event.id, participant.user.id);
+                                                                 if (res.success) {
+                                                                     toast.success("Capitanat transféré !");
+                                                                 } else {
+                                                                     toast.error(res.error || "Erreur");
+                                                                 }
+                                                             }
+                                                             : undefined
+                                                         }
+                                                     />
+                                                 ))}
 
-                                            {/* Metamob Metadata Participants Fallback */}
+                                             {/* Metamob Metadata Participants Fallback */}
                                             {isKrala && event.participants.length === 0 && (eventMetadata?.metamobParticipants || []).length > 0 && (
                                                 (eventMetadata.metamobParticipants as any[]).map((p, i) => (
                                                     <div key={`meta-${i}`} className="group relative flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/50 hover:bg-zinc-800/60 transition-all">
@@ -879,18 +893,19 @@ export function EventDetailModal({
                                                                 participant={participant}
                                                                 isReserve
                                                                 isCurrentUser={participant.user.id === currentUserId}
+                                                                isRaid={isRaid}
                                                                 onUnregister={onUnregister ? () => handleAction(onUnregister) : undefined}
-                                                                onKick={(canManage || event.creator.id === currentUserId) && participant.user.id !== event.creator.id
-                                                                    ? () => handleAction(async () => {
-                                                                        const res = await kickParticipant(guildId, event.id, participant.user.id);
-                                                                        if (res.success) {
-                                                                            toast.success("Joueur exclu de l'événement.");
-                                                                        } else {
-                                                                            toast.error(res.error || "Erreur lors de l'expulsion");
-                                                                        }
-                                                                    })
-                                                                    : undefined
-                                                                }
+                                                            onKick={(isRaid ? event.creator.id === currentUserId : (canManage || event.creator.id === currentUserId)) && participant.user.id !== event.creator.id
+                                                                 ? () => handleAction(async () => {
+                                                                     const res = await kickParticipant(guildId, event.id, participant.user.id);
+                                                                     if (res.success) {
+                                                                         toast.success("Joueur exclu de l'événement.");
+                                                                     } else {
+                                                                         toast.error(res.error || "Erreur lors de l'expulsion");
+                                                                     }
+                                                                 })
+                                                                 : undefined
+                                                             }
                                                             />
                                                         ))}
                                                 </>
@@ -1266,18 +1281,23 @@ function ParticipantRow({
     isCreator = false,
     isReserve = false,
     isCurrentUser = false,
+    isRaid = false,
     onUnregister,
-    onKick
+    onKick,
+    onTransferCaptaincy
 }: {
     participant: Participant;
     isCreator?: boolean;
     isReserve?: boolean;
     isCurrentUser?: boolean;
+    isRaid?: boolean;
     onUnregister?: () => void;
     onKick?: () => void;
+    onTransferCaptaincy?: () => Promise<void>;
 }) {
     const [isConfirming, setIsConfirming] = useState(false);
     const [isKickConfirming, setIsKickConfirming] = useState(false);
+    const [isTransferPending, setIsTransferPending] = useState(false);
 
     return (
         <div className={cn(
@@ -1371,6 +1391,26 @@ function ParticipantRow({
                         ) : (
                             <X className="h-4 w-4" />
                         )}
+                    </Button>
+                )}
+
+                {/* Transfer Captaincy (visible only for raid creator on registered participants) */}
+                {isCreator && isRaid && !isCurrentUser && onTransferCaptaincy && (
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={async (e) => {
+                            e.stopPropagation();
+                            setIsTransferPending(true);
+                            await onTransferCaptaincy();
+                            setIsTransferPending(false);
+                        }}
+                        disabled={isTransferPending}
+                        className="h-8 px-2 text-[10px] font-black uppercase tracking-wider text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10 shrink-0"
+                        title="Transférer le capitanat"
+                    >
+                        {isTransferPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
+                        <span className="ml-1 hidden sm:inline">Lead</span>
                     </Button>
                 )}
 

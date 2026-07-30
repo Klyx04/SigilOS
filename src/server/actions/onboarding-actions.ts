@@ -266,7 +266,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                     "SYSTEM_INFO",
                     notificationTitle,
                     notificationMessage,
-                    `/dashboard/${guildConfig.discordGuildId}/guild-hub`,
+                    `/dashboard/${guildConfig.discordGuildId}/guild-hub?tab=welcome`,
                     guildConfig.discordGuildId,
                     "SYSTEM"
                 )

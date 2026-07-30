@@ -1008,6 +1008,8 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
     // --- Objectif Manuel ---
     const handleManualTitle = (title: string) => {
         onTitleChange(title);
+        // Sync title into payload too so the input field displays it
+        onPayloadChange({ ...payload, eventType: 'OBJECTIF', title });
     };
 
     const handleManualDescription = (desc: string) => {

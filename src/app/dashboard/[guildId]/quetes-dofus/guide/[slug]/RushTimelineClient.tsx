@@ -663,8 +663,8 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
     } else if (m[4] && m[5]) {
       // /travel X, Y format
       const x = m[4], y = m[5];
-      const key = `${x},${y}`;
-      parts.push(
+      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
+      const chip = (
         <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
           onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
           title="Cliquer pour copier /travel"
@@ -673,10 +673,16 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
           [{x}, {y}]
         </span>
       );
+      parts.push(
+        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={""} contextLabel={text}>
+          {chip}
+        </MapPositionPopover>
+      );
     } else if (m[6] && m[7]) {
       // [x, y] or [x, y, world] format
       const x = m[6], y = m[7];
-      parts.push(
+      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
+      const chip = (
         <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
           onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
           title="Cliquer pour copier /travel"
@@ -684,6 +690,11 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
           <MapPin className="w-3 h-3 text-indigo-400" />
           [{x}, {y}]
         </span>
+      );
+      parts.push(
+        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={""} contextLabel={text}>
+          {chip}
+        </MapPositionPopover>
       );
     }
     li = combinedRx.lastIndex;

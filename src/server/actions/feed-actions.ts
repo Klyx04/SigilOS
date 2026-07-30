@@ -158,10 +158,15 @@ export async function getLiveStreamers(guildId: string) {
         // @ts-ignore
         const live = await db.contentCache.findMany({
             where: { type: "TWITCH" },
-            select: { creatorId: true, url: true, title: true }
+            select: { creatorId: true, url: true, title: true, thumbnail: true }
         });
 
-        return { success: true, data: live };
+        return { success: true, data: live.map((l: any) => ({
+            creatorId: l.creatorId,
+            url: l.url,
+            title: l.title,
+            avatarUrl: l.thumbnail || null
+        })) };
     } catch (error) {
         logger.error("Failed to get live streamers", { error: (error as Error).message, guildId });
         return { success: false, error: "Internal Server Error" };

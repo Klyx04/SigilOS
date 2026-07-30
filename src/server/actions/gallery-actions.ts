@@ -615,6 +615,26 @@ export async function shareGalleryItemOnDiscord(
             });
             if (!skin) return { success: false, error: "Skin introuvable" };
 
+            // --- OPPORTUNISTIC RE-SCRAPE ---
+            // If thumbnailUrl is missing or empty, try to re-scrape the skin metadata
+            // to fetch the image before sending to Discord.
+            if (!skin.thumbnailUrl || !skin.thumbnailUrl.trim()) {
+                try {
+                    const { scrapeSkinMetadata } = await import("./skin-actions");
+                    const freshData = await scrapeSkinMetadata(skin.url);
+                    if (freshData.thumbnailUrl) {
+                        // Update DB cache for future shares
+                        await db.userSkin.update({
+                            where: { id: skin.id },
+                            data: { thumbnailUrl: freshData.thumbnailUrl }
+                        }).catch(() => {});
+                        skin.thumbnailUrl = freshData.thumbnailUrl;
+                    }
+                } catch {
+                    // Scrape failed, continue with no image
+                }
+            }
+
             itemName = skin.name;
             authorName = skin.profile.pseudoDofus || skin.profile.discordNickname || authorName;
             embedTitle = `✨ Skin : ${skin.name}`;
@@ -637,6 +657,13 @@ export async function shareGalleryItemOnDiscord(
                 }
             } else {
                 embedImage = undefined;
+            }
+
+            // Fallback: use provider logo as main image instead of thumbnail if still no image
+            if (!embedImage) {
+                embedImage = skin.provider === "BARBOFUS"
+                    ? "https://sigilos.fr/assets/ui/barbofus.png"
+                    : "https://sigilos.fr/assets/ui/dofusskinmanga.png";
             }
 
 

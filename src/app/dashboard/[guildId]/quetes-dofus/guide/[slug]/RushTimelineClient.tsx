@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal";
+import MapPositionPopover from "@/components/dofus-quests/MapPositionPopover";
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushLivePopover } from "@/components/dofus-quests/RushLivePopover";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
@@ -214,7 +215,8 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const onBookmarkSeq = React.useContext(OnBookmarkSeqCtx);
   const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx) as Set<string>;
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
-  const guildProgressBySeq = React.useContext(GuildProgressBySeqCtx) as Map<string,GuildMemberProgress[]>;
+              const guildProgressBySeq = React.useContext(GuildProgressBySeqCtx) as Map<string,GuildMemberProgress[]>;
+              const guildId = React.useContext(GuildIdCtx);
   const isActive = seq.id === activeSeqId && !isSeqCompleted;
   const isNext = seq.id === nextSeqId && !isSeqCompleted && !isActive;
   const isThisBookmarked = seq.id === bookmarkedSeqId;
@@ -347,17 +349,30 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 const posTag = Array.isArray(seq.activityTags) ? (seq.activityTags as any[]).find((t:any)=>t.type==="pos_tags") : null;
                 if(!posTag?.name) return null;
                 const posStr = String(posTag.name);
-                return (
-                  <span 
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
-                    onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
-                    title="Cliquer pour copier /travel"
-                  >
-                    <MapPin className="w-3 h-3 text-indigo-400" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
-                    <span>[<span>{posStr}</span>]</span>
-                  </span>
-                );
+                const worldId = (posTag as any).worldId ?? undefined;
+                // Parse first coordinate pair from posStr (e.g. "-2, 0 ; 10, -22")
+                const coords = posStr.match(/(-?\d+)\s*[,;]\s*(-?\d+)/);
+                if (coords) {
+                  const x = parseInt(coords[1], 10);
+                  const y = parseInt(coords[2], 10);
+                  const chip = (
+                    <span 
+                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer shrink-0" 
+                      onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${posStr}`).then(()=>{toast.success(`📍 Position ${posStr} copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}} 
+                      title="Cliquer pour copier /travel"
+                    >
+                      <MapPin className="w-3 h-3 text-indigo-400" />
+                      <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400/70 mr-0.5">Lancement:</span>
+                      <span>[<span>{x}, {y}</span>]</span>
+                    </span>
+                  );
+                  return (
+                    <MapPositionPopover posX={x} posY={y} worldId={worldId} guildId={guildId} contextLabel={`${questName} ${ms.title}`}>
+                      {chip}
+                    </MapPositionPopover>
+                  );
+                }
+                return null;
               })()}
             </div>
           {/* ── Bookmark button — right side, fills the empty space ── */}
@@ -642,7 +657,7 @@ function getInfoStyle(accentColor?: string|null): { border: string; bg: string; 
     return { border:"border-purple-500/30", bg:"from-purple-950/30 via-zinc-950 to-zinc-950", icon:"🔮" };
   return { border:"border-emerald-500/30", bg:"from-emerald-950/30 via-zinc-950 to-zinc-950", icon:"💡" };
 }
-function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
+function renderContentWithCoords(text: string, guildId: string = ""): (string | React.ReactNode)[] {
   const parts: (string | React.ReactNode)[] = [];
   // Combine link regex and coordinate regex in one pass
   // Order matters: [text](url), raw urls, /travel X Y, /travel X,Y, [X, Y], [X, Y, W]
@@ -662,8 +677,8 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
     } else if (m[4] && m[5]) {
       // /travel X, Y format
       const x = m[4], y = m[5];
-      const key = `${x},${y}`;
-      parts.push(
+      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
+      const chip = (
         <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
           onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
           title="Cliquer pour copier /travel"
@@ -672,10 +687,16 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
           [{x}, {y}]
         </span>
       );
+      parts.push(
+        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
+          {chip}
+        </MapPositionPopover>
+      );
     } else if (m[6] && m[7]) {
       // [x, y] or [x, y, world] format
       const x = m[6], y = m[7];
-      parts.push(
+      const worldId = m[8] ? parseInt(m[8], 10) : undefined;
+      const chip = (
         <span key={`pos-${m.index}`} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-[9px] font-mono font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer" 
           onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(`/travel ${x},${y}`).then(()=>{toast.success(`📍 Position [${x}, ${y}] copiée !`,{duration:1500,icon:"📋"});}).catch(()=>{});}}
           title="Cliquer pour copier /travel"
@@ -683,6 +704,11 @@ function renderContentWithCoords(text: string): (string | React.ReactNode)[] {
           <MapPin className="w-3 h-3 text-indigo-400" />
           [{x}, {y}]
         </span>
+      );
+      parts.push(
+        <MapPositionPopover key={`popover-${m.index}`} posX={parseInt(x, 10)} posY={parseInt(y, 10)} worldId={worldId} guildId={guildId} contextLabel={text}>
+          {chip}
+        </MapPositionPopover>
       );
     }
     li = combinedRx.lastIndex;
@@ -900,6 +926,7 @@ const NextSeqIdCtx=React.createContext<string|null>(null);
 const BookmarkedSeqCtx=React.createContext<string|null>(null);
 const OnBookmarkSeqCtx=React.createContext<(seqId:string,ms:Milestone)=>void>(()=>{});
 const GuildProgressBySeqCtx=React.createContext<Map<string,GuildMemberProgress[]>>(new Map);
+const GuildIdCtx=React.createContext<string>("");
 
 // ─── ContextualHelp ──────────────────────────────────────────────────────────
 function ContextualHelp({ label, children, className }: { label: string; children?: React.ReactNode; className?: string }) {
@@ -1269,7 +1296,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
     return matchingSeqIds;
   }, [searchQuery, milestones, normalizeSearch]);
 
-  return(<><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={effectiveBookmarkSeqId}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
+  return(<><GuildIdCtx.Provider value={guildId}><ContextualHelpCtx.Provider value={contextualHelpEnabled}><ActiveSeqIdCtx.Provider value={activeSeqId}><NextSeqIdCtx.Provider value={nextSeqId}><BookmarkedSeqCtx.Provider value={effectiveBookmarkSeqId}><OnBookmarkSeqCtx.Provider value={handleBookmarkSequence}><GuildProgressBySeqCtx.Provider value={guildProgressBySeq}><CapturedMonsterNamesCtx.Provider value={capturedMonsterNamesMemo}><CapturedMonsterCtx.Provider value={capturedMonsterSet}><AllMilestonesCtx.Provider value={milestones}><AllCompletedSeqIdsCtx.Provider value={allCompletedSeqIds}><ScrollToPrereqCtx.Provider value={handleScrollToPrereq}><style>{`footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}`}</style>
   <div className="flex flex-col gap-5">
     <Link href={`/dashboard/${guildId}/quetes-dofus`} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors self-start group"><ChevronDown className="w-4 h-4 rotate-90 group-hover:-translate-x-1 transition-transform"/> Retour au Hub</Link>
     <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 backdrop-blur-md shadow-sm"><div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-amber-400 animate-pulse"/></div><div><p className="text-[10px] font-black uppercase tracking-wider text-amber-400">⚠️ Prérequis Recommandé</p><p className="text-xs text-amber-200/90">Conseillé dès le <strong className="text-white font-black">Niveau 200</strong>.</p></div></div>
@@ -1548,7 +1575,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </DialogFooter>
       </DialogContent>
     </Dialog>
-   </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider>
+   </div></ScrollToPrereqCtx.Provider></AllCompletedSeqIdsCtx.Provider></AllMilestonesCtx.Provider></CapturedMonsterCtx.Provider></CapturedMonsterNamesCtx.Provider></GuildProgressBySeqCtx.Provider></OnBookmarkSeqCtx.Provider></BookmarkedSeqCtx.Provider></NextSeqIdCtx.Provider></ActiveSeqIdCtx.Provider></ContextualHelpCtx.Provider></GuildIdCtx.Provider>
   <Dialog open={alignEditOpen} onOpenChange={setAlignEditOpen}>
     <DialogContent className="max-w-lg w-[95vw] bg-zinc-950 border-zinc-800 rounded-3xl p-0 overflow-hidden shadow-2xl">
       <DialogHeader className="p-6 pb-4 border-b border-white/5">

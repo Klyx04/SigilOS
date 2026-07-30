@@ -27,7 +27,8 @@ export function MapViewer({
     hideUI,
     userName,
     userAvatar,
-    isAdmin
+    isAdmin,
+    interactive
 }: { 
     initialLadder?: any[], 
     initialTab?: 'map' | 'games', 
@@ -39,7 +40,8 @@ export function MapViewer({
     hideUI?: boolean,
     userName?: string,
     userAvatar?: string,
-    isAdmin?: boolean
+    isAdmin?: boolean,
+    interactive?: boolean
 }) {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export function MapViewer({
             userName={userName}
             userAvatar={userAvatar}
             isAdmin={isAdmin}
+            interactive={interactive}
         />
     );
 }

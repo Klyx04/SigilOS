@@ -64,6 +64,7 @@ interface InteractiveMapProps {
     userName?: string;
     userAvatar?: string;
     isAdmin?: boolean;
+    interactive?: boolean;
 }
 
 export default function InteractiveMapV2({ 
@@ -78,7 +79,8 @@ export default function InteractiveMapV2({
     hideUI,
     userName,
     userAvatar,
-    isAdmin
+    isAdmin,
+    interactive
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const currentUserId = sessionData?.user?.id;
@@ -1508,6 +1510,7 @@ export default function InteractiveMapV2({
                                     mapsBySubAreaId={mapsBySubAreaId}
                                     guessResult={guessResult}
                                     isMiniMap={true}
+                                    initialZoom={initialZoom}
                                     minimapRecenterTrigger={minimapRecenterTrigger}
                                     minimapZoomLevel={initialZoom}
                                     participants={activeSession?.participants}
@@ -1516,6 +1519,7 @@ export default function InteractiveMapV2({
                                     hideUI={hideUI}
                                     minZoom={Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                                     autoCopyTravel={autoCopyTravel}
+                                    interactive={interactive}
                                 />
 
                                 {/* Floating Validation Overlay inside panel */}
@@ -1572,6 +1576,7 @@ export default function InteractiveMapV2({
                             mapsBySubAreaId={mapsBySubAreaId}
                             guessResult={guessResult}
                             isMiniMap={false}
+                            initialZoom={initialZoom}
                             minimapRecenterTrigger={minimapRecenterTrigger}
                                     participants={activeSession?.participants}
                                     currentUserId={currentUserId}
@@ -1579,6 +1584,7 @@ export default function InteractiveMapV2({
                                     hideUI={hideUI}
                                     minZoom={Math.max(selectedWorldId !== 1 ? -3 : -4, -(activeWorld.zoom?.length || 1) - 1)}
                             highlightSubareaIds={highlightSubareaIds}
+                            interactive={interactive}
                         />
                     </div>
                 )}

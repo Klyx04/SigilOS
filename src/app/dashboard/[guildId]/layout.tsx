@@ -78,6 +78,18 @@ export default async function DashboardLayout({
         );
     }
 
+    // ── SERVER DELETED: specific message + signout button ──
+    if ((user as any).isServerDeleted) {
+        return (
+            <AccessDenied
+                title="Serveur Supprimé"
+                message={`Le serveur Discord "${user.guildName}" a été supprimé. SigilOS n'est plus accessible pour ce serveur. Vous allez être déconnecté.`}
+                variant="lock"
+                action={<SignOutButton />}
+            />
+        );
+    }
+
     // ── ARCHIVED: specific message to contact staff ──
     if ((user as any).isArchived) {
         return (

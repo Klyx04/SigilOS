@@ -491,20 +491,37 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         } as any;
     }
 
-    // --- AUTO-ARCHIVE DETECTION (Legacy) ---
-    // Note: We don't perform DB mutation here anymore to avoid "Mutation during render" errors.
-    // The UI handles !member by blocking access. Actual DB archival happens via admin sync.
+    // --- SERVER DELETED vs MEMBER KICKED DETECTION ---
+    // If guildInfo is null AND member is null AND no Discord API error:
+    // → the Discord server itself was deleted (the bot can't see the guild either)
+    // If guildInfo exists but member is null:
+    // → the user personally left/was kicked from the server (but server exists)
     // IMPORTANT: If memberFetchFailed (Discord API error, rate-limit, etc.) we skip this block
     // entirely to avoid false positives that would block legitimate admins/members.
     if (!memberFetchFailed && guildConfig && !member && profile && profile.status === "ACTIVE") {
-        if (!isGod) return {
-            ...baseContext,
-            isAuthenticated: true,
-            isMember: false,
-            isArchived: true,
-            guildName: guildConfig?.name || "Serveur Inconnu",
-            scheduledDeletion: null // Will be set upon actual archival via sync
-        } as any;
+        const isServerDeleted = !guildInfo;
+        if (!isGod) {
+            if (isServerDeleted) {
+                // Server was deleted — force sign-out by returning isServerDeleted: true
+                // The dashboard layout will handle the specific message + signout
+                return {
+                    ...baseContext,
+                    isAuthenticated: true,
+                    isMember: false,
+                    isServerDeleted: true,
+                    guildName: guildConfig?.name || "Serveur Inconnu",
+                } as any;
+            }
+            // User left/was kicked — show "archived" as before
+            return {
+                ...baseContext,
+                isAuthenticated: true,
+                isMember: false,
+                isArchived: true,
+                guildName: guildConfig?.name || "Serveur Inconnu",
+                scheduledDeletion: null,
+            } as any;
+        }
     }
 
 

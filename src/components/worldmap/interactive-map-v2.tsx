@@ -208,7 +208,8 @@ export default function InteractiveMapV2({
     }, [initialWorldId, initialX, initialY]);
 
     // Positionne le dropdown au-dessus de la navbar via portal (fixed + z très élevé).
-    // Se déclenche quand on ouvre, et ferme au scroll/resize pour ne jamais laisser un panel orphelin.
+    // Se déclenche quand on ouvre. On ferme UNIQUEMENT au resize (et au clic extérieur via l'overlay)
+    // — PAS au scroll global (sinon la molette scrollerait dans le panel fermerait le dropdown).
     useEffect(() => {
         if (!worldDropdownOpen) return;
         const update = () => {
@@ -216,12 +217,10 @@ export default function InteractiveMapV2({
             if (rect) setWorldDropdownPos({ top: rect.bottom + 8, left: rect.right - 240 });
         };
         update();
-        const onClose = () => setWorldDropdownOpen(false);
-        window.addEventListener('scroll', onClose, true);
-        window.addEventListener('resize', onClose);
+        const onResize = () => setWorldDropdownOpen(false);
+        window.addEventListener('resize', onResize);
         return () => {
-            window.removeEventListener('scroll', onClose, true);
-            window.removeEventListener('resize', onClose);
+            window.removeEventListener('resize', onResize);
         };
     }, [worldDropdownOpen]);
 

@@ -43,6 +43,7 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
     const [expandedAchv, setExpandedAchv] = useState<string | null>(null);
 
     const dungeon = dungeons[selectedDungeonIndex];
+    const isOcreQuest = !!(dungeon as any).__isOcreQuest;
 
     useEffect(() => {
         if (isOpen && dungeon) {
@@ -115,6 +116,12 @@ export function DungeonDetailModal({ isOpen, onClose, dungeons, guildId }: Dunge
                                     <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-500 text-[8px] md:text-[10px] font-black uppercase tracking-widest italic">
                                         Lvl {resolvedDj?.level || dungeon.level}
                                     </span>
+                                    {isOcreQuest && (
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-[8px] md:text-[10px] font-black uppercase tracking-widest italic">
+                                            <img src="/module-dofus/Dofus_Ocre.png" alt="" className="w-3 h-3 object-contain" />
+                                            Quête Ocre
+                                        </span>
+                                    )}
                                 </div>
                                 <h2 className="text-xl md:text-3xl font-black text-white truncate drop-shadow-2xl uppercase italic tracking-tighter">
                                     {resolvedDj?.name || (typeof dungeon.name === 'string' ? dungeon.name : dungeon.name?.fr || "Donjon")}

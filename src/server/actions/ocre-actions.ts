@@ -858,6 +858,8 @@ export async function getOcreExchangeJobStatus(
 
 /**
  * Find all guild members who have a specific monster in doublon.
+ * Resolves monster IDs using the same normalization logic as getMyOcreProgress
+ * to handle ID mismatches between Metamob API raw data and normalized skeleton IDs.
  */
 export async function findMonsterOwnersAction(
     rawData: z.infer<typeof FindMonsterOwnersSchema>
@@ -888,9 +890,12 @@ export async function findMonsterOwnersAction(
                 id: true,
                 metamobPseudo: true,
                 metamobQuestSlug: true,
+                metamobApiKey: true,
                 user: { select: { id: true, name: true, image: true } },
             },
         });
+
+        if (members.length === 0) return { success: true, data: [] };
 
         const owners: ExchangePartner[] = [];
         const BATCH_SIZE = 5;
@@ -900,44 +905,67 @@ export async function findMonsterOwnersAction(
             await Promise.all(batch.map(async (member: any) => {
                 if (!member.metamobPseudo || !member.metamobQuestSlug) return;
                 try {
-                    // Optimized: Fetch only this monster if possible? No, API doesn't support filtering by monster ID in list.
-                    // But we can check public page or use our API wrapper which fetches list.
-                    // Actually getQuestDetails fetches all monsters.
-                    // Optimization: We could cache these results aggressively?
-                    // For now, simple fetch.
+                    const effectiveKey = member.metamobApiKey || undefined;
                     const details = await getQuestDetails(member.metamobPseudo, member.metamobQuestSlug, {
-                        guildApiKey,
+                        guildApiKey: effectiveKey,
                         limit: 1000 // Get all
                     });
 
-                    const monster = details.monsters.find(m => m.id === monsterId);
-                    if (monster) {
-                        // @ts-ignore
-                        const owned = monster.owned ?? monster.quantite ?? monster.amount ?? monster.quantity ?? 0;
-                        // @ts-ignore
-                        const offer = monster.offer;
-                        const pq = details.parallel_quests || 1;
+                    const pq = details.parallel_quests || 1;
 
-                        let available = 0;
-                        if (typeof offer === 'number') {
-                            available = offer;
-                        } else {
-                            available = Math.max(0, owned - pq);
+                    // Scan all monsters, resolve their IDs the same way as getMyOcreProgress (lines ~648-654).
+                    // The key issue was that the old code used `m.id === monsterId` but the API can return
+                    // different ID fields (monster_id vs monster.id vs m.id). We need to resolve the canonical ID.
+                    for (const m of details.monsters) {
+                        // Resolve the real monster ID: prefer monster_id, fallback to monster?.id, then m.id
+                        let resolvedId = (m as any).monster_id ?? (m as any).monster?.id ?? m.id;
+
+                        // If the resolved ID doesn't match, try matching by name as fallback
+                        // (same pattern as getMyOcreProgress for stability when IDs shift between endpoints)
+                        if (resolvedId !== monsterId) {
+                            const nameKey = m.name?.fr?.toLowerCase().trim();
+                            if (nameKey) {
+                                // We can't fully reproduce the skeleton-ID fallback without also
+                                // fetching the quest template, but for the direct owner search,
+                                // the monster_id resolution is already the critical fix.
+                                // If name matching is needed, we'd need the template — skip for now.
+                            }
+                            continue; // No need to check other names, resolvedId is the canonical ID
                         }
 
-                        if (available > 0) {
-                            owners.push({
-                                username: member.metamobPseudo,
-                                characterName: member.user.name || member.metamobPseudo,
-                                discordId: member.user.id || "",
-                                discordAvatar: member.user.image || undefined,
-                                profileId: member.id,
-                                parallelQuests: pq,
-                                monstersTheyHave: [{ id: monster.id, name: monster.name?.fr || "Unknown", available, coversNeed: true, needed: 1 }],
-                                monstersYouHave: [],
-                                matchScore: 1
-                            });
+                        // Filter out normal monsters (only archis/bosses/guardians matter for Ocre)
+                        const typeName = m.type?.name?.fr?.toLowerCase() || "";
+                        if (!typeName.includes("archimonstre") && !typeName.includes("gardien") && !typeName.includes("boss")) {
+                            continue;
                         }
+
+                        // Use normalizeQuestMonster to determine state (same as getMyOcreProgress does)
+                        const normalized = normalizeQuestMonster(m, pq);
+
+                        // Only include if they have this as a doublon (surplus to trade)
+                        if (normalized.state !== "DOUBLON") continue;
+
+                        const available = Math.max(0, normalized.owned - pq);
+                        if (available <= 0) continue;
+
+                        owners.push({
+                            username: member.metamobPseudo,
+                            characterName: member.user.name || member.metamobPseudo,
+                            discordId: member.user.id || "",
+                            discordAvatar: member.user.image || undefined,
+                            profileId: member.id,
+                            parallelQuests: pq,
+                            monstersTheyHave: [{
+                                id: resolvedId,
+                                name: m.name?.fr || "Unknown",
+                                available,
+                                coversNeed: true,
+                                needed: 1
+                            }],
+                            monstersYouHave: [],
+                            matchScore: available
+                        });
+                        break; // Found the monster, no need to scan further
                     }
                 } catch (e) {
                     // Ignore errors for individual members

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { getZoneMonsters, getBountiesForZone, searchDungeonsAdvanced } from '@/server/actions/game-data-actions';
-import { getZoneArchmonsters } from '@/server/actions/ocre-actions';
+import { getZoneArchmonsters, getGuildOcreTrades } from '@/server/actions/ocre-actions';
 
 interface ZoneDetailModalProps {
     isOpen: boolean;
@@ -27,18 +27,22 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
     const [bounties, setBounties] = useState<any[]>([]);
     const [expandedBounties, setExpandedBounties] = useState<Record<string, boolean>>({});
     const [dungeons, setDungeons] = useState<any[]>([]);
+    const [trades, setTrades] = useState<any[]>([]);
+    const [tradesLoading, setTradesLoading] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen && zoneName) {
             setLoading(true);
+            setTradesLoading(true);
             Promise.all([
                 getZoneMonsters(zoneName),
                 (worldId === undefined || worldId === 1) ? getZoneArchmonsters(guildId, zoneName) : getZoneArchmonsters(guildId, zoneName),
                 getBountiesForZone(zoneName),
                 searchDungeonsAdvanced({ query: zoneName }),
-            ]).then(([mRes, aRes, bRes, dRes]) => {
+                getGuildOcreTrades(guildId, { subAreaName: zoneName }),
+            ]).then(([mRes, aRes, bRes, dRes, tRes]) => {
                 const localAvis = (mRes.success && mRes.data) ? mRes.data.avisDeRecherche : [];
                 const dbAvis = bRes.success ? bRes.data || [] : [];
                 
@@ -69,11 +73,15 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                     guideUrl: `https://duffus.fr/avis-de-recherche/${b.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/['\s]/g, '-')}`
                 })));
                 if (dRes.success) setDungeons(dRes.data || []);
+                if (tRes.success && tRes.data) setTrades(tRes.data);
+                else setTrades([]);
 
                 setLoading(false);
+                setTradesLoading(false);
             }).catch(() => {
                 setError("Erreur de connexion");
                 setLoading(false);
+                setTradesLoading(false);
             });
         }
     }, [isOpen, zoneName, guildId]);
@@ -511,10 +519,59 @@ export function ZoneDetailModal({ isOpen, onClose, zoneName, position, guildId, 
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 bg-black/40 border-t border-white/5 flex items-center justify-between shrink-0 px-10">
-                    <div className="flex items-center gap-4">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
-                        <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] italic">Analyseur de Zone v4.2 - SigilOS</span>
+                <div className="p-6 bg-black/40 border-t border-white/5 flex items-center justify-between shrink-0 px-10 gap-6">
+                    {/* Trades Ocre */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-[9px] font-black text-amber-400/80 uppercase tracking-[0.25em] italic flex items-center gap-1.5">
+                                <Coins size={12} />
+                                Échanges Ocre {zoneName ? `— ${zoneName}` : ''}
+                            </span>
+                            {tradesLoading && <Loader2 size={11} className="animate-spin text-amber-400/50" />}
+                        </div>
+                        {tradesLoading ? (
+                            <p className="text-[10px] text-white/40 italic">Chargement des échanges…</p>
+                        ) : trades.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {trades.slice(0, 4).map((t) => (
+                                    <div key={t.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10">
+                                        {t.monsterImageUrl && (
+                                            <img src={t.monsterImageUrl} alt="" className="w-5 h-5 object-contain rounded bg-black/40 shrink-0" />
+                                        )}
+                                        <span className="text-[10px] font-bold text-white truncate max-w-[140px]">{t.monsterName}</span>
+                                        <span className="text-[8px] font-black uppercase tracking-widest italic">
+                                            {t.status === "ACCEPTED" ? (
+                                                <span className="text-emerald-400">Accepté</span>
+                                            ) : (
+                                                <span className="text-amber-400">En attente</span>
+                                            )}
+                                        </span>
+                                    </div>
+                                ))}
+                                {trades.length > 4 && (
+                                    <span className="text-[10px] font-black text-white/30 uppercase tracking-widest italic self-center">+{trades.length - 4}</span>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-[10px] text-white/25 italic">Aucun échange actif sur cette zone.</p>
+                        )}
+                    </div>
+
+                    {/* Bouton Metamob + filigrane */}
+                    <div className="flex items-center gap-4 shrink-0">
+                        <a
+                            href={`https://www.metamob.fr`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-5 py-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 hover:text-black border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-widest italic transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/5"
+                        >
+                            <Sparkles size={14} />
+                            Metamob
+                        </a>
+                        <div className="flex items-center gap-4">
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
+                            <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] italic">Analyseur de Zone v4.2 - SigilOS</span>
+                        </div>
                     </div>
                 </div>
             </DialogContent>

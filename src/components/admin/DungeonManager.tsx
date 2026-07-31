@@ -324,6 +324,12 @@ export default function DungeonManager() {
                                             <h3 className="font-bold text-slate-200 truncate group-hover:text-indigo-300 transition-colors">
                                                 {dungeon.name}
                                             </h3>
+                                            {dungeon.isOcreQuest && (
+                                                <Badge variant="outline" className="bg-yellow-950/20 border-yellow-900/30 text-yellow-500 text-[10px] h-5 gap-1 shrink-0" title="Donjon de la Quête Ocre">
+                                                    <img src="/module-dofus/Dofus_Ocre.png" alt="" className="w-3 h-3 object-contain" />
+                                                    Quête Ocre
+                                                </Badge>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-slate-400">
                                             <Skull className="w-3.5 h-3.5" />

@@ -12,7 +12,7 @@ import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
-import { searchArchimonstresForMap } from '@/server/actions/game-data-actions';
+import { searchArchimonstresForMap, type MapSearchFilter } from '@/server/actions/game-data-actions';
 import { getOcreDungeonMapIds } from '@/server/actions/ocre-map-actions';
 import {
     createGeoguesserSession,
@@ -113,7 +113,7 @@ export default function InteractiveMapV2({
     const [archiResults, setArchiResults] = useState<any[]>([]);
     const [isSearchingArchi, setIsSearchingArchi] = useState(false);
     const [highlightSubareaIds, setHighlightSubareaIds] = useState<number[]>([]);
-    const [searchFilter, setSearchFilter] = useState<'all' | 'zones' | 'archis'>('all');
+    const [searchFilter, setSearchFilter] = useState<MapSearchFilter>('all');
 
     // Ocre quest dungeons (donjons marqués "Quête Ocre" → icône Dofus Ocre sur la carte)
     const [ocreMapIds, setOcreMapIds] = useState<Set<number>>(new Set());
@@ -181,7 +181,7 @@ export default function InteractiveMapV2({
         }
     }, [initialWorldId, initialX, initialY]);
 
-    // ── Debounced archimonstre search ──
+    // ── Debounced archimonstre search (transmet le filtre actif au serveur) ──
     useEffect(() => {
         if (!search || search.trim().length < 2) {
             setArchiResults([]);
@@ -191,7 +191,7 @@ export default function InteractiveMapV2({
         const timer = setTimeout(async () => {
             setIsSearchingArchi(true);
             try {
-                const res = await searchArchimonstresForMap(search.trim());
+                const res = await searchArchimonstresForMap(search.trim(), searchFilter);
                 if (res.success && res.data) {
                     setArchiResults(res.data);
                 } else {
@@ -204,7 +204,7 @@ export default function InteractiveMapV2({
             }
         }, 300);
         return () => clearTimeout(timer);
-    }, [search]);
+    }, [search, searchFilter]);
 
     // --- HOOKS DE CALCUL (useMemo) ---
     // On les place au début pour éviter les erreurs "Used before assigned" dans les useEffect
@@ -1163,22 +1163,28 @@ export default function InteractiveMapV2({
                                         <div className="absolute top-full right-0 mt-2 w-80 bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[700]">
 
                                             {/* Filter chips */}
-                                            {(searchResults.length > 0 && archiResults.length > 0) && (
-                                                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5 bg-white/2">
-                                                    {(['all', 'zones', 'archis'] as const).map(f => (
+                                            {(searchResults.length > 0 || archiResults.length > 0) && (
+                                                <div className="flex items-center flex-wrap gap-1.5 px-3 py-2 border-b border-white/5 bg-white/2">
+                                                    {(['all', 'zones', 'archis', 'boss', 'mobs', 'ocre'] as MapSearchFilter[]).map(f => (
                                                         <button
                                                             key={f}
                                                             onClick={() => setSearchFilter(f)}
                                                             className={cn(
                                                                 "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
                                                                 searchFilter === f
-                                                                    ? f === 'archis'
-                                                                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
-                                                                        : 'bg-white/10 text-white border border-white/15'
+                                                                    ? f === 'ocre'
+                                                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                                                        : f === 'archis'
+                                                                            ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                                                                            : 'bg-white/10 text-white border border-white/15'
                                                                     : 'text-white/30 hover:text-white/60 border border-transparent'
                                                             )}
                                                         >
-                                                            {f === 'all' ? 'Tout' : f === 'zones' ? '🗺 Zones' : '🎯 Avis & Archis'}
+                                                            {f === 'all' ? 'Tout' :
+                                                             f === 'zones' ? '🗺 Zones' :
+                                                             f === 'archis' ? '🎯 Archis' :
+                                                             f === 'boss' ? '👑 Boss' :
+                                                             f === 'mobs' ? '👹 Mobs' : '🟡 Ocre'}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -1205,15 +1211,15 @@ export default function InteractiveMapV2({
                                                 </>
                                             )}
 
-                                            {/* Bounty / Archimonstre results */}
-                                            {(searchFilter === 'all' || searchFilter === 'archis') && archiResults.length > 0 && (
+                                            {/* Bounty / Archimonstre / Monstre results */}
+                                            {searchFilter !== 'zones' && archiResults.length > 0 && (
                                                 <>
                                                     {searchFilter === 'all' && searchResults.length > 0 && (
                                                         <div className="px-3 py-1.5 bg-orange-500/5 border-b border-orange-500/10 border-t border-t-white/5">
                                                             <span className="text-orange-400/60 text-[8px] font-black uppercase tracking-widest">🎯 Avis & Archimonstres</span>
                                                         </div>
                                                     )}
-                                                    {archiResults.slice(0, searchFilter === 'archis' ? 10 : 5).map((a: any) => (
+                                                    {archiResults.slice(0, searchFilter !== 'all' ? 10 : 5).map((a: any) => (
                                                         <button
                                                             key={a.id}
                                                             onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
@@ -1228,11 +1234,20 @@ export default function InteractiveMapV2({
                                                                         <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
                                                                     ) : (
                                                                         <div className="w-7 h-7 rounded bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                                                                            <span className="text-[10px]">🎯</span>
+                                                                            <span className="text-[10px]">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
                                                                         </div>
                                                                     )}
                                                                     <div className="min-w-0">
-                                                                        <div className="text-orange-300 text-[10px] font-black uppercase italic truncate">{a.name}</div>
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className={cn(
+                                                                                "text-[10px] font-black uppercase italic truncate",
+                                                                                a.isOcre ? "text-amber-300" : a.type === 'monstre' ? "text-white/70" : "text-orange-300"
+                                                                            )}>{a.name}</span>
+                                                                            {a.isOcre && (
+                                                                                <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3.5 h-3.5 shrink-0" title="Quête Ocre" />
+                                                                            )}
+                                                                            {a.type === 'boss' && <span className="text-[7px] text-amber-400/70 font-black uppercase px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/10">Boss</span>}
+                                                                        </div>
                                                                         <div className="text-white/25 text-[8px] uppercase truncate">
                                                                             {a.zoneName
                                                                                 ? a.subAreaIds?.length > 0

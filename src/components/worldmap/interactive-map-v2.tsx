@@ -1063,29 +1063,28 @@ export default function InteractiveMapV2({
 
     if (!activeWorld) return <div className="p-20 text-center text-white/20">Initialisation de la carte...</div>;
 
-    {/* World Selection Dropdown — porté dans document.body pour passer AU-DESSUS de la navbar */}
-    {worldDropdownOpen && worldDropdownPos && typeof document !== 'undefined' && createPortal(
-        <>
-            {/* Overlay plein écran pour fermer au clic extérieur */}
-            <div className="fixed inset-0 z-[4999]" onClick={() => setWorldDropdownOpen(false)} />
-            {/* Panel ancré exactement sous le bouton */}
-            <div className="fixed z-[5000] w-60" style={{ top: worldDropdownPos.top, left: Math.max(8, worldDropdownPos.left) }}>
-                <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] p-2 max-h-[50vh] overflow-y-auto">
-                    {visibleWorlds.map(w => (
-                        <button
-                            key={w.id}
-                            onClick={() => { setSelectedWorldId(w.id); setWorldDropdownOpen(false); }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}
-                        >{w.name.fr}</button>
-                    ))}
-                </div>
-            </div>
-        </>,
-        document.body
-    )}
-
     return (
         <div className="w-full h-full flex flex-col bg-[#080b12] relative overflow-hidden">
+            {/* World Selection Dropdown — porté dans document.body pour passer AU-DESSUS de la navbar */}
+            {worldDropdownOpen && worldDropdownPos && typeof document !== 'undefined' && createPortal(
+                <>
+                    {/* Overlay plein écran pour fermer au clic extérieur */}
+                    <div className="fixed inset-0 z-[4999]" onClick={() => setWorldDropdownOpen(false)} />
+                    {/* Panel ancré exactement sous le bouton */}
+                    <div className="fixed z-[5000] w-60" style={{ top: worldDropdownPos.top, left: Math.max(8, worldDropdownPos.left) }}>
+                        <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] p-2 max-h-[50vh] overflow-y-auto">
+                            {visibleWorlds.map(w => (
+                                <button
+                                    key={w.id}
+                                    onClick={() => { setSelectedWorldId(w.id); setWorldDropdownOpen(false); }}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}
+                                >{w.name.fr}</button>
+                            ))}
+                        </div>
+                    </div>
+                </>,
+                document.body
+            )}
             {/* Header & Controls (Hidden in focused games mode) */}
             {!hideUI && (activeTab === 'map' || !initialTab) && (
                 <div className="flex-shrink-0 bg-slate-950/90 backdrop-blur-md border-b border-white/5 px-8 flex items-center justify-between h-[64px] z-[600]">

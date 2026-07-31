@@ -84,7 +84,7 @@ Refondre la **Page Carte du monde** de SigilOS pour :
 ### Quête Ocre / Archimonstres / Catalogue
 - `src/server/actions/ocre-map-actions.ts` — `getOcreDungeonMapIds()` (renvoie les `mapId` des donjons `isOcreQuest=true`).
 - Modèle `Archimonstre` (Prisma) — champ `isOcre`, contrainte `@@unique([name, type])`, index `isOcre` + `dofusdbId`.
-- `src/components/admin/ArchimonstreManager.tsx` — panneau GOD (filtres Tous/Archi/Boss/Mob + Sync Metamob). **À enrichir avec sync Catalogue + détection nouveautés (B1/B2)**.
+- `src/components/admin/ArchimonstreManager.tsx` — panneau GOD (filtres Tous/Archi/Boss/Mob + Sync Metamob + **Sync Catalogue Dofus** avec progression). **Reste : détection nouveautés (B2)**.
 
 ### Base de données (Prisma)
 - `prisma/schema.prisma` — modèles `Dungeon`, `Archimonstre`, `Bounty`, `OcreTradeRequest`, `OcreMonsterTemplate` (orphelin, à réutiliser pour la détection), `Challenge`, etc.
@@ -188,10 +188,6 @@ Upsert par `name_type` + `isOcre:true`, type normalisé ('monstre' si contient "
 ---
 
 ## 🌊 Priorités restantes détaillées
-
-### B1 — Sync catalogue complet DofusDB
-- `syncWorldMonsters()` : paginer `https://api.dofusdb.fr/monsters?lang=fr&$limit=50&$skip=...` par batchs (3 concurrency, délai 200ms), résoudre monde/subarea/coords via `worldmap.json`, upsert local `isOcre:false`.
-- GOD (`ArchimonstreManager`) : 2 boutons "Sync Quête Ocre" + "Sync Catalogue Dofus" avec progression.
 
 ### B2 — Détection nouveautés (Metamob + DofusDB)
 - Réutiliser **`OcreMonsterTemplate`** (orphelin) comme snapshot des `dofusdbId` connus.

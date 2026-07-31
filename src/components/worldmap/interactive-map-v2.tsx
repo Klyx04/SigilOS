@@ -13,6 +13,7 @@ import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
 import { searchArchimonstresForMap } from '@/server/actions/game-data-actions';
+import { getOcreDungeonMapIds } from '@/server/actions/ocre-map-actions';
 import {
     createGeoguesserSession,
     getActiveGeoguesserSessions,
@@ -113,6 +114,18 @@ export default function InteractiveMapV2({
     const [isSearchingArchi, setIsSearchingArchi] = useState(false);
     const [highlightSubareaIds, setHighlightSubareaIds] = useState<number[]>([]);
     const [searchFilter, setSearchFilter] = useState<'all' | 'zones' | 'archis'>('all');
+
+    // Ocre quest dungeons (donjons marqués "Quête Ocre" → icône Dofus Ocre sur la carte)
+    const [ocreMapIds, setOcreMapIds] = useState<Set<number>>(new Set());
+
+    // Load Ocre dungeon mapIds once
+    useEffect(() => {
+        let cancelled = false;
+        getOcreDungeonMapIds().then(ids => {
+            if (!cancelled) setOcreMapIds(new Set(ids));
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, []);
 
     // Mini-Jeux States
     const [gamePhase, setGamePhase] = useState<'idle' | 'countdown' | 'playing' | 'result' | 'summary'>('idle');
@@ -368,10 +381,10 @@ export default function InteractiveMapV2({
         const results: any[] = [];
         dungeonsByMapId.forEach((dungeons, mapId) => {
             const mapNode = mapsById.get(mapId);
-            if (mapNode) results.push({ mapId, dungeons, mapNode });
+            if (mapNode) results.push({ mapId, dungeons, mapNode, isOcreQuest: ocreMapIds.has(mapId) });
         });
         return results;
-    }, [activeMaps.length, mapsById, dungeonsByMapId]);
+    }, [activeMaps.length, mapsById, dungeonsByMapId, ocreMapIds]);
 
     // NEW: Comprehensive index of ALL maps at a coordinate (for layer switching)
     const allLayersByCoords = useMemo(() => {

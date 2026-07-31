@@ -102,8 +102,8 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
                          $('p:contains("Visage")').next('div').find('img').attr('src');
         
         return {
-            name: $('meta[property="og:title"]').attr('content')?.replace(" - Barbofus", "") || "Skin Barbofus",
-            thumbnailUrl: $('meta[property="og:image"]').attr('content') || null,
+            name: $('meta[property="og:title"]').attr('content')?.replace(" - Barbofus", "").trim() || "Skin Barbofus",
+            thumbnailUrl: $('meta[property="og:image"]').attr('content')?.trim() || null,
             provider: "BARBOFUS",
             colors,
             equipment,
@@ -174,7 +174,7 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
 
         return {
             name,
-            thumbnailUrl: $('meta[property="og:image"]').attr('content') || null,
+                thumbnailUrl: $('meta[property="og:image"]').attr('content')?.trim() || null,
             provider: "DOFUSSKINMANGA",
             colors,
             equipment,
@@ -193,8 +193,8 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
         const html = await res.text();
         const $ = cheerio.load(html);
         return {
-            name: $('meta[property="og:title"]').attr('content') || $('title').text() || "Nouveau Skin",
-            thumbnailUrl: $('meta[property="og:image"]').attr('content') || null,
+            name: $('meta[property="og:title"]').attr('content')?.trim() || $('title').text() || "Nouveau Skin",
+            thumbnailUrl: $('meta[property="og:image"]').attr('content')?.trim() || null,
             provider: "OTHER"
         };
     } catch {

@@ -20,6 +20,7 @@ interface Dungeon {
     bossName: string;
     level: number;
     imageUrl?: string | null;
+    isOcreQuest?: boolean;
     achievements: Achievement[];
 }
 
@@ -306,11 +307,19 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                             onClick={() => expandDungeon(dungeon.id)}
                                             className="w-full flex flex-col sm:flex-row items-center gap-6 p-6 hover:bg-white/5 transition-all text-left group"
                                         >
-                                            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
+                                             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform duration-500 relative">
                                                 {dungeon.imageUrl
                                                     ? <img src={dungeon.imageUrl} alt="" className="w-full h-full object-cover" />
                                                     : <Trophy className="w-8 h-8 text-zinc-700" />
                                                 }
+                                                {dungeon.isOcreQuest && (
+                                                    <img
+                                                        src="/module-dofus/Dofus_Ocre.png"
+                                                        alt="Quête Ocre"
+                                                        title="Donjon de la Quête Ocre"
+                                                        className="absolute -bottom-1.5 -right-1.5 w-6 h-6 object-contain rounded-full bg-zinc-950/80 border border-amber-500/30 p-0.5 shadow-lg"
+                                                    />
+                                                )}
                                             </div>
                                             <div className="flex-1 text-center sm:text-left">
                                                 <h3 className="text-2xl font-black text-white tracking-tight uppercase">{dungeon.name}</h3>
@@ -398,11 +407,19 @@ export function AchievementTracker({ guildId }: AchievementTrackerProps) {
                                         <div className="p-4 flex flex-col h-full gap-4">
                                             {/* Top: icon + progress ring */}
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shrink-0 flex items-center justify-center transition-transform group-hover:scale-105 duration-500">
+                                                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl shrink-0 flex items-center justify-center transition-transform group-hover:scale-105 duration-500 relative">
                                                     {dungeon.imageUrl
                                                         ? <img src={dungeon.imageUrl} alt="" className="w-full h-full object-cover" />
                                                         : <Trophy className="w-6 h-6 text-zinc-700" />
                                                     }
+                                                    {dungeon.isOcreQuest && (
+                                                        <img
+                                                            src="/module-dofus/Dofus_Ocre.png"
+                                                            alt="Quête Ocre"
+                                                            title="Donjon de la Quête Ocre"
+                                                            className="absolute -bottom-1.5 -right-1.5 w-5 h-5 object-contain rounded-full bg-zinc-950/80 border border-amber-500/30 p-0.5 shadow-lg"
+                                                        />
+                                                    )}
                                                 </div>
                                                 <div className="relative shrink-0 mt-1">
                                                     <ProgressRing

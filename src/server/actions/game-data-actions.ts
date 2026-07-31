@@ -1740,6 +1740,8 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
         // ── 4. For each monster, search DofusDB for subareaIds + image + level ──
         let synced = 0;
         let skipped = 0;
+        // B2 — Détection de nouveautés Metamob : archis/boss Ocre absents localement
+        const newOcreMonsters: { name: string; type: string; zone: string }[] = [];
         const BATCH = 3; // reduce concurrency to avoid DofusDB timeouts
 
         for (let i = 0; i < uniqueMonsters.length; i += BATCH) {
@@ -1796,6 +1798,15 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
 
                     const ocreType = monster.type.toLowerCase().includes('monstre') ? 'monstre' : monster.type;
 
+                    // B2 — Détecter si c'est une nouvelle entrée Ocre (absent avant upsert)
+                    const existingOcre = await db.archimonstre.findFirst({
+                        where: { name: monster.name, type: ocreType },
+                        select: { id: true },
+                    });
+                    if (!existingOcre) {
+                        newOcreMonsters.push({ name: monster.name, type: ocreType, zone: monster.zone || '' });
+                    }
+
                     await db.archimonstre.upsert({
                         where: { name_type: { name: monster.name, type: ocreType } },
                         update: {
@@ -1836,6 +1847,32 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
             // Small delay between batches to be nice to DofusDB
             if (i + BATCH < uniqueMonsters.length) {
                 await new Promise(r => setTimeout(r, 200));
+            }
+        }
+
+        // B2 — Notifier les nouveaux archis/boss Ocre détectés (base panel GOD + Discord)
+        if (newOcreMonsters.length > 0) {
+            try {
+                const { notifyGod } = await import('./god-notif-actions');
+                const count = newOcreMonsters.length;
+                const sample = newOcreMonsters.slice(0, 8)
+                    .map(m => `• **${m.name}** (${m.type}${m.zone ? `, ${m.zone}` : ''})`)
+                    .join('\n');
+                const more = count > 8 ? `\n… et ${count - 8} autres` : '';
+                await notifyGod({
+                    title: '🟡 Nouveaux archis/boss Ocre détectés (Metamob)',
+                    message: `**${count}** nouvel(le)(s) entrée(s) Ocre ajoutée(s) au catalogue local.\n\n${sample}${more}`,
+                    type: 'SYSTEM',
+                    success: true,
+                    ping: false,
+                    metadata: {
+                        synced,
+                        newCount: count,
+                        source: 'metamob',
+                    },
+                });
+            } catch (err) {
+                logger.error('[syncOcreArchimonstres] Failed to dispatch new-ocre notification:', { error: err });
             }
         }
 
@@ -1914,6 +1951,11 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
         //    (elles proviennent du sync Metamob/Quête Ocre et ont priorité)
         let synced = 0;
         let skipped = 0;
+        // B2 — Détection de nouveautés DofusDB : monstres absents localement avant upsert.
+        // On ne détecte que sur les syncs incrémentales (skip > 0) pour éviter le spam de
+        // notifications lors d'une première sync complète (tout le catalogue serait "nouveau").
+        const newMonsters: { id: number; name: string; type: string }[] = [];
+        const isIncrementalSync = skip > 0;
 
         for (const monster of monsters) {
             try {
@@ -1969,6 +2011,11 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
                     orderBy: { isOcre: 'desc' }, // priorité aux Ocre s'il y a doublon
                     select: { id: true, type: true, isOcre: true },
                 });
+
+                // B2 — Nouveau monstre du catalogue (aucune entrée locale) → à signaler (uniquement sync incrémentale)
+                if (isIncrementalSync && !existing) {
+                    newMonsters.push({ id: dofusdbId, name: nameFr, type: dofusType });
+                }
 
                 // Ligne Ocre ou archimonstre existante → on update ses coords/image SANS dégrader
                 if (existing && (existing.isOcre || existing.type === 'archimonstre')) {
@@ -2038,6 +2085,32 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
 
         const nextSkip = skip + monsters.length;
         const done = nextSkip >= total;
+
+        // B2 — Notifier les nouveautés détectées (base panel GOD + Discord)
+        if (newMonsters.length > 0) {
+            try {
+                const { notifyGod } = await import('./god-notif-actions');
+                const count = newMonsters.length;
+                const sample = newMonsters.slice(0, 8)
+                    .map(m => `• **${m.name}** (${m.type}${m.id ? `, #${m.id}` : ''})`)
+                    .join('\n');
+                const more = count > 8 ? `\n… et ${count - 8} autres` : '';
+                await notifyGod({
+                    title: '🧭 Nouveaux monstres DofusDB détectés',
+                    message: `**${count}** nouvel(le)(s) entrée(s) ajoutée(s) au catalogue local lors de la sync.\n\n${sample}${more}\n\n> Référence : pas de ligne locale pré-existante (nouveau contenu du jeu).`,
+                    type: 'SYSTEM',
+                    success: true,
+                    ping: false,
+                    metadata: {
+                        synced,
+                        newCount: count,
+                        batchStart: skip,
+                    },
+                });
+            } catch (err) {
+                logger.error('[syncWorldMonsters] Failed to dispatch new-monster notification:', { error: err });
+            }
+        }
 
         return {
             success: true,

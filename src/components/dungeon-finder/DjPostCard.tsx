@@ -199,12 +199,22 @@ export function DjPostCard({ post, guildId, currentProfileId, isAdmin, onRefresh
                             )}
                         </div>
                         <div className="min-w-0 pr-16 flex-1">
-                            <h3 className={cn(
-                                "font-black text-white text-base truncate leading-tight tracking-tight drop-shadow-sm transition-colors duration-300",
-                                isOpen && (isDonjon ? "group-hover:text-indigo-300" : "group-hover:text-cyan-300")
-                            )} title={title || ""}>
-                                {title}
-                            </h3>
+                            <div className="flex items-center gap-1.5">
+                                <h3 className={cn(
+                                    "font-black text-white text-base truncate leading-tight tracking-tight drop-shadow-sm transition-colors duration-300",
+                                    isOpen && (isDonjon ? "group-hover:text-indigo-300" : "group-hover:text-cyan-300")
+                                )} title={title || ""}>
+                                    {title}
+                                </h3>
+                                {isDonjon && post.dungeon?.isOcreQuest && (
+                                    <img
+                                        src="/module-dofus/Dofus_Ocre.png"
+                                        alt="Quête Ocre"
+                                        title="Donjon de la Quête Ocre"
+                                        className="w-4 h-4 object-contain shrink-0"
+                                    />
+                                )}
+                            </div>
                             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest truncate mt-1">
                                 {subtitle}
                             </p>

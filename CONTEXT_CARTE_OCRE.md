@@ -1,7 +1,7 @@
 # 📘 Contexte complet — Projet "Carte du Monde & Quête Ocre"
 
 > **But de ce fichier** : donner à un prochain agent (sans mémoire de cette session) tout le contexte nécessaire pour continuer ce projet. À lire avant toute modification.
-> **Dernière mise à jour** : session "carte/OCRE" — branche `feat/rush-position-preview`, HEAD = `da3223b2`.
+> **Dernière mise à jour** : session "carte/OCRE" — branche `feat/rush-position-preview`, HEAD = `0098f6f1`.
 
 ---
 
@@ -27,7 +27,7 @@ Refondre la **Page Carte du monde** de SigilOS pour :
 
 ---
 
-## 📌 ÉTAT ACTUEL DE LA BRANCHE (HEAD `da3223b2`)
+## 📌 ÉTAT ACTUEL DE LA BRANCHE (HEAD `0098f6f1`)
 
 ### ✅ Déjà fait (commits poussés)
 
@@ -43,6 +43,12 @@ Refondre la **Page Carte du monde** de SigilOS pour :
 | `0b5d85ee` | Docs : mise à jour du contexte (état HEAD `62a10993`) |
 | `79cb8fd4` | **Fix dropdown "World Selection"** : passage en dropdown **cliquable** (état `worldDropdownOpen`), ancré `right-0`, overlay `fixed` pour fermer au clic extérieur → plus de débordement à gauche (voir détail) |
 | `da3223b2` | **B1 — Sync catalogue DofusDB** : `syncWorldMonsters()` paginé + bouton GOD "Sync Catalogue Dofus" avec progression (voir détail) |
+| `2f5bb7d4` | **Fix dropdown navbar + filtre catalogue** : dropdown "World Selection" porté via **portal `document.body`** (`z-[5000]`) pour passer AU-DESSUS de la navbar ; `syncWorldMonsters` mappe `typeId=23 → boss` et préserve les lignes Ocre/archimonstre existantes (voir détail) |
+| `57ca105f` | **Fix contrainte unique** : `syncWorldMonsters` supprime la ligne d'ancien type (même nom) avant l'upsert pour respecter `@@unique([name, type])` |
+| `59de4cad` | **Fix 3 bugs carte** : dropdown mondes toujours peuplé (fallback), freeze GOD (`take:500`), filtre Boss via fallback DofusDB `typeId=23` |
+| `583916a3` | **Fix portal dropdown** : déplacé dans le `return` JSX (était hors rendu React → jamais affiché) |
+| `f4eb9ed6` | **Fix scroll molette** : le dropdown ne se ferme plus quand on scrolle dans le panel (retrait listener `scroll` global en capture) |
+| `0098f6f1` | **Fix archis sous-mondes** : `getZoneArchmonsters` normalise les accents + matching partiel (égal ou inclusion) → couvre Labyrinthe Dragon Cochon etc. |
 
 ### 🔜 Reste à faire
 
@@ -244,4 +250,4 @@ Retourne `{ synced, skipped, total, nextSkip, done }` :
 
 ---
 
-*Dernière mise à jour : session "carte/OCRE" — branche `feat/rush-position-preview`, HEAD `da3223b2`.*
+*Dernière mise à jour : session "carte/OCRE" — branche `feat/rush-position-preview`, HEAD `0098f6f1`.*

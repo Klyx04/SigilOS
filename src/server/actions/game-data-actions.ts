@@ -1837,3 +1837,162 @@ export async function syncOcreArchimonstres(guildId?: string): Promise<ActionRes
         return { success: false, error: 'Erreur lors de la synchronisation' };
     }
 }
+
+/**
+ * Sync le catalogue complet DofusDB (monstres normaux) en local.
+ *
+ * Pensé pour être appelé en boucle depuis le GOD (ArchimonstreManager) avec
+ * progression : chaque appel traite un batch (batchSize), puis retourne
+ * `nextSkip` + `total` + `done` pour afficher une barre de progression.
+ *
+ * - isOcre:false (les monstres normaux ne sont pas des archis Ocre)
+ * - Résout monde/subarea/coords via worldmap.json
+ * - Upsert par name_type (type:'monstre')
+ * - Rate-limit: pas nécessaire (action super-admin, rare)
+ */
+export async function syncWorldMonsters(params?: { skip?: number; batchSize?: number }): Promise<ActionResponse<{
+    synced: number;
+    skipped: number;
+    total: number;
+    nextSkip: number;
+    done: boolean;
+}>> {
+    const admin = await isSuperAdmin();
+    if (!admin) return { success: false, error: 'Accès refusé' };
+
+    const batchSize = params?.batchSize ?? 50;
+    const skip = params?.skip ?? 0;
+
+    try {
+        // ── 1. Load worldmap.json une fois ────────────────────────────────
+        const worldmapPath = path.join(process.cwd(), 'public', 'game-data', 'worldmap.json');
+        const worldmapRaw = fs.readFileSync(worldmapPath, 'utf-8');
+        const worldmap = JSON.parse(worldmapRaw);
+        const subareas: any[] = worldmap.subareas || [];
+        const allMaps: any[] = worldmap.maps || [];
+
+        const subareaById = new Map<number, any>();
+        for (const sa of subareas) { if (sa.id != null) subareaById.set(sa.id, sa); }
+
+        const mapsBySubAreaId = new Map<number, any[]>();
+        for (const m of allMaps) {
+            if (m.subAreaId == null) continue;
+            if (!mapsBySubAreaId.has(m.subAreaId)) mapsBySubAreaId.set(m.subAreaId, []);
+            mapsBySubAreaId.get(m.subAreaId)!.push(m);
+        }
+
+        // ── 2. Pagination DofusDB (UN batch par appel) ────────────────────
+        const url = `https://api.dofusdb.fr/monsters?lang=fr&$limit=${batchSize}&$skip=${skip}`;
+        const resp = await fetch(url, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(30000)
+        });
+        if (!resp.ok) {
+            return { success: false, error: `DofusDB API erreur ${resp.status}` };
+        }
+
+        const json = await resp.json();
+        const monsters: any[] = json.data || [];
+        const total = json.total || 0;
+
+        if (monsters.length === 0) {
+            return { success: true, data: { synced: 0, skipped: 0, total, nextSkip: skip, done: true } };
+        }
+
+        // ── 3. Pour chaque monstre : résoudre coords + upsert local ───────
+        let synced = 0;
+        let skipped = 0;
+
+        for (const monster of monsters) {
+            try {
+                const nameFr: string = monster.name?.fr || monster.name || '';
+                if (!nameFr) { skipped++; continue; }
+                const dofusdbId: number = monster.id;
+                const imageUrl: string | null = monster.img || null;
+                const level = monster.grades?.[0]?.level ?? 0;
+
+                const rawSubareaIds: number[] = (monster.subareas || [])
+                    .map((s: any) => typeof s === 'number' ? s : s?.id)
+                    .filter((id: any): id is number => typeof id === 'number');
+
+                // Résoudre monde/subarea/coords via worldmap.json
+                let centerX: number | null = null;
+                let centerY: number | null = null;
+                let worldMapId = 1;
+                let zoneName: string | null = null;
+
+                if (rawSubareaIds.length > 0) {
+                    let bestMap: any = null;
+                    for (const saId of rawSubareaIds) {
+                        const sa = subareaById.get(saId);
+                        if (sa) {
+                            const saName = typeof sa.name === 'string' ? sa.name : (sa.name?.fr || '');
+                            if (saName && !zoneName) zoneName = saName;
+                        }
+                        for (const map of mapsBySubAreaId.get(saId) || []) {
+                            if (!bestMap) { bestMap = map; continue; }
+                            const mOut = map.outdoor !== false;
+                            const bOut = bestMap.outdoor !== false;
+                            if (mOut && !bOut) { bestMap = map; continue; }
+                            const mW = map.worldMap === -1 ? 1 : map.worldMap;
+                            const bW = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
+                            if (mOut === bOut && mW > bW) { bestMap = map; }
+                        }
+                    }
+                    if (bestMap) {
+                        centerX = bestMap.x;
+                        centerY = bestMap.y;
+                        worldMapId = bestMap.worldMap === -1 ? 1 : bestMap.worldMap;
+                    }
+                }
+
+                await db.archimonstre.upsert({
+                    where: { name_type: { name: nameFr, type: 'monstre' } },
+                    update: {
+                        isOcre: false, // les monstres du catalogue complet ne sont pas Ocre
+                        type: 'monstre',
+                        imageUrl,
+                        level,
+                        dofusdbId,
+                        zone: zoneName || null,
+                        subzone: null,
+                        subareaIds: rawSubareaIds,
+                        worldMapId,
+                        centerX,
+                        centerY,
+                    },
+                    create: {
+                        name: nameFr,
+                        type: 'monstre',
+                        isOcre: false,
+                        imageUrl,
+                        level,
+                        dofusdbId,
+                        zone: zoneName || null,
+                        subzone: null,
+                        subareaIds: rawSubareaIds,
+                        worldMapId,
+                        centerX,
+                        centerY,
+                    },
+                });
+                synced++;
+            } catch (err) {
+                logger.error('[syncWorldMonsters] Error for monster:', { name: monster.name?.fr, error: err });
+                skipped++;
+            }
+        }
+
+        const nextSkip = skip + monsters.length;
+        const done = nextSkip >= total;
+
+        return {
+            success: true,
+            data: { synced, skipped, total, nextSkip, done }
+        };
+
+    } catch (error) {
+        logger.error('[syncWorldMonsters] Error:', { error });
+        return { success: false, error: 'Erreur lors de la synchronisation du catalogue' };
+    }
+}

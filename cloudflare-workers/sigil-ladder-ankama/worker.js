@@ -1,11 +1,15 @@
 /**
- * SigilOS — Dofus Ladder Scraper Worker
+ * SigilOS — Dofus Ladder Scraper Worker (VERSION COMPLÈTE avec classe + rang)
  * Deployed on Cloudflare Workers (edge network)
  *
- * Purpose: Fetch success points from the official Dofus ladder
- * Route:   GET /?server_id=295&name=Pseudo
+ * Purpose: Fetch success points / general XP from the official Dofus ladder
+ * Route:   GET /?server_id=295&name=Pseudo&type=succes|general
  *
- * Auth: X-SigilOS-Key header required
+ * Auth: X-SigilOS-Key header REQUIRED (fail-closed if WORKER_SECRET missing)
+ *
+ * NOTE (audit 31/07/2026) : ce worker est la version « la plus complète »
+ * (revoie `classe` et `rank` en plus). Il correspond au dashboard CF
+ * `sigil-ladder-ankama`. F-19 fail-closed + F-27 erreurs neutres appliqués.
  */
 
 // Constant-time string comparison helper (avoids timing side-channel on secrets)
@@ -34,8 +38,7 @@ export default {
             return new Response("Method not allowed", { status: 405 });
         }
 
-        // 🔐 Secret check — FAIL-CLOSED (F-19): if WORKER_SECRET is not set,
-        // refuse all requests instead of opening the worker to the Internet.
+        // 🔐 Secret check — FAIL-CLOSED (F-19): refuse if WORKER_SECRET is not set
         const workerSecret = env.WORKER_SECRET;
         if (!workerSecret) {
             return new Response(JSON.stringify({ error: "Server misconfigured" }), {
@@ -44,7 +47,6 @@ export default {
             });
         }
         const providedSecret = request.headers.get("X-SigilOS-Key") || "";
-        // Constant-time comparison to avoid timing side-channel
         if (providedSecret.length !== workerSecret.length ||
             !timingSafeEqualStr(providedSecret, workerSecret)) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -109,7 +111,7 @@ export default {
                 if (response.status >= 300 && response.status < 400) {
                     const location = response.headers.get("Location");
                     if (!location) break;
-                    
+
                     // Handle relative locations
                     currentUrl = new URL(location, currentUrl).href;
                     redirectCount++;
@@ -120,8 +122,8 @@ export default {
 
             if (!response || !response.ok) {
                 // F-27: neutral error — no debug_url leaking internal details
-                return new Response(JSON.stringify({ 
-                    error: "Upstream request failed" 
+                return new Response(JSON.stringify({
+                    error: "Upstream request failed"
                 }), {
                     status: response ? response.status : 502,
                     headers: { "Content-Type": "application/json" }
@@ -138,7 +140,7 @@ export default {
             // 1. Split by <tr> to isolate rows
             const rows = html.split(/<tr[^>]*>/i);
             let targetRow = "";
-            
+
             const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const nameRegex = new RegExp(`<span[^>]*class="ak-nickname"[^>]*>\\s*${escapedName}\\s*<\\/span>`, "i");
 
@@ -161,8 +163,8 @@ export default {
             }
 
             if (!targetRow) {
-                return new Response(JSON.stringify({ 
-                    found: false, 
+                return new Response(JSON.stringify({
+                    found: false,
                     error: "Character not found",
                     name,
                     serverId
@@ -173,13 +175,13 @@ export default {
             }
 
             // 2. Extract cells from the target row
-            const cells = targetRow.split(/<td[^>]*>/i).slice(1).map(c => c.split(/<\/td>/i)[0]); 
-            
+            const cells = targetRow.split(/<td[^>]*>/i).slice(1).map(c => c.split(/<\/td>/i)[0]);
+
             // According to inspection:
             // 0: Rank, 1: Name, 2: Class, 3: Server, 4: Level, 5: Points
             if (cells.length < 6) {
-                return new Response(JSON.stringify({ 
-                    found: false, 
+                return new Response(JSON.stringify({
+                    found: false,
                     error: "Character found but response structure is unexpected."
                 }), {
                     status: 200,
@@ -187,17 +189,23 @@ export default {
                 });
             }
 
+            const rawRank = cells[0].replace(/<[^>]*>/g, "").trim();
             const rawLevel = cells[4].replace(/<[^>]*>/g, "").trim();
             const rawValue = cells[5].replace(/<[^>]*>/g, "").trim();
+            const rawClass = cells[2].replace(/<[^>]*>/g, "").trim();
 
             const level = parseInt(rawLevel.replace(/\s/g, ""), 10);
-            
+
             // In 'general' it's Total XP, in 'succes' it's Points.
             const valueAsNumber = parseInt(rawValue.replace(/\s/g, ""), 10);
 
+            // Handle ranking (Top 1000 has "#", some unranked players don't have numbers)
+            const parsedRank = parseInt(rawRank.replace(/\s/g, "").replace("#", ""), 10);
+            const rank = isNaN(parsedRank) ? null : parsedRank;
+
             if (isNaN(level) || isNaN(valueAsNumber)) {
-                 return new Response(JSON.stringify({ 
-                    found: false, 
+                return new Response(JSON.stringify({
+                    found: false,
                     error: "Could not parse numeric values."
                 }), {
                     status: 200,
@@ -211,6 +219,8 @@ export default {
                 name,
                 serverId,
                 level,
+                classe: rawClass.slice(0, 50),   // F-26 bound
+                rank: rank,
                 timestamp: new Date().toISOString()
             };
 
@@ -218,8 +228,7 @@ export default {
                 responsePayload.points = valueAsNumber;
             } else if (type === "general") {
                 // Remove everything that's not a digit to avoid trailing page content/scripts
-                responsePayload.totalXp = rawValue.replace(/\D/g, ""); 
-                responsePayload.classe = cells[2].replace(/<[^>]*>/g, "").trim();
+                responsePayload.totalXp = rawValue.replace(/\D/g, "");
             }
 
             return new Response(JSON.stringify(responsePayload), {

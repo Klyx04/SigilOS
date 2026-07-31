@@ -2189,23 +2189,31 @@ export async function getZoneArchmonsters(guildId: string, zoneName: string): Pr
             return { success: false, error: res.error === "Compte non lié" ? "Compte non lié" : res.error || "Impossible de récupérer la progression Ocre" };
         }
 
-        const normalizedZone = zoneName.toLowerCase().trim();
+        // Normalise en enlevant les accents et en minuscules → fiabilise le matching
+        // entre les noms de la carte (worldmap.json) et ceux retournés par Metamob.
+        const norm = (s: string) =>
+            s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+        const normalizedZone = norm(zoneName);
         const zoneArchis = res.data.monsters.filter(m => {
             if (m.type !== "archimonstre") return false;
 
-            const search = normalizedZone;
+            // Zone parente (ex: "Forêt des Abraknydes") — noms tels que retournés par Metamob
+            const mZone = norm(m.zone || "");
+            const monsterZones = mZone.split(",").map(z => norm(z)).filter(Boolean);
 
-            // Zone parente (ex: "Forêt des Abraknydes") — noms exacts tels que retournés par Metamob
-            const mZone = (m.zone || "").toLowerCase();
-            const monsterZones = mZone.split(",").map(z => z.trim()).filter(Boolean);
-            const matchesZone = monsterZones.some(mz => mz === search);
+            // Sous-zone (ex: "Plaine des Abraknydes") — noms tels que retournés par Metamob
+            const mSubzone = norm(m.subzone || "");
+            const monsterSubzones = mSubzone.split(",").map(z => norm(z)).filter(Boolean);
 
-            // Sous-zone (ex: "Plaine des Abraknydes") — noms exacts tels que retournés par Metamob
-            const mSubzone = (m.subzone || "").toLowerCase();
-            const monsterSubzones = mSubzone.split(",").map(z => z.trim()).filter(Boolean);
-            const matchesSubzone = monsterSubzones.some(msz => msz === search);
+            // Matching : ON matche si l'un est égal OU inclus dans l'autre.
+            // → couvre les sous-mondes (ex: "Labyrinthe du Dragon Cochon") dont le nom
+            //   diffère légèrement entre la carte et Metamob.
+            const match = (parts: string[]) => parts.some(p =>
+                p.length > 0 && (p === normalizedZone || p.includes(normalizedZone) || normalizedZone.includes(p))
+            );
 
-            return matchesZone || matchesSubzone;
+            return match(monsterZones) || match(monsterSubzones);
         });
 
         // Sort: Missing first, then by name

@@ -1386,12 +1386,14 @@ export async function searchArchimonstresForMap(
         const seenNames = new Set(localResults.map(r => normalize(r.name)));
         const dofusDbResults: any[] = [];
 
-        const cacheKey = `dofusdb:mapsearch:${normalize(query.trim())}`;
+        const cacheKey = `dofusdb:mapsearch:${normalize(query.trim())}:${filter}`;
         const fetchAndParse = async () => {
             try {
                 // Use (?i) inline flag — DofusDB rejects $options=i (not whitelisted)
                 const encodedQuery = encodeURIComponent(`(?i)${query.trim()}`);
-                const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encodedQuery}&$limit=10`;
+                // Le filtre "boss" n'a de sens que sur les boss de donjon DofusDB (typeId=23)
+                const bossOnly = filter === 'boss' ? `&typeId=23` : '';
+                const url = `https://api.dofusdb.fr/monsters?lang=fr&name.fr[$regex]=${encodedQuery}${bossOnly}&$limit=10`;
                 const resp = await fetch(url, {
                     headers: { 'Accept': 'application/json' },
                     cache: 'no-store'
@@ -1419,6 +1421,9 @@ export async function searchArchimonstresForMap(
                     const imageUrl: string | null = m.img || null;
                     const level: number = m.grades?.[0]?.level ?? 0;
                     const dofusdbId: number | null = m.id ?? null;
+
+                    // Type DofusDB : 23 = Boss de donjon → 'boss', sinon 'monstre'
+                    const typeDofus = Number(m.typeId) === 23 ? 'boss' : 'monstre';
 
                     const rawSubareaIds: number[] = (m.subareas || [])
                         .map((s: any) => typeof s === 'number' ? s : s?.id)
@@ -1456,7 +1461,7 @@ export async function searchArchimonstresForMap(
                     results.push({
                         id: `ddb-${m.id || normalize(name)}`,
                         name,
-                        type: 'monstre',
+                        type: typeDofus,
                         isOcre: false,
                         imageUrl,
                         level,
@@ -1474,7 +1479,7 @@ export async function searchArchimonstresForMap(
                     if (dofusdbId) {
                         try {
                             await db.archimonstre.upsert({
-                                where: { name_type: { name, type: 'monstre' } },
+                                where: { name_type: { name, type: typeDofus } },
                                 update: {
                                     imageUrl,
                                     level,
@@ -1487,7 +1492,7 @@ export async function searchArchimonstresForMap(
                                 },
                                 create: {
                                     name,
-                                    type: 'monstre',
+                                    type: typeDofus,
                                     isOcre: false,
                                     imageUrl,
                                     level,
@@ -1600,9 +1605,13 @@ export async function getArchimonstres(filter?: { type?: string; search?: string
         if (filter?.type && filter.type !== 'all') where.type = filter.type;
         if (filter?.search) where.name = { contains: filter.search, mode: 'insensitive' };
 
+        // ⚠️ 5000+ monstres possibles dans le catalogue (syncWorldMonsters) — on limite la liste
+        // pour ne pas freeze le panneau GOD. La recherche par nom (vitesse) reste fiable.
+        // S` il y en a plus, on remonte les 500+ plus récents (le plus utile à voir).
         const rows = await db.archimonstre.findMany({
             where,
-            orderBy: { name: 'asc' },
+            orderBy: { updatedAt: 'desc' }, // les plus récents / resyncés d'abord
+            take: 500,
         });
         return { success: true, data: rows };
     } catch (error: any) {

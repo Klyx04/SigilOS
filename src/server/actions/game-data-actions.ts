@@ -1900,6 +1900,9 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
         }
 
         // ── 3. Pour chaque monstre : résoudre coords + upsert local ───────
+        //  - Les boss de donjon DofusDB ont `typeId: 23` → type 'boss' (sinon 'monstre')
+        //  - On NE TOUCHE PAS aux entrées déjà marquées `isOcre:true` ou de type 'archimonstre'
+        //    (elles proviennent du sync Metamob/Quête Ocre et ont priorité)
         let synced = 0;
         let skipped = 0;
 
@@ -1910,6 +1913,9 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
                 const dofusdbId: number = monster.id;
                 const imageUrl: string | null = monster.img || null;
                 const level = monster.grades?.[0]?.level ?? 0;
+
+                // Le type DofusDB (23 = Donjon/Boss) → mappé vers 'boss', sinon 'monstre'
+                const dofusType: string = Number(monster.typeId) === 23 ? 'boss' : 'monstre';
 
                 const rawSubareaIds: number[] = (monster.subareas || [])
                     .map((s: any) => typeof s === 'number' ? s : s?.id)
@@ -1946,11 +1952,40 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
                     }
                 }
 
+                // ── Lire l'entrée locale existante pour TOUS les types du même nom ──
+                // Si elle est Ocre/archimonstre, on la préserve (juste coords/préservation), sinon
+                // on ne crée que la ligne (monstre ou boss) pour ce nom.
+                const existing = await db.archimonstre.findFirst({
+                    where: { name: nameFr },
+                    orderBy: { isOcre: 'desc' }, // priorité aux Ocre s'il y a doublon
+                    select: { id: true, type: true, isOcre: true },
+                });
+
+                // Ligne Ocre ou archimonstre existante → on update ses coords/image SANS dégrader
+                if (existing && (existing.isOcre || existing.type === 'archimonstre')) {
+                    await db.archimonstre.update({
+                        where: { id: existing.id },
+                        data: {
+                            imageUrl: imageUrl ?? undefined,
+                            level: level || undefined,
+                            dofusdbId,
+                            zone: zoneName || undefined,
+                            subareaIds: rawSubareaIds,
+                            worldMapId,
+                            centerX,
+                            centerY,
+                        },
+                    });
+                    synced++;
+                    continue;
+                }
+
+                // Sinon (pas d'existant Ocre/archi) → upsert propre sur (name, dofusType)
                 await db.archimonstre.upsert({
-                    where: { name_type: { name: nameFr, type: 'monstre' } },
+                    where: { name_type: { name: nameFr, type: dofusType } },
                     update: {
-                        isOcre: false, // les monstres du catalogue complet ne sont pas Ocre
-                        type: 'monstre',
+                        isOcre: false, // le catalogue complet n'est jamais Ocre
+                        type: dofusType,
                         imageUrl,
                         level,
                         dofusdbId,
@@ -1963,7 +1998,7 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
                     },
                     create: {
                         name: nameFr,
-                        type: 'monstre',
+                        type: dofusType,
                         isOcre: false,
                         imageUrl,
                         level,

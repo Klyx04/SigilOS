@@ -109,8 +109,8 @@ jobs:
           SEMGREP_RULES: p/security-audit
 
       - name: 🐋 Dockerfile Config Scan (Trivy)
-        # F-22: pinned to a tagged release — @master could execute compromised code
-        uses: aquasecurity/trivy-action@v0.31.1
+        # F-22: pinned to a tagged release (no v prefix) — @master could execute compromised code
+        uses: aquasecurity/trivy-action@0.31.1
         with:
           scan-type: 'config'
           hide-progress: true
@@ -190,8 +190,8 @@ jobs:
           SEMGREP_RULES: "p/security-audit p/secrets p/owasp-top-ten"
 
       - name: 🛡️ Full Filesystem CVE Scan (Trivy)
-        # F-22: pinned to a tagged release — @master could execute compromised code
-        uses: aquasecurity/trivy-action@v0.31.1
+        # F-22: pinned to a tagged release (no v prefix) — @master could execute compromised code
+        uses: aquasecurity/trivy-action@0.31.1
         with:
           scan-type: 'fs'
           scan-ref: '.'

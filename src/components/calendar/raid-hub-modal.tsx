@@ -636,7 +636,7 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
     const TABS: { id: RaidTab; label: string; icon: any; color: string; activeBg: string; activeBorder: string }[] = [
         {
             id: "jardin",
-            label: "Sanctuaire des Jardins Éternels",
+            label: "Jardins",
             icon: Swords,
             color: "text-red-400",
             activeBg: "bg-red-500/10",
@@ -676,16 +676,9 @@ export function RaidHubModal({ open, onOpenChange, guildId, isAdmin }: RaidHubMo
                             </div>
                         </div>
 
-                        {/* Save button (admin) */}
+                        {/* Save button is in the footer (single CTA) */}
                         {isAdmin && hasChanges && (
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-sm shadow-lg shadow-amber-500/25 transition-all hover:scale-105 disabled:opacity-50"
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                Sauvegarder
-                            </button>
+                            <div className="h-10" />
                         )}
                     </div>
 

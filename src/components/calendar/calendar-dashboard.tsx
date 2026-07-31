@@ -25,7 +25,8 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, su
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
     getCalendarEvents,
@@ -130,6 +131,9 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
     // Hub Raid modal
     const [isRaidHubOpen, setIsRaidHubOpen] = useState(false);
+
+    // Day events modal (click on "+N" badge)
+    const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: Date; events: any[] } | null>(null);
 
     // Raid eligibility (kamas gate)
     const [raidEligibility, setRaidEligibility] = useState<{ isEligible: boolean; totalDonated: number } | null>(null);
@@ -398,6 +402,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         setSelectedEventId(eventId);
     };
 
+    const handleDayEventsClick = (date: Date, events: any[]) => {
+        setSelectedDayEvents({ date, events });
+    };
+
     const handleDayClick = (date: Date) => {
         if (!canManage) return;
         setPrefilledDate(date);
@@ -429,38 +437,44 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
                         <div className="flex items-center gap-3">
                             <Button
-                                variant="outline"
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setShowFilters(!showFilters)}
-                                className={cn(
-                                    "h-10 rounded-full px-4 md:px-5 text-[10px] md:text-sm font-black uppercase italic tracking-widest transition-all border-2",
-                                    (showFilters || selectedFilter !== "ALL")
-                                        ? "bg-zinc-100 text-zinc-950 border-white shadow-xl scale-105"
-                                        : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200"
-                                )}
+                                className="h-9 px-3 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-all"
                             >
-                                <Filter className={cn("h-4 w-4 mr-2", selectedFilter !== "ALL" && "text-amber-500")} />
+                                <Filter className={cn("h-4 w-4 mr-1.5", selectedFilter !== "ALL" && "text-amber-500")} />
                                 Filtres
                                 {selectedFilter !== "ALL" && (
-                                    <span className="ml-1 h-4 w-4 rounded-full bg-amber-500 text-zinc-950 text-[9px] font-black flex items-center justify-center">1</span>
+                                    <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
                                 )}
                             </Button>
 
-                            {/* Conseil Raid button — visible for all members */}
-                            <Button
-                                variant="outline"
-                                onClick={() => setIsRaidHubOpen(true)}
-                                className="h-10 rounded-full px-4 text-[10px] md:text-sm font-black uppercase italic tracking-widest border-2 bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 transition-all"
-                            >
-                                <Swords className="h-4 w-4 mr-2" />
-                                Conseil Raid
-                            </Button>
+                            {/* Raid Hub (ghost) */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setIsRaidHubOpen(true)}
+                                            className="h-9 px-3 rounded-lg text-xs font-semibold text-zinc-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
+                                        >
+                                            <Swords className="h-4 w-4 mr-1.5 text-red-400/70" />
+                                            Raids
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-zinc-950 border-zinc-800 text-xs">
+                                        Guides et conseils raid
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
 
                             {canManage && (
                                 <Button
                                     onClick={() => setIsCreateOpen(true)}
-                                    className="h-10 px-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold shadow-lg shadow-amber-500/25 transition-all hover:shadow-amber-500/40 hover:scale-105"
+                                    className="h-9 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02]"
                                 >
-                                    <Plus className="h-4 w-4 mr-2" />
+                                    <Plus className="h-4 w-4 mr-1.5" />
                                     Nouvel évent
                                 </Button>
                             )}
@@ -474,22 +488,20 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         <button
                             onClick={() => setSelectedFilter("ALL")}
                             className={cn(
-                                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase italic tracking-widest transition-all border-2 whitespace-nowrap",
+                                "flex items-center gap-2 h-8 px-3.5 rounded-full text-xs font-medium transition-all shrink-0",
                                 selectedFilter === "ALL"
-                                    ? "bg-zinc-100 text-zinc-950 border-white shadow-xl"
-                                    : "bg-zinc-900 text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                                    ? "bg-white/10 text-white border border-white/10"
+                                    : "bg-zinc-900/60 text-zinc-400 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-200"
                             )}
                         >
                             Tous
                             <span className={cn(
-                                "px-2 py-0.5 rounded-md text-[10px] font-black",
-                                selectedFilter === "ALL" ? "bg-zinc-900 text-zinc-100" : "bg-zinc-800 text-zinc-500"
+                                "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                                selectedFilter === "ALL" ? "bg-white/15 text-white" : "bg-zinc-800 text-zinc-500"
                             )}>
                                 {events.length}
                             </span>
                         </button>
-
-                        <div className="h-6 w-px bg-zinc-800 mx-1 shrink-0" />
 
                         {Object.entries(FILTER_TYPES).map(([type, config]) => {
                             const count = typeCounts[type] || 0;
@@ -501,17 +513,17 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                     key={type}
                                     onClick={() => setSelectedFilter(isActive ? "ALL" : type)}
                                     className={cn(
-                                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase italic tracking-widest transition-all border-2 whitespace-nowrap",
+                                        "flex items-center gap-2 h-8 px-3.5 rounded-full text-xs font-medium transition-all shrink-0",
                                         isActive
-                                            ? cn(config.bg, config.color, config.border, "shadow-lg scale-105 z-10")
-                                            : "bg-zinc-900 text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"
+                                            ? cn(config.color, "bg-white/10 border border-white/10")
+                                            : "bg-zinc-900/60 text-zinc-400 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-200"
                                     )}
                                 >
-                                    <Icon className="h-4 w-4" />
+                                    <Icon className={cn("h-3.5 w-3.5", isActive ? config.color : "")} />
                                     {config.label}
                                     <span className={cn(
-                                        "px-2 py-0.5 rounded-md text-[10px] font-black",
-                                        isActive ? "bg-current/20" : "bg-zinc-800 text-zinc-500"
+                                        "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                                        isActive ? "bg-white/15" : "bg-zinc-800 text-zinc-500"
                                     )}>
                                         {count}
                                     </span>
@@ -522,44 +534,26 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 )}
             </div>
 
-            {/* ============ ACTIVE PERIOD BANNER (FRESH & ELEGANT) ============ */}
-            <div className="relative overflow-hidden rounded-2xl border border-white/[0.04] bg-[#0c1012]/60 backdrop-blur-xl p-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                {/* Decorative background ambient lights */}
-                <div className="absolute -top-12 -left-12 w-48 h-48 bg-amber-500/10 rounded-full blur-[60px] pointer-events-none" />
-                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-orange-500/10 rounded-full blur-[60px] pointer-events-none" />
-
-                <div className="relative flex items-center gap-4">
-                    <div className="h-11 w-11 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">
-                        <Sparkles className="h-5 w-5 text-amber-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-xl md:text-2xl font-black uppercase tracking-wider text-zinc-100 flex items-center gap-3">
-                            <span className="bg-gradient-to-r from-zinc-100 via-amber-200 to-amber-400 bg-clip-text text-transparent">
-                                {(() => {
-                                    const monthStr = format(currentDate, "MMMM yyyy", { locale: fr });
-                                    return monthStr.charAt(0).toUpperCase() + monthStr.slice(1);
-                                })()}
-                            </span>
-                            {gridType === "week" && (
-                                <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase px-2 py-0.5 tracking-wider shrink-0">
-                                    Semaine {format(currentDate, "I", { locale: fr })}
-                                </Badge>
-                            )}
-                        </h3>
-                        <p className="text-xs text-zinc-400 font-bold tracking-tight mt-0.5">
-                            {gridType === "week" ? "Agenda hebdomadaire complet" : "Agenda mensuel de la guilde"}
-                        </p>
-                    </div>
+            {/* ============ COMPACT PERIOD BAR ============ */}
+            <div className="flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl bg-zinc-900/40 border border-white/[0.04]">
+                <div className="flex items-center gap-3">
+                    <Sparkles className="h-4 w-4 text-amber-400/80" />
+                    <h3 className="text-base font-bold capitalize text-zinc-200">
+                        {format(currentDate, "MMMM yyyy", { locale: fr })}
+                        <span className="ml-2 text-xs font-semibold text-zinc-500 normal-case">
+                            {gridType === "week" ? `Semaine ${format(currentDate, "I")}` : "Mois"}
+                        </span>
+                    </h3>
                 </div>
 
-                <div className="relative flex items-center gap-3">
-                    {/* Week/Month Toggle */}
-                    <div className="flex bg-[#070b0c]/90 border border-white/5 rounded-xl p-1 shadow-inner">
+                <div className="flex items-center gap-2">
+                    {/* Week/Month segment control */}
+                    <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
                         <button
                             onClick={() => setGridType("week")}
                             className={cn(
-                                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
-                                gridType === "week" ? "bg-amber-500 text-zinc-950 shadow-lg" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                                "px-3 py-1 rounded-md text-[11px] font-semibold transition-all",
+                                gridType === "week" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
                             )}
                         >
                             Semaine
@@ -567,29 +561,29 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                         <button
                             onClick={() => setGridType("month")}
                             className={cn(
-                                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
-                                gridType === "month" ? "bg-amber-500 text-zinc-950 shadow-lg" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                                "px-3 py-1 rounded-md text-[11px] font-semibold transition-all",
+                                gridType === "month" ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
                             )}
                         >
                             Mois
                         </button>
                     </div>
 
-                    {/* Navigation Controls */}
-                    <div className="flex bg-[#070b0c]/90 border border-white/5 rounded-xl p-1 shadow-inner">
+                    {/* Nav */}
+                    <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
                         <button
                             onClick={() => {
                                 const date = gridType === "week" ? subWeeks(currentDate, 1) : subMonths(currentDate, 1);
                                 setCurrentDate(date);
                             }}
-                            className="p-2 hover:bg-white/5 rounded-lg transition-all active:scale-95"
-                            title="Période précédente"
+                            className="p-1.5 hover:bg-white/5 rounded-md transition-all active:scale-95"
+                            title="Précédent"
                         >
-                            <ChevronLeft className="h-4.5 w-4.5 text-zinc-300" />
+                            <ChevronLeft className="h-4 w-4 text-zinc-300" />
                         </button>
                         <button
                             onClick={() => setCurrentDate(new Date())}
-                            className="px-4 py-1.5 text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white rounded-lg hover:bg-white/5 transition-all"
+                            className="px-3 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white rounded-md hover:bg-white/5 transition-all"
                         >
                             Aujourd'hui
                         </button>
@@ -598,10 +592,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                                 const date = gridType === "week" ? addWeeks(currentDate, 1) : addMonths(currentDate, 1);
                                 setCurrentDate(date);
                             }}
-                            className="p-2 hover:bg-white/5 rounded-lg transition-all active:scale-95"
-                            title="Période suivante"
+                            className="p-1.5 hover:bg-white/5 rounded-md transition-all active:scale-95"
+                            title="Suivant"
                         >
-                            <ChevronRight className="h-4.5 w-4.5 text-zinc-300" />
+                            <ChevronRight className="h-4 w-4 text-zinc-300" />
                         </button>
                     </div>
                 </div>
@@ -627,6 +621,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     onDateChange={setCurrentDate}
                     onEventClick={handleEventClick}
                     onDayClick={handleDayClick}
+                    onDayEventsClick={handleDayEventsClick}
                     canManage={canManage}
                     viewMode={gridType}
                     onViewModeChange={setGridType}
@@ -696,6 +691,32 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 onSendReminder={handleSendReminder}
                 onShareDiscord={handleShareDiscord}
             />
+
+            {/* ============ DAY EVENTS MODAL (via +N badge) ============ */}
+            <Dialog open={!!selectedDayEvents} onOpenChange={(open) => !open && setSelectedDayEvents(null)}>
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-zinc-950/98 border border-white/10 shadow-[0_0_40px_rgba(245,158,11,0.1)]">
+                    <DialogTitle className="text-lg font-black uppercase italic tracking-tighter text-foreground flex items-center gap-2">
+                        <CalendarIcon className="h-5 w-5 text-amber-500" />
+                        {selectedDayEvents ? format(selectedDayEvents.date, "EEEE d MMMM", { locale: fr }) : ""}
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground font-bold">
+                        {selectedDayEvents ? `${selectedDayEvents.events.length} événement(s) ce jour-là` : ""}
+                    </DialogDescription>
+
+                    <div className="space-y-3 mt-2">
+                        {selectedDayEvents?.events.map((ev) => (
+                            <EventCard
+                                key={ev.id}
+                                event={ev}
+                                currentUserId={currentUserId}
+                                onRespond={() => {}}
+                                canManage={canManage}
+                                variant="list"
+                            />
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* ============ RAID HUB MODAL ============ */}
             <RaidHubModal

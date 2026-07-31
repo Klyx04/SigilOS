@@ -7,6 +7,29 @@ import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { logger } from "@/lib/logger";
 
+/**
+ * Route skin provider images through the internal proxy to bypass anti-hotlink
+ * protections (Barbofus, DofusSkinManga) when Discord fetches the embed image.
+ * Discord's fetchers don't send browser-like headers, so these providers refuse
+ * to serve the image and Discord falls back to the provider logo.
+ * Returns undefined only if the URL is invalid (keep fallback behavior).
+ */
+function resolveDiscordSkinImage(rawImage: string): string | undefined {
+    try {
+        const parsedUrl = new URL(rawImage);
+        const host = parsedUrl.hostname.toLowerCase();
+        const isProtectedProvider = host === "barbofus.com" || host.endsWith(".barbofus.com")
+            || host === "dofusskinmanga.com" || host.endsWith(".dofusskinmanga.com");
+        if (isProtectedProvider) {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+            return `${appUrl}/api/proxy-image?url=${encodeURIComponent(parsedUrl.href)}`;
+        }
+        return parsedUrl.href;
+    } catch {
+        return undefined;
+    }
+}
+
 const PAGE_SIZE = 24; // 24 cards per page (6 col × 4 rows)
 
 export type GalleryBuild = {
@@ -649,12 +672,7 @@ export async function shareGalleryItemOnDiscord(
                 } else if (!rawImage.startsWith("http://") && !rawImage.startsWith("https://")) {
                     rawImage = `https://${rawImage.replace(/^\/+/, '')}`;
                 }
-                try {
-                    const parsedUrl = new URL(rawImage);
-                    embedImage = parsedUrl.href;
-                } catch {
-                    embedImage = undefined;
-                }
+                embedImage = resolveDiscordSkinImage(rawImage);
             } else {
                 embedImage = undefined;
             }

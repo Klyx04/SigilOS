@@ -111,6 +111,8 @@ export default function InteractiveMapV2({
     const [showMapHelp, setShowMapHelp] = useState(false);
     const [autoCopyTravel, setAutoCopyTravel] = useState(false);
     const [activePanelTab, setActivePanelTab] = useState<'map' | 'scores'>('map');
+    // Dropdown cliquable du sélecteur de monde (évite le débordement hover + UX claire)
+    const [worldDropdownOpen, setWorldDropdownOpen] = useState(false);
 
     // Archimonstre search state
     const [archiResults, setArchiResults] = useState<any[]>([]);
@@ -1092,20 +1094,33 @@ export default function InteractiveMapV2({
                             >
                                 {/* Essential Tools (Visible everywhere) */}
                                 <div className="flex items-center gap-2 sm:gap-4">
-                                    {/* World Selection */}
-                                    <div className="relative group">
-                                        <button className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors">
+                                    {/* World Selection (dropdown cliquable, ancré à droite, pas de débordement) */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setWorldDropdownOpen(o => !o)}
+                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors"
+                                        >
                                             <MapIcon size={12} className="text-emerald-500" />
                                             <span className="text-[9px] sm:text-[10px] font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
-                                            <ChevronDown size={12} className="text-white/20" />
+                                            <ChevronDown size={12} className={`text-white/20 transition-transform ${worldDropdownOpen ? 'rotate-180' : ''}`} />
                                         </button>
-                                        <div className="absolute top-full right-0 pt-2 w-60 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-[700]">
-                                            <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 max-h-[50vh] overflow-y-auto">
-                                                {visibleWorlds.map(w => (
-                                                    <button key={w.id} onClick={() => setSelectedWorldId(w.id)} className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}>{w.name.fr}</button>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        {worldDropdownOpen && (
+                                            <>
+                                                {/* Overlay clic extérieur pour fermer */}
+                                                <div className="fixed inset-0 z-[650]" onClick={() => setWorldDropdownOpen(false)} />
+                                                <div className="absolute top-full right-0 pt-2 w-60 z-[700]">
+                                                    <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 max-h-[50vh] overflow-y-auto">
+                                                        {visibleWorlds.map(w => (
+                                                            <button
+                                                                key={w.id}
+                                                                onClick={() => { setSelectedWorldId(w.id); setWorldDropdownOpen(false); }}
+                                                                className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}
+                                                            >{w.name.fr}</button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
 
                                     {/* Secondary Tools (Hidden on Mobile, in Dropdown) */}

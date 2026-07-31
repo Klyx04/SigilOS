@@ -1522,6 +1522,71 @@ export async function searchArchimonstresForMap(
     }
 }
 
+/**
+ * Retourne les premiers résultats d'un filtre (sans recherche texte) pour la barre
+ * de filtres permanente de la carte. LOCAL-ONLY, zéro réseau.
+ * Utilisé quand l'utilisateur clique sur une chip (ex: 🟡 Ocre) sans rien taper.
+ */
+export async function getArchimonstresByFilter(
+    filter: MapSearchFilter
+): Promise<ActionResponse<Array<{
+    id: string;
+    name: string;
+    type: string;
+    isOcre: boolean;
+    imageUrl: string | null;
+    level: number;
+    zoneName: string | null;
+    subAreaIds: number[];
+    centerX: number | null;
+    centerY: number | null;
+    worldMapId: number;
+    source: 'local';
+}>>> {
+    try {
+        const where: any = {};
+        switch (filter) {
+            case 'archis': where.type = 'archimonstre'; break;
+            case 'boss': where.type = 'boss'; break;
+            case 'mobs': where.type = 'monstre'; break;
+            case 'ocre': where.isOcre = true; break;
+            case 'all': break;
+            default: break; // 'zones' n'a pas de sens ici → retourne vide
+        }
+
+        // Pour 'all' sans texte on ne renvoie rien (les zones sont gérées par searchResults local)
+        if (filter === 'all' || filter === 'zones') {
+            return { success: true, data: [] };
+        }
+
+        const rows = await db.archimonstre.findMany({
+            where,
+            take: 20,
+            orderBy: { name: 'asc' },
+        });
+
+        const results = rows.map(a => ({
+            id: a.id,
+            name: a.name,
+            type: a.type,
+            isOcre: a.isOcre,
+            imageUrl: a.imageUrl,
+            level: a.level,
+            zoneName: a.zone,
+            source: 'local' as const,
+            subAreaIds: Array.isArray(a.subareaIds) ? (a.subareaIds as number[]) : [],
+            centerX: a.centerX,
+            centerY: a.centerY,
+            worldMapId: a.worldMapId,
+        }));
+
+        return { success: true, data: results };
+    } catch (error) {
+        logger.error('[getArchimonstresByFilter] Error:', { error });
+        return { success: false, error: 'Erreur chargement filtre' };
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ARCHIMONSTRES — Admin CRUD + Sync
 // ─────────────────────────────────────────────────────────────────────────────

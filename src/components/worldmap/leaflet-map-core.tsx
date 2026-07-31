@@ -1154,7 +1154,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
             `}</style>
 
             <MapContainer
-                key={`${selectedWorldId}-${isMiniMap}-${triggerCenterPosition?.x}-${triggerCenterPosition?.y}`}
+                key={`${selectedWorldId}-${isMiniMap}`}
                 crs={sigilCRS}
                 center={initialCenter}
                 zoom={initialZoom}

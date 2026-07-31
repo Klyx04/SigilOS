@@ -23,6 +23,7 @@ import {
     getChallenges,
 } from "@/server/actions/game-data-admin-actions";
 import { ImageDownloader } from "./ImageDownloader";
+import { DungeonMapPicker } from "./DungeonMapPicker";
 import {
     Select,
     SelectContent,
@@ -476,20 +477,21 @@ export default function DungeonManager() {
                                             </div>
                                         </div>
 
-                                        {/* Map ID — used to place the Ocre icon on the world map */}
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                            <div className="md:col-span-2 space-y-3">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Numéro de Map (worldmap)</label>
-                                                <Input
-                                                    type="number"
-                                                    value={formData.mapId ?? ""}
-                                                    onChange={(e) => setFormData({ ...formData, mapId: e.target.value === "" ? null : parseInt(e.target.value) || null })}
-                                                    placeholder="Ex: 12345 (id de la map sur la carte)"
-                                                    className="h-14 bg-slate-950 border-slate-800 focus:border-amber-500/50 focus:ring-amber-500/20 text-sm transition-all rounded-xl"
+                                        {/* Map ID — sélecteur cliquable pour placer l'icône Ocre sur la carte */}
+                                        {formData.isOcreQuest && (
+                                            <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-3">
+                                                <p className="text-[10px] text-amber-400/90 pl-1">
+                                                    Sélectionne le donjon correspondant sur la carte du monde pour y afficher l'icône Ocre.
+                                                </p>
+                                                <DungeonMapPicker
+                                                    value={formData.mapId}
+                                                    onSelect={(mapId, name) => {
+                                                        setFormData({ ...formData, mapId });
+                                                        toast.success(`Donjon lié : ${name}`);
+                                                    }}
                                                 />
-                                                <p className="text-[10px] text-slate-600 pl-1">Indispensable pour placer l'icône Ocre sur la carte du monde.</p>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
 
                                     {/* Expedition Settings */}

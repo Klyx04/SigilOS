@@ -632,7 +632,9 @@ model Dungeon {
   isExpedition         Boolean               @default(false)
   updatedAt            DateTime              @updatedAt
   isEventDungeon       Boolean               @default(false)
+  isOcreQuest          Boolean               @default(false) // Donjon de la Quête Ocre (Éternelle Moisson)
   dofusdbId            Int?                  // Identifiant DofusDB pour croisement avec les données du jeu
+  mapId                Int?                  // Identifiant map worldmap.json pour l'icône sur la carte
   djSearchPosts        DjSearchPost[]
   achievements         DungeonAchievement[]
   userProgress         UserDungeonProgress[]

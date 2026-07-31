@@ -185,33 +185,57 @@ export function EventCard({
 
     // View: Card (Vertical) - Modernized
 
+    const isCompleted = event.status === "COMPLETED";
+
     return (
-        <Card className="h-full flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-zinc-800/50 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-zinc-700/50">
+        <Card className={cn(
+            "h-full flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-zinc-800/50 bg-zinc-900/40 hover:bg-zinc-900/60 hover:border-zinc-700/50",
+            isCompleted && "opacity-80"
+        )}>
             {/* Top Image Background */}
             <div className="absolute top-0 left-0 right-0 h-32 overflow-hidden opacity-40 mask-image-gradient">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-zinc-900/90 z-10" />
                 <img
                     src={EVENT_IMAGES[event.type] || EVENT_IMAGES["EVENT_GUILD"]}
                     alt="Event type"
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 transform group-hover:scale-105"
+                    className={cn(
+                        "w-full h-full object-cover transition-all duration-500 transform group-hover:scale-105",
+                        isCompleted ? "grayscale" : "grayscale group-hover:grayscale-0"
+                    )}
                 />
             </div>
 
             {/* Top Accent Line */}
             <div className={cn("h-1.5 w-full bg-gradient-to-r opacity-90 relative z-20", theme.gradient)} />
 
+            {/* Completed watermark stamp overlay */}
+            {isCompleted && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                    <div className="rotate-[-15deg] flex flex-col items-center px-6 py-3 border-2 border-emerald-500/40 rounded-xl bg-emerald-500/10 backdrop-blur-[2px] shadow-[0_0_24px_rgba(16,185,129,0.2)]">
+                        <CheckCircle2 className="h-8 w-8 text-emerald-500/80" />
+                        <span className="mt-1 text-sm font-black uppercase tracking-[0.25em] text-emerald-400/90">
+                            Terminé
+                        </span>
+                    </div>
+                </div>
+            )}
+
             <CardHeader className="p-5 flex-none space-y-4 pb-2">
                 <div className="flex justify-between items-start gap-4">
                     <div className="flex items-center gap-2">
                         <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-sm font-semibold border-opacity-50 transition-colors", theme.bg, theme.color, theme.border)}>
-                            <Icon className="w-4 h-4 mr-2" />
+                            {isCompleted ? (
+                                <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-500" />
+                            ) : (
+                                <Icon className="w-4 h-4 mr-2" />
+                            )}
                             {theme.label}
                         </Badge>
 
                         {/* Completed Event Badge */}
-                        {event.status === "COMPLETED" && (
-                            <Badge className="bg-zinc-700/50 text-zinc-300 border-zinc-600 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">
-                                Terminé
+                        {isCompleted && (
+                            <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">
+                                ✓ Terminé
                             </Badge>
                         )}
                     </div>

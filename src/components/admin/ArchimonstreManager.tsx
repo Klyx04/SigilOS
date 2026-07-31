@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { getArchimonstres, syncOcreArchimonstres, deleteArchimonstre } from '@/server/actions/game-data-actions';
+import { getArchimonstres, syncOcreArchimonstres, syncWorldMonsters, deleteArchimonstre } from '@/server/actions/game-data-actions';
 import { RefreshCw, Trash2, Search, Loader2, CheckCircle2, XCircle, MapPin } from 'lucide-react';
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -20,6 +20,15 @@ export default function ArchimonstreManager() {
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
     const [syncStatus, setSyncStatus] = useState<{ synced?: number; skipped?: number; error?: string } | null>(null);
+    // Sync catalogue DofusDB (progression par batchs)
+    const [catalogSync, setCatalogSync] = useState<{
+        status: 'idle' | 'running' | 'done' | 'error';
+        synced?: number;
+        skipped?: number;
+        total?: number;
+        processed?: number;
+        error?: string;
+    }>({ status: 'idle' });
     const [isPending, startTransition] = useTransition();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [searchTimer, setSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -43,6 +52,40 @@ export default function ArchimonstreManager() {
             } else {
                 setSyncStatus({ error: res.error });
             }
+        });
+    };
+
+    // Sync complète du catalogue DofusDB (boucle par batchs avec progression)
+    const handleCatalogueSync = () => {
+        setCatalogSync({ status: 'running' });
+        let totalSynced = 0;
+        let totalSkipped = 0;
+        let total = 0;
+        let processed = 0;
+
+        const runBatch = async (skip: number) => {
+            const res = await syncWorldMonsters({ skip, batchSize: 50 });
+            if (!res.success || !res.data) {
+                setCatalogSync({ status: 'error', error: res.error || 'Erreur lors de la synchronisation' });
+                return;
+            }
+            const d = res.data;
+            total = d.total;
+            totalSynced += d.synced;
+            totalSkipped += d.skipped;
+            processed = d.nextSkip;
+            setCatalogSync({ status: 'running', synced: totalSynced, skipped: totalSkipped, total, processed });
+
+            if (d.done) {
+                setCatalogSync({ status: 'done', synced: totalSynced, skipped: totalSkipped, total, processed });
+                await loadData();
+            } else {
+                runBatch(d.nextSkip);
+            }
+        };
+
+        runBatch(0).catch(() => {
+            setCatalogSync({ status: 'error', error: 'Erreur réseau ou serveur' });
         });
     };
 
@@ -81,15 +124,66 @@ export default function ArchimonstreManager() {
                         Synchronisé depuis Metamob (zones) + DofusDB (images/coords)
                     </p>
                 </div>
-                <button
-                    onClick={handleSync}
-                    disabled={isPending}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/20"
-                >
-                    {isPending ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                    {isPending ? 'Synchronisation…' : 'Sync depuis Metamob'}
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                        onClick={handleSync}
+                        disabled={isPending}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+                    >
+                        {isPending ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                        {isPending ? 'Synchronisation…' : 'Sync depuis Metamob'}
+                    </button>
+                    <button
+                        onClick={handleCatalogueSync}
+                        disabled={catalogSync.status === 'running'}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black font-bold text-sm transition-all active:scale-95 shadow-lg shadow-sky-500/20"
+                    >
+                        {catalogSync.status === 'running' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                        {catalogSync.status === 'running'
+                            ? 'Sync Catalogue…'
+                            : catalogSync.status === 'done'
+                                ? 'Re-sync Catalogue'
+                                : 'Sync Catalogue Dofus'}
+                    </button>
+                </div>
             </div>
+
+            {/* Catalogue sync progress */}
+            {catalogSync.status !== 'idle' && catalogSync.status !== 'done' && (
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm ${
+                    catalogSync.status === 'error'
+                        ? 'bg-red-500/10 border-red-500/20 text-red-300'
+                        : 'bg-sky-500/10 border-sky-500/20 text-sky-300'
+                }`}>
+                    {catalogSync.status === 'error' ? <XCircle size={16} className="shrink-0" /> : <Loader2 size={16} className="animate-spin shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 text-xs font-semibold">
+                            <span>
+                                {catalogSync.status === 'error'
+                                    ? catalogSync.error
+                                    : `Sync catalogue DofusDB… ${catalogSync.processed ?? 0}/${catalogSync.total ?? '…'}`}
+                            </span>
+                            <span className="text-slate-400">
+                                {catalogSync.status !== 'error' && `✅ ${catalogSync.synced ?? 0} · ⏭ ${catalogSync.skipped ?? 0}`}
+                            </span>
+                        </div>
+                        {catalogSync.status === 'running' && catalogSync.total ? (
+                            <div className="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-sky-500 transition-all duration-300"
+                                    style={{ width: `${Math.min(100, ((catalogSync.processed || 0) / catalogSync.total) * 100)}%` }}
+                                />
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            )}
+            {catalogSync.status === 'done' && (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl border text-sm bg-emerald-500/10 border-emerald-500/20 text-emerald-300">
+                    <CheckCircle2 size={16} className="shrink-0" />
+                    <span>Catalogue DofusDB synchronisé — {catalogSync.synced} ajoutés/mis à jour · {catalogSync.skipped} ignorés (total {catalogSync.total})</span>
+                </div>
+            )}
 
             {/* Sync status banner */}
             {syncStatus && (

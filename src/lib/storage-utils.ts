@@ -60,7 +60,16 @@ export async function deleteProofFile(proofUrl: string) {
  * Generates a signature for a storage path to allow public access with a valid token.
  */
 export function signStorageUrl(path: string): string {
-    const secret = process.env.AUTH_SECRET || "default_internal_secret_change_me_sigil_os_storage";
+    // SECURITY FIX (CRITICAL): Fail-closed if the secret is missing.
+    // The previous fallback hardcoded secret allowed anyone with source access
+    // to forge valid tokens and access private files without authentication.
+    // If AUTH_SECRET is not set, we return an empty string → verifyStorageToken
+    // will reject ALL tokens (fail-closed behavior).
+    const secret = process.env.AUTH_SECRET;
+    if (!secret) {
+        logger.warn("[Storage] signStorageUrl called without AUTH_SECRET — returning empty signature (fail-closed)");
+        return "";
+    }
     const hmac = createHmac("sha256", secret);
     hmac.update(path);
     return hmac.digest("hex");

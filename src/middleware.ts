@@ -8,6 +8,8 @@ const { auth } = NextAuth(authConfig)
 // ─── IP Rate Limiter (Redis-free, edge-compatible memory fallback) ─────────────
 // Uses a sliding window counter per IP, stored in module-level Map.
 // NOTE: In multi-instance prod, prefer Upstash Redis rate limiter.
+// SECURITY FIX: cap the map size to prevent memory-exhaustion DoS via spoofed IPs.
+const MAX_IP_COUNTER_ENTRIES = 10_000
 const ipCounters = new Map<string, { count: number; reset: number }>()
 
 // ─── Maintenance Mode Cache (30s TTL, avoids a DB fetch on every request) ───
@@ -20,6 +22,17 @@ function ipRateLimit(ip: string, limit: number, windowMs: number): boolean {
 
     // Cleanup stale entry
     if (!entry || now > entry.reset) {
+        // SECURITY FIX: prevent unbounded memory growth from spoofed/random IPs
+        // by evicting expired entries before allocating new keys.
+        if (ipCounters.size >= MAX_IP_COUNTER_ENTRIES) {
+            for (const [key, val] of ipCounters) {
+                if (val.reset < now) ipCounters.delete(key)
+            }
+        }
+        // If still saturated and this is a brand-new key, do not allocate more
+        // memory — treat as allowed this once; the sweep above frees space next tick.
+        if (ipCounters.size >= MAX_IP_COUNTER_ENTRIES) return true
+
         ipCounters.set(ip, { count: 1, reset: now + windowMs })
         return true
     }
@@ -31,11 +44,18 @@ function ipRateLimit(ip: string, limit: number, windowMs: number): boolean {
 }
 
 function getClientIp(req: NextRequest): string {
-    return (
+    const raw = (
         req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
         req.headers.get("x-real-ip") ||
         "unknown"
     )
+    // SECURITY FIX: only trust well-formed IPv4 values (Caddy sets the real client
+    // IP first). Rejects malformed/spoofed values, preventing both rate-limit
+    // bypass and unbounded map growth with garbage keys.
+    if (raw !== "unknown" && !/^\d{1,3}(\.\d{1,3}){3}$/.test(raw)) {
+        return "untrusted"
+    }
+    return raw
 }
 
 export default auth(async (req) => {

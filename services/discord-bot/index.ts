@@ -26,20 +26,15 @@ import {
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-// Build connection URL from individual env vars (handles special chars in password)
-const pgUser = process.env.POSTGRES_USER;
-const pgPassword = process.env.POSTGRES_PASSWORD;
-const pgDb = process.env.POSTGRES_DB;
-const pgHost = process.env.DB_HOST || 'localhost';
-
-if (!pgUser || !pgPassword || !pgDb) {
-    console.error('[Discord Bot] ❌ Missing POSTGRES_USER, POSTGRES_PASSWORD, or POSTGRES_DB');
+// SECURITY FIX (F-23): Use the canonical DATABASE_URL env var like the rest of the
+// app (docker-compose provides it). The previous code reassembled the connection
+// string from fragments using a 'post'+'gresql://' trick that only served to hide
+// the real password from secret scanners — a bad practice that masks genuine leaks.
+const datasourceUrl = process.env.DATABASE_URL;
+if (!datasourceUrl) {
+    console.error('[Discord Bot] ❌ Missing DATABASE_URL environment variable');
     process.exit(1);
 }
-
-// Build DATABASE_URL and pass directly to PrismaClient (Prisma 7.x requirement)
-const protocol = 'post' + 'gresql://'; // split to avoid secret-scanner false positive
-const datasourceUrl = `${protocol}${encodeURIComponent(pgUser!)}:${encodeURIComponent(pgPassword!)}@${pgHost}:5432/${pgDb}`;
 
 // Prisma 7.x avec driverAdapters requiert un adapter explicite (datasources et datasourceUrl sont bannis)
 const adapter = new PrismaPg({ connectionString: datasourceUrl });
@@ -54,7 +49,8 @@ const client = new Client({
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMessageTyping,
+        // SECURITY FIX (F-24): GuildMessageTyping removed — least privilege.
+        // The bot must not need the right to read every keystroke/typing event.
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
@@ -682,13 +678,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     }
 });
 
-// 4. TRACK TYPING
-client.on(Events.TypingStart, async (typing) => {
-    if (typing.user.bot || !typing.guild) return;
-    await updateDiscordActivity(typing.user.id, typing.guild.id, { 
-        lastDiscordTypingAt: new Date() 
-    }, 'Typing');
-});
+// (F-24) TYPING TRACKING REMOVED — GuildMessageTyping intent revoked (least privilege).
 
 // 5. PERIODIC RESET - Every Tuesday 07:00 (Weekly) & 1st of Month (Monthly)
 let lastResetWeek = -1;

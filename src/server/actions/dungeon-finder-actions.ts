@@ -60,6 +60,7 @@ export type DjPostWithDetails = {
         level: number;
         imageUrl: string | null;
         isExpedition: boolean;
+        isOcreQuest?: boolean;
         dofuspourlesnoobsUrl?: string | null;
         dofensiveUrl?: string | null;
         achievements: {
@@ -1348,6 +1349,7 @@ export async function getDjPosts(
                         level: true,
                         imageUrl: true,
                         isExpedition: true,
+                        isOcreQuest: true,
                         dofuspourlesnoobsUrl: true,
                         dofensiveUrl: true,
                         achievements: {

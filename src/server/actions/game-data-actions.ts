@@ -1980,7 +1980,16 @@ export async function syncWorldMonsters(params?: { skip?: number; batchSize?: nu
                     continue;
                 }
 
-                // Sinon (pas d'existant Ocre/archi) → upsert propre sur (name, dofusType)
+                // Sinon (pas d'existant Ocre/archi) → gérer le doublon d'ancien type (même nom)
+                // avant l'upsert propre sur (name, dofusType) pour respecter @@unique([name, type])
+                const otherTypeRow = await db.archimonstre.findFirst({
+                    where: { name: nameFr, type: { not: dofusType } },
+                    select: { id: true },
+                });
+                if (otherTypeRow) {
+                    await db.archimonstre.delete({ where: { id: otherTypeRow.id } });
+                }
+
                 await db.archimonstre.upsert({
                     where: { name_type: { name: nameFr, type: dofusType } },
                     update: {

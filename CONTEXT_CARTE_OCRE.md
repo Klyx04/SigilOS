@@ -1,7 +1,7 @@
 # 📘 Contexte complet — Projet "Carte du Monde & Quête Ocre"
 
 > **But de ce fichier** : donner à un prochain agent (sans mémoire de cette session) tout le contexte nécessaire pour continuer ce projet. À lire avant toute modification.
-> **Dernière mise à jour** : fin de session "carte/OCRE" — branche `feat/rush-position-preview`, HEAD = `62a10993`.
+> **Dernière mise à jour** : session "carte/OCRE" — branche `feat/rush-position-preview`, HEAD = `da3223b2`.
 
 ---
 
@@ -27,7 +27,7 @@ Refondre la **Page Carte du monde** de SigilOS pour :
 
 ---
 
-## 📌 ÉTAT ACTUEL DE LA BRANCHE (HEAD `62a10993`)
+## 📌 ÉTAT ACTUEL DE LA BRANCHE (HEAD `da3223b2`)
 
 ### ✅ Déjà fait (commits poussés)
 
@@ -37,17 +37,18 @@ Refondre la **Page Carte du monde** de SigilOS pour :
 | `b38c6aac` | Sélecteur cliquable `DungeonMapPicker` (remplace la saisie manuelle du mapId) |
 | `33a8b3a9` | Icône Ocre centrée/agrandie sur la carte + badge Quête Ocre dans la modale donjon |
 | `9f07fa43` | Docs : premier fichier de contexte (celui-ci, avant refonte) |
-| `9addd69a` | **Étape 1 — Recherche carte LOCAL-FIRST** (voir détail ci-dessous) |
-| `299141a4` | **Fix carte noire** après clic recherche (voir détail) |
+| `9addd69a` | **Étape 1 — Recherche carte LOCAL-FIRST** |
+| `299141a4` | **Fix carte noire** après clic recherche |
 | `62a10993` | **Barre de filtres permanente + pré-chargement + retrait bouton choix du jeu** |
+| `0b5d85ee` | Docs : mise à jour du contexte (état HEAD `62a10993`) |
+| `79cb8fd4` | **Fix dropdown "World Selection"** : passage en dropdown **cliquable** (état `worldDropdownOpen`), ancré `right-0`, overlay `fixed` pour fermer au clic extérieur → plus de débordement à gauche (voir détail) |
+| `da3223b2` | **B1 — Sync catalogue DofusDB** : `syncWorldMonsters()` paginé + bouton GOD "Sync Catalogue Dofus" avec progression (voir détail) |
 
 ### 🔜 Reste à faire
 
-- **B1** : `syncWorldMonsters()` — pré-compiler tout le catalogue DofusDB en local + boutons GOD ("Sync Quête Ocre" / "Sync Catalogue Dofus") avec progression.
-- **B2** : Détection des nouveautés (Metamob **ET** DofusDB) + notifs base + Discord.
+- **B2** : Détection des nouveautés (Metamob **ET** DofusDB) + notifs base + Discord. **La fondation B1 est prête** (`syncWorldMonsters` paginé avec `nextSkip`/`done`). B2 pourra réutiliser `OcreMonsterTemplate` comme snapshot des `dofusdbId` connus et se déclencher **à la fin d'une sync catalogue** (depuis `ArchimonstreManager` ou un cron).
 - **C1** : Badge "Quête Ocre" dans la liste des donjons du `DungeonManager`.
 - **C2** : Icône Ocre dans le Dungeon Finder (`DjPostCard`, `DjPostCreateModal`, `AchievementTracker`).
-- **📌 Filtres par monde qui débordent du composant** : le dropdown "World Selection" (dans `interactive-map-v2.tsx`, classe `w-60 right-0`) **sort à gauche du composant** une fois affiché → à corriger (ancrage/overflow).
 - **📌 Modale tuile HD (`MapDetailsPanel.tsx`)** : s'ouvre au clic sur une position de la carte (`/game-data/hd_maps/{mapId}.webp`, zoom ±, maximize, Sol/Air, bouton Analyser). À enrichir :
   - un **bouton Metamob** (lien/recherche vers l'archi/monstre de la zone)
   - **lister les trades dispo** (`OcreTradeRequest`) pour la zone
@@ -195,9 +196,6 @@ Upsert par `name_type` + `isOcre:true`, type normalisé ('monstre' si contient "
 - C1 : badge doré Ocre dans la **liste** des donjons du `DungeonManager`.
 - C2 : icône Ocre dans `DjPostCard`, `DjPostCreateModal`, `AchievementTracker`.
 
-### 📌 Filtres par monde qui débordent
-- Dropdown "World Selection" (`interactive-map-v2.tsx`, `w-60 right-0`) **sort du composant à gauche** une fois ouvert → à corriger (ancrage du panel, overflow, ou `left-0` selon contexte).
-
 ### 📌 Modale tuile HD (`MapDetailsPanel.tsx`)
 - Ajouter :
   - **bouton Metamob** (lien vers l'archi/monstre de la zone, ou recherche)
@@ -206,6 +204,26 @@ Upsert par `name_type` + `isOcre:true`, type normalisé ('monstre' si contient "
 
 ---
 
+## ✅ Détail fix dropdown "World Selection" (commit `79cb8fd4`)
+
+**Problème** : le dropdown (anciennement `w-60 right-0` en hover `group-hover`) sortait à gauche du composant.
+**Fix** : dropdown **cliquable** (`worldDropdownOpen` state) — le bouton toggle le panel, un overlay `fixed inset-0 z-[650]` ferme au clic extérieur, le panel est `absolute top-full right-0 w-60 z-[700]`. Chevron tourne 180° quand ouvert. Plus de dépendance au hover fragile → pas de débordement.
+
+## ✅ Détail B1 — Sync catalogue DofusDB (commit `da3223b2`)
+
+### `syncWorldMonsters(params?: { skip?: number; batchSize?: number })`
+Action serveur **super-admin**. Pagine l'API `https://api.dofusdb.fr/monsters?lang=fr&$limit={batchSize}&$skip={skip}` **un batch par appel**, puis upsert chaque monstre en local (`type:'monstre'`, `isOcre:false`) avec résolution monde/subarea/coords via `worldmap.json` (même logique que `syncOcreArchimonstres`).
+
+Retourne `{ synced, skipped, total, nextSkip, done }` :
+- `nextSkip` = `skip + batch.length` → à passer au prochain appel
+- `done` = `nextSkip >= total` → indique la fin de la pagination
+
+### `ArchimonstreManager.tsx` — bouton "Sync Catalogue Dofus"
+- Nouvel état `catalogSync` (`idle | running | done | error`)
+- `handleCatalogueSync()` boucle sur `syncWorldMonsters({ skip, batchSize: 50 })` jusqu'à `done`, en accumulant `synced`/`skipped`/`processed`
+- **Barre de progression** (largeur `processed/total`) + compteur `✅ synced · ⏭ skipped`
+- Bandeau de succès final + rechargement de la liste
+
 ## 🚦 Méthode rappel
 
 - Toujours **étape par étape**, valider avec l'utilisateur.
@@ -213,6 +231,7 @@ Upsert par `name_type` + `isOcre:true`, type normalisé ('monstre' si contient "
 - Vérifier `npx tsc --noEmit` (exit 0) + pre-commit (secrets, Prisma, lint, tsc).
 - L'utilisateur est non-dev : privilégier UI claire (Toggles, sélecteurs), pas d'IDs à chercher à la main.
 - ⚠️ le shell est **PowerShell** (pas `&&`, utiliser `;` et `$LASTEXITCODE`).
+- `rg` n'est pas dispo sous PowerShell → utiliser `findstr /n` avec le **chemin absolu** (ex: `findstr /n "^model Archimonstre" "a:\SigilOS\prisma\schema.prisma"`).
 
 ---
 
@@ -225,4 +244,4 @@ Upsert par `name_type` + `isOcre:true`, type normalisé ('monstre' si contient "
 
 ---
 
-*Dernière mise à jour : fin de session "carte/OCRE" — branche `feat/rush-position-preview`, HEAD `62a10993`.*
+*Dernière mise à jour : session "carte/OCRE" — branche `feat/rush-position-preview`, HEAD `da3223b2`.*

@@ -282,9 +282,12 @@ export default function InteractiveMapV2({
         });
     }, [worldMap.maps, selectedWorldId, worldMap.dungeons]);
 
-    const visibleWorlds = useMemo(() =>
-        worldMap.worlds?.filter(w => worldMap.maps?.some(m => m.worldMap === w.id)) || [],
-        [worldMap.worlds, worldMap.maps]);
+    const visibleWorlds = useMemo(() => {
+        // Filtre les mondes ayant des maps ; si le filtre ne renvoie rien (ex: données chargées
+        // partiellement ou monde sans maps), on retombe sur TOUS les mondes pour ne jamais vider le dropdown.
+        const withMaps = worldMap.worlds?.filter(w => worldMap.maps?.some(m => m.worldMap === w.id)) || [];
+        return withMaps.length > 0 ? withMaps : (worldMap.worlds || []);
+    }, [worldMap.worlds, worldMap.maps]);
 
     const searchResults = useMemo(() => {
         if (!search) return [];

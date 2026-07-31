@@ -109,7 +109,8 @@ jobs:
           SEMGREP_RULES: p/security-audit
 
       - name: 🐋 Dockerfile Config Scan (Trivy)
-        uses: aquasecurity/trivy-action@master
+        # F-22: pinned to a tagged release — @master could execute compromised code
+        uses: aquasecurity/trivy-action@v0.31.1
         with:
           scan-type: 'config'
           hide-progress: true
@@ -126,9 +127,11 @@ jobs:
       - name: 🚀 Run Tests
         run: npm run test:run
 
-      # Build only on PRs and protected branches (not every push)
+      # Build only on protected branches (NOT on PRs).
+      # SECURITY FIX (F-18): never inject AUTH_SECRET on a pull_request runner —
+      # a malicious PR could exfiltrate it via the build output.
       - name: 🏗️ Production Build
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
         run: npm run build
         env:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
@@ -187,7 +190,8 @@ jobs:
           SEMGREP_RULES: "p/security-audit p/secrets p/owasp-top-ten"
 
       - name: 🛡️ Full Filesystem CVE Scan (Trivy)
-        uses: aquasecurity/trivy-action@master
+        # F-22: pinned to a tagged release — @master could execute compromised code
+        uses: aquasecurity/trivy-action@v0.31.1
         with:
           scan-type: 'fs'
           scan-ref: '.'

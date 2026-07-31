@@ -635,11 +635,17 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         return perms.includes(PERMISSIONS.DASHBOARD_LOGIN) || perms.includes(PERMISSIONS.COMMUNITY_ACCESS);
     }) || individualMapping[discordUserId]?.some(p => p === PERMISSIONS.DASHBOARD_LOGIN || p === PERMISSIONS.COMMUNITY_ACCESS);
 
-    // If the Discord API failed to fetch the member (rate-limit / network error) but the user
-    // has a valid active profile, we trust the DB and grant access conservatively.
-    // In this fallback path, `memberRoles` is empty so permission granularity is lost,
-    // but isAdmin/isAdminFinal will still be computed from rolesMapping + profile.
-    const isAuthorizedMember = hasAuthorizedRole || isAdminFinal || memberFetchFailed;
+    // SECURITY FIX (fail-open RBAC):
+    // Previously, `memberFetchFailed` alone granted access to ANY authenticated user
+    // even without a DB profile (the case `!member && memberFetchFailed` fell through
+    // the gate below). An attacker could provoke a Discord API failure (rate-limit)
+    // to bypass the role check entirely.
+    //
+    // Conservative fix: keep the resilience fallback ONLY when the user provably
+    // has an ACTIVE profile in this guild in the DB (known member). A random
+    // authenticated user with no profile now gets DENIED.
+    const hasKnownActiveProfile = !!profile && profile.status === "ACTIVE";
+    const isAuthorizedMember = hasAuthorizedRole || isAdminFinal || (memberFetchFailed && hasKnownActiveProfile);
 
     if (!member && !memberFetchFailed || !isAuthorizedMember) {
         return {

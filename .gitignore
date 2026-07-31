@@ -160,3 +160,8 @@ private_uploads/
 # Large data dumps
 *_dump.json
 .gemini/
+
+# Rapports & briefs d'audit (ponctuels, sensibles — garder en local)
+AUDIT_*.md
+src/audit-cyber
+src/audit-infra

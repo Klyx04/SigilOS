@@ -270,14 +270,16 @@ async function processLadderSync(job: Job) {
 
             if (generalData?.found) {
                 if (generalData.totalXp) {
-                    const cleanXp = generalData.totalXp.replace(/\D/g, "");
+                    // SECURITY FIX (F-26): bound the XP string to avoid absurd values
+                    const cleanXp = generalData.totalXp.replace(/\D/g, "").slice(0, 15);
                     if (cleanXp) updateData.totalXp = BigInt(cleanXp);
                 }
                 if (generalData.level && !updateData.dofusLevel) {
-                    updateData.dofusLevel = generalData.level;
+                    updateData.dofusLevel = Math.min(Math.max(Number(generalData.level), 1), 300);
                 }
                 if (generalData.classe) {
-                    updateData.classe = generalData.classe;
+                    // SECURITY FIX (F-26): bound class name length (Dofus classes are short)
+                    updateData.classe = String(generalData.classe).slice(0, 50);
                 }
             }
 

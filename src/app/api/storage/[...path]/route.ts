@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { join, normalize } from "path";
+import { join, normalize, sep } from "path";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { getUserContext } from "@/server/actions/user-actions";
@@ -23,7 +23,11 @@ export async function GET(
     const absolutePath = join(process.cwd(), "private_uploads", safePath);
     const storageRoot = join(process.cwd(), "private_uploads");
 
-    if (!absolutePath.startsWith(storageRoot)) {
+    // SECURITY FIX: `startsWith(storageRoot)` is vulnerable to prefix bypass
+    // (e.g. `private_uploads_evil` starts with `private_uploads`).
+    // Use an exact root match, or a root + path separator match.
+    const storageRootWithSep = storageRoot.endsWith(sep) ? storageRoot : storageRoot + sep;
+    if (absolutePath !== storageRoot && !absolutePath.startsWith(storageRootWithSep)) {
         return new NextResponse("Forbidden", { status: 403 });
     }
 

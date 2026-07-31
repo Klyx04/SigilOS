@@ -1327,17 +1327,15 @@ export async function kickParticipant(guildId: string, eventId: string, targetUs
         });
         if (!event) return { success: false, error: "Événement introuvable" };
 
-        const eventMeta = (event.metadata as any) || {};
         const isCreator = event.creatorId === ctx.id;
-        const isPreviousCreator = eventMeta.previousCreatorId === ctx.id;
 
-        // SECURITY: For RAID_OFFICIAL, only the creator (or previous creator) can kick
-        if (event.type === "RAID_OFFICIAL" && !isCreator && !isPreviousCreator) {
+        // SECURITY: For RAID_OFFICIAL, only the current captain (creatorId) can kick
+        if (event.type === "RAID_OFFICIAL" && !isCreator) {
             return { success: false, error: "Seul le capitaine du raid peut exclure un participant." };
         }
 
-        // Perms: Admin, has calendar manage perm, or is creator/previous creator
-        if (!isCreator && !isPreviousCreator && !ctx.canManageCalendar) {
+        // Perms: Admin, has calendar manage perm, or is creator
+        if (!isCreator && !ctx.canManageCalendar) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut exclure un participant." };
         }
 

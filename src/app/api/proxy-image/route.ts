@@ -13,6 +13,9 @@ const ALLOWED_DOMAINS = [
   "metamob.fr",
   "discordapp.com",
   "discordapp.net",
+  // Skin providers (Barbofus & DofusSkinManga enforce anti-hotlink via Referer checks)
+  "barbofus.com",
+  "dofusskinmanga.com",
 ];
 
 export async function GET(req: NextRequest) {

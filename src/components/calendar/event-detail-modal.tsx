@@ -1298,6 +1298,7 @@ function ParticipantRow({
     const [isConfirming, setIsConfirming] = useState(false);
     const [isKickConfirming, setIsKickConfirming] = useState(false);
     const [isTransferPending, setIsTransferPending] = useState(false);
+    const [isTransferConfirming, setIsTransferConfirming] = useState(false);
 
     return (
         <div className={cn(
@@ -1396,22 +1397,55 @@ function ParticipantRow({
 
                                                 {/* Transfer Captaincy (visible only for raid creator on registered participants) */}
                                                 {isRaid && !isCurrentUser && onTransferCaptaincy && (
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={async (e) => {
-                            e.stopPropagation();
-                            setIsTransferPending(true);
-                            await onTransferCaptaincy();
-                            setIsTransferPending(false);
-                        }}
-                        disabled={isTransferPending}
-                        className="h-8 px-2 text-[10px] font-black uppercase tracking-wider text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10 shrink-0"
-                        title="Transférer le capitanat"
-                    >
-                        {isTransferPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-                        <span className="ml-1 hidden sm:inline">Capitanat</span>
-                    </Button>
+                    <>
+                        {isTransferConfirming && (
+                            <span className="text-[10px] font-bold text-yellow-500/90 italic max-w-[180px] leading-tight inline-block align-middle">
+                                Le capitanat passera à ce joueur — tu perdras les contrôles d'organisateur de ce raid.
+                            </span>
+                        )}
+                        <Button
+                            size="sm"
+                            variant={isTransferConfirming ? "destructive" : "ghost"}
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                if (isTransferConfirming) {
+                                    setIsTransferPending(true);
+                                    await onTransferCaptaincy();
+                                    setIsTransferPending(false);
+                                    setIsTransferConfirming(false);
+                                } else {
+                                    setIsTransferConfirming(true);
+                                    setTimeout(() => setIsTransferConfirming(false), 3000); // Reset after 3s
+                                }
+                            }}
+                            disabled={isTransferPending}
+                            className={cn(
+                                "shrink-0 transition-all",
+                                isTransferConfirming
+                                    ? "h-8 px-3 text-xs font-medium bg-yellow-600 hover:bg-yellow-500 text-zinc-950"
+                                    : "h-8 px-2 text-[10px] font-black uppercase tracking-wider text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                            )}
+                            title={
+                                isTransferConfirming
+                                    ? "Confirmer le transfert du capitanat à ce joueur"
+                                    : "Donner le capitanat à ce joueur"
+                            }
+                        >
+                            {isTransferPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : isTransferConfirming ? (
+                                <span className="flex items-center gap-1">
+                                    <Crown className="h-3.5 w-3.5" />
+                                    Confirmer ?
+                                </span>
+                            ) : (
+                                <>
+                                    <Crown className="h-3.5 w-3.5" />
+                                    <span className="ml-1 hidden sm:inline">Donner le capitanat</span>
+                                </>
+                            )}
+                        </Button>
+                    </>
                 )}
 
                 {/* Kick Button (visible only for admin/creator on non-creator rows) */}

@@ -1323,17 +1323,21 @@ export async function kickParticipant(guildId: string, eventId: string, targetUs
 
         const event = await db.guildEvent.findUnique({
             where: { id: eventId, guildId: guildConfig.id },
-            select: { creatorId: true, type: true }
+            select: { creatorId: true, type: true, metadata: true }
         });
         if (!event) return { success: false, error: "Événement introuvable" };
 
-        // SECURITY: For RAID_OFFICIAL, only the creator can kick
-        if (event.type === "RAID_OFFICIAL" && event.creatorId !== ctx.id) {
+        const eventMeta = (event.metadata as any) || {};
+        const isCreator = event.creatorId === ctx.id;
+        const isPreviousCreator = eventMeta.previousCreatorId === ctx.id;
+
+        // SECURITY: For RAID_OFFICIAL, only the creator (or previous creator) can kick
+        if (event.type === "RAID_OFFICIAL" && !isCreator && !isPreviousCreator) {
             return { success: false, error: "Seul le capitaine du raid peut exclure un participant." };
         }
 
-        // Perms: Admin, has calendar manage perm, or is creator
-        if (event.creatorId !== ctx.id && !ctx.canManageCalendar) {
+        // Perms: Admin, has calendar manage perm, or is creator/previous creator
+        if (!isCreator && !isPreviousCreator && !ctx.canManageCalendar) {
             return { success: false, error: "Seul le créateur de l'événement ou un administrateur peut exclure un participant." };
         }
 
@@ -1413,13 +1417,14 @@ export async function transferRaidCaptaincy(guildId: string, eventId: string, ne
             return { success: false, error: "Le nouveau capitaine doit être un participant inscrit au raid." };
         }
 
-        // Update creatorId
+        // Update creatorId and store previous creator for permission continuity
         await db.guildEvent.update({
             where: { id: eventId },
             data: {
                 creatorId: newCaptainUserId,
                 metadata: {
                     ...(event.metadata as any),
+                    previousCreatorId: event.creatorId, // Keep old creator's kick rights
                     raidCaptain: undefined // Clear the text-based captain field if it existed
                 }
             }

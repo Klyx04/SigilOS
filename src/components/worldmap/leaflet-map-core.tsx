@@ -1232,9 +1232,11 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     const py = correctedActiveWorld.origineY + group.mapNode.y * correctedActiveWorld.mapHeight + correctedActiveWorld.mapHeight / 2;
                     const dCount = group.dungeons.length;
 
+                    const isOcre = !!(group as any).isOcreQuest;
                     const iconHtml = `
                     <div class="w-7 h-7 rounded-full bg-slate-900/90 border-2 border-amber-500/80 shadow-[0_0_12px_rgba(245,158,11,0.4)] flex items-center justify-center text-amber-400 group-hover:scale-125 group-hover:border-amber-400 transition-all duration-200 relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 20v-9H2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2Z"/><path d="M18 11V4H6v7"/><path d="M15 22v-4a3 3 0 0 0-3-3v0a3 3 0 0 0-3 3v4"/><path d="M22 11V9"/><path d="M2 11V9"/><path d="M6 4V2"/><path d="M18 4V2"/><path d="M10 4V2"/><path d="M14 4V2"/></svg>
+                        ${isOcre ? `<img src="/module-dofus/Dofus_Ocre.png" alt="Quête Ocre" class="absolute -top-2 -right-2 w-4 h-4 rounded-full object-contain border border-white/20 bg-slate-950 shadow-[0_0_8px_rgba(250,204,21,0.6)]" title="Donjon Quête Ocre" />` : ''}
                         ${dCount > 1 ? `<div class="absolute -top-2 -right-2 bg-amber-500 text-black text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-900">${dCount}</div>` : ''}
                     </div>`;
 

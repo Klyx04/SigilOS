@@ -51,6 +51,8 @@ interface Dungeon {
     isExpedition: boolean;
     expeditionModes?: string[] | null;
     expeditionMechanics?: string | null;
+    isOcreQuest?: boolean;
+    mapId?: number | null;
     achievements: { challengeId: string; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
 }
 
@@ -89,6 +91,8 @@ export default function DungeonManager() {
         isExpedition: false,
         expeditionModes: [] as string[],
         expeditionMechanics: "",
+        isOcreQuest: false,
+        mapId: null as number | null,
         challengeIds: [] as string[],
     });
 
@@ -188,6 +192,8 @@ export default function DungeonManager() {
             isExpedition: false,
             expeditionModes: [],
             expeditionMechanics: "",
+            isOcreQuest: false,
+            mapId: null,
             challengeIds: [],
         });
     }
@@ -206,6 +212,8 @@ export default function DungeonManager() {
             isExpedition: dungeon.isExpedition,
             expeditionModes: dungeon.expeditionModes || [],
             expeditionMechanics: dungeon.expeditionMechanics || "",
+            isOcreQuest: dungeon.isOcreQuest ?? false,
+            mapId: dungeon.mapId ?? null,
             challengeIds: dungeon.achievements.map(a => a.challengeId),
         });
         setIsDialogOpen(true);
@@ -399,6 +407,12 @@ export default function DungeonManager() {
                                                     onCheckedChange={(checked) => setFormData({ ...formData, isExpedition: checked })}
                                                     className="data-[state=checked]:bg-indigo-600"
                                                 />
+                                                <span className="text-sm font-bold text-slate-400 uppercase">Quête Ocre</span>
+                                                <Switch
+                                                    checked={formData.isOcreQuest}
+                                                    onCheckedChange={(checked) => setFormData({ ...formData, isOcreQuest: checked })}
+                                                    className="data-[state=checked]:bg-amber-600"
+                                                />
                                             </div>
                                         </div>
 
@@ -459,6 +473,21 @@ export default function DungeonManager() {
                                                     placeholder="https://dofensive.com/fr/monster/..."
                                                     className="h-14 bg-slate-950 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 text-sm transition-all rounded-xl"
                                                 />
+                                            </div>
+                                        </div>
+
+                                        {/* Map ID — used to place the Ocre icon on the world map */}
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                            <div className="md:col-span-2 space-y-3">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Numéro de Map (worldmap)</label>
+                                                <Input
+                                                    type="number"
+                                                    value={formData.mapId ?? ""}
+                                                    onChange={(e) => setFormData({ ...formData, mapId: e.target.value === "" ? null : parseInt(e.target.value) || null })}
+                                                    placeholder="Ex: 12345 (id de la map sur la carte)"
+                                                    className="h-14 bg-slate-950 border-slate-800 focus:border-amber-500/50 focus:ring-amber-500/20 text-sm transition-all rounded-xl"
+                                                />
+                                                <p className="text-[10px] text-slate-600 pl-1">Indispensable pour placer l'icône Ocre sur la carte du monde.</p>
                                             </div>
                                         </div>
                                     </div>

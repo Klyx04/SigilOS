@@ -12,7 +12,7 @@ import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
-import { searchArchimonstresForMap, type MapSearchFilter } from '@/server/actions/game-data-actions';
+import { searchArchimonstresForMap, getArchimonstresByFilter, type MapSearchFilter } from '@/server/actions/game-data-actions';
 import { getOcreDungeonMapIds } from '@/server/actions/ocre-map-actions';
 import {
     createGeoguesserSession,
@@ -66,6 +66,8 @@ interface InteractiveMapProps {
     userAvatar?: string;
     isAdmin?: boolean;
     interactive?: boolean;
+    /** Affiche le bouton "Choix du Jeu" (navigation vers /mini-jeux) dans le header de la carte. */
+    showGameEntry?: boolean;
 }
 
 export default function InteractiveMapV2({ 
@@ -81,7 +83,8 @@ export default function InteractiveMapV2({
     userName,
     userAvatar,
     isAdmin,
-    interactive
+    interactive,
+    showGameEntry = false
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const currentUserId = sessionData?.user?.id;
@@ -114,6 +117,25 @@ export default function InteractiveMapV2({
     const [isSearchingArchi, setIsSearchingArchi] = useState(false);
     const [highlightSubareaIds, setHighlightSubareaIds] = useState<number[]>([]);
     const [searchFilter, setSearchFilter] = useState<MapSearchFilter>('all');
+    // Pré-chargement : résultats affichés quand on clique un filtre sans texte (ex: 🟡 Ocre)
+    const [preloadedFilterResults, setPreloadedFilterResults] = useState<any[]>([]);
+    const [pendingFilter, setPendingFilter] = useState<MapSearchFilter | null>(null);
+    const [isLoadingFilter, setIsLoadingFilter] = useState(false);
+
+    // Charger les résultats du filtre quand on clique une chip SANS texte de recherche
+    const loadFilterResults = useCallback(async (f: MapSearchFilter) => {
+        if (!search || search.trim().length < 2) {
+            setIsLoadingFilter(true);
+            try {
+                const res = await getArchimonstresByFilter(f);
+                setPreloadedFilterResults(res.success ? (res.data || []) : []);
+            } catch {
+                setPreloadedFilterResults([]);
+            } finally {
+                setIsLoadingFilter(false);
+            }
+        }
+    }, [search]);
 
     // Ocre quest dungeons (donjons marqués "Quête Ocre" → icône Dofus Ocre sur la carte)
     const [ocreMapIds, setOcreMapIds] = useState<Set<number>>(new Set());
@@ -1041,7 +1063,7 @@ export default function InteractiveMapV2({
                                 <span className="relative z-10">Mini-Jeux</span>
                             </button>
                         </div>
-                    ) : (
+                    ) : showGameEntry ? (
                         <button 
                             onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
                             className="group flex items-center gap-4 bg-white/5 hover:bg-white/10 px-6 py-2.5 rounded-2xl border border-white/5 transition-all hover:scale-105 active:scale-95"
@@ -1056,7 +1078,7 @@ export default function InteractiveMapV2({
                             </div>
                             <span className="text-[10px] font-black uppercase text-white/60 tracking-widest italic">Choix du Jeu</span>
                         </button>
-                    )}
+                    ) : null}
 
                     {/* Right: Map Contextual Tools (Visible ONLY on Map Tab) */}
                     <AnimatePresence mode="wait">
@@ -1153,42 +1175,44 @@ export default function InteractiveMapV2({
                                     <input
                                         type="text"
                                         value={search}
-                                        onChange={e => { setSearch(e.target.value); setSearchFilter('all'); }}
-                                        placeholder="Zone, avis, archimonstre..."
+                                        onChange={e => { setSearch(e.target.value); setSearchFilter('all'); setPendingFilter(null); setPreloadedFilterResults([]); }}
+                                        placeholder="Zone, monstre, boss, archimonstre..."
                                         className="w-36 lg:w-56 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
                                     />
 
-                                    {/* Dropdown with filter chips + results */}
-                                    {(searchResults.length > 0 || archiResults.length > 0 || isSearchingArchi) && (
+                                    {/* Dropdown with filter chips + results (TOUJOURS visible, pré-chargement possible) */}
+                                    {(searchResults.length > 0 || archiResults.length > 0 || preloadedFilterResults.length > 0 || isSearchingArchi || isLoadingFilter) && (
                                         <div className="absolute top-full right-0 mt-2 w-80 bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[700]">
 
-                                            {/* Filter chips */}
-                                            {(searchResults.length > 0 || archiResults.length > 0) && (
-                                                <div className="flex items-center flex-wrap gap-1.5 px-3 py-2 border-b border-white/5 bg-white/2">
-                                                    {(['all', 'zones', 'archis', 'boss', 'mobs', 'ocre'] as MapSearchFilter[]).map(f => (
-                                                        <button
-                                                            key={f}
-                                                            onClick={() => setSearchFilter(f)}
-                                                            className={cn(
-                                                                "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
-                                                                searchFilter === f
-                                                                    ? f === 'ocre'
-                                                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                                                        : f === 'archis'
-                                                                            ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
-                                                                            : 'bg-white/10 text-white border border-white/15'
-                                                                    : 'text-white/30 hover:text-white/60 border border-transparent'
-                                                            )}
-                                                        >
-                                                            {f === 'all' ? 'Tout' :
-                                                             f === 'zones' ? '🗺 Zones' :
-                                                             f === 'archis' ? '🎯 Archis' :
-                                                             f === 'boss' ? '👑 Boss' :
-                                                             f === 'mobs' ? '👹 Mobs' : '🟡 Ocre'}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
+                                            {/* Filter chips (permanents) */}
+                                            <div className="flex items-center flex-wrap gap-1.5 px-3 py-2 border-b border-white/5 bg-white/2">
+                                                {(['all', 'zones', 'archis', 'boss', 'mobs', 'ocre'] as MapSearchFilter[]).map(f => (
+                                                    <button
+                                                        key={f}
+                                                        onClick={() => {
+                                                            setSearchFilter(f);
+                                                            setPendingFilter(f);
+                                                            if (!search || search.trim().length < 2) loadFilterResults(f);
+                                                        }}
+                                                        className={cn(
+                                                            "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
+                                                            searchFilter === f
+                                                                ? f === 'ocre'
+                                                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                                                    : f === 'archis'
+                                                                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                                                                        : 'bg-white/10 text-white border border-white/15'
+                                                                : 'text-white/30 hover:text-white/60 border border-transparent'
+                                                        )}
+                                                    >
+                                                        {f === 'all' ? 'Tout' :
+                                                         f === 'zones' ? '🗺 Zones' :
+                                                         f === 'archis' ? '🎯 Archis' :
+                                                         f === 'boss' ? '👑 Boss' :
+                                                         f === 'mobs' ? '👹 Mobs' : '🟡 Ocre'}
+                                                    </button>
+                                                ))}
+                                            </div>
 
                                             {/* Subarea / Zone results */}
                                             {(searchFilter === 'all' || searchFilter === 'zones') && searchResults.length > 0 && (
@@ -1205,6 +1229,51 @@ export default function InteractiveMapV2({
                                                                 {!s.isCoord && (
                                                                     <span className="text-emerald-500/50 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-500/5">Lvl {s.level || '?'}</span>
                                                                 )}
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </>
+                                            )}
+
+                                            {/* Pré-chargement du filtre (clic sans texte, ex: 🟡 Ocre) */}
+                                            {pendingFilter && pendingFilter !== 'all' && pendingFilter !== 'zones' && preloadedFilterResults.length > 0 && (
+                                                <>
+                                                    <div className="px-3 py-1.5 bg-amber-500/5 border-b border-amber-500/10">
+                                                        <span className="text-amber-400/70 text-[8px] font-black uppercase tracking-widest">
+                                                            {pendingFilter === 'ocre' ? '🟡 Quête Ocre' : pendingFilter === 'archis' ? '🎯 Archimonstres' : pendingFilter === 'boss' ? '👑 Boss' : '👹 Monstres'}
+                                                        </span>
+                                                    </div>
+                                                    {preloadedFilterResults.map((a: any) => (
+                                                        <button
+                                                            key={a.id}
+                                                            onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
+                                                            className={cn(
+                                                                "w-full text-left px-4 py-2.5 border-b border-white/5 last:border-0 transition-colors group",
+                                                                a.subAreaIds?.length > 0 ? "hover:bg-amber-500/5" : "hover:bg-white/3 opacity-70"
+                                                            )}
+                                                        >
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    {a.imageUrl ? (
+                                                                        <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
+                                                                    ) : (
+                                                                        <div className="w-7 h-7 rounded bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                                                                            <span className="text-[10px]">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="min-w-0">
+                                                                        <div className="text-amber-200 text-[10px] font-black uppercase italic truncate">{a.name}</div>
+                                                                        <div className="text-white/25 text-[8px] uppercase truncate">{a.zoneName || 'Zone inconnue'}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                                                    {a.level > 0 && (
+                                                                        <span className="text-amber-500/60 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-amber-500/5">Lvl {a.level}</span>
+                                                                    )}
+                                                                    {a.worldMapId > 1 && (
+                                                                        <span className="text-sky-400/50 text-[7px] font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </button>
                                                     ))}

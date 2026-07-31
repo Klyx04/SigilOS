@@ -19,83 +19,90 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
    - Potential impact
    - Suggested fix (if any)
 
-## Security Measures
+## État de la posture sécurité (audit 2026 — honnête et à jour)
 
-### Application Layer
-- ✅ OWASP Top 10:2026 compliance
-- ✅ Auth.js with Discord OAuth (httpOnly cookies, CSRF protection)
-- ✅ Guild-level permission isolation (RBAC)
-- ✅ **GOD Dashboard**: Super-admin verification on all lifecycle actions
-- ✅ Input validation with Zod
-- ✅ Prisma ORM (SQL injection prevention)
-- ✅ Security headers (X-Frame-Options, CSP, etc.)
-- ✅ **XSS Prevention**: HTML sanitization on all user-generated content
-- ✅ **CSRF Protection**: SameSite cookies + Next.js origin verification
+> ⚠️ Ce fichier reflète **l'état réel** après l'audit. Certaines mesures sont **en place**, d'autres **restent à implémenter**. Il ne faut **pas** prétendre à une conformité complète tant que les chantiers ouverts ne sont pas faits.
 
-### CSRF (Cross-Site Request Forgery) Protection
+### ✅ Mesures en place (corrigées / confirmées)
+- **Auth.js avec Discord OAuth** : cookies `httpOnly`, `SameSite`, `__Secure-*` en prod
+- **RBAC multi-tenant** : `getUserContext(guildId)` + guards (`isMember`, `isAdmin`) sur les actions
+- **GOD Dashboard** : `isSuperAdmin()` sur toutes les actions de cycle de vie
+- **Input validation** : Zod schemas sur toutes les entrées
+- **Prisma ORM** : prévention SQL injection (pas de SQL brut)
+- **Security Headers** : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `HSTS`, `CSP` (partielle, voir ci-dessous)
+- **Uploads** : magic bytes + sharp post-traitement + filenames UUID (pas d'exécution)
+- **SSRF proxy-image** : whitelist de domaines exacte + blocage IP internes/réservées
+- **Fail-closed** : HMAC storage, RBAC Discord, rate-limit (partiellement), workers Cloudflare
+- **CI/CD** : `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity, `AUTH_SECRET` n'est plus injecté sur les PR
+- **Bot Discord** : `DATABASE_URL` propre + intent `GuildMessageTyping` retiré
 
-SigilOS utilizes multiple layers of CSRF protection:
+### ⚠️ Chantiers ouverts (à résoudre — NE PAS considérer la sécurité comme complète tant qu'ils ne sont pas faits)
+- **Authentification WebSocket (Socket.IO)** : le canal temps réel n'a **pas** de vérification d'identité ni d'appartenance guilde → **à sécuriser en priorité**
+- **Chiffrement des tokens OAuth (Discord)** : `updateMany` ne chiffre pas → tokens potentiellement en clair en BDD
+- **SSRF dans `image-downloader.ts`** (outil God) : aucune restriction de protocole/CIDR
+- **Durée du JWT** : 7 jours au lieu de 8h recommandé (NIST SP 800-63B)
+- **CSP nonce-based** : actuellement `'unsafe-inline'` sur `script-src` (protection XSS affaiblie)
+- **Clé de chiffrement de secours** codée en dur en dev (`encryption.ts`)
+- **Cache des permissions** : 60s avant propagation d'une révocation
+- **Grafana** : mot de passe admin à vérifier (si `GRAFANA_PASSWORD` absent → `admin/admin`)
+- **Caddy** : pas de rate-limit au niveau proxy
 
-#### 1. SameSite Cookies (Primary Defense)
-All authentication cookies use `SameSite=Lax` (configured in [auth.config.ts](file:///a:/SigilOS/src/auth.config.ts)):
-- Blocks cross-site requests from external domains
-- Cookies only sent with same-site navigation or top-level GET requests
-- Production cookies use `__Secure-*` prefix with `httpOnly` and `secure` flags
+### 🔒 Références
+Le détail complet des findings et remédiations est documenté **en local** (hors dépôt) dans `AUDIT_SECURITE_SIGILOS.md` (généré suite à l'audit). Les rapports d'audit ne sont **jamais committés**.
 
-#### 2. Next.js Server Actions Origin Verification
-Next.js 14+ Server Actions automatically verify the `Origin` header matches the request origin:
-- Rejects requests from external domains
-- No CSRF tokens needed for Server Actions
-- Additional protection layer beyond SameSite
+---
 
-#### 3. Security Headers
-- `X-Frame-Options: DENY` - Prevents clickjacking attacks
-- `X-Content-Type-Options: nosniff` - Prevents MIME-sniffing
-- `Referrer-Policy: strict-origin-when-cross-origin` - Limits referrer leakage
+## CSRF (Cross-Site Request Forgery) Protection
 
-**Limitations:**
-- Legacy browsers (IE11, pre-2016 Safari) do not support SameSite
-- **Recommendation**: Block unsupported browsers via middleware (99%+ browser support as of 2026)
+SigilOS s'appuie sur plusieurs couches de protection CSRF :
 
-**Testing:**
-```bash
-# Attempt cross-origin Server Action call (should fail)
-curl -X POST https://sigilos.fr/api/... \
-  -H "Origin: https://evil.com" \
-  -H "Cookie: session=..." \
-  -d '{"action":"updateDofusServer"}'
-# Expected: 403 Forbidden
-```
+### 1. SameSite Cookies (Défense principale)
+Tous les cookies d'authentification utilisent `SameSite=Lax` (configuré dans `auth.config.ts`) :
+- Bloque les requêtes cross-site venant de domaines externes
+- Cookies envoyés uniquement en navigation même-site ou GET top-level
+- En prod : préfixe `__Secure-*` + `httpOnly` + `secure`
 
-### XSS (Cross-Site Scripting) Prevention
+### 2. Vérification d'origine Next.js Server Actions
+Les Server Actions Next.js vérifient automatiquement que le header `Origin` correspond :
+- Rejette les requêtes de domaines externes
+- Pas besoin de jetons CSRF pour les Server Actions
 
-All user-generated HTML content is sanitized before rendering:
+### 3. Security Headers
+- `X-Frame-Options: DENY`
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
 
-#### HTML Sanitization
-- **Library**: Custom `sanitizeHtml()` function ([security.ts](file:///a:/SigilOS/src/lib/security.ts))
-- **Removes**: `<script>`, `<iframe>`, `<object>`, `<embed>`, event handlers (`on*`), `javascript:` protocols
-- **Applied**: Documentation content, guild presentations, user bios
+---
 
-#### Content Security Policy (Recommended)
-While not currently enforced, implementing CSP headers would provide additional XSS protection:
-```
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'
-```
+## XSS (Cross-Site Scripting) Prevention
 
-### GOD Dashboard Security (Super-Admin Actions)
-- ✅ All lifecycle actions (`reactivateGuild`, `hardDeleteGuild`, etc.) verify `isSuperAdmin()`
-- ✅ Hard delete confirmation modals before destructive operations
-- ✅ Guild isolation respected (actions scoped by `guildId`)
-- ✅ Server actions only, no client-side data manipulation
-- ✅ Audit trail ready (awaiting Audit Log implementation)
+### En place
+- **Sanitisation HTML** : `sanitizeHtml()` ([security.ts](file:///a:/SigilOS/src/lib/security.ts)) sur les contenus utilisateur
+- **Removes** : `<script>`, `<iframe>`, `<object>`, `<embed>`, handlers `on*`, protocoles `javascript:`
 
-### Infrastructure Layer (VPS)
-- ✅ **SSH Hardening** : Port 2222, Password Auth Disabled, Root login Disabled.
-- ✅ **Beta Gate** : Environnement Bêta protégé par un mur de mot de passe indépendant.
-- ✅ **Monitoring Security** : Grafana protégé par GitHub OAuth + Basic Auth.
-- ✅ **Database Isolation** : BDD Bêta et Prod totalement isolées.
-- ✅ **Automated Defense** : Fail2Ban surveillant les tentatives d'intrusion SSH.
-- ✅ **CI/CD Audits** : GitHub Actions vérifiant chaque commit (Lint, Build, Audit).
+### À renforcer (chantier ouvert)
+- **CSP `script-src`** utilise `'unsafe-inline'` → une XSS dans un champ non sanitisé pourrait s'exécuter. **Objectif : passer à un CSP nonce-based**. (à faire)
+
+---
+
+## GOD Dashboard Security (Super-Admin Actions)
+- ✅ Toutes les actions de cycle de vie (`reactivateGuild`, `hardDeleteGuild`, etc.) vérifient `isSuperAdmin()`
+- ✅ Confirmation des actions destructives (modals)
+- ✅ Isolation guilde respectée (actions scopées par `guildId`)
+- ✅ Server actions uniquement, pas de manipulation client
+- ✅ Audit trail disponible via les logs
+
+---
+
+## Infrastructure Layer (VPS)
+- ✅ **SSH Hardening** : Port 2222, Password Auth Disabled, Root login Disabled
+- ✅ **Beta Gate** : Environnement Bêta protégé par mot de passe
+- ✅ **Monitoring Security** : Grafana protégé par GitHub OAuth + mot de passe
+- ✅ **Database Isolation** : BDD Bêta et Prod isolées
+- ✅ **Automated Defense** : Fail2Ban
+- ✅ **CI/CD Audits** : GitHub Actions (Lint, Build, Audit, Semgrep, Trivy, Gitleaks)
+
+---
 
 ## Response Timeline
 

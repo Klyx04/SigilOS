@@ -688,12 +688,14 @@ model Bounty {
   @@index([zoneName])
 }
 
-/// Archimonstres & boss de la Quête Ocre (Éternelle Moisson) — stockés localement
-/// Synchronisés depuis Metamob (zones) + DofusDB (image, level, subareaId)
+/// Catalogue de monstres/boss/archimonstres de Dofus — stockés localement pour la carte.
+/// Synchronisés depuis Metamob (zones) + DofusDB (image, level, subareaId).
+/// `isOcre=true` pour les membres de la Quête Ocre (Éternelle Moisson).
 model Archimonstre {
   id          String   @id @default(cuid())
-  name        String   @unique
+  name        String
   type        String   @default("archimonstre") // archimonstre | boss | monstre
+  isOcre      Boolean  @default(false)           // Membre de la Quête Ocre (archis + boss)
   imageUrl    String?
   level       Int      @default(0)
   dofusdbId   Int?
@@ -706,8 +708,11 @@ model Archimonstre {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@unique([name, type]) // Les monstres normaux Dofus peuvent avoir des homonymes (type différent)
   @@index([name])
   @@index([type])
+  @@index([isOcre])
+  @@index([dofusdbId])
 }
 
 model Monster {

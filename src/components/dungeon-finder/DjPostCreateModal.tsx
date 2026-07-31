@@ -45,6 +45,7 @@ interface Dungeon {
     level: number;
     imageUrl?: string | null;
     isExpedition: boolean;
+    isOcreQuest?: boolean;
     achievements: {
         id: string;
         points: number;
@@ -408,6 +409,14 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                         <div className="flex-1 min-w-0 relative z-10">
                                                             <div className="flex items-center gap-2">
                                                                 <p className="text-sm font-black text-zinc-200 group-hover:text-white transition-colors truncate">{d.name}</p>
+                                                                {d.isOcreQuest && (
+                                                                    <img
+                                                                        src="/module-dofus/Dofus_Ocre.png"
+                                                                        alt="Quête Ocre"
+                                                                        title="Donjon de la Quête Ocre"
+                                                                        className="w-4 h-4 object-contain shrink-0"
+                                                                    />
+                                                                )}
                                                                 <span className="text-[9px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">Lvl {d.level}</span>
                                                             </div>
                                                             <p className="text-xs text-zinc-500 mt-0.5 truncate group-hover:text-zinc-400">{d.bossName}</p>

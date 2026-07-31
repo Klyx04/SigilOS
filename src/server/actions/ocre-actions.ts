@@ -2107,6 +2107,88 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
     }
 }
 
+/**
+ * Liste les trades Ocre de TOUTE la guilde (PENDING + ACCEPTED), pour la modale HD
+ * de la carte du monde. N'utilise aucune donnée perso (pas d'auth utilisateur requise).
+ * Filtre optionnel par zone/subarea pour cibler le contenu affiché.
+ */
+export async function getGuildOcreTrades(
+    guildId: string,
+    filters?: { subAreaName?: string | null }
+): Promise<ActionResponse<Array<{
+    id: string;
+    monsterId: number;
+    monsterName: string | null;
+    monsterImageUrl: string | null;
+    status: string;
+    message: string | null;
+    zone: string | null;
+    requesterName: string | null;
+    targetName: string | null;
+}>>> {
+    try {
+        const guildConfig = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
+        if (!guildConfig) return { success: false, error: "Guilde introuvable" };
+
+        const trades = await (db as any).ocreTradeRequest.findMany({
+            where: {
+                guildId: guildConfig.id,
+                status: { in: ["PENDING", "ACCEPTED"] },
+            },
+            include: {
+                requester: { select: { discordNickname: true, pseudoDofus: true, metamobPseudo: true, user: { select: { name: true } } } },
+                target: { select: { discordNickname: true, pseudoDofus: true, metamobPseudo: true, user: { select: { name: true } } } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 30,
+        });
+
+        const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const zoneFilter = filters?.subAreaName ? normalize(filters.subAreaName) : null;
+
+        // Jointure locale : résoudre la zone d'un trade via la table Archimonstre (dofusdbId)
+        const monsterIds = trades.map((t: any) => t.monsterId).filter((id: any) => typeof id === "number");
+        const localMonsters = monsterIds.length > 0
+            ? await db.archimonstre.findMany({ where: { dofusdbId: { in: monsterIds } }, select: { dofusdbId: true, zone: true, name: true } })
+            : [];
+        const zoneByMonsterId = new Map<number, { zone: string | null; name: string | null }>();
+        for (const m of localMonsters) {
+            if (m.dofusdbId != null) zoneByMonsterId.set(m.dofusdbId, { zone: m.zone, name: m.name });
+        }
+
+        const result = trades
+            .map((t: any) => {
+                const local = t.monsterId != null ? zoneByMonsterId.get(t.monsterId) : undefined;
+                const zone = t.zone || local?.zone || null;
+                const monsterName = t.monsterName || local?.name || `Monstre #${t.monsterId}`;
+                return {
+                    id: t.id,
+                    monsterId: t.monsterId,
+                    monsterName,
+                    monsterImageUrl: t.monsterImageUrl || null,
+                    status: t.status,
+                    message: t.message || null,
+                    zone,
+                    requesterName: t.requester.discordNickname || t.requester.pseudoDofus || t.requester.metamobPseudo || t.requester.user?.name || "Membre",
+                    targetName: t.target.discordNickname || t.target.pseudoDofus || t.target.metamobPseudo || t.target.user?.name || "Membre",
+                };
+            })
+            // Filtre zone : si un filtre est actif, on garde les trades dont la zone matche
+            // (partiel) OU les trades sans zone résolue (affichage "Zone inconnue")
+            .filter((t: any) => {
+                if (!zoneFilter) return true;
+                if (!t.zone) return false; // on filtre les trades sans zone en mode ciblé
+                return normalize(t.zone).includes(zoneFilter) || zoneFilter.includes(normalize(t.zone));
+            })
+            .slice(0, 20);
+
+        return { success: true, data: result };
+    } catch (error) {
+        console.error("[getGuildOcreTrades] Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 export async function getPendingTradeRequests(guildId: string): Promise<ActionResponse<any>> {
     try {
         const session = await auth();
@@ -2189,23 +2271,31 @@ export async function getZoneArchmonsters(guildId: string, zoneName: string): Pr
             return { success: false, error: res.error === "Compte non lié" ? "Compte non lié" : res.error || "Impossible de récupérer la progression Ocre" };
         }
 
-        const normalizedZone = zoneName.toLowerCase().trim();
+        // Normalise en enlevant les accents et en minuscules → fiabilise le matching
+        // entre les noms de la carte (worldmap.json) et ceux retournés par Metamob.
+        const norm = (s: string) =>
+            s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+        const normalizedZone = norm(zoneName);
         const zoneArchis = res.data.monsters.filter(m => {
             if (m.type !== "archimonstre") return false;
 
-            const search = normalizedZone;
+            // Zone parente (ex: "Forêt des Abraknydes") — noms tels que retournés par Metamob
+            const mZone = norm(m.zone || "");
+            const monsterZones = mZone.split(",").map(z => norm(z)).filter(Boolean);
 
-            // Zone parente (ex: "Forêt des Abraknydes") — noms exacts tels que retournés par Metamob
-            const mZone = (m.zone || "").toLowerCase();
-            const monsterZones = mZone.split(",").map(z => z.trim()).filter(Boolean);
-            const matchesZone = monsterZones.some(mz => mz === search);
+            // Sous-zone (ex: "Plaine des Abraknydes") — noms tels que retournés par Metamob
+            const mSubzone = norm(m.subzone || "");
+            const monsterSubzones = mSubzone.split(",").map(z => norm(z)).filter(Boolean);
 
-            // Sous-zone (ex: "Plaine des Abraknydes") — noms exacts tels que retournés par Metamob
-            const mSubzone = (m.subzone || "").toLowerCase();
-            const monsterSubzones = mSubzone.split(",").map(z => z.trim()).filter(Boolean);
-            const matchesSubzone = monsterSubzones.some(msz => msz === search);
+            // Matching : ON matche si l'un est égal OU inclus dans l'autre.
+            // → couvre les sous-mondes (ex: "Labyrinthe du Dragon Cochon") dont le nom
+            //   diffère légèrement entre la carte et Metamob.
+            const match = (parts: string[]) => parts.some(p =>
+                p.length > 0 && (p === normalizedZone || p.includes(normalizedZone) || normalizedZone.includes(p))
+            );
 
-            return matchesZone || matchesSubzone;
+            return match(monsterZones) || match(monsterSubzones);
         });
 
         // Sort: Missing first, then by name

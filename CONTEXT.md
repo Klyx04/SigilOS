@@ -1,0 +1,81 @@
+# 🧠 CONTEXT — SigilOS (Contexte global à fournir à chaque prompt)
+
+> **Ce fichier est le point d'entrée du contexte projet.** Il centralise la vision globale et pointe vers les références détaillées. À référencer en tête de **chaque** nouveau prompt, pour que l'IA (Cline, ou autre) ait toujours la vision complète et ne rate rien.
+
+---
+
+## 👉 À fournir pour chaque prompt (démarrage rapide)
+
+- **Référencer ce fichier `CONTEXT.md`** en premier.
+- L'IA lit ensuite les fichiers référencés selon le sujet (sécurité → `SECURITY.md`, dev → `RULES.md`, infra → `MAINTENANCE.md`).
+- **Ne pas** déverser tout le repo dans le prompt — ce fichier suffit à orienter.
+
+---
+
+## 🏗️ Vue d'ensemble
+
+- **Produit** : Bot Discord + Dashboard web pour la gestion de guildes Dofus (missions, ladder, calendrier, services, jeux, etc.)
+- **Stack** : Next.js 16 (App Router + Server Actions + RSC) • React 19 • TypeScript 5 • Prisma 7 • PostgreSQL • Redis (BullMQ) • Discord.js v14 • Socket.IO • Tailwind 4
+- **Archi** : Server-first + App Router ; **multi-tenant** (une app pour toutes les guildes, données scopées par `guildId`)
+- **Auth** : Auth.js v5 (Discord OAuth, JWT, cookies `httpOnly`/`SameSite`/`__Secure-*` en prod)
+- **Infra** : VPS Docker (app, bot, workers, ws, db, redis, monitoring) orienté **Caddy** reverse proxy • **Cloudflare Workers** (proxies ladder/dofusbook) • **Grafana/Prometheus** • **Sentry** • Backups chiffrés GPG → Cloudflare R2
+- **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
+
+---
+
+## 🔒 Non-négociables (résumé — toujours appliqués)
+
+> Détail complet : `RULES.md` (conventions + sécu) et `SECURITY.md` (posture + chantiers).
+
+1. **Auth sur chaque action** : `await auth()` ou `getUserContext(guildId)` en début de toute action.
+2. **Guild isolation** : toute requête BDD filtrée par `guildId` (multi-tenant).
+3. **Fail-closed, jamais fail-open** : si une vérification/API tierce échoue → REFUSER (jamais accorder l'accès par défaut).
+4. **Pas de secret en dur ni de fallback** dans le code → `process.env.*` uniquement, fail-closed si absent.
+5. **Comparaison de secrets en temps constant** (`timingSafeEqual` / `timingSafeEqualStr`).
+6. **Validation & bornes** : Zod sur toutes les entrées ; borner les valeurs issues d'API externes (longueur, plage).
+7. **Vérifier l'appartenance à la guilde** avant toute écriture multi-tenant (cible vs contexte).
+8. **Pas de `console.log` en prod** → utiliser `logger` de `@/lib/logger` (auto-redaction des secrets).
+9. **Rapports d'audit JAMAIS commités** (`AUDIT_*.md`, `src/audit-*`) — gardés en local, ignorés via `.gitignore`.
+10. **Secrets jamais commités** (`.env*`) ni partagés dans un canal non sécurisé.
+
+---
+
+## 📚 Références détaillées (à lire selon le sujet)
+
+| Fichier | Rôle |
+|---------|------|
+| **`CONTEXT.md`** | Ce fichier — point d'entrée |
+| [`RULES.md`](./RULES.md) | Conventions de dev + règles de sécurité **non-négociables** + patterns copy-paste |
+| [`SECURITY.md`](./SECURITY.md) | Posture sécurité **réelle** (mesures en place + chantiers ouverts) |
+| [`docs/SECURITY_HARDENING_PLAN.md`](./docs/SECURITY_HARDENING_PLAN.md) | Plan de durcissement (quoi de fait / quoi reste) |
+| [`MAINTENANCE.md`](./MAINTENANCE.md) | Infra VPS : backups, monitoring, déploiement, urgence |
+| [`README.md`](./README.md) | Démarrage, stack, structure, scripts |
+| [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) | Guide de déploiement détaillé |
+| [`prisma/schema.prisma`](./prisma/schema.prisma) | Schéma BDD (source de vérité des modèles) |
+
+---
+
+## ⚙️ Règles d'interaction avec l'IA (moi, Cline ou autre)
+
+1. **Ne jamais modifier** `src/audit-*`, `AUDIT_*.md` (livrables locaux hors git).
+2. **Respecter strictement** `RULES.md` (fail-closed, validation, guilde isolation, logger).
+3. **Vérifier** avant tout commit : pas de secret, pas d'audit, `npm run test:run` + `npm run build` en local.
+4. **Nommer les findings** avec référence (F-xx) si on parle d'audit, et pointer le fichier précis.
+5. **Pousser** sur une branche, puis PR vers `dev` (pas directement sur `main`/`dev` sauf cas exceptionnel).
+
+---
+
+## 🧭 Chantiers de sécurité restants (rappel — voir SECURITY.md)
+
+- **1. Authentification WebSocket (Socket.IO)** — priorité (canal temps réel sans auth).
+- **2. Chiffrement des tokens OAuth (Discord)** — `updateMany` non chiffré.
+- **3. SSRF `image-downloader.ts`** — bloquer CIDR/protocoles.
+- **4. Durée JWT** — 7j → 8h (NIST).
+- **5. CSP nonce-based** (remplacer `unsafe-inline`).
+- **6. Clé de chiffrement de secours** en dev.
+- **7. Cache permissions 60s**.
+- **8. Caddy rate-limit**.
+
+---
+
+*— Fichier de contexte global maintenu à jour (créé à l'issue de l'audit 2026). —*

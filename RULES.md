@@ -16,6 +16,67 @@
 | **No secrets client-side** | Only `NEXT_PUBLIC_*` in browser code |
 | **No raw SQL** | Use Prisma ORM only |
 | **No eval/exec** | Never use dynamic code execution |
+| **Fail-closed (jamais fail-open)** | Si une API tierce (Discord, Redis) échoue → REFUSER, jamais accorder l'accès par défaut |
+| **Comparaison temps constant** | `timingSafeEqual` / `timingSafeEqualStr` pour comparer secrets & tokens |
+| **Bornes validation** | Toujours borner les valeurs issues d'API externes (longueur, plage) |
+| **Pas de secret codé en dur** | Toujours `process.env.*`, jamais de fallback en dur dans le code |
+
+---
+
+## ⚠️ Règles fail-closed (issues de l'audit 2026 — CRITICAL)
+
+> Ces règles corrigent les trous critiques trouvés lors de l'audit de sécurité. Elles sont **non-négociables**.
+
+### 1. Ne jamais fail-open sur erreur réseau
+```typescript
+// ❌ INTERDIT : accorder l'accès si l'API Discord échoue
+const isAuthorizedMember = hasAuthorizedRole || memberFetchFailed;
+
+// ✅ OBLIGATOIRE (fail-closed) : refuser si on n'a pas pu vérifier
+const isAuthorizedMember = (hasAuthorizedRole || isAdminFinal) && !memberFetchFailed;
+```
+
+### 2. Pas de secret/fallback en dur dans le code
+```typescript
+// ❌ INTERDIT : fallback de secret lisible dans le code source
+const secret = process.env.AUTH_SECRET || "default_internal_secret...";
+
+// ✅ OBLIGATOIRE : fail-closed si le secret manque
+const secret = process.env.AUTH_SECRET;
+if (!secret) { /* refuser / logger */ }
+```
+
+### 3. Comparaison de secrets en temps constant
+```typescript
+// ❌ INTERDIT : comparaison naive (timing attack)
+if (provided === secret) { ... }
+
+// ✅ OBLIGATOIRE : temps constant
+function timingSafeEqualStr(a, b) {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return result === 0;
+}
+```
+
+### 4. Toute donnée issue d'API externe doit être bornée
+```typescript
+// ✅ OBLIGATOIRE
+const cleanXp = rawXp.replace(/\D/g, "").slice(0, 15);
+const classe = rawClasse.slice(0, 50);
+```
+
+### 5. Vérifier l'appartenance à la guilde AVANT toute écriture
+```typescript
+// ✅ OBLIGATOIRE : la cible doit appartenir à la guilde du contexte
+const targetBelongsToGuild = await db.userProfile.findFirst({
+  where: { userId: targetUserId, guild: { discordGuildId: guildId } }
+});
+if (!user.isSuperAdmin && !targetBelongsToGuild) {
+  return { success: false, error: "Cible invalide pour cette guilde" };
+}
+```
 
 ---
 

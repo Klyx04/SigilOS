@@ -12,7 +12,7 @@ import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
 import { submitGeoguesserScore, getGeoguesserLadder } from '@/server/actions/geoguesser-actions';
 import { getBombLadder } from '@/server/actions/bomb-actions';
-import { searchArchimonstresForMap } from '@/server/actions/game-data-actions';
+import { searchArchimonstresForMap, getArchimonstresByFilter, type MapSearchFilter } from '@/server/actions/game-data-actions';
 import { getOcreDungeonMapIds } from '@/server/actions/ocre-map-actions';
 import {
     createGeoguesserSession,
@@ -66,6 +66,8 @@ interface InteractiveMapProps {
     userAvatar?: string;
     isAdmin?: boolean;
     interactive?: boolean;
+    /** Affiche le bouton "Choix du Jeu" (navigation vers /mini-jeux) dans le header de la carte. */
+    showGameEntry?: boolean;
 }
 
 export default function InteractiveMapV2({ 
@@ -81,7 +83,8 @@ export default function InteractiveMapV2({
     userName,
     userAvatar,
     isAdmin,
-    interactive
+    interactive,
+    showGameEntry = false
 }: InteractiveMapProps) {
     const { data: sessionData } = useSession();
     const currentUserId = sessionData?.user?.id;
@@ -108,12 +111,35 @@ export default function InteractiveMapV2({
     const [showMapHelp, setShowMapHelp] = useState(false);
     const [autoCopyTravel, setAutoCopyTravel] = useState(false);
     const [activePanelTab, setActivePanelTab] = useState<'map' | 'scores'>('map');
+    // Dropdown cliquable du sélecteur de monde (évite le débordement hover + UX claire)
+    const [worldDropdownOpen, setWorldDropdownOpen] = useState(false);
+    const worldDropdownBtnRef = useRef<HTMLButtonElement>(null);
+    const [worldDropdownPos, setWorldDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
     // Archimonstre search state
     const [archiResults, setArchiResults] = useState<any[]>([]);
     const [isSearchingArchi, setIsSearchingArchi] = useState(false);
     const [highlightSubareaIds, setHighlightSubareaIds] = useState<number[]>([]);
-    const [searchFilter, setSearchFilter] = useState<'all' | 'zones' | 'archis'>('all');
+    const [searchFilter, setSearchFilter] = useState<MapSearchFilter>('all');
+    // Pré-chargement : résultats affichés quand on clique un filtre sans texte (ex: 🟡 Ocre)
+    const [preloadedFilterResults, setPreloadedFilterResults] = useState<any[]>([]);
+    const [pendingFilter, setPendingFilter] = useState<MapSearchFilter | null>(null);
+    const [isLoadingFilter, setIsLoadingFilter] = useState(false);
+
+    // Charger les résultats du filtre quand on clique une chip SANS texte de recherche
+    const loadFilterResults = useCallback(async (f: MapSearchFilter) => {
+        if (!search || search.trim().length < 2) {
+            setIsLoadingFilter(true);
+            try {
+                const res = await getArchimonstresByFilter(f);
+                setPreloadedFilterResults(res.success ? (res.data || []) : []);
+            } catch {
+                setPreloadedFilterResults([]);
+            } finally {
+                setIsLoadingFilter(false);
+            }
+        }
+    }, [search]);
 
     // Ocre quest dungeons (donjons marqués "Quête Ocre" → icône Dofus Ocre sur la carte)
     const [ocreMapIds, setOcreMapIds] = useState<Set<number>>(new Set());
@@ -181,7 +207,24 @@ export default function InteractiveMapV2({
         }
     }, [initialWorldId, initialX, initialY]);
 
-    // ── Debounced archimonstre search ──
+    // Positionne le dropdown au-dessus de la navbar via portal (fixed + z très élevé).
+    // Se déclenche quand on ouvre. On ferme UNIQUEMENT au resize (et au clic extérieur via l'overlay)
+    // — PAS au scroll global (sinon la molette scrollerait dans le panel fermerait le dropdown).
+    useEffect(() => {
+        if (!worldDropdownOpen) return;
+        const update = () => {
+            const rect = worldDropdownBtnRef.current?.getBoundingClientRect();
+            if (rect) setWorldDropdownPos({ top: rect.bottom + 8, left: rect.right - 240 });
+        };
+        update();
+        const onResize = () => setWorldDropdownOpen(false);
+        window.addEventListener('resize', onResize);
+        return () => {
+            window.removeEventListener('resize', onResize);
+        };
+    }, [worldDropdownOpen]);
+
+    // ── Debounced archimonstre search (transmet le filtre actif au serveur) ──
     useEffect(() => {
         if (!search || search.trim().length < 2) {
             setArchiResults([]);
@@ -191,7 +234,7 @@ export default function InteractiveMapV2({
         const timer = setTimeout(async () => {
             setIsSearchingArchi(true);
             try {
-                const res = await searchArchimonstresForMap(search.trim());
+                const res = await searchArchimonstresForMap(search.trim(), searchFilter);
                 if (res.success && res.data) {
                     setArchiResults(res.data);
                 } else {
@@ -204,7 +247,7 @@ export default function InteractiveMapV2({
             }
         }, 300);
         return () => clearTimeout(timer);
-    }, [search]);
+    }, [search, searchFilter]);
 
     // --- HOOKS DE CALCUL (useMemo) ---
     // On les place au début pour éviter les erreurs "Used before assigned" dans les useEffect
@@ -238,9 +281,12 @@ export default function InteractiveMapV2({
         });
     }, [worldMap.maps, selectedWorldId, worldMap.dungeons]);
 
-    const visibleWorlds = useMemo(() =>
-        worldMap.worlds?.filter(w => worldMap.maps?.some(m => m.worldMap === w.id)) || [],
-        [worldMap.worlds, worldMap.maps]);
+    const visibleWorlds = useMemo(() => {
+        // Filtre les mondes ayant des maps ; si le filtre ne renvoie rien (ex: données chargées
+        // partiellement ou monde sans maps), on retombe sur TOUS les mondes pour ne jamais vider le dropdown.
+        const withMaps = worldMap.worlds?.filter(w => worldMap.maps?.some(m => m.worldMap === w.id)) || [];
+        return withMaps.length > 0 ? withMaps : (worldMap.worlds || []);
+    }, [worldMap.worlds, worldMap.maps]);
 
     const searchResults = useMemo(() => {
         if (!search) return [];
@@ -1018,6 +1064,26 @@ export default function InteractiveMapV2({
 
     return (
         <div className="w-full h-full flex flex-col bg-[#080b12] relative overflow-hidden">
+            {/* World Selection Dropdown — porté dans document.body pour passer AU-DESSUS de la navbar */}
+            {worldDropdownOpen && worldDropdownPos && typeof document !== 'undefined' && createPortal(
+                <>
+                    {/* Overlay plein écran pour fermer au clic extérieur */}
+                    <div className="fixed inset-0 z-[4999]" onClick={() => setWorldDropdownOpen(false)} />
+                    {/* Panel ancré exactement sous le bouton */}
+                    <div className="fixed z-[5000] w-60" style={{ top: worldDropdownPos.top, left: Math.max(8, worldDropdownPos.left) }}>
+                        <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] p-2 max-h-[50vh] overflow-y-auto">
+                            {visibleWorlds.map(w => (
+                                <button
+                                    key={w.id}
+                                    onClick={() => { setSelectedWorldId(w.id); setWorldDropdownOpen(false); }}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}
+                                >{w.name.fr}</button>
+                            ))}
+                        </div>
+                    </div>
+                </>,
+                document.body
+            )}
             {/* Header & Controls (Hidden in focused games mode) */}
             {!hideUI && (activeTab === 'map' || !initialTab) && (
                 <div className="flex-shrink-0 bg-slate-950/90 backdrop-blur-md border-b border-white/5 px-8 flex items-center justify-between h-[64px] z-[600]">
@@ -1041,7 +1107,7 @@ export default function InteractiveMapV2({
                                 <span className="relative z-10">Mini-Jeux</span>
                             </button>
                         </div>
-                    ) : (
+                    ) : showGameEntry ? (
                         <button 
                             onClick={() => window.location.href = `/dashboard/${guildId}/mini-jeux`}
                             className="group flex items-center gap-4 bg-white/5 hover:bg-white/10 px-6 py-2.5 rounded-2xl border border-white/5 transition-all hover:scale-105 active:scale-95"
@@ -1056,7 +1122,7 @@ export default function InteractiveMapV2({
                             </div>
                             <span className="text-[10px] font-black uppercase text-white/60 tracking-widest italic">Choix du Jeu</span>
                         </button>
-                    )}
+                    ) : null}
 
                     {/* Right: Map Contextual Tools (Visible ONLY on Map Tab) */}
                     <AnimatePresence mode="wait">
@@ -1070,20 +1136,17 @@ export default function InteractiveMapV2({
                             >
                                 {/* Essential Tools (Visible everywhere) */}
                                 <div className="flex items-center gap-2 sm:gap-4">
-                                    {/* World Selection */}
-                                    <div className="relative group">
-                                        <button className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors">
+                                    {/* World Selection (bouton déclencheur ; le panel est porté via portal au-dessus de la navbar) */}
+                                    <div className="relative">
+                                        <button
+                                            ref={worldDropdownBtnRef}
+                                            onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
+                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors"
+                                        >
                                             <MapIcon size={12} className="text-emerald-500" />
                                             <span className="text-[9px] sm:text-[10px] font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
-                                            <ChevronDown size={12} className="text-white/20" />
+                                            <ChevronDown size={12} className={`text-white/20 transition-transform ${worldDropdownOpen ? 'rotate-180' : ''}`} />
                                         </button>
-                                        <div className="absolute top-full right-0 pt-2 w-60 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all z-[700]">
-                                            <div className="bg-slate-900 border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 max-h-[50vh] overflow-y-auto">
-                                                {visibleWorlds.map(w => (
-                                                    <button key={w.id} onClick={() => setSelectedWorldId(w.id)} className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-white/5 ${selectedWorldId === w.id ? 'text-emerald-400' : 'text-white/50'}`}>{w.name.fr}</button>
-                                                ))}
-                                            </div>
-                                        </div>
                                     </div>
 
                                     {/* Secondary Tools (Hidden on Mobile, in Dropdown) */}
@@ -1153,36 +1216,44 @@ export default function InteractiveMapV2({
                                     <input
                                         type="text"
                                         value={search}
-                                        onChange={e => { setSearch(e.target.value); setSearchFilter('all'); }}
-                                        placeholder="Zone, avis, archimonstre..."
+                                        onChange={e => { setSearch(e.target.value); setSearchFilter('all'); setPendingFilter(null); setPreloadedFilterResults([]); }}
+                                        placeholder="Zone, monstre, boss, archimonstre..."
                                         className="w-36 lg:w-56 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
                                     />
 
-                                    {/* Dropdown with filter chips + results */}
-                                    {(searchResults.length > 0 || archiResults.length > 0 || isSearchingArchi) && (
+                                    {/* Dropdown with filter chips + results (TOUJOURS visible, pré-chargement possible) */}
+                                    {(searchResults.length > 0 || archiResults.length > 0 || preloadedFilterResults.length > 0 || isSearchingArchi || isLoadingFilter) && (
                                         <div className="absolute top-full right-0 mt-2 w-80 bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[700]">
 
-                                            {/* Filter chips */}
-                                            {(searchResults.length > 0 && archiResults.length > 0) && (
-                                                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5 bg-white/2">
-                                                    {(['all', 'zones', 'archis'] as const).map(f => (
-                                                        <button
-                                                            key={f}
-                                                            onClick={() => setSearchFilter(f)}
-                                                            className={cn(
-                                                                "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
-                                                                searchFilter === f
-                                                                    ? f === 'archis'
+                                            {/* Filter chips (permanents) */}
+                                            <div className="flex items-center flex-wrap gap-1.5 px-3 py-2 border-b border-white/5 bg-white/2">
+                                                {(['all', 'zones', 'archis', 'boss', 'mobs', 'ocre'] as MapSearchFilter[]).map(f => (
+                                                    <button
+                                                        key={f}
+                                                        onClick={() => {
+                                                            setSearchFilter(f);
+                                                            setPendingFilter(f);
+                                                            if (!search || search.trim().length < 2) loadFilterResults(f);
+                                                        }}
+                                                        className={cn(
+                                                            "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
+                                                            searchFilter === f
+                                                                ? f === 'ocre'
+                                                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                                                    : f === 'archis'
                                                                         ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
                                                                         : 'bg-white/10 text-white border border-white/15'
-                                                                    : 'text-white/30 hover:text-white/60 border border-transparent'
-                                                            )}
-                                                        >
-                                                            {f === 'all' ? 'Tout' : f === 'zones' ? '🗺 Zones' : '🎯 Avis & Archis'}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
+                                                                : 'text-white/30 hover:text-white/60 border border-transparent'
+                                                        )}
+                                                    >
+                                                        {f === 'all' ? 'Tout' :
+                                                         f === 'zones' ? '🗺 Zones' :
+                                                         f === 'archis' ? '🎯 Archis' :
+                                                         f === 'boss' ? '👑 Boss' :
+                                                         f === 'mobs' ? '👹 Mobs' : '🟡 Ocre'}
+                                                    </button>
+                                                ))}
+                                            </div>
 
                                             {/* Subarea / Zone results */}
                                             {(searchFilter === 'all' || searchFilter === 'zones') && searchResults.length > 0 && (
@@ -1205,15 +1276,60 @@ export default function InteractiveMapV2({
                                                 </>
                                             )}
 
-                                            {/* Bounty / Archimonstre results */}
-                                            {(searchFilter === 'all' || searchFilter === 'archis') && archiResults.length > 0 && (
+                                            {/* Pré-chargement du filtre (clic sans texte, ex: 🟡 Ocre) */}
+                                            {pendingFilter && pendingFilter !== 'all' && pendingFilter !== 'zones' && preloadedFilterResults.length > 0 && (
+                                                <>
+                                                    <div className="px-3 py-1.5 bg-amber-500/5 border-b border-amber-500/10">
+                                                        <span className="text-amber-400/70 text-[8px] font-black uppercase tracking-widest">
+                                                            {pendingFilter === 'ocre' ? '🟡 Quête Ocre' : pendingFilter === 'archis' ? '🎯 Archimonstres' : pendingFilter === 'boss' ? '👑 Boss' : '👹 Monstres'}
+                                                        </span>
+                                                    </div>
+                                                    {preloadedFilterResults.map((a: any) => (
+                                                        <button
+                                                            key={a.id}
+                                                            onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
+                                                            className={cn(
+                                                                "w-full text-left px-4 py-2.5 border-b border-white/5 last:border-0 transition-colors group",
+                                                                a.subAreaIds?.length > 0 ? "hover:bg-amber-500/5" : "hover:bg-white/3 opacity-70"
+                                                            )}
+                                                        >
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    {a.imageUrl ? (
+                                                                        <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
+                                                                    ) : (
+                                                                        <div className="w-7 h-7 rounded bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                                                                            <span className="text-[10px]">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="min-w-0">
+                                                                        <div className="text-amber-200 text-[10px] font-black uppercase italic truncate">{a.name}</div>
+                                                                        <div className="text-white/25 text-[8px] uppercase truncate">{a.zoneName || 'Zone inconnue'}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                                                    {a.level > 0 && (
+                                                                        <span className="text-amber-500/60 text-[8px] uppercase font-black px-1.5 py-0.5 rounded-md bg-amber-500/5">Lvl {a.level}</span>
+                                                                    )}
+                                                                    {a.worldMapId > 1 && (
+                                                                        <span className="text-sky-400/50 text-[7px] font-black px-1.5 py-0.5 rounded-md bg-sky-500/5">Monde {a.worldMapId}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </>
+                                            )}
+
+                                            {/* Bounty / Archimonstre / Monstre results */}
+                                            {searchFilter !== 'zones' && archiResults.length > 0 && (
                                                 <>
                                                     {searchFilter === 'all' && searchResults.length > 0 && (
                                                         <div className="px-3 py-1.5 bg-orange-500/5 border-b border-orange-500/10 border-t border-t-white/5">
                                                             <span className="text-orange-400/60 text-[8px] font-black uppercase tracking-widest">🎯 Avis & Archimonstres</span>
                                                         </div>
                                                     )}
-                                                    {archiResults.slice(0, searchFilter === 'archis' ? 10 : 5).map((a: any) => (
+                                                    {archiResults.slice(0, searchFilter !== 'all' ? 10 : 5).map((a: any) => (
                                                         <button
                                                             key={a.id}
                                                             onClick={() => handleSearchResultClick({ ...a, isArchi: true })}
@@ -1228,11 +1344,20 @@ export default function InteractiveMapV2({
                                                                         <img src={a.imageUrl} alt={a.name} className="w-7 h-7 rounded object-contain flex-shrink-0 opacity-80 group-hover:opacity-100" />
                                                                     ) : (
                                                                         <div className="w-7 h-7 rounded bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                                                                            <span className="text-[10px]">🎯</span>
+                                                                            <span className="text-[10px]">{a.type === 'monstre' ? '👹' : a.type === 'boss' ? '👑' : '🎯'}</span>
                                                                         </div>
                                                                     )}
                                                                     <div className="min-w-0">
-                                                                        <div className="text-orange-300 text-[10px] font-black uppercase italic truncate">{a.name}</div>
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className={cn(
+                                                                                "text-[10px] font-black uppercase italic truncate",
+                                                                                a.isOcre ? "text-amber-300" : a.type === 'monstre' ? "text-white/70" : "text-orange-300"
+                                                                            )}>{a.name}</span>
+                                                                            {a.isOcre && (
+                                                                                <img src="/module-dofus/Dofus_Ocre.png" alt="Ocre" className="w-3.5 h-3.5 shrink-0" title="Quête Ocre" />
+                                                                            )}
+                                                                            {a.type === 'boss' && <span className="text-[7px] text-amber-400/70 font-black uppercase px-1 py-0.5 rounded bg-amber-500/10 border border-amber-500/10">Boss</span>}
+                                                                        </div>
                                                                         <div className="text-white/25 text-[8px] uppercase truncate">
                                                                             {a.zoneName
                                                                                 ? a.subAreaIds?.length > 0

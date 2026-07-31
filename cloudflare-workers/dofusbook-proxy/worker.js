@@ -9,6 +9,16 @@
  *       Protects against quota abuse while keeping Dofusbook calls clean.
  */
 
+// Constant-time string comparison helper (avoids timing side-channel on secrets)
+function timingSafeEqualStr(a, b) {
+    if (a.length !== b.length) return false;
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+        result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return result === 0;
+}
+
 export default {
     async fetch(request, env, ctx) {
         if (request.method === "OPTIONS") {
@@ -25,17 +35,24 @@ export default {
             return new Response("Method not allowed", { status: 405 });
         }
 
-        // 🔐 Secret check — only our Next.js server can call this
+        // 🔐 Secret check — FAIL-CLOSED (F-19): if WORKER_SECRET is not set,
+        // refuse all requests instead of opening the worker to the Internet.
         // WORKER_SECRET is set in Cloudflare Dashboard → Worker → Settings → Variables
         const workerSecret = env.WORKER_SECRET;
-        if (workerSecret) {
-            const providedSecret = request.headers.get("X-SigilOS-Key");
-            if (providedSecret !== workerSecret) {
-                return new Response(JSON.stringify({ error: "Unauthorized" }), {
-                    status: 401,
-                    headers: { "Content-Type": "application/json" }
-                });
-            }
+        if (!workerSecret) {
+            return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+        const providedSecret = request.headers.get("X-SigilOS-Key") || "";
+        // Constant-time comparison to avoid timing side-channel
+        if (providedSecret.length !== workerSecret.length ||
+            !timingSafeEqualStr(providedSecret, workerSecret)) {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), {
+                status: 401,
+                headers: { "Content-Type": "application/json" }
+            });
         }
 
         const url = new URL(request.url);
@@ -80,8 +97,9 @@ export default {
             });
 
         } catch (err) {
+            // F-27: neutral error — no internal details leaked
             return new Response(
-                JSON.stringify({ error: "Worker fetch failed", details: err.message }),
+                JSON.stringify({ error: "Worker fetch failed" }),
                 { status: 500, headers: { "Content-Type": "application/json" } }
             );
         }

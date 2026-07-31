@@ -23,6 +23,7 @@ import {
     getChallenges,
 } from "@/server/actions/game-data-admin-actions";
 import { ImageDownloader } from "./ImageDownloader";
+import { DungeonMapPicker } from "./DungeonMapPicker";
 import {
     Select,
     SelectContent,
@@ -51,6 +52,8 @@ interface Dungeon {
     isExpedition: boolean;
     expeditionModes?: string[] | null;
     expeditionMechanics?: string | null;
+    isOcreQuest?: boolean;
+    mapId?: number | null;
     achievements: { challengeId: string; challenge: { name: string; slug: string; iconUrl?: string | null } }[];
 }
 
@@ -89,6 +92,8 @@ export default function DungeonManager() {
         isExpedition: false,
         expeditionModes: [] as string[],
         expeditionMechanics: "",
+        isOcreQuest: false,
+        mapId: null as number | null,
         challengeIds: [] as string[],
     });
 
@@ -188,6 +193,8 @@ export default function DungeonManager() {
             isExpedition: false,
             expeditionModes: [],
             expeditionMechanics: "",
+            isOcreQuest: false,
+            mapId: null,
             challengeIds: [],
         });
     }
@@ -206,6 +213,8 @@ export default function DungeonManager() {
             isExpedition: dungeon.isExpedition,
             expeditionModes: dungeon.expeditionModes || [],
             expeditionMechanics: dungeon.expeditionMechanics || "",
+            isOcreQuest: dungeon.isOcreQuest ?? false,
+            mapId: dungeon.mapId ?? null,
             challengeIds: dungeon.achievements.map(a => a.challengeId),
         });
         setIsDialogOpen(true);
@@ -399,6 +408,12 @@ export default function DungeonManager() {
                                                     onCheckedChange={(checked) => setFormData({ ...formData, isExpedition: checked })}
                                                     className="data-[state=checked]:bg-indigo-600"
                                                 />
+                                                <span className="text-sm font-bold text-slate-400 uppercase">Quête Ocre</span>
+                                                <Switch
+                                                    checked={formData.isOcreQuest}
+                                                    onCheckedChange={(checked) => setFormData({ ...formData, isOcreQuest: checked })}
+                                                    className="data-[state=checked]:bg-amber-600"
+                                                />
                                             </div>
                                         </div>
 
@@ -461,6 +476,22 @@ export default function DungeonManager() {
                                                 />
                                             </div>
                                         </div>
+
+                                        {/* Map ID — sélecteur cliquable pour placer l'icône Ocre sur la carte */}
+                                        {formData.isOcreQuest && (
+                                            <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-3">
+                                                <p className="text-[10px] text-amber-400/90 pl-1">
+                                                    Sélectionne le donjon correspondant sur la carte du monde pour y afficher l'icône Ocre.
+                                                </p>
+                                                <DungeonMapPicker
+                                                    value={formData.mapId}
+                                                    onSelect={(mapId, name) => {
+                                                        setFormData({ ...formData, mapId });
+                                                        toast.success(`Donjon lié : ${name}`);
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Expedition Settings */}

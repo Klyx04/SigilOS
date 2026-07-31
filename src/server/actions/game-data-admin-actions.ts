@@ -46,6 +46,8 @@ const DungeonFormSchema = z.object({
     isExpedition: z.boolean().default(false),
     expeditionModes: z.array(z.enum(["BRAVOURE", "AUDACE", "NORMAL"])).optional(),
     expeditionMechanics: z.string().optional(),
+    isOcreQuest: z.boolean().default(false),
+    mapId: z.number().int().nullable().optional(),
     challengeIds: z.array(z.string()).optional(),
 });
 
@@ -1136,6 +1138,8 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                                 isExpedition: dungeon.isExpedition ?? false,
                                 expeditionModes: dungeon.expeditionModes || null,
                                 expeditionMechanics: dungeon.expeditionMechanics || null,
+                                isOcreQuest: dungeon.isOcreQuest ?? false,
+                                mapId: dungeon.mapId ?? null,
                             }
                         });
                         dungeonId = existing.id;
@@ -1150,6 +1154,8 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
                                 isExpedition: dungeon.isExpedition ?? false,
                                 expeditionModes: dungeon.expeditionModes || null,
                                 expeditionMechanics: dungeon.expeditionMechanics || null,
+                                isOcreQuest: dungeon.isOcreQuest ?? false,
+                                mapId: dungeon.mapId ?? null,
                             }
                         });
                         dungeonId = created.id;

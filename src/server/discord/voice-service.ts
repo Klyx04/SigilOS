@@ -22,6 +22,10 @@ export class DiscordVoiceService {
     private client: Client;
     private voiceStates: Map<string, Map<string, VoiceUser>> = new Map();
     private onUpdateCallback: ((guildId: string, users: VoiceUser[]) => void) | null = null;
+    // I-11: Debounce per-guild refresh timers so a burst of voiceStateUpdate
+    // events (mute/switch/raid movement) triggers a single refresh+broadcast.
+    private refreshTimers = new Map<string, NodeJS.Timeout>();
+    private readonly REFRESH_DEBOUNCE_MS = 500;
 
     private constructor() {
         this.client = new Client({
@@ -67,12 +71,32 @@ export class DiscordVoiceService {
         this.client.on("voiceStateUpdate", (oldState, newState) => {
             const guildId = newState.guild?.id || oldState.guild?.id;
             if (guildId) {
-                this.refreshGuild(guildId);
+                this.queueRefreshGuild(guildId);
+            }
+        });
+
+        this.client.on("guildDelete", (guild) => {
+            // I-11: Purge removed guilds from state + cancel pending refresh
+            this.voiceStates.delete(guild.id);
+            const timer = this.refreshTimers.get(guild.id);
+            if (timer) {
+                clearTimeout(timer);
+                this.refreshTimers.delete(guild.id);
             }
         });
 
         // Speaking events require a connection to voice, which we don't have.
         // We'll stick to basic VoiceStates (mute/deaf/channel).
+    }
+
+    /** I-11: Debounce a refresh per guild (one refresh per burst of events). */
+    private queueRefreshGuild(guildId: string) {
+        const existing = this.refreshTimers.get(guildId);
+        if (existing) clearTimeout(existing);
+        this.refreshTimers.set(guildId, setTimeout(() => {
+            this.refreshTimers.delete(guildId);
+            this.refreshGuild(guildId);
+        }, this.REFRESH_DEBOUNCE_MS));
     }
 
     private async refreshGuild(guildId: string) {
@@ -116,6 +140,11 @@ export class DiscordVoiceService {
     }
 
     public async stop() {
+        // I-11: Clear any pending debounce timers on shutdown
+        for (const timer of this.refreshTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.refreshTimers.clear();
         await this.client.destroy();
     }
 }

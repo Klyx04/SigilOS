@@ -19,6 +19,25 @@ import { redis } from "@/lib/redis";
 const configCache = new Map<string, { data: any, expiresAt: number }>();
 const profileCache = new Map<string, { data: any, expiresAt: number }>();
 const CACHE_TTL = 60; // 60 seconds — must stay short so role revocations propagate quickly
+// I-02: Bound the in-memory caches to prevent unbounded growth (OOM risk in prod).
+// Simple manual LRU (Map preserves insertion order) — no external dependency needed.
+const MAX_CACHE_ENTRIES = 500;
+
+/** Evict expired entries, then if still over capacity evict the oldest (LRU). */
+function setBoundedCache(map: Map<string, { data: any, expiresAt: number }>, key: string, value: { data: any, expiresAt: number }) {
+    // 1. Opportunistic sweep of expired entries
+    const now = Date.now();
+    for (const [k, v] of map) {
+        if (now > v.expiresAt) map.delete(k);
+    }
+    // 2. If still at/over capacity, evict the oldest entries (Map iterates in insertion order)
+    while (map.size >= MAX_CACHE_ENTRIES) {
+        const oldest = map.keys().next();
+        if (oldest.done) break;
+        map.delete(oldest.value);
+    }
+    map.set(key, value);
+}
 
 /**
  * Invalidate cache for a specific user in a specific guild.
@@ -362,7 +381,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 }
             }
         });
-        if (guildConfig) configCache.set(cacheKey, { data: guildConfig, expiresAt: Date.now() + CACHE_TTL });
+        if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + CACHE_TTL });
     }
 
     const actualDiscordGuildId = guildConfig?.discordGuildId || effectiveGuildId;
@@ -414,7 +433,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 }
             }
         });
-        if (profile) profileCache.set(profileCacheKey, { data: profile, expiresAt: Date.now() + CACHE_TTL });
+        if (profile) setBoundedCache(profileCache, profileCacheKey, { data: profile, expiresAt: Date.now() + CACHE_TTL });
     }
 
     let memberFetchFailed = false;
@@ -1200,7 +1219,7 @@ export async function internalCheckPermission(
                 where: { OR: [{ id: guildId }, { discordGuildId: guildId }] },
                 select: { id: true, discordGuildId: true, rolesMapping: true, usersMapping: true }
             });
-            if (guildConfig) configCache.set(cacheKey, { data: guildConfig, expiresAt: Date.now() + CACHE_TTL });
+            if (guildConfig) setBoundedCache(configCache, cacheKey, { data: guildConfig, expiresAt: Date.now() + CACHE_TTL });
         }
         if (!guildConfig) return false;
 

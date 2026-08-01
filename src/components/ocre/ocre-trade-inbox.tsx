@@ -55,6 +55,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
         const socketUrl = buildWsUrl();
         const socket = io(socketUrl, {
             path: "/socket.io/",
+            withCredentials: true,
             query: { guildId }
         });
         socketRef.current = socket;

@@ -157,6 +157,7 @@ export default function BombGame({
         const s = io(buildWsUrl(), {
             path: "/socket.io/",
             transports: ["websocket", "polling"],
+            withCredentials: true,
             query: { guildId }
         });
         setSocket(s);

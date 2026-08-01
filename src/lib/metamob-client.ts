@@ -638,14 +638,20 @@ export async function getQuestTemplateMonsters(templateId: number, options?: Fet
 
     const result = await fetchApi(endpoint, QuestTemplateDetailsSchema, options);
 
-    let allMonsters = [...result.monsters];
-    let offset = allMonsters.length;
+    // I-12: Use a mutable accumulator instead of re-spreading the array on each
+    // page (avoids O(n²) copies as the list grows).
+    const allMonsters: QuestMonster[] = [];
+    let offset = 0;
+
+    // First page is already fetched via fetchApi(endpoint) above
+    allMonsters.push(...result.monsters);
+    offset = allMonsters.length;
 
     while (allMonsters.length < result.pagination.total) {
         params.set("offset", offset.toString());
         const more = await fetchApi(`/v1/quest-templates/${templateId}?${params}`, QuestTemplateDetailsSchema, options);
         if (more.monsters.length === 0) break;
-        allMonsters = [...allMonsters, ...more.monsters];
+        allMonsters.push(...more.monsters);
         offset += more.monsters.length;
     }
 

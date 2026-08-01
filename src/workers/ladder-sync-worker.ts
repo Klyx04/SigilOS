@@ -54,6 +54,9 @@ const MIN_HOURS_BETWEEN_SYNC = 22;
 const MAX_CONSECUTIVE_ERRORS = 5;
 // Max retries per individual request
 const MAX_RETRIES = 3;
+// Max total duration for one sync run (prevents a job running for hours
+// and colliding with the next day's cron). 50 min hard cap.
+const MAX_RUN_DURATION_MS = 50 * 60 * 1000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -232,10 +235,18 @@ async function processLadderSync(job: Job) {
     let consecutiveRateLimits = 0;
 
     // ── 3. STRICTLY SEQUENTIAL — one profile at a time ───────────────────────
+    const runStart = Date.now();
     for (let i = 0; i < shuffled.length; i++) {
         // Abort if we've hit too many consecutive rate limits
         if (consecutiveRateLimits >= MAX_CONSECUTIVE_ERRORS) {
             logger.error(`[LadderSync] ⛔ ${MAX_CONSECUTIVE_ERRORS} rate-limits consécutifs — sync interrompue pour éviter un ban.`);
+            break;
+        }
+
+        // Abort if the run has exceeded the max duration (avoid hours-long runs)
+        const elapsedMs = Date.now() - runStart;
+        if (elapsedMs > MAX_RUN_DURATION_MS) {
+            logger.warn(`[LadderSync] ⏱️ Durée max atteinte (${Math.round(elapsedMs / 60000)} min) — interruption (${i}/${shuffled.length} profils traités).`);
             break;
         }
 

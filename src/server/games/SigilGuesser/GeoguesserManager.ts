@@ -253,24 +253,29 @@ export class GeoguesserManager {
         }
 
         try {
-            // Use upsert to ensure the singleton exists even if god hasn't visited the dashboard yet
+            // Upsert the singleton so it exists even if god hasn't visited the dashboard yet
             const config = await db.platformConfig.upsert({
                 where: { id: "singleton" },
                 update: {},
                 create: { id: "singleton" }
             });
-            
-            const reported = (config.geoguesserReportedMaps as number[]) || [];
-            if (!reported.includes(mapId)) {
-                reported.push(mapId);
-                await db.platformConfig.update({
-                    where: { id: "singleton" },
-                    data: { geoguesserReportedMaps: reported }
-                });
+
+            // I-04: Atomic append-if-absent at the PostgreSQL level.
+            // UPDATE ... WHERE NOT (mapId = ANY(array)) so that two concurrent
+            // reports of the same map cannot both be recorded (prevents duplicates).
+            // Note: Prisma has no `not` filter on nullable Int[] lists, so a raw
+            // SQL query is the reliable way to achieve this atomically.
+            const touched = await db.$queryRaw<{ id: string }[]>`
+                UPDATE "PlatformConfig"
+                SET "geoguesserReportedMaps" = array_append(COALESCE("geoguesserReportedMaps", ARRAY[]::integer[]), ${mapId})
+                WHERE "id" = 'singleton'
+                  AND NOT (${mapId} = ANY(COALESCE("geoguesserReportedMaps", ARRAY[]::integer[])))
+                RETURNING "id"
+            `;
+
+            if (touched && touched.length > 0) {
                 console.log(`[GeoguesserManager] 🚩 Map ${mapId} reported by ${socket.id}`);
                 
-                // Trigger revalidation for the God Dashboard - REMOVED: Since we use auto-polling, we don't need this, and it crashes the WebSocket server process.
-
                 // [NEW] GLOBAL GOD NOTIFICATION
                 if ((config as any).godNotifyChannelId) {
                     const { sendChannelMessage } = await import("@/server/discord");
@@ -283,7 +288,7 @@ export class GeoguesserManager {
                         embedDescription: [
                             `Une map a été signalée comme étant buggée ou mal placée.`,
                             "",
-                            `**Map ID :** \`${data.mapId}\``,
+                            `**Map ID :** \`${mapId}\``,
                             `**Signalé par :** \`${socket.id}\``,
                             "",
                             `▸ [Gérer les maps sur Dashboard](${appUrl}/god/mini-games?game=SigilGuesser)`,

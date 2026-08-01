@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MAX_FILE_SIZE, detectMimeType } from "@/lib/image-security";
 
 /**
  * SECURITY FIX (SSRF): The previous whitelist matched by suffix
@@ -155,8 +156,55 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const contentType = response.headers.get("content-type") || "image/png";
-    const buffer = await response.arrayBuffer();
+    // F-06: stream the body with a hard size cap to prevent memory-exhaustion DoS.
+    // The previous `response.arrayBuffer()` would load an arbitrarily large body
+    // into memory if a whitelisted (or compromised) host served a giant file.
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "Image too large" }, { status: 413 });
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return NextResponse.json({ error: "Empty response body" }, { status: 400 });
+    }
+
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        received += value.length;
+        if (received > MAX_FILE_SIZE) {
+          await reader.cancel().catch(() => {});
+          return NextResponse.json({ error: "Image too large" }, { status: 413 });
+        }
+        chunks.push(value);
+      }
+    }
+    const buffer = Buffer.concat(chunks);
+
+    const declaredCtype = response.headers.get("content-type") || "";
+    const detected = detectMimeType(buffer);
+
+    // Known images: use the REAL detected type (ignores a spoofed header).
+    const contentType = detected || declaredCtype || "application/octet-stream";
+
+    // F-06: MIME spoofing defense — if we could not positively identify the bytes
+    // as a known image, make sure we are NOT serving an HTML page or a script
+    // disguised as an image (would be a vector for stored XSS / sniffing).
+    if (!detected) {
+      const sample = buffer.subarray(0, 1024).toString("utf8").toLowerCase();
+      const looksLikePage =
+        sample.includes("<!doctype html") ||
+        sample.includes("<html") ||
+        sample.includes("<?xml") ||
+        sample.includes("<script");
+      if (looksLikePage || /^text\/|^application\/(?:x-)?javascript|^application\/json/.test(contentType)) {
+        return NextResponse.json({ error: "Not a valid image" }, { status: 415 });
+      }
+    }
 
     return new NextResponse(buffer, {
       headers: {

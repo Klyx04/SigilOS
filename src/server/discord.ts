@@ -513,12 +513,15 @@ export async function sendChannelMessage(
             const errBody = await res.text();
             console.error(`[Discord] Status ${res.status}: ${errBody}`);
             
-            let message = "Discord API Error";
+            // F-15: do NOT surface raw Discord error text to the client (it may leak
+            // internal details). Keep the full body in the server log above, and only
+            // expose a safe, user-friendly message.
+            let message = "Échec de l'envoi du message Discord";
             try {
                 const parsed = JSON.parse(errBody);
-                message = parsed.message || res.statusText;
                 if (res.status === 403) message = "Le bot n'a pas accès à ce salon (Permission bloquée)";
-                if (res.status === 404) message = "Salon introuvable (ID incorrect)";
+                else if (res.status === 404) message = "Salon introuvable (ID incorrect)";
+                else if (parsed?.message) message = "Discord a refusé la demande";
             } catch { /* use default */ }
             
             throw new Error(message);

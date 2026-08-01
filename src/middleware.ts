@@ -44,18 +44,15 @@ function ipRateLimit(ip: string, limit: number, windowMs: number): boolean {
 }
 
 function getClientIp(req: NextRequest): string {
-    const raw = (
-        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        req.headers.get("x-real-ip") ||
-        "unknown"
-    )
-    // SECURITY FIX: only trust well-formed IPv4 values (Caddy sets the real client
-    // IP first). Rejects malformed/spoofed values, preventing both rate-limit
-    // bypass and unbounded map growth with garbage keys.
-    if (raw !== "unknown" && !/^\d{1,3}(\.\d{1,3}){3}$/.test(raw)) {
+    // SECURITY (F-04): Only trust x-real-ip, which Caddy now sets/overwrites for
+    // every proxied request. We do NOT trust x-forwarded-for because a client can
+    // inject its own first value (spoofing the limiter per-IP).
+    // Fallback to "untrusted" (rate-limited much lower) when the header is absent.
+    const realIp = req.headers.get("x-real-ip") || "unknown"
+    if (realIp !== "unknown" && !/^\d{1,3}(\.\d{1,3}){3}$/.test(realIp)) {
         return "untrusted"
     }
-    return raw
+    return realIp
 }
 
 export default auth(async (req) => {

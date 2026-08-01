@@ -3,6 +3,7 @@ import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { redis } from "../../lib/redis";
+import { getToken } from "next-auth/jwt";
 import { GeoguesserManager } from "../games/SigilGuesser/GeoguesserManager";
 import { WorldMapService } from "../games/SigilGuesser/WorldMapService";
 import { BombManager } from "../games/SigilBomb/BombManager";
@@ -13,6 +14,53 @@ import { logger as AppLogger } from "../../lib/logger";
 
 // Fallback if logger is not correctly initialized
 const logger = AppLogger || console;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SECURITY (F-08 / audit 2026): WebSocket Authentication & Guild Membership
+// ─────────────────────────────────────────────────────────────────────────────
+// Previously the WS server trusted `socket.handshake.query.guildId` and joined
+// any guild room with NO session verification — anyone could spy on any guild
+// (voice presence, rush, ocre, dj, games).
+//
+// Fix (deployed beta-first, see CONTEXT.md):
+//   1. io.use() middleware decodes the SESSION cookie (HttpOnly) via Auth.js
+//      `getToken` — NOT a client-readable bearer. The client already sends the
+//      cookie thanks to `withCredentials: true` (step 1 already done).
+//   2. In `connection`, we do NOT trust the client-provided guildId. We only
+//      join a guild room if the authenticated user provably has an ACTIVE
+//      UserProfile in that guild (server-side DB check).
+//   3. Sensitive inbound events re-validate membership before broadcasting.
+//   4. connectionStateRecovery.skipMiddlewares is set to false so session
+//      re-validation runs on recovery.
+//
+// Rollback guard: set WS_AUTH_ENABLED=false in the container env to restore the
+// previous permissive behavior without a code change (emergency kill-switch).
+// ═════════════════════════════════════════════════════════════════════════════
+
+const WS_AUTH_ENABLED = process.env.WS_AUTH_ENABLED !== "false";
+const AUTH_SECRET = process.env.AUTH_SECRET;
+// Cookie name matches auth.config.ts (secure prefix in production).
+const SESSION_COOKIE = process.env.NODE_ENV === "production"
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+
+/** Verify a user has an ACTIVE profile in the given Discord guild. */
+async function isMemberOfGuild(userId: string, discordGuildId: string): Promise<boolean> {
+    try {
+        const { db } = await import("../../lib/prisma");
+        const profile = await db.userProfile.findFirst({
+            where: {
+                status: "ACTIVE",
+                userId,
+                guild: { discordGuildId },
+            },
+            select: { id: true },
+        });
+        return !!profile;
+    } catch {
+        return false;
+    }
+}
 
 // Load Geoguesser data
 WorldMapService.getInstance().loadData();
@@ -47,7 +95,7 @@ const io = new Server(httpServer, {
             if (!isProd) {
                 return callback(null, true);
             }
-            
+
             const allowedOrigins = [
                 "https://sigilos.fr",
                 "https://beta.sigilos.fr"
@@ -70,8 +118,9 @@ const io = new Server(httpServer, {
     connectionStateRecovery: {
         // Recovery window: 2 minutes (allow temporary signal loss)
         maxDisconnectionDuration: 2 * 60 * 1000,
-        // Whether to discard events of some rooms when we can't recover the state
-        skipMiddlewares: true,
+        // SECURITY (F-08): MUST re-run the auth middleware on recovery — never
+        // skip it. A reconnecting socket must re-prove its identity.
+        skipMiddlewares: false,
     }
 });
 
@@ -79,13 +128,51 @@ const io = new Server(httpServer, {
 io.use(async (socket, next) => {
     const ip = socket.handshake.address;
     const { success } = await rateLimit(`ws-connect:${ip}`, 10, 60000);
-    
+
     if (!success) {
-        logger.warn("[WS] 🛑 Rate limit atteint pour la connexion (IP: ${ip})");
+        logger.warn(`[WS] 🛑 Rate limit atteint pour la connexion (IP: ${ip})`);
         return next(new Error("Rate limit exceeded. Please wait a minute."));
     }
     next();
 });
+
+// 🔐 (F-08) AUTH MIDDLEWARE — decode session cookie, attach identity to socket.data
+if (WS_AUTH_ENABLED) {
+    io.use(async (socket, next) => {
+        try {
+            if (!AUTH_SECRET) {
+                return next(new Error("AUTH_SECRET not configured"));
+            }
+            // The client already sends the HttpOnly session cookie automatically
+            // (withCredentials on all Socket.IO clients — step 1 already done).
+
+            // Reuse Auth.js getToken with the request-shaped object so it can read
+            // the cookie itself; pass raw=false to get the decoded payload.
+            const token = await getToken({
+                req: {
+                    headers: {
+                        cookie: socket.handshake.headers.cookie || "",
+                    },
+                },
+                secret: AUTH_SECRET,
+                secureCookie: isProd,
+                cookieName: SESSION_COOKIE,
+            });
+
+            if (!token || !token.sub) {
+                return next(new Error("Unauthorized"));
+            }
+            socket.data.userId = token.sub as string;
+            socket.data.discordId = (token as any).discordId as string | undefined;
+            next();
+        } catch (err: any) {
+            logger.warn("[WS] 🔐 Auth failed:", err?.message);
+            next(new Error("Unauthorized"));
+        }
+    });
+} else {
+    logger.warn("[WS] ⚠️ WS_AUTH_ENABLED=false — WebSocket auth DISABLED (emergency mode)");
+}
 
 
 const geoguesserManager = new GeoguesserManager(io);
@@ -94,9 +181,9 @@ const bombManager = new BombManager(io);
 // === DISCORD VOICE MONITORING ===
 const voiceService = DiscordVoiceService.getInstance();
 voiceService.setOnUpdate((guildId, users) => {
-    io.to(`guild:${guildId}`).emit("discord:voice:update", { 
-        guildId, 
-        users 
+    io.to(`guild:${guildId}`).emit("discord:voice:update", {
+        guildId,
+        users
     });
     logger.info(`[WS] 🎤 Broadcast Voice Update (${users.length} users) for guild ${guildId}`);
 });
@@ -127,14 +214,41 @@ io.on("connection", (socket: Socket) => {
     if (guildId === "undefined" || guildId === "null" || !guildId) guildId = "global";
 
     if (guildId && guildId !== "global") {
-        socket.join(`guild:${guildId}`);
-        logger.info(`[WS] 🏢 Client ${socket.id} a rejoint le salon guilde: ${guildId}`);
-        
-        // [New] Send initial voice state immediately
-        const residents = voiceService.getVoiceUsers(guildId);
-        if (residents.length > 0) {
-            socket.emit("discord:voice:update", { guildId, users: residents });
-            logger.info(`[WS] 🎤 Initial Voice Sync (${residents.length} users) for ${socket.id}`);
+        // 🔐 (F-08) SECURITY: NEVER trust the client-raised guildId blindly.
+        // Only join the guild room if the authenticated user provably belongs
+        // to it (ACTIVE profile). Fast-path handshake sync stays but restricted.
+        const userId = socket.data.userId as string | undefined;
+
+        if (WS_AUTH_ENABLED && !userId) {
+            // Shouldn't happen (auth middleware precedes connection), but fail-closed.
+            logger.warn(`[WS] 🛑 Connexion ${socket.id} sans identité — join guilde refusé.`);
+            return;
+        }
+
+        if (WS_AUTH_ENABLED) {
+            // Server-side membership check (async, then join if allowed)
+            isMemberOfGuild(userId!, guildId).then((allowed) => {
+                if (!allowed) {
+                    logger.warn(`[WS] 🛑 ${socket.id} refusé pour la guilde ${guildId} (non membre)`);
+                    socket.emit("error", "forbidden");
+                    return;
+                }
+                socket.join(`guild:${guildId}`);
+                logger.info(`[WS] 🏢 Client ${socket.id} a rejoint le salon guilde: ${guildId}`);
+
+                // Send initial voice state immediately
+                const residents = voiceService.getVoiceUsers(guildId);
+                if (residents.length > 0) {
+                    socket.emit("discord:voice:update", { guildId, users: residents });
+                }
+            });
+        } else {
+            socket.join(`guild:${guildId}`);
+            logger.info(`[WS] 🏢 Client ${socket.id} a rejoint le salon guilde: ${guildId}`);
+            const residents = voiceService.getVoiceUsers(guildId);
+            if (residents.length > 0) {
+                socket.emit("discord:voice:update", { guildId, users: residents });
+            }
         }
     } else {
         socket.join("guild:global");
@@ -154,6 +268,18 @@ io.on("connection", (socket: Socket) => {
     // [New] Direct voice request for immediate sync
     socket.on("discord:voice:request", (data: { guildId: string }) => {
         if (!data.guildId) return;
+        // 🔐 (F-08) Only answer for a guild the user is a member of.
+        if (WS_AUTH_ENABLED) {
+            const userId = socket.data.userId as string | undefined;
+            if (!userId) return;
+            isMemberOfGuild(userId, data.guildId).then((allowed) => {
+                if (!allowed) return;
+                const residents = voiceService.getVoiceUsers(data.guildId);
+                socket.emit("discord:voice:update", { guildId: data.guildId, users: residents });
+                logger.info(`[WS] 🎤 Manual Voice Sync (${residents.length} users) for ${socket.id}`);
+            });
+            return;
+        }
         const residents = voiceService.getVoiceUsers(data.guildId);
         socket.emit("discord:voice:update", { guildId: data.guildId, users: residents });
         logger.info(`[WS] 🎤 Manual Voice Sync (${residents.length} users) for ${socket.id}`);
@@ -162,8 +288,14 @@ io.on("connection", (socket: Socket) => {
     // === RUSH SYLVESTRE PRESENCE ===
     socket.on("rush:join", async (data: { guildId: string }) => {
         if (!data.guildId) return;
+        // 🔐 (F-08) Only broadcast rush presence to guilds the user is a member of.
+        if (WS_AUTH_ENABLED) {
+            const userId = socket.data.userId as string | undefined;
+            if (!userId) return;
+            const allowed = await isMemberOfGuild(userId, data.guildId);
+            if (!allowed) return;
+        }
         logger.info(`[WS] 🏃 ${socket.id} joined rush in guild ${data.guildId}`);
-        // Broadcast to guild room so everyone sees the update
         const result = await getRushActiveMembers(data.guildId);
         if (result.success) {
             io.to(`guild:${data.guildId}`).emit("rush:presence:update", {
@@ -175,6 +307,12 @@ io.on("connection", (socket: Socket) => {
 
     socket.on("rush:leave", async (data: { guildId: string }) => {
         if (!data.guildId) return;
+        if (WS_AUTH_ENABLED) {
+            const userId = socket.data.userId as string | undefined;
+            if (!userId) return;
+            const allowed = await isMemberOfGuild(userId, data.guildId);
+            if (!allowed) return;
+        }
         logger.info(`[WS] 🏃 ${socket.id} left rush in guild ${data.guildId}`);
         const result = await getRushActiveMembers(data.guildId);
         if (result.success) {
@@ -187,7 +325,12 @@ io.on("connection", (socket: Socket) => {
 
     socket.on("rush:heartbeat", async (data: { guildId: string }) => {
         if (!data.guildId) return;
-        // Broadcast updated presence to guild room
+        if (WS_AUTH_ENABLED) {
+            const userId = socket.data.userId as string | undefined;
+            if (!userId) return;
+            const allowed = await isMemberOfGuild(userId, data.guildId);
+            if (!allowed) return;
+        }
         const result = await getRushActiveMembers(data.guildId);
         if (result.success) {
             io.to(`guild:${data.guildId}`).emit("rush:presence:update", {
@@ -210,6 +353,7 @@ io.on("connection", (socket: Socket) => {
 try {
     httpServer.listen(PORT, "::", () => {
         logger.info(`[WS] 🚀 Serveur WebSocket démarré sur le port ${PORT} (IPv4/IPv6)`);
+        logger.info(`[WS] 🔐 Auth ${WS_AUTH_ENABLED ? "ACTIVÉE" : "DÉSACTIVÉE (emergency)"}`);
         logger.info(`[WS] Testez via: http://localhost:${PORT}/health`);
     });
 } catch (err: any) {

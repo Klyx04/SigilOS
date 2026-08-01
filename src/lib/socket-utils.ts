@@ -38,6 +38,12 @@ export const DEFAULT_SOCKET_OPTIONS = {
     transports: ["websocket", "polling"],
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
+    // F-08: Enable sending the NextAuth session cookie to the WS server.
+    // The CORS config on the server already allows credentials (credentials: true).
+    // Without this, the browser would NOT send the session cookie, so the WS
+    // server could not authenticate the connection. This is non-destructive:
+    // the server does not require the cookie yet.
+    withCredentials: true,
 };
 
 /**

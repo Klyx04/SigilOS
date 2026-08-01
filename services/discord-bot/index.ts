@@ -510,8 +510,10 @@ async function updateDiscordActivity(discordId: string, guildId: string | null, 
     try {
         const guildFilter = guildId ? { guild: { discordGuildId: guildId } } : {};
         
-        // 1. Find the User Profiles for this user (filtered by guild)
-        const profiles = await db.userProfile.findMany({
+        // I-03: Replace the previous "findMany + loop of updates" with a single
+        // updateMany. Reduces N+1 DB round-trips on high-frequency events
+        // (messages, reactions, voice state) to a single query.
+        const result = await db.userProfile.updateMany({
             where: {
                 user: {
                     accounts: {
@@ -523,25 +525,14 @@ async function updateDiscordActivity(discordId: string, guildId: string | null, 
                 },
                 ...guildFilter
             },
-            select: { id: true, discordNickname: true }
+            data
         });
 
-        if (profiles.length === 0) return;
-
-        // 2. Perform atomic updates for each profile
-        for (const profile of profiles) {
-            try {
-                await db.userProfile.update({
-                    where: { id: profile.id },
-                    data
-                });
-                console.log(`[Discord Bot] ✅ ${activityType} tracked for ${profile.discordNickname || discordId}`);
-            } catch (e) {
-                console.error(`[Discord Bot] Failed to update profile ${profile.id}:`, e);
-            }
+        if (result.count > 0) {
+            console.log(`[Discord Bot] ${activityType} tracked for ${discordId} (${result.count} profile(s))`);
         }
     } catch (e) {
-        console.error(`[Discord Bot] Error searching activity for ${discordId}:`, e);
+        console.error(`[Discord Bot] Error updating activity for ${discordId}:`, e);
     }
 }
 
@@ -701,7 +692,10 @@ setInterval(async () => {
         lastResetWeek = currentWeek;
         console.log("[Discord Bot] Weekly Reset of Discord stats starting...");
         try {
+            // I-10: Scope the reset to ACTIVE profiles only to avoid a
+            // massive UPDATE locking the whole table when profiles grow.
             await db.userProfile.updateMany({
+                where: { status: "ACTIVE" },
                 data: {
                     discordVoiceTimeWeekly: 0,
                     discordMessageCountWeekly: 0,
@@ -723,7 +717,9 @@ setInterval(async () => {
         lastResetMonth = currentMonth;
         console.log("[Discord Bot] Monthly Reset of Discord stats starting...");
         try {
+            // I-10: Scope the reset to ACTIVE profiles only.
             await db.userProfile.updateMany({
+                where: { status: "ACTIVE" },
                 data: {
                     discordVoiceTimeMonthly: 0,
                     discordMessageCountMonthly: 0,

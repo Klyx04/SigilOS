@@ -73,6 +73,7 @@ export function DungeonFinderClient({
         const socketUrl = buildWsUrl();
         const socket = io(socketUrl, {
             path: "/socket.io/",
+            withCredentials: true,
             query: { guildId }
         });
 

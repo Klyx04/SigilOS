@@ -67,14 +67,18 @@
 
 ## 🧭 Chantiers de sécurité restants (rappel — voir SECURITY.md)
 
-- **1. Authentification WebSocket (Socket.IO)** — priorité (canal temps réel sans auth).
-- **2. Chiffrement des tokens OAuth (Discord)** — `updateMany` non chiffré.
-- **3. SSRF `image-downloader.ts`** — bloquer CIDR/protocoles.
-- **4. Durée JWT** — 7j → 8h (NIST).
-- **5. CSP nonce-based** (remplacer `unsafe-inline`).
+**État au 01/08/2026 :** F-02 (fallback secret), F-06/F-03 (SSRF), F-04 (IP/cap), F-01 (fail-open partiel), F-12 (Grafana), F-23/F-24 (bot), F-19/F-27/F-26/F-18/F-22 (workers/CI) sont corrigés. Reste :
+
+- **1. Authentification WebSocket (Socket.IO)** — priorité. **Étape 1 faite** (withCredentials sur tous les clients). **Étape 2 restante** (middleware serveur JWT + vérif appartenance guilde + retirer skipMiddlewares) — **à faire en beta, risqué**.
+- **2. Chiffrement des tokens OAuth (Discord)** — `updateMany` non chiffré (`auth.ts:145-153`). Chantier.
+- **3. SSRF `image-downloader.ts`** — blocage CIDR/protocoles (God-only, surface limitée). Chantier.
+- **4. Durée JWT** — 7j → 8h (NIST) + contrôle d'appartenance/ban actif.
+- **5. CSP nonce-based** (remplacer `unsafe-inline`) — chantier séparé (Report-Only d'abord).
 - **6. Clé de chiffrement de secours** en dev.
 - **7. Cache permissions 60s**.
 - **8. Caddy rate-limit**.
+
+**Infra faite (01/08) :** I-03, I-04, I-05, I-10, I-11, I-12, I-02, I-08. **Faux positifs écartés :** I-01, I-17. **Reste infra :** I-06 (unifier Discord), I-07 (séparer Redis), I-15 (circuit breaker). **Gartic/Skribbl supprimés du code** (dashboard + code mort retiré).
 
 ---
 

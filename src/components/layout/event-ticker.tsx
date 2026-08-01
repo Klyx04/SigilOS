@@ -13,8 +13,6 @@ import {
     Calendar,
     Eye,
     Gamepad2,
-    Paintbrush,
-    Smartphone,
     MapPin
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,22 +59,6 @@ const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; icon: Rea
         color: "text-pink-400",
         bg: "bg-pink-500/10 border-pink-500/20",
         glow: "shadow-pink-500/20"
-    },
-    GAME_SKRIBBL: {
-        label: "Skribbl",
-        shortLabel: "LIVE",
-        icon: Paintbrush,
-        color: "text-indigo-400",
-        bg: "bg-indigo-500/10 border-indigo-500/20",
-        glow: "shadow-indigo-500/20"
-    },
-    GAME_GARTIC: {
-        label: "Gartic Phone",
-        shortLabel: "LIVE",
-        icon: Smartphone,
-        color: "text-violet-400",
-        bg: "bg-violet-500/20 border-violet-500/30",
-        glow: "shadow-violet-500/20"
     },
     GAME_GEOGUESSER: {
         label: "Guesser",
@@ -176,13 +158,7 @@ export function EventTicker({ events, guildId, canViewCalendar = true }: EventTi
     const isLive = (event.metadata as any)?.isLive;
     const gameState = (event.metadata as any)?.state;
 
-    if (event.type === "GAME_SKRIBBL") {
-        const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
-        href = `/dashboard/${guildId}/mini-jeux/skribbl?room=${(event.metadata as any).roomId}${spec}`;
-    } else if (event.type === "GAME_GARTIC") {
-        const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
-        href = `/dashboard/${guildId}/mini-jeux/gartic?room=${(event.metadata as any).roomId}${spec}`;
-    } else if (event.type === "GAME_GEOGUESSER") {
+    if (event.type === "GAME_GEOGUESSER") {
         const spec = gameState !== 'LOBBY' ? '&spectate=true' : '';
         href = `/dashboard/${guildId}/mini-jeux?room=${(event.metadata as any).roomId}${spec}#mini-jeux`;
     }

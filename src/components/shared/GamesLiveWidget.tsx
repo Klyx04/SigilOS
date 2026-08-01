@@ -14,7 +14,8 @@ interface LiveRoom {
     hostName?: string;
     playerCount: number;
     maxPlayers: number;
-    gameType: 'guesser' | 'draw' | 'phone';
+    // Only Geoguesser remains after Gartic/Skribbl removal
+    gameType: 'guesser';
 }
 
 interface GamesLiveWidgetProps {
@@ -47,13 +48,11 @@ export function GamesLiveWidget({ isOpen, onOpenChange, onRoomCountChange, guild
 
         const refreshRooms = () => {
             s.emit("geoguesser:room:list");
-            s.emit("skribbl:room:list");
-            s.emit("gartic:room:list");
         };
 
         s.on("connect", refreshRooms);
 
-        const handleRoomUpdate = (type: 'guesser' | 'draw' | 'phone') => (data: any[]) => {
+        const handleRoomUpdate = (type: 'guesser') => (data: any[]) => {
             setRooms(prev => {
                 const other = prev.filter(r => r.gameType !== type);
                 const next = (data || []).map(r => ({ ...r, gameType: type }));
@@ -63,8 +62,6 @@ export function GamesLiveWidget({ isOpen, onOpenChange, onRoomCountChange, guild
         };
 
         s.on("geoguesser:room:list", handleRoomUpdate('guesser'));
-        s.on("skribbl:room:list", handleRoomUpdate('draw'));
-        s.on("gartic:room:list", handleRoomUpdate('phone'));
 
         setSocket(s);
         const timer = setInterval(refreshRooms, 5000);
@@ -85,13 +82,7 @@ export function GamesLiveWidget({ isOpen, onOpenChange, onRoomCountChange, guild
 
         onOpenChange(false);
 
-        if (room.gameType === 'guesser') {
-             router.push(`/dashboard/${guildId}/mini-jeux?spectateRoom=${rid}`);
-        } else if (room.gameType === 'draw') {
-             router.push(`/dashboard/${guildId}/mini-jeux/skribbl?room=${rid}&spectate=true`);
-        } else if (room.gameType === 'phone') {
-             router.push(`/dashboard/${guildId}/mini-jeux/gartic?room=${rid}&spectate=true`);
-        }
+        router.push(`/dashboard/${guildId}/mini-jeux?spectateRoom=${rid}`);
     };
 
     return (
@@ -139,11 +130,9 @@ export function GamesLiveWidget({ isOpen, onOpenChange, onRoomCountChange, guild
                                             <div className="flex items-center gap-1.5">
                                                 <span className={cn(
                                                     "px-1 py-0.5 rounded-[4px] text-[7px] font-black uppercase italic",
-                                                    room.gameType === 'guesser' ? "bg-emerald-500/20 text-emerald-400" :
-                                                    room.gameType === 'draw' ? "bg-blue-500/20 text-blue-400" :
-                                                    "bg-amber-500/20 text-amber-400"
+                                                    "bg-emerald-500/20 text-emerald-400"
                                                 )}>
-                                                    {room.gameType === 'guesser' ? 'Guesser' : room.gameType === 'draw' ? 'Draw' : 'Phone'}
+                                                    Guesser
                                                 </span>
                                                 <span className="text-white/40 text-[9px] font-black italic">{room.playerCount}/{room.maxPlayers}</span>
                                             </div>

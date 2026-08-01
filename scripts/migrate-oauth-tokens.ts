@@ -19,6 +19,7 @@
  * par le `compute` de prisma.ts à la lecture (non modifié ici).
  */
 
+import "dotenv/config";
 import { PrismaClient } from '@prisma/client';
 import { encrypt, isEncrypted } from '../src/lib/encryption';
 

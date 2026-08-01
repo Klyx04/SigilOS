@@ -35,7 +35,7 @@
 6. **Validation & bornes** : Zod sur toutes les entrées ; borner les valeurs issues d'API externes (longueur, plage).
 7. **Vérifier l'appartenance à la guilde** avant toute écriture multi-tenant (cible vs contexte).
 8. **Pas de `console.log` en prod** → utiliser `logger` de `@/lib/logger` (auto-redaction des secrets).
-9. **Rapports d'audit JAMAIS commités** (`AUDIT_*.md`, `src/audit-*`) — gardés en local, ignorés via `.gitignore`.
+9. **Rapports d'audit JAMAIS commités** (`docs/audits/`, `AUDIT_*.md`, `src/audit-*`) — centralisés dans `docs/audits/`, gardés en local, ignorés via `.gitignore`.
 10. **Secrets jamais commités** (`.env*`) ni partagés dans un canal non sécurisé.
 
 ---
@@ -57,7 +57,7 @@
 
 ## ⚙️ Règles d'interaction avec l'IA (moi, Cline ou autre)
 
-1. **Ne jamais modifier** `src/audit-*`, `AUDIT_*.md` (livrables locaux hors git).
+1. **Ne jamais modifier** `docs/audits/`, `src/audit-*`, `AUDIT_*.md` (livrables locaux hors git).
 2. **Respecter strictement** `RULES.md` (fail-closed, validation, guilde isolation, logger).
 3. **Vérifier** avant tout commit : pas de secret, pas d'audit, `npm run test:run` + `npm run build` en local.
 4. **Nommer les findings** avec référence (F-xx) si on parle d'audit, et pointer le fichier précis.
@@ -67,16 +67,17 @@
 
 ## 🧭 Chantiers de sécurité restants (rappel — voir SECURITY.md)
 
-**État au 01/08/2026 :** F-02 (fallback secret), F-06/F-03 (SSRF), F-04 (IP/cap), F-01 (fail-open partiel), F-12 (Grafana), F-23/F-24 (bot), F-19/F-27/F-26/F-18/F-22 (workers/CI) sont corrigés. Reste :
+**État au 01/08/2026 :** F-02, F-06/F-03, F-04, F-01, F-12, F-23/F-24, F-19/F-27/F-26/F-18/F-22 corrigés. **Session d'après-audit (01/08) ajoutée :** F-08 (auth WS), F-05 (chiffrement OAuth), F-04 (fail-closed + IP fiable), F-02 (expiration + clé dédiée), F-07 (JWT 8h), F-03 (SSRF image-downloader). **Rapports centralisés :** `docs/audits/` (hors git). Reste :
 
-- **1. Authentification WebSocket (Socket.IO)** — priorité. **Étape 1 faite** (withCredentials sur tous les clients). **Étape 2 restante** (middleware serveur JWT + vérif appartenance guilde + retirer skipMiddlewares) — **à faire en beta, risqué**.
-- **2. Chiffrement des tokens OAuth (Discord)** — `updateMany` non chiffré (`auth.ts:145-153`). Chantier.
-- **3. SSRF `image-downloader.ts`** — blocage CIDR/protocoles (God-only, surface limitée). Chantier.
-- **4. Durée JWT** — 7j → 8h (NIST) + contrôle d'appartenance/ban actif.
-- **5. CSP nonce-based** (remplacer `unsafe-inline`) — chantier séparé (Report-Only d'abord).
-- **6. Clé de chiffrement de secours** en dev.
-- **7. Cache permissions 60s**.
-- **8. Caddy rate-limit**.
+- **1. CSP nonce-based** (remplacer `unsafe-inline`) — chantier séparé (Report-Only d'abord).
+- **2. Clé de chiffrement de secours** en dev (`encryption.ts` fallback).
+- **3. Cache permissions 60s** (F-13 — réduire TTL).
+- **4. Caddy rate-limit** (F-14 — au niveau proxy).
+- **5. F-01 partiel** : fallback RBAC `guards.ts` (l.96-117, 229-244) + cache « positif seulement » à consolider.
+- **6. F-06 partiel** : proxy-image sans limite de taille ni magic bytes (à compléter).
+- **7. F-11** : sanitisation HTML centralisée.
+
+**Déploiement :** F-08 (auth WS) est fourni avec kill-switch `WS_AUTH_ENABLED=false` → **activer en beta d'abord**, tester reconnexion, puis prod.
 
 **Infra faite (01/08) :** I-03, I-04, I-05, I-10, I-11, I-12, I-02, I-08. **Faux positifs écartés :** I-01, I-17. **Reste infra :** I-06 (unifier Discord), I-07 (séparer Redis), I-15 (circuit breaker). **Gartic/Skribbl supprimés du code** (dashboard + code mort retiré).
 

@@ -7,23 +7,24 @@
  * `updateMany` brut → ils étaient stockés EN CLAIR en base.
  * Ce script chiffre rétroactivement les jetons déjà présents.
  *
- * Usage :
+ * Usage (compilé en JS puis exécuté dans le conteneur worker qui a accès
+ * à la base et aux variables d'env) :
  *   # DRY-RUN : affiche combien de jetons seraient chiffrés, SANS rien modifier
- *   npx tsx scripts/migrate-oauth-tokens.ts --dry-run
- *
+ *   node migrate-oauth-tokens.js --dry-run
  *   # RUN RÉEL : chiffre les jetons (à exécuter APRÈS un backup de la BDD)
- *   npx tsx scripts/migrate-oauth-tokens.ts
+ *   node migrate-oauth-tokens.js
  *
  * Impact utilisateur : AUCUN — les utilisateurs restent connectés.
- * On chiffre simplement les jetons "at rest". Le déchiffrement est géré
- * par le `compute` de prisma.ts à la lecture (non modifié ici).
+ * NOTE : on utilise `db.$queryRaw` / `db.$executeRaw` pour contourner les
+ * hooks Prisma qui chiffreraient à nouveau un jeton déjà chiffré, et on
+ * réutilise le client `@/lib/prisma` (avec son adapter PostgreSQL) afin de
+ * se connecter correctement à la bonne base selon l'environnement.
  */
 
 import "dotenv/config";
-import { PrismaClient } from '@prisma/client';
+import { db } from '../src/lib/prisma';
 import { encrypt, isEncrypted } from '../src/lib/encryption';
 
-const db = new PrismaClient();
 const DRY_RUN = process.argv.includes('--dry-run');
 
 interface AccountRow {
@@ -57,27 +58,22 @@ async function migrate() {
     for (const acc of accounts) {
         const update: { id: string; access_token?: string; refresh_token?: string; id_token?: string } = { id: acc.id };
 
-        // Only touch a field if the original value was non-null (never overwrite a
-        // stored token with null, and never re-encrypt an already-encrypted one).
         if (acc.access_token) {
             const at = encryptIfNeeded(acc.access_token);
             if (at !== acc.access_token) { update.access_token = at; toEncryptCount++; }
             else if (isEncrypted(acc.access_token)) alreadyEncrypted++;
         }
-
         if (acc.refresh_token) {
             const rt = encryptIfNeeded(acc.refresh_token);
             if (rt !== acc.refresh_token) { update.refresh_token = rt; toEncryptCount++; }
             else if (isEncrypted(acc.refresh_token)) alreadyEncrypted++;
         }
-
         if (acc.id_token) {
             const it = encryptIfNeeded(acc.id_token);
             if (it !== acc.id_token) { update.id_token = it; toEncryptCount++; }
             else if (isEncrypted(acc.id_token)) alreadyEncrypted++;
         }
 
-        // On ne garde que les comptes qui ont au moins un champ à chiffrer
         if (update.access_token !== undefined || update.refresh_token !== undefined || update.id_token !== undefined) {
             fieldsByAccount.push(update);
         }
@@ -93,18 +89,17 @@ async function migrate() {
         return;
     }
 
-    // RUN RÉEL — appliquer les chiffrements par UPDATE unitaire (champ par champ)
+    // RUN RÉEL — $executeRaw contourne les hooks Prisma (évite le double-chiffrement)
     let updated = 0;
     for (const row of fieldsByAccount) {
-        const data: { access_token?: string; refresh_token?: string; id_token?: string } = {};
-        if (row.access_token !== undefined) data.access_token = row.access_token;
-        if (row.refresh_token !== undefined) data.refresh_token = row.refresh_token;
-        if (row.id_token !== undefined) data.id_token = row.id_token;
-
-        await db.account.update({
-            where: { id: row.id },
-            data,
-        });
+        await db.$executeRaw`
+            UPDATE "Account"
+            SET
+                access_token = ${row.access_token ?? null}::text,
+                refresh_token = ${row.refresh_token ?? null}::text,
+                id_token = ${row.id_token ?? null}::text
+            WHERE id = ${row.id}
+        `;
         updated++;
     }
 
@@ -112,9 +107,8 @@ async function migrate() {
     await db.$disconnect();
 }
 
-migrate()
-    .catch(async (err) => {
-        console.error('[Migration] ❌ Erreur :', err);
-        await db.$disconnect();
-        process.exit(1);
-    });
+migrate().catch(async (err) => {
+    console.error('[Migration] ❌ Erreur :', err);
+    await db.$disconnect();
+    process.exit(1);
+});

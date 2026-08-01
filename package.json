@@ -24,6 +24,7 @@
     "build:ladder-sync": "esbuild src/workers/ladder-sync-worker.ts --bundle --platform=node --outfile=dist/ladder-sync.js --external:@prisma/client --external:ioredis --external:bullmq",
     "ladder:sync": "npx -y tsx src/workers/ladder-sync-worker.ts",
     "build:ws": "esbuild src/server/websocket/server.ts --bundle --platform=node --outfile=dist/ws-server.js --external:@prisma/client",
+    "build:oauth-migrate": "esbuild scripts/migrate-oauth-tokens.ts --bundle --platform=node --outfile=dist/migrate-oauth-tokens.js --external:@prisma/client --external:ioredis --external:bullmq",
     "seed:docs": "npx -y tsx prisma/seed-docs.ts",
     "export-seeds": "bash scripts/export-seeds.sh local",
     "migrate:uploads": "node scripts/migrate-uploads.mjs"

@@ -332,6 +332,29 @@ export class MetamobApiError extends Error {
     }
 }
 
+// I-08: Retry with exponential backoff on transient errors (429/5xx).
+// The original 3s timeout was too short under load and there was no retry,
+// causing intermittent failures and empty dashboards when Metamob is slow.
+// Note: timeout is per-attempt, so a 2-retry flow can take up to ~15s worst case.
+const METAMOB_TIMEOUT_MS = 5000;
+const METAMOB_MAX_RETRIES = 2;
+const METAMOB_BACKOFF_MS = 800;
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+    let attempt = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const res = await fetch(url, { ...init, signal: AbortSignal.timeout(METAMOB_TIMEOUT_MS) });
+        // Success or a definitive client error we don't retry (4xx except 429)
+        if (res.status < 500 && res.status !== 429) return res;
+        if (attempt >= METAMOB_MAX_RETRIES) return res;
+        // Transient → backoff with jitter
+        const backoff = METAMOB_BACKOFF_MS * Math.pow(2, attempt) + Math.floor(Math.random() * 400);
+        await new Promise(r => setTimeout(r, backoff));
+        attempt++;
+    }
+}
+
 async function fetchApi<T>(
     endpoint: string,
     schema: z.ZodSchema<T>,
@@ -371,10 +394,7 @@ async function fetchApi<T>(
     };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${endpoint}`, {
-            ...fetchOptions,
-            signal: AbortSignal.timeout(3000), // REDUCED: 3s timeout to avoid blocking layout
-        });
+        const response = await fetchWithRetry(`${METAMOB_API_BASE}${endpoint}`, fetchOptions);
 
         // [Robustness] Handle 401/403 gracefully
         if (response.status === 401 || response.status === 403) {
@@ -502,10 +522,7 @@ async function fetchPaginatedApi<T>(
     };
 
     try {
-        const response = await fetch(`${METAMOB_API_BASE}${fullEndpoint}`, {
-            ...fetchOptions,
-            signal: AbortSignal.timeout(3000), // REDUCED: 3s timeout to avoid blocking layout
-        });
+        const response = await fetchWithRetry(`${METAMOB_API_BASE}${fullEndpoint}`, fetchOptions);
 
         // [Robustness] 401/403 handling for paginated
         if ((response.status === 401 || response.status === 403) && apiKey) {

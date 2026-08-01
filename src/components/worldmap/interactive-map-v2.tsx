@@ -602,6 +602,7 @@ export default function InteractiveMapV2({
 
         const newSocket = io(wsUrl, {
             path: "/socket.io/",
+            withCredentials: true,
             transports: ["websocket", "polling"],
             reconnectionAttempts: 10,
             query: { guildId }

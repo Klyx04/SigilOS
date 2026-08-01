@@ -65,7 +65,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true });
 
     } catch (error: any) {
+        // F-15: never leak internal error details to the client — log them server-side only.
         console.error("[API_GOD_NOTIFY] Error:", error);
-        return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
+        return new NextResponse("Internal Server Error", { status: 500 });
     }
 }

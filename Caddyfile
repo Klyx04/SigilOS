@@ -52,11 +52,19 @@ beta.sigilos.fr {
 
     # Normal operation: proxy to Next.js
     handle /socket.io/* {
-        reverse_proxy sigilos-ws-beta:3001
+        reverse_proxy sigilos-ws-beta:3001 {
+            header_up X-Real-IP {remote_host}
+            header_up -X-Forwarded-For
+            header_up X-Forwarded-For {remote_host}
+        }
     }
 
     handle {
-        reverse_proxy sigilos-beta:3000
+        reverse_proxy sigilos-beta:3000 {
+            header_up X-Real-IP {remote_host}
+            header_up -X-Forwarded-For
+            header_up X-Forwarded-For {remote_host}
+        }
     }
 }
 

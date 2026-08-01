@@ -162,6 +162,7 @@ private_uploads/
 .gemini/
 
 # Rapports & briefs d'audit (ponctuels, sensibles — garder en local)
+/docs/audits/
 AUDIT_*.md
 src/audit-cyber
 src/audit-infra

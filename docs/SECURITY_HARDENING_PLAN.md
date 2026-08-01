@@ -21,7 +21,7 @@
 
 ## ✅ Corrigé lors de l'audit 2026 (session juillet/août)
 
-> Réf. complète en local (hors git) : `AUDIT_SECURITE_SIGILOS.md`
+> Réf. complète en local (hors git) : `docs/audits/AUDIT_SECURITE_SIGILOS.md`
 
 | Domaine | Correctif |
 |---------|-----------|

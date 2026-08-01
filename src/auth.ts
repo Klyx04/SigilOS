@@ -16,9 +16,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         })
     ],
     adapter: PrismaAdapter(prisma),
+    // SECURITY (F-07 / audit 2026): the base authConfig defines maxAge 24h, but
+    // this override previously raised it to 7 days (most permissive wins).
+    // NIST SP 800-63B recommends short sessions — set maxAge to 8h with a 4h
+    // rotation so a banned/kicked user loses access quickly.
     session: {
         strategy: "jwt",
-        maxAge: 7 * 24 * 60 * 60, // 7 days (reduction from 30 days default)
+        maxAge: 8 * 60 * 60,   // 8 hours (NIST-aligned)
+        updateAge: 4 * 60 * 60, // rotate the JWT every 4 hours
     },
     callbacks: {
         ...authConfig.callbacks,
@@ -140,19 +145,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async signIn({ user, account }) {
             if (!account || !user.id) return;
 
-            // Update Discord tokens in DB
+            // Update Discord tokens in DB — SECURITY (F-05): encrypted via the
+            // explicit token-encryption service. A bare updateMany bypassed the
+            // Prisma $extends encryption hooks and wrote tokens in plaintext.
             try {
-                await prisma.account.updateMany({
-                    where: { userId: user.id, provider: "discord" },
-                    data: {
-                        access_token: account.access_token,
-                        refresh_token: account.refresh_token,
-                        expires_at: account.expires_at,
-                        scope: account.scope
-                    }
+                const { updateEncryptedDiscordTokens } = await import("./lib/token-encryption");
+                await updateEncryptedDiscordTokens(user.id, {
+                    access_token: account.access_token,
+                    refresh_token: account.refresh_token,
+                    expires_at: account.expires_at,
+                    scope: account.scope,
                 });
             } catch (e) {
-                console.error("[Auth] Failed to update account tokens:", e);
+                console.error("[Auth] Failed to update encrypted account tokens:", e);
             }
 
             // Sync Discord nickname for each guild the user is in

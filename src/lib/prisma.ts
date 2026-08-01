@@ -95,6 +95,23 @@ const createPrismaClient = () => {
                         if (!account.access_token) return account.access_token;
                         return decrypt(account.access_token);
                     }
+                },
+                // SECURITY (F-05): also decrypt refresh_token/id_token on read so a
+                // downstream consumer never receives ciphertext thinking it's the
+                // real token. Kept explicit (same pattern as access_token).
+                refresh_token: {
+                    needs: { refresh_token: true },
+                    compute(account: any) {
+                        if (!account.refresh_token) return account.refresh_token;
+                        return decrypt(account.refresh_token);
+                    }
+                },
+                id_token: {
+                    needs: { id_token: true },
+                    compute(account: any) {
+                        if (!account.id_token) return account.id_token;
+                        return decrypt(account.id_token);
+                    }
                 }
             },
             userProfile: {

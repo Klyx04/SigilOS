@@ -48,7 +48,7 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 - **Caddy** : pas de rate-limit au niveau proxy
 
 ### 🔒 Références
-Le détail complet des findings et remédiations est documenté **en local** (hors dépôt) dans `AUDIT_SECURITE_SIGILOS.md` (généré suite à l'audit). Les rapports d'audit ne sont **jamais committés**.
+Le détail complet des findings et remédiations est documenté **en local** (hors dépôt) dans `docs/audits/AUDIT_SECURITE_SIGILOS.md` (généré suite à l'audit). Les rapports d'audit sont centralisés dans `docs/audits/` et ne sont **jamais committés**.
 
 ---
 

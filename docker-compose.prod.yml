@@ -320,7 +320,7 @@ services:
           cpus: '0.5'
           memory: 512M
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
       - GF_SERVER_ROOT_URL=https://monitor.sigilos.fr
       # 🛡️ GitHub OAUTH2
       - GF_AUTH_GITHUB_ENABLED=true

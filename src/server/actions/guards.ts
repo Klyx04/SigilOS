@@ -94,28 +94,10 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
         const isAdmin = memberRoles.some((r: any) => (BigInt(r.permissions) & 0x8n) === 0x8n);
 
         if (!isAdmin) {
-            // 🛡️ FALLBACK: Discord API says "not admin" — but before returning a denial,
-            // check the RBAC local cache (user context) as a safety net.
-            // This prevents false rejections when the Discord API is temporarily
-            // inconsistent (e.g. role propagation delay, rate-limit stale data).
-            // Security: the RBAC already verified Discord admin bit during getUserContext,
-            // so this is not a bypass — it's a consistency fallback.
-            try {
-                const { getUserContext } = await import("./user-actions");
-                const userCtx = await getUserContext(guildId);
-                if (userCtx.isDiscordAdmin) {
-                    // RBAC confirms this user IS a Discord admin — honor the local state
-                    // and return authorized.
-                    const result = { isAuthorized: true, discordUserId };
-                    // Cache positive result for 60s
-                    try {
-                        const { redis } = await import("@/lib/redis");
-                        if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
-                    } catch { /* ignore */ }
-                    return result;
-                }
-            } catch { /* RBAC fallback also failed — proceed with Discord result */ }
-
+            // F-01: Discord API is the single source of truth — deny without a
+            // redundant re-fetch. The previous "RBAC consistency fallback" re-called
+            // getUserContext which re-fetches the SAME live Discord data, granting
+            // nothing extra while contradicting the zero-trust principle.
             return { isAuthorized: false, error: "Admin permission required" };
         }
 

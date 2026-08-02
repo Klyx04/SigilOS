@@ -57,7 +57,7 @@ Votre tableau de bord centralise :
         slug: 'quete-ocre',
         title: 'Gestion de la Quête Ocre',
         category: 'Guides Utilisateurs',
-        accessLevel: 'MEMBER' as any,
+        accessLevel: 'MEMBER',
         content: `
 # La Quête de l'Éternelle Moisson (Ocre)
 
@@ -82,7 +82,7 @@ Seuls les monstres marqués comme "Disponibles à l'échange" sur Metamob appara
         slug: 'missions',
         title: 'Missions & Objectifs',
         category: 'Guides Utilisateurs',
-        accessLevel: 'MEMBER' as any,
+        accessLevel: 'MEMBER',
         content: `
 # Les Missions de Guilde
 
@@ -108,7 +108,7 @@ L'**Intelligence Artificielle de SigilOS** (OCR) analysera automatiquement votre
         slug: 'admin-governance',
         title: 'Guide de l\'Administrateur',
         category: 'Spécifications Techniques',
-        accessLevel: 'ADMIN' as any,
+        accessLevel: 'ADMIN',
         content: `
 # Gouvernance & Administration
 

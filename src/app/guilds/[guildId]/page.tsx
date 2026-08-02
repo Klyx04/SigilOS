@@ -35,10 +35,20 @@ export async function generateMetadata({ params }: Props) {
         return {
             title: `${basicInfo.name} (Privé) | SigilOS`,
             description: "Cette guilde est privée.",
+            robots: {
+                index: false,
+                follow: false,
+            },
         };
     }
 
-    return { title: "Guilde non trouvée | SigilOS" };
+    return {
+        title: "Guilde non trouvée | SigilOS",
+        robots: {
+            index: false,
+            follow: false,
+        },
+    };
 }
 
 export default async function GuildPresentationPage({ params }: Props) {
@@ -66,8 +76,35 @@ export default async function GuildPresentationPage({ params }: Props) {
 
     const baseUrl = getAppBaseUrl();
     const jsonLd: any[] = [
-        // ... (rest of jsonLd)
-    ];
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": guild.name,
+            "url": `${baseUrl}/guilds/${guildId}`,
+            "description": guild.history?.slice(0, 200) || `Guilde Dofus ${guild.server}`,
+            ...(guild.iconUrl ? { "logo": guild.iconUrl } : {}),
+            "sameAs": guild.discord ? [guild.discord] : [],
+            "foundingDate": guild.foundedDate ?? undefined,
+            "memberCount": guild.memberCount ?? undefined,
+            "areaServed": guild.server ?? undefined,
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": "Accueil", "item": baseUrl },
+                { "@type": "ListItem", "position": 2, "name": "Annuaire", "item": `${baseUrl}/guilds` },
+                { "@type": "ListItem", "position": 3, "name": guild.name, "item": `${baseUrl}/guilds/${guildId}` },
+            ],
+        },
+    ].filter((obj: any) => {
+        // Remove undefined values to keep the JSON-LD clean/valid
+        Object.keys(obj).forEach((key) => {
+            if (obj[key] === undefined) delete obj[key];
+            if (Array.isArray(obj[key]) && obj[key].length === 0) delete obj[key];
+        });
+        return Object.keys(obj).length > 0;
+    });
 
     // [AUDIT 2026] Retrieve nonce for inline scripts
     const headersList = await headers();

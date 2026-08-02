@@ -15,7 +15,7 @@ export type DocPageData = {
     category: string;
     order: number;
     isPublished: boolean;
-    accessLevel: "PUBLIC" | "ADMIN";
+    accessLevel: "PUBLIC" | "MEMBER" | "ADMIN";
     guildId?: string | null;
     updatedAt: string;
     createdAt: string;
@@ -28,7 +28,7 @@ export type CreateDocInput = {
     category: string;
     order?: number;
     isPublished?: boolean;
-    accessLevel?: "PUBLIC" | "ADMIN";
+    accessLevel?: "PUBLIC" | "MEMBER" | "ADMIN";
     guildId?: string | null;
 };
 
@@ -52,6 +52,11 @@ export async function getDocBySlug(slug: string, guildId?: string): Promise<DocP
 
             // Priority 2: Delegated Admin Access (Guild Admins or specialized roles)
             if (!ctx.canViewAdminDocs) return null;
+        }
+
+        // RBAC Check (Member pages) : exige une connexion authentifiée
+        if ((doc as any).accessLevel === "MEMBER") {
+            if (!ctx.isAuthenticated) return null;
         }
 
         // Guild Isolation Check
@@ -84,13 +89,15 @@ export async function getAllDocs(guildId?: string): Promise<Omit<DocPageData, "c
         // 🛡️ Build structural WHERE clause
         const where: any = { isPublished: true };
 
-        // 1. RBAC Check: Members only see PUBLIC docs unless they have admin view right
+        // 1. RBAC Check: publics see PUBLIC ; members see PUBLIC + MEMBER ;
+        //    admins/superadmins see all
         if (!ctx.canViewAdminDocs) {
             // Check if Super Admin (God mode)
             const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
             const isGod = await isSuperAdmin();
             if (!isGod) {
-                where.accessLevel = "PUBLIC";
+                // Membres connectés : PUBLIC + MEMBER ; visiteurs non connectés : PUBLIC
+                where.accessLevel = ctx.isAuthenticated ? { in: ["PUBLIC", "MEMBER"] } : "PUBLIC";
             }
         }
 

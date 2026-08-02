@@ -137,9 +137,24 @@
         }
 
         .logo {
-            font-size: 48px;
-            margin-bottom: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 88px;
+            height: 88px;
+            margin: 0 auto 16px;
+            border-radius: 22px;
+            background: rgba(20, 184, 166, 0.06);
+            border: 1px solid rgba(20, 184, 166, 0.15);
+            overflow: hidden;
             animation: pulse-glow 3s ease-in-out infinite;
+        }
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            padding: 10px;
         }
 
         @keyframes pulse-glow {
@@ -366,7 +381,9 @@
     <div class="sigil"></div>
 
     <div class="card">
-        <div class="logo">🌀</div>
+        <div class="logo">
+            <img src="/assets/ui/logo-v2.png" alt="SigilOS" width="80" height="80" />
+        </div>
         <h1>Le cockpit de votre guilde Dofus.</h1>
         <div class="subtitle">Missions · Raids · Songes Infinis · Bot Discord</div>
         <div class="divider"></div>

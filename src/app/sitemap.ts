@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
 import { db } from "@/lib/prisma";
+import { publishedGuides } from "@/content/guides";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
@@ -9,6 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const staticRoutes: MetadataRoute.Sitemap = [
         { url: `${baseUrl}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
         { url: `${baseUrl}/guilds`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+        { url: `${baseUrl}/guides`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
         { url: `${baseUrl}/changelog`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
         { url: `${baseUrl}/status`, lastModified: now, changeFrequency: "daily", priority: 0.3 },
         { url: `${baseUrl}/legal/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
@@ -37,6 +39,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         routes.push(...guildRoutes);
     } catch (error) {
         console.error("[Sitemap] Error fetching public guilds:", error);
+    }
+
+    // Guides publiés : dérivés automatiquement du registre unique. Les drafts
+    // sont exclus par publishedGuides, et lastModified utilise la date explicite
+    // du guide plutôt qu'un `now` dynamique.
+    for (const guide of publishedGuides) {
+        routes.push({
+            url: `${baseUrl}/guides/${guide.slug}`,
+            lastModified: new Date(guide.updatedAt),
+            changeFrequency: "monthly",
+            priority: 0.5,
+        });
     }
 
     return routes;

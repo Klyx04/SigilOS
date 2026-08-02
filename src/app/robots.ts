@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
     return {
         rules: {
             userAgent: '*',
-            allow: isProd ? ['/', '/changelog', '/guilds', '/legal/', '/status'] : [],
+            allow: isProd ? ['/', '/changelog', '/guilds', '/guides', '/legal/', '/status'] : [],
             disallow: isProd
                 ? ['/dashboard/', '/api/', '/god/', '/docs/', '/_next/', '/onboarding/', '/test-route/'] // Hide sensitive, internal, or auth-gated routes
                 : '/', // Full block for search engines on non-prod

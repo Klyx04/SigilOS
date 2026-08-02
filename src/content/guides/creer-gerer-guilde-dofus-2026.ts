@@ -5,7 +5,7 @@ export const guide = {
         "Les mécaniques de guilde après les mises à jour 3.4 et 3.6 : création, recrutement, rangs, hall, progression, dons et raids de guilde.",
     publishedAt: "2026-08-02",
     updatedAt: "2026-08-02",
-    draft: true,
+    draft: false,
     body: `
         <p>
             Depuis les mises à jour 3.4 et 3.6, la guilde s'est débarrassée des anciens

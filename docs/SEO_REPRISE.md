@@ -119,6 +119,38 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
 - Garder les 2 domaines indexés en même temps (dilution / duplicate content).
 - Supprimer sigilos.fr (c'est le domaine de marque final).
 
+### 📋 CHECKLIST COMPLÈTE — À EXÉCUTER LE JOUR DE L'OUVERTURE PROD
+> Quand `main` est prêt à fusionner et que l'app tourne sur sigilos.fr :
+>
+> **1. Préparation code (AVANT le déploiement)**
+> - [ ] `src/app/robots.ts` : remettre la beta en `Disallow: /` (staging) et sigilos.fr indexable.
+>   (Aujourd'hui `isIndexable` couvre les 2 ; on revient à `isIndexable = baseUrl === 'https://sigilos.fr'`)
+> - [ ] Vérifier que le `sitemap.ts` de sigilos.fr utilise `getAppBaseUrl()` (déjà fait) → URLs sigilos.fr correctes.
+> - [ ] Revoir le fallback `getAppBaseUrl` : en prod, `NEXT_PUBLIC_APP_URL=https://sigilos.fr` dans `.env.prod`.
+> - [ ] Les zones privées sont déjà bloquées par robots (dashboard/api/god/docs) — à confirmer sur sigilos.fr.
+>
+> **2. Déploiement**
+> - [ ] Fusionner `main` (les ~800 commits de dev + tests + migrations)
+> - [ ] `deploy.sh prod` (build + démarrage de sigilos.fr avec la vraie app)
+> - [ ] Caddy : retirer le bloc `rewrite * /maintenance.html` du bloc `sigilos.fr` + rediriger proprement
+> - [ ] `sync-assets.sh prod` pour pousser `public/game-data/` sur la prod
+>
+> **3. Post-déploiement**
+> - [ ] `curl -sS https://sigilos.fr/robots.txt` → doit montrer `Allow: /` + pas de `Disallow: /` sur sigilos.fr
+> - [ ] `curl -sI https://sigilos.fr/sitemap.xml` → 200 + `application/xml`
+> - [ ] Google Search Console **sigilos.fr** : (re)soumettre `/sitemap.xml` (sitemap retiré depuis la page vitrine)
+> - [ ] GSC beta : **retirer** le sitemap beta (ou le laisser, mais la beta sera noindexée donc sans valeur)
+> - [ ] Rediriger la beta vers sigilos.fr ? (optionnel) OU la garder en staging noindexée
+>
+> **4. Anti-duplicate-content**
+> - [ ] La **beta re-noindexée** (robots.ts `Disallow: /`) → Google ne l'explore plus
+> - [ ] Assurer les canonical sur sigilos.fr (déjà via metadata alternates)
+> - [ ] Si besoin : 301 de beta → sigilos.fr pour conserver les liens accumulés sur la beta
+>
+> **5. Vérifs SEO finales**
+> - [ ] Le guide `/guides/creer-gerer-guilde-dofus-2026` indexé sur sigilos.fr (pas seulement beta)
+> - [ ] L'indexation Google de la beta se désindexe progressivement (noindex + suppression éventuelle en GSC)
+
 ---
 
 ## 🗓️ Sources / fichiers clés

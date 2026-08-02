@@ -59,6 +59,21 @@ DÉJÀ FAIT le 03/08 (fix technique sitemap beta) — branche fix/sitemap-base-u
 - À vérifier au prochain déploiement : curl -sI https://beta.sigilos.fr/sitemap.xml
   (doit renvoyer 200 + text/xml) AVANT de resoumettre dans GSC.
 
+DÉJÀ FAIT le 03/08 (fix robots.txt beta — cause racine de l'erreur GSC) :
+- RACINE du problème GSC "Impossible de lire le sitemap" : robots.ts servait
+  Disallow:/ sur la beta (isProd ne matchait QUE sigilos.fr)
+- Fix : isIndexable = sigilos.fr || beta.sigilos.fr → beta.indexable (Allow:/)
+  + mêmes zones privées bloquées (dashboard/api/god/docs/_next/onboarding/test-route)
+- Commit 3601e96e (branche fix/robots-beta-indexable) + doc checklist prod 7eeea94c
+- DÉPLOYÉ + VÉRIFIÉ : robots.txt beta = Allow:/ (plus de Disallow:/),
+  sitemap.xml = 200 + application/xml + accessible en Googlebot,
+  guide present dans le sitemap
+- PROCHAINE ÉTAPE côté GSC : resoumettre /sitemap.xml sur la propriete
+  https://beta.sigilos.fr (une seule fois, attendre 24-72h)
+- Branches obsolètes nettoyees sur GitHub (7 fusionnees supprimees)
+- Note mineure : le sitemap envoie des cookies Auth.js (set-cookie) — benin,
+  mais propre d'exclure /sitemap.xml des routes middleware un jour (non urgent)
+
 PENDING DÉCISION (le vrai levier Google, en attente) :
 - Recommandation IA browsante attendue : guide unique vs hub de ~20 sujets
   (brief soumis à l'IA le 02/08 soir — voir conversation Cline)

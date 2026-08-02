@@ -1,9 +1,12 @@
 import { MetadataRoute } from "next";
 import { db } from "@/lib/prisma";
 import { publishedGuides } from "@/content/guides";
+import { getAppBaseUrl } from "@/lib/utils";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    // Base URL résolue selon l'environnement (beta.sigilos.fr sur dev, sigilos.fr en prod)
+    // — cohérent avec robots.ts et toutes les métadonnées via getAppBaseUrl().
+    const baseUrl = getAppBaseUrl();
     const now = new Date();
 
     // 1. Static public routes (indexable, 200, pas de zone privée ni 404)

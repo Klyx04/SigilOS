@@ -25,7 +25,7 @@ export function JsonLd({
             id={id}
             type="application/ld+json"
             nonce={nonce}
-            // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml
+            // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
             dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
         />
     );

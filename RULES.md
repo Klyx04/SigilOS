@@ -161,6 +161,9 @@ logger.info('User authenticated', {
 - [ ] All new actions have auth checks
 - [ ] Sensitive routes have permission guards
 - [ ] No `console.log` in production code (use `logger` from `@/lib/logger`)
+- [ ] ⚠️ Drafts publics : `noindex`/`nofollow` ≠ contrôle d'accès. Le `noindex` empêche l'indexation mais **ne rend pas une URL privée** (toute personne connaissant l'URL peut lire le contenu). Ne jamais utiliser de draft `noindex` seul pour du contenu sensible, non annoncé, des données de guilde/utilisateurs, de la roadmap, des fonctionnalités non publiques ou de l'administratif. Pour ces contenus : auth de preview, Basic Auth Caddy, ou test strictement local.
+  - ✅ Acceptable : drafts de guides de contenu public non sensible, pour relecture temporaire.
+  - ❌ Interdit : tout autre usage de draft `noindex` comme protection d'accès.
 
 ---
 

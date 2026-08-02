@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
-import Script from "next/script";
+import { JsonLd } from "@/components/shared/json-ld";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { PublicHeader } from "@/components/layout/public-header";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
@@ -66,34 +66,31 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
             <main className="flex-1 pt-32 pb-16 relative z-10">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6">
-                    <Script
+                    <JsonLd
                         id="json-ld-guide-article"
-                        type="application/ld+json"
                         nonce={nonce}
-                        dangerouslySetInnerHTML={{
-                            __html: JSON.stringify([
-                                {
-                                    "@context": "https://schema.org",
-                                    "@type": "BreadcrumbList",
-                                    "itemListElement": [
-                                        { "@type": "ListItem", "position": 1, "name": "Accueil", "item": getAppBaseUrl() },
-                                        { "@type": "ListItem", "position": 2, "name": "Guides", "item": `${getAppBaseUrl()}/guides` },
-                                        { "@type": "ListItem", "position": 3, "name": meta.title, "item": `${getAppBaseUrl()}/guides/${meta.slug}` },
-                                    ],
-                                },
-                                {
-                                    "@context": "https://schema.org",
-                                    "@type": "Article",
-                                    "headline": meta.title,
-                                    "description": meta.description,
-                                    "datePublished": new Date(meta.publishedAt).toISOString(),
-                                    "dateModified": new Date(meta.updatedAt).toISOString(),
-                                    "author": { "@type": "Organization", "name": "SigilOS", "url": getAppBaseUrl() },
-                                    "publisher": { "@type": "Organization", "name": "SigilOS", "url": getAppBaseUrl() },
-                                    "inLanguage": "fr-FR",
-                                },
-                            ]),
-                        }}
+                        data={[
+                            {
+                                "@context": "https://schema.org",
+                                "@type": "BreadcrumbList",
+                                "itemListElement": [
+                                    { "@type": "ListItem", "position": 1, "name": "Accueil", "item": getAppBaseUrl() },
+                                    { "@type": "ListItem", "position": 2, "name": "Guides", "item": `${getAppBaseUrl()}/guides` },
+                                    { "@type": "ListItem", "position": 3, "name": meta.title, "item": `${getAppBaseUrl()}/guides/${meta.slug}` },
+                                ],
+                            },
+                            {
+                                "@context": "https://schema.org",
+                                "@type": "Article",
+                                "headline": meta.title,
+                                "description": meta.description,
+                                "datePublished": new Date(meta.publishedAt).toISOString(),
+                                "dateModified": new Date(meta.updatedAt).toISOString(),
+                                "author": { "@type": "Organization", "name": "SigilOS", "url": getAppBaseUrl() },
+                                "publisher": { "@type": "Organization", "name": "SigilOS", "url": getAppBaseUrl() },
+                                "inLanguage": "fr-FR",
+                            },
+                        ]}
                     />
 
                     <div className="mb-6">

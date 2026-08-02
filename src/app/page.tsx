@@ -10,7 +10,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accélère le chargement & la performance SEO
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -68,6 +68,13 @@ export default async function Home({
         <PublicHeader user={session?.user} variant="hero" isMember={userContext.isMember} />
 
         <main className="flex-1 w-full relative z-10 flex flex-col">
+
+          {/* H1 SSR statique pour le SEO (le H1 client animé est masqué via aria-hidden dans HeroSection) */}
+          <h1 className="sr-only">
+            {session?.user
+              ? "Prenez les commandes de votre empire Dofus"
+              : "L'outil de gestion n°1 pour votre guilde Dofus"}
+          </h1>
 
           {/* Hero */}
           <HeroSection user={session?.user} userGuilds={userGuilds} />

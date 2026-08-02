@@ -48,6 +48,17 @@ DÉJÀ FAIT le 02/08 SOIR (session en cours — à committer via PR vers dev) :
     + "Connexion Discord requise. Accès réservé aux membres d'une guilde déjà activée sur SigilOS."
 - Typecheck OK (tsc --noEmit)
 
+DÉJÀ FAIT le 03/08 (fix technique sitemap beta) — branche fix/sitemap-base-url (1d88d4a8) :
+- Cause GSC "Impossible de récupérer le sitemap" sur beta : sitemap.ts utilisait
+  NEXT_PUBLIC_APP_URL || "https://sigilos.fr" → si l'env manquait, URLs vers sigilos.fr
+- Fix : sitemap.ts utilise getAppBaseUrl() (cohérent avec robots.ts + metadata)
+  → la base est résolue selon l'environnement (beta.sigilos.fr sur dev)
+- NB : le .env.beta a déjà NEXT_PUBLIC_APP_URL=https://beta.sigilos.fr (correct).
+  Le fix reste utile en robustesse. La vraie cause GSC était probablement la beta
+  en maintenance (réponse HTML au lieu de XML) ou une DB indispo au crawl.
+- À vérifier au prochain déploiement : curl -sI https://beta.sigilos.fr/sitemap.xml
+  (doit renvoyer 200 + text/xml) AVANT de resoumettre dans GSC.
+
 PENDING DÉCISION (le vrai levier Google, en attente) :
 - Recommandation IA browsante attendue : guide unique vs hub de ~20 sujets
   (brief soumis à l'IA le 02/08 soir — voir conversation Cline)
@@ -76,6 +87,37 @@ QUESTION : quel est le plan précis pour cette session ? (attente retour IA → 
 
 - Le **socle SEO est dans `dev`** → restera **actif sur la beta** à chaque reprise.
 - `main` (prod) est très en retard ; **ne pas fusionner tant que sigilos.fr n'est pas prêt** à ouvrir.
+
+---
+
+## 🧭 STRATÉGIE DES 2 DOMAINES (à relire si perte de repères)
+
+> **Règle d'or : ne jamais indexer les DEUX domaines avec le même contenu** → risque de
+> duplicate content et de dilution du ranking. Un seul domaine porte le SEO à la fois.
+
+| Domaine | Rôle réel | Indexation |
+|---|---|---|
+| **beta.sigilos.fr** | La **vraie app** (dev) — guide, annuaire, guildes | ✅ **Domaine SEO ACTIF actuellement** (c'est lui qui travaille) |
+| **sigilos.fr** | Page vitrine statique (attente prod) | ⚠️ Indexable mais **vide de contenu** → ne rapporte rien en organique |
+
+- Le **guide vit sur `beta.sigilos.fr/guides/creer-gerer-guilde-dofus-2026`**, PAS sur sigilos.fr.
+- Il est publié (draft:false), indexable, dans le sitemap de la beta → il SERA indexé une fois
+  le sitemap réparé + resoumis (voir fix sitemap ci-dessus + checklist GSC).
+- **sigilos.fr ne "sert à rien" en SEO tant que c'est une page statique** — son rôle est
+  stratégique : c'est le domaine de marque, prêt à recevoir la vraie app le jour de la prod.
+
+### 🔄 Plan de bascule quand la prod est prête (fusion main)
+1. Fusionner `main` (les ~800 commits en retard + tests + migrations)
+2. Déployer la vraie app sur `sigilos.fr` → il devient LE domaine principal
+3. Le SEO (guide, guildes, sitemap, JSON-LD) migre automatiquement sur sigilos.fr
+   (même code, donc quasi automatique — juste resoumettre le sitemap GSC sur sigilos.fr)
+4. **Noindexer la beta** (robots.ts / noindex) pour ne PAS cannibaliser sigilos.fr
+5. Retirer le rewrite `maintenance.html` du Caddyfile (bloc sigilos.fr)
+
+### ⚠️ À ne PAS faire
+- Ouvrir la prod "à la va-vite" (800 commits = risque de casse majeure).
+- Garder les 2 domaines indexés en même temps (dilution / duplicate content).
+- Supprimer sigilos.fr (c'est le domaine de marque final).
 
 ---
 

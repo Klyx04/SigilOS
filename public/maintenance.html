@@ -1,22 +1,54 @@
 <!DOCTYPE html>
+<!-- ⚠️ PAGE D'ATTENTE PROVISOIRE (sigilos.fr) — avant lancement de la prod.
+     Pour ouvrir la prod : retirer le bloc "rewrite * /maintenance.html"
+     dans le Caddyfile et rediriger sigilos.fr vers l'app Next.js.
+     Cette page est statique et 100% remplaçable. -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SigilOS — Bientôt Disponible</title>
+    <title>SigilOS — Gestion de Guilde Dofus | Bientôt Disponible</title>
+    <meta name="description" content="SigilOS, le système d'exploitation communautaire pour les guildes Dofus : quêtes, Songes Infinis, raids et bot Discord. La plateforme est active en bêta pour les guildes partenaires ; le lancement public arrive bientôt.">
+    <link rel="canonical" href="https://sigilos.fr/">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "SigilOS",
+      "url": "https://sigilos.fr/",
+      "logo": "https://sigilos.fr/assets/ui/logo-v2.png",
+      "description": "Le système d'exploitation communautaire pour les guildes Dofus : quêtes, Songes Infinis, raids et bot Discord.",
+      "sameAs": [
+        "https://beta.sigilos.fr"
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "SigilOS",
+      "url": "https://sigilos.fr/",
+      "description": "Gestion de guilde Dofus : quêtes, Songes Infinis, raids et bot Discord."
+    }
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body { height: 100%; }
 
         body {
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             font-family: 'Inter', sans-serif;
             color: #e2e8f0;
-            overflow: hidden;
+            overflow-x: hidden;
             background: #0a0a0f;
         }
 
@@ -71,7 +103,9 @@
             z-index: 2;
             text-align: center;
             max-width: 560px;
+            width: 90%;
             padding: 48px 40px;
+            margin: 24px;
             background: rgba(15, 17, 24, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 24px;
@@ -156,16 +190,7 @@
 
         .message strong {
             color: #14b8a6;
-            font-weight: 500;
-        }
-
-        .lore {
-            font-size: 0.8rem;
-            font-style: italic;
-            color: rgba(226, 232, 240, 0.3);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding-top: 20px;
-            line-height: 1.6;
+            font-weight: 600;
         }
 
         .status {
@@ -193,6 +218,81 @@
             50% { opacity: 0.3; }
         }
 
+        /* Buttons */
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #14b8a6, #0d9488);
+            color: #062a25;
+            border: 1px solid rgba(20, 184, 166, 0.4);
+            box-shadow: 0 0 25px rgba(20, 184, 166, 0.25);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 35px rgba(20, 184, 166, 0.4);
+        }
+
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.03);
+            color: rgba(245, 158, 11, 0.9);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        .btn-outline:hover {
+            background: rgba(245, 158, 11, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .btn .arrow { transition: transform 0.2s ease; }
+        .btn:hover .arrow { transform: translateX(4px); }
+
+        .lore {
+            font-size: 0.8rem;
+            font-style: italic;
+            color: rgba(226, 232, 240, 0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 20px;
+            line-height: 1.6;
+        }
+
+        /* Footer */
+        .page-footer {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            padding: 20px 24px 32px;
+            font-size: 0.7rem;
+            color: rgba(226, 232, 240, 0.3);
+            line-height: 1.8;
+            width: 100%;
+        }
+        .page-footer a {
+            color: rgba(20, 184, 166, 0.7);
+            text-decoration: none;
+            margin: 0 8px;
+        }
+        .page-footer a:hover { color: #14b8a6; text-decoration: underline; }
+        .page-footer .muted { color: rgba(226, 232, 240, 0.25); }
+
         @media (max-width: 600px) {
             .card { margin: 16px; padding: 32px 24px; }
             h1 { font-size: 1.5rem; }
@@ -208,23 +308,42 @@
     <div class="card">
         <div class="logo">🌀</div>
         <h1>SigilOS</h1>
-        <div class="subtitle">Forgé pour les Guildes</div>
+        <div class="subtitle">Le système d'exploitation des guildes Dofus</div>
         <div class="divider"></div>
 
         <div class="status">
             <span class="dot"></span>
-            Préparation en cours
+            Ouverture prochaine — Beta active pour les guildes partenaires
         </div>
 
         <p class="message">
-            Les <strong>Sigils</strong> sont en cours de calibration.<br>
-            La plateforme sera bientôt accessible aux guildes.
+            Le lancement public <strong>arrive bientôt</strong>.<br>
+            La plateforme est déjà active en <strong>bêta</strong> : quêtes, Songes Infinis,
+            raids et bot Discord, tout est connecté pour votre guilde.
         </p>
+
+        <div class="actions">
+            <a class="btn btn-primary" href="https://beta.sigilos.fr" target="_blank" rel="noopener">
+                Accéder à la bêta <span class="arrow">→</span>
+            </a>
+            <a class="btn btn-outline" href="https://discord.gg/uX7G6SUDgN" target="_blank" rel="noopener">
+                Demander l'accès (chef de guilde)
+            </a>
+        </div>
 
         <p class="lore">
             « Dans l'ombre du Krosmoz, les Sigils furent forgés pour unir les guildes
             au-delà des dimensions. Bientôt, leur lumière guidera les aventuriers. »
         </p>
     </div>
+
+    <footer class="page-footer">
+        <div>
+            <a href="https://beta.sigilos.fr/legal/mentions" target="_blank" rel="noopener">Mentions légales</a>
+            ·
+            <a href="https://beta.sigilos.fr/legal/privacy" target="_blank" rel="noopener">Politique de confidentialité</a>
+        </div>
+        <div class="muted">© SigilOS 2026 · Projet indépendant, non affilié à Ankama Games</div>
+    </footer>
 </body>
 </html>

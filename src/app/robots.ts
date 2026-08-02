@@ -4,13 +4,17 @@ import { getAppBaseUrl } from '@/lib/utils'
 
 export default function robots(): MetadataRoute.Robots {
     const baseUrl = getAppBaseUrl()
-    const isProd = baseUrl === 'https://sigilos.fr'
+    // La beta (https://beta.sigilos.fr) sert actuellement de prod réelle
+    // (guide publié, sitemap soumis, objectif d'indexation).
+    // Elle doit donc être indexable comme sigilos.fr, avec les mêmes zones privées
+    // bloquées. Seuls les environnements locaux/staging non dédiés restent en full-block.
+    const isIndexable = baseUrl === 'https://sigilos.fr' || baseUrl === 'https://beta.sigilos.fr'
 
     return {
         rules: {
             userAgent: '*',
-            allow: isProd ? ['/', '/changelog', '/guilds', '/guides', '/legal/', '/status'] : [],
-            disallow: isProd
+            allow: isIndexable ? ['/', '/changelog', '/guilds', '/guides', '/legal/', '/status'] : [],
+            disallow: isIndexable
                 ? ['/dashboard/', '/api/', '/god/', '/docs/', '/_next/', '/onboarding/', '/test-route/'] // Hide sensitive, internal, or auth-gated routes
                 : '/', // Full block for search engines on non-prod
         },

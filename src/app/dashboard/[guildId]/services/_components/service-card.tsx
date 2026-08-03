@@ -230,7 +230,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, isDis
                 )}
             </div>
 
-            {/* ── Donjon : image + nom ── */}
+            {/* ── Donjon : image + nom (uniquement Passage Donjon) ── */}
             {listing.category === "PASSAGE_DONJON" && listing.dungeonName && (
                 <div className="flex items-center gap-3">
                     {listing.dungeonImageUrl ? (
@@ -246,33 +246,53 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, isDis
                 </div>
             )}
 
-            {/* Quête */}
+            {/* Quête (uniquement Quête) */}
             {listing.category === "QUETE" && listing.questName && (
                 <div className="flex items-center gap-2 text-sm text-violet-300 font-bold">
                     <span>📜</span><span>{listing.questName}</span>
                 </div>
             )}
 
-            {/* Breeder Profession Decorative Banner */}
-            {listing.category === "METIER" && (listing.professions as string[] | null)?.includes("Éleveur") && (
-                <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-2xl">
-                    <div className="flex -space-x-2 shrink-0">
-                        <div className="relative h-9 w-9 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-md">
-                            <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97016-64.png" alt="Dragodinde" fill className="object-contain p-1" />
-                        </div>
-                        <div className="relative h-9 w-9 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-md">
-                            <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97299-64.png" alt="Muldo" fill className="object-contain p-1" />
-                        </div>
-                        <div className="relative h-9 w-9 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-md">
-                            <Image src="https://api.dofusdu.de/dofus3/v1/img/item/97261-64.png" alt="Volkorne" fill className="object-contain p-1" />
+            {/* Breeder Profession Decorative Banner — races réellement sélectionnées (priceTiers) */}
+            {listing.category === "METIER" && (listing.professions as string[] | null)?.includes("Éleveur") && (() => {
+                const tiers = (listing.priceTiers as { label: string; price: string }[] | null) || [];
+                const tierLabels = tiers.map(t => t.label.toLowerCase());
+                const has = (k: string) => tierLabels.some(l => l.includes(k));
+                const hasDragodinde = has("dragodinde");
+                const hasMuldo = has("muldo");
+                const hasVolkorne = has("volkorne");
+                const hasEmeraude = has("émeraude") || has("emeraude");
+                const races = [
+                    { race: "Dragodinde", icon: "https://api.dofusdu.de/dofus3/v1/img/item/97016-64.png", active: hasDragodinde },
+                    { race: "Muldo", icon: "https://api.dofusdu.de/dofus3/v1/img/item/97299-64.png", active: hasMuldo },
+                    { race: "Volkorne", icon: "https://api.dofusdu.de/dofus3/v1/img/item/97261-64.png", active: hasVolkorne },
+                ].filter(r => r.active);
+                const label = races.length > 0
+                    ? races.map(r => r.race).join(", ") + (hasEmeraude ? " (+ Émeraude)" : "")
+                    : "Élevage de Montures";
+                return (
+                    <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 p-2.5 rounded-2xl">
+                        {(races.length > 0 || hasEmeraude) ? (
+                            <div className="flex -space-x-2 shrink-0">
+                                {races.map(r => (
+                                    <div key={r.race} className="relative h-9 w-9 rounded-xl overflow-hidden bg-slate-900 border border-white/10 shadow-md">
+                                        <Image src={r.icon} alt={r.race} fill className="object-contain p-1" />
+                                    </div>
+                                ))}
+                                {hasEmeraude && (
+                                    <div className="relative h-9 w-9 rounded-xl overflow-hidden bg-slate-900 border border-amber-500/30 shadow-md">
+                                        <Image src="https://api.dofusdu.de/dofus3/v1/img/item/23002-64.png" alt="Dofus Émeraude" fill className="object-contain p-1" />
+                                    </div>
+                                )}
+                            </div>
+                        ) : null}
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest leading-none">Éleveur Certifié</p>
+                            <p className="text-xs text-zinc-400 font-bold mt-1 truncate">{label}</p>
                         </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest leading-none">Éleveur Certifié</p>
-                        <p className="text-xs text-zinc-400 font-bold mt-1 truncate">Dragodindes, Muldos & Volkornes</p>
-                    </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* ── Titre ── */}
             <h3 className="text-xl font-black text-white leading-tight tracking-tight group-hover:text-cyan-400 transition-colors duration-300">{listing.title}</h3>
@@ -280,7 +300,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, isDis
             {/* ── Description ── */}
             {listing.description && (
                 <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3 italic opacity-80 group-hover:opacity-100 transition-opacity">
-                    &quot;{listing.description}&quot;
+                    "{listing.description}"
                 </p>
             )}
 

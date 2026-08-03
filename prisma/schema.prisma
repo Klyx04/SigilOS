@@ -221,6 +221,7 @@ model GuildConfig {
   djNotifyChannelId                String?
   servicesNotifyChannelId          String?
   loansNotifyChannelId             String?
+  vaultNotifyChannelId             String?
   systemNotifyChannelId            String?
   lifecycleNotifyChannelId         String?
   welcomeEnabled                   Boolean                 @default(false)

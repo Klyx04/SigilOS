@@ -173,10 +173,10 @@ interface ServiceCardProps {
     guildId: string;
     currentProfileId?: string;
     isAdmin?: boolean;
-    isDiscordConfigured?: boolean;
+    servicesDiscordConfigured?: boolean;
 }
 
-export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, isDiscordConfigured = false }: ServiceCardProps) {
+export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, servicesDiscordConfigured = false }: ServiceCardProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const isOwner = listing.profileId === currentProfileId;
@@ -489,7 +489,7 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, isDis
                     </div>
                 ) : (
                     <div className="flex items-center gap-2">
-                        <ServiceContactDialog listing={listing} guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
+                        <ServiceContactDialog listing={listing} guildId={guildId} isDiscordConfigured={servicesDiscordConfigured} />
                         {isAdmin && (
                             <Button size="icon" variant="ghost" onClick={handleDelete} disabled={loading} className="h-9 w-9 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-all">
                                 <Trash2 className="h-4 w-4" />

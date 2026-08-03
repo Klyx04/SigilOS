@@ -5,7 +5,7 @@ import { getUserContext, type ActionResponse } from "./user-actions";
 import { logServiceActivity } from "./activity-log-actions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { LoanType, LoanStatus } from "@prisma/client";
+import { LoanType, LoanStatus, NotificationType, NotificationCategory } from "@prisma/client";
 import { sendChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
 import { unlink } from "fs/promises";
 import { existsSync } from "fs";
@@ -26,6 +26,7 @@ async function getDiscordId(userId: string): Promise<string | null> {
 import { LOAN_TYPE_LABELS, LOAN_STATUS_LABELS } from "./services-constants";
 import { hashImage } from "@/lib/llm-ocr";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
+import { createNotification } from "./notification-actions";
 
 const profileSelect = {
     id: true,
@@ -257,6 +258,23 @@ export async function createLoan(
             details: JSON.stringify({ type: parsed.data.type, amount: parsed.data.amount, borrowerId: parsed.data.borrowerProfileId }),
             metadata: proofUrl ? JSON.stringify({ proofUrl }) : undefined,
         });
+
+        // ── Notification dashboard à l'emprunteur (toujours, même sans toggle Discord) ──
+        try {
+            if (borrowerProfile?.userId) {
+                await createNotification(
+                    borrowerProfile.userId,
+                    NotificationType.SYSTEM_INFO,
+                    "💳 Nouveau prêt à rembourser",
+                    `${lenderName} t'a accordé un prêt : ${parsed.data.description}${parsed.data.dueDate ? ` (à rendre avant le ${new Date(parsed.data.dueDate).toLocaleDateString("fr-FR")})` : ""}`,
+                    `/dashboard/${guildId}/services?tab=prets`,
+                    guildId,
+                    NotificationCategory.SYSTEM
+                );
+            }
+        } catch (notifErr) {
+            console.error("[createLoan] Dashboard notification failed:", notifErr);
+        }
 
         // ── Discord Embed ──────────────────────────────────────────────────────
         if (parsed.data.notifyDiscord) {

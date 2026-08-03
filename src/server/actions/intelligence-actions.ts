@@ -102,10 +102,14 @@ export async function getDashboardFocus(
             if (upcomingEvents.length > 0) {
                 const event = upcomingEvents[0];
                 const isRaid = event.type === "RAID_OFFICIAL";
+                // Use relative time (locale-independent) — never format absolute dates server-side
+                const { formatDistanceToNow } = await import("date-fns");
+                const { fr } = await import("date-fns/locale");
+                const rel = formatDistanceToNow(new Date(event.startDate), { locale: fr, addSuffix: false });
                 cards.push({
                     type: isRaid ? "SONGES_RECRUIT" : "WELCOME", // Reuses styling indicators
                     title: isRaid ? "🔥 RAID EN COURS / IMMINENT" : "🎉 ÉVÉNEMENT MAJEUR",
-                    description: `Rejoignez "${event.title}" prévu le ${event.startDate.toLocaleDateString("fr-FR")} à ${event.startDate.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}.`,
+                    description: `Rejoignez "${event.title}" prévu dans ${rel} .`,
                     actionLabel: "S'inscrire / Rejoindre",
                     actionHref: `/dashboard/${guildId}/calendar?event=${event.id}`,
                     priority: 95 // Highest priority to put it at the very top of the Dashboard Focus Hero

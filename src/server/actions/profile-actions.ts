@@ -1558,20 +1558,22 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
         const profileSlug = encodeURIComponent(profile.pseudoDofus || profileId);
         const profileUrl = `${appUrl}/dashboard/${guildId}/members/${profileSlug}`;
 
-        // Format dates
-        const formatDate = (dateStr: string | null) => {
-            if (!dateStr) return "Pas de date prévue";
+        // Format dates — Discord dynamic timestamps <t:...> (each viewer sees their own timezone)
+        const dateTs = (dateStr: string | null): string | null => {
+            if (!dateStr) return null;
             const date = new Date(dateStr);
-            return date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+            return isNaN(date.getTime()) ? null : String(Math.floor(date.getTime() / 1000));
         };
+        const startTs = dateTs(startDate);
+        const endTs = dateTs(endDate);
 
         const embed: any = {
             title: "🏝️ Notification d'absence",
             description: `[${securedPseudo}](${profileUrl}) sera absent(e).`,
             color: 0x06b6d4, // Cyan
             fields: [
-                { name: "📅 Début", value: formatDate(startDate), inline: true },
-                { name: "📅 Retour", value: formatDate(endDate), inline: true },
+                { name: "📅 Début", value: startTs ? `<t:${startTs}:F>` : "Pas de date prévue", inline: true },
+                { name: "📅 Retour", value: endTs ? `<t:${endTs}:F>` : "Pas de date prévue", inline: true },
             ],
             footer: { text: "SigilOS • Anti-Spam (1min) • Tout abus sera sanctionné" },
             timestamp: new Date().toISOString(),

@@ -7,6 +7,41 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# ===========================================================================
+# 💓 HEALTHCHECKS SHARED (used by deploy.sh --wait)
+# ===========================================================================
+x-healthchecks:
+  app-healthcheck: &app-healthcheck
+    test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  worker-healthcheck: &worker-healthcheck
+    test: ["CMD-SHELL", "pgrep -f 'worker.js' || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+  ws-healthcheck: &ws-healthcheck
+    test: ["CMD-SHELL", "pgrep -f 'ws-server.js' || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+  db-healthcheck: &db-healthcheck
+    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  bot-healthcheck: &bot-healthcheck
+    test: ["CMD-SHELL", "pgrep -f 'discord' || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+
 services:
   # ===========================================================================
   # 🔴 PRODUCTION ENVIRONMENT
@@ -39,6 +74,7 @@ services:
       - uploads-prod-data:/app/private_uploads # ✅ Persist private uploads
       - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
+    healthcheck: *app-healthcheck
 
   worker-prod:
     container_name: sigilos-worker-prod
@@ -65,6 +101,7 @@ services:
           cpus: '0.5'
           memory: 512M
     logging: *default-logging
+    healthcheck: *worker-healthcheck
 
   ws-prod:
     container_name: sigilos-ws-prod
@@ -86,6 +123,7 @@ services:
           cpus: '0.5'
           memory: 512M
     logging: *default-logging
+    healthcheck: *ws-healthcheck
 
   db-prod:
     image: postgres:15-alpine
@@ -102,6 +140,7 @@ services:
           cpus: '1.0'
           memory: 1G
     logging: *default-logging
+    healthcheck: *db-healthcheck
 
   discord-bot-prod:
     container_name: sigilos-discord-bot-prod
@@ -123,6 +162,7 @@ services:
           cpus: '0.3'
           memory: 256M
     logging: *default-logging
+    healthcheck: *bot-healthcheck
 
   # ===========================================================================
   # 🟡 BETA ENVIRONMENT
@@ -155,6 +195,7 @@ services:
       - uploads-beta-data:/app/private_uploads # ✅ Persist private uploads
       - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data # ✅ Game assets (bind mount — updated by sync-assets.sh)
     logging: *default-logging
+    healthcheck: *app-healthcheck
 
   worker-beta:
     container_name: sigilos-worker-beta
@@ -181,6 +222,7 @@ services:
           cpus: '0.5'
           memory: 512M
     logging: *default-logging
+    healthcheck: *worker-healthcheck
 
   ws-beta:
     container_name: sigilos-ws-beta
@@ -202,6 +244,7 @@ services:
           cpus: '0.5'
           memory: 512M
     logging: *default-logging
+    healthcheck: *ws-healthcheck
 
   db-beta:
     image: postgres:15-alpine
@@ -218,6 +261,7 @@ services:
           cpus: '1.0'
           memory: 1G
     logging: *default-logging
+    healthcheck: *db-healthcheck
 
   discord-bot-beta:
     container_name: sigilos-discord-bot-beta
@@ -243,6 +287,7 @@ services:
           cpus: '0.3'
           memory: 256M
     logging: *default-logging
+    healthcheck: *bot-healthcheck
 
   # ===========================================================================
   # 🌐 ROUTING

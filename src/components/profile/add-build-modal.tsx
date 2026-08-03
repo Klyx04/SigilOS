@@ -54,7 +54,7 @@ const TAG_CATEGORIES = [
     },
     {
         name: "Usage",
-        ids: ["songes", "leveling"]
+        ids: ["songes", "leveling", "koli1v1", "koli2v2", "koli3v3", "perco"]
     }
 ];
 
@@ -165,7 +165,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                 )}
             </DialogTrigger>
 
-            <DialogContent className="bg-zinc-950 border-zinc-800/60 text-zinc-200 sm:max-w-lg p-0 gap-0 overflow-hidden">
+            <DialogContent className="bg-zinc-900 border-zinc-700/70 text-zinc-100 sm:max-w-lg p-0 gap-0 overflow-hidden">
                 {/* Header */}
                 <DialogHeader className="p-6 pb-4 border-b border-white/5">
                     <DialogTitle className="text-lg font-black uppercase tracking-tight">
@@ -179,23 +179,23 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 <div className={cn(
                                     "flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-black transition-all duration-300 border shrink-0",
                                     i < step
-                                        ? "bg-emerald-500 border-emerald-400 text-white"
+                                        ? "bg-emerald-500 border-emerald-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]"
                                         : i === step
-                                            ? "bg-zinc-800 border-white/30 text-white"
-                                            : "bg-zinc-900 border-white/5 text-zinc-600"
+                                            ? "bg-emerald-500/20 border-emerald-400/60 text-emerald-200 ring-2 ring-emerald-500/40"
+                                            : "bg-zinc-800 border-white/20 text-zinc-300"
                                 )}>
                                     {i < step ? <Check className="w-3 h-3" /> : i + 1}
                                 </div>
                                 <span className={cn(
                                     "text-[10px] font-bold uppercase tracking-wider hidden sm:inline transition-colors",
-                                    i === step ? "text-white" : "text-zinc-600"
+                                    i === step ? "text-white" : "text-zinc-400"
                                 )}>
                                     {s.label}
                                 </span>
                                 {i < STEPS.length - 1 && (
                                     <div className={cn(
                                         "flex-1 h-px transition-all duration-500",
-                                        i < step ? "bg-emerald-500/50" : "bg-white/5"
+                                        i < step ? "bg-emerald-500/60" : "bg-white/15"
                                     )} />
                                 )}
                             </div>
@@ -210,8 +210,8 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                     {step === 0 && (
                         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                             <div>
-                                <Label htmlFor="build-name" className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2 block">
-                                    Nom du build <span className="text-zinc-600 font-normal">(max 30 caractères)</span>
+                                <Label htmlFor="build-name" className="text-xs font-black uppercase tracking-widest text-zinc-300 mb-2 block">
+                                    Nom du build <span className="text-zinc-400 font-normal">(max 30 caractères)</span>
                                 </Label>
                                 <Input
                                     id="build-name"
@@ -226,7 +226,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                 <div className="flex justify-end mt-1.5">
                                     <span className={cn(
                                         "text-[10px] font-bold tabular-nums transition-colors",
-                                        name.length >= 28 ? "text-amber-400" : "text-zinc-600"
+                                        name.length >= 28 ? "text-amber-400" : "text-zinc-400"
                                     )}>
                                         {name.length}/30
                                     </span>
@@ -245,7 +245,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                     {step === 1 && (
                         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                             <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                                <Label htmlFor="build-url" className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-2 block">
+                                <Label htmlFor="build-url" className="text-xs font-black uppercase tracking-widest text-zinc-300 mb-2 block">
                                     Lien de partage DofusBook
                                 </Label>
                                 <div className="relative">
@@ -291,8 +291,8 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                     {step === 2 && (
                         <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                             <div className="flex items-center justify-between">
-                                <Label className="text-xs font-black uppercase tracking-widest text-zinc-400">
-                                    Tags <span className="text-zinc-600 font-normal">(optionnel, max 3)</span>
+                                <Label className="text-xs font-black uppercase tracking-widest text-zinc-300">
+                                    Tags <span className="text-zinc-400 font-normal">(optionnel, max 3)</span>
                                 </Label>
                                 {tags.length > 0 && (
                                     <button
@@ -334,7 +334,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
 
                                     return (
                                         <div key={cat.name}>
-                                            <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-2">{cat.name}</h4>
+                                            <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-300 mb-2">{cat.name}</h4>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {filteredIds.map(tagId => {
                                                     const tag = DO_TAGS.find(t => t.id === tagId)!;
@@ -400,10 +400,10 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                     {step === 3 && (
                         <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                             <div>
-                                <Label className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-1 block">
-                                    Classe du personnage <span className="text-zinc-600 font-normal">(recommandé)</span>
+                                <Label className="text-xs font-black uppercase tracking-widest text-zinc-300 mb-1 block">
+                                    Classe du personnage <span className="text-zinc-400 font-normal">(recommandé)</span>
                                 </Label>
-                                <p className="text-[10px] text-zinc-600 mb-3">
+                                <p className="text-[10px] text-zinc-400 mb-3">
                                     Sélectionnez la classe pour une belle preview, même si DofusBook est lent.
                                 </p>
 
@@ -467,7 +467,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                             {DOFUS_CLASSES.find(c => c.id === (hoveredClassId || classId))?.name}
                                         </span>
                                     ) : (
-                                        <span className="text-[10px] font-medium text-zinc-600 italic">
+                                        <span className="text-[10px] font-medium text-zinc-400 italic">
                                             Survolez pour voir le nom de la classe
                                         </span>
                                     )}

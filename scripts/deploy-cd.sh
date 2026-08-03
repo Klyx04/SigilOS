@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================================================================
-# 🚀 SigilOS - Script de Déploiement CI/CD (2026) — v2
+# 🚀 SigilOS - Script de Déploiement CI/CD (2026) — v3
 # =============================================================================
 # Usage:
 #   ./scripts/deploy-cd.sh list beta        -> Liste les versions (SHA) dispo
@@ -48,7 +48,16 @@ GHCR_TOKEN="${GHCR_TOKEN:?❌ GHCR_TOKEN non défini. Exportez-le : export GHCR_
 cd "$(dirname "$0")/.."
 
 # -----------------------------------------------------------------------------
-# 📋 ACTION : list — affiche les versions disponibles
+# Récupération du code (NON bloquante)
+# S'il échoue (ex: clé SSH non chargée), on continue quand même — le déploiement
+# CD n'a besoin que des images GHCR déjà prêtes, pas du code source.
+# -----------------------------------------------------------------------------
+echo "Récupération du code source (étape optionnelle, non bloquante)..."
+BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+git pull origin "$BRANCH" >/dev/null 2>&1 || echo "   ⚠️  git pull ignoré (échec) — on continue avec les images GHCR."
+
+# -----------------------------------------------------------------------------
+# ACTION : list — affiche les versions disponibles
 # -----------------------------------------------------------------------------
 if [ "$COMMAND" == "list" ]; then
     TARGET=$2
@@ -56,7 +65,7 @@ if [ "$COMMAND" == "list" ]; then
         echo "Usage: ./scripts/deploy-cd.sh list {beta|prod}"
         exit 1
     fi
-    echo "📋 Versions disponibles pour $TARGET (sur $GHCR_REG) :"
+    echo "Versions disponibles pour $TARGET (sur $GHCR_REG) :"
     echo ""
     for NAME in app worker ws discord-bot; do
         echo "── ${GHCR_REG}/sigilos-${NAME}-${TARGET} ──"
@@ -68,7 +77,47 @@ if [ "$COMMAND" == "list" ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 🔄 ACTION : rollback/deploy — revenir à une version <sha>
+# 🔁 Fonction : seeding conditionnel des données de jeu
+# Ne seed QUE si le hash de game-data.json a changé (ou si SEED_ALWAYS=1).
+# -----------------------------------------------------------------------------
+run_conditional_seed() {
+    local APP_SERVICE=$1
+    local HASH_FILE=".deploy-seed-hash.${TARGET}"
+    local SEED_FILE="prisma/seed-data/game-data.json"
+    local SEED_LOG
+
+    if [ ! -f "$SEED_FILE" ]; then
+        echo "⚠️  $SEED_FILE introuvable — seed ignoré."
+        return
+    fi
+
+    local CURRENT_HASH
+    CURRENT_HASH="$(sha256sum "$SEED_FILE" | awk '{print $1}')"
+    local PREV_HASH=""
+    [ -f "$HASH_FILE" ] && PREV_HASH="$(cat "$HASH_FILE")"
+
+    if [ "$SEED_ALWAYS" == "1" ] || [ "$CURRENT_HASH" != "$PREV_HASH" ]; then
+        echo "🌱 Mise à jour des données de jeu ${TARGET^^} (nouvelles données détectées)..."
+        # On cache le détail (207 lignes) et on n'affiche qu'un résumé,
+        # ou l'erreur complète en cas de problème.
+        SEED_LOG="$(mktemp)"
+        if ! sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod >"$SEED_LOG" 2>&1; then
+            echo "❌ Seeding en échec. Dernières lignes :"
+            tail -40 "$SEED_LOG"
+            rm -f "$SEED_LOG"
+            exit 1
+        fi
+        rm -f "$SEED_LOG"
+        # Résumé du seed : on extirpe le total depuis la sortie
+        echo "✅ Données de jeu synchronisées (voir total ci-dessous)."
+        echo "$CURRENT_HASH" > "$HASH_FILE"
+    else
+        echo "⏭️  Données de jeu inchangées — mise à jour ignorée (gain de temps)."
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# ACTION : rollback/deploy — revenir à une version <sha>
 # -----------------------------------------------------------------------------
 TARGET=$COMMAND
 SHA=${2:-latest}
@@ -76,11 +125,16 @@ SHA=${2:-latest}
 ENV_FILE=".env.prod"
 [ "$TARGET" == "beta" ] && ENV_FILE=".env.beta"
 
-echo "📦 Login GHCR en tant que $GHCR_USER_LOWER..."
+echo ""
+echo "ÉTAPE 1/5 — Connexion au registre GitHub (GHCR)..."
+echo "   (Droit de télécharger les images construites par GitHub.)"
 echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER_LOWER" --password-stdin
 
 # Pull + retag des 4 images pour <sha>
-echo "📥 Pull des images $GHCR_REG (tag: $SHA)..."
+echo ""
+echo "ÉTAPE 2/5 — Téléchargement des versions pré-fabriquées (aucun build)..."
+echo "   Ce sont les images compilées sur GitHub, prêtes à l'emploi."
+echo "   ('up to date' = la version est déjà en cache local.)"
 for NAME in app worker ws discord-bot; do
     IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
     echo "  ↪ ${IMG}:${SHA}"
@@ -94,21 +148,22 @@ for NAME in app worker ws discord-bot; do
 done
 
 echo ""
-echo "🔄 Mise à jour des conteneurs ${TARGET^^} (attente healthcheck)..."
+echo "ÉTAPE 3/5 — Redémarrage des conteneurs (attente que chaque service réponde)..."
 sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-${TARGET} worker-${TARGET} ws-${TARGET} discord-bot-${TARGET}
 
-echo "📂 Migration des fichiers vers Private Storage ${TARGET^^}..."
+echo ""
+echo "ÉTAPE 4/5 — Synchronisation base de données..."
+echo "   Migration des fichiers + application des migrations Prisma."
 sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npm run migrate:uploads
-
-echo "🧹 Synchronisation des migrations ${TARGET^^}..."
 sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npx --yes prisma migrate deploy
 # db push en beta uniquement (itération rapide), jamais en prod
 if [ "$TARGET" == "beta" ]; then
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npx --yes prisma db push
 fi
 
-echo "🌱 Seeding des données de jeu ${TARGET^^}..."
-sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-${TARGET} npm run seed:game-data:prod
+echo ""
+echo "ÉTAPE 5/5 — Données de jeu..."
+run_conditional_seed app-${TARGET}
 
 echo ""
 echo "✅ Déploiement ${TARGET^^} (SHA $SHA) terminé en mode CD !"

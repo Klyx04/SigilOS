@@ -62,7 +62,9 @@ export function MissionPublishFlowDialog({
         if (isOpen) {
             setStep("CONFIRM");
             setIsLoadingRoles(true);
-            getDiscordRolesAction(guildId, { ignoreWhitelist: true }).then(res => {
+            // Apply the admin's ping whitelist (legacy allowedPingRoleIds) — same for
+            // members and admins. (ignoreWhitelist is only used in admin settings panels.)
+            getDiscordRolesAction(guildId, { context: "legacy" }).then(res => {
                 if (res.success && res.roles) setRoles(res.roles);
                 setIsLoadingRoles(false);
             });

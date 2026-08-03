@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createDreamRun } from "@/server/actions/songes/dream-run-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
+import { PingEstimate } from "@/components/shared/ping-estimate";
 import { getStuffGalleryPage, type GalleryBuild } from "@/server/actions/gallery-actions";
 import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, type DifficultyKey, type ObjectiveKey, type EpreuveCode } from "@/lib/songes/types";
 import { useRouter } from "next/navigation";
@@ -819,7 +820,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                             <div className="flex items-center gap-3 truncate">
                                                 {mentionRoleIds.length > 0 ? (
                                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                                        {mentionRoleIds.map(id => {
+                                                        {mentionRoleIds.slice(0, 3).map(id => {
                                                             const role = discordRoles.find(r => r.id === id);
                                                             if (!role) return null;
                                                             const roleColor = role.color === "#000000" ? "#9ca3af" : role.color;
@@ -851,6 +852,11 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                                                 </div>
                                                             );
                                                         })}
+                                                        {mentionRoleIds.length > 3 && (
+                                                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                                +{mentionRoleIds.length - 3} rôles
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
@@ -904,6 +910,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                         </Command>
                                     </PopoverContent>
                                 </Popover>
+                                <PingEstimate guildId={guildId} roleIds={mentionRoleIds} className="ml-1" />
                             </motion.div>
                         )}
                     </div>

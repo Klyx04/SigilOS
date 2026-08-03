@@ -53,6 +53,7 @@ interface PollDetailProps {
         creatorId: string;
         allowMultipleVotes: boolean;
         isAnonymous: boolean;
+        mentionRoleId?: string | null;
         expiresAt: string | null;
         closedAt: string | null;
         createdAt: string;

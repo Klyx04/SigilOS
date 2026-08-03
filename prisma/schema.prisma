@@ -1648,6 +1648,8 @@ model SystemIssue {
   targetSlug   String?   // slug du Dofus ou du guide (ex: "ocre", "rush-sylvestre")
   guildId      String?   // guilde d'origine (isolation multi-tenant)
   userAgent    String?   // device/navigateur pour les bugs techniques
+  memberName   String?   // pseudo Discord (nickname) du membre qui a signalé
+  memberGuildName String? // nom de la guilde du membre (affiché avec tag)
 
   @@index([status])
   @@index([type])

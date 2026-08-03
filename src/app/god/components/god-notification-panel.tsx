@@ -6,6 +6,7 @@ import { fr } from "date-fns/locale";
 import { 
     Bell, 
     CheckCircle2, 
+    CheckCheck,
     XCircle, 
     Clock, 
     ExternalLink, 
@@ -22,7 +23,7 @@ import {
     ArrowUpZA,
     ListFilter
 } from "lucide-react";
-import { markGodNotificationRead } from "@/server/actions/god-notif-actions";
+import { markGodNotificationRead, markAllGodNotificationsRead } from "@/server/actions/god-notif-actions";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,18 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
             });
     }, [notifications, searchTerm, filterType, filterStatus, filterRead, sortOrder]);
 
+    const handleMarkAllRead = () => {
+        startTransition(async () => {
+            const res = await markAllGodNotificationsRead();
+            if (res.success) {
+                setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+                toast.success("Toutes les alertes marquées comme lues.");
+            } else {
+                toast.error("Erreur lors du marquage en lu");
+            }
+        });
+    };
+
     const handleMarkRead = (id: string, e?: React.MouseEvent) => {
         if (e) e.preventDefault(); // Empêcher de trigger le lien
         startTransition(async () => {
@@ -115,6 +128,8 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
 
     const getNotificationLink = (notif: GodNotification) => {
         switch (notif.type) {
+            case "USER_FEEDBACK":
+                return notif.metadata?.ticketId ? `/god/bugs?ticket=SIG-${notif.metadata.ticketId}` : "/god/bugs";
             case "TICKET":
                 return notif.metadata?.ticketId ? `/god/bugs?ticket=${notif.metadata.ticketId}` : "/god/bugs";
             case "SECURITY_ALERT":
@@ -197,6 +212,14 @@ export function GodNotificationPanel({ notifications: initialNotifications }: Go
                 <div className="flex-1" />
 
                 {/* Sort Order */}
+                <button 
+                    onClick={handleMarkAllRead}
+                    className="flex items-center gap-2 px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl hover:bg-zinc-800 hover:border-white/20 transition-all text-zinc-300 group"
+                >
+                    <CheckCheck className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-medium">Tout marquer lu</span>
+                </button>
+
                 <button 
                     onClick={() => setSortOrder(prev => prev === "DESC" ? "ASC" : "DESC")}
                     className="flex items-center gap-2 px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl hover:bg-zinc-800 hover:border-white/20 transition-all text-zinc-300 group"

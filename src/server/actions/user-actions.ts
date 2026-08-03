@@ -1675,7 +1675,7 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     return { success: true, data: updated };
 }
 
-export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "legacy" | "raid" }) {
+export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "polls" | "legacy" | "raid" }) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -1688,21 +1688,24 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             fetchGuildRoles(guildId, { excludeManaged: true }),
             db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
-                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true }
+                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true }
             })
         ]);
 
         let filteredRoles = roles;
 
-        // Apply whitelist filtering (strict-whitelist-by-default for everyone)
-        // Users with settings access can bypass ONLY if explicitly configured (like in settings panels)
-        const shouldIgnoreWhitelist = options?.ignoreWhitelist || (user.isAdmin || user.canViewSettings);
+        // Apply whitelist filtering (strict-whitelist-by-default for EVERYONE — members AND admins).
+        // The whitelist is bypassed ONLY when explicitly requested (ignoreWhitelist: true in the
+        // admin settings panels via PingRolesSelector). In creation modals (calendar/raid/songes/dj),
+        // admins must see exactly the same whitelisted roles as any member. Fail-closed.
+        const shouldIgnoreWhitelist = options?.ignoreWhitelist === true;
         if (!shouldIgnoreWhitelist) {
             let allowedIds: string[] = [];
             if (options?.context === "calendar") allowedIds = guildConfig?.calendarPingRoleIds || [];
             else if (options?.context === "raid") allowedIds = guildConfig?.raidPingRoleIds || [];
             else if (options?.context === "dj") allowedIds = guildConfig?.djPingRoleIds || [];
             else if (options?.context === "songes") allowedIds = guildConfig?.songesPingRoleIds || [];
+            else if (options?.context === "polls") allowedIds = guildConfig?.pollsPingRoleIds || [];
             else allowedIds = guildConfig?.allowedPingRoleIds || [];
 
             filteredRoles = roles.filter(r => allowedIds.includes(r.id));
@@ -1719,6 +1722,45 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
     } catch (error) {
         console.error("Get Discord Roles Error:", error);
         return { success: false, error: "Erreur lors de la récupération des rôles" };
+    }
+}
+
+/**
+ * Compte le nombre de membres Discord UNIQUES qui seront pingés pour une
+ * combinaison de rôles. Une personne peut porter plusieurs rôles sélectionnés
+ * → on déduplique par ID de membre. Fail-closed : auth membre requise.
+ * Appelé une fois à l'ouverture d'une modale de création (coût Discord).
+ */
+export async function countPingedMembers(
+    guildId: string,
+    roleIds: string[]
+): Promise<ActionResponse<{ count: number }>> {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "Unauthorized" };
+
+    const user = await getUserContext(guildId);
+    if (!user.isMember) return { success: false, error: "Forbidden: Member access required" };
+
+    try {
+        const { listGuildMembers } = await import("@/server/discord");
+        const members = (await listGuildMembers(guildId)).map((m: any) => ({
+            id: m?.user?.id || "",
+            roles: Array.isArray(m?.roles) ? m.roles : [],
+        }));
+
+        const roleSet = new Set(roleIds);
+        const uniqueIds = new Set<string>();
+        for (const m of members) {
+            if (!m.id) continue;
+            if (m.roles.some((r: string) => roleSet.has(r))) {
+                uniqueIds.add(m.id);
+            }
+        }
+
+        return { success: true, data: { count: uniqueIds.size } };
+    } catch (error) {
+        console.error("[countPingedMembers] failed", error);
+        return { success: false, error: "Erreur lors du calcul du ping" };
     }
 }
 

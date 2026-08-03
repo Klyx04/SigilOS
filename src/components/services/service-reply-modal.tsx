@@ -36,6 +36,11 @@ type ServiceNotification = {
  * - Réponses limitées (anti-surcharge) côté serveur via Redis.
  *
  * Affichée dans le layout Dashboard → visible sur TOUTE page / refresh / navigation.
+ *
+ * Flux à sens unique (client → passeur → client) :
+ * - SERVICE_REQUEST  : reçue par le PASSEUR → il peut répondre (textarea + bouton Répondre).
+ * - SERVICE_REPLY    : reçue par le CLIENT → consultation seule (pas de réponse possible,
+ *   le guard serveur refuserait — le client n'a pas à répondre à nouveau).
  */
 export function ServiceReplyModal({ guildId }: { guildId: string }) {
     const [notifs, setNotifs] = useState<ServiceNotification[]>([]);
@@ -148,6 +153,8 @@ export function ServiceReplyModal({ guildId }: { guildId: string }) {
 
     if (!isMounted) return null;
 
+    const isRequest = current?.type === "SERVICE_REQUEST";
+
     return (
         <Dialog open={!!current} onOpenChange={(open) => !open && handleClose(true)}>
             <DialogContent className="max-w-lg bg-zinc-950 border border-white/10 shadow-2xl rounded-3xl text-white p-0 gap-0 overflow-hidden backdrop-blur-xl">
@@ -165,41 +172,54 @@ export function ServiceReplyModal({ guildId }: { guildId: string }) {
                         <>
                             <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
-                                    {current.type === "SERVICE_REQUEST" ? "Nouvelle demande" : "Réponse"}
+                                    {isRequest ? "Nouvelle demande" : "Réponse"}
                                 </p>
                                 <h3 className="font-bold text-sm text-white">{current.title.replace(/^💬\s*/, "")}</h3>
                                 <p className="text-sm text-zinc-300 mt-1.5 leading-relaxed">{current.message}</p>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-zinc-400 text-xs font-black uppercase tracking-widest">Votre réponse</Label>
-                                <Textarea
-                                    value={replyText}
-                                    onChange={(e) => setReplyText(e.target.value)}
-                                    placeholder="Saisissez votre message..."
-                                    className="bg-black/30 border-white/10 text-white rounded-xl placeholder:text-zinc-600 focus:border-cyan-500/50 resize-none h-24 text-xs leading-relaxed"
-                                    maxLength={500}
-                                />
-                            </div>
+                            {isRequest && (
+                                <div className="space-y-2">
+                                    <Label className="text-zinc-400 text-xs font-black uppercase tracking-widest">Votre réponse</Label>
+                                    <Textarea
+                                        value={replyText}
+                                        onChange={(e) => setReplyText(e.target.value)}
+                                        placeholder="Saisissez votre message..."
+                                        className="bg-black/30 border-white/10 text-white rounded-xl placeholder:text-zinc-600 focus:border-cyan-500/50 resize-none h-24 text-xs leading-relaxed"
+                                        maxLength={500}
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
 
                 <div className="px-6 pb-6 flex gap-3 border-t border-white/5 pt-5 bg-slate-900/30">
-                    <Button
-                        variant="ghost"
-                        onClick={() => handleClose(true)}
-                        className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all rounded-xl"
-                    >
-                        Plus tard
-                    </Button>
-                    <Button
-                        onClick={handleSendReply}
-                        disabled={isPending || !replyText.trim()}
-                        className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black h-12 shadow-lg shadow-cyan-900/20 rounded-xl transition-all"
-                    >
-                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Répondre"}
-                    </Button>
+                    {isRequest ? (
+                        <>
+                            <Button
+                                variant="ghost"
+                                onClick={() => handleClose(true)}
+                                className="flex-1 border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 font-bold h-12 transition-all rounded-xl"
+                            >
+                                Plus tard
+                            </Button>
+                            <Button
+                                onClick={handleSendReply}
+                                disabled={isPending || !replyText.trim()}
+                                className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black h-12 shadow-lg shadow-cyan-900/20 rounded-xl transition-all"
+                            >
+                                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Répondre"}
+                            </Button>
+                        </>
+                    ) : (
+                        <Button
+                            onClick={() => handleClose(true)}
+                            className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black h-12 shadow-lg shadow-cyan-900/20 rounded-xl transition-all"
+                        >
+                            Fermer
+                        </Button>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

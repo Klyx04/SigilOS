@@ -15,6 +15,7 @@ import {
 import { createDjPost } from "@/server/actions/dungeon-finder-actions";
 import { getDungeonsWithAchievements } from "@/server/actions/game-data-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
+import { PingEstimate } from "@/components/shared/ping-estimate";
 import { Switch } from "@/components/ui/switch";
 import {
     Select,
@@ -787,8 +788,8 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                     >
                                                         <div className="flex items-center gap-3 truncate">
                                                             {mentionRoleIds.length > 0 ? (
-                                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                                    {mentionRoleIds.map(id => {
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {mentionRoleIds.slice(0, 3).map(id => {
                                                                         const role = discordRoles.find(r => r.id === id);
                                                                         if (!role) return null;
                                                                         const roleColor = role.color === "#000000" ? "#9ca3af" : role.color;
@@ -819,9 +820,14 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                                                 </button>
                                                                             </div>
                                                                         );
-                                                                    })}
-                                                                </div>
-                                                            ) : (
+                                                        })}
+                                                        {mentionRoleIds.length > 3 && (
+                                                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                                +{mentionRoleIds.length - 3} rôles
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
                                                                 <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
                                                             )}
                                                         </div>
@@ -873,6 +879,7 @@ export function DjPostCreateModal({ guildId, isOpen, initialDungeonId, initialQu
                                                     </Command>
                                                 </PopoverContent>
                                             </Popover>
+                                            <PingEstimate guildId={guildId} roleIds={mentionRoleIds} className="ml-1" />
                                         </motion.div>
                                     )}
                                 </div>

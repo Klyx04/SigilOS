@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MessageSquareWarning, Send, X } from "lucide-react";
+import { Bug, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,27 +66,27 @@ export function QuestFeedbackButton({ guildId, sourcePage, targetSlug, compact =
         <>
             <button
                 onClick={() => setOpen(true)}
-                className={`inline-flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500/40 hover:text-white transition-all ${
-                    compact ? "px-3 py-2 text-[10px] font-black uppercase tracking-widest" : "px-4 py-2.5 text-xs font-bold"
+                className={`group inline-flex items-center gap-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 ring-1 ring-inset ring-rose-400/60 transition-all ${
+                    compact
+                        ? "px-3 py-2 text-[10px] bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 hover:scale-105"
+                        : "px-4 py-2.5 text-xs bg-gradient-to-r from-rose-600 to-red-500 text-white hover:from-rose-500 hover:to-red-400 hover:scale-105"
                 }`}
                 title="Signaler un bug, proposer une amélioration ou un ajout"
             >
-                <MessageSquareWarning className={`${compact ? "w-3.5 h-3.5" : "w-4 h-4"}`} />
+                <Bug className={`${compact ? "w-3.5 h-3.5" : "w-4 h-4"} transition-transform group-hover:rotate-12`} />
                 <span className="hidden sm:inline">Signaler</span>
+                <span className={`hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse ml-0.5`} />
             </button>
 
             <Dialog open={open} onOpenChange={(v) => { if (!v) close(); else setOpen(true); }}>
                 <DialogContent className="sm:max-w-[560px] bg-zinc-950/95 border-white/10 rounded-2xl p-0 overflow-hidden">
                     <DialogHeader className="p-5 border-b border-white/5 bg-zinc-900/30">
                         <DialogTitle className="text-lg font-black text-white flex items-center gap-3 tracking-tight">
-                            <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                                <MessageSquareWarning className="w-5 h-5" />
+                            <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                                <Bug className="w-5 h-5" />
                             </div>
                             Faire un retour
                         </DialogTitle>
-                        <button onClick={close} className="absolute right-5 top-5 text-zinc-500 hover:text-white transition-colors">
-                            <X className="w-4 h-4" />
-                        </button>
                     </DialogHeader>
 
                     <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">

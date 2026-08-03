@@ -165,6 +165,8 @@ const CreatePollSchema = z.object({
     discordChannelId: z.string().optional(),
     mentionEveryone: z.boolean().default(false),
     mentionRoleId: z.string().optional(),
+    // Multi-role pings (CSV stocké dans mentionRoleId côté BDD, pattern DJ/songes)
+    mentionRoleIds: z.array(z.string()).max(10).default([]),
     externalUrl: z.string().url().optional().nullable().or(z.literal("")),
 }).strict();
 
@@ -454,15 +456,22 @@ export async function createPoll(
             safeMentionEveryone = false;
         }
 
-        // 🔒 SECURITY: For non-admins, mentionRoleId must be in the admin-whitelisted list.
-        let safeMentionRoleId = data.mentionRoleId;
-        if (safeMentionRoleId && !isAdmin) {
-            const allowedRoleIds: string[] = (guildConfig as any).pollsPingRoleIds || [];
-            if (!allowedRoleIds.includes(safeMentionRoleId)) {
-                logger.error(`[Security] Non-admin tried to ping non-whitelisted role ${safeMentionRoleId}. User: ${session.user.id}`);
-                safeMentionRoleId = undefined;
-            }
+        // 🔒 SECURITY: Whitelist des rôles de ping appliquée de façon IDENTIQUE
+        // aux admins et aux membres (fail-closed, pattern DJ/songes). Chaque rôle
+        // doit appartenir à pollsPingRoleIds configuré par l'admin.
+        const allowedRoleIds: string[] = (guildConfig as any).pollsPingRoleIds || [];
+        const combinedRoleIds = [
+            ...(data.mentionRoleIds || []),
+            ...(data.mentionRoleId ? [data.mentionRoleId] : []),
+        ];
+        const uniqueRoleIds = [...new Set(combinedRoleIds)];
+        const invalidRoles = uniqueRoleIds.filter((id) => !allowedRoleIds.includes(id));
+        if (invalidRoles.length > 0) {
+            logger.error(`[Security] Ping de rôle(s) non whitelisté(s) ${invalidRoles.join(", ")}. User: ${session.user.id}`);
         }
+        const safeMentionRoleIds = uniqueRoleIds.filter((id) => allowedRoleIds.includes(id));
+        // Stocké CSV pour supporter plusieurs rôles (pattern DJ/songes)
+        const safeMentionRoleId = safeMentionRoleIds.length > 0 ? safeMentionRoleIds.join(",") : null;
 
         // Create poll + options in transaction
         const poll = await db.$transaction(async (tx) => {
@@ -1037,7 +1046,9 @@ async function publishPollToDiscord(
                 if (mentionRoleId === "here") {
                     mentionContent = "Bonjour @here !";
                 } else {
-                    mentionContent = `Bonjour <@&${mentionRoleId}> !`;
+                    // Multi-rôles stockés CSV (pattern DJ/songes)
+                    const roleMentions = mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ");
+                    mentionContent = `Bonjour ${roleMentions} !`;
                 }
             }
         }

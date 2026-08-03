@@ -852,8 +852,8 @@ export async function POST(request: NextRequest) {
                     }
                 }
 
-                const { replyToServiceRequestAction } = await import("@/server/actions/service-actions");
-                const res = await replyToServiceRequestAction(guild_id, requesterUserId, listingId, replyMessage, account.userId);
+                const { internalServiceReply } = await import("@/server/actions/service-actions");
+                const res = await internalServiceReply(guild_id, requesterUserId, listingId, replyMessage, account.userId);
 
                 if (res.success) {
                     return NextResponse.json({

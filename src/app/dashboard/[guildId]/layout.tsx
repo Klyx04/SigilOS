@@ -22,6 +22,7 @@ import { GuildActivityStream } from "@/components/layout/guild-activity-stream";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { ChangelogModal } from "@/components/changelog/changelog-modal";
+import { ServiceReplyModal } from "@/components/services/service-reply-modal";
 import { CommandMenu } from "@/components/layout/command-menu";
 import { SupportOrb } from "@/components/shared/support-orb";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
@@ -242,6 +243,9 @@ export default async function DashboardLayout({
 
                 {/* Changelog Modal (Global Platform Updates) */}
                 <ChangelogModal />
+
+                {/* Global Service Dialogue Modal — visible sur toute page / refresh */}
+                <ServiceReplyModal guildId={guildId} />
 
                 {/* Support Orb (Donation system STATE OF ART 2026) */}
                 {donationsEnabled && <SupportOrb />}

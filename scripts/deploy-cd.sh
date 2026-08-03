@@ -4,10 +4,11 @@
 # 🚀 SigilOS - Script de Déploiement CI/CD (2026) — v2
 # =============================================================================
 # Usage:
-#   ./scripts/deploy-cd.sh list
-#   ./scripts/deploy-cd.sh beta <sha>    # déploie la version <sha> en beta
-#   ./scripts/deploy-cd.sh prod <sha>    # déploie la version <sha> en prod
-#   ./scripts/deploy-cd.sh beta          # déploie latest en beta
+#   ./scripts/deploy-cd.sh list beta        -> Liste les versions (SHA) dispo
+#   ./scripts/deploy-cd.sh list prod
+#   ./scripts/deploy-cd.sh beta <sha>       -> Déploie la version <sha> en beta
+#   ./scripts/deploy-cd.sh prod <sha>       -> Déploie la version <sha> en prod
+#   ./scripts/deploy-cd.sh beta             -> Déploie latest en beta
 #
 # Principe :
 #   Les images sont buildées sur GitHub Actions et poussées vers GHCR
@@ -20,66 +21,75 @@
 # Résultat : déploiement ~30s au lieu de ~5min (~4min de build économisées).
 # ─────────────────────────────────────────────────────────────
 # Prérequis :
-#   - GHCR_TOKEN : token GHCR avec read:packages (sur le VPS, dans le shell
-#     ou via le cron). À définir une fois : export GHCR_TOKEN=... 
-#   - GitHub user : GHCR_USER (défaut : Klyx04).
+#   - GHCR_TOKEN : token GHCR avec read:packages (sur le VPS).
+#     À définir une fois : export GHCR_TOKEN=...
+#   - GitHub user : GHCR_USER (défaut : klyx04, en minuscules comme GHCR).
 # ─────────────────────────────────────────────────────────────
 
-ACTION=$1
-TARGET=$2
-SHA=${3:-latest}
+COMMAND=$1
 
-if [ "$ACTION" == "list" ]; then
-    echo "📋 Utilisation :"
-    echo "  ./scripts/deploy-cd.sh beta <sha>   (ou prod)"
-    echo "  ./scripts/deploy-cd.sh beta         (latest)"
-    echo ""
-    echo "🔎 Le SHA correspond au commit GitHub. Il est visible dans"
-    echo "   l'onglet Actions > run > en bas, ou via l'API GHCR."
-    exit 0
-fi
-
-if [ "$ACTION" != "beta" ] && [ "$ACTION" != "prod" ]; then
-    echo "Usage: ./scripts/deploy-cd.sh {beta|prod} [sha]"
-    echo "  beta|prod <sha>   -> déploie la version <sha>"
-    echo "  beta|prod         -> déploie latest"
+if [ "$COMMAND" != "list" ] && [ "$COMMAND" != "beta" ] && [ "$COMMAND" != "prod" ]; then
+    echo "Usage: ./scripts/deploy-cd.sh {list|beta|prod} [sha]"
+    echo "  list beta|prod        -> Liste les versions disponibles"
+    echo "  beta|prod <sha>       -> Déploie la version <sha>"
+    echo "  beta|prod             -> Déploie latest"
     exit 1
 fi
 
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
-ENV_FILE=".env.prod"
-[ "$TARGET" == "beta" ] && ENV_FILE=".env.beta"
-
-GHCR_USER="${GHCR_USER:-Klyx04}"
-GHCR_REG="ghcr.io/${GHCR_USER}"
+# GHCR impose des noms de repo en minuscules → on force klyx04
+GHCR_USER="${GHCR_USER:-klyx04}"
+GHCR_USER_LOWER="${GHCR_USER,,}"
+GHCR_REG="ghcr.io/${GHCR_USER_LOWER}"
 GHCR_TOKEN="${GHCR_TOKEN:?❌ GHCR_TOKEN non défini. Exportez-le : export GHCR_TOKEN=<token read:packages>}"
 
 cd "$(dirname "$0")/.."
 
-echo "📦 Login GHCR en tant que $GHCR_USER..."
-echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
+# -----------------------------------------------------------------------------
+# 📋 ACTION : list — affiche les versions disponibles
+# -----------------------------------------------------------------------------
+if [ "$COMMAND" == "list" ]; then
+    TARGET=$2
+    if [ "$TARGET" != "beta" ] && [ "$TARGET" != "prod" ]; then
+        echo "Usage: ./scripts/deploy-cd.sh list {beta|prod}"
+        exit 1
+    fi
+    echo "📋 Versions disponibles pour $TARGET (sur $GHCR_REG) :"
+    echo ""
+    for NAME in app worker ws discord-bot; do
+        echo "── ${GHCR_REG}/sigilos-${NAME}-${TARGET} ──"
+        sudo docker buildx imagetools inspect "${GHCR_REG}/sigilos-${NAME}-${TARGET}:latest" 2>/dev/null \
+            || sudo docker manifest inspect "${GHCR_REG}/sigilos-${NAME}-${TARGET}:latest" 2>/dev/null \
+            || echo "  (pas d'image trouvée — le build GHCR a-t-il tourné ?)"
+    done
+    exit 0
+fi
 
 # -----------------------------------------------------------------------------
-# Récupération du code (pour .env et compose à jour)
+# 🔄 ACTION : rollback/deploy — revenir à une version <sha>
 # -----------------------------------------------------------------------------
-echo "📦 Récupération du code ($ACTION)..."
-sudo git pull origin "$(git rev-parse --abbrev-ref HEAD)"
+TARGET=$COMMAND
+SHA=${2:-latest}
 
-# -----------------------------------------------------------------------------
+ENV_FILE=".env.prod"
+[ "$TARGET" == "beta" ] && ENV_FILE=".env.beta"
+
+echo "📦 Login GHCR en tant que $GHCR_USER_LOWER..."
+echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER_LOWER" --password-stdin
+
 # Pull + retag des 4 images pour <sha>
-# -----------------------------------------------------------------------------
 echo "📥 Pull des images $GHCR_REG (tag: $SHA)..."
 for NAME in app worker ws discord-bot; do
     IMG="${GHCR_REG}/sigilos-${NAME}-${TARGET}"
     echo "  ↪ ${IMG}:${SHA}"
     sudo docker pull "${IMG}:${SHA}" || {
         echo "❌ Image ${IMG}:${SHA} introuvable sur GHCR."
-        echo "   Vérifiez que le workflow GitHub a bien tourné pour ce SHA."
+        echo "   Vérifiez que le workflow GitHub a bien tourné (onglet Actions) pour ce SHA."
         exit 1
     }
-    # Retagge en :latest local (le compose existant utilise :latest avec --no-build)
+    # Retagge en :latest local (le compose utilise :latest avec --no-build)
     sudo docker tag "${IMG}:${SHA}" "sigilos-${NAME}-${TARGET}:latest"
 done
 

@@ -58,6 +58,7 @@ import { MissionPicker } from "./mission-picker";
 import Link from "next/link";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { getUserRaidEligibility } from "@/server/actions/kama-actions";
+import { PingEstimate } from "@/components/shared/ping-estimate";
 import {
     Command,
     CommandEmpty,
@@ -308,9 +309,11 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     }, [isRaid, configChannels.raidPingRoleIds, configChannels.calendarPingRoleIds]);
 
     const pingAllowedRoles = useMemo(() => {
-        if (pingAllowedRoleIds && pingAllowedRoleIds.length > 0 && discordRoles.length > 0) {
-            const filtered = discordRoles.filter(r => pingAllowedRoleIds.includes(r.id));
-            return filtered.length > 0 ? filtered : discordRoles;
+        // Fail-closed: when a ping whitelist is configured, show ONLY those roles
+        // (even if empty). Never fall back to all roles — an admin must see the
+        // same whitelisted roles as any member.
+        if (pingAllowedRoleIds && pingAllowedRoleIds.length > 0) {
+            return discordRoles.filter(r => pingAllowedRoleIds.includes(r.id));
         }
         return discordRoles;
     }, [pingAllowedRoleIds, discordRoles]);
@@ -350,7 +353,9 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
     useEffect(() => {
         if (canPublishForType && guildId) {
             setIsLoadingRoles(true);
-            getDiscordRolesAction(guildId, { ignoreWhitelist: true }).then(res => {
+            // Apply the admin's ping whitelist for the current event type — same roles
+            // for members AND admins. (ignoreWhitelist is only used in admin settings panels.)
+            getDiscordRolesAction(guildId, { context: isRaid ? "raid" : "calendar" }).then(res => {
                 if (res.success && res.roles) {
                     setDiscordRoles(normalizeRoles(res.roles.filter((r: any) => r.name !== "@everyone")));
                 }
@@ -1127,7 +1132,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 <div className="flex items-center gap-3 truncate">
                                                     {field.value && field.value.length > 0 ? (
                                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                                            {field.value.map(id => {
+                                                            {field.value.slice(0, 3).map((id: string) => {
                                                                 const role = discordRoles.find(r => r.id === id);
                                                                 if (!role) return null;
                                                                 const roleColor = role.color === "#000000" ? "#9ca3af" : (role.color || "#9ca3af");
@@ -1159,6 +1164,11 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                                     </div>
                                                                 );
                                                             })}
+                                                            {field.value.length > 3 && (
+                                                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide px-1.5">
+                                                                    +{field.value.length - 3} rôles
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     ) : (
                                                         <span className="text-zinc-500 italic">Aucun ping (recommandé si petit besoin)</span>
@@ -1211,6 +1221,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                         </Command>
                                     </PopoverContent>
                                 </Popover>
+                                <PingEstimate guildId={guildId} roleIds={field.value || []} className="ml-1" />
                                 <FormMessage />
                             </FormItem>
                         )}

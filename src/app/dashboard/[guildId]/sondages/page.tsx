@@ -76,9 +76,10 @@ export default async function PollsPage({ params }: { params: Promise<{ guildId:
         .filter((r) => r.name !== "@everyone")
         .map((r) => ({ id: r.id, name: r.name, color: (r as any).color ?? 0 }));
 
-    const discordRoles = isAdmin
-        ? allRoles
-        : allRoles.filter((r) => pollsPingRoleIds.includes(r.id));
+    // 🔒 SECURITY: Apply the admin's ping whitelist identically for members AND admins.
+    // An admin creating a poll must see exactly the same roles as any member.
+    // (Admins configure the whitelist in Admin → Sondages.)
+    const discordRoles = allRoles.filter((r) => pollsPingRoleIds.includes(r.id));
 
     return (
         <div className="space-y-6 pb-12">

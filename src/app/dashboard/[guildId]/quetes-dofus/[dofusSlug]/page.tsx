@@ -62,7 +62,7 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
         <div className="space-y-6 pb-12">
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
                 <Link
-                    href={`/dashboard/${guildId}/quetes-dofus${character !== "PRINCIPAL" ? `?character=${character}` : ""}`}
+                    href={`/dashboard/${guildId}/quetes-dofus?tab=dofus${character !== "PRINCIPAL" ? `&character=${character}` : ""}`}
                     className="inline-flex items-center gap-2 text-base font-bold text-muted-foreground hover:text-foreground transition-all group/back"
                 >
                     <ArrowLeft className="w-5 h-5 transition-transform group-hover/back:-translate-x-1" />

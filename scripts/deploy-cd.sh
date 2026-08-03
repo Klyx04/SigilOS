@@ -23,6 +23,10 @@
 # Prérequis :
 #   - GHCR_TOKEN : token GHCR avec read:packages (sur le VPS).
 #     À définir une fois : export GHCR_TOKEN=...
+#   - GHCR_TOKEN_EXPIRY : date d'expiration du token, format AAAA-MM-JJ
+#     (ex: 2026-11-01). Visible sur GitHub → Settings → Developer settings →
+#     Personal access tokens → Tokens (classic) → « sigilos-vps » → Expires on.
+#     À définir : export GHCR_TOKEN_EXPIRY=AAAA-MM-JJ
 #   - GitHub user : GHCR_USER (défaut : klyx04, en minuscules comme GHCR).
 # ─────────────────────────────────────────────────────────────
 

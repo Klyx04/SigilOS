@@ -154,7 +154,14 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
             }
         } else if (category === "METIER") {
             if (selectedMetierJob === "Éleveur") {
-                setTitle("Élevage de Montures - Services & Packs");
+                const raceNames: string[] = [];
+                if (eleveurOptions.emeraude.active) raceNames.push("Passage Émeraude");
+                if (eleveurOptions.dragodinde.active) raceNames.push("Dragodinde");
+                if (eleveurOptions.muldo.active) raceNames.push("Muldo");
+                if (eleveurOptions.volkorne.active) raceNames.push("Volkorne");
+                if (eleveurOptions.pack100.active) raceNames.push("Pack 100 naissances");
+                if (eleveurOptions.pack1000.active) raceNames.push("Pack 1000 naissances");
+                setTitle(raceNames.length > 0 ? "Éleveur — " + raceNames.join(" + ") : "Élevage de Montures");
             } else {
                 const modeLabel = metierMode === "craft" ? "Craft sur commande" : "Pack 1→200";
                 if (!selectedMetierJob) {
@@ -237,7 +244,7 @@ export function ServiceForm({ open, onOpenChange, guildId }: ServiceFormProps) {
             const activeOptions = Object.entries(eleveurOptions).filter(([_, o]) => o.active);
             const missingPrices = activeOptions.some(([_, o]) => !o.price.trim());
             if (missingPrices) {
-                toast.error("Veuillez renseigner un tarif pour chaque prestation d'élevage sélectionnée.");
+                toast.error("Tarif requis pour chaque prestation d'élevage sélectionnée (Gratuit ou somme en kamas).");
                 return;
             }
         }

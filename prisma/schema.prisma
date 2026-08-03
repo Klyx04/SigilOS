@@ -2104,6 +2104,8 @@ enum NotificationType {
   FINDER_JOIN_REQUEST
   FINDER_POST_FULL
   FINDER_POST_CLOSED
+  SERVICE_REQUEST
+  SERVICE_REPLY
 }
 
 enum NotificationCategory {

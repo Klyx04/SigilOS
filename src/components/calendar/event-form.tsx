@@ -199,17 +199,24 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 // COMPONENT
 // ============================================
 
+interface DiscordChannels {
+    calendarNotifyChannelId?: string | null;
+    raidNotifyChannelId?: string | null;
+    raidGigalodonNotifyChannelId?: string | null;
+    raidSanctuaireNotifyChannelId?: string | null;
+}
+
 interface EventFormProps {
     guildId: string;
     initialData?: any;
     onSubmit: (data: any) => Promise<void>;
-    isDiscordConfigured?: boolean;
+    discordChannels?: DiscordChannels;
     canManageRaid?: boolean;
     userPseudo?: string;
     discordRoles?: { id: string, name: string, color?: string | number }[];
 }
 
-export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured, canManageRaid, userPseudo, discordRoles: providedRoles }: EventFormProps) {
+export function EventForm({ guildId, initialData, onSubmit, discordChannels, canManageRaid, userPseudo, discordRoles: providedRoles }: EventFormProps) {
     const [step, setStep] = useState<1 | 2>(1);
     const [submitting, setSubmitting] = useState(false);
     
@@ -308,15 +315,25 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
         return discordRoles;
     }, [pingAllowedRoleIds, discordRoles]);
 
+    // Determine if Discord publishing is available for the CURRENT event type.
+    // Raids are fully independent from the calendar channel — they never fall back to it.
+    const canPublishForType = isRaid
+        ? (raidType === "gigalodon"
+            ? !!(discordChannels?.raidGigalodonNotifyChannelId || configChannels.raidGigalodonNotifyChannelId
+                || discordChannels?.raidNotifyChannelId || configChannels.raidNotifyChannelId)
+            : !!(discordChannels?.raidSanctuaireNotifyChannelId || configChannels.raidSanctuaireNotifyChannelId
+                || discordChannels?.raidNotifyChannelId || configChannels.raidNotifyChannelId))
+        : !!(discordChannels?.calendarNotifyChannelId || configChannels.calendarNotifyChannelId);
+
     const activeChannelId = isRaid
         ? (raidType === "gigalodon"
-            ? configChannels.raidGigalodonNotifyChannelId || configChannels.raidNotifyChannelId || configChannels.calendarNotifyChannelId
-            : configChannels.raidSanctuaireNotifyChannelId || configChannels.raidNotifyChannelId || configChannels.calendarNotifyChannelId)
+            ? configChannels.raidGigalodonNotifyChannelId || configChannels.raidNotifyChannelId
+            : configChannels.raidSanctuaireNotifyChannelId || configChannels.raidNotifyChannelId)
         : configChannels.calendarNotifyChannelId;
 
     // Fetch Target Channel Name
     useEffect(() => {
-        if (isDiscordConfigured && guildId && activeChannelId) {
+        if (canPublishForType && guildId && activeChannelId) {
             import("@/server/actions/discord-actions").then(d => {
                 d.getDiscordChannelInfo(guildId, activeChannelId).then(chanRes => {
                     if (chanRes.success && chanRes.data) {
@@ -327,11 +344,11 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
         } else {
             setTargetChannelName("annonces");
         }
-    }, [isDiscordConfigured, guildId, activeChannelId]);
+    }, [canPublishForType, guildId, activeChannelId]);
 
     // Fetch roles if not provided or when raid type selected
     useEffect(() => {
-        if (isDiscordConfigured && guildId) {
+        if (canPublishForType && guildId) {
             setIsLoadingRoles(true);
             getDiscordRolesAction(guildId, { ignoreWhitelist: true }).then(res => {
                 if (res.success && res.roles) {
@@ -340,7 +357,7 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
             }).catch(err => console.error("Error fetching Discord roles:", err))
             .finally(() => setIsLoadingRoles(false));
         }
-    }, [guildId, isDiscordConfigured, isRaid]);
+    }, [guildId, canPublishForType, isRaid]);
 
     // Fetch raid eligibility for the creator
     useEffect(() => {
@@ -378,7 +395,7 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
             startTime: "20:00",
             endTime: "22:00",
             maxParticipants: undefined,
-            publishOnDiscord: !!isDiscordConfigured,
+            publishOnDiscord: canPublishForType,
             mentionRoleIds: [],
         },
     });
@@ -1057,7 +1074,7 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                                     <div className="text-sm text-zinc-400">
                                         Envoie l'annonce sur le serveur.
                                     </div>
-                                    {field.value && isDiscordConfigured && (
+                                    {field.value && canPublishForType && (
                                         <div className="flex items-center gap-1 mt-2 animate-in fade-in">
                                             <Hash className="w-3.5 h-3.5 text-indigo-400/80" />
                                             <span className="text-[11px] text-indigo-400/90 font-bold uppercase tracking-widest">
@@ -1071,14 +1088,16 @@ export function EventForm({ guildId, initialData, onSubmit, isDiscordConfigured,
                                         <Switch
                                             checked={field.value}
                                             onCheckedChange={field.onChange}
-                                            disabled={!isDiscordConfigured}
+                                            disabled={!canPublishForType}
                                         />
                                     </div>
                                 </FormControl>
                             </div>
-                            {!isDiscordConfigured && (
+                            {!canPublishForType && (
                                 <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-tight italic px-2">
-                                    ⚠️ Salon Discord non configuré par l'admin. Publication impossible.
+                                    {isRaid
+                                        ? "⚠️ Salon Discord raid non configuré par l'admin. Publication impossible."
+                                        : "⚠️ Salon Discord calendrier non configuré par l'admin. Publication impossible."}
                                 </p>
                             )}
                         </FormItem>

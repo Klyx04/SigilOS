@@ -205,6 +205,13 @@ interface DiscordRole {
     color?: number;
 }
 
+interface DiscordChannels {
+    calendarNotifyChannelId?: string | null;
+    raidNotifyChannelId?: string | null;
+    raidGigalodonNotifyChannelId?: string | null;
+    raidSanctuaireNotifyChannelId?: string | null;
+}
+
 interface EventDetailModalProps {
     event: EventDetail | null;
     open: boolean;
@@ -226,7 +233,7 @@ interface EventDetailModalProps {
     onSendReminder?: (roleId?: string) => Promise<{ success: boolean; sentCount?: number; discordSent?: boolean; error?: string }>;
     onShareDiscord?: (roleId?: string) => Promise<{ success: boolean; error?: string }>;
     hasMetamobKey?: boolean;
-    isDiscordConfigured?: boolean;
+    discordChannels?: DiscordChannels;
     donationsEnabled?: boolean;
     /** Kamas eligibility for RAID_OFFICIAL events. Null = loading or not a raid. */
     raidEligibility?: { isEligible: boolean; totalDonated: number } | null;
@@ -257,7 +264,7 @@ export function EventDetailModal({
     onSendReminder,
     onShareDiscord,
     hasMetamobKey = false,
-    isDiscordConfigured = false,
+    discordChannels,
     donationsEnabled = true,
     raidEligibility = null,
 }: EventDetailModalProps) {
@@ -283,6 +290,13 @@ export function EventDetailModal({
     // Raid metadata
     const isRaid = event?.type === "RAID_OFFICIAL";
     const raidMeta = isRaid ? eventMetadata : null;
+
+    // Raids are fully independent from the calendar channel — never fall back to it.
+    const hasDiscordForType = isRaid
+        ? (raidMeta?.raidType === "gigalodon"
+            ? !!(discordChannels?.raidGigalodonNotifyChannelId || discordChannels?.raidNotifyChannelId)
+            : !!(discordChannels?.raidSanctuaireNotifyChannelId || discordChannels?.raidNotifyChannelId))
+        : !!discordChannels?.calendarNotifyChannelId;
 
     // Fetch missions if needed
     useEffect(() => {
@@ -560,7 +574,7 @@ export function EventDetailModal({
 
                     <ScrollArea className="flex-1 overflow-y-auto">
                         <div className="p-6 space-y-5">
-                            {canManage && !isDiscordConfigured && !isExternal && (
+                            {canManage && !hasDiscordForType && !isExternal && (
                                 <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
                                     <Bell className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                                     <div className="space-y-1">
@@ -1059,7 +1073,7 @@ export function EventDetailModal({
                         {canManage && !isExternal && (isCreator || isAdmin) && (
                             <div className="flex items-center justify-between gap-2 flex-wrap pt-4 mt-2 border-t border-zinc-800/30">
                                 <div className="flex items-center gap-2 ml-auto">
-                                    {event.status === "PUBLISHED" && onSendReminder && event.participants.length > 0 && isDiscordConfigured === true && (
+                                    {event.status === "PUBLISHED" && onSendReminder && event.participants.length > 0 && hasDiscordForType && (
                                             <Button
                                                 size="sm"
                                                 variant="ghost"

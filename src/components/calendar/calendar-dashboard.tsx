@@ -55,13 +55,20 @@ import { EventForm } from "./event-form";
 import { RaidHubModal } from "./raid-hub-modal";
 import { cn } from "@/lib/utils";
 
+export interface DiscordChannels {
+    calendarNotifyChannelId?: string | null;
+    raidNotifyChannelId?: string | null;
+    raidGigalodonNotifyChannelId?: string | null;
+    raidSanctuaireNotifyChannelId?: string | null;
+}
+
 interface CalendarDashboardProps {
     guildId: string;
     currentUserId: string;
     canManage: boolean;
     canManageRaid?: boolean;
     userPseudo?: string;
-    isDiscordConfigured?: boolean;
+    discordChannels?: DiscordChannels;
     isAdmin?: boolean;
 }
 
@@ -104,7 +111,7 @@ const FILTER_TYPES: Record<string, { label: string; icon: any; color: string; bg
     },
 };
 
-export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, isDiscordConfigured, isAdmin = false }: CalendarDashboardProps) {
+export function CalendarDashboard({ guildId, currentUserId, canManage, canManageRaid, userPseudo, discordChannels, isAdmin = false }: CalendarDashboardProps) {
     const [displayMode] = useState<ViewMode>("grid");
     const [gridType, setGridType] = useState<"week" | "month">("week");
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -646,7 +653,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                     <EventForm 
                         guildId={guildId}
                         onSubmit={handleCreate} 
-                        isDiscordConfigured={isDiscordConfigured}
+                        discordChannels={discordChannels}
                         canManageRaid={canManageRaid}
                         userPseudo={userPseudo}
                         initialData={prefilledDate ? { startDate: prefilledDate } : undefined}
@@ -672,7 +679,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                 guildId={guildId}
                 canManage={canManage}
                 isAdmin={isAdmin}
-                isDiscordConfigured={isDiscordConfigured}
+                discordChannels={discordChannels}
                 discordRoles={discordRoles}
                 everyoneAllowed={everyoneAllowed}
                 hasMetamobKey={hasMetamobKey}
@@ -740,7 +747,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
                             guildId={guildId}
                             initialData={editingEvent}
                             onSubmit={handleUpdate}
-                            isDiscordConfigured={isDiscordConfigured}
+                            discordChannels={discordChannels}
                             canManageRaid={canManageRaid}
                             userPseudo={userPseudo}
                             discordRoles={discordRoles}

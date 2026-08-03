@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createDreamRun } from "@/server/actions/songes/dream-run-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
+import { PingEstimate } from "@/components/shared/ping-estimate";
 import { getStuffGalleryPage, type GalleryBuild } from "@/server/actions/gallery-actions";
 import { DIFFICULTIES, OBJECTIVES, EPREUVES_SONGE, type DifficultyKey, type ObjectiveKey, type EpreuveCode } from "@/lib/songes/types";
 import { useRouter } from "next/navigation";
@@ -904,6 +905,7 @@ export function CreateRunButton({ guildId, isDiscordConfigured }: { guildId: str
                                         </Command>
                                     </PopoverContent>
                                 </Popover>
+                                <PingEstimate guildId={guildId} roleIds={mentionRoleIds} className="ml-1" />
                             </motion.div>
                         )}
                     </div>

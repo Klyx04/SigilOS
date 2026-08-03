@@ -211,9 +211,9 @@ export async function createVaultEntry(
             try {
                 const guildFull = await db.guildConfig.findUnique({
                     where: { id: guildConfig.id },
-                    select: { discordGuildId: true, loansNotifyChannelId: true },
+                    select: { discordGuildId: true, vaultNotifyChannelId: true },
                 });
-                const channelId = guildFull?.loansNotifyChannelId;
+                const channelId = guildFull?.vaultNotifyChannelId;
 
                 if (channelId) {
                     // SECURITY: Validate channel belongs to this guild

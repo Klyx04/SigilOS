@@ -674,7 +674,16 @@ export async function contactPasseurAction(
 
         const listing = await db.serviceListing.findUnique({
             where: { id: listingId },
-            include: {
+            select: {
+                id: true,
+                category: true,
+                title: true,
+                status: true,
+                contactMethod: true,
+                dungeonImageUrl: true,
+                dofusItemIconUrl: true,
+                dofusItemName: true,
+                questName: true,
                 profile: {
                     select: {
                         userId: true,
@@ -726,7 +735,22 @@ export async function contactPasseurAction(
         const emoji = CATEGORY_EMOJIS[listing.category];
         const categoryLabel = CATEGORY_LABELS[listing.category];
 
-        const embed = {
+        // Image du service dans l'embed selon la catégorie (https uniquement, fail-closed
+        // : si l'URL est absente ou invalide → aucune image, jamais d'URL arbitraire).
+        let embedImageUrl: string | null = null;
+        const rawImageUrl = listing.dungeonImageUrl || listing.dofusItemIconUrl || null;
+        if (rawImageUrl) {
+            try {
+                const u = new URL(rawImageUrl);
+                if (u.protocol === "https:") {
+                    embedImageUrl = u.toString();
+                }
+            } catch {
+                // URL invalide → aucune image
+            }
+        }
+
+        const embed: Record<string, unknown> = {
             title: `📩 Nouvelle demande de service`,
             description: [
                 `**Service :** [${listing.title}](${appUrl}/dashboard/${guildId}/services)`,
@@ -745,6 +769,9 @@ export async function contactPasseurAction(
             timestamp: new Date().toISOString(),
             footer: { text: "SigilOS Services" },
         };
+        if (embedImageUrl) {
+            embed.image = { url: embedImageUrl };
+        }
 
         const components = [{
             type: 1, components: [
@@ -941,7 +968,8 @@ export async function sendServiceReplyAction(
         }
 
         // 7. Post Discord : systématiquement dans le salon de notification avec
-        // mention directe du récepteur (+ DM best-effort en parallèle)
+        // mention directe du récepteur (pas de DM privé — cohérent avec l'envoi
+        // initial d'une demande côté client, qui ne passe que par le salon)
         const token = process.env.DISCORD_BOT_TOKEN;
         const recipientDiscordId = await getDiscordIdForUserId(recipientUserId);
         if (token && guildConfig.servicesNotifyChannelId) {
@@ -969,28 +997,6 @@ export async function sendServiceReplyAction(
                 logger.warn("[sendServiceReplyAction] channel message failed", { err: discordErr });
             }
 
-            // 7b. DM best-effort (non bloquant)
-            if (recipientDiscordId) {
-                try {
-                    const dmRes = await fetch(`https://discord.com/api/v10/users/@me/channels`, {
-                        method: "POST",
-                        headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                        body: JSON.stringify({ recipient_id: recipientDiscordId }),
-                    });
-                    if (dmRes.ok) {
-                        const dmChannel = await dmRes.json() as { id: string };
-                        await fetch(`https://discord.com/api/v10/channels/${dmChannel.id}/messages`, {
-                            method: "POST",
-                            headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                content: `💬 **${senderLabel}** a répondu à ta demande pour **${listing.title}** :\n> ${message}`,
-                            }),
-                        });
-                    }
-                } catch (dmErr) {
-                    logger.warn("[sendServiceReplyAction] DM failed (channel fallback used)", { err: dmErr });
-                }
-            }
         }
 
         // 8. Log activity

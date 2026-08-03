@@ -269,16 +269,18 @@ git pull origin main
 - ⚠️ **GHCR Token sur le VPS** : générer un PAT GitHub avec scope `read:packages`, et l'exporter (ou le mettre dans le `.bashrc`/cron).
 - ⏰ **⚠️ EXPIRATION DU GHCR_TOKEN (IMPORTANT)** : le PAT GitHub créé avec « Expiration: 90 days » **expire ≈ 90 jours après sa création** (créé le 03/08/2026 → **expire ≈ début novembre 2026**). Quand il expire, `deploy-cd.sh` échoue sur le `docker pull` → déploiement CD bloqué.
   
-  **Renouvellement (quand `docker pull` échoue ou tous les ~3 mois)** :
-  1. GitHub → avatar → Settings → Developer settings → Personal access tokens → **Tokens (classic)**.
-  2. Générer un nouveau token avec **uniquement `read:packages`**, expiration 90 jours (ou plus).
-  3. Sur le VPS, mettre à jour :
+  **Renouvellement (LE minimum, ~2 min)** :
+  1. GitHub → avatar → Settings → Developer settings → Personal access tokens → **Tokens (classic)**
+     → **Generate new token (classic)** → Note `sigilos-vps`, expiration 90 jours, cocher **uniquement `read:packages`** → Generate.
+     📝 **Note la date « Expires on »** affichée (ex: `Sun, Nov 1 2026`).
+  2. Sur le VPS, coller 2 lignes (remplacer par le nouveau token + la date notée) :
      ```bash
-     export GHCR_TOKEN=<nouveau_token>
-     # permanent :
-     echo 'export GHCR_TOKEN=<nouveau_token>' >> ~/.bashrc && source ~/.bashrc
+     echo 'export GHCR_TOKEN=<NOUVEAU_TOKEN>' >> ~/.bashrc && source ~/.bashrc
+     echo 'export GHCR_TOKEN_EXPIRY=<AAAA-MM-JJ>' >> ~/.bashrc && source ~/.bashrc
+     # exemple : export GHCR_TOKEN_EXPIRY=2026-11-01
      ```
-- 💡 **Astuce** : à la prochaine création, un **fine-grained token sans expiration** (Repository access > SigilOS, permission **Packages: Read**) évite de le renouveler.
+  → C'est tout. Le script affichera le nouveau compte à rebours.
+  ⚠️ Alternative **zéro renouvellement** : à la prochaine création, choisir un **fine-grained token sans expiration** (Repository access > SigilOS, permission **Packages: Read**) → plus jamais besoin de renouveler.
 
 #### 3c. Séparer le Redis beta/prod (chantier I-07)
 - **Problème** : la beta et la prod partagent le **même Redis** → risque de collision de jobs BullMQ/queues.

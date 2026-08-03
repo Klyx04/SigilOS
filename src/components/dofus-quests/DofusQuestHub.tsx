@@ -8,6 +8,7 @@ import Link from "next/link";
 import { DofusGemCard } from "./DofusGemCard";
 import { GuildDofusOverview } from "./GuildDofusOverview";
 import { OptimizedGuideTab } from "./OptimizedGuideTab";
+import { QuestFeedbackButton } from "./QuestFeedbackButton";
 import { getMemberAllGuidesProgress } from "@/server/actions/optimized-guide-actions";
 import { toast } from "sonner";
 import type { DofusItemWithProgress, GuildDofusStats, MemberDofusSummary } from "@/server/actions/dofus-quest-actions";
@@ -146,16 +147,19 @@ export function DofusQuestHub({
     return (
         <div className="flex flex-col gap-8">
 
-            {/* ── BOUTON RETOUR (hors menu) ── */}
-            {activeTab !== "menu" && (
-                <button
-                    onClick={() => handleTabChange("menu")}
-                    className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors self-start group"
-                >
-                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    Retour au menu
-                </button>
-            )}
+            {/* ── BOUTON RETOUR (hors menu) + Feedback ── */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+                {activeTab !== "menu" ? (
+                    <button
+                        onClick={() => handleTabChange("menu")}
+                        className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors group"
+                    >
+                        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        Retour au menu
+                    </button>
+                ) : <div />}
+                <QuestFeedbackButton guildId={guildId} sourcePage="hub-dofus" compact />
+            </div>
 
             {/* ── CONTENU PAR TAB ── */}
             <div className="relative min-h-[500px]">

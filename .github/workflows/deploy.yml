@@ -66,6 +66,8 @@ jobs:
             echo "suffix=beta" >> $GITHUB_OUTPUT
             echo "app_url=https://beta.sigilos.fr" >> $GITHUB_OUTPUT
           fi
+          # GHCR impose des noms de repo en minuscules
+          echo "owner_lower=${IMAGE_OWNER,,}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -90,11 +92,11 @@ jobs:
           SUFFIX=${{ steps.env.outputs.suffix }}
           APP_URL=${{ steps.env.outputs.app_url }}
           SHA_SHORT=${SHA:0:7}
-          REG="ghcr.io/${IMAGE_OWNER}"
+          REG="ghcr.io/${{ steps.env.outputs.owner_lower }}"
 
           for NAME in app worker ws; do
             echo "▶️  Building sigilos-${NAME}-${SUFFIX}..."
-            docker buildx build \
+            docker buildx build --push \
               -f Dockerfile \
               --build-arg NEXT_PUBLIC_APP_URL="${APP_URL}" \
               --build-arg BETA_PASSWORD="${{ secrets.BETA_PASSWORD }}" \
@@ -107,7 +109,7 @@ jobs:
           done
 
           echo "▶️  Building sigilos-discord-bot-${SUFFIX}..."
-          docker buildx build \
+          docker buildx build --push \
             -f services/discord-bot/Dockerfile \
             -t "${REG}/sigilos-discord-bot-${SUFFIX}:${SHA_SHORT}" \
             -t "${REG}/sigilos-discord-bot-${SUFFIX}:latest" \

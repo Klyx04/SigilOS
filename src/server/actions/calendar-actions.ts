@@ -1508,11 +1508,11 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
         let targetChannelId = guildConfig.calendarNotifyChannelId;
         if (isRaid) {
             if (meta?.raidType === "gigalodon") {
-                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId;
             } else if (meta?.raidType === "jardin") {
-                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId;
             } else {
-                targetChannelId = guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidNotifyChannelId;
             }
         }
 
@@ -1834,11 +1834,11 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
         let targetChannelId = guildConfig.calendarNotifyChannelId;
         if (isRaid) {
             if (meta?.raidType === "gigalodon") {
-                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId;
             } else if (meta?.raidType === "jardin") {
-                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId;
             } else {
-                targetChannelId = guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidNotifyChannelId;
             }
         }
 
@@ -1857,7 +1857,12 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
             return { success: false, error: "@everyone n'est pas autorisé pour les notifications de calendrier" };
         }
         if (!targetChannelId) {
-            return { success: false, error: "Salon Discord non configuré. Allez dans Admin > Calendrier." };
+            return {
+                success: false,
+                error: isRaid
+                    ? "Salon Discord raid non configuré. Allez dans Admin > Raids."
+                    : "Salon Discord non configuré. Allez dans Admin > Calendrier."
+            };
         }
 
         // SECURITY: Validate channel belongs to this guild

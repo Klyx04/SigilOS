@@ -38,9 +38,19 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
     const { db } = await import("@/lib/prisma");
     const guildConfig = await db.guildConfig.findUnique({
         where: { discordGuildId: guildId },
-        select: { calendarNotifyChannelId: true }
+        select: {
+            calendarNotifyChannelId: true,
+            raidNotifyChannelId: true,
+            raidGigalodonNotifyChannelId: true,
+            raidSanctuaireNotifyChannelId: true,
+        }
     });
-    const isDiscordConfigured = !!guildConfig?.calendarNotifyChannelId;
+    const discordChannels = {
+        calendarNotifyChannelId: guildConfig?.calendarNotifyChannelId,
+        raidNotifyChannelId: guildConfig?.raidNotifyChannelId,
+        raidGigalodonNotifyChannelId: guildConfig?.raidGigalodonNotifyChannelId,
+        raidSanctuaireNotifyChannelId: guildConfig?.raidSanctuaireNotifyChannelId,
+    };
 
     return (
         <div className="flex flex-col h-full bg-foreground/[0.02] pb-12">
@@ -58,7 +68,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
                         guildId={guildId}
                         currentUserId={session.user.id}
                         canManage={canManage}
-                        isDiscordConfigured={isDiscordConfigured}
+                        discordChannels={discordChannels}
                         canManageRaid={ctx.canManageRaid}
                         userPseudo={ctx.pseudoDofus || ctx.name}
                         isAdmin={ctx.isAdmin}

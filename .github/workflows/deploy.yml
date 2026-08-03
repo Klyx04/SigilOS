@@ -70,7 +70,7 @@ jobs:
           echo "owner_lower=${IMAGE_OWNER,,}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # ───────────────────────────────────────────────────
       # Cache de dépendances npm (réutilise npm ci)

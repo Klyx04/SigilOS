@@ -45,6 +45,36 @@ GHCR_USER_LOWER="${GHCR_USER,,}"
 GHCR_REG="ghcr.io/${GHCR_USER_LOWER}"
 GHCR_TOKEN="${GHCR_TOKEN:?❌ GHCR_TOKEN non défini. Exportez-le : export GHCR_TOKEN=<token read:packages>}"
 
+# -----------------------------------------------------------------------------
+# ⏰ Affichage du temps restant avant expiration du GHCR_TOKEN
+# La date d'expiration est stockée dans GHCR_TOKEN_EXPIRY (format YYYY-MM-DD),
+# à définir dans ~/.bashrc. Si absente, on ne peut pas calculer (on l'indique).
+# -----------------------------------------------------------------------------
+show_token_expiry() {
+    if [ -z "${GHCR_TOKEN_EXPIRY:-}" ]; then
+        echo "⏰ GHCR_TOKEN : date d'expiration non renseignée (définissez GHCR_TOKEN_EXPIRY=AAAA-MM-JJ dans ~/.bashrc)."
+        return
+    fi
+
+    local EXPIRY_SECONDS
+    EXPIRY_SECONDS="$(date -d "$GHCR_TOKEN_EXPIRY" +%s 2>/dev/null)" || {
+        echo "⏰ GHCR_TOKEN : format GHCR_TOKEN_EXPIRY invalide (attendu AAAA-MM-JJ), actuel : $GHCR_TOKEN_EXPIRY"
+        return
+    }
+
+    local NOW_SECONDS
+    NOW_SECONDS="$(date +%s)"
+    local DAYS_LEFT=$(( (EXPIRY_SECONDS - NOW_SECONDS) / 86400 ))
+
+    if [ "$DAYS_LEFT" -lt 0 ]; then
+        echo "⏰⛔ GHCR_TOKEN EXPIRÉ depuis $(( -DAYS_LEFT )) jours — renouvelez-le ! (voir MAINTENANCE.md)"
+    elif [ "$DAYS_LEFT" -le 14 ]; then
+        echo "⏰⚠️  GHCR_TOKEN expire dans $DAYS_LEFT jours ($GHCR_TOKEN_EXPIRY) — pensez à le renouveler ! (voir MAINTENANCE.md)"
+    else
+        echo "⏰ GHCR_TOKEN expire dans $DAYS_LEFT jours ($GHCR_TOKEN_EXPIRY)."
+    fi
+}
+
 cd "$(dirname "$0")/.."
 
 # -----------------------------------------------------------------------------
@@ -125,6 +155,8 @@ SHA=${2:-latest}
 ENV_FILE=".env.prod"
 [ "$TARGET" == "beta" ] && ENV_FILE=".env.beta"
 
+echo ""
+show_token_expiry
 echo ""
 echo "ÉTAPE 1/5 — Connexion au registre GitHub (GHCR)..."
 echo "   (Droit de télécharger les images construites par GitHub.)"

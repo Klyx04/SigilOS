@@ -1864,6 +1864,7 @@ export async function createTradeRequest(
             await (db.notification as any).create({
                 data: {
                     userId: targetProfile.userId,
+                    guildId: guildConfig.id,
                     type: "OCRE_TRADE_REQUEST",
                     title: "Demande d'Échange",
                     message: `${requesterProfile.discordNickname || requesterProfile.pseudoDofus || requesterProfile.user.name || "Un membre"} souhaite vous échanger un monstre !`,
@@ -2047,6 +2048,7 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
         await (db.notification as any).create({
             data: {
                 userId: tradeRequest.requester.userId,
+                guildId: guildConfig.id,
                 type: "OCRE_TRADE_ACCEPTED",
                 title: "Échange Accepté",
                 message: `${tradeRequest.target.discordNickname || tradeRequest.target.metamobPseudo || "Un membre"} a accepté votre échange !`,

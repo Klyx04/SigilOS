@@ -93,6 +93,7 @@ export async function sendUserRequest(
         await db.notification.create({
             data: {
                 userId: targetUser.id,
+                guildId: guildConfig.id,
                 title: "Nouvelle sollicitation",
                 message: `${senderName} vous a sollicité pour : ${requestLabel}. Message : ${data.message}`,
                 type: NotificationType.SYSTEM_INFO,

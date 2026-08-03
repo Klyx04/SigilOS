@@ -294,6 +294,7 @@ model GuildConfig {
   pollsPingRoleIds                 String[]                @default([])
   raidAllowedSignUpRoleIds         String[]                @default([])
   raidHubConfig                    Json?
+  notifications                    Notification[]
 }
 
 model UserSkin {
@@ -791,6 +792,7 @@ model UserDungeonAchievement {
 model Notification {
   id        String               @id @default(cuid())
   userId    String
+  guildId   String?
   title     String
   message   String
   type      NotificationType
@@ -799,10 +801,12 @@ model Notification {
   createdAt DateTime             @default(now())
   category  NotificationCategory @default(SYSTEM)
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild     GuildConfig?         @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([category])
   @@index([userId, read, createdAt])
+  @@index([guildId])
 }
 
 model DreamRun {

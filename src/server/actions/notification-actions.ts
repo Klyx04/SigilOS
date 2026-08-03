@@ -5,6 +5,8 @@ import { db } from "@/lib/prisma";
 import { NotificationType, NotificationCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { redis } from "@/lib/redis";
+import { getUserContext } from "./user-actions";
 
 // --- Types ---
 
@@ -36,18 +38,59 @@ function inferCategory(type: NotificationType, title: string): NotificationCateg
     return "SYSTEM";
 }
 
+/**
+ * Résout un guildId (qui peut être un discordGuildId si length > 15) vers l'ID interne
+ * de GuildConfig. Retourne `undefined` si non résoluble (guilde introuvable).
+ */
+async function resolveInternalGuildId(guildId?: string): Promise<string | undefined> {
+    if (!guildId) return undefined;
+    let internalGuildId = guildId;
+    if (guildId.length > 15) { // Discord ID lookup
+        const guild = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { id: true },
+        });
+        if (guild) internalGuildId = guild.id;
+    }
+    return internalGuildId;
+}
+
+/**
+ * Construit le filtre `where` de scope multi-tenant.
+ * - Si internalGuildId est fourni : on ne garde que les notifs de CETTE guilde
+ *   + celles sans guilde (système global, rétrocompatibilité).
+ * - Sinon : toutes les notifs (mode non scopé).
+ */
+function buildGuildScopeFilter(internalGuildId?: string) {
+    if (!internalGuildId) return {};
+    return { OR: [{ guildId: internalGuildId }, { guildId: null }] };
+}
+
 // --- Actions ---
 
-import { redis } from "@/lib/redis";
-
-export async function getUnreadNotifications(): Promise<{ success: boolean; data?: Notification[]; error?: string }> {
+export async function getUnreadNotifications(guildId?: string): Promise<{ success: boolean; data?: Notification[]; error?: string }> {
     const start = Date.now();
     const session = await auth();
     const authDone = Date.now();
-    
+
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    const cacheKey = `notifs:unread:${session.user.id}`;
+    // SECURITY (I-XX): guild isolation — l'utilisateur doit être membre de la guilde
+    // demandée avant de pouvoir lire ses notifications (fail-closed, posture SECURITY.md).
+    // Les notifs système sans guilde restent visibles via le scope OR [guildId, null].
+    let internalGuildId: string | undefined;
+    if (guildId) {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember) {
+            logger.warn(`[Notification] Blocked unread notifications access for user ${session.user.id} on unauthorized guild ${guildId}`);
+            return { success: false, error: "Forbidden: Member access required" };
+        }
+        internalGuildId = await resolveInternalGuildId(guildId);
+    }
+
+    const cacheKey = guildId
+        ? `notifs:unread:${session.user.id}:${guildId}`
+        : `notifs:unread:${session.user.id}`;
 
     try {
         // 1. Check Redis Cache first (Short TTL: 5s to allow fast polling without DB load)
@@ -60,7 +103,8 @@ export async function getUnreadNotifications(): Promise<{ success: boolean; data
         const notifications = await db.notification.findMany({
             where: {
                 userId: session.user.id,
-                read: false
+                read: false,
+                ...buildGuildScopeFilter(internalGuildId),
             },
             orderBy: { createdAt: "desc" },
             take: 50, // PERF: limit results to prevent unbounded accumulation
@@ -77,14 +121,29 @@ export async function getUnreadNotifications(): Promise<{ success: boolean; data
     }
 }
 
-export async function markAsRead(notificationId: string) {
+export async function markAsRead(notificationId: string, guildId?: string) {
     const session = await auth();
     if (!session?.user?.id) return;
 
+    // SECURITY: verrouillage par guilde si fournie (cohérence multi-tenant)
+    if (guildId) {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember) {
+            logger.warn(`[Notification] Blocked mark-read for user ${session.user.id} on unauthorized guild ${guildId}`);
+            return;
+        }
+    }
+
     try {
-        await db.notification.update({
-            where: { id: notificationId, userId: session.user.id },
-            data: { read: true }
+        const internalGuildId = await resolveInternalGuildId(guildId);
+        await db.notification.updateMany({
+            where: {
+                id: notificationId,
+                userId: session.user.id,
+                read: false,
+                ...buildGuildScopeFilter(internalGuildId),
+            },
+            data: { read: true },
         });
         revalidatePath("/");
     } catch (error) {
@@ -92,14 +151,28 @@ export async function markAsRead(notificationId: string) {
     }
 }
 
-export async function markAllAsRead() {
+export async function markAllAsRead(guildId?: string) {
     const session = await auth();
     if (!session?.user?.id) return;
 
+    // SECURITY: guild isolation en écriture
+    if (guildId) {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember) {
+            logger.warn(`[Notification] Blocked mark-all-read for user ${session.user.id} on unauthorized guild ${guildId}`);
+            return;
+        }
+    }
+
     try {
+        const internalGuildId = await resolveInternalGuildId(guildId);
         await db.notification.updateMany({
-            where: { userId: session.user.id, read: false },
-            data: { read: true }
+            where: {
+                userId: session.user.id,
+                read: false,
+                ...buildGuildScopeFilter(internalGuildId),
+            },
+            data: { read: true },
         });
         revalidatePath("/");
     } catch (error) {
@@ -123,31 +196,33 @@ export async function createNotification(
     try {
         const finalCategory = category || inferCategory(type, title);
 
-        // 1. Check Preferences if guildId is provided
+        // Résolution de l'ID interne de guilde (discordId → internalId) en dehors
+        // du bloc de préférences afin de pouvoir le réutiliser dans le `data` ci-dessous.
+        let internalGuildId: string | null = null;
         if (guildId) {
-            let internalGuildId = guildId;
-            if (guildId.length > 15) { // Discord ID lookup
-                const guild = await db.guildConfig.findUnique({ where: { discordGuildId: guildId }, select: { id: true } });
-                if (guild) internalGuildId = guild.id;
-            }
+            internalGuildId = (await resolveInternalGuildId(guildId)) ?? null;
 
-            const profile = await db.userProfile.findUnique({
-                where: { userId_guildId: { userId, guildId: internalGuildId } },
-                select: { notificationPrefs: true }
-            });
+            // Narrowing : internalGuildId est `string` ici (guilde résolue). Si la guilde
+            // n'a pas pu être résolue (null), on saute le contrôle de préférences.
+            if (internalGuildId) {
+                const profile = await db.userProfile.findUnique({
+                    where: { userId_guildId: { userId, guildId: internalGuildId } },
+                    select: { notificationPrefs: true }
+                });
 
-            if (profile?.notificationPrefs) {
-                const prefs = profile.notificationPrefs as any;
+                if (profile?.notificationPrefs) {
+                    const prefs = profile.notificationPrefs as any;
 
-                // Stop if preference is explicitly false
-                if (finalCategory === "MISSION" && prefs.missions === false) return;
-                if (finalCategory === "SUCCESS" && prefs.ladder === false) return; 
-                if (finalCategory === "SONGES" && prefs.songes === false) return;
-                if (finalCategory === "EVENT" && prefs.events === false) return;
-                if (finalCategory === "POLL" && prefs.polls === false) return;
-                if (finalCategory === "OCRE" && prefs.ocre === false) return;
-                if (finalCategory === "DONJONS" && prefs.donjons === false) return;
-                if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
+                    // Stop if preference is explicitly false
+                    if (finalCategory === "MISSION" && prefs.missions === false) return;
+                    if (finalCategory === "SUCCESS" && prefs.ladder === false) return;
+                    if (finalCategory === "SONGES" && prefs.songes === false) return;
+                    if (finalCategory === "EVENT" && prefs.events === false) return;
+                    if (finalCategory === "POLL" && prefs.polls === false) return;
+                    if (finalCategory === "OCRE" && prefs.ocre === false) return;
+                    if (finalCategory === "DONJONS" && prefs.donjons === false) return;
+                    if (finalCategory === "ADMIN_ALERT" && prefs.admin_validations === false) return;
+                }
             }
         }
 
@@ -159,7 +234,8 @@ export async function createNotification(
                 category: finalCategory,
                 title,
                 message,
-                link: link || null
+                link: link || null,
+                guildId: internalGuildId,
             }
         });
     } catch (error) {

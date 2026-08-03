@@ -210,6 +210,7 @@ git pull origin main
 - [ ] Vérifier mises à jour système (`apt list --upgradable`)
 - [ ] Review Grafana dashboards
 - [ ] Vérifier certificats SSL Caddy
+- [ ] ⏰ Vérifier expiration GHCR_TOKEN (renouveler si < 2 semaines) — voir section 3b CI/CD
 
 ---
 
@@ -266,6 +267,18 @@ git pull origin main
 - **Note** : le workflow GHCR ne remplace PAS `verify.yml` (qui reste le garde-fou lint/test/audit). Les deux coexistent : `verify` valide, `deploy.yml` build/push.
 - ⚠️ **Prérequis secrets GitHub** : `BETA_PASSWORD` (settings > secrets). `NEXT_PUBLIC_APP_URL` est défini automatiquement selon la branche.
 - ⚠️ **GHCR Token sur le VPS** : générer un PAT GitHub avec scope `read:packages`, et l'exporter (ou le mettre dans le `.bashrc`/cron).
+- ⏰ **⚠️ EXPIRATION DU GHCR_TOKEN (IMPORTANT)** : le PAT GitHub créé avec « Expiration: 90 days » **expire ≈ 90 jours après sa création** (créé le 03/08/2026 → **expire ≈ début novembre 2026**). Quand il expire, `deploy-cd.sh` échoue sur le `docker pull` → déploiement CD bloqué.
+  
+  **Renouvellement (quand `docker pull` échoue ou tous les ~3 mois)** :
+  1. GitHub → avatar → Settings → Developer settings → Personal access tokens → **Tokens (classic)**.
+  2. Générer un nouveau token avec **uniquement `read:packages`**, expiration 90 jours (ou plus).
+  3. Sur le VPS, mettre à jour :
+     ```bash
+     export GHCR_TOKEN=<nouveau_token>
+     # permanent :
+     echo 'export GHCR_TOKEN=<nouveau_token>' >> ~/.bashrc && source ~/.bashrc
+     ```
+- 💡 **Astuce** : à la prochaine création, un **fine-grained token sans expiration** (Repository access > SigilOS, permission **Packages: Read**) évite de le renouveler.
 
 #### 3c. Séparer le Redis beta/prod (chantier I-07)
 - **Problème** : la beta et la prod partagent le **même Redis** → risque de collision de jobs BullMQ/queues.

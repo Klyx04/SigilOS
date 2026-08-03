@@ -278,7 +278,8 @@ export async function updatePlatformConfig(data: {
     statusMention?: string,
     statusFrequency?: number,
     nsfwFilterEnabled?: boolean,
-    donationsEnabled?: boolean
+    donationsEnabled?: boolean,
+    questFeedbackChannelId?: string
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
@@ -299,7 +300,8 @@ export async function updatePlatformConfig(data: {
                 ...(data.statusMention !== undefined && { statusMention: data.statusMention }),
                 ...(data.statusFrequency !== undefined && { statusFrequency: data.statusFrequency }),
                 ...(data.nsfwFilterEnabled !== undefined && { nsfwFilterEnabled: data.nsfwFilterEnabled }),
-                ...(data.donationsEnabled !== undefined && { donationsEnabled: data.donationsEnabled })
+                ...(data.donationsEnabled !== undefined && { donationsEnabled: data.donationsEnabled }),
+                ...(data.questFeedbackChannelId !== undefined && { questFeedbackChannelId: data.questFeedbackChannelId || null })
             },
             create: { 
                 id: "singleton", 
@@ -315,7 +317,8 @@ export async function updatePlatformConfig(data: {
                 statusMention: data.statusMention || "none",
                 statusFrequency: data.statusFrequency || 15,
                 nsfwFilterEnabled: data.nsfwFilterEnabled !== undefined ? data.nsfwFilterEnabled : true,
-                donationsEnabled: data.donationsEnabled !== undefined ? data.donationsEnabled : true
+                donationsEnabled: data.donationsEnabled !== undefined ? data.donationsEnabled : true,
+                questFeedbackChannelId: data.questFeedbackChannelId || null
             }
         });
         revalidatePath('/');

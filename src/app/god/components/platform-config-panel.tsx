@@ -52,6 +52,7 @@ interface PlatformConfigPanelProps {
         statusFrequency: number;
         nsfwFilterEnabled: boolean;
         donationsEnabled: boolean;
+        questFeedbackChannelId: string | null;
         maintenanceMode: boolean;
         maintenanceMessage: string | null;
     } | null;
@@ -75,6 +76,7 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         statusFrequency: config?.statusFrequency || 15,
         nsfwFilterEnabled: config?.nsfwFilterEnabled !== undefined ? config?.nsfwFilterEnabled : true,
         donationsEnabled: config?.donationsEnabled !== undefined ? config?.donationsEnabled : true,
+        questFeedbackChannelId: config?.questFeedbackChannelId || "",
         maintenanceMode: config?.maintenanceMode || false,
         maintenanceMessage: config?.maintenanceMessage || ""
     });
@@ -303,6 +305,24 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                             value={formData.godNotifyRoleId}
                             onChange={(e) => setFormData(prev => ({ ...prev, godNotifyRoleId: e.target.value }))}
                             placeholder="ID Rôle GOD (à ping)..."
+                            className="bg-zinc-900 border-white/10 text-xs font-mono"
+                        />
+                    </div>
+
+                    {/* Salon Feedback Dofus */}
+                    <div className="p-5 rounded-2xl bg-zinc-900/30 border border-white/5 space-y-4">
+                        <div className="space-y-1">
+                            <span className="text-xs font-black text-white uppercase block">4. Salon Feedback Dofus</span>
+                            <p className="text-[10px] text-zinc-500 leading-normal">
+                                Cible les retours envoyés depuis les pages « Les Dofus Dofus » (Hub, Détail Dofus, Rush Sylvestre).
+                                <span className="text-zinc-600"> Non configuré : repli sur le salon Alertes GOD.</span>
+                            </p>
+                        </div>
+                        <Input
+                            type="text"
+                            value={formData.questFeedbackChannelId}
+                            onChange={(e) => setFormData(prev => ({ ...prev, questFeedbackChannelId: e.target.value }))}
+                            placeholder="ID Salon feedbacks..."
                             className="bg-zinc-900 border-white/10 text-xs font-mono"
                         />
                     </div>

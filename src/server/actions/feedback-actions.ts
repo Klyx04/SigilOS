@@ -26,7 +26,7 @@ const WINDOW_MS = 60 * 60 * 1000; // 1h
 const RATE_LIMIT = 5; // 5 feedbacks/heure/utilisateur
 
 /**
- * Soumet un feedback depuis les pages « Les Dofus Dofus » (Hub, Détail Dofus, Rush Sylvestre).
+ * Soumet un feedback depuis les pages « Les Dofus Dofus » (Hub, Détail Dofus, Rush Sylvestre, Ganymède, Guilde).
  *
  * SECURITY (fail-closed) :
  * - auth() obligatoire
@@ -36,6 +36,7 @@ const RATE_LIMIT = 5; // 5 feedbacks/heure/utilisateur
  * - logger (jamais de console.log en prod)
  *
  * Stockage : SystemIssue (tracker god) + notif web God + (optionnel) embed Discord.
+ * Du pseudo Discord (nickname) et du nom de guilde du signaleur dans le bug + l'embed.
  */
 export async function submitQuestFeedbackAction(input: FeedbackInput) {
   const start = Date.now();
@@ -89,6 +90,10 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
   const label = FEEDBACK_LABELS[data.feedbackType];
   const category = label?.label ?? "Feedback";
 
+  // — Pseudo Discord (nickname) du signaleur + nom de guilde (avec tag à côté)
+  const memberName = userCtx.name || session.user.name || "Membre";
+  const memberGuildName = userCtx.guildName || "Guilde inconnue";
+
   try {
     const created = await db.systemIssue.create({
       data: {
@@ -102,15 +107,18 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
         targetSlug: data.targetSlug || null,
         guildId: internalGuildId,
         userAgent: data.userAgent || null,
+        memberName,
+        memberGuildName,
       },
     });
 
     // — Notif web God (dashboard + tracker)
     await notifyGod({
       title: "🎫 Nouveau feedback Dofus",
-      message: `#SIG-${created.id} — ${category}`,
+      message: `#SIG-${created.id} — ${category} — par ${memberName}`,
       type: "USER_FEEDBACK",
       success: true,
+      metadata: { ticketId: created.id, memberName, guild: memberGuildName, type: data.feedbackType },
     }).catch((e: any) => logger.error("[Feedback] notifyGod failed", { error: e?.message }));
 
     // — Embed Discord (canal dédié → fallback godNotify)
@@ -120,8 +128,6 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
 
       if (targetChannel) {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-        const memberName = userCtx.name || userCtx.pseudoDofus || session.user.name || "Membre";
-        const guildName = userCtx.guildName || "Guilde inconnue";
 
         await sendChannelMessage(
           targetChannel,
@@ -130,13 +136,14 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
             embedTitle: `${label?.emoji ?? "💬"} Feedback — ${category}`,
             embedDescription: data.description,
             embedColor: isBug ? 0xef4444 : 0x10b981,
-            embedFooter: `SigilOS • ${guildName} • par ${memberName}`,
-            embedUrl: `${appUrl}/god/bugs`,
+            embedFooter: `${memberName} 🏷️ ${memberGuildName} • SigilOS`,
+            embedUrl: `${appUrl}/god/bugs?ticket=${created.id}`,
             fields: [
               { name: "Type", value: data.feedbackType, inline: true },
               { name: "Page", value: data.sourcePage, inline: true },
               ...(data.targetSlug ? [{ name: "Cible", value: data.targetSlug, inline: true }] : []),
               { name: "Ticket", value: `#SIG-${created.id}`, inline: true },
+              { name: "Signalé par", value: `${memberName} (${memberGuildName})`, inline: false },
             ],
           }
         ).catch((e: any) => logger.error("[Feedback] Discord embed failed", { error: e?.message }));
@@ -152,5 +159,87 @@ export async function submitQuestFeedbackAction(input: FeedbackInput) {
     return { success: false, error: "Une erreur est survenue lors de l'envoi. Réessaie." };
   } finally {
     logger.debug(`[PERF] submitQuestFeedbackAction took ${Date.now() - start}ms`);
+  }
+}
+
+/**
+ * Envoie une notification Dashboard (cloche) à la personne qui a trouvé le bug.
+ * Réservé aux super-admins (God). Le God choisit un message + un émoji.
+ *
+ * SECURITY (fail-closed) :
+ * - isSuperAdmin() obligatoire
+ * - Zod sur les entrées
+ * - Vérifie que le SystemIssue existe
+ * - Crée une Notification scopée par guilde du membre
+ */
+const notifyMemberSchema = z.object({
+  issueId: z.number().int().positive(),
+  memberName: z.string().trim().min(1).max(100),
+  emoji: z.string().trim().min(1).max(8),
+  message: z.string().trim().min(1).max(1000),
+});
+
+export async function notifyMemberFeedbackAction(input: {
+  issueId: number;
+  memberName: string;
+  emoji: string;
+  message: string;
+}) {
+  const start = Date.now();
+
+  // — Validation Zod
+  const parsed = notifyMemberSchema.safeParse(input);
+  if (!parsed.success) {
+    logger.warn("[Feedback Notify] Validation échouée", { errors: parsed.error.flatten().fieldErrors });
+    return { success: false, error: "Données invalides." };
+  }
+  const data = parsed.data;
+
+  // — Auth + God check
+  const session = await auth();
+  if (!session?.user?.id) return { success: false, error: "Authentification requise." };
+  const { isSuperAdmin } = await import("./super-admin-actions");
+  const isGod = await isSuperAdmin();
+  if (!isGod) return { success: false, error: "Accès réservé aux administrateurs." };
+
+  try {
+    // — Trouver l'issue + son guildId (guilde d'origine du membre)
+    const issue = await db.systemIssue.findUnique({
+      where: { id: data.issueId },
+      select: { creatorId: true, guildId: true, id: true, memberName: true, memberGuildName: true },
+    });
+    if (!issue?.creatorId) return { success: false, error: "Bug introuvable." };
+
+    // — Résoudre le discordGuildId à partir de l'ID interne (pour le lien)
+    let discordGuildId: string | undefined;
+    if (issue.guildId) {
+      const guildConfig = await db.guildConfig.findUnique({
+        where: { id: issue.guildId },
+        select: { discordGuildId: true },
+      });
+      discordGuildId = guildConfig?.discordGuildId;
+    }
+
+    const { createNotification } = await import("./notification-actions");
+    const guildIdForNotif = discordGuildId || issue.guildId || undefined;
+
+    // — Créer la notification Dashboard (scopée par guilde du membre)
+    await createNotification(
+      issue.creatorId,
+      "SYSTEM_INFO",
+      `${data.emoji} Ton bug a été remarqué !`,
+      data.message,
+      guildIdForNotif ? `/dashboard/${guildIdForNotif}/tracker?bug=SIG-${issue.id}` : undefined,
+      guildIdForNotif,
+      "SYSTEM"
+    );
+
+    logger.info(`[Feedback Notify] God ${session.user.id} a notifié ${issue.creatorId} pour SIG-${issue.id}`);
+    return { success: true };
+  } catch (e: any) {
+    logger.error("[Feedback Notify] Échec", { error: e?.message });
+    return { success: false, error: "Erreur lors de l'envoi de la notification." };
+  } finally {
+    logger.debug(`[PERF] notifyMemberFeedbackAction took ${Date.now() - start}ms`);
   }
 }

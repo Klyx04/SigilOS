@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo, useTransition } from "react";
 import { createSystemIssue, updateSystemIssueStatus, deleteSystemIssue, updateSystemIssue } from "@/server/actions/god-bugs-actions";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search, Trash2, Link as LinkIcon, Edit, BugIcon, LightbulbIcon } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { PlusCircle, Search, Trash2, Link as LinkIcon, Edit, BugIcon, LightbulbIcon, Bell, Send, Hash, MessageSquareText, Trophy } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { notifyMemberFeedbackAction } from "@/server/actions/feedback-actions";
 
 type SystemIssueType = "BUG" | "AMELIORATION";
 type SystemIssueStatus = "A_FAIRE" | "A_INVESTIGUER" | "EN_COURS" | "TERMINE" | "IGNORE";
@@ -32,7 +33,12 @@ type Issue = {
     sourcePage?: string | null;
     targetSlug?: string | null;
     guildId?: string | null;
+    memberName?: string | null;
+    memberGuildName?: string | null;
+    creatorId?: string | null;
 };
+
+const FEEDBACK_EMOJIS = ["🎉", "🏆", "💖", "👏", "👍", "⭐", "🔥", "🎁"];
 
 const PRIORITY_COLORS: Record<string, string> = {
     "Très important": "bg-red-500/10 text-red-500 border-red-500/20",
@@ -51,7 +57,7 @@ const StatusBadge = ({ status }: { status: SystemIssueStatus }) => {
 
     return (
         <Badge variant="outline" className={`whitespace-nowrap transition-colors ${sc}`}>
-            {status.replace("_", " ")}
+            {status === "A_INVESTIGUER" ? "À INVESTIGUER" : status.replace("_", " ")}
         </Badge>
     );
 };
@@ -155,7 +161,7 @@ const IssueForm = ({ form, setForm }: { form: any, setForm: (f: any) => void }) 
     </div>
 );
 
-export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
+export function BugsClient({ initialIssues, initialTicketParam }: { initialIssues: Issue[], initialTicketParam?: string }) {
     const [issues, setIssues] = useState<Issue[]>(initialIssues);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -163,6 +169,14 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
     const [filter, setFilter] = useState("");
     const [filterType, setFilterType] = useState<"ALL" | SystemIssueType>("ALL");
     const [filterFeedback, setFilterFeedback] = useState<"ALL" | "FEEDBACK" | "INTERNE">("ALL");
+    const [filterGuild, setFilterGuild] = useState<string>("ALL");
+    const [highlightedId, setHighlightedId] = useState<number | null>(null);
+
+    // Notif God modal state
+    const [notifyIssue, setNotifyIssue] = useState<Issue | null>(null);
+    const [notifyMessage, setNotifyMessage] = useState("");
+    const [notifyEmoji, setNotifyEmoji] = useState("🎉");
+    const [isNotifying, startNotify] = useTransition();
 
     const [form, setForm] = useState({
         type: "BUG" as SystemIssueType,
@@ -171,6 +185,58 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
         description: "",
         forumLink: ""
     });
+
+    // Focus sur le ticket ciblé via ?ticket=SIG-XX
+    useEffect(() => {
+        if (!initialTicketParam) return;
+        const numeric = parseInt(String(initialTicketParam).replace(/\D/g, ""), 10);
+        if (!isNaN(numeric) && issues.some(i => i.id === numeric)) {
+            setHighlightedId(numeric);
+            setTimeout(() => {
+                document.getElementById(`issue-row-${numeric}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 300);
+            setTimeout(() => setHighlightedId(null), 4000);
+        }
+    }, [initialTicketParam, issues]);
+
+    // ── Stats feedback (dérivées) ──
+    const feedbackIssues = useMemo(() => issues.filter(i => !!i.feedbackType), [issues]);
+
+    const guildCounts = useMemo(() => {
+        const map = new Map<string, number>();
+        feedbackIssues.forEach(i => {
+            const g = i.memberGuildName || "Inconnue";
+            map.set(g, (map.get(g) || 0) + 1);
+        });
+        return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    }, [feedbackIssues]);
+
+    const categoryCounts = useMemo(() => {
+        const map = new Map<string, number>();
+        feedbackIssues.forEach(i => {
+            const c = i.feedbackType || "AUTRE";
+            map.set(c, (map.get(c) || 0) + 1);
+        });
+        return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    }, [feedbackIssues]);
+
+    const topContributors = useMemo(() => {
+        const map = new Map<string, { name: string; count: number }>();
+        feedbackIssues.forEach(i => {
+            const name = i.memberName || "Inconnu";
+            const cur = map.get(name) || { name, count: 0 };
+            cur.count++;
+            map.set(name, cur);
+        });
+        return Array.from(map.values()).sort((a, b) => b.count - a.count);
+    }, [feedbackIssues]);
+
+    // Guildes disponibles pour le filtre
+    const availableGuilds = useMemo(() => {
+        const set = new Set<string>();
+        feedbackIssues.forEach(i => { if (i.memberGuildName) set.add(i.memberGuildName); });
+        return Array.from(set).sort();
+    }, [feedbackIssues]);
 
     const openCreateModal = () => {
         setEditingIssueId(null);
@@ -235,23 +301,106 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
         }
     };
 
+    const handleNotify = () => {
+        if (!notifyIssue) return;
+        if (!notifyMessage.trim()) return toast.error("Écris un message de remerciement.");
+        startNotify(async () => {
+            const res = await notifyMemberFeedbackAction({
+                issueId: notifyIssue.id,
+                memberName: notifyIssue.memberName || "ce membre",
+                emoji: notifyEmoji,
+                message: notifyMessage.trim(),
+            });
+            if (res.success) {
+                toast.success(`Notification envoyée à ${notifyIssue.memberName || "ce membre"} !`);
+                setNotifyIssue(null);
+                setNotifyMessage("");
+                setNotifyEmoji("🎉");
+            } else {
+                toast.error(res.error || "Erreur d'envoi.");
+            }
+        });
+    };
+
     const filteredIssues = issues.filter(i => {
         const matchesFilter = i.description.toLowerCase().includes(filter.toLowerCase()) || 
-                              i.category.toLowerCase().includes(filter.toLowerCase());
+                              i.category.toLowerCase().includes(filter.toLowerCase()) ||
+                              (i.memberName || "").toLowerCase().includes(filter.toLowerCase());
         const matchesType = filterType === "ALL" || i.type === filterType;
         const isFeedback = !!i.feedbackType;
         const matchesFeedback = filterFeedback === "ALL" || (filterFeedback === "FEEDBACK" ? isFeedback : !isFeedback);
-        return matchesFilter && matchesType && matchesFeedback;
+        const matchesGuild = filterGuild === "ALL" || (i.memberGuildName || "Inconnue") === filterGuild;
+        return matchesFilter && matchesType && matchesFeedback && matchesGuild;
     });
 
     return (
         <div className="space-y-6">
+            {/* ── STATS FEEDBACK ── */}
+            {feedbackIssues.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="border border-white/5 bg-zinc-950/40 rounded-xl overflow-hidden">
+                        <CardContent className="p-5 space-y-3">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                <Trophy className="w-4 h-4 text-amber-400" />
+                                Top Contributeurs
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                {topContributors.slice(0, 5).map((c, idx) => (
+                                    <div key={c.name} className="flex items-center justify-between text-sm">
+                                        <span className="flex items-center gap-2 text-zinc-300 font-medium truncate">
+                                            <span className="text-zinc-600 font-mono w-4">{idx + 1}</span>
+                                            {c.name}
+                                        </span>
+                                        <span className="text-amber-400 font-black">{c.count}</span>
+                                    </div>
+                                ))}
+                                {topContributors.length === 0 && <span className="text-zinc-600 text-sm">Aucun feedback</span>}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border border-white/5 bg-zinc-950/40 rounded-xl overflow-hidden">
+                        <CardContent className="p-5 space-y-3">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                <MessageSquareText className="w-4 h-4 text-indigo-400" />
+                                Par Catégorie
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                {categoryCounts.slice(0, 6).map(([cat, count]) => (
+                                    <div key={cat} className="flex items-center justify-between text-sm">
+                                        <span className="text-zinc-300 font-medium truncate">{cat}</span>
+                                        <span className="text-indigo-400 font-black">{count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border border-white/5 bg-zinc-950/40 rounded-xl overflow-hidden">
+                        <CardContent className="p-5 space-y-3">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                <Hash className="w-4 h-4 text-emerald-400" />
+                                Par Guilde
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                {guildCounts.slice(0, 6).map(([g, count]) => (
+                                    <div key={g} className="flex items-center justify-between text-sm">
+                                        <span className="text-zinc-300 font-medium truncate">{g}</span>
+                                        <span className="text-emerald-400 font-black">{count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-zinc-950/40 p-4 rounded-xl border border-zinc-800/50">
                 <div className="flex flex-wrap gap-3 w-full max-w-2xl">
                     <div className="relative flex-1 min-w-[200px]">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
                         <Input
-                            placeholder="Rechercher un ticket..."
+                            placeholder="Rechercher un ticket, un membre..."
                             className="pl-9 bg-zinc-900 border-zinc-800 focus-visible:border-amber-500/50 focus-visible:ring-amber-500/20 text-zinc-200 shadow-inner rounded-md"
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
@@ -277,6 +426,19 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                             <SelectItem value="INTERNE" className="focus:bg-zinc-800 cursor-pointer text-zinc-300">Internes</SelectItem>
                         </SelectContent>
                     </Select>
+                    {availableGuilds.length > 0 && (
+                        <Select value={filterGuild} onValueChange={setFilterGuild}>
+                            <SelectTrigger className="w-[180px] bg-zinc-900 border-zinc-800 text-zinc-300 rounded-md shadow-sm">
+                                <SelectValue placeholder="Toutes les guildes" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-900 border-zinc-800">
+                                <SelectItem value="ALL" className="focus:bg-zinc-800 cursor-pointer">Toutes les guildes</SelectItem>
+                                {availableGuilds.map(g => (
+                                    <SelectItem key={g} value={g} className="focus:bg-zinc-800 cursor-pointer">{g}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
 
                 <Button onClick={openCreateModal} className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-md transition-all rounded-md">
@@ -345,6 +507,64 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                 </DialogContent>
             </Dialog>
 
+            {/* NOTIFY GOD MODAL */}
+            <Dialog open={!!notifyIssue} onOpenChange={(v) => { if (!v) setNotifyIssue(null); }}>
+                <DialogContent className="sm:max-w-[480px] p-0 bg-zinc-950 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden rounded-2xl">
+                    <div className="px-6 py-5 border-b border-white/5 bg-zinc-900/20">
+                        <DialogTitle className="text-xl font-black text-white flex items-center gap-3 tracking-tight">
+                            <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                                <Bell className="w-6 h-6 text-emerald-400" />
+                            </div>
+                            Remercier le membre
+                        </DialogTitle>
+                        <p className="text-zinc-500 text-sm mt-2 ml-[3.25rem]">
+                            Envoyer une notification Dashboard à{" "}
+                            <span className="text-white font-bold">{notifyIssue?.memberName || "ce membre"}</span>{" "}
+                            pour son feedback.
+                        </p>
+                    </div>
+
+                    <div className="px-6 py-4 space-y-4">
+                        {/* Choix d'émoji */}
+                        <div>
+                            <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2 block">Émoji</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {FEEDBACK_EMOJIS.map(e => (
+                                    <button
+                                        key={e}
+                                        onClick={() => setNotifyEmoji(e)}
+                                        className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center border transition-all ${notifyEmoji === e ? "bg-emerald-500/20 border-emerald-500/50 scale-110" : "bg-white/5 border-white/10 hover:border-white/30"}`}
+                                    >
+                                        {e}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Message */}
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Message</Label>
+                            <Textarea
+                                value={notifyMessage}
+                                onChange={(e) => setNotifyMessage(e.target.value)}
+                                placeholder={`Merci pour ton retour ! Ce bug est en cours de traitement.`}
+                                className="bg-zinc-900/50 border-white/10 text-zinc-200 placeholder:text-zinc-600 min-h-[100px] resize-none focus-visible:ring-1 focus-visible:ring-emerald-500/50"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="px-6 py-4 border-t border-white/5 bg-zinc-900/30 flex gap-3 sm:justify-end">
+                        <Button type="button" variant="ghost" onClick={() => setNotifyIssue(null)} className="text-zinc-400 hover:text-white hover:bg-white/5">
+                            Annuler
+                        </Button>
+                        <Button onClick={handleNotify} disabled={isNotifying || !notifyMessage.trim()} className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-6 shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all">
+                            <Send className="w-3.5 h-3.5 mr-2" />
+                            {isNotifying ? "Envoi…" : "Envoyer"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <Card className="border-0 bg-zinc-950/40 backdrop-blur-xl shadow-xl relative overflow-hidden ring-1 ring-white/5 rounded-xl">
                 <CardContent className="p-0">
                     <Table>
@@ -355,7 +575,7 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                                 <TableHead className="w-[120px] text-zinc-400 font-medium">Priorité</TableHead>
                                 <TableHead className="text-zinc-400 font-medium">Sujet</TableHead>
                                 <TableHead className="w-[160px] text-zinc-400 font-medium">État</TableHead>
-                                <TableHead className="w-[100px] text-right text-zinc-400 font-medium px-4">Actions</TableHead>
+                                <TableHead className="w-[190px] text-right text-zinc-400 font-medium px-4">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -370,7 +590,11 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                                 </TableRow>
                             ) : (
                                 filteredIssues.map(issue => (
-                                    <TableRow key={issue.id} className={`border-zinc-800/30 hover:bg-white/[0.02] transition-colors group ${issue.status === "TERMINE" ? "opacity-60 hover:opacity-100" : ""}`}>
+                                    <TableRow 
+                                        key={issue.id} 
+                                        id={`issue-row-${issue.id}`}
+                                        className={`border-zinc-800/30 hover:bg-white/[0.02] transition-colors group ${issue.status === "TERMINE" ? "opacity-60 hover:opacity-100" : ""} ${highlightedId === issue.id ? "bg-amber-500/10 ring-1 ring-inset ring-amber-500/40" : ""}`}
+                                    >
                                         <TableCell className="px-4 font-mono text-zinc-500 text-xs">
                                             SIG-{issue.id}
                                         </TableCell>
@@ -409,8 +633,24 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                                                     </a>
                                                 )}
                                             </div>
+                                            {/* Pseudo Discord + guilde */}
+                                            {issue.feedbackType && (
+                                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                    {issue.memberName && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-300">
+                                                            👤 {issue.memberName}
+                                                        </span>
+                                                    )}
+                                                    {issue.memberGuildName && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/60 border border-white/10 text-[10px] font-bold text-zinc-400">
+                                                            🏷️ {issue.memberGuildName}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                             <div className="text-[10px] text-zinc-500 font-mono mt-1 opacity-60">
                                                 Créé le {format(new Date(issue.createdAt), "dd MMM yy", { locale: fr })}
+                                                {issue.sourcePage ? ` • ${issue.sourcePage}` : ""}
                                             </div>
                                         </TableCell>
 
@@ -433,11 +673,22 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                                         </TableCell>
 
                                         <TableCell className="text-right px-4">
-                                            <div className="flex items-center justify-end gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-white hover:bg-white/10 rounded-md" onClick={() => openEditModal(issue)}>
+                                            <div className="flex items-center justify-end gap-1 transition-opacity">
+                                                {issue.feedbackType && issue.memberName && (
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-7 w-7 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-md border border-emerald-500/30 bg-emerald-500/10" 
+                                                        onClick={() => { setNotifyIssue(issue); setNotifyMessage(""); setNotifyEmoji("🎉"); }}
+                                                        title="Notifier la personne du bug (Dashboard)"
+                                                    >
+                                                        <Bell className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-white hover:bg-white/10 rounded-md opacity-20 group-hover:opacity-100 transition-opacity" onClick={() => openEditModal(issue)}>
                                                     <Edit className="h-3.5 w-3.5" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500 hover:bg-red-500/10 hover:text-red-400 rounded-md" onClick={() => handleDelete(issue.id)}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500 hover:bg-red-500/10 hover:text-red-400 rounded-md opacity-20 group-hover:opacity-100 transition-opacity" onClick={() => handleDelete(issue.id)}>
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>

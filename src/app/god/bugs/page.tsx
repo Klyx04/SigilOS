@@ -5,7 +5,13 @@ export const metadata = {
     title: "Bugs & Améliorations - GOD SigilOS",
 };
 
-export default async function GodBugsPage() {
+type Props = {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function GodBugsPage({ searchParams }: Props) {
+    const resolvedParams = await searchParams;
+    const ticketParam = typeof resolvedParams?.ticket === "string" ? resolvedParams.ticket : undefined;
     const response = await getSystemIssues();
     const initialIssues = response.success ? response.data : [];
 
@@ -20,7 +26,7 @@ export default async function GodBugsPage() {
                 </div>
             </div>
             
-            <BugsClient initialIssues={initialIssues as any} />
+            <BugsClient initialIssues={initialIssues as any} initialTicketParam={ticketParam} />
         </div>
     );
 }

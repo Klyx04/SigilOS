@@ -97,6 +97,22 @@ export async function markGodNotificationRead(id: string) {
 /**
  * Get recent god notifications
  */
+/**
+ * Mark all god notifications as read (bouton "Tout marquer lu" côté God dashboard)
+ */
+export async function markAllGodNotificationsRead() {
+    try {
+        await (db as any).godNotification.updateMany({
+            where: { isRead: false },
+            data: { isRead: true }
+        });
+        revalidatePath("/god");
+        return { success: true };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+
 export async function getGodNotifications(limit = 50) {
     try {
         const notifications = await (db as any).godNotification.findMany({

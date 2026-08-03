@@ -7,7 +7,7 @@ import NextImage from "next/image";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { DO_TAGS } from "@/lib/dofus-tags";
 
-const ADVANCED_TAG_IDS = ["tank","soin","pp","dopou","docrit","ini","retpa","retpm","terrefeu","terreeau","terreair","feueau","feuair","eauair","multinocrit","sagesse","leveling","songes"];
+const ADVANCED_TAG_IDS = ["tank","soin","pp","dopou","docrit","ini","retpa","retpm","terrefeu","terreeau","terreair","feueau","feuair","eauair","multinocrit","sagesse","leveling","songes","koli1v1","koli2v2","koli3v3","perco"];
 
 // Extract numeric icon ID from icon path (e.g. "/assets/dofus/classes/9.png" → 9)
 export function getNumericClassId(cls: typeof DOFUS_CLASSES[number]): number | null {
@@ -31,6 +31,10 @@ export function AdvancedTagFilter({
         {
             title: "Dommages & Modes",
             tags: ["dopou","docrit","multinocrit","leveling","songes"]
+        },
+        {
+            title: "PvP & Autres",
+            tags: ["koli1v1","koli2v2","koli3v3","perco"]
         }
     ];
 

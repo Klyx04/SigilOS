@@ -1,27 +1,42 @@
 #!/bin/bash
 
 # =============================================================================
-# 🚀 SigilOS - Script de Déploiement Unifié (2026)
+# 🚀 SigilOS - Script de Déploiement Unifié (2026) — v2
 # =============================================================================
-# Usage: 
+# Usage:
 #   ./scripts/deploy.sh prod   -> Déploie la PROD (main)
 #   ./scripts/deploy.sh beta   -> Déploie la BETA (dev)
 #
-# Beta déploiements activent automatiquement la page maintenance
-# pendant le rebuild. Les joueurs voient une page stylée au lieu d'un 502.
+# Changements v2 :
+#   - FIX : la page maintenance reste active pendant TOUTE la durée du
+#           déploiement (build + migrations + seed). Caddy n'est recréé qu'à
+#           la FIN, donc le flag n'est plus perdu au moment du recreate.
+#   - `prisma db push` RETIRÉ de la PROD (réservé au beta/dev). En prod,
+#           seule `migrate deploy` est autorisée — db push peut désynchroniser
+#           le schéma BDD de façon irréversible.
+#   - Build en mode silencieux (docker compose build -q) : seuls les
+#           erreurs et le résumé final sont affichés.
+#   - `--wait` sur le up : attend que les conteneurs soient "healthy" avant
+#           de continuer (nécessite healthcheck dans docker-compose.prod.yml).
+#   - Vérification de santé POST-déploiement via https://…/api/health
+#   - Seeding conditionnel : le seed de données de jeu n'est lancé QUE si le
+#           hash de prisma/seed-data/game-data.json a changé depuis le dernier
+#           déploiement (SEED_ONLY_ON_CHANGE). Le hash est stocké dans
+#           .deploy-seed-hash.<target>.
+# =============================================================================
 
 TARGET=$1
 
 if [ "$TARGET" != "beta" ] && [ "$TARGET" != "prod" ]; then
-    echo "❌ Usage: ./scripts/deploy.sh {beta|prod}"
+    echo "Usage: ./scripts/deploy.sh {beta|prod}"
+    echo "  beta  -> Déploie la BETA (branche dev)"
+    echo "  prod  -> Déploie la PRODUCTION (branche main)"
     exit 1
 fi
 
 # Choix du fichier d'environnement
 ENV_FILE=".env.prod"
-if [ "$TARGET" == "beta" ]; then
-    ENV_FILE=".env.beta"
-fi
+[ "$TARGET" == "beta" ] && ENV_FILE=".env.beta"
 
 echo "🚀 Démarrage du déploiement : $TARGET (via $ENV_FILE)"
 
@@ -34,61 +49,182 @@ if [ -d "public/uploads/guides" ]; then
     echo "🧹 Nettoyage temporaire des guides pour éviter les conflits de pull..."
     rm -rf public/uploads/guides
 fi
-git pull origin $(git rev-parse --abbrev-ref HEAD)
+git pull origin "$(git rev-parse --abbrev-ref HEAD)"
 
-# 3. Mise à jour de l'infrastructure de monitoring (Prometheus, Grafana, etc)
-echo "📊 Mise à jour et sécurisation de l'infrastructure de monitoring..."
-sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE pull prometheus grafana node-exporter cadvisor postgres-exporter
-sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d prometheus grafana node-exporter cadvisor postgres-exporter
+# 3. Mise à jour de l'infrastructure de monitoring (silencieux)
+echo "📊 Mise à jour de l'infrastructure de monitoring..."
+sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" pull -q prometheus grafana node-exporter cadvisor postgres-exporter
+sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d prometheus grafana node-exporter cadvisor postgres-exporter
 
-# 4. Lancement Docker selon l'environnement
+# -----------------------------------------------------------------------------
+# 🔁 Fonction : seeding conditionnel des données de jeu
+# Ne seed QUE si le hash de game-data.json a changé (ou si SEED_ALWAYS=1).
+# -----------------------------------------------------------------------------
+run_conditional_seed() {
+    local APP_SERVICE=$1
+    local HASH_FILE=".deploy-seed-hash.${TARGET}"
+    local SEED_FILE="prisma/seed-data/game-data.json"
+
+    if [ ! -f "$SEED_FILE" ]; then
+        echo "⚠️  $SEED_FILE introuvable — seed ignoré."
+        return
+    fi
+
+    local CURRENT_HASH
+    CURRENT_HASH="$(sha256sum "$SEED_FILE" | awk '{print $1}')"
+    local PREV_HASH=""
+    [ -f "$HASH_FILE" ] && PREV_HASH="$(cat "$HASH_FILE")"
+
+    if [ "$SEED_ALWAYS" == "1" ] || [ "$CURRENT_HASH" != "$PREV_HASH" ]; then
+        echo "🌱 Seeding des données de jeu ${TARGET^^} (données modifiées)..."
+        sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod
+        echo "$CURRENT_HASH" > "$HASH_FILE"
+        echo "✅ Seed terminé."
+    else
+        echo "⏭️  Seeding ignoré (game-data.json inchangé depuis le dernier déploiement)."
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# 🔖 Fonction : tagger les images avec le SHA git + garder les 5 dernières
+# (Permet le rollback en 1 commande via scripts/rollback.sh)
+# -----------------------------------------------------------------------------
+tag_images_with_sha() {
+    local SHA
+    SHA="$(git rev-parse --short HEAD)"
+    local SUFFIX=$1  # ex: "beta" ou "prod"
+    local IMAGES=("app" "worker" "ws" "discord-bot")
+    local KEEP=5
+
+    echo "🔖 Tagging des images avec le SHA git ($SHA)..."
+    for NAME in "${IMAGES[@]}"; do
+        local IMG="sigilos-${NAME}-${SUFFIX}"
+        sudo docker tag "$IMG:latest" "$IMG:$SHA" 2>/dev/null || true
+    done
+
+    # Nettoyage : ne garder que les 5 tags les plus récents (par image)
+    for NAME in "${IMAGES[@]}"; do
+        local IMG="sigilos-${NAME}-${SUFFIX}"
+        # Liste les tags SHA (hors latest), trie par date de création desc, vire les KEEP premiers
+        local OLD
+        OLD="$(sudo docker images --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' "$IMG" \
+            | grep -v ':latest' \
+            | sort -k2 -r \
+            | tail -n +$((KEEP + 1)) \
+            | awk '{print $1}')"
+        for TAG in $OLD; do
+            sudo docker rmi "$TAG" 2>/dev/null || true
+        done
+    done
+    echo "✅ Images taggées (SHA $SHA) — les $KEEP dernières conservées."
+}
+
+# 4. Déploiement selon l'environnement
+# =============================================================================
+# 🟡 BÊTA
+# =============================================================================
 if [ "$TARGET" == "beta" ]; then
-    # =========================================================================
-    # 🛠️ MAINTENANCE MODE — Automatique pendant le rebuild
-    # =========================================================================
     CADDY_CONTAINER="sigilos-gateway"
-    
+
+    echo ""
     echo "🛠️ Activation de la page maintenance BETA..."
-    sudo docker exec $CADDY_CONTAINER touch /srv/maintenance-beta-on 2>/dev/null || true
-    
-    # Force Caddy to re-evaluate (config already handles the flag file)
-    sleep 1
+    sudo docker exec "$CADDY_CONTAINER" touch /srv/maintenance-beta-on 2>/dev/null || true
 
-    echo "🧪 Mise à jour du laboratoire BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-beta ws-beta discord-bot-beta worker-beta --force-recreate caddy
+    echo ""
+    echo "🧪 Construction BÊTA (mode silencieux — erreurs uniquement)..."
+    BUILD_LOG="$(mktemp)"
+    if ! sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" build -q app-beta worker-beta ws-beta discord-bot-beta >"$BUILD_LOG" 2>&1; then
+        echo "❌ Build échoué. Dernières lignes :"
+        tail -40 "$BUILD_LOG"
+        rm -f "$BUILD_LOG"
+        # On relève la maintenance pour ne pas laisser la beta down
+        sudo docker exec "$CADDY_CONTAINER" rm -f /srv/maintenance-beta-on 2>/dev/null || true
+        exit 1
+    fi
+    rm -f "$BUILD_LOG"
+    echo "✅ Build terminé."
 
-    echo "🔄 Caddy recréé avec le nouveau Caddyfile."
-    
+    tag_images_with_sha beta
+
+    echo "Mise à jour des conteneurs BÊTA (attente healthcheck)..."
+    # --wait : ne passe à la suite que quand les services avec healthcheck sont healthy
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-beta worker-beta ws-beta discord-bot-beta
+
     echo "📂 Migration des fichiers vers Private Storage BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npm run migrate:uploads
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npm run migrate:uploads
 
     echo "🧹 Synchronisation des migrations BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx --yes prisma migrate deploy
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npx --yes prisma db push
-    echo "🌱 Seeding des données de jeu BÊTA..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-beta npm run seed:game-data:prod
-    
-    # =========================================================================
-    # ✅ MAINTENANCE OFF — Beta is back online
-    # =========================================================================
-    echo "✅ Désactivation de la page maintenance BETA..."
-    sudo docker exec $CADDY_CONTAINER rm -f /srv/maintenance-beta-on 2>/dev/null || true
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma migrate deploy
+    # Le `db push` reste en beta pour itérer vite sur le schéma (dev-like)
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma db push
 
+    run_conditional_seed app-beta
+
+    # Caddy recréé à la FIN avec la nouvelle config.
+    # Pendant build + migrations, l'ANCIEN Caddy sert la maintenance (flag actif).
+    # Après le recreate, Caddy route vers les nouveaux conteneurs (déjà prêts).
+    echo "🔄 Recréation du proxy Caddy (nouvelle config)..."
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --force-recreate --no-deps caddy
+
+    echo "✅ Désactivation de la page maintenance BETA..."
+    sudo docker exec "$CADDY_CONTAINER" rm -f /srv/maintenance-beta-on 2>/dev/null || true
+
+# =============================================================================
+# 🔴 PRODUCTION
+# =============================================================================
 else
-    echo "🏰 Mise à jour de la PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE up -d --build app-prod ws-prod discord-bot-prod worker-prod
+    echo ""
+    echo "🏰 Construction PRODUCTION (mode silencieux)..."
+    BUILD_LOG="$(mktemp)"
+    if ! sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" build -q app-prod worker-prod ws-prod discord-bot-prod >"$BUILD_LOG" 2>&1; then
+        echo "❌ Build échoué. Dernières lignes :"
+        tail -40 "$BUILD_LOG"
+        rm -f "$BUILD_LOG"
+        exit 1
+    fi
+    rm -f "$BUILD_LOG"
+    echo "✅ Build terminé."
+
+    tag_images_with_sha prod
+
+    echo "Mise à jour des conteneurs PRODUCTION (attente healthcheck)..."
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-prod worker-prod ws-prod discord-bot-prod
 
     echo "📂 Migration des fichiers vers Private Storage PROD..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npm run migrate:uploads
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npm run migrate:uploads
 
     echo "🧹 Synchronisation des migrations PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx --yes prisma migrate deploy
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npx --yes prisma db push
-    echo "🌱 Seeding des données de jeu PRODUCTION..."
-    sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE exec app-prod npm run seed:game-data:prod
+    sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npx --yes prisma migrate deploy
+    # 🛑 `prisma db push` est volontairement ABSENT en prod.
+    # Seule `migrate deploy` est autorisée sur une base de production :
+    # db push peut désynchroniser le schéma et les migrations de façon
+    # irréversible (perte de données, divergence avec l'historique).
+
+    run_conditional_seed app-prod
 fi
 
-echo "✅ Déploiement $TARGET terminé avec succès !"
+# 5. Vérification de santé post-déploiement
+echo ""
+echo "🔎 Vérification de la santé post-déploiement..."
+if [ "$TARGET" == "beta" ]; then
+    HEALTH_URL="https://beta.sigilos.fr/api/health"
+else
+    HEALTH_URL="https://sigilos.fr/api/health"
+fi
 
-# On utilise l'env_file ici aussi pour supprimer les derniers warnings d'affichage
-sudo docker compose -f docker-compose.prod.yml --env-file $ENV_FILE ps
+HEALTH_HTTP="$(curl -fsS -m 20 -w '\n%{http_code}' "$HEALTH_URL" 2>/dev/null)"
+if [ $? -eq 0 ]; then
+    HTTP_CODE="$(echo "$HEALTH_HTTP" | tail -1)"
+    BODY="$(echo "$HEALTH_HTTP" | head -n -1)"
+    echo "✅ $HEALTH_URL → HTTP $HTTP_CODE"
+    echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
+else
+    echo "❌ Santé KO : $HEALTH_URL ne répond pas."
+    echo "   ⚠️  Les conteneurs viennent d'être mis à jour — à vérifier manuellement."
+fi
+
+echo ""
+echo "✅ Déploiement $TARGET terminé."
+
+# 6. État des conteneurs
+sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" ps

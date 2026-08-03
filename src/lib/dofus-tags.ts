@@ -1,4 +1,4 @@
-export type BUILD_TAG_TYPE = "eau" | "feu" | "terre" | "air" | "multi" | "tank" | "dopou" | "pp" | "retpa" | "retpm" | "soin" | "terrefeu" | "terreeau" | "terreair" | "feueau" | "feuair" | "eauair" | "ini" | "sagesse" | "multinocrit" | "songes" | "docrit" | "leveling";
+export type BUILD_TAG_TYPE = "eau" | "feu" | "terre" | "air" | "multi" | "tank" | "dopou" | "pp" | "retpa" | "retpm" | "soin" | "terrefeu" | "terreeau" | "terreair" | "feueau" | "feuair" | "eauair" | "ini" | "sagesse" | "multinocrit" | "songes" | "docrit" | "leveling" | "koli1v1" | "koli2v2" | "koli3v3" | "perco";
 
 export const DO_TAGS = [
     { id: "eau", label: "Eau", text: "💧 Eau", className: "bg-blue-500/10 text-blue-400 border border-blue-500/20" },
@@ -23,5 +23,9 @@ export const DO_TAGS = [
     { id: "songes", label: "Songes", text: "🌙 Songes", className: "bg-violet-600/10 text-violet-400 border border-violet-600/20" },
     { id: "docrit", label: "Do Crit", text: "🎯 Do Crit", className: "bg-emerald-600/10 text-emerald-300 border border-emerald-600/20" },
     { id: "soin", label: "Soin", text: "💖 Soin", className: "bg-pink-600/10 text-pink-400 border border-pink-600/20" },
-    { id: "leveling", label: "Leveling", text: "🆙 Leveling", className: "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20" }
+    { id: "leveling", label: "Leveling", text: "🆙 Leveling", className: "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20" },
+    { id: "koli1v1", label: "Koli 1v1", text: "⚔️ Koli 1v1", className: "bg-amber-500/10 text-amber-400 border border-amber-500/20" },
+    { id: "koli2v2", label: "Koli 2v2", text: "⚔️⚔️ Koli 2v2", className: "bg-orange-500/10 text-orange-300 border border-orange-500/20" },
+    { id: "koli3v3", label: "Koli 3v3", text: "⚔️⚔️⚔️ Koli 3v3", className: "bg-red-500/10 text-red-300 border border-red-500/20" },
+    { id: "perco", label: "Perco T5", text: "🏰 Perco T5", className: "bg-lime-500/10 text-lime-300 border border-lime-500/20" }
 ];

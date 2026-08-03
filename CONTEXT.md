@@ -6,9 +6,10 @@
 
 ## 👉 À fournir pour chaque prompt (démarrage rapide)
 
-- **Référencer ce fichier `CONTEXT.md`** en premier.
-- L'IA lit ensuite les fichiers référencés selon le sujet (sécurité → `SECURITY.md`, dev → `RULES.md`, infra → `MAINTENANCE.md`).
-- **Ne pas** déverser tout le repo dans le prompt — ce fichier suffit à orienter.
+- **→ Utiliser `PROMPT_START.md`** (à la racine) : il donne le bloc à coller + la ligne à ajouter selon le type (bug, sécu, infra, SEO, BDD). C'est le réflexe n°1.
+- **Référencer `CONTEXT.md`** en premier (contexte global).
+- L'IA lit ensuite les fichiers référencés selon le sujet (sécurité → `SECURITY.md`, dev → `RULES.md`, infra → `MAINTENANCE.md`, SEO → `docs/SEO_REPRISE.md`).
+- **Ne pas** déverser tout le repo dans le prompt — `PROMPT_START.md` + `CONTEXT.md` suffisent à orienter.
 
 ---
 

@@ -32,12 +32,13 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
         getServicesStatusPublic(guildId),
         db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { loansNotifyChannelId: true, servicesNotifyChannelId: true },
+            select: { loansNotifyChannelId: true, servicesNotifyChannelId: true, vaultNotifyChannelId: true },
         }),
     ]);
 
     const servicesDiscordConfigured = !!guildConfig?.servicesNotifyChannelId;
     const loansDiscordConfigured = !!guildConfig?.loansNotifyChannelId;
+    const vaultDiscordConfigured = !!guildConfig?.vaultNotifyChannelId;
 
     return (
         <PassagesClient
@@ -52,6 +53,7 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
             maintenance={statusRes.success ? statusRes.data : undefined}
             servicesDiscordConfigured={servicesDiscordConfigured}
             loansDiscordConfigured={loansDiscordConfigured}
+            vaultDiscordConfigured={vaultDiscordConfigured}
         />
     );
 }

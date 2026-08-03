@@ -1332,6 +1332,59 @@ export async function updateLoansChannel(
     }
 }
 
+export async function getVaultConfig(guildId: string): Promise<{ success: boolean; error?: string; data?: { vaultNotifyChannelId: string | null } }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { vaultNotifyChannelId: true } as Record<string, true>
+        }) as { vaultNotifyChannelId?: string | null } | null;
+
+        if (!config) return { success: false, error: "Guilde introuvable" };
+        return { success: true, data: { vaultNotifyChannelId: config.vaultNotifyChannelId ?? null } };
+    } catch (error) {
+        console.error("Get Vault Config Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
+export async function updateVaultChannel(
+    guildId: string,
+    channelId: string | null
+): Promise<ActionResponse> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const { requireGuildConfigAccess } = await import("./guards");
+    const guard = await requireGuildConfigAccess(guildId);
+    if (!guard.isAuthorized) return { success: false, error: guard.error };
+
+    try {
+        if (channelId) {
+            const { validateChannelBelongsToGuild } = await import("@/server/discord");
+            const isValid = await validateChannelBelongsToGuild(channelId, guildId);
+            if (!isValid) return { success: false, error: "Ce salon n'appartient pas à votre serveur Discord" };
+        }
+
+        await db.guildConfig.update({
+            where: { discordGuildId: guildId },
+            data: { vaultNotifyChannelId: channelId } as Record<string, string | null>
+        });
+
+        revalidatePath(`/dashboard/${guildId}/admin/settings`);
+        return { success: true };
+    } catch (error) {
+        console.error("Update Vault Channel Error:", error);
+        return { success: false, error: "Erreur serveur" };
+    }
+}
+
 export async function getPendingValidationsCount(guildId: string) {
     // PERF: Use getUserContext which is already cached in Redis (~0ms on cache hit)
     // instead of checkGuildPermission which triggers 8 Discord API calls (~3.5s)

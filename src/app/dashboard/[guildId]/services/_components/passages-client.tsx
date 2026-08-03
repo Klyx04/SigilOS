@@ -46,6 +46,7 @@ interface PassagesClientProps {
     };
     servicesDiscordConfigured?: boolean;
     loansDiscordConfigured?: boolean;
+    vaultDiscordConfigured?: boolean;
 }
 
 const TAB_CONFIG: { key: Tab; label: string; icon: typeof Key; color: string; activeClass: string; glow: string }[] = [
@@ -87,6 +88,7 @@ export function PassagesClient({
     maintenance,
     servicesDiscordConfigured = false,
     loansDiscordConfigured = false,
+    vaultDiscordConfigured = false,
 }: PassagesClientProps) {
     const [tab, setTab] = useState<Tab>("services");
 
@@ -101,7 +103,10 @@ export function PassagesClient({
 
     // Discord not configured → non-admin members can't switch tabs or create.
     // Le blocage dépend du salon du module de l'onglet actif : services vs prêts/coffre.
-    const isCurrentDiscordConfigured = tab === "services" ? servicesDiscordConfigured : loansDiscordConfigured;
+    const isCurrentDiscordConfigured =
+        tab === "services" ? servicesDiscordConfigured
+        : tab === "coffre" ? vaultDiscordConfigured
+        : loansDiscordConfigured;
     const discordBlocked = !isCurrentDiscordConfigured && !isAdmin;
 
     const MaintenanceView = ({ message, label }: { message?: string | null, label: string }) => (
@@ -117,7 +122,7 @@ export function PassagesClient({
                 </div>
                 <div className="p-4 rounded-xl bg-black/40 border border-white/5 backdrop-blur-sm">
                     <p className="text-zinc-300 text-sm leading-relaxed italic">
-                        &quot;{message || "Cet onglet est temporairement désactivé par un administrateur. Revenez plus tard !"}&quot;
+                        "{message || "Cet onglet est temporairement désactivé par un administrateur. Revenez plus tard !"}"
                     </p>
                 </div>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">SigilOS Safety Protocol</p>
@@ -286,7 +291,7 @@ export function PassagesClient({
                     <AlertTriangle className="w-5 h-5 shrink-0" />
                     <div>
                         <p className="font-black uppercase tracking-wider text-[11px]">Salon Discord non configuré</p>
-                        <p className="text-zinc-400 font-medium mt-0.5">Le salon pour les notifications n&apos;est pas configuré dans l&apos;administration de la guilde (Paramètres &gt; Prêts/Services). Les créations d&apos;offres, de prêts et d&apos;enregistrements sont désactivées.</p>
+                        <p className="text-zinc-400 font-medium mt-0.5">{[`Le salon pour les notifications n'est pas configuré dans l'administration de la guilde (Paramètres ${'>'} Prêts/Services). Les créations d'offres, de prêts et d'enregistrements sont désactivées.`]}</p>
                     </div>
                 </div>
             )}
@@ -299,7 +304,7 @@ export function PassagesClient({
                     <div className="space-y-4 animate-in fade-in duration-200">
                         {maintenance && !maintenance.serviceMarketplaceEnabled && isAdmin && (
                             <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest mb-4">
-                                <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l&apos;admin)
+                                <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l'admin)
                             </div>
                         )}
                         <div className="flex items-center gap-4 flex-wrap bg-zinc-900/40 p-4 rounded-2xl border border-white/5">
@@ -346,7 +351,7 @@ export function PassagesClient({
                     <div className="space-y-4 animate-in fade-in duration-200">
                         {maintenance && !maintenance.serviceLoansEnabled && isAdmin && (
                             <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest mb-4">
-                                <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l&apos;admin)
+                                <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l'admin)
                             </div>
                         )}
                         <div className="flex items-center gap-3 flex-wrap bg-zinc-900/40 p-4 rounded-2xl border border-white/5">
@@ -406,7 +411,7 @@ export function PassagesClient({
                     <div className="space-y-4 animate-in fade-in duration-200">
                         {maintenance && !maintenance.serviceVaultEnabled && isAdmin && (
                             <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest mb-4">
-                                <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l&apos;admin)
+                                <AlertTriangle className="w-3 h-3" /> Sous maintenance (Visible uniquement par l'admin)
                             </div>
                         )}
                         <div className="flex items-center justify-end gap-3">
@@ -442,9 +447,8 @@ export function PassagesClient({
                 open={showVaultForm}
                 onOpenChange={setShowVaultForm}
                 guildId={guildId}
-                isDiscordConfigured={loansDiscordConfigured}
+                isDiscordConfigured={vaultDiscordConfigured}
             />
         </div>
     );
 }
-

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Hash, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { getLoansConfig, updateLoansChannel, getServicesStatusConfig, updateServicesStatusConfig } from "@/server/actions/admin-actions";
+import { getLoansConfig, updateLoansChannel, getVaultConfig, updateVaultChannel, getServicesStatusConfig, updateServicesStatusConfig } from "@/server/actions/admin-actions";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -19,9 +19,11 @@ interface LoansSettingsClientProps {
 
 export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
     const [channelId, setChannelId] = useState<string>("");
+    const [vaultChannelId, setVaultChannelId] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [isConfigured, setIsConfigured] = useState(false);
+    const [vaultIsConfigured, setVaultIsConfigured] = useState(false);
 
     // Maintenance States
     const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
@@ -33,14 +35,20 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
 
     useEffect(() => {
         async function loadConfig() {
-            const [loansRes, servicesRes] = await Promise.all([
+            const [loansRes, vaultRes, servicesRes] = await Promise.all([
                 getLoansConfig(guildId),
+                getVaultConfig(guildId),
                 getServicesStatusConfig(guildId)
             ]);
 
             if (loansRes.success && loansRes.data) {
                 setChannelId(loansRes.data.loansNotifyChannelId || "");
                 setIsConfigured(!!loansRes.data.loansNotifyChannelId);
+            }
+
+            if (vaultRes.success && vaultRes.data) {
+                setVaultChannelId(vaultRes.data.vaultNotifyChannelId || "");
+                setVaultIsConfigured(!!vaultRes.data.vaultNotifyChannelId);
             }
 
             if (servicesRes.success && servicesRes.data) {
@@ -61,8 +69,20 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
         startTransition(async () => {
             const result = await updateLoansChannel(guildId, channelId.trim() || null);
             if (result.success) {
-                toast.success("Salon configuré !");
+                toast.success("Salon des prêts configuré !");
                 setIsConfigured(!!channelId.trim());
+            } else {
+                toast.error(result.error || "Erreur lors de la sauvegarde");
+            }
+        });
+    };
+
+    const handleSaveVaultChannel = () => {
+        startTransition(async () => {
+            const result = await updateVaultChannel(guildId, vaultChannelId.trim() || null);
+            if (result.success) {
+                toast.success("Salon du coffre configuré !");
+                setVaultIsConfigured(!!vaultChannelId.trim());
             } else {
                 toast.error(result.error || "Erreur lors de la sauvegarde");
             }
@@ -106,7 +126,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                                 <span className="bg-emerald-500/20 text-emerald-400 p-2 rounded-lg">
                                     <Hash className="w-4 h-4" />
                                 </span>
-                                Salon de notifications
+                                Salon des prêts
                             </CardTitle>
                             {isConfigured ? (
                                 <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Actif</Badge>
@@ -115,13 +135,13 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             )}
                         </div>
                         <CardDescription>
-                            Quand un prêt est créé/rendu ou qu&apos;un mouvement de coffre est enregistré, le bot postera un message récapitulatif dans ce salon.
+                            Quand un prêt est créé/rendu, le bot postera un message récapitulatif dans ce salon.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <p className="text-xs text-zinc-500">
-                                Mode développeur Discord → Clic droit sur le salon → <span className="text-zinc-300">Copier l&apos;identifiant</span>
+                                Mode développeur Discord → Clic droit sur le salon → <span className="text-zinc-300">Copier l'identifiant</span>
                             </p>
                             <div className="flex gap-2">
                                 <Input
@@ -164,6 +184,59 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Salon du coffre (séparé) */}
+                <Card className="lg:col-span-2 bg-zinc-900/60 border-white/5">
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <span className="bg-teal-500/20 text-teal-400 p-2 rounded-lg">
+                                    <Hash className="w-4 h-4" />
+                                </span>
+                                Salon du coffre
+                            </CardTitle>
+                            {vaultIsConfigured ? (
+                                <Badge className="bg-teal-500/10 text-teal-400 border-teal-500/20">Actif</Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-zinc-500">Inactif</Badge>
+                            )}
+                        </div>
+                        <CardDescription>
+                            Quand un mouvement de coffre est enregistré, le bot postera un message récapitulatif dans ce salon.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <p className="text-xs text-zinc-500">
+                                Mode développeur Discord → Clic droit sur le salon → <span className="text-zinc-300">Copier l'identifiant</span>
+                            </p>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={vaultChannelId}
+                                    onChange={(e) => setVaultChannelId(e.target.value)}
+                                    placeholder="Ex: 123456789012345678"
+                                    className="font-mono bg-black/20 border-white/10"
+                                />
+                                <Button onClick={handleSaveVaultChannel} disabled={isPending} className="min-w-[120px] bg-teal-600 hover:bg-teal-500">
+                                    {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                    Sauvegarder
+                                </Button>
+                            </div>
+                            {vaultIsConfigured && (
+                                <div className="flex justify-end">
+                                    <Button
+                                        variant="ghost" size="sm"
+                                        onClick={() => { setVaultChannelId(""); handleSaveVaultChannel(); }}
+                                        disabled={isPending}
+                                        className="text-rose-400 hover:text-rose-300 hover:bg-rose-900/20 text-xs"
+                                    >
+                                        Désactiver
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <Card className="bg-zinc-900/60 border-white/5 overflow-hidden relative">
@@ -198,7 +271,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!marketplaceEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d&apos;indisponibilité</Label>
+                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={marketplaceMessage}
                                         onChange={(e) => setMarketplaceMessage(e.target.value)}
@@ -223,7 +296,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!loansEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d&apos;indisponibilité</Label>
+                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={loansMessage}
                                         onChange={(e) => setLoansMessage(e.target.value)}
@@ -248,7 +321,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                             </div>
                             {!vaultEnabled && (
                                 <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d&apos;indisponibilité</Label>
+                                    <Label className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Message d'indisponibilité</Label>
                                     <Textarea
                                         value={vaultMessage}
                                         onChange={(e) => setVaultMessage(e.target.value)}

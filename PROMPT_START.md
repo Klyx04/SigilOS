@@ -74,4 +74,23 @@ vérifier l'impact multi-tenant (guildId), jamais de breaking sans rollback poss
 
 ---
 
-*— Bonus : cette fiche vit à la racine (`PROMPT_START.md`) et est volontairement courte. Le vrai contenu détaillé est dans CONTEXT.md, RULES.md, SECURITY.md, MAINTENANCE.md et docs/SEO_REPRISE.md.*
+---
+
+## 🧠 MÉMO DE SESSION (à consulter et tenir à jour à CHAQUE session)
+
+> ⚠️ **Règle permanente** : au démarrage d'une nouvelle session, lire la mémo de session la plus récente, puis **la mettre à jour** en fin de session (ajouter ce qui a été fait, supprimer ce qui est obsolète, corriger toute info devenue fausse).
+
+- **Emplacement** : `src/temp/memo-*.md` (dossier **non commité** — jamais poussé sur git).
+- **But** : garder une trace fiable de l'état réel entre les sessions, car `.antigravity` n'est **plus mis à jour** et ne doit plus servir de référence.
+- **Convention de nom** : `memo-AAAA-MM-JJ-sujet.md` (ex: `memo-2026-08-03-services-dialogue.md`).
+
+### Données à consigner dans la mémo (ajouter/mettre à jour à chaque session)
+- Type (`développeur` / `sécurité` / `infra` / `SEO` / `données`)
+- Ce qui a été fait (fichiers modifiés/créés, migration, décisions)
+- État git (branche, commit, lien PR en attente, ce qui reste à faire)
+- Après merge : migrations à vérifier, rendus à contrôler
+- Points d'attention / suite (chantiers ouverts, dette technique connue)
+
+---
+
+*— Bonus : cette fiche vit à la racine (`PROMPT_START.md`) et est volontairement courte. Le vrai contenu détaillé est dans CONTEXT.md, RULES.md, SECURITY.md, MAINTENANCE.md, docs/SEO_REPRISE.md et la mémo de session `src/temp/memo-*.md`.*

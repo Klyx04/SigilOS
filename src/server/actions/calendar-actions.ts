@@ -1547,21 +1547,23 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
         // Import notification helper
         const { createNotification } = await import("./notification-actions");
 
-        // Format event time
-        const { format: dtFormat, formatDistanceToNow } = await import("date-fns");
+        // Format moment — use relative time (locale-independent) for notifications
+        // and Discord dynamic timestamps <t:...> for the embed (local timezone per viewer)
+        const { formatDistanceToNow } = await import("date-fns");
         const { fr } = await import("date-fns/locale");
         const eventDate = new Date(event.startDate);
-        const eventTime = dtFormat(eventDate, "EEEE d MMMM 'à' HH:mm", { locale: fr }) + " (heure de Paris)";
         const timeUntil = formatDistanceToNow(eventDate, { locale: fr, addSuffix: false });
+        const startTs = Math.floor(eventDate.getTime() / 1000);
+        const endTs = event.endDate ? Math.floor(new Date(event.endDate).getTime() / 1000) : startTs;
 
-        // Send in-app notifications to all participants
+        // Send in-app notifications to all participants (relative time — works for every timezone)
         let sentCount = 0;
         for (const participant of event.participants) {
             await createNotification(
                 participant.user.id,
                 "SYSTEM_INFO",
                 `🔔 Rappel: ${event.title}`,
-                `L'événement commence ${eventTime}. N'oublie pas de te connecter !`,
+                `L'événement commence bientôt (${timeUntil}). N'oublie pas de te connecter !`,
                 `/dashboard/${guildId}/calendar`,
                 guildId
             );
@@ -1593,11 +1595,9 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
 
                 const typeConfig = typeConfigs[event.type] || typeConfigs.OTHERS;
 
-                // Format date/time
-                const dateStr = dtFormat(event.startDate, "EEEE d MMMM", { locale: fr });
-                const timeStr = event.endDate
-                    ? `${dtFormat(event.startDate, "HH:mm")} - ${dtFormat(event.endDate, "HH:mm")}`
-                    : dtFormat(event.startDate, "HH:mm");
+                // Use Discord dynamic timestamps <t:...> → displayed in each viewer's local timezone
+                const dateStr = `<t:${startTs}:D>`;
+                const timeStr = `<t:${startTs}:t> - <t:${endTs}:t> (<t:${startTs}:R>)`;
 
                 // Build mention content
                 let mentionContent = "";
@@ -1643,7 +1643,7 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
                         embedFooter: `SigilOS • ${guildConfig.name}`,
                         fields: [
                             { name: "⏱️ Commence dans", value: `**${timeUntil}**`, inline: true },
-                            { name: "📆 Date", value: dateStr.charAt(0).toUpperCase() + dateStr.slice(1), inline: true },
+                            { name: "📆 Date", value: dateStr, inline: true },
                             { name: "⏰ Horaire", value: timeStr, inline: true },
                             { name: "👥 Inscrits", value: `${registeredCount}${event.maxParticipants ? `/${event.maxParticipants}` : ""} participants`, inline: true },
                             { name: `${typeConfig.emoji} Type`, value: event.type.replace(/_/g, " "), inline: true },

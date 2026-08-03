@@ -477,22 +477,25 @@ export function ServiceCard({ listing, guildId, currentProfileId, isAdmin, isDis
                     </div>
                 </div>
 
-                {(isOwner || isAdmin) ? (
+                {isOwner ? (
                     <div className="flex items-center gap-2">
-                        {isOwner && (
-                            <>
-                                <ServiceEditDialog listing={listing} guildId={guildId} />
-                                <Button size="icon" variant="ghost" onClick={handleToggle} disabled={loading} className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all">
-                                    {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                                </Button>
-                            </>
-                        )}
+                        <ServiceEditDialog listing={listing} guildId={guildId} />
+                        <Button size="icon" variant="ghost" onClick={handleToggle} disabled={loading} className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all">
+                            {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={handleDelete} disabled={loading} className="h-9 w-9 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-all">
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
                 ) : (
-                    <ServiceContactDialog listing={listing} guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
+                    <div className="flex items-center gap-2">
+                        <ServiceContactDialog listing={listing} guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
+                        {isAdmin && (
+                            <Button size="icon" variant="ghost" onClick={handleDelete} disabled={loading} className="h-9 w-9 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-all">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
                 )}
             </div>
             </div>

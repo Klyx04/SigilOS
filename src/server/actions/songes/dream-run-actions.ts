@@ -1522,14 +1522,19 @@ export async function triggerRunNotification(guildId: string, runId: string, mes
     }
 
     // Dashboard notifications for each member
+    // Use relative time (locale-independent) so it works for every timezone
+    const { formatDistanceToNow } = await import("date-fns");
+    const { fr } = await import("date-fns/locale");
+    const rdvLabel = scheduledAt
+        ? `RDV prévu dans ${formatDistanceToNow(scheduledAt, { locale: fr, addSuffix: false })} • ${message}`
+        : `Message du leader : ${message}`;
+
     const notificationPromises = run.members.map(member =>
         createNotification(
             member.userId,
             "SYSTEM_INFO",
             "Rappel Songes",
-            scheduledAt
-                ? `RDV à ${scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${message}`
-                : `Message du leader : ${message}`,
+            rdvLabel,
             `/dashboard/${ctx.guildId}/songes`,
             guildId
         )

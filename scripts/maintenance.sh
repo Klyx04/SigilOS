@@ -84,14 +84,15 @@ echo "--------------------------------------------------"
 echo "📅 Date : $(date '+%Y-%m-%d %H:%M:%S')"
 echo "🧹 Purification du VPS en cours..."
 
-# 1. Nettoyage Docker AGRESSIF (Stockage SSD Long Terme)
+# 1. Nettoyage Docker (Stockage SSD Long Terme)
 echo "📦 Nettoyage Docker..."
 
-# Supprimer TOUTES les images inutilisées (pas juste >48h)
-# Safe: garde uniquement les images des containers actuellement UP
-sudo docker image prune -a --force
-
-# Supprimer TOUT le build cache (principal coupable de l'espace disque)
+# ⚠️ `docker image prune -a` supprimerait aussi les images taggées par SHA
+# (sigilos-*-<env>:<sha>) utilisées pour le ROLLBACK (5 dernières versions).
+# On préserve donc ces images : on ne nettoie que les images "dangling"
+# (sans tag) et on laisse deploy.sh/deploy-cd.sh gérer la rotation des SHA.
+# Le prune des images dangling + build cache libère déjà l'essentiel du disque.
+sudo docker image prune --force
 sudo docker builder prune -a --force
 
 # Supprimer volumes orphelins (inchangé, déjà OK)

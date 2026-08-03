@@ -1,8 +1,18 @@
 # Guide de Déploiement VPS
 
-Ce document décrit les étapes pour déployer SigilOS sur un VPS Linux.
+> ⚠️ **⚠️ OBSOLÈTE (2026-08)** : ce document décrit l'**ancien** flux de déploiement (Nginx, `NODE_ENV`, processus directs). L'infrastructure réelle est désormais **Docker Compose + Caddy**, avec un **déploiement CI/CD GHCR** (~30s, build sur GitHub).
+>
+> **👉 Référence à jour : `MAINTENANCE.md`** (sections « Mise à Jour Code », « CI/CD 3b », « Procédures d'Urgence ») + script `scripts/deploy-cd.sh`/`deploy.sh`/`rollback.sh`.
+>
+> Gardé pour historique uniquement.
 
-## Prérequis
+---
+
+## (Historique — ancien flux Nginx, non utilisé)
+
+Ce document décrivait les étapes pour déployer SigilOS sur un VPS Linux.
+
+## Prérequis (historique)
 
 - VPS avec Ubuntu 22.04+ (ou Debian 11+)
 - Node.js 22+ installé

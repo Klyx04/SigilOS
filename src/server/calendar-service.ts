@@ -277,16 +277,21 @@ export async function publishDiscordEvent(guildId: string, eventId: string) {
         let targetChannelId = guildConfig.calendarNotifyChannelId;
         if (isRaid) {
             if (meta?.raidType === "gigalodon") {
-                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidGigalodonNotifyChannelId || guildConfig.raidNotifyChannelId;
             } else if (meta?.raidType === "jardin") {
-                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidSanctuaireNotifyChannelId || guildConfig.raidNotifyChannelId;
             } else {
-                targetChannelId = guildConfig.raidNotifyChannelId || guildConfig.calendarNotifyChannelId;
+                targetChannelId = guildConfig.raidNotifyChannelId;
             }
         }
 
         if (!targetChannelId) {
-            return { success: false, error: "Canal Discord non configuré" };
+            return {
+                success: false,
+                error: isRaid
+                    ? "Canal Discord raid non configuré. Allez dans Admin > Raids."
+                    : "Canal Discord non configuré. Allez dans Admin > Calendrier."
+            };
         }
 
         const typeConfig = EVENT_CONFIG[event.type] || { emoji: "📅", color: 0x9333ea, label: event.type };
@@ -465,7 +470,13 @@ export async function updateDiscordEventEmbed(guildId: string, eventId: string) 
     try {
         const guildConfig = await db.guildConfig.findUnique({
             where: { discordGuildId: guildId },
-            select: { id: true, calendarNotifyChannelId: true, raidNotifyChannelId: true }
+            select: {
+                id: true,
+                calendarNotifyChannelId: true,
+                raidNotifyChannelId: true,
+                raidGigalodonNotifyChannelId: true,
+                raidSanctuaireNotifyChannelId: true
+            }
         });
         if (!guildConfig) return;
 

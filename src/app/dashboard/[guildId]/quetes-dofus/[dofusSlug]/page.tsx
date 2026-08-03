@@ -19,6 +19,7 @@ import { DofusDolmanaxTracker } from "@/components/dofus-quests/DofusDolmanaxTra
 import { notFound } from "next/navigation";
 import { linkOcreAccount } from "@/server/actions/ocre-actions";
 import { CharacterQuestSelector } from "@/components/dofus-quests/CharacterQuestSelector";
+import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 
 type Props = {
     params: Promise<{ guildId: string; dofusSlug: string }>;
@@ -69,13 +70,19 @@ export default async function DofusDetailPage({ params, searchParams }: Props) {
                     Retour à la liste des Dofus
                 </Link>
 
-                <div className="flex-shrink-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-shrink-0">
                     <CharacterQuestSelector 
                         mainCharacter={{ 
                             pseudo: user.pseudoDofus || user.name || "Principal", 
                             classe: user.classe 
                         }}
                         mules={user.altPseudos as any || []}
+                    />
+                    <QuestFeedbackButton
+                        guildId={guildId}
+                        sourcePage={`dofus:${dofusSlug}`}
+                        targetSlug={dofusSlug}
+                        compact
                     />
                 </div>
             </div>

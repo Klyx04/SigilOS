@@ -131,6 +131,7 @@ model PlatformConfig {
   donationsEnabled       Boolean  @default(true)
   maintenanceMode        Boolean  @default(false)
   maintenanceMessage     String?
+  questFeedbackChannelId String?  // Canal Discord dédié aux feedbacks Dofus
 }
 
 model GodNotification {
@@ -1641,10 +1642,18 @@ model SystemIssue {
   updatedAt   DateTime          @updatedAt
   forumLink   String?
   creatorId   String
+  // ── Feedback Dofus (membres) ─────────────────────────────────────────
+  feedbackType String?   // "BUG_TECHNIQUE" | "ERREUR_DONNEES" | "AMELIORATION" | "NOUVELLE_FONCTIONNALITE" | "COQUILLE" | "AFFICHAGE" | "AUTRE"
+  sourcePage   String?   // ex: "hub-dofus", "dofus:ocre", "guide:rush-sylvestre"
+  targetSlug   String?   // slug du Dofus ou du guide (ex: "ocre", "rush-sylvestre")
+  guildId      String?   // guilde d'origine (isolation multi-tenant)
+  userAgent    String?   // device/navigateur pour les bugs techniques
 
   @@index([status])
   @@index([type])
   @@index([createdAt])
+  @@index([guildId])
+  @@index([feedbackType])
 }
 
 model Relance {
@@ -2040,6 +2049,7 @@ enum GodNotifyType {
   GEOGUESSER_REPORT
   SECURITY_ALERT
   SYSTEM
+  USER_FEEDBACK
 }
 
 enum ProfileStatus {

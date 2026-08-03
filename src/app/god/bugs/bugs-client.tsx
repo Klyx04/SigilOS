@@ -28,6 +28,10 @@ type Issue = {
     status: SystemIssueStatus;
     createdAt: Date;
     forumLink: string | null;
+    feedbackType?: string | null;
+    sourcePage?: string | null;
+    targetSlug?: string | null;
+    guildId?: string | null;
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -158,6 +162,7 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
     const [editingIssueId, setEditingIssueId] = useState<number | null>(null);
     const [filter, setFilter] = useState("");
     const [filterType, setFilterType] = useState<"ALL" | SystemIssueType>("ALL");
+    const [filterFeedback, setFilterFeedback] = useState<"ALL" | "FEEDBACK" | "INTERNE">("ALL");
 
     const [form, setForm] = useState({
         type: "BUG" as SystemIssueType,
@@ -234,7 +239,9 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
         const matchesFilter = i.description.toLowerCase().includes(filter.toLowerCase()) || 
                               i.category.toLowerCase().includes(filter.toLowerCase());
         const matchesType = filterType === "ALL" || i.type === filterType;
-        return matchesFilter && matchesType;
+        const isFeedback = !!i.feedbackType;
+        const matchesFeedback = filterFeedback === "ALL" || (filterFeedback === "FEEDBACK" ? isFeedback : !isFeedback);
+        return matchesFilter && matchesType && matchesFeedback;
     });
 
     return (
@@ -258,6 +265,16 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                             <SelectItem value="ALL" className="focus:bg-zinc-800 cursor-pointer">Tous les types</SelectItem>
                             <SelectItem value="BUG" className="focus:bg-zinc-800 cursor-pointer text-red-400">Bugs</SelectItem>
                             <SelectItem value="AMELIORATION" className="focus:bg-zinc-800 cursor-pointer text-blue-400">Améliorations</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={filterFeedback} onValueChange={(v: any) => setFilterFeedback(v)}>
+                        <SelectTrigger className="w-[170px] bg-zinc-900 border-zinc-800 text-zinc-300 rounded-md shadow-sm">
+                            <SelectValue placeholder="Toute provenance" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-zinc-800">
+                            <SelectItem value="ALL" className="focus:bg-zinc-800 cursor-pointer">Toute provenance</SelectItem>
+                            <SelectItem value="FEEDBACK" className="focus:bg-zinc-800 cursor-pointer text-emerald-400">Feedbacks membres</SelectItem>
+                            <SelectItem value="INTERNE" className="focus:bg-zinc-800 cursor-pointer text-zinc-300">Internes</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -377,6 +394,11 @@ export function BugsClient({ initialIssues }: { initialIssues: Issue[] }) {
                                             <div className="flex items-center space-x-2">
                                                 {issue.status === 'EN_COURS' && (
                                                     <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                                                )}
+                                                {issue.feedbackType && (
+                                                    <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-[9px] shrink-0">
+                                                        Feedback membre
+                                                    </Badge>
                                                 )}
                                                 <p className="truncate text-sm text-zinc-100 font-medium" title={issue.description}>
                                                     {issue.description}

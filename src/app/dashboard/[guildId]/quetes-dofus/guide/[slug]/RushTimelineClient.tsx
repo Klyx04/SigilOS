@@ -38,6 +38,7 @@ import {
 import { DofusProgressStrip } from "./DofusProgressStrip";
 import { GuildStatusPanel } from "./GuildStatusPanel";
 import { QuestGroupRenderer, useQuestGroups } from "./QuestGroup";
+import { QuestFeedbackButton } from "@/components/dofus-quests/QuestFeedbackButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DungeonRef = { id: string; name: string; bossName: string; imageUrl?: string|null };
@@ -1447,6 +1448,12 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         <CircleHelp className="w-3.5 h-3.5" />
         <span className="hidden md:inline">Aide</span>
       </button>
+      <QuestFeedbackButton
+        guildId={guildId}
+        sourcePage={`guide:${guide.slug}`}
+        targetSlug={guide.slug}
+        compact
+      />
     </div>
     {/* ── Résultats de recherche ─────────────────────────────────────────── */}
     {searchResults !== null && (

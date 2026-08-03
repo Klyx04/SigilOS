@@ -31,6 +31,7 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
     const [loading, setLoading] = useState(false);
 
     const [title, setTitle] = useState(listing.title);
+    const [description, setDescription] = useState(listing.description || "");
     const [price, setPrice] = useState(listing.price || "");
     const [availability, setAvailability] = useState(listing.availability || "");
     // Parse existing contactMethod to checkboxes
@@ -43,6 +44,7 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
     const handleOpen = () => {
         // Reset to current values
         setTitle(listing.title);
+        setDescription(listing.description || "");
         setPrice(listing.price || "");
         setAvailability(listing.availability || "");
         const c = listing.contactMethod || "";
@@ -60,6 +62,7 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
         try {
             const result = await updateServiceListing(guildId, listing.id, {
                 title: title.trim(),
+                description: description.trim() || undefined,
                 price: price.trim() || undefined,
                 availability: availability.trim() || undefined,
                 contactMethod: [contactDiscord && "Discord", contactIngame && "En jeu"].filter(Boolean).join(" + ") || undefined,
@@ -103,8 +106,8 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
 
                     <div className="p-6 space-y-5">
 
-                        {/* Contexte en lecture seule — donjon / succès / quête */}
-                        {(listing.dungeonName || listing.questName) && (
+                        {/* Contexte en lecture seule — donjon / succès / quête (uniquement pour les catégories concernées) */}
+                        {((listing.category === "PASSAGE_DONJON" && listing.dungeonName) || (listing.category === "QUETE" && listing.questName)) && (
                             <div className="rounded-lg border border-white/8 bg-white/[0.025] p-3 space-y-2">
                                 {listing.dungeonName && (
                                     <div className="flex items-center gap-2">
@@ -149,7 +152,7 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                                         })}
                                     </div>
                                 )}
-                                {listing.questName && (
+                                {listing.category === "QUETE" && listing.questName && (
                                     <div className="flex items-center gap-2">
                                         <div className="h-8 w-8 rounded shrink-0 bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
                                             <ScrollText className="h-4 w-4 text-violet-400" />
@@ -197,6 +200,17 @@ export function ServiceEditDialog({ listing, guildId }: ServiceEditDialogProps) 
                                     maxLength={100}
                                 />
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-zinc-400 text-xs font-bold uppercase tracking-wider">Remarque / Détails</Label>
+                            <Textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Ex: dispo en soirée, contactez-moi avant, etc."
+                                className="bg-white/5 border-white/10 text-sm resize-none h-20"
+                                maxLength={2000}
+                            />
                         </div>
 
                         {/* Contact — checkboxes */}

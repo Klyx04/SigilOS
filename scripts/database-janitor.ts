@@ -5,6 +5,7 @@
  * Tasks:
  * 1. GDPR: Delete User + Account records with no UserProfile (>7 days).
  * 2. Audit: Delete audit logs older than 30 days.
+ * 6. Anti-surcharge : purge des notifications de dialogue service.
  * 
  * Usage:
  *   npx tsx scripts/database-janitor.ts           # Dry-run (default)
@@ -156,6 +157,48 @@ async function main() {
                     where: { createdAt: { lt: godNotifCutoff } }
                 });
                 console.log(`  [DEL] Successfully deleted ${result.count} old god notifications.`);
+            }
+        }
+
+        // 6. Service Dialogue Notifications Cleanup (anti-surcharge)
+        // Les notifications de mini-dialogue service (SERVICE_REQUEST / SERVICE_REPLY)
+        // sont éphémères : le contenu vit sur Discord. On purge après TTL court :
+        //  - non lues : 14 jours (pour laisser le destinataire répondre)
+        //  - lues : 30 jours (traçabilité légère, pas d'accumulation)
+        const SERVICE_UNREAD_RETENTION_DAYS = 14;
+        const SERVICE_READ_RETENTION_DAYS = 30;
+
+        const serviceUnreadCutoff = new Date();
+        serviceUnreadCutoff.setDate(serviceUnreadCutoff.getDate() - SERVICE_UNREAD_RETENTION_DAYS);
+        const serviceReadCutoff = new Date();
+        serviceReadCutoff.setDate(serviceReadCutoff.getDate() - SERVICE_READ_RETENTION_DAYS);
+
+        const serviceNotifsCount = await db.notification.count({
+            where: {
+                type: { in: ["SERVICE_REQUEST", "SERVICE_REPLY"] },
+                OR: [
+                    { read: false, createdAt: { lt: serviceUnreadCutoff } },
+                    { read: true, createdAt: { lt: serviceReadCutoff } },
+                ],
+            }
+        });
+
+        console.log(`[ServiceDialogue] Found ${serviceNotifsCount} service dialogue notification(s) past retention.`);
+
+        if (serviceNotifsCount > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${serviceNotifsCount} old service dialogue notifications.`);
+            } else {
+                const result = await db.notification.deleteMany({
+                    where: {
+                        type: { in: ["SERVICE_REQUEST", "SERVICE_REPLY"] },
+                        OR: [
+                            { read: false, createdAt: { lt: serviceUnreadCutoff } },
+                            { read: true, createdAt: { lt: serviceReadCutoff } },
+                        ],
+                    }
+                });
+                console.log(`  [DEL] Successfully deleted ${result.count} old service dialogue notifications.`);
             }
         }
 

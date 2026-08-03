@@ -19,6 +19,12 @@ on:
     branches:
       - dev
       - main
+    # On ne relance PAS le build pour une simple modif de doc (.md) ou de
+    # script de déploiement (.sh, qui tourne sur le VPS et non dans l'image).
+    # Aligné sur verify.yml. → évite des builds GHCR inutiles (~5min).
+    paths-ignore:
+      - '**/*.md'
+      - 'scripts/*.sh'
 
 # Le workflow de build ne doit pas dupliquer avec verify.yml :
 # il ne se lance QUE quand des fichiers sources changent.

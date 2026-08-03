@@ -23,7 +23,7 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
     const lastCheckedRef = useRef<Date>(new Date());
 
     const fetchNotifications = async (isPolling = false) => {
-        const res = await getUnreadNotifications();
+        const res = await getUnreadNotifications(guildId);
         if (res.success && res.data) {
             const fresh = res.data;
             setNotifications(fresh);
@@ -92,14 +92,14 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
     }
 
     const handleMarkAllRead = async () => {
-        await markAllAsRead();
+        await markAllAsRead(guildId);
         setNotifications([]);
         toast.success("Toutes les notifications marquées comme lues");
     };
 
     const handleNotificationClick = async (n: Notification) => {
         if (!n.read) {
-            await markAsRead(n.id);
+            await markAsRead(n.id, guildId);
             setNotifications(prev => prev.filter(item => item.id !== n.id));
         }
         if (n.link) {

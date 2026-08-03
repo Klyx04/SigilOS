@@ -296,10 +296,17 @@ const cleanupWorker = new Worker(
                         data: { status: "REJECTED", respondedAt: new Date() },
                     });
 
+                    // Resolve internal guild ID (req.run.guildId est un discordGuildId)
+                    const guild = await db.guildConfig.findUnique({
+                        where: { discordGuildId: req.run.guildId },
+                        select: { id: true },
+                    });
+
                     // Notify user directly via DB
                     await db.notification.create({
                         data: {
                             userId: req.userId,
+                            guildId: guild?.id || null,
                             type: "SYSTEM_INFO",
                             title: "Candidature expirée",
                             message: `Votre candidature pour la run ${req.run.difficulty} a expiré (aucune réponse du leader sous 24 heures).`,

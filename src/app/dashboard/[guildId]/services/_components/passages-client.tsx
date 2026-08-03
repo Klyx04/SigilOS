@@ -44,7 +44,8 @@ interface PassagesClientProps {
         serviceVaultEnabled: boolean;
         serviceVaultMessage: string | null;
     };
-    isDiscordConfigured?: boolean;
+    servicesDiscordConfigured?: boolean;
+    loansDiscordConfigured?: boolean;
 }
 
 const TAB_CONFIG: { key: Tab; label: string; icon: typeof Key; color: string; activeClass: string; glow: string }[] = [
@@ -84,7 +85,8 @@ export function PassagesClient({
     vaultEntries,
     vaultSummary,
     maintenance,
-    isDiscordConfigured = false,
+    servicesDiscordConfigured = false,
+    loansDiscordConfigured = false,
 }: PassagesClientProps) {
     const [tab, setTab] = useState<Tab>("services");
 
@@ -97,8 +99,10 @@ export function PassagesClient({
     const isLoansDisabled = maintenance && !maintenance.serviceLoansEnabled && !isAdmin;
     const isVaultDisabled = maintenance && !maintenance.serviceVaultEnabled && !isAdmin;
 
-    // Discord not configured → non-admin members can't switch tabs or create
-    const discordBlocked = !isDiscordConfigured && !isAdmin;
+    // Discord not configured → non-admin members can't switch tabs or create.
+    // Le blocage dépend du salon du module de l'onglet actif : services vs prêts/coffre.
+    const isCurrentDiscordConfigured = tab === "services" ? servicesDiscordConfigured : loansDiscordConfigured;
+    const discordBlocked = !isCurrentDiscordConfigured && !isAdmin;
 
     const MaintenanceView = ({ message, label }: { message?: string | null, label: string }) => (
         <div className="flex flex-col items-center justify-center min-h-[400px] border border-white/10 rounded-2xl bg-zinc-900/40 relative overflow-hidden group p-8 text-center animate-in fade-in zoom-in-95 duration-500">
@@ -277,7 +281,7 @@ export function PassagesClient({
                 </div>
             </div>
 
-            {!isDiscordConfigured && (
+            {!isCurrentDiscordConfigured && (
                 <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold animate-in fade-in duration-300">
                     <AlertTriangle className="w-5 h-5 shrink-0" />
                     <div>
@@ -326,7 +330,7 @@ export function PassagesClient({
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 {filteredListings.map((listing) => (
-                                    <ServiceCard key={listing.id} listing={listing} guildId={guildId} currentProfileId={profileId} isAdmin={isAdmin} isDiscordConfigured={isDiscordConfigured} />
+                                    <ServiceCard key={listing.id} listing={listing} guildId={guildId} currentProfileId={profileId} isAdmin={isAdmin} servicesDiscordConfigured={servicesDiscordConfigured} />
                                 ))}
                             </div>
                         )}
@@ -432,13 +436,13 @@ export function PassagesClient({
                 onOpenChange={setShowLoanForm}
                 guildId={guildId}
                 currentProfileId={profileId}
-                isDiscordConfigured={isDiscordConfigured}
+                isDiscordConfigured={loansDiscordConfigured}
             />
             <VaultForm
                 open={showVaultForm}
                 onOpenChange={setShowVaultForm}
                 guildId={guildId}
-                isDiscordConfigured={isDiscordConfigured}
+                isDiscordConfigured={loansDiscordConfigured}
             />
         </div>
     );

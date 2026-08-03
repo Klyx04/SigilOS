@@ -774,6 +774,7 @@ export async function contactPasseurAction(
             await db.notification.create({
                 data: {
                     userId: listing.profile.userId,
+                    guildId: guildConfig.id,
                     title: "Nouvelle demande de service",
                     message: `${user.name || "Un membre"} vous demande pour "${listing.title}". Message : "${customMessage || "aucun"}"`,
                     type: NotificationType.SERVICE_REQUEST,
@@ -927,6 +928,7 @@ export async function sendServiceReplyAction(
             await db.notification.create({
                 data: {
                     userId: recipientUserId,
+                    guildId: guildConfig.id,
                     title: `💬 ${title}`,
                     message: `${senderLabel} : "${message}"`,
                     type: NotificationType.SERVICE_REPLY,

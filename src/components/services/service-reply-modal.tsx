@@ -66,7 +66,7 @@ export function ServiceReplyModal({ guildId }: { guildId: string }) {
     }, []);
 
     const fetchAndQueue = useCallback(async () => {
-        const res = await getUnreadNotifications();
+        const res = await getUnreadNotifications(guildId);
         if (!res.success || !res.data) return;
 
         const serviceNotifs = (res.data as ServiceNotification[])
@@ -82,7 +82,7 @@ export function ServiceReplyModal({ guildId }: { guildId: string }) {
         for (const n of serviceNotifs) {
             processedRef.current.add(n.id);
             if (!n.read) {
-                markAsRead(n.id).catch(() => {});
+                markAsRead(n.id, guildId).catch(() => {});
             }
         }
 
@@ -113,7 +113,7 @@ export function ServiceReplyModal({ guildId }: { guildId: string }) {
         if (current) {
             setNotifs(prev => prev.filter(n => n.id !== current.id));
             if (!skip) {
-                markAsRead(current.id).catch(() => {});
+                markAsRead(current.id, guildId).catch(() => {});
             }
         }
         setCurrent(null);

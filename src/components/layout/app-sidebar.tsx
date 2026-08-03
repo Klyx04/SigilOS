@@ -93,7 +93,7 @@ export function AppSidebar({
         setMounted(true);
         const fetchNotifs = async () => {
             try {
-                const res = await getUnreadNotifications();
+                const res = await getUnreadNotifications(guildId);
                 if (res.success && res.data) {
                     setNotifications(res.data);
                 }

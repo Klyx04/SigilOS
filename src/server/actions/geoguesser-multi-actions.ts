@@ -161,9 +161,15 @@ export async function joinGeoguesserSession(sessionId: string, isSpectator: bool
             // Notifier le propriétaire du salon (si ce n'est pas lui-même)
             if (room.hostId !== sessionToken.user!.id && (client as any).notification) {
                 try {
+                    // Resolve internal guild ID for notification (room.guildId est un discordGuildId)
+                    const guildConfig = await client.guildConfig.findUnique({
+                        where: { discordGuildId: room.guildId },
+                        select: { id: true }
+                    });
                     await (client as any).notification.create({
                         data: {
                             userId: room.hostId,
+                            guildId: guildConfig?.id || null,
                             title: "SigilGuesser",
                             message: `${ctx.name} a rejoint votre salon !`,
                             type: "SYSTEM_INFO",

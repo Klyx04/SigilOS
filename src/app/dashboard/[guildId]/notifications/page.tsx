@@ -88,7 +88,7 @@ export default function NotificationsPage() {
 
     async function loadNotifications() {
         setLoading(true);
-        const result = await getUnreadNotifications();
+        const result = await getUnreadNotifications(guildId);
         if (result.success && result.data) {
             setNotifications(result.data as any);
         }
@@ -102,7 +102,7 @@ export default function NotificationsPage() {
     const handleDismiss = async (id: string) => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
         try {
-            await markAsRead(id);
+            await markAsRead(id, guildId);
         } catch (error) {
             toast.error("Erreur lors de la mise à jour");
         }
@@ -115,11 +115,7 @@ export default function NotificationsPage() {
         setNotifications((prev) => prev.filter((n) => !idsToRemove.has(n.id)));
 
         try {
-            if (activeTab === "ALL") {
-                await markAllAsRead();
-            } else {
-                await markAllAsRead();
-            }
+            await markAllAsRead(guildId);
             toast.success("Notifications marquées comme lues");
         } catch (error) {
             toast.error("Erreur lors de la mise à jour");

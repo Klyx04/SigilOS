@@ -276,7 +276,17 @@ export class GeoguesserManager {
             if (touched && touched.length > 0) {
                 console.log(`[GeoguesserManager] 🚩 Map ${mapId} reported by ${socket.id}`);
                 
-                // [NEW] GLOBAL GOD NOTIFICATION
+                // [NEW] NOTIFY GOD DASHBOARD (/god?tab=notifications) — GEOGUESSER_REPORT type
+                const { notifyGod } = await import("@/server/actions/god-notif-actions");
+                await notifyGod({
+                    title: "🚩 Carte signalée (SigilGuesser)",
+                    message: `Une map a été signalée comme buggée ou mal placée.`,
+                    type: "GEOGUESSER_REPORT",
+                    success: true,
+                    metadata: { mapId, reportedBy: socket.id },
+                }).catch((e: any) => console.error("[GeoguesserManager] notifyGod failed:", e));
+
+                // [NEW] DISCORD ADMIN NOTIFICATION
                 if ((config as any).godNotifyChannelId) {
                     const { sendChannelMessage } = await import("@/server/discord");
                     const ping = (config as any).godNotifyRoleId ? `<@&${(config as any).godNotifyRoleId}>` : "";

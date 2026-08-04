@@ -294,6 +294,7 @@ model GuildConfig {
   djPingRoleIds                    String[]                @default([])
   songesPingRoleIds                String[]                @default([])
   pollsPingRoleIds                 String[]                @default([])
+  missionPingRoleIds               String[]                @default([])
   raidAllowedSignUpRoleIds         String[]                @default([])
   raidHubConfig                    Json?
   notifications                    Notification[]
@@ -744,6 +745,24 @@ model MonsterFamily {
   zones       Zone[]    @relation("MonsterFamilyToZone")
 
   @@index([name])
+}
+
+/// Monstres spéciaux gérés par les super-admins (GOD) pour les missions événement.
+/// Contiennent les infos affichées dans le flow d'édition de mission (sélecteur "Monstre Spécial").
+/// `zone` est un libellé libre (comme Archimonstre) — pas de relation stricte pour couvrir
+/// les événements (zones non répertoriées, monstres d'event, etc.).
+model GameDataMonster {
+  id          String   @id @default(cuid())
+  name        String
+  level       Int      @default(0)
+  zone        String?
+  imageUrl    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([level])
 }
 
 model Challenge {

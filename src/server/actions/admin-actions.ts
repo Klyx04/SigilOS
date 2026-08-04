@@ -1076,6 +1076,7 @@ export async function getMissionConfig(guildId: string): Promise<{
         newsBroadcastEnabled: boolean;
         lifecycleNotifyChannelId: string | null;
         missionVitrineMode: boolean;
+        missionPingRoleIds: string[];
     }
 }> {
     const session = await auth();
@@ -1100,6 +1101,7 @@ export async function getMissionConfig(guildId: string): Promise<{
                 newsBroadcastEnabled: true,
                 lifecycleNotifyChannelId: true,
                 missionVitrineMode: true,
+                missionPingRoleIds: true,
             }
         });
 
@@ -1119,6 +1121,7 @@ export async function getMissionConfig(guildId: string): Promise<{
                 newsBroadcastEnabled: config.newsBroadcastEnabled,
                 lifecycleNotifyChannelId: config.lifecycleNotifyChannelId,
                 missionVitrineMode: config.missionVitrineMode,
+                missionPingRoleIds: config.missionPingRoleIds || [],
             }
         };
     } catch (error) {

@@ -175,7 +175,7 @@ export function ProfileBentoGrid({
         });
     }, [activeTab]);
 
-    const displayName = discordNickname || profile.pseudoDofus || user.name || "Voyageur";
+    const displayName = discordNickname || profile.pseudoDofus || "Voyageur";
 
     // Compute empty section flags for readOnly mode (hide tabs/sections that have no data)
     const isEmpty: Record<string, boolean> = {

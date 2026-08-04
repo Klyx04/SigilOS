@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { getUserContext } from "./user-actions";
 
@@ -466,7 +467,63 @@ export async function logAdminAccessDenied(
 }
 
 /**
- * Log platform-wide beta access attempt
+ * GOD AUDIT LOG - actions super-admin isolees des logs de guilde.
+ * Ecrit un log avec isGodLog=true et SANS guildId, donc invisible dans
+ * les logs d'une guilde (getAuditLogs filtre isGodLog=false).
+ */
+export async function createGodAuditLog({
+    action,
+    targetType,
+    targetId,
+    oldValue,
+    newValue,
+    metadata = {},
+    guildId,
+}: {
+    action: AuditAction;
+    targetType: AuditTargetType;
+    targetId?: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+    metadata?: Record<string, any>;
+    guildId?: string;
+}): Promise<{ success: boolean; logId?: string }> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false };
+
+        const { Prisma } = await import("@prisma/client");
+        const toJson = (val: unknown) => (val === undefined || val === null ? Prisma.JsonNull : val);
+
+        const log = await db.auditLog.create({
+            data: {
+                guildId: undefined,
+                actorUserId: session.user.id,
+                actorName: session.user.name || "Super Admin",
+                action,
+                targetType,
+                targetId: targetId || null,
+                oldValue: toJson(oldValue),
+                newValue: toJson(newValue),
+                metadata: toJson({
+                    ...metadata,
+                    ...(guildId ? { discordGuildId: guildId } : {}),
+                    timestamp: new Date().toISOString(),
+                    source: "GOD_ACTION"
+                }),
+                isGodLog: true
+            }
+        });
+
+        return { success: true, logId: log.id };
+    } catch (error) {
+        logger.error("[createGodAuditLog] Error:", { error });
+        return { success: false };
+    }
+}
+
+/**
+ * Log unauthorized admin access attempt
  */
 export async function logBetaAccessAttempt(
     success: boolean,
@@ -564,6 +621,7 @@ export async function getAuditLogs(
         // Build where clause
         const where: any = {
             guildId: guildConfig.id,
+            isGodLog: false, // ne JAMAIS exposer les actions super-admin aux admins de guilde
         };
 
         if (actionFilter) {

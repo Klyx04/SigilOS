@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Palmtree } from "lucide-react";
 import { SolicitAction } from "@/components/profile/solicit-action";
+import { getDisplayName } from "@/lib/display-name";
 
 export default async function MemberProfilePage({
     params,
@@ -55,7 +56,7 @@ export default async function MemberProfilePage({
 
     const roleColor = profile.discordInfo?.roleColor || 0;
     const discordNickname = profile.discordInfo?.nickname || null;
-    const displayName = discordNickname || profile.pseudoDofus || profile.user.name || "Membre";
+    const displayName = getDisplayName(profile);
 
     const now = new Date();
     const vacationStart = profile.vacationStart ? new Date(profile.vacationStart) : null;

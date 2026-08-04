@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Gift, Copy, Check, Bug, ExternalLink } from "lucide-react";
+import { Gift, Copy, Check, Bug } from "lucide-react";
 import { getProfileMatchingArchis, type ProfileMatchData } from "@/server/actions/ocre-actions";
 import { toast } from "sonner";
 
@@ -57,13 +57,10 @@ export function ArchiMatchingWidget({
         setTimeout(() => setCopiedMsg(false), 2000);
     };
 
-    // Don't render anything if no data or viewer doesn't have Metamob linked
-    if (!loading && !matchData) {
-        return null;
-    }
-
-    // Don't render if no matches
-    if (!loading && matchData && matchData.matches.length === 0) {
+    // Don't render anything while loading, if no data, or if no matches.
+    // This avoids a flash of an empty "Échanges possibles" card at the bottom
+    // of the member profile while the matching data is being fetched.
+    if (loading || !matchData || matchData.matches.length === 0) {
         return null;
     }
 
@@ -76,11 +73,7 @@ export function ArchiMatchingWidget({
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                {loading ? (
-                    <div className="flex items-center justify-center py-6">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                ) : error ? (
+                {error ? (
                     <p className="text-sm text-muted-foreground text-center py-4">{error}</p>
                 ) : matchData && matchData.matches.length > 0 ? (
                     <div className="space-y-3">

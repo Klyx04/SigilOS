@@ -169,8 +169,6 @@ export async function searchDofusItems(
 // QUEST SEARCH — api.dofusdb.fr
 // ---------------------------------------------------------------------------
 
-const DOFUSDB_BASE = "https://api.dofusdb.fr";
-
 interface DofusDBQuestRaw {
     id?: number;
     name?: { fr?: string };
@@ -191,12 +189,12 @@ export async function searchDofusQuests(query: string, limit = 15): Promise<Dofu
 
     try {
         const encoded = encodeURIComponent(query.trim());
-        // DofusDB supports searching on the "name.fr" field with regex
-        const url = `${DOFUSDB_BASE}/quests?lang=fr&name.fr[$regex]=${encoded}&name.fr[$options]=i&$limit=${limit}&$select[]=id&$select[]=name&$select[]=levelMin&$select[]=levelMax&$select[]=isDungeonQuest&$select[]=slug`;
+        // Route proxy Next (server-side) → évite CORS/rate-limit côté navigateur
+        // (voir src/app/api/dofusdb/quests/route.ts).
+        const url = `/api/dofusdb/quests?q=${encoded}&limit=${limit}`;
         const res = await fetch(url, {
             signal: AbortSignal.timeout(8_000),
             headers: { Accept: "application/json" },
-            next: { revalidate: 300 },
         });
         if (!res.ok) return [];
 

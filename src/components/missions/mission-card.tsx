@@ -213,7 +213,8 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
     // ------------------------------------------------------------------
     // EMPTY STATE
     // ------------------------------------------------------------------
-    const isEmpty = !mission.title && (
+    const isEventMonsterFilled = mission.category === 'EVENT' && payload.eventType === 'MONSTRE_SPECIAL' && payload.monsterName;
+    const isEmpty = !mission.title && !isEventMonsterFilled && (
         (mission.category === 'DONJON' && !payload.dungeonName) ||
         (mission.category === 'REGULATION' && !payload.monsterName && !payload.familyName) ||
         (mission.category === 'ANOMALIE' && !payload.levelRange && !payload.type) ||
@@ -421,6 +422,12 @@ export function MissionCard({ mission, currentUserId, guildId, onInterestClick, 
                             <div className="text-[15px] font-medium text-zinc-100 leading-snug pr-4 text-shadow-sm line-clamp-3">
                                 {generateDescription(mission.category, payload)}
                             </div>
+                            {/* Notes / Instructions libres (missions spéciales) */}
+                            {payload?.notes && (
+                                <div className="mt-1.5 text-[11px] italic text-indigo-200/70 leading-snug pr-4 border-l-2 border-indigo-500/40 pl-2 line-clamp-2">
+                                    📝 {payload.notes}
+                                </div>
+                            )}
                         </div>
 
                         {/* Rewards Row */}
@@ -742,8 +749,20 @@ function generateDescription(category: MissionCategory, payload: any): React.Rea
                 return <>{payload.description || "Participer à l'événement."}</>;
             }
             if (payload.eventType === 'MONSTRE_SPECIAL' && payload.monsterName) {
+                const zonePart = payload.zoneName ? (
+                    <>
+                        {' '}en <span className="text-emerald-400 font-bold">{payload.zoneName}</span>
+                    </>
+                ) : null;
+                const levelPart = payload.level ? (
+                    <>
+                        {' '}(niv. <span className="text-purple-400 font-bold">{payload.level}</span>)
+                    </>
+                ) : null;
                 return (
-                    <>Vaincre <span className="text-purple-400 font-bold">{payload.targetCount || 50} {payload.monsterName}</span></>
+                    <>
+                        Vaincre <span className="text-purple-400 font-bold">{payload.targetCount || 50} {payload.monsterName}</span>{levelPart}{zonePart}
+                    </>
                 );
             }
             if (payload.eventType === 'DONJON' && payload.bossName) {

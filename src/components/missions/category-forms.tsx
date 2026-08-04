@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { getDungeons, getZones, getMonsterFamilies, searchDungeons, searchZones, searchDungeonsAdvanced } from "@/server/actions/game-data-actions";
+import { getDungeons, getZones, getMonsterFamilies, searchDungeons, searchZones, searchDungeonsAdvanced, searchGameDataMonsters } from "@/server/actions/game-data-actions";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import {
     SONGES_CONFIG,
@@ -871,6 +871,7 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
     const [dungeons, setDungeons] = useState<Dungeon[]>([]);
     const [zones, setZones] = useState<Zone[]>([]);
     const [families, setFamilies] = useState<MonsterFamily[]>([]);
+    const [gameDataMonsters, setGameDataMonsters] = useState<any[]>([]);
 
     const handleContextPreset = (ctx: EventContextPreset) => {
         onPayloadChange({ ...payload, contextPreset: ctx, contextManual: ctx !== 'AUTRE' ? '' : payload.contextManual });
@@ -1005,6 +1006,63 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
         onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', targetCount: count });
     };
 
+    const handleMonsterLevel = (level: number | undefined) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', level });
+    };
+
+    const handleMonsterDescription = (description: string) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', description });
+    };
+
+    const handleMonsterImage = (imageUrl: string) => {
+        onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', imageUrl });
+    };
+
+    const handleMonsterZone = (zoneId: string) => {
+        const zone = zones.find(z => z.id === zoneId);
+        if (zone) {
+            onPayloadChange({ ...payload, eventType: 'MONSTRE_SPECIAL', zoneId: zone.id, zoneName: zone.name });
+        }
+    };
+
+    // Base game-data selector: cherche un "Monstre Spécial" créé côté GOD et pré-remplit le formulaire
+    const gameDataMonsterFetcher = useCallback(async (query: string) => {
+        const res = await searchGameDataMonsters(query);
+        if (res.success && res.data) {
+            setGameDataMonsters(res.data);
+            return res.data.map((m: any) => ({
+                value: m.id,
+                label: m.name,
+                subLabel: m.level > 0 ? `Niv. ${m.level}${m.zone ? ` · ${m.zone}` : ''}` : (m.zone || undefined)
+            }));
+        }
+        return [];
+    }, []);
+
+    const handleGameDataMonsterSelect = (monsterId: string) => {
+        const monster = gameDataMonsters.find((m: any) => m.id === monsterId);
+        if (monster) {
+            onPayloadChange({
+                ...payload,
+                eventType: 'MONSTRE_SPECIAL',
+                monsterId: monster.id,
+                monsterName: monster.name,
+                level: monster.level > 0 ? monster.level : undefined,
+                zoneLabel: monster.zone || undefined,
+                zoneName: monster.zone || undefined,
+                imageUrl: monster.imageUrl || undefined,
+                description: monster.description || undefined,
+            });
+            const suffix = contextLabel ? ` — ${contextLabel}` : '';
+            onTitleChange(`Vaincre ${monster.name}${suffix}`);
+        }
+    };
+
+    // --- Notes / Instructions libres (missions spéciales) ---
+    const handleNotes = (notes: string) => {
+        onPayloadChange({ ...payload, notes });
+    };
+
     // --- Objectif Manuel ---
     const handleManualTitle = (title: string) => {
         onTitleChange(title);
@@ -1133,6 +1191,21 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                     </div>
                 )}
 
+                {/* Notes / Instructions libres (missions spéciales) */}
+                {eventType !== 'FRAGMENTS_ANOMALIE' && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                            📝 Notes / Instructions (optionnel)
+                        </Label>
+                        <Textarea
+                            className="bg-zinc-950 border-zinc-800 rounded-xl text-xs text-white focus:border-indigo-500/50 outline-none resize-none h-20"
+                            placeholder='Ex: "Farm uniquement en mode Bravoure", "Ne pas kiter le boss"...'
+                            value={payload.notes || ''}
+                            onChange={e => handleNotes(e.target.value)}
+                        />
+                    </div>
+                )}
+
                 {/* REGULATION */}
                 {eventType === 'REGULATION' && (
                     <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
@@ -1160,37 +1233,131 @@ export function EventForm({ payload, onPayloadChange, onTitleChange }: FormProps
                 {/* MONSTRE SPÉCIAL */}
                 {eventType === 'MONSTRE_SPECIAL' && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-                        <Input
-                            className="bg-zinc-950 border-zinc-800 rounded-xl text-sm h-11 focus:border-purple-500/50"
-                            placeholder="Ex: Malice, Damadrya, Tofus d'Halouine..."
-                            value={payload.monsterName || ''}
-                            onChange={e => handleMonsterName(e.target.value)}
-                        />
-                        <div className="flex gap-1.5 p-1 bg-zinc-950 border border-zinc-900 rounded-2xl">
-                            {[1, 10, 25, 50, 100].map(count => (
-                                <button
-                                    key={count}
-                                    type="button"
-                                    onClick={() => handleTargetCount(count)}
-                                    className={cn(
-                                        "flex-1 py-2 rounded-xl text-[10px] font-black transition-all",
-                                        (payload.targetCount || 50) === count
-                                            ? "bg-purple-500 text-white shadow-lg shadow-purple-500/20"
-                                            : "text-zinc-600 hover:text-zinc-400"
-                                    )}
-                                >
-                                    {count}
-                                </button>
-                            ))}
+                        {/* Sélecteur depuis la base game-data (GOD) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                                <Skull className="w-3 h-3" /> Monstre de la base (optionnel)
+                            </Label>
+                            <AsyncCombobox
+                                value={payload.monsterId}
+                                onSelect={handleGameDataMonsterSelect}
+                                fetcher={gameDataMonsterFetcher}
+                                placeholder="Rechercher dans la base game-data..."
+                                searchPlaceholder="Nom du monstre..."
+                                emptyText="Aucun monstre trouvé dans la base."
+                            />
+                            <p className="text-[9px] text-zinc-600 italic">Sélectionnez un monstre créé côté GOD pour pré-remplir le formulaire. Les champs restent modifiables.</p>
                         </div>
+
+                        {/* Nom (requis) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400">
+                                Nom du monstre <span className="text-purple-400">*</span>
+                            </Label>
+                            <Input
+                                className="bg-zinc-950 border-zinc-800 rounded-xl text-sm h-11 focus:border-purple-500/50"
+                                placeholder="Ex: Malice, Damadrya, Tofus d'Halouine..."
+                                value={payload.monsterName || ''}
+                                onChange={e => handleMonsterName(e.target.value)}
+                            />
+                        </div>
+                        {/* Niveau (opt) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400">Niveau (optionnel)</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={200}
+                                className="bg-zinc-950 border-zinc-800 rounded-xl text-sm h-11 focus:border-purple-500/50"
+                                placeholder="Ex: 120"
+                                value={payload.level || ''}
+                                onChange={e => handleMonsterLevel(e.target.value ? Number(e.target.value) : undefined)}
+                            />
+                        </div>
+                        {/* Zone (combobox async) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3" /> Zone (optionnel)
+                            </Label>
+                            <AsyncCombobox
+                                value={payload.zoneId}
+                                onSelect={handleMonsterZone}
+                                fetcher={zoneFetcher}
+                                placeholder="Choisir une zone..."
+                                searchPlaceholder="Rechercher une zone..."
+                                emptyText="Aucune zone trouvée."
+                            />
+                        </div>
+                        {/* Description (opt) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400">Description (optionnel)</Label>
+                            <Textarea
+                                className="bg-zinc-950 border-zinc-800 rounded-xl text-xs text-white focus:border-purple-500/50 outline-none resize-none h-20"
+                                placeholder={'Ex: "Monstre à faible taux d\'apparition", "Se montre la nuit"...'}
+                                value={payload.description || ''}
+                                onChange={e => handleMonsterDescription(e.target.value)}
+                            />
+                        </div>
+                        {/* Image (URL) */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400">Image (URL, optionnel)</Label>
+                            <Input
+                                className="bg-zinc-950 border-zinc-800 rounded-xl text-sm h-11 focus:border-purple-500/50"
+                                placeholder="https://.../monstre.png"
+                                value={payload.imageUrl || ''}
+                                onChange={e => handleMonsterImage(e.target.value)}
+                            />
+                        </div>
+                        {/* Nombre de cibles */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-zinc-400">Nombre de spécimens à vaincre</Label>
+                            <div className="flex gap-1.5 p-1 bg-zinc-950 border border-zinc-900 rounded-2xl">
+                                {[1, 10, 25, 50, 100].map(count => (
+                                    <button
+                                        key={count}
+                                        type="button"
+                                        onClick={() => handleTargetCount(count)}
+                                        className={cn(
+                                            "flex-1 py-2 rounded-xl text-[10px] font-black transition-all",
+                                            (payload.targetCount || 50) === count
+                                                ? "bg-purple-500 text-white shadow-lg shadow-purple-500/20"
+                                                : "text-zinc-600 hover:text-zinc-400"
+                                        )}
+                                    >
+                                        {count}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {/* Preview */}
                         {payload.monsterName && (
                             <div className="relative overflow-hidden rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Contrat Spécial</span>
                                     <Skull className="w-3.5 h-3.5 text-purple-400" />
                                 </div>
-                                <h4 className="text-white font-black uppercase text-sm leading-tight mb-1">{payload.monsterName}</h4>
-                                <p className="text-[10px] text-zinc-500 font-bold">Objectif : Vaincre {payload.targetCount || 50} spécimens</p>
+                                <div className="flex gap-3">
+                                    {payload.imageUrl && (
+                                        <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-white/5 flex-shrink-0 overflow-hidden">
+                                            <img src={payload.imageUrl} alt={payload.monsterName} className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-white font-black uppercase text-sm leading-tight mb-1">{payload.monsterName}</h4>
+                                        <div className="space-y-0.5">
+                                            <p className="text-[10px] text-zinc-500 font-bold">Objectif : Vaincre {payload.targetCount || 50} spécimens</p>
+                                            {payload.level && <p className="text-[10px] text-purple-300 font-bold">Niveau : {payload.level}</p>}
+                                            {payload.zoneName && (
+                                                <p className="text-[10px] text-zinc-500 font-bold flex items-center gap-1">
+                                                    <MapPin className="w-3 h-3 text-purple-400" /> {payload.zoneName}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                {payload.description && (
+                                    <p className="text-[11px] text-zinc-400 mt-2 pt-2 border-t border-white/5 leading-snug">{payload.description}</p>
+                                )}
                             </div>
                         )}
                     </div>

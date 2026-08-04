@@ -32,7 +32,7 @@ export type ActionResponse<T = any> = {
 
 
 const MissionSchema = z.object({
-    slotIndex: z.number().min(0).max(17), // 0-11 classiques, 12-17 spéciales (Dofus 3.5)
+    slotIndex: z.number().min(0).max(19), // 0-11 classiques, 12-19 spéciales
     category: z.enum(["DONJON", "REGULATION", "ANOMALIE", "SONGES", "EXPEDITION", "EVENT"]),
     tier: z.number().min(1).max(5),
     rank: z.number().min(1).max(5).default(1),
@@ -46,7 +46,7 @@ const CreateWeekSchema = z.object({
     guildId: z.string(),
     weekNumber: z.number().min(1).max(53),
     year: z.number().min(2025),
-    missions: z.array(MissionSchema).min(1).max(18), // up to 12 classiques + 6 spéciales
+    missions: z.array(MissionSchema).min(1).max(20), // up to 12 classiques + 8 spéciales
     updateGuildTier: z.number().min(1).max(5).optional(),
     notifyMembers: z.boolean().optional(),
 }).strict();

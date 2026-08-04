@@ -206,9 +206,16 @@ export async function notifyMemberFeedbackAction(input: {
     // — Trouver l'issue + son guildId (guilde d'origine du membre)
     const issue = await db.systemIssue.findUnique({
       where: { id: data.issueId },
-      select: { creatorId: true, guildId: true, id: true, memberName: true, memberGuildName: true },
+      select: { creatorId: true, guildId: true, id: true, memberName: true, memberGuildName: true, description: true, feedbackType: true },
     });
     if (!issue?.creatorId) return { success: false, error: "Bug introuvable." };
+
+    // — Titre lisible du feedback (on retire le préfixe "[TYPE] " si présent)
+    const feedbackTitle = (issue.description || "Feedback")
+      .replace(/^\[[A-Z_]+\]\s*/i, "")
+      .trim()
+      .slice(0, 120)
+      || "Feedback";
 
     // — Résoudre le discordGuildId à partir de l'ID interne (pour le lien)
     let discordGuildId: string | undefined;
@@ -227,8 +234,8 @@ export async function notifyMemberFeedbackAction(input: {
     await createNotification(
       issue.creatorId,
       "SYSTEM_INFO",
-      `${data.emoji} Ton bug a été remarqué !`,
-      data.message,
+      `${data.emoji} Ton feedback a été remarqué !`,
+      `📝 Feedback :  ${feedbackTitle}\n\n${data.message}\n\n— Wylan Dev de SigilOS`,
       guildIdForNotif ? `/dashboard/${guildIdForNotif}/tracker?bug=SIG-${issue.id}` : undefined,
       guildIdForNotif,
       "SYSTEM"

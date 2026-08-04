@@ -1538,7 +1538,7 @@ export async function cancelMissionSubmission(
 export async function publishMissionsToDiscord(
     guildId: string,
     pingType: "EVERYONE" | "ROLE" | "NONE",
-    specificRoleId?: string | null
+    specificRoleIds?: string[] | null
 ): Promise<ActionResponse> {
     const session = await auth();
     const guard = await checkGuildPermission(session, guildId, PERMISSIONS.MISSIONS_OFFICER);
@@ -1552,6 +1552,7 @@ export async function publishMissionsToDiscord(
                 missionNotifyChannelId: true,
                 missionNotifyRoleId: true,
                 missionTier: true,
+                missionVitrineMode: true,
                 name: true
             }
         });
@@ -1573,38 +1574,39 @@ export async function publishMissionsToDiscord(
         }
 
         const specialCategories = ["EVENT", "SONGES", "ANOMALIE"];
-        const hasSpecialMissions = missions.some(m => specialCategories.includes(m.category));
         const specialMissionsList = missions.filter(m => specialCategories.includes(m.category));
-        const missionLabel = hasSpecialMissions ? "Missions Classiques et Spéciales" : "Missions Classiques";
 
         // Pick a thematic thumbnail for the embed
         const thumbnailUrl = getMissionThumbnailUrl(missions);
 
-        const currentXP = (await getGuildMissionXpOverride(guildId)).data?.xpOverride || (await calculateDynamicXP(guild.id, guildId));
-        const targetTier = guild.missionTier || 3;
+        // Vitrine — lecture seule pour les membres (pas d'upload de preuves)
+        const vitrineMode = guild.missionVitrineMode === true;
 
-        const { formatDiscordTierProgress, formatDiscordMilestones } = await import("@/lib/discord-utils");
-        const progressDisplay = formatDiscordTierProgress(currentXP, targetTier);
-        const milestonesDisplay = formatDiscordMilestones(currentXP, targetTier);
-
-        // Build mention content
+        // Build mention content (multi-rôles whitelistés)
         let mentionContent = "Bonjour à tous !";
         if (pingType === "EVERYONE") mentionContent = "Bonjour @everyone !";
         else if (pingType === "ROLE") {
-            const idToMention = specificRoleId || guild.missionNotifyRoleId;
-            if (idToMention) mentionContent = `Bonjour <@&${idToMention}> !`;
+            const roleIds = specificRoleIds && specificRoleIds.length > 0
+                ? specificRoleIds
+                : (guild.missionNotifyRoleId ? [guild.missionNotifyRoleId] : []);
+            if (roleIds.length > 0) {
+                mentionContent = `Bonjour ${roleIds.map(id => `<@&${id}>`).join(" ")} !`;
+            }
         }
 
         const { getAppBaseUrl } = await import("@/lib/utils");
         const dashboardUrl = `${getAppBaseUrl()}/dashboard/${guildId}/missions`;
-
-        const { sendChannelMessage } = await import("@/server/discord");
         const { formatDofusRange } = await import("@/lib/date-utils");
+        const { sendChannelMessage } = await import("@/server/discord");
 
-        // Build special missions description line
+        // Wording — simple & pro
+        const baseAnnounce = vitrineMode
+            ? "Les missions de la semaine sont disponibles sur le dashboard !"
+            : "Les missions de la semaine sont disponibles sur le dashboard — envoyez vos preuves de missions !";
+
         const specialMissionsLines = specialMissionsList.length > 0
             ? [
-                "\n🎯 **Missions Spéciales cette semaine :**",
+                "\n🎯 **Missions Spéciales :**",
                 ...specialMissionsList.map(m => {
                     const label = m.title || m.category;
                     const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
@@ -1613,24 +1615,9 @@ export async function publishMissionsToDiscord(
             ].join("\n")
             : "";
 
-        const embedTitle = hasSpecialMissions
-            ? `📅 Objectifs + Spéciales — ${formatDofusRange()}`
-            : `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`;
+        const embedTitle = `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`;
 
-        const manageUrl = `${getAppBaseUrl()}/dashboard/${guildId}/missions/manage`;
-
-        const fields: any[] = [
-            {
-                name: "📊 Progression du Palier",
-                value: `${progressDisplay}\n\u200B`,
-                inline: false
-            },
-            {
-                name: "📍 Jalons de la Semaine",
-                value: `${milestonesDisplay}\n\u200B`,
-                inline: false
-            },
-        ];
+        const fields: any[] = [];
 
         if (specialMissionsList.length > 0) {
             fields.push({
@@ -1646,14 +1633,14 @@ export async function publishMissionsToDiscord(
 
         fields.push({
             name: "🔗 Liens Rapides",
-            value: `[Accéder au Dashboard](${dashboardUrl})${hasSpecialMissions ? ` · [Gérer les Spéciales](${manageUrl})` : ""}`,
+            value: `[Accéder au Dashboard](${dashboardUrl})`,
             inline: true
         });
 
         const messageId = await sendChannelMessage(guild.missionNotifyChannelId, "", {
             mentionContent,
             embedTitle,
-            embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.${specialMissionsLines}\n\u200B`,
+            embedDescription: `${baseAnnounce}${specialMissionsLines}\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
             embedThumbnail: thumbnailUrl,
@@ -1735,7 +1722,8 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
                 id: true, 
                 missionDiscordMessageId: true,
                 missionTier: true,
-                missionNotifyChannelId: true
+                missionNotifyChannelId: true,
+                missionVitrineMode: true
             }
         });
 
@@ -1752,48 +1740,36 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
         });
         
         const specialCategories = ["EVENT", "SONGES", "ANOMALIE"];
-        const hasSpecialMissions = missions.some(m => specialCategories.includes(m.category));
         const specialMissionsList = missions.filter(m => specialCategories.includes(m.category));
-        const missionLabel = hasSpecialMissions ? "Missions Classiques et Spéciales" : "Missions Classiques";
+
+        // Vitrine — lecture seule pour les membres (pas d'upload de preuves)
+        const vitrineMode = guild.missionVitrineMode === true;
 
         // Pick a thematic thumbnail for the embed
         const thumbnailUrl = getMissionThumbnailUrl(missions);
 
-        // Calculate XP (Direct DB access to avoid session/auth dependency in background refresh)
-        const xpData = await db.guildConfig.findUnique({
-            where: { discordGuildId },
-            select: { missionWeekXpOverride: true, id: true }
-        });
-        
-        const dynamicXP = await calculateDynamicXP(guild.id, discordGuildId);
-        const currentXP = xpData?.missionWeekXpOverride !== null 
-            ? (xpData?.missionWeekXpOverride || 0) + dynamicXP 
-            : dynamicXP;
-            
-        const targetTier = guild.missionTier || 3;
-
-        const { formatDiscordTierProgress, formatDiscordMilestones } = await import("@/lib/discord-utils");
-        const progressDisplay = formatDiscordTierProgress(currentXP, targetTier);
-        const milestonesDisplay = formatDiscordMilestones(currentXP, targetTier);
-
         const { getAppBaseUrl } = await import("@/lib/utils");
         const dashboardUrl = `${getAppBaseUrl()}/dashboard/${discordGuildId}/missions`;
-        const manageUrl = `${getAppBaseUrl()}/dashboard/${discordGuildId}/missions/manage`;
         const { updateChannelMessage } = await import("@/server/discord");
         const { formatDofusRange } = await import("@/lib/date-utils");
 
-        const fields: any[] = [
-            {
-                name: "📊 Progression du Palier",
-                value: `${progressDisplay}\n\u200B`,
-                inline: false
-            },
-            {
-                name: "📍 Jalons de la Semaine",
-                value: `${milestonesDisplay}\n\u200B`,
-                inline: false
-            },
-        ];
+        // Wording — simple & pro
+        const baseAnnounce = vitrineMode
+            ? "Les missions de la semaine sont disponibles sur le dashboard !"
+            : "Les missions de la semaine sont disponibles sur le dashboard — envoyez vos preuves de missions !";
+
+        const specialMissionsLines = specialMissionsList.length > 0
+            ? [
+                "\n🎯 **Missions Spéciales :**",
+                ...specialMissionsList.map(m => {
+                    const label = m.title || m.category;
+                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
+                    return `${icon} ${label}`;
+                }),
+            ].join("\n")
+            : "";
+
+        const fields: any[] = [];
 
         if (specialMissionsList.length > 0) {
             fields.push({
@@ -1809,15 +1785,13 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
 
         fields.push({
             name: "🔗 Liens Rapides",
-            value: `[Accéder au Dashboard](${dashboardUrl})${hasSpecialMissions ? ` · [Gérer les Spéciales](${manageUrl})` : ""}`,
+            value: `[Accéder au Dashboard](${dashboardUrl})`,
             inline: true
         });
 
         await updateChannelMessage(channelId, messageId, "", {
-            embedTitle: hasSpecialMissions
-                ? `📅 Objectifs + Spéciales — ${formatDofusRange()}`
-                : `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
-            embedDescription: `## 📋 ${missionLabel}\n\nConsultez le dashboard pour voir le détail des objectifs de la semaine.\n\u200B`,
+            embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
+            embedDescription: `${baseAnnounce}${specialMissionsLines}\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
             embedThumbnail: thumbnailUrl,

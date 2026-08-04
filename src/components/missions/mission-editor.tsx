@@ -69,6 +69,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
     const [isSaving, setIsSaving] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
     const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
+    // Détecte si le pool courant est déjà publié en base (pour éviter les double-notifications au redéploiement)
+    const [publishedState, setPublishedState] = useState<{ classiques: boolean; speciales: boolean }>({ classiques: false, speciales: false });
 
     // Guild Hall Config state
     const [hallPanelOpen, setHallPanelOpen] = useState(false);
@@ -101,6 +103,11 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
             const res = await getWeekMissions(guildId, weekNumber, year);
             if (res.success && res.data) {
                 const fetched = res.data;
+                // Détecte si les pools sont déjà publiés en base (pour éviter les double-notifications)
+                const classicCount = fetched.filter((m: any) => m.title && m.slotIndex < 12).length;
+                const specialCount = fetched.filter((m: any) => m.title && m.slotIndex >= 12).length;
+                setPublishedState({ classiques: classicCount >= 12, speciales: specialCount >= 1 });
+
                 // Build 18 slots: 0-11 classic, 12-17 special
                 const newMissions = Array.from({ length: 18 }).map((_, i) => {
                     const existing = fetched.find((m: any) => m.slotIndex === i);
@@ -201,6 +208,9 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
             return { success: false, error: "Duplicate missions" };
         }
 
+        // Le pool est-il déjà publié en base ? Si oui → simple redéploiement sans re-notifier.
+        const alreadyPublished = missionPool === 'CLASSIQUES' ? publishedState.classiques : publishedState.speciales;
+
         setIsSaving(true);
         // Only publish missions from the current pool
         const res = await createWeekMissions({
@@ -209,7 +219,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
             year,
             missions: poolMissions.filter(m => m.title).map(m => ({ ...m, tier: globalTier })),
             updateGuildTier: missionPool === 'CLASSIQUES' ? globalTier : undefined,
-            notifyMembers: true
+            notifyMembers: !alreadyPublished
         });
         setIsSaving(false);
 
@@ -887,6 +897,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 missionsCount={poolMissions.filter(m => m.title).length}
                 onConfirm={handleGlobalPublish}
                 isDiscordConfigured={isDiscordConfigured}
+                isRepublish={missionPool === 'CLASSIQUES' ? publishedState.classiques : publishedState.speciales}
             />
         </div >
     );

@@ -27,7 +27,6 @@ import {
     Orbit,
     ArrowLeft,
     Mic,
-    MicOff,
     LogOut,
     Volume2,
     VolumeX
@@ -682,18 +681,6 @@ export default function BombGame({
                         <Settings size={20} />
                     </button>
                 )}
-                <button 
-                    onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
-                    className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all border",
-                        showVoiceOverlay 
-                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white" 
-                            : "bg-slate-500/10 border-slate-500/20 text-slate-500 hover:bg-slate-500 hover:text-white"
-                    )}
-                    title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
-                >
-                    {showVoiceOverlay ? <Mic size={20} /> : <MicOff size={20} />}
-                </button>
                 {/* Quit button — visible anytime for all players, now triggers confirmation dialog */}
                 <button
                     onClick={(e) => {

@@ -265,6 +265,89 @@ export async function toggleEventDungeon(dungeonId: string, isEvent: boolean): P
     }
 }
 
+// ─── GameData Monsters (super-admin only) ─────────────────────
+
+/** All "Monstre Spécial" game-data monsters (GOD page) */
+export async function getGameDataMonsters(search = ""): Promise<ActionResponse<any[]>> {
+    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    try {
+        const monsters = await db.gameDataMonster.findMany({
+            where: search ? { name: { contains: search, mode: 'insensitive' } } : undefined,
+            orderBy: [{ level: 'asc' }, { name: 'asc' }],
+            take: 200
+        });
+        return { success: true, data: monsters };
+    } catch (error) {
+        logger.error('[getGameDataMonsters] Error:', { error });
+        return { success: false, error: 'Erreur chargement monstres spéciaux' };
+    }
+}
+
+/** Search "Monstre Spécial" monsters — used by the AsyncCombobox in the mission flow */
+export async function searchGameDataMonsters(query: string): Promise<ActionResponse<any[]>> {
+    try {
+        const monsters = await db.gameDataMonster.findMany({
+            where: { name: { contains: query, mode: 'insensitive' } },
+            orderBy: [{ level: 'asc' }, { name: 'asc' }],
+            take: 20
+        });
+        return { success: true, data: monsters };
+    } catch (error) {
+        logger.error('[searchGameDataMonsters] Error:', { error });
+        return { success: false, error: 'Erreur recherche monstres spéciaux' };
+    }
+}
+
+/** Create or update a "Monstre Spécial" monster */
+export async function upsertGameDataMonster(data: {
+    id?: string;
+    name: string;
+    level?: number;
+    zone?: string;
+    imageUrl?: string;
+    description?: string;
+}): Promise<ActionResponse<any>> {
+    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    try {
+        const name = data.name.trim();
+        if (!name) return { success: false, error: 'Le nom du monstre est requis' };
+        const payload = {
+            name,
+            level: data.level || 0,
+            zone: data.zone?.trim() || null,
+            imageUrl: data.imageUrl?.trim() || null,
+            description: data.description?.trim() || null,
+        };
+
+        // Si un id est fourni → on le cherche (édition)
+        // Sinon → on cherche par nom (création ou mise à jour d'un monstre existant du même nom)
+        const existing = data.id
+            ? await db.gameDataMonster.findUnique({ where: { id: data.id } })
+            : await db.gameDataMonster.findFirst({ where: { name } });
+
+        const monster = existing
+            ? await db.gameDataMonster.update({ where: { id: existing.id }, data: payload })
+            : await db.gameDataMonster.create({ data: payload });
+
+        return { success: true, data: monster };
+    } catch (error) {
+        logger.error('[upsertGameDataMonster] Error:', { error });
+        return { success: false, error: 'Erreur création/mise à jour du monstre' };
+    }
+}
+
+/** Delete a "Monstre Spécial" monster */
+export async function deleteGameDataMonster(monsterId: string): Promise<ActionResponse> {
+    if (!await isSuperAdmin()) return { success: false, error: 'Non autorisé' };
+    try {
+        await db.gameDataMonster.delete({ where: { id: monsterId } });
+        return { success: true };
+    } catch (error) {
+        logger.error('[deleteGameDataMonster] Error:', { error });
+        return { success: false, error: 'Erreur suppression du monstre' };
+    }
+}
+
 /** Get monsters and bounties for a specific zone */
 export async function getZoneMonsters(zoneName: string): Promise<ActionResponse<{
     zoneName: string;

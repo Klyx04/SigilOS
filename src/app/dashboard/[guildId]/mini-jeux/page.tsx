@@ -8,6 +8,7 @@ import { MapViewer } from "@/components/worldmap/map-viewer";
 import { getGeoguesserLadder } from "@/server/actions/geoguesser-actions";
 import { getBombLadder } from "@/server/actions/bomb-actions";
 import { getMiniGamesStatus } from "@/server/actions/god-mini-games-actions";
+import { MiniGamesImmersive } from "@/components/games/mini-games-immersive";
 import { Trophy } from "lucide-react";
 
 type Props = {
@@ -33,6 +34,7 @@ export default async function MiniJeuxPage({ params }: Props) {
     ]);
 
     return (
+        <MiniGamesImmersive>
         <div className="w-full h-[calc(100vh-120px)] bg-[#0a0d14] flex flex-col shadow-2xl overflow-hidden animate-in fade-in duration-500 rounded-2xl border border-white/5">
             <div className="flex-shrink-0 px-3 md:px-5 py-2 border-b border-white/5 bg-black/20 backdrop-blur-md">
                 <UnifiedModuleHeader
@@ -57,5 +59,6 @@ export default async function MiniJeuxPage({ params }: Props) {
                 />
             </div>
         </div>
+        </MiniGamesImmersive>
     );
 }

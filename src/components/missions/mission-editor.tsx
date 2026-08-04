@@ -30,7 +30,7 @@ import {
 // --- Types ---
 
 type DraftMission = {
-    slotIndex: number; // 0-11
+    slotIndex: number; // 0-11 classiques, 12-19 spéciales
     category: MissionCategoryType;
     rank: number;
     title: string;
@@ -41,7 +41,7 @@ type DraftMission = {
 
 const DEFAULT_mission_TEMPLATE = (index: number): DraftMission => ({
     slotIndex: index,
-    category: index >= 12 ? "EVENT" : "DONJON", // Slots 12-17 are for SPECIALES (EVENT)
+    category: index >= 12 ? "EVENT" : "DONJON", // Slots 12-19 are for SPECIALES (EVENT)
     rank: 1,
     title: "",
     xpReward: 300,
@@ -58,7 +58,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
     const { week: weekNumber, year } = getDofusWeek();
 
     const [missions, setMissions] = useState<DraftMission[]>(
-        Array.from({ length: 18 }).map((_, i) => DEFAULT_mission_TEMPLATE(i))
+        Array.from({ length: 20 }).map((_, i) => DEFAULT_mission_TEMPLATE(i))
     );
 
     const [missionPool, setMissionPool] = useState<MissionPool>('CLASSIQUES');
@@ -82,7 +82,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
     // Slots for current pool
     const poolMissions = missionPool === 'CLASSIQUES'
         ? missions.slice(0, 12)  // slots 0-11
-        : missions.slice(12, 18); // slots 12-17
+        : missions.slice(12, 20); // slots 12-19
 
     // Fetch Data on Week Change
     const fetchData = useCallback(async () => {
@@ -108,8 +108,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 const specialCount = fetched.filter((m: any) => m.title && m.slotIndex >= 12).length;
                 setPublishedState({ classiques: classicCount >= 12, speciales: specialCount >= 1 });
 
-                // Build 18 slots: 0-11 classic, 12-17 special
-                const newMissions = Array.from({ length: 18 }).map((_, i) => {
+                // Build 20 slots: 0-11 classic, 12-19 special
+                const newMissions = Array.from({ length: 20 }).map((_, i) => {
                     const existing = fetched.find((m: any) => m.slotIndex === i);
                     if (existing) {
                         return {
@@ -240,7 +240,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
         try {
             const res = await resetWeek(guildId, weekNumber, year);
             if (res.success) {
-                setMissions(Array.from({ length: 18 }).map((_, i) => DEFAULT_mission_TEMPLATE(i)));
+                setMissions(Array.from({ length: 20 }).map((_, i) => DEFAULT_mission_TEMPLATE(i)));
                 toast.success("Semaine réinitialisée avec succès");
             } else {
                 toast.error(res.error || "Erreur lors de la réinitialisation");
@@ -519,8 +519,8 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 <div className="flex items-center gap-1 p-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl sm:rounded-full shadow-lg flex-wrap sm:flex-nowrap w-full sm:w-auto">
                     {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
                         const isActive = missionPool === pool;
-                        const count = pool === 'CLASSIQUES' ? missions.slice(0, 12).filter(m => m.title).length : missions.slice(12, 18).filter(m => m.title).length;
-                        const total = pool === 'CLASSIQUES' ? 12 : 6;
+                        const count = pool === 'CLASSIQUES' ? missions.slice(0, 12).filter(m => m.title).length : missions.slice(12, 20).filter(m => m.title).length;
+                        const total = pool === 'CLASSIQUES' ? 12 : 8;
                         return (
                             <button
                                 key={pool}
@@ -550,7 +550,7 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 </div>
                 {missionPool === 'SPECIALES' && (
                     <span className="text-[10px] text-yellow-400/70 font-medium hidden sm:flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> Missions spéciales — jusqu'à 6 missions (Dofus 3.5)
+                        <Sparkles className="w-3 h-3" /> Missions spéciales — jusqu'à 8 missions (Dofus 3.5)
                     </span>
                 )}
                 {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />}

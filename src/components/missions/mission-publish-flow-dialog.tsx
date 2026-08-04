@@ -68,7 +68,7 @@ export function MissionPublishFlowDialog({
             setIsLoadingRoles(true);
             // Apply the admin's ping whitelist (legacy allowedPingRoleIds) — same for
             // members and admins. (ignoreWhitelist is only used in admin settings panels.)
-            getDiscordRolesAction(guildId, { context: "legacy" }).then(res => {
+            getDiscordRolesAction(guildId, { context: "missions" }).then(res => {
                 if (res.success && res.roles) {
                     const filtered = res.roles.filter(r => r.name !== "@everyone");
                     setRoles(filtered);
@@ -180,7 +180,7 @@ export function MissionPublishFlowDialog({
                                             "font-mono font-black text-sm",
                                             isPoolComplete ? "text-emerald-400" : "text-rose-500"
                                         )}>
-                                            {missionsCount} / {missionPool === 'CLASSIQUES' ? 12 : 6}
+                                            {missionsCount} / {missionPool === 'CLASSIQUES' ? 12 : 8}
                                         </span>
                                         {isPoolComplete ? <Check className="w-4 h-4 text-emerald-500" /> : <AlertTriangle className="w-4 h-4 text-rose-500" />}
                                     </div>

@@ -8,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Hash, Target, Users, Bell, Search, ShieldCheck, Coins, Trophy, Clock, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
-import { getDiscordRolesAction } from "@/server/actions/user-actions";
+import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
+import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
 import { RoleSelector } from "@/components/admin/role-selector";
 import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
@@ -37,6 +38,8 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
     const [missionVitrineMode, setMissionVitrineMode] = useState<boolean>(false);
 
     const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+    const [discordRoles, setDiscordRoles] = useState<{ id: string; name: string; color: string }[]>([]);
+    const [missionPingRoleIds, setMissionPingRoleIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
 
@@ -59,10 +62,12 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 setManagementChannelId(configRes.data.missionManagementNotifyChannelId || "");
                 setManagementRoleId(configRes.data.missionManagementNotifyRoleId || null);
                 setMissionVitrineMode(configRes.data.missionVitrineMode || false);
+                setMissionPingRoleIds(configRes.data.missionPingRoleIds || []);
             }
 
             if (rolesRes.success && rolesRes.roles) {
                 setRoles(rolesRes.roles);
+                setDiscordRoles(rolesRes.roles.filter((r: any) => r.name !== "@everyone") as any);
             }
 
             setIsLoading(false);
@@ -83,10 +88,11 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                 missionManagementNotifyRoleId: managementRoleId,
                 missionVitrineMode: missionVitrineMode,
             });
-            if (result.success) {
+            const pingRolesResult = await updateAllowedPingRolesAction(guildId, missionPingRoleIds, "missions");
+            if (result.success && pingRolesResult.success) {
                 toast.success("Paramètres mis à jour !");
             } else {
-                toast.error(result.error || "Erreur lors de la sauvegarde");
+                toast.error((pingRolesResult.success ? result.error : pingRolesResult.error) || "Erreur lors de la sauvegarde");
             }
         });
     };
@@ -137,6 +143,17 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                                     </label>
                                     <RoleSelector value={roleId} onChange={setRoleId} roles={roles} className="h-10" />
                                 </div>
+                            </div>
+                            <div className="pt-4 border-t border-white/5">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2 mb-2">
+                                    <Users className="w-3 h-3" /> Ping Rôles Autorisés (Whitelist)
+                                </label>
+                                <PingRolesSelector
+                                    value={missionPingRoleIds}
+                                    onChange={setMissionPingRoleIds}
+                                    roles={discordRoles}
+                                    description="Si la liste est vide, aucun rôle Discord ne sera disponible pour le ping lors de la publication des missions (seuls les administrateurs verront toujours tous les rôles)."
+                                />
                             </div>
                         </CardContent>
                     </Card>

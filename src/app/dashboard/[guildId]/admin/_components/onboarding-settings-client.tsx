@@ -34,6 +34,7 @@ import ReactMarkdown from "react-markdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { RoleSelector } from "@/components/admin/role-selector";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 import {
     Tooltip,
     TooltipContent,
@@ -402,6 +403,7 @@ export function OnboardingSettingsClient({ guildId }: OnboardingSettingsClientPr
                                         placeholder="Ex: 1234..."
                                         className="bg-black/40 border-white/10 h-12 font-mono text-md rounded-xl focus:ring-indigo-500/20 px-6"
                                     />
+                                    <ChannelPreview guildId={guildId} channelId={welcomeChannelId} color="indigo" />
                                 </div>
 
                                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 pt-4">

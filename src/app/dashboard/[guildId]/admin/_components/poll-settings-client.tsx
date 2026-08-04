@@ -12,6 +12,7 @@ import { getPollSettings, updatePollSettings } from "@/server/actions/poll-actio
 import { cn } from "@/lib/utils";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface PollSettingsClientProps {
     guildId: string;
@@ -110,6 +111,7 @@ export function PollSettingsClient({ guildId }: PollSettingsClientProps) {
                             placeholder="ID du salon Discord (ex: 123456789...)"
                             className="font-mono bg-black/20 border-white/10 focus:border-cyan-500/50"
                         />
+                        <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
                         <p className="text-[10px] text-zinc-500 italic">
                             Le salon où les nouveaux sondages seront publiés automatiquement si l'option est cochée lors de la création.
                         </p>

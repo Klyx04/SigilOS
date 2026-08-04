@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { getCalendarConfig, updateCalendarChannel, updateRaidChannel, updateRaidGigalodonChannel, updateRaidSanctuaireChannel, updateRaidKamaDonationRequired, updateRaidKamaDonationThreshold, updateRaidAllowedSignUpRolesAction } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface CalendarSettingsClientProps {
     guildId: string;
@@ -263,6 +264,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             Sauvegarder
                                         </Button>
                                     </div>
+                                    <ChannelPreview guildId={guildId} channelId={channelId} color="amber" />
                                     {isConfigured && (
                                         <div className="flex justify-end">
                                             <Button variant="ghost" size="sm" onClick={handleClearCalendar} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
@@ -423,6 +425,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             Sauvegarder
                                         </Button>
                                     </div>
+                                    <ChannelPreview guildId={guildId} channelId={raidGigalodonChannelId} color="rose" />
                                     {isGigalodonConfigured && (
                                         <div className="flex justify-end">
                                             <Button variant="ghost" size="sm" onClick={handleClearRaidGigalodon} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
@@ -453,6 +456,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             Sauvegarder
                                         </Button>
                                     </div>
+                                    <ChannelPreview guildId={guildId} channelId={raidSanctuaireChannelId} color="rose" />
                                     {isSanctuaireConfigured && (
                                         <div className="flex justify-end">
                                             <Button variant="ghost" size="sm" onClick={handleClearRaidSanctuaire} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">
@@ -483,6 +487,7 @@ export function CalendarSettingsClient({ guildId }: CalendarSettingsClientProps)
                                             Sauvegarder
                                         </Button>
                                     </div>
+                                    <ChannelPreview guildId={guildId} channelId={raidChannelId} color="rose" />
                                     {isRaidConfigured && (
                                         <div className="flex justify-end">
                                             <Button variant="ghost" size="sm" onClick={handleClearRaid} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">

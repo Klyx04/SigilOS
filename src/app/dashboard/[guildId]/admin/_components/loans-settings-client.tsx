@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface LoansSettingsClientProps {
     guildId: string;
@@ -155,6 +156,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                                     Sauvegarder
                                 </Button>
                             </div>
+                            <ChannelPreview guildId={guildId} channelId={channelId} color="emerald" />
                             {isConfigured && (
                                 <div className="flex justify-end">
                                     <Button
@@ -222,6 +224,7 @@ export function LoansSettingsClient({ guildId }: LoansSettingsClientProps) {
                                     Sauvegarder
                                 </Button>
                             </div>
+                            <ChannelPreview guildId={guildId} channelId={vaultChannelId} color="emerald" />
                             {vaultIsConfigured && (
                                 <div className="flex justify-end">
                                     <Button

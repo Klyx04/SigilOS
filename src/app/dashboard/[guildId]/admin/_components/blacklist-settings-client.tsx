@@ -9,6 +9,7 @@ import { Loader2, Save, AlertTriangle, Hash, ShieldAlert, Sparkles, MessageSquar
 import { toast } from "sonner";
 import { getBlacklistConfig, updateBlacklistSettings } from "@/server/actions/blacklist-actions";
 import { cn } from "@/lib/utils";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface BlacklistSettingsClientProps {
     guildId: string;
@@ -115,6 +116,7 @@ export function BlacklistSettingsClient({ guildId }: BlacklistSettingsClientProp
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                 </Button>
                             </div>
+                            <ChannelPreview guildId={guildId} channelId={channelId} color="rose" />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

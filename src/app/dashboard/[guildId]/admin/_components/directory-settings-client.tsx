@@ -9,6 +9,7 @@ import { Loader2, Save, Hash, UserCheck, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { getDirectorySettings, saveDirectorySettings } from "@/server/actions/directory-settings-actions";
 import { Label } from "@/components/ui/label";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface DirectorySettingsClientProps {
     guildId: string;
@@ -86,6 +87,7 @@ export function DirectorySettingsClient({ guildId }: DirectorySettingsClientProp
                                         />
                                         <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-indigo-400 transition-colors" />
                                     </div>
+                                    <ChannelPreview guildId={guildId} channelId={channelId} color="indigo" />
                                     <p className="text-[10px] text-zinc-500 ml-1">
                                         Laissez vide pour désactiver les notifications Discord (les notifications resteront actives sur le tableau de bord SigilOS).
                                     </p>

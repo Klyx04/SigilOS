@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getOcreConfig, updateOcreChannel } from "@/server/actions/admin-actions";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface OcreSettingsClientProps {
     guildId: string;
@@ -123,6 +124,7 @@ export function OcreSettingsClient({ guildId }: OcreSettingsClientProps) {
                                                 SAUVEGARDER
                                             </Button>
                                         </div>
+                                        <ChannelPreview guildId={guildId} channelId={channelId} color="emerald" />
                                         
                                         {isConfigured ? (
                                             <div className="flex justify-end">

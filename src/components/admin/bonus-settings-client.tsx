@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, AlertTriangle, Hash, Sparkles, Gem } from "lucide-react";
 import { toast } from "sonner";
 import { getBonusConfig, updateBonusChannel } from "@/server/actions/bonus-actions";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface BonusSettingsClientProps {
     guildId: string;
@@ -126,6 +127,7 @@ export function BonusSettingsClient({ guildId }: BonusSettingsClientProps) {
                                         SAUVEGARDER
                                     </Button>
                                 </div>
+                                <ChannelPreview guildId={guildId} channelId={channelId} color="purple" />
                                 {isConfigured && (
                                     <div className="flex justify-end">
                                         <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-[10px] font-black uppercase tracking-widest">

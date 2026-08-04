@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { getSystemAnnouncementSettings } from "@/server/actions/system-settings-actions";
 import { saveSystemAnnouncementSettings } from "@/server/actions/announcement-actions";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -136,6 +137,7 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                         />
                                         <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-indigo-400 transition-colors" />
                                     </div>
+                                    <ChannelPreview guildId={guildId} channelId={channelId} color="indigo" />
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -227,9 +229,10 @@ export function SystemSettingsClient({ guildId }: SystemSettingsClientProps) {
                                         placeholder="Ex: 123456789012345678"
                                         className="font-mono bg-black/20 border-white/10 h-11 pl-10 focus:border-rose-500/50 transition-colors"
                                     />
-                                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-rose-400 transition-colors" />
-                                </div>
-                                <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 flex items-start gap-3">
+                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-rose-400 transition-colors" />
+                                    </div>
+                                    <ChannelPreview guildId={guildId} channelId={lifecycleChannelId} color="rose" />
+                                    <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 flex items-start gap-3">
                                     <ShieldAlert className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0" />
                                     <p className="text-[10px] text-zinc-400 leading-relaxed">
                                         <strong className="text-rose-300">Laisse vide</strong> pour désactiver. L'embed contiendra : pseudo Discord, pseudo Dofus, qui a fait l'action, le statut, l'heure, la guilde et la durée de rétention.

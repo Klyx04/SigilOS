@@ -1,32 +1,31 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
-    DialogFooter
+    DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { 
     Loader2, 
     Send, 
-    Share2, 
     BellOff, 
     AtSign, 
     Check, 
     AlertTriangle, 
-    ChevronRight, 
-    ChevronLeft,
+    ChevronRight,
     Rocket,
-    Save
+    Save,
+    Sparkles
 } from "lucide-react";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { publishMissionsToDiscord } from "@/server/actions/mission-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PingEstimate } from "@/components/shared/ping-estimate";
 
 interface MissionPublishFlowDialogProps {
     isOpen: boolean;
@@ -36,6 +35,8 @@ interface MissionPublishFlowDialogProps {
     missionsCount: number;
     onConfirm: () => Promise<{ success: boolean; error?: string }>;
     isDiscordConfigured?: boolean;
+    // Redéploiement : le pool est déjà publié → on n'envoie PAS de nouvelle notif/embed Discord
+    isRepublish?: boolean;
 }
 
 type Step = "CONFIRM" | "DISCORD_PING";
@@ -48,11 +49,12 @@ export function MissionPublishFlowDialog({
     missionPool,
     missionsCount,
     onConfirm,
-    isDiscordConfigured = true
+    isDiscordConfigured = true,
+    isRepublish = false
 }: MissionPublishFlowDialogProps) {
     const [step, setStep] = useState<Step>("CONFIRM");
     const [pingType, setPingType] = useState<PingType>("NONE");
-    const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+    const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
     const [roles, setRoles] = useState<{ id: string; name: string; color: number }[]>([]);
     const [isLoadingRoles, setIsLoadingRoles] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -61,11 +63,21 @@ export function MissionPublishFlowDialog({
     useEffect(() => {
         if (isOpen) {
             setStep("CONFIRM");
+            setPingType("NONE");
+            setSelectedRoleIds([]);
             setIsLoadingRoles(true);
             // Apply the admin's ping whitelist (legacy allowedPingRoleIds) — same for
             // members and admins. (ignoreWhitelist is only used in admin settings panels.)
             getDiscordRolesAction(guildId, { context: "legacy" }).then(res => {
-                if (res.success && res.roles) setRoles(res.roles);
+                if (res.success && res.roles) {
+                    const filtered = res.roles.filter(r => r.name !== "@everyone");
+                    setRoles(filtered);
+                    // Auto-fill all whitelisted ping roles (they come pre-filtered by context)
+                    if (filtered.length > 0) {
+                        setSelectedRoleIds(filtered.map(r => r.id));
+                        setPingType("ROLE");
+                    }
+                }
                 setIsLoadingRoles(false);
             });
         }
@@ -80,6 +92,12 @@ export function MissionPublishFlowDialog({
         setIsSaving(false);
         
         if (res.success) {
+            // Redéploiement : sauvegarde silencieuse, pas de re-notification Discord
+            if (isRepublish) {
+                toast.success(missionPool === 'CLASSIQUES' ? "Missions classiques mises à jour !" : "Missions spéciales mises à jour !");
+                onOpenChange(false);
+                return;
+            }
             if (!isDiscordConfigured) {
                 toast.success("Publication terminée !");
                 onOpenChange(false);
@@ -97,7 +115,8 @@ export function MissionPublishFlowDialog({
         }
 
         setIsPublishingDiscord(true);
-        const res = await publishMissionsToDiscord(guildId, pingType, selectedRoleId);
+        // Multi-rôles : passes the selected role IDs array to the server action
+        const res = await publishMissionsToDiscord(guildId, pingType, pingType === "ROLE" ? selectedRoleIds : null);
         setIsPublishingDiscord(false);
         
         if (res.success) {
@@ -106,6 +125,15 @@ export function MissionPublishFlowDialog({
         } else {
             toast.error(res.error || "Missions sauvegardées mais erreur d'annonce Discord.");
         }
+    };
+
+    const toggleRole = (roleId: string) => {
+        setSelectedRoleIds(prev => {
+            const next = prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId];
+            // If at least one role selected, switch to ROLE ping mode
+            if (next.length > 0) setPingType("ROLE");
+            return next;
+        });
     };
 
     return (
@@ -124,12 +152,14 @@ export function MissionPublishFlowDialog({
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
                                     <div className="p-2 bg-amber-500/20 rounded-xl text-amber-500">
-                                        <Save className="w-5 h-5" />
+                                        {missionPool === 'SPECIALES' ? <Sparkles className="w-5 h-5" /> : <Save className="w-5 h-5" />}
                                     </div>
-                                    Publication Dashboard
+                                    Publication Hebdomadaire
                                 </DialogTitle>
                                 <DialogDescription className="text-zinc-500 text-sm mt-2">
-                                    Vous allez mettre à jour les missions {missionPool === 'CLASSIQUES' ? 'Classiques' : 'Spéciales'} sur le site.
+                                    {missionPool === 'CLASSIQUES'
+                                        ? "Annonce automatique des 12 missions de la semaine."
+                                        : "Annonce automatique des missions spéciales de la semaine."}
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -201,7 +231,7 @@ export function MissionPublishFlowDialog({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <button
-                                    onClick={() => { setPingType("NONE"); setSelectedRoleId(null); }}
+                                    onClick={() => { setPingType("NONE"); setSelectedRoleIds([]); }}
                                     className={cn(
                                         "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all text-center group",
                                         pingType === "NONE"
@@ -213,7 +243,7 @@ export function MissionPublishFlowDialog({
                                     <span className="text-xs font-black uppercase tracking-widest">Sans Ping</span>
                                 </button>
                                 <button
-                                    onClick={() => { setPingType("EVERYONE"); setSelectedRoleId(null); }}
+                                    onClick={() => { setPingType("EVERYONE"); setSelectedRoleIds([]); }}
                                     className={cn(
                                         "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all text-center group",
                                         pingType === "EVERYONE"
@@ -227,23 +257,25 @@ export function MissionPublishFlowDialog({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Ping un rôle spécifique</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+                                    Ping un ou plusieurs rôles
+                                </label>
                                 <div className="bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden max-h-40 overflow-y-auto custom-scrollbar shadow-inner">
                                     {isLoadingRoles ? (
                                         <div className="flex items-center justify-center py-8 gap-2 text-zinc-600">
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                         </div>
                                     ) : roles.length === 0 ? (
-                                        <div className="py-8 text-center text-xs text-zinc-600 italic">Aucun rôle trouvé</div>
+                                        <div className="py-8 text-center text-xs text-zinc-600 italic">Aucun rôle whitelisté trouvé</div>
                                     ) : (
                                         <div className="p-2 space-y-1">
                                             {roles.map(role => {
-                                                const isSelected = selectedRoleId === role.id;
+                                                const isSelected = selectedRoleIds.includes(role.id);
                                                 const hex = role.color ? `#${role.color.toString(16).padStart(6, "0")}` : "#71717a";
                                                 return (
                                                     <button
                                                         key={role.id}
-                                                        onClick={() => { setPingType("ROLE"); setSelectedRoleId(role.id); }}
+                                                        onClick={() => toggleRole(role.id)}
                                                         className={cn(
                                                             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all",
                                                             isSelected ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" : "text-zinc-400 hover:bg-white/5"
@@ -251,13 +283,16 @@ export function MissionPublishFlowDialog({
                                                     >
                                                         <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: hex }} />
                                                         <span className="text-sm font-bold flex-1 truncate">@{role.name}</span>
-                                                        {isSelected && <Check className="w-4 h-4" />}
+                                                        {isSelected && <Check className="w-4 h-4 shrink-0" />}
                                                     </button>
                                                 );
                                             })}
                                         </div>
                                     )}
                                 </div>
+                                {pingType === "ROLE" && selectedRoleIds.length > 0 && (
+                                    <PingEstimate guildId={guildId} roleIds={selectedRoleIds} className="pl-1" />
+                                )}
                             </div>
 
                             <div className="flex flex-col gap-2 pt-2">

@@ -9,6 +9,7 @@ import { getGalleryConfig, updateGallerySettings } from "@/server/actions/admin-
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface GallerySettingsClientProps {
     guildId: string;
@@ -90,6 +91,7 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                                     />
                                     <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-pink-500/50 transition-colors" />
                                 </div>
+                                <ChannelPreview guildId={guildId} channelId={config?.skinGalleryChannelId || ""} color="pink" />
                             </div>
                             <div className="p-3 rounded-xl bg-pink-500/5 border border-pink-500/10 flex items-start gap-3">
                                 <Info className="w-3 h-3 text-pink-400 mt-0.5 shrink-0" />
@@ -124,6 +126,7 @@ export function GallerySettingsClient({ guildId }: GallerySettingsClientProps) {
                                     />
                                     <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-emerald-500/50 transition-colors" />
                                 </div>
+                                <ChannelPreview guildId={guildId} channelId={config?.stuffGalleryChannelId || ""} color="emerald" />
                             </div>
                             <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-start gap-3">
                                 <Info className="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" />

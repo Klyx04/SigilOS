@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { getDungeonFinderConfig, updateDjSettings } from "@/server/actions/dungeon-finder-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface DjSettingsClientProps {
     guildId: string;
@@ -139,6 +140,7 @@ export function DjSettingsClient({ guildId }: DjSettingsClientProps) {
                                         Sauvegarder
                                     </Button>
                                 </div>
+                                <ChannelPreview guildId={guildId} channelId={channelId} color="indigo" />
                                 {isConfigured && (
                                     <div className="flex justify-end">
                                         <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">

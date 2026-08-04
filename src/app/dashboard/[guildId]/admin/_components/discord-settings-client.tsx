@@ -11,6 +11,7 @@ import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface DiscordSettingsClientProps {
     guildId: string;
@@ -149,6 +150,7 @@ export function DiscordSettingsClient({ guildId }: DiscordSettingsClientProps) {
                                         />
                                         <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover/input:text-indigo-500 transition-colors" />
                                     </div>
+                                    <ChannelPreview guildId={guildId} channelId={lifecycleChannelId} color="indigo" />
                                 </div>
                                 <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-start gap-3">
                                     <ShieldAlert className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />

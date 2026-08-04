@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Hash, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { getServiceSettings, updateServiceSettings } from "@/server/actions/service-actions";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface ServicesSettingsClientProps {
     guildId: string;
@@ -90,6 +91,7 @@ export function ServicesSettingsClient({ guildId }: ServicesSettingsClientProps)
                                     Sauvegarder
                                 </Button>
                             </div>
+                            <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
                             {isConfigured && (
                                 <div className="flex justify-end">
                                     <Button

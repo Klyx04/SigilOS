@@ -11,6 +11,7 @@ import Link from "next/link";
 import { getSongesConfig, updateSongesChannel } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction, updateAllowedPingRolesAction } from "@/server/actions/user-actions";
 import { PingRolesSelector } from "@/components/admin/ping-roles-selector";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface SongesSettingsClientProps {
     guildId: string;
@@ -138,6 +139,7 @@ export function SongesSettingsClient({ guildId }: SongesSettingsClientProps) {
                                         Sauvegarder
                                     </Button>
                                 </div>
+                                <ChannelPreview guildId={guildId} channelId={channelId} color="purple" />
                                 {isConfigured && (
                                     <div className="flex justify-end">
                                         <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">

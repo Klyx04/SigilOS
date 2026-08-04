@@ -76,6 +76,8 @@ export type EventPayload = {
     monsterName?: string;
     title?: string;
     customObjective?: string;
+    // Notes / instructions libres (maj 2026-08) — missions spéciales
+    notes?: string;
 }
 
 // Union type for all payloads

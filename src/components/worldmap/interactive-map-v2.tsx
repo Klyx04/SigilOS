@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, MicOff, Zap
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
@@ -783,7 +783,7 @@ export default function InteractiveMapV2({
                             celebratedRounds.add(roundKey);
                             (window as any)._geoSigilCelebratedRounds = celebratedRounds;
                             playSoundEffect('success');
-                            setTimeout(() => setShowPerfectCelebration(false), 5000);
+                            setTimeout(() => setShowPerfectCelebration(false), 2000);
                         }
                     }
 
@@ -1771,38 +1771,9 @@ export default function InteractiveMapV2({
                                     <span>Quitter la partie</span>
                                 </button>,
                                 document.getElementById('sigil-geoguesser-header-actions')!
-                            ),
-                            createPortal(
-                                <button 
-                                    onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
-                                    className={cn(
-                                        "px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl border transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] sm:text-xs italic shadow-lg active:scale-95",
-                                        showVoiceOverlay 
-                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white" 
-                                            : "bg-bottom-900/40 border-white/5 text-white/40 hover:text-white"
-                                    )}
-                                    title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
-                                >
-                                    {showVoiceOverlay ? <Mic size={16} /> : <MicOff size={16} />}
-                                    <span className="hidden sm:inline">{showVoiceOverlay ? "Vocal On" : "Vocal Off"}</span>
-                                </button>,
-                                document.getElementById('sigil-geoguesser-header-actions')!
                             )
                         ) : (
                             <div className="absolute top-4 left-4 sm:top-6 sm:left-8 pointer-events-auto z-[800] flex flex-col gap-2">
-                                <button 
-                                    onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
-                                    className={cn(
-                                        "px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl border transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] sm:text-xs italic backdrop-blur-md shadow-lg active:scale-95",
-                                        showVoiceOverlay 
-                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white" 
-                                            : "bg-slate-900/40 border-white/5 text-white/40 hover:text-white"
-                                    )}
-                                    title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
-                                >
-                                    {showVoiceOverlay ? <Mic size={18} /> : <MicOff size={18} />}
-                                    <span className="hidden sm:inline">{showVoiceOverlay ? "Vocal On" : "Vocal Off"}</span>
-                                </button>
                                 <button
                                     onClick={handleLeaveSession}
                                     className="px-5 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl bg-[#ff4757] hover:bg-[#ff6b81] text-white font-black uppercase text-[10px] sm:text-xs italic border-b-[4px] sm:border-b-[8px] border-black/20 transition-all flex items-center gap-3 shadow-[0_20px_40px_rgba(255,71,87,0.3)] active:translate-y-1 active:border-b-0 hover:scale-105"
@@ -2776,18 +2747,6 @@ export default function InteractiveMapV2({
                                 </div>
 
                                 <div className="flex items-center gap-2 mt-6">
-                                    <button 
-                                        onClick={() => setShowVoiceOverlay(!showVoiceOverlay)}
-                                        className={cn(
-                                            "p-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] italic group shrink-0",
-                                            showVoiceOverlay 
-                                                ? "bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border-emerald-500/20" 
-                                                : "bg-slate-500/10 hover:bg-slate-500 text-slate-500 hover:text-white border-slate-500/20"
-                                        )}
-                                        title={showVoiceOverlay ? "Masquer le vocal" : "Afficher le vocal"}
-                                    >
-                                        {showVoiceOverlay ? <Mic size={18} /> : <MicOff size={18} />}
-                                    </button>
                                     <button
                                         onClick={handleLeaveSession}
                                         className="flex-1 py-5 rounded-2xl bg-red-500/10 text-red-500 font-black uppercase text-[10px] italic hover:bg-red-500 hover:text-white transition-all border border-red-500/10 shadow-lg active:scale-95 flex items-center justify-center gap-2"
@@ -3085,7 +3044,16 @@ export default function InteractiveMapV2({
                                 exit={{ scale: 0, opacity: 0, y: 100 }}
                                 className="bg-[#0d111a]/95 backdrop-blur-3xl border-4 border-emerald-500/50 rounded-[4rem] px-24 py-20 flex flex-col items-center gap-10 shadow-[0_60px_120px_rgba(16,185,129,0.4)] relative"
                             >
-                                <motion.div 
+                                {/* Bouton fermer — ferme la célébration immédiatement */}
+                                <button
+                                    onClick={() => setShowPerfectCelebration(false)}
+                                    className="absolute top-5 right-5 z-10 w-12 h-12 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-emerald-500 hover:text-white hover:border-emerald-400 shadow-lg active:scale-90 pointer-events-auto transition-all"
+                                    title="Fermer"
+                                    aria-label="Fermer la célébration"
+                                >
+                                    <X size={24} />
+                                </button>
+                                <motion.div
                                     animate={{ 
                                         scale: [1, 1.15, 1],
                                         rotate: [0, 8, -8, 0]

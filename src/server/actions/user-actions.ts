@@ -1675,7 +1675,7 @@ export async function updateMemberAnkamaId(profileId: string, ankamaId: string) 
     return { success: true, data: updated };
 }
 
-export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "polls" | "legacy" | "raid" }) {
+export async function getDiscordRolesAction(guildId: string, options?: { ignoreWhitelist?: boolean, context?: "calendar" | "dj" | "songes" | "polls" | "missions" | "legacy" | "raid" }) {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -1688,7 +1688,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             fetchGuildRoles(guildId, { excludeManaged: true }),
             db.guildConfig.findUnique({
                 where: { discordGuildId: guildId },
-                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true }
+                select: { allowedPingRoleIds: true, calendarPingRoleIds: true, raidPingRoleIds: true, djPingRoleIds: true, songesPingRoleIds: true, pollsPingRoleIds: true, missionPingRoleIds: true }
             })
         ]);
 
@@ -1706,6 +1706,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             else if (options?.context === "dj") allowedIds = guildConfig?.djPingRoleIds || [];
             else if (options?.context === "songes") allowedIds = guildConfig?.songesPingRoleIds || [];
             else if (options?.context === "polls") allowedIds = guildConfig?.pollsPingRoleIds || [];
+            else if (options?.context === "missions") allowedIds = guildConfig?.missionPingRoleIds || [];
             else allowedIds = guildConfig?.allowedPingRoleIds || [];
 
             filteredRoles = roles.filter(r => allowedIds.includes(r.id));
@@ -1767,7 +1768,7 @@ export async function countPingedMembers(
 /**
  * Update the whitelist of allowed Discord roles for pings (Admin only)
  */
-export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "legacy" | "raid" = "legacy") {
+export async function updateAllowedPingRolesAction(guildId: string, roleIds: string[], context: "calendar" | "dj" | "songes" | "polls" | "missions" | "legacy" | "raid" = "legacy") {
     const session = await auth();
     if (!session?.user) return { success: false, error: "Unauthorized" };
 
@@ -1782,6 +1783,7 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
         else if (context === "dj") data.djPingRoleIds = roleIds;
         else if (context === "songes") data.songesPingRoleIds = roleIds;
         else if (context === "polls") data.pollsPingRoleIds = roleIds;
+        else if (context === "missions") data.missionPingRoleIds = roleIds;
         else data.allowedPingRoleIds = roleIds;
 
         await db.guildConfig.update({

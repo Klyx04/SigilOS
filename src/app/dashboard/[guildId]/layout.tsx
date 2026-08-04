@@ -25,7 +25,8 @@ import { ChangelogModal } from "@/components/changelog/changelog-modal";
 import { ServiceReplyModal } from "@/components/services/service-reply-modal";
 import { CommandMenu } from "@/components/layout/command-menu";
 import { SupportOrb } from "@/components/shared/support-orb";
-import { GalacticFooter } from "@/components/layout/galactic-footer";
+import { GalacticFooterGate } from "@/components/layout/galactic-footer-gate";
+import { GameProvider } from "@/components/providers/GameProvider";
 import { OnboardingWizard } from "@/components/dashboard/onboarding-wizard";
 import { TourProvider } from "@/components/tour/tour-provider";
 import { TourOverlay } from "@/components/tour/tour-overlay";
@@ -168,6 +169,7 @@ export default async function DashboardLayout({
 
     return (
         <NebulaClientWrapper>
+            <GameProvider>
             <TelemetryTracker />
             <TourProvider guildId={guildId} modules={modules}>
                 <TourOverlay />
@@ -253,8 +255,8 @@ export default async function DashboardLayout({
                 {/* Command Palette (Cmd+K) */}
                 <CommandMenu guildId={guildId} user={user} />
 
-                {/* 4. FLOATING FOOTER (Compact version) */}
-                <GalacticFooter variant="compact" isMember={true} />
+                {/* 4. FLOATING FOOTER (Compact version) - hidden in game view */}
+                <GalacticFooterGate />
 
                 {/* Forced Onboarding Wizard (Missing character pseudo or class) */}
                 {!user.isAdmin && (user.hasPseudoIssue || !user.classe) && (
@@ -268,6 +270,7 @@ export default async function DashboardLayout({
                 )}
             </div>
             </TourProvider>
+            </GameProvider>
         </NebulaClientWrapper>
     );
 }

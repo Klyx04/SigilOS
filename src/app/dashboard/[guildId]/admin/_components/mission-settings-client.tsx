@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getMissionConfig, updateMissionNotifySettings } from "@/server/actions/admin-actions";
 import { getDiscordRolesAction } from "@/server/actions/user-actions";
 import { RoleSelector } from "@/components/admin/role-selector";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface MissionSettingsClientProps {
     guildId: string;
@@ -128,6 +129,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                                         placeholder="ID du salon..."
                                         className="font-mono bg-black/20 border-white/10 h-10"
                                     />
+                                    <ChannelPreview guildId={guildId} channelId={channelId} color="amber" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
@@ -151,6 +153,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Salon ID</label>
                                     <Input value={validationChannelId} onChange={(e) => setValidationChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-9" />
+                                    <ChannelPreview guildId={guildId} channelId={validationChannelId} color="amber" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Staff à alerter</label>
@@ -169,6 +172,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Salon ID</label>
                                     <Input value={kamaChannelId} onChange={(e) => setKamaChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-9" />
+                                    <ChannelPreview guildId={guildId} channelId={kamaChannelId} color="amber" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Staff à alerter</label>
@@ -190,6 +194,7 @@ export function MissionSettingsClient({ guildId }: MissionSettingsClientProps) {
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Salon de Rappel</label>
                                 <Input value={managementChannelId} onChange={(e) => setManagementChannelId(e.target.value)} className="font-mono bg-black/20 border-white/10 h-10" />
+                                <ChannelPreview guildId={guildId} channelId={managementChannelId} color="indigo" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Rôle Staff</label>

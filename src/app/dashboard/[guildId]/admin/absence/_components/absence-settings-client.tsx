@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { getAbsenceConfig, updateAbsenceChannel } from "@/server/actions/admin-actions";
 import { cn } from "@/lib/utils";
+import { ChannelPreview } from "@/components/shared/ChannelPreview";
 
 interface AbsenceSettingsClientProps {
     guildId: string;
@@ -127,6 +128,7 @@ export function AbsenceSettingsClient({ guildId }: AbsenceSettingsClientProps) {
                                         Sauvegarder
                                     </Button>
                                 </div>
+                                <ChannelPreview guildId={guildId} channelId={channelId} color="cyan" />
                                 {isConfigured && (
                                     <div className="flex justify-end">
                                         <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending} className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-auto py-1 px-3 text-xs">

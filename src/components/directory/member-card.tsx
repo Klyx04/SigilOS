@@ -8,6 +8,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Hammer, Palmtree, Shield, ShieldCheck, Sparkles } from "lucide-react";
 import { getClass, DOFUS_JOBS } from "@/lib/dofus-assets";
+import { getDisplayName } from "@/lib/display-name";
 import { ClassIcon } from "@/components/shared/class-icon";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -50,7 +51,7 @@ export function MemberCard({ profile, guildId }: MemberCardProps) {
     );
 
 
-    const displayName = profile.displayName || profile.pseudoDofus || profile.user.name || "Voyageur";
+    const displayName = profile.displayName || getDisplayName(profile) || "Voyageur";
 
     // Role color border
     const roleColor = profile.roleColor && profile.roleColor > 0

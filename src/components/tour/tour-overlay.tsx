@@ -41,6 +41,7 @@ export function TourOverlay() {
         }
 
         let attempts = 0;
+        let settled = false;
         const updatePosition = () => {
             const el = document.querySelector(activeStepData.target);
             if (el) {
@@ -53,10 +54,20 @@ export function TourOverlay() {
                 attempts = 0; // reset
             } else {
                 attempts++;
-                if (attempts > 10) {
-                    // Skip step if target not found (e.g., hidden module)
-                    advance();
-                    return;
+                // Après ~2s si l'élément est introuvable (module caché/collapsé), on arrête
+                // la boucle et on affiche le tooltip en position centralisée. On N'avance PLUS
+                // automatiquement (ce qui déclenchait une cascade de skip à toute vitesse).
+                if (attempts > 120 && !settled) {
+                    settled = true;
+                    setTargetRect({
+                        left: window.innerWidth / 2 - 150,
+                        top: window.innerHeight / 2 - 90,
+                        width: 300,
+                        height: 180,
+                        right: window.innerWidth / 2 + 150,
+                        bottom: window.innerHeight / 2 + 90,
+                    } as DOMRect);
+                    return; // stoppe la boucle rAF
                 }
             }
             requestRef.current = requestAnimationFrame(updatePosition);

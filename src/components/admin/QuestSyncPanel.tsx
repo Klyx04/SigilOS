@@ -32,8 +32,7 @@ export default function QuestSyncPanel() {
     async function handleCheckDeltas() {
         setLoading(true);
         try {
-            // Passing empty string so it falls back to the default guild config / super admin bypass
-            const res = await checkDofusDbDeltas("");
+            const res = await checkDofusDbDeltas();
             if (res.success && res.data) {
                 setStats(res.data);
                 setChecked(true);
@@ -58,7 +57,7 @@ export default function QuestSyncPanel() {
 
         setSyncing(true);
         try {
-            const res = await syncDeltas("", selectedIds);
+            const res = await syncDeltas(selectedIds);
             if (res.success) {
                 toast.success(`${res.count} quêtes synchronisées avec succès !`);
                 // Re-run checking to clear synced deltas

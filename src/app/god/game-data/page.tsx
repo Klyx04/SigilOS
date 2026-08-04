@@ -3,8 +3,7 @@ import { auth } from "@/auth";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import GameDataInterface from "@/components/admin/GameDataInterface";
 import { EventZoneManager } from "@/components/admin/EventZoneManager";
-import { GameDataMonsterManager } from "@/components/admin/GameDataMonsterManager";
-import { Database, Layers, MapPin, Trophy, Sparkles, ChevronRight, Activity, RefreshCw, ShieldCheck, Network, Skull } from "lucide-react";
+import { Database, Layers, MapPin, Trophy, Sparkles, ChevronRight, Activity, RefreshCw, ShieldCheck, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const metadata = {
@@ -109,18 +108,6 @@ export default async function GameDataPage() {
                     Ces données alimentent directement le sélecteur de missions spéciales côté admin.
                 </p>
                 <EventZoneManager />
-            </div>
-
-            <div className="border-t border-white/5 pt-12 space-y-6">
-                <SectionBadge icon={Skull} label="Monstres Spéciaux" color="bg-purple-500/10 border-purple-500/20 text-purple-400" />
-                <h2 className="text-3xl font-black text-white tracking-tighter">
-                    Base Monstres Spéciaux <span className="text-purple-500/70 text-xl font-bold">· Missions Événement</span>
-                </h2>
-                <p className="text-zinc-500 text-sm max-w-xl">
-                    Créez et gérez les monstres spéciaux utilisés par le sélecteur « Monstre Spécial » du flow de mission.
-                    Ces données alimentent directement les missions événement côté admin.
-                </p>
-                <GameDataMonsterManager />
             </div>
 
             <div className="border-t border-white/5 pt-12 space-y-6">

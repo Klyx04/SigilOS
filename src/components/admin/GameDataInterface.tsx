@@ -11,6 +11,7 @@ import LegendaryManager from "./LegendaryManager";
 import GameQuestManager from "./GameQuestManager";
 import QuestSyncPanel from "./QuestSyncPanel";
 import ArchimonstreManager from "./ArchimonstreManager";
+import { GameDataMonsterManager } from "./GameDataMonsterManager";
 import { Sparkles, ChevronRight, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -45,6 +46,9 @@ export default function GameDataInterface() {
                     <TabsTrigger value="archimonstres" className="data-[state=active]:bg-amber-600 flex-1 min-w-[100px]">
                         🏹 Archimonstres
                     </TabsTrigger>
+                    <TabsTrigger value="monstres-speciaux" className="data-[state=active]:bg-purple-600 flex-1 min-w-[100px]">
+                        💀 Monstres Spéciaux
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="families" className="space-y-4">
@@ -78,6 +82,10 @@ export default function GameDataInterface() {
 
                 <TabsContent value="archimonstres" className="space-y-4">
                     <ArchimonstreManager />
+                </TabsContent>
+
+                <TabsContent value="monstres-speciaux" className="space-y-4">
+                    <GameDataMonsterManager />
                 </TabsContent>
             </Tabs>
         </div>

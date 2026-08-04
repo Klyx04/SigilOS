@@ -210,9 +210,14 @@ export function TourProvider({ children, guildId, modules }: { children: ReactNo
         }
     };
 
+    const stableAdvance = (current: number, total: number) => {
+        if (current < total) return current + 1;
+        return current;
+    };
+
     const advance = () => {
         if (currentStep < totalSteps) {
-            setCurrentStep(prev => prev + 1);
+            setCurrentStep(prev => stableAdvance(prev, totalSteps));
         } else {
             // End of current phase
             if (tourPhase === "profile") {

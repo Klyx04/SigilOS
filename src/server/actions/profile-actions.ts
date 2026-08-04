@@ -169,6 +169,33 @@ export async function verifyDofusPseudo(pseudo: string, guildId: string) {
 
     if (!pseudo || pseudo.length < 2) return { success: false, error: "Pseudo trop court" };
 
+    // ── FALLBACK MANUEL (toggle God) ─────────────────────────────────────────
+    // Si le super-admin a activé `PlatformConfig.ladderManualFallback` (le worker
+    // Ankama est KO, ou on veut assouplir l'entrée), on autorise la saisie du pseudo
+    // SANS vérification ladder. Sécurité : la sanitisation est déléguée au schéma Zod
+    // (lettres, espaces, tirets, crochets — pas de chiffres), validé côté serveur.
+    try {
+        const platform = await db.platformConfig.findUnique({
+            where: { id: "singleton" },
+            select: { ladderManualFallback: true, ladderManualFallbackUpdatedAt: true }
+        });
+        if (platform?.ladderManualFallback) {
+            return {
+                success: true,
+                data: {
+                    found: true,
+                    level: null,
+                    xp: null,
+                    character_name: pseudo,
+                    manualFallback: true
+                }
+            };
+        }
+    } catch (fallbackErr) {
+        logger.warn("[verifyDofusPseudo] Fallback check failed, continuing to worker", { error: fallbackErr });
+    }
+    // ── FIN FALLBACK MANUEL ──────────────────────────────────────────────────
+
     // Use a strict rate limit for this potentially expensive worker call
     const rateLimitKey = `rate-limit:verify-pseudo:${session.user.id}`;
     const isRateLimited = await rateLimit(rateLimitKey, 10, 60); // 10 checks per minute

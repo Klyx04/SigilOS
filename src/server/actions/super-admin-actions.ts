@@ -3,7 +3,8 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { logAction } from "./audit-actions";
+import { createGodAuditLog } from "./audit-actions";
+import { GOD_SCOPES, type GodScope } from "@/lib/god-scopes";
 
 /**
  * RECOMPILE TRIGGER: 2026-03-11 02:22
@@ -40,6 +41,63 @@ export async function isSuperAdmin(): Promise<boolean> {
 
     const superAdminIds = await getSuperAdminIds();
     return superAdminIds.includes(discordId);
+}
+
+/**
+ * GOD SCOPE HELPERS — délégation d'accès au dashboard God (sub-gods).
+ * Sécurité fail-closed : par défaut AUCUN scope. Un sub-god ne peut voir que
+ * ce qui lui est explicitement accordé via la table GodDelegate.
+ * Les constantes GOD_SCOPES/GodScope vivent dans @/lib/god-scopes (fichier
+ * NON "use server", car "use server" n'autorise que des fonctions async).
+ *
+ * Récupère les scopes actifs de l'utilisateur connecté en tant que sub-god.
+ * Retourne un tableau vide si l'utilisateur n'est PAS super-admin ET PAS délégué.
+ */
+export async function getActiveScopes(): Promise<GodScope[]> {
+    const session = await auth();
+    if (!session?.user?.id) return [];
+
+    const isAdmin = await isSuperAdmin();
+    if (isAdmin) return [...GOD_SCOPES]; // super-admin = tous les scopes
+
+    const now = new Date();
+    const delegates = await db.godDelegate.findMany({
+        where: {
+            userId: session.user.id,
+            revokedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { scopes: true },
+    });
+
+    const scopes = new Set<GodScope>();
+    for (const d of delegates) {
+        for (const s of d.scopes) {
+            if ((GOD_SCOPES as readonly string[]).includes(s)) scopes.add(s as GodScope);
+        }
+    }
+    return [...scopes];
+}
+
+/**
+ * Vérifie si l'utilisateur connecté possède un scope god donné.
+ * Lève une erreur sinon (utilisable dans les server actions).
+ */
+export async function requireGodAccess(scope: GodScope, opts?: { throwOnFail?: boolean }): Promise<boolean> {
+    const scopes = await getActiveScopes();
+    const has = scopes.includes(scope as GodScope);
+    if (!has && opts?.throwOnFail !== false) {
+        throw new Error("Unauthorized: God scope required: " + scope);
+    }
+    return has;
+}
+
+/**
+ * Alias commode : true si l'utilisateur est super-admin OU a le scope demandé.
+ */
+export async function isGodDelegate(scope: GodScope): Promise<boolean> {
+    const scopes = await getActiveScopes();
+    return scopes.includes(scope as GodScope);
 }
 
 /**
@@ -97,7 +155,7 @@ export async function addAllowedGuild(data: {
 
     // 📝 LOG ACTION (Professional Verbose)
     if (session?.user?.id) {
-        await logAction({
+        await createGodAuditLog({
             guildId: data.discordGuildId,
             action: "GOD_GUILD_WHITELIST",
             targetType: "WHITELIST",
@@ -148,7 +206,7 @@ export async function removeAllowedGuild(discordGuildId: string) {
 
     // 📝 LOG ACTION
     if (session?.user?.id) {
-        await logAction({
+        await createGodAuditLog({
             guildId: discordGuildId,
             action: "GOD_GUILD_WHITELIST",
             targetType: "WHITELIST",
@@ -182,7 +240,7 @@ export async function toggleGuildActive(discordGuildId: string) {
     // 📝 LOG ACTION
     const session = await auth();
     if (session?.user?.id) {
-        await logAction({
+        await createGodAuditLog({
             guildId: discordGuildId,
             action: "GOD_GUILD_WHITELIST",
             targetType: "WHITELIST",
@@ -373,8 +431,8 @@ export async function cleanupGhostUsers(isTestMode = false) {
     const session = await auth();
     if (session?.user?.id) {
         const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
-        await logAction({
-            guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+        await createGodAuditLog({
+            guildId: mgmtId?.discordGuildId || undefined,
             action: "GOD_USER_PLATFORM_BAN",
             targetType: "SYSTEM_GOD",
             metadata: { operation: "GHOST_CLEANUP", count: deletedCount, testMode: isTestMode }
@@ -491,8 +549,8 @@ export async function deleteGhostUser(userId: string) {
     const currentSession = await auth();
     if (currentSession?.user?.id) {
         const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
-        await logAction({
-            guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+        await createGodAuditLog({
+            guildId: mgmtId?.discordGuildId || undefined,
             action: "GOD_USER_PLATFORM_BAN",
             targetType: "USER",
             targetId: userId,
@@ -617,8 +675,8 @@ export async function forceDeleteUser(userId: string) {
         const session = await auth();
         if (session?.user?.id) {
             const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
-            await logAction({
-                guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+            await createGodAuditLog({
+                guildId: mgmtId?.discordGuildId || undefined,
                 action: "GOD_USER_PLATFORM_BAN",
                 targetType: "USER",
                 targetId: userId,
@@ -670,8 +728,8 @@ export async function cleanupOrphanedProfiles() {
     const session = await auth();
     if (session?.user?.id) {
         const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
-        await logAction({
-            guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+        await createGodAuditLog({
+            guildId: mgmtId?.discordGuildId || undefined,
             action: "GOD_USER_PLATFORM_BAN",
             targetType: "SYSTEM_GOD",
             metadata: { operation: "ORPHAN_CLEANUP", count: orphanIds.length }
@@ -826,8 +884,8 @@ export async function triggerGlobalMetamobSync() {
         const session = await auth();
         if (session?.user?.id) {
             const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
-            await logAction({
-                guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+            await createGodAuditLog({
+                guildId: mgmtId?.discordGuildId || undefined,
                 action: "GOD_DATABASE_SYNC",
                 targetType: "DATA_SYNC",
                 metadata: { operation: "MANUAL_METAMOB_TRIGGER", jobId: job.id }
@@ -852,8 +910,8 @@ export async function triggerGlobalLadderSync() {
         const session = await auth();
         if (session?.user?.id) {
             const mgmtId = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
-            await logAction({
-                guildId: mgmtId?.discordGuildId || "GOD_SYSTEM",
+            await createGodAuditLog({
+                guildId: mgmtId?.discordGuildId || undefined,
                 action: "GOD_DATABASE_SYNC",
                 targetType: "DATA_SYNC",
                 metadata: { operation: "MANUAL_LADDER_TRIGGER", jobId: job.id }

@@ -132,6 +132,31 @@ model PlatformConfig {
   maintenanceMode        Boolean  @default(false)
   maintenanceMessage     String?
   questFeedbackChannelId String?  // Canal Discord dédié aux feedbacks Dofus
+  // Toggle God : si le ladder Ankama est indisponible, on autorise la saisie
+  // manuelle du pseudo Dofus à la place de la vérification Ankama.
+  ladderManualFallback  Boolean  @default(false)
+  ladderManualFallbackUpdatedAt DateTime?
+  ladderManualFallbackUpdatedBy String?
+  // Enable / disable the quest local search fallback (siphon local + dofusdb)
+  questSearchLocalFirst  Boolean  @default(true)
+}
+
+/// Délégation d'accès au dashboard God (sub-gods) avec scopes granulaires.
+/// Sécurité fail-closed : par défaut aucun scope.
+model GodDelegate {
+  id        String   @id @default(cuid())
+  userId    String
+  guildId   String?
+  scopes    String[] // ex: ["guilds", "game-data", "users", "logs", "news", "maintenance"]
+  grantedBy String
+  grantedAt DateTime @default(now())
+  expiresAt DateTime?
+  revokedAt DateTime?
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([guildId])
+  @@index([revokedAt])
 }
 
 model GodNotification {
@@ -365,8 +390,8 @@ model GuildModules {
 }
 
 model AuditLog {
-  id          String      @id @default(cuid())
-  guildId     String
+  id          String       @id @default(cuid())
+  guildId     String?
   actorUserId String
   actorName   String
   action      String
@@ -375,8 +400,10 @@ model AuditLog {
   oldValue    Json?
   newValue    Json?
   metadata    Json?
-  createdAt   DateTime    @default(now())
-  guild       GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  // true = action super-admin/God (ne doit PAS apparaître dans les logs d'une guilde)
+  isGodLog    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  guild       GuildConfig? @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   @@index([guildId, createdAt])
   @@index([actorUserId])

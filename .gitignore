@@ -141,6 +141,9 @@ services/discord-bot/node_modules/
 temp_map.jpg
 utf8_map.tsx
 
+# Dossier mémo/plan de session — ne JAMAIS pousser (voir PROMPT_START.md)
+/src/temp/
+
 # Scratch and old map files
 old_map*.tsx
 *.debug.json

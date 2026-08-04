@@ -1,7 +1,8 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { getUserContext } from "@/server/actions/user-actions";
+import { logger } from "@/lib/logger";
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 
 const DOFUSDB_API = "https://api.dofusdb.fr";
 
@@ -15,9 +16,9 @@ export type QuestDelta = {
     localName?: string;
 };
 
-export async function checkDofusDbDeltas(guildId: string) {
-    const ctx = await getUserContext(guildId);
-    if (!ctx.isAuthenticated || !ctx.isAdmin) {
+export async function checkDofusDbDeltas() {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) {
         return { success: false, error: "Non autorisé" };
     }
 
@@ -103,14 +104,14 @@ export async function checkDofusDbDeltas(guildId: string) {
         };
 
     } catch (e: any) {
-        console.error("checkDofusDbDeltas Error:", e);
+        logger.error("checkDofusDbDeltas Error:", { error: e });
         return { success: false, error: e.message || "Erreur inconnue" };
     }
 }
 
-export async function syncDeltas(guildId: string, selectedIds: number[]) {
-    const ctx = await getUserContext(guildId);
-    if (!ctx.isAuthenticated || !ctx.isAdmin) {
+export async function syncDeltas(selectedIds: number[]) {
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) {
         return { success: false, error: "Non autorisé" };
     }
 
@@ -191,7 +192,7 @@ export async function syncDeltas(guildId: string, selectedIds: number[]) {
         return { success: true, count: syncedCount };
 
     } catch (e: any) {
-        console.error("syncDeltas Error:", e);
+        logger.error("syncDeltas Error:", { error: e });
         return { success: false, error: e.message || "Erreur inconnue" };
     }
 }

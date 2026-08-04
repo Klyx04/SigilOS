@@ -361,6 +361,18 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
                 }
             }
         });
+
+        // LIVE REFRESH: invalide le cache contexte + revalide la page admin/membres
+        // pour que les admins voient l'archivage en temps réel.
+        try {
+            const { invalidateUserContextCache } = await import("@/server/actions/user-actions");
+            await invalidateUserContextCache(account.userId, guild.id);
+            const { revalidatePath } = await import("next/cache");
+            revalidatePath(`/dashboard/${guildId}/admin/members`);
+            revalidatePath(`/dashboard/${guildId}/admin`);
+        } catch (refreshErr) {
+            console.warn("[Discord Webhook] Live refresh skipped:", refreshErr);
+        }
     }
 }
 
@@ -447,6 +459,17 @@ async function handleBan(guildId: string, userId: string, userMeta?: { username:
                 }
             }
         });
+
+        // LIVE REFRESH: invalide le cache + revalide la page admin members (ban visible en temps réel).
+        try {
+            const { invalidateUserContextCache } = await import("@/server/actions/user-actions");
+            await invalidateUserContextCache(account.userId, guild.id);
+            const { revalidatePath } = await import("next/cache");
+            revalidatePath(`/dashboard/${guildId}/admin/members`);
+            revalidatePath(`/dashboard/${guildId}/admin`);
+        } catch (refreshErr) {
+            console.warn("[Discord Webhook] Live refresh skipped:", refreshErr);
+        }
     }
 }
 

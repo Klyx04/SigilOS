@@ -1,220 +1,329 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useEffect } from 'react';
-import { toast } from 'sonner';
-import { Plus, Trash2, Loader2, Skull, Save, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
+import { useState, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { ImageDownloader } from "./ImageDownloader";
+import { Search, Plus, Edit2, Trash2, Skull, MapPin, MoreHorizontal } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     getGameDataMonsters,
     upsertGameDataMonster,
     deleteGameDataMonster,
-} from '@/server/actions/game-data-actions';
+} from "@/server/actions/game-data-actions";
 
-type GameDataMonster = {
+interface GameDataMonster {
     id: string;
     name: string;
     level: number;
     zone: string | null;
     imageUrl: string | null;
     description: string | null;
-};
+}
 
 export function GameDataMonsterManager() {
     const [monsters, setMonsters] = useState<GameDataMonster[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [search, setSearch] = useState('');
-    const [creating, setCreating] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [editing, setEditing] = useState<string | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     // Form state
-    const [formId, setFormId] = useState<string | undefined>(undefined);
-    const [name, setName] = useState('');
-    const [level, setLevel] = useState<number>(0);
-    const [zone, setZone] = useState('');
-    const [imageUrl, setImageUrl] = useState('');
-    const [description, setDescription] = useState('');
-    const [saving, setSaving] = useState(false);
+    const [form, setForm] = useState({
+        name: "",
+        level: 0,
+        zone: "",
+        imageUrl: "",
+        description: "",
+    });
 
     const load = useCallback(async () => {
-        setIsLoading(true);
-        const res = await getGameDataMonsters(search || undefined);
-        if (res.success && res.data) setMonsters(res.data as GameDataMonster[]);
-        setIsLoading(false);
-    }, [search]);
+        setLoading(true);
+        const res = await getGameDataMonsters(searchQuery || undefined);
+        if (res.success && res.data) setMonsters(res.data);
+        setLoading(false);
+    }, [searchQuery]);
 
     useEffect(() => {
         const t = setTimeout(() => load(), 300);
         return () => clearTimeout(t);
-    }, [load, search]);
+    }, [load, searchQuery]);
 
     const resetForm = () => {
-        setFormId(undefined);
-        setName('');
-        setLevel(0);
-        setZone('');
-        setImageUrl('');
-        setDescription('');
-        setCreating(false);
+        setEditing(null);
+        setForm({ name: "", level: 0, zone: "", imageUrl: "", description: "" });
     };
 
-    const handleEdit = (m: GameDataMonster) => {
-        setFormId(m.id);
-        setName(m.name);
-        setLevel(m.level || 0);
-        setZone(m.zone || '');
-        setImageUrl(m.imageUrl || '');
-        setDescription(m.description || '');
-        setCreating(true);
+    const startEdit = (m: GameDataMonster) => {
+        setEditing(m.id);
+        setForm({
+            name: m.name,
+            level: m.level || 0,
+            zone: m.zone || "",
+            imageUrl: m.imageUrl || "",
+            description: m.description || "",
+        });
+        setIsDialogOpen(true);
     };
 
-    const handleSave = async () => {
-        if (!name.trim()) {
-            toast.error('Le nom est requis');
+    const openCreate = () => {
+        resetForm();
+        setIsDialogOpen(true);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form.name.trim()) {
+            toast.error("Le nom est requis");
             return;
         }
-        setSaving(true);
         const res = await upsertGameDataMonster({
-            id: formId,
-            name,
-            level,
-            zone,
-            imageUrl,
-            description,
+            id: editing || undefined,
+            name: form.name,
+            level: form.level,
+            zone: form.zone,
+            imageUrl: form.imageUrl,
+            description: form.description,
         });
-        setSaving(false);
         if (res.success) {
-            toast.success(formId ? 'Monstre mis à jour !' : 'Monstre créé !');
+            toast.success(editing ? "Monstre mis à jour !" : "Monstre créé !");
             resetForm();
+            setIsDialogOpen(false);
             await load();
         } else {
-            toast.error(res.error || 'Erreur');
+            toast.error(res.error || "Erreur");
         }
     };
 
-    const handleDelete = async (m: GameDataMonster) => {
-        if (!confirm(`Supprimer le monstre "${m.name}" ?`)) return;
-        const res = await deleteGameDataMonster(m.id);
+    const handleDelete = async (id: string, name: string) => {
+        if (!confirm(`Supprimer le monstre "${name}" ?`)) return;
+        const res = await deleteGameDataMonster(id);
         if (res.success) {
-            toast.success('Monstre supprimé');
+            toast.success("Monstre supprimé");
             await load();
         } else {
-            toast.error(res.error || 'Erreur');
+            toast.error(res.error || "Erreur");
         }
     };
+
+    const filteredMonsters = monsters.filter(m =>
+        m.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                        <Skull className="w-5 h-5 text-purple-400" />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-black text-white">Monstres Spéciaux</h2>
-                        <p className="text-xs text-zinc-500">Base game-data utilisée par le sélecteur « Monstre Spécial » des missions événement.</p>
-                    </div>
+        <div className="space-y-4">
+            {/* Toolbar */}
+            <div className="flex flex-col md:flex-row items-center gap-4 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 backdrop-blur-sm">
+                <div className="relative flex-1 w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                        placeholder="Rechercher un monstre spécial..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="pl-9 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-purple-500/50"
+                    />
                 </div>
-                <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200 hover:border-purple-500/50"
-                    onClick={() => (creating ? resetForm() : setCreating(true))}
-                >
-                    {creating ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
-                    {creating ? 'Annuler' : 'Créer un monstre'}
-                </Button>
+                <div className="flex items-center gap-3">
+                    <Button
+                        onClick={openCreate}
+                        className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-900/20 transition-all font-medium"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nouveau Monstre
+                    </Button>
+                </div>
             </div>
 
-            {/* Search */}
-            <Input
-                className="bg-zinc-950 border-zinc-800 rounded-xl text-xs"
-                placeholder="Rechercher un monstre par nom..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-            />
-
-            {/* Create / Edit form */}
-            {creating && (
-                <div className="p-4 bg-zinc-900/60 border border-purple-500/20 rounded-2xl space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-zinc-400">Nom <span className="text-purple-400">*</span></Label>
-                            <Input className="bg-zinc-950 border-zinc-800" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Malice, Damadrya..." />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-zinc-400">Niveau</Label>
-                            <Input type="number" min={0} max={230} className="bg-zinc-950 border-zinc-800" value={level || ''} onChange={(e) => setLevel(parseInt(e.target.value) || 0)} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-zinc-400">Zone</Label>
-                            <Input className="bg-zinc-950 border-zinc-800" value={zone} onChange={(e) => setZone(e.target.value)} placeholder="Zone ou événement..." />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-zinc-400">Image (URL)</Label>
-                            <Input className="bg-zinc-950 border-zinc-800" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://.../monstre.png" />
-                        </div>
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label className="text-xs text-zinc-400">Description</Label>
-                        <Textarea className="bg-zinc-950 border-zinc-800 text-xs" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description optionnelle..." />
-                    </div>
-                    <div className="flex justify-end">
-                        <Button onClick={handleSave} disabled={saving} className="bg-purple-600 hover:bg-purple-500 text-white">
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                            {formId ? 'Mettre à jour' : 'Créer'}
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* List */}
-            {isLoading ? (
-                <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-zinc-600" />
-                </div>
-            ) : monsters.length === 0 ? (
-                <div className="text-center py-12 text-zinc-600 text-sm border border-dashed border-white/5 rounded-2xl">
-                    Aucun monstre spécial — clique sur « Créer un monstre » pour commencer.
+            {/* Grid List */}
+            {loading ? (
+                <div className="p-12 text-center text-slate-400 animate-pulse">Chargement des monstres spéciaux...</div>
+            ) : filteredMonsters.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 bg-slate-900/30 rounded-lg border border-dashed border-slate-700">
+                    Aucun monstre spécial trouvé
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {monsters.map((m) => (
-                        <div key={m.id} className="p-4 rounded-2xl border border-white/5 bg-zinc-900/40 flex items-start gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-white/5 flex-shrink-0 overflow-hidden">
-                                {m.imageUrl ? (
-                                    <img src={m.imageUrl} alt={m.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <Skull className="w-5 h-5 text-zinc-700" />
-                                    </div>
-                                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {filteredMonsters.map((monster) => (
+                        <div
+                            key={monster.id}
+                            className="group relative bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden hover:border-purple-500/30 hover:shadow-xl hover:shadow-purple-900/10 transition-all duration-300"
+                        >
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-slate-950/50 hover:bg-slate-800 text-slate-400">
+                                            <MoreHorizontal className="w-4 h-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
+                                        <DropdownMenuItem onClick={() => startEdit(monster)} className="text-slate-300 focus:bg-slate-800 cursor-pointer">
+                                            <Edit2 className="w-4 h-4 mr-2 text-purple-400" /> Modifier
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleDelete(monster.id, monster.name)} className="text-red-400 focus:bg-red-950/30 cursor-pointer">
+                                            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2">
-                                    <h4 className="text-white font-black uppercase text-xs truncate">{m.name}</h4>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                        <button onClick={() => handleEdit(m)} className="p-1 rounded hover:bg-white/5 text-zinc-500 hover:text-purple-400 text-[10px] font-bold uppercase">Éditer</button>
-                                        <button onClick={() => handleDelete(m)} className="p-1 rounded hover:bg-red-500/10 text-zinc-500 hover:text-red-400">
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
+
+                            <div className="p-4 flex flex-col h-full gap-4">
+                                <div className="flex items-start gap-4">
+                                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-800 shrink-0 border border-slate-700 group-hover:border-purple-500/50 transition-colors">
+                                        {monster.imageUrl ? (
+                                            <img
+                                                src={monster.imageUrl}
+                                                alt={monster.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                                <Skull className="w-8 h-8" />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-bold text-slate-200 truncate group-hover:text-purple-300 transition-colors">
+                                            {monster.name}
+                                        </h3>
+                                        <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
+                                            {monster.level > 0 && (
+                                                <span className="px-1.5 py-0.5 rounded bg-purple-950/30 text-purple-400 border border-purple-900/30 text-[10px] font-bold">
+                                                    Lvl {monster.level}
+                                                </span>
+                                            )}
+                                            {monster.zone && (
+                                                <span className="flex items-center gap-1 truncate text-[11px] text-slate-500">
+                                                    <MapPin className="w-3 h-3" />
+                                                    {monster.zone}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="text-[10px] text-zinc-500 font-bold mt-0.5">
-                                    {m.level > 0 ? `Niv. ${m.level}` : 'Niveau ?'}
-                                    {m.zone && <span> · {m.zone}</span>}
-                                </div>
-                                {m.description && (
-                                    <p className="text-[10px] text-zinc-600 mt-1 leading-snug line-clamp-2">{m.description}</p>
+
+                                {monster.description && (
+                                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 pt-2 border-t border-slate-800/50 mt-auto">
+                                        {monster.description}
+                                    </p>
                                 )}
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            {/* Form Dialog */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent draggable className="w-[95vw] max-w-4xl max-h-[95vh] bg-slate-950 border-slate-800 p-0 overflow-hidden shadow-2xl flex flex-col">
+                    {/* Header */}
+                    <div className="p-6 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-black text-white flex items-center gap-4">
+                                <Skull className="w-7 h-7 text-purple-500" />
+                                {editing ? "Modifier le monstre spécial" : "Nouveau monstre spécial"}
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400">
+                                Configurer les informations affichées dans le sélecteur « Monstre Spécial » des missions événement.
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+
+                    <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                        <form onSubmit={handleSubmit} className="space-y-6 pb-6">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Nom <span className="text-rose-500">*</span></Label>
+                                    <Input
+                                        value={form.name}
+                                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                        required
+                                        placeholder="Ex: Malice, Damadrya, Tofus d'Halouine..."
+                                        className="h-14 bg-slate-950 border-slate-800 focus:border-purple-500/50 focus:ring-purple-500/20 text-lg font-bold transition-all rounded-xl"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Niveau</Label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            max={230}
+                                            value={form.level || ""}
+                                            onChange={(e) => setForm({ ...form, level: parseInt(e.target.value) || 0 })}
+                                            placeholder="Ex: 120"
+                                            className="h-14 bg-slate-950 border-slate-800 focus:border-purple-500/50 focus:ring-purple-500/20 text-lg font-bold transition-all rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                                            <MapPin className="w-3 h-3" /> Zone
+                                        </Label>
+                                        <Input
+                                            value={form.zone}
+                                            onChange={(e) => setForm({ ...form, zone: e.target.value })}
+                                            placeholder="Zone ou événement..."
+                                            className="h-14 bg-slate-950 border-slate-800 focus:border-purple-500/50 focus:ring-purple-500/20 text-lg font-bold transition-all rounded-xl"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Description</Label>
+                                    <Textarea
+                                        value={form.description}
+                                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                        placeholder="Description optionnelle..."
+                                        className="bg-slate-950 border-slate-800 focus:border-purple-500/50 focus:ring-purple-500/20 min-h-[100px]"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Image — Galerie / Web / Uploader */}
+                            <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800 shadow-inner">
+                                <h3 className="text-sm font-black text-purple-400 uppercase tracking-[0.2em] border-b border-slate-800 pb-4 mb-6">Illustration</h3>
+                                <ImageDownloader
+                                    type="monster"
+                                    imageUrl={form.imageUrl}
+                                    identifier={form.name}
+                                    onImageDownloaded={(path) => setForm({ ...form, imageUrl: path })}
+                                    className="w-full"
+                                />
+                            </div>
+
+                            <div className="flex gap-4 pt-4 border-t border-slate-800 sticky bottom-0 bg-slate-950 py-4 shrink-0">
+                                <Button type="submit" className="flex-[3] bg-purple-600 hover:bg-purple-500 h-14 text-lg font-black uppercase tracking-widest shadow-xl shadow-purple-600/20 transition-all rounded-xl active:scale-[0.98]">
+                                    {editing ? "💾 Enregistrer" : "➕ Créer le monstre"}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsDialogOpen(false)}
+                                    className="flex-1 h-14 border-white/10 hover:bg-white/5 text-slate-300 text-sm font-bold uppercase tracking-widest transition-all rounded-xl"
+                                >
+                                    Fermer
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -801,9 +801,10 @@ export async function getGlobalAuditLogs(
     options?: Partial<GetLogsInput>
 ): Promise<ActionResponse<{ logs: AuditLogEntry[]; total: number; hasMore: boolean }>> {
     try {
-        const { isSuperAdmin } = await import("./super-admin-actions");
+        // R1 - LECTURE compatible scope "logs" (sub-god logs autorise a lire les logs God).
+        const { isSuperAdmin, canGodAccess } = await import("./super-admin-actions");
         const isAdmin = await isSuperAdmin();
-        if (!isAdmin) {
+        if (!isAdmin && !(await canGodAccess("logs"))) {
             return { success: false, error: "Unauthorized" };
         }
 

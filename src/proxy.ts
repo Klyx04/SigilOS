@@ -3,6 +3,7 @@ import { authConfig } from "./auth.config"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getGodRoutePrefix, isValidGodSecret } from "./lib/god-route"
+import { logger } from "@/lib/logger"
 
 const { auth } = NextAuth(authConfig)
 
@@ -100,13 +101,21 @@ export default auth(async (req) => {
     // rien n'atteint les RSC God. Aucun header n'est transmis (le layout ne
     // vérifie plus le secret — c'est le proxy qui est la porte).
     if (isGodSecretPath(nextUrl.pathname)) {
+        // (DEBUG LOG décision) pathname + présence session, sans loguer le secret.
+        logger.info(`[GodProxy] /mng-* path`, {
+            pathname: nextUrl.pathname,
+            hasAuth: !!req.auth?.user?.id,
+            hasCookie: !!req.cookies.get("__Secure-authjs.session-token")?.value || !!req.cookies.get("authjs.session-token")?.value,
+        });
         // Chemin interne = /god + ce qui suit le secret.
         const secondSlash = nextUrl.pathname.indexOf("/", GOD_PREFIX.length);
         const rest = secondSlash === -1 ? "" : nextUrl.pathname.slice(secondSlash);
         const secretPart = nextUrl.pathname.slice(GOD_PREFIX.length).split("/")[0] || "";
         if (!isValidGodSecret(secretPart)) {
+            logger.warn(`[GodProxy] secret refusé → 404`, { pathname: nextUrl.pathname, hasAuth: !!req.auth?.user?.id });
             return new NextResponse(null, { status: 404 });
         }
+        logger.info(`[GodProxy] secret accepté → rewrite /god`, { pathname: nextUrl.pathname });
         const url = nextUrl.clone();
         url.pathname = "/god" + rest;
         return NextResponse.rewrite(url);
@@ -116,7 +125,11 @@ export default auth(async (req) => {
     // La vérification fine des scopes (getActiveScopes) se fait dans le layout
     // serveur. Ici, fail-closed minimal : pas de session → 404.
     if ((nextUrl.pathname === "/god" || nextUrl.pathname === "/god/") && process.env.NODE_ENV === "production" && !req.auth?.user?.id) {
+        logger.warn(`[GodProxy] /god direct sans session → 404`, { pathname: nextUrl.pathname, hasAuth: !!req.auth?.user?.id });
         return new NextResponse(null, { status: 404 });
+    }
+    if (nextUrl.pathname === "/god" || nextUrl.pathname === "/god/") {
+        logger.info(`[GodProxy] /god direct avec session → pass-through au layout`, { pathname: nextUrl.pathname, hasAuth: !!req.auth?.user?.id });
     }
 
     const isAuthenticated = !!req.auth;

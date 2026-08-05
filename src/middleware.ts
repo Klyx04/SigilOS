@@ -2,7 +2,7 @@ import NextAuth from "next-auth"
 import { authConfig } from "./auth.config"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { getGodRoutePrefix } from "./lib/god-route"
+import { getGodRoutePrefix, isValidGodSecret } from "./lib/god-route"
 
 const { auth } = NextAuth(authConfig)
 
@@ -92,22 +92,24 @@ export default auth(async (req) => {
         return NextResponse.next();
     }
 
-    // ─── R3 ANTI-SCOUT: route secrète → réécrire vers /god interne ──────────
+    // ─── R3 ANTI-SCOUT: route secrète → vérifier le secret DANS le middleware ─
     // Ex: /mng-aZ9rT3/delegates → /god/delegates ; /mng-aZ9rT3 → /god
-    // On transmet le secret demandé via un header, que le layout serveur
-    // comparera au GOD_ROUTE réel (runtime, .env du VPS). Fail-closed : un
-    // /mng-XXX incorrect n'a PAS le header attendu → layout renvoie 404.
+    // Le middleware tourne en Node runtime (voir config) → lit process.env.GOD_ROUTE
+    // AU RUNTIME (pas inliné au build). On compare le secret reçu directement à
+    // GOD_ROUTE AVANT le rewrite. Fail-closed : mauvais secret → 404 immédiat,
+    // rien n'atteint les RSC God. Aucun header n'est transmis (le layout ne
+    // vérifie plus le secret — c'est le middleware qui est la porte).
     if (isGodSecretPath(nextUrl.pathname)) {
         // Chemin interne = /god + ce qui suit le secret.
         const secondSlash = nextUrl.pathname.indexOf("/", GOD_PREFIX.length);
         const rest = secondSlash === -1 ? "" : nextUrl.pathname.slice(secondSlash);
-        const internalPath = "/god" + rest;
-        const url = nextUrl.clone();
-        url.pathname = internalPath;
-        const headers = new Headers(req.headers);
         const secretPart = nextUrl.pathname.slice(GOD_PREFIX.length).split("/")[0] || "";
-        headers.set("x-god-secret", secretPart);
-        return NextResponse.rewrite(url, { request: { headers } });
+        if (!isValidGodSecret(secretPart)) {
+            return new NextResponse(null, { status: 404 });
+        }
+        const url = nextUrl.clone();
+        url.pathname = "/god" + rest;
+        return NextResponse.rewrite(url);
     }
 
     // ─── R3 ANTI-SCOUT: /god direct en production → 404 si pas authentifié ──
@@ -240,5 +242,9 @@ export default auth(async (req) => {
 })
 
 export const config = {
+    // Node runtime : nécessaire pour lire process.env.GOD_ROUTE au runtime (R3).
+    // Le middleware Edge inline les env au build — le secret du .env VPS ne
+    // serait pas visible. Next 16 supporte le Node runtime pour les middlewares.
+    runtime: "nodejs",
     matcher: ["/((?!api/auth|api/health|api/god/notify|_next/static|_next/image|favicon.ico|images|fonts|icons|(?!uploads/).*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf)$).*)"],
 }

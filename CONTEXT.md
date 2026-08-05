@@ -59,6 +59,7 @@
 
 ## ⚙️ Règles d'interaction avec l'IA (moi, Cline ou autre)
 
+0. **ENV DE DEV LOCAL (POSTE) = PowerShell** — le terminal local est PowerShell sur Windows, PAS `cmd.exe`. Utiliser la syntaxe PowerShell : séparateur `;` (PAS `&&`), suppression de dossier `Remove-Item -Recurse -Force` (PAS `rmdir /s /q`), variables `$`. Les commandes `npm`/`npx`/`git` restent identiques. Note : le VPS Docker utilise du bash/sh côté serveur — rester en PowerShell uniquement pour les actions sur le poste local.
 1. **Ne jamais modifier** `docs/audits/`, `src/audit-*`, `AUDIT_*.md` (livrables locaux hors git).
 2. **Respecter strictement** `RULES.md` (fail-closed, validation, guilde isolation, logger).
 3. **Vérifier** avant tout commit : pas de secret, pas d'audit, `npm run test:run` + `npm run build` en local.
@@ -70,15 +71,20 @@
 ## 🧭 Suivi de chantier courant (Évol 4 — God evolutions)
 
 > **Source de vérité par tâche** : `src/temp/evolution4.md` (gitignoré, à relire en PRIORITÉ à chaque reprise).
-> Mode de travail : **un prompt par tâche** (R1, R2, R3…) — lire le suivi + CONTEXT.md, pas tout le code.
+> Mode de travail : **un prompt par tâche** — lire le suivi + CONTEXT.md, pas tout le code.
 
-**Branche** : `evo4-god-evolutions` → PR vers `dev`. **État** : R1 + R2 terminés et poussés, CI durcie (voir `docs/SECURITY_HARDENING_PLAN.md` pour la supply chain).
+**Branche** : `evo4-god-evolutions` → PR vers `dev`. **État** : R1 + R2 + R3 terminés (R3 FAIT le 05/08).
+
 - ✅ **R1** — Lectures God granuleuses par scope (`canGodAccess`) + redirect tab fail-closed + refonte `god/page.tsx` par tab. FAIT.
 - ✅ **R2** — Tuto God interactif (`god-access-banner.tsx` → client + localStorage + bouton « Revoir »). FAIT.
-- ✅ **R3** — Anti-scout : secret route `GOD_ROUTE`, noindex + `X-Robots-Tag`, rate-limit + IP allowlist désactivable, fuite `/god/dofus-guides` publique retirée, F-SEC-1 corrigé.
+- ✅ **R3 — FAIT (05/08)** — Anti-scout : secret route `GOD_ROUTE`, noindex + `X-Robots-Tag`, rate-limit + IP allowlist désactivable, fuite `/god/dofus-guides` retirée, F-SEC-1 corrigé.
+  - ✅ Code écrit + testé (tsc/tests/build/lint), mergé (PR #398) + déployé beta.
+  - ✅ **BUG 404 admin connecté RÉSOLU** : cause = secret transmis par header `x-god-secret` posé lors du `NextResponse.rewrite` — header perdu après rewrite → `notFound()` même admin connecté. **Correctif** : vérification du secret déplacée DANS le middleware (`src/middleware.ts`, `runtime: "nodejs"`, lit `process.env.GOD_ROUTE` au runtime) + helpers `safeEqualStrings`/`isValidGodSecret` dans `src/lib/god-route.ts` + layout simplifié (plus de check header). Vérifs : `test:run` 97 tests ✅, `tsc --noEmit` 0 ✅, `lint` 0 ✅, `build` 62 pages ✅.
+  - ✅ Tests cmdline : non-connecté → 404, mauvais secret → 404, `/god` direct sans session → 404 (fail-closed OK).
+  - ⚠️ **Secret réel présent dans l'historique git de CONTEXT.md (fichier commité) → à ROTATER** (générer une nouvelle `GOD_ROUTE` sur le VPS beta + prod, mettre à jour `.env`).
 - ⬜ **R4** — Session God + révocation live (scopeVersion + socket/SSE popup + tables GodAccessLog/GodSessionLog).
 - ⬜ **R5** — Logging exhaustif God (lifecycle + `GOD_DASHBOARD_ACCESS` layout + `console.*`→`logger`).
-- 🐞 **F-SEC-1** (avec R3) — invite Discord `permissions=8` en dur dans `god/onboarding/page.tsx` → `process.env.DISCORD_BOT_INVITE_URL`.
+- ✅ **F-SEC-1** — Corrigé (invite Discord `permissions=8` → `DISCORD_BOT_INVITE_URL` + toggle).
 
 **Checkpoint** : `npm run test:run` (88 tests) ✅ + `npm run build` (62 pages) ✅ + `npx tsc --noEmit` ✅.
 

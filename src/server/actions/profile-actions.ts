@@ -1129,21 +1129,38 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
 
         const now = new Date().toISOString();
         const bakedLinks = await Promise.all(links.map(async (link) => {
-            // Find if we already have this URL in our DB to avoid re-fetching metadata
+            // Find if we already have this build in our DB
             const matchingOld = existingLinks.find(l => l.id === link.id);
             
-            if (matchingOld && matchingOld.url === link.url && matchingOld.previewData) {
-                // Existing build — keep original createdAt, update updatedAt
+            const isUnchanged = matchingOld && 
+                matchingOld.url === link.url && 
+                matchingOld.name === link.name && 
+                JSON.stringify(matchingOld.tags || []) === JSON.stringify(link.tags || []) &&
+                matchingOld.classId === link.classId;
+
+            const initialCreatedAt = link.createdAt || matchingOld?.createdAt || now;
+
+            if (isUnchanged && matchingOld.previewData) {
+                // Existing unchanged build — preserve original createdAt and updatedAt
                 return { 
                     ...link, 
                     previewData: matchingOld.previewData,
-                    createdAt: matchingOld.createdAt || now,
-                    updatedAt: now 
+                    createdAt: initialCreatedAt,
+                    updatedAt: matchingOld.updatedAt || initialCreatedAt 
                 };
             }
 
-            // NEW build or changed URL — set both timestamps
-            // DofusBook: try to fetch and bake preview
+            if (matchingOld && matchingOld.url === link.url && matchingOld.previewData) {
+                // Modified name/tags/classId on same URL — keep preview, update updatedAt
+                return {
+                    ...link,
+                    previewData: matchingOld.previewData,
+                    createdAt: initialCreatedAt,
+                    updatedAt: now
+                };
+            }
+
+            // NEW build or changed URL — fetch/bake preview and set timestamps
             try {
                 const res = await getDofusbookPreview(link.url, true);
                 if (res.success && res.data) {
@@ -1151,7 +1168,7 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
                         ...link, 
                         previewData: res.data, 
                         source: "dofusbook" as const,
-                        createdAt: now,
+                        createdAt: initialCreatedAt,
                         updatedAt: now
                     };
                 }
@@ -1161,7 +1178,7 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
             return { 
                 ...link, 
                 source: "dofusbook" as const,
-                createdAt: now,
+                createdAt: initialCreatedAt,
                 updatedAt: now
             };
         }));

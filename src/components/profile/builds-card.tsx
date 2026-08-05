@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Pencil, Plus, RefreshCw, Copy, Megaphone } from "lucide-react";
+import { Link2, Trash2, Pencil, Plus, RefreshCw, Copy, Megaphone, Calendar } from "lucide-react";
 import NextImage from "next/image";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,8 @@ export type DofusBookLink = {
     classId?: number;
     source?: "dofusbook"; // Source of the build
     previewData?: any; // Cached build info
+    createdAt?: string | null;
+    updatedAt?: string | null;
 };
 
 const DOFUS_CLASSES = [
@@ -322,8 +325,40 @@ export function BuildsCard({ links = [], onSave, readOnly = false, guildId, targ
             )}>
                 {filteredLinks.length > 0 ? (
                     filteredLinks.map(link => (
-                        <div key={link.id} className="relative group/card h-full flex flex-col">
+                        <div key={link.id} className="relative group/card h-full flex flex-col justify-between gap-2">
                             <DofusbookPreview url={link.url} title={link.name} tags={link.tags} classId={link.classId} initialData={(link as any).previewData} />
+
+                            {/* Upload / Update Date Bar (Gallery parity) */}
+                            <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-zinc-500 border-t border-white/5">
+                                <div className="flex items-center gap-1.5">
+                                    <Calendar className="w-3 h-3 text-zinc-500" />
+                                    {link.createdAt ? (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="text-[10px] text-zinc-400 font-medium cursor-default">
+                                                        {new Date(link.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                                                    </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="bg-zinc-900 border-zinc-700 text-[10px] text-zinc-300">
+                                                    <p>Ajouté le {new Date(link.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+                                                    {link.updatedAt && link.updatedAt !== link.createdAt && (
+                                                        <p className="text-zinc-400 mt-0.5">Mis à jour le {new Date(link.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+                                                    )}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    ) : (
+                                        <span className="text-[10px] text-zinc-500 italic">Importé</span>
+                                    )}
+                                </div>
+
+                                {link.updatedAt && link.updatedAt !== link.createdAt && (
+                                    <span className="text-[9px] text-emerald-400/90 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                        MAJ {new Date(link.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                                    </span>
+                                )}
+                            </div>
 
                             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-30 opacity-0 group-hover/card:opacity-100 translate-y-2 group-hover/card:translate-y-0 transition-all duration-300 pointer-events-none">
                                 <div className="flex items-center gap-1.5 bg-zinc-950/95 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-auto shrink-0 w-max">

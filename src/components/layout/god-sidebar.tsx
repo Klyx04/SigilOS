@@ -58,10 +58,45 @@ const CONSOLE_PAGES = [
     { name: "Sécurité & Logs", id: "security", icon: ShieldAlert, color: "text-zinc-400" },
 ];
 
-export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0 }: { className?: string, user: any, unreadCount?: number, ticketCount?: number }) {
+type ScopeId = string;
+
+// Scope requis par entrée du menu. "all" = super-admin seulement.
+const SCOPE_REQUIRED: Record<string, ScopeId> = {
+    overview: "all",
+    telemetry: "all",
+    guilds: "guilds",
+    infrastructure: "maintenance",
+    notifications: "all",
+    tickets: "all",
+    "game-data": "game-data",
+    "mini-games": "all",
+    bounties: "game-data",
+    "quetes-dofus": "game-data",
+    "dofus-guides": "game-data",
+    "rush-sylvestre": "game-data",
+    bugs: "all",
+    roadmap: "all",
+    changelog: "all",
+    delegates: "users",
+    security: "logs",
+};
+
+// Nombre total de scopes (un super-admin les possède tous).
+const ALL_SCOPES_COUNT = 6;
+
+export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, activeScopes = [] }: { className?: string, user: any, unreadCount?: number, ticketCount?: number, activeScopes?: string[] }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const activeTab = searchParams.get("tab") || "overview";
+
+    // Un super-admin reçoit tous les scopes via getActiveScopes → isFullAdmin = vrai.
+    const isFullAdmin = activeScopes.length >= ALL_SCOPES_COUNT;
+    const visiblePages = CONSOLE_PAGES.filter(p => {
+        const required = SCOPE_REQUIRED[p.id];
+        if (!required)return true;
+        if (required === "all") return isFullAdmin;
+        return activeScopes.includes(required);
+    });
 
     const isActiveRoot = (href: string) => {
         if (href === "/god") return pathname === "/god";
@@ -103,7 +138,7 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0 }
                         </div>
                         
                         <div className="space-y-1.5">
-                            {CONSOLE_PAGES.map((page) => {
+                            {visiblePages.map((page) => {
                                 const isDirectRoute = !!(page as any).href;
                                 const linkHref = isDirectRoute ? (page as any).href : `/god?tab=${page.id}`;
                                 const active = isDirectRoute 

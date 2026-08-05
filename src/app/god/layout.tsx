@@ -5,6 +5,7 @@ import { GodSidebar } from "@/components/layout/god-sidebar";
 import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
+import { GodAccessBanner } from "./components/god-access-banner";
 
 export default async function GodLayout({ children }: { children: React.ReactNode }) {
     const session = await auth();
@@ -18,6 +19,9 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     if (activeScopes.length === 0) {
         redirect("/");
     }
+
+    // Super-admin complet = possède tous les scopes (getActiveScopes renvoie tous pour un admin).
+    const isFullAdmin = activeScopes.length >= 6;
 
     // ✅ Log access to God interface
     const { logPageAccess } = await import('@/lib/audit-log');
@@ -61,6 +65,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
 
                 {/* Scrollable content view */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} />
                     {children}
                 </div>
             </div>

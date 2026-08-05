@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { GOD_SCOPES } from "@/lib/god-scopes";
 import { getActiveScopes } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
 import { Suspense } from "react";
@@ -42,6 +43,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     user={session.user} 
                     unreadCount={unreadCount}
                     ticketCount={ticketCount}
+                    activeScopes={activeScopes}
                 />
             </Suspense>
             

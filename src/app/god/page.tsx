@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {
     isSuperAdmin,
+    getActiveScopes,
     getPlatformStats,
     getPlatformActivityStats,
     getOcrApiStats,
@@ -56,12 +57,18 @@ export default async function SuperAdminPage(props: {
     searchParams: Promise<{ tab?: string }>;
 }) {
     const session = await auth();
+    if (!session?.user?.id) {
+        redirect("/");
+    }
+
+    // Accepte super-admin ET tout sub-god avec au moins un scope actif.
+    // La page racine n'exécute que les "actions God" compatibles avec le scope.
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) {
-        // Log failed GOD attempt
-        if (session?.user?.id) {
+    const activeScopes = await getActiveScopes();
+    if (activeScopes.length === 0) {
+        // Log failed GOD attempt (uniquement si on n'a AUCUN scope)
+        if (session.user.id) {
             const { logAdminAccessDenied } = await import("@/server/actions/audit-actions");
-            // Crée un log dans la première guilde disponible pour tracer qui tente le GOD
             const firstGuild = await db.guildConfig.findFirst({ select: { discordGuildId: true } });
             if (firstGuild) {
                 await logAdminAccessDenied(firstGuild.discordGuildId, "/god");

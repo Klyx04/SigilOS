@@ -101,11 +101,23 @@ export async function isGodDelegate(scope: GodScope): Promise<boolean> {
 }
 
 /**
+ * 🔄 R1 — Vérifie l'accès à un scope SANS lever d'erreur (lectures God granuleuses).
+ * Retourne false (fail-closed) si le scope n'est pas actif.
+ * Les fonctions d'ÉCRITURE restent protégées par requireGodAccess (throw) + isSuperAdmin.
+ */
+export async function canGodAccess(scope: GodScope): Promise<boolean> {
+    const scopes = await getActiveScopes();
+    return scopes.includes(scope as GodScope);
+}
+
+/**
  * Get all allowed guilds (platform whitelist)
+ * 🔄 R1 — LECTURE compatible scope "guilds" (ne lève plus pour un sub-god du scope guilds).
  */
 export async function getAllowedGuilds() {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
+    if (!(await canGodAccess("guilds")) && !(await isSuperAdmin())) {
+        throw new Error("Unauthorized: God scope required: guilds");
+    }
 
     return db.allowedGuild.findMany({
         orderBy: { addedAt: "desc" }
@@ -268,10 +280,12 @@ export async function toggleGuildActive(discordGuildId: string) {
 
 /**
  * Get platform-wide statistics with trends
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getPlatformStats() {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
+    if (!(await canGodAccess("guilds")) && !(await isSuperAdmin())) {
+        throw new Error("Unauthorized: God scope required: guilds");
+    }
 
     // Get current stats
     const [
@@ -448,7 +462,8 @@ export async function cleanupGhostUsers(isTestMode = false) {
  */
 export async function getGhostUsers(params?: { search?: string; limit?: number }) {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    const hasScope = await canGodAccess("guilds") || await canGodAccess("users");
+    if (!isAdmin && !hasScope) return [];
 
     const { search, limit = 100 } = params || {};
 
@@ -568,7 +583,7 @@ export async function deleteGhostUser(userId: string) {
  */
 export async function getUnauthorizedBotConnections() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     try {
         const { fetchBotGuilds } = await import("@/server/discord");
@@ -597,7 +612,7 @@ export async function getUnauthorizedBotConnections() {
  */
 export async function getPlatformActivityStats() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -805,7 +820,7 @@ export async function getPendingDeletionUsers() {
  */
 export async function getOcrApiStats() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { daily: [], monthlyTotal: 0, todayTotal: 0 };
+    if (!isAdmin && !(await canGodAccess("maintenance"))) return { daily: [], monthlyTotal: 0, todayTotal: 0 };
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

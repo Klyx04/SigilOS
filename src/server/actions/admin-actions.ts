@@ -1710,8 +1710,14 @@ export async function getGuildChannels(guildId: string): Promise<{
 // BOUNTY ADMIN ACTIONS
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** Returns ALL bounties in the database (GOD mode — no guild scope) */
+/** Returns ALL bounties in the database (GOD mode — no guild scope).
+ *  Fail-closed : réservé aux super-admins.
+ */
 export async function getAllBounties(): Promise<any[]> {
+    const { isSuperAdmin } = await import("./super-admin-actions");
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) return [];
+
     try {
         const bounties = await db.bounty.findMany({
             orderBy: [{ zoneName: 'asc' }, { name: 'asc' }]

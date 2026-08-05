@@ -67,6 +67,23 @@
 
 ---
 
+## 🧭 Suivi de chantier courant (Évol 4 — God evolutions)
+
+> **Source de vérité par tâche** : `src/temp/evolution4.md` (gitignoré, à relire en PRIORITÉ à chaque reprise).
+> Mode de travail : **un prompt par tâche** (R1, R2, R3…) — lire le suivi + CONTEXT.md, pas tout le code.
+
+**Branche** : `evo4-god-evolutions` → PR vers `dev`. **Dernier commit** : R2.
+- ✅ **R1** — Lectures God granuleuses par scope (`canGodAccess`) + redirect tab fail-closed + refonte `god/page.tsx` par tab. FAIT.
+- ✅ **R2** — Tuto God interactif (`god-access-banner.tsx` → client + localStorage + bouton « Revoir »). FAIT.
+- ⬜ **R3** — Anti-scout : secret route `GOD_ROUTE` (`/mng-<hash>`, `/god`→404 si non autorisé), noindex + `X-Robots-Tag`, rate-limit + IP allowlist, fuite `/god/dofus-guides` publique.
+- ⬜ **R4** — Session God + révocation live (scopeVersion + socket/SSE popup + tables GodAccessLog/GodSessionLog).
+- ⬜ **R5** — Logging exhaustif God (lifecycle + `GOD_DASHBOARD_ACCESS` layout + `console.*`→`logger`).
+- 🐞 **F-SEC-1** (avec R3) — invite Discord `permissions=8` en dur dans `god/onboarding/page.tsx` → `process.env.DISCORD_BOT_INVITE_URL`.
+
+**Checkpoint** : `npm run test:run` (88 tests) ✅ + `npm run build` (62 pages) ✅ + `npx tsc --noEmit` ✅.
+
+---
+
 ## 🧭 Chantiers de sécurité restants (rappel — voir SECURITY.md)
 
 **État au 01/08/2026 :** F-02, F-06/F-03, F-04, F-01, F-12, F-23/F-24, F-19/F-27/F-26/F-18/F-22 corrigés. **Session d'après-audit (01/08) ajoutée :** F-08 (auth WS), F-05 (chiffrement OAuth), F-04 (fail-closed + IP fiable), F-02 (expiration + clé dédiée), F-07 (JWT 8h), F-03 (SSRF image-downloader). **Rapports centralisés :** `docs/audits/` (hors git). Reste :

@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { getActiveScopes } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
 import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
+import { GodAccessBanner } from "./components/god-access-banner";
 
 export default async function GodLayout({ children }: { children: React.ReactNode }) {
     const session = await auth();
@@ -12,10 +13,15 @@ export default async function GodLayout({ children }: { children: React.ReactNod
         redirect("/");
     }
 
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) {
+    // Guard : autorise super-admin + tout sub-god avec au moins un scope actif.
+    // Chaque page/action applicative vérifie ensuite son propre scope via requireGodAccess.
+    const activeScopes = await getActiveScopes();
+    if (activeScopes.length === 0) {
         redirect("/");
     }
+
+    // Super-admin complet = possède tous les scopes (getActiveScopes renvoie tous pour un admin).
+    const isFullAdmin = activeScopes.length >= 6;
 
     // ✅ Log access to God interface
     const { logPageAccess } = await import('@/lib/audit-log');
@@ -40,6 +46,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     user={session.user} 
                     unreadCount={unreadCount}
                     ticketCount={ticketCount}
+                    activeScopes={activeScopes}
                 />
             </Suspense>
             
@@ -52,12 +59,13 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                         </span>
                     </div>
                     <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
-                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} />
+                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} />
                     </Suspense>
                 </div>
 
                 {/* Scrollable content view */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} />
                     {children}
                 </div>
             </div>

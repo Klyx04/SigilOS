@@ -1,4 +1,7 @@
 import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { getActiveScopes } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
@@ -6,8 +9,33 @@ import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
 import { GodAccessBanner } from "./components/god-access-banner";
+import { getGodRoute, getGodRouteSecret } from "@/lib/god-route";
+
+// R3 anti-scout : le panel God ne doit JAMAIS être indexé par les moteurs de recherche.
+export const metadata: Metadata = {
+    robots: { index: false, follow: false },
+};
 
 export default async function GodLayout({ children }: { children: React.ReactNode }) {
+    // R3 : route secrète du panel, injectée aux sidebars "use client"
+    // (jamais exposée dans le bundle JS — uniquement dans le HTML serveur).
+    const godRoute = getGodRoute();
+
+    // ─── R3 ANTI-SCOUT: vérification du secret au runtime (fail-closed) ─────
+    // En production, tout accès au panel passe par /mng-* (le middleware pose
+    // x-god-secret). Si le secret ne correspond pas à GOD_ROUTE du .env, ou si
+    // on accède au panel SANS passer par le secret → 404 (rien ne fuit).
+    if (process.env.NODE_ENV === "production") {
+        const hdrs = await headers();
+        const receivedSecret = hdrs.get("x-god-secret") || "";
+        const expectedSecret = getGodRouteSecret();
+        // Fail-closed : header absent OU secret incorrect → 404.
+        // (getGodRouteSecret renvoie "" si GOD_ROUTE absent/invalide → 404 aussi.)
+        if (!expectedSecret || receivedSecret !== expectedSecret) {
+            notFound();
+        }
+    }
+
     const session = await auth();
     if (!session?.user?.id) {
         redirect("/");
@@ -47,6 +75,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     unreadCount={unreadCount}
                     ticketCount={ticketCount}
                     activeScopes={activeScopes}
+                    godRoute={godRoute}
                 />
             </Suspense>
             
@@ -59,7 +88,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                         </span>
                     </div>
                     <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
-                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} />
+                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} godRoute={godRoute} />
                     </Suspense>
                 </div>
 

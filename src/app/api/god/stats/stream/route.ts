@@ -4,15 +4,16 @@
  */
 
 import { NextRequest } from 'next/server';
-import { isSuperAdmin, getPlatformStats } from '@/server/actions/super-admin-actions';
+import { canGodAccess, getPlatformStats } from '@/server/actions/super-admin-actions';
+import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-    // Security check
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) {
+    // R3 : lecture des stats = scope "guilds" (cohérent R1).
+    const hasGuildsScope = await canGodAccess("guilds");
+    if (!hasGuildsScope) {
         return new Response('Unauthorized', { status: 401 });
     }
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
                 };
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(stats)}\n\n`));
             } catch (error) {
-                console.error('[SSE] Error fetching stats:', error);
+                logger.error('[SSE] Error fetching stats', { error: String(error) });
             }
 
             // Update every 5 seconds
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
                     };
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(stats)}\n\n`));
                 } catch (error) {
-                    console.error('[SSE] Error fetching stats:', error);
+                    logger.error('[SSE] Error fetching stats', { error: String(error) });
                     clearInterval(interval);
                     controller.close();
                 }

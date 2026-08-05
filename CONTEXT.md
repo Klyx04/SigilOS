@@ -72,7 +72,7 @@
 > **Source de vérité par tâche** : `src/temp/evolution4.md` (gitignoré, à relire en PRIORITÉ à chaque reprise).
 > Mode de travail : **un prompt par tâche** (R1, R2, R3…) — lire le suivi + CONTEXT.md, pas tout le code.
 
-**Branche** : `evo4-god-evolutions` → PR vers `dev`. **Dernier commit** : R2.
+**Branche** : `evo4-god-evolutions` → PR vers `dev`. **État** : R1 + R2 terminés et poussés, CI durcie (voir `docs/SECURITY_HARDENING_PLAN.md` pour la supply chain).
 - ✅ **R1** — Lectures God granuleuses par scope (`canGodAccess`) + redirect tab fail-closed + refonte `god/page.tsx` par tab. FAIT.
 - ✅ **R2** — Tuto God interactif (`god-access-banner.tsx` → client + localStorage + bouton « Revoir »). FAIT.
 - ⬜ **R3** — Anti-scout : secret route `GOD_ROUTE` (`/mng-<hash>`, `/god`→404 si non autorisé), noindex + `X-Robots-Tag`, rate-limit + IP allowlist, fuite `/god/dofus-guides` publique.

@@ -51,6 +51,38 @@
 
 ---
 
+## 🪱 Supply Chain — Shai-Hulud (04/08/2026)
+
+> Attaque npm active : compte mainteneur `keyv` compromis → ver voleur de credentials
+> injecté via hook `"preinstall": "node setup.mjs"` (setup.mjs télécharge Bun → exécute
+> Math_Symbol.js / math_init.js), propagation par tarballs npm + hooks IDE (.claude/.vscode).
+> Sources : aikido.dev + dev.to (04-05/08/2026).
+
+**Audit projet (05/08)** : NON impacté — versions saines verrouillées dans le lockfile :
+- `keyv` installé `4.5.4` (compromis = `6.0.0`) · `flat-cache` `4.0.1` (compromis = `6.1.24`)
+- `retry` `0.12.0` · `cacheable-request`/`cacheable`/`@cacheable/*` = **absents**.
+- Aucun IOC dans `node_modules` (seul `setup.mjs` = motion-dom, bénin, whitelisté).
+- Pas de dead-man's switch (`gh-token-monitor.sh` / `.config/gh-token-monitor` absents).
+
+**Mesures en place (CI)** :
+- ✅ **Scan IOC automatisé** `scripts/check-ioc-shai-hulud.sh` (bash, 3 niveaux, whitelist
+  motion-dom justifiée) — inséré dans `verify.yml` (push + scan hebdo). Lecture seule,
+  fail-closed UNIQUEMENT sur combinaison de signatures (0 faux positif validé).
+- ✅ **Lockfile épinglé** (`integrity` + `npm ci`) + `npm audit --audit-level=high` en CI.
+- ✅ **Build natif déplacé push→PR** dans `verify.yml` (économie double build, sans `AUTH_SECRET`).
+
+**Décision `ignore-scripts=true`** : étudiée puis **écartée** (on laisse tel quel) —
+ 4 binaires natifs légitimes (esbuild, prisma, msgpackr-extract, unrs-resolver) exigent
+ un postinstall ; activer globalement casserait le build et imposerait 4 commandes manuelles
+ à chaque install. Profit faible sur nos machines (peu de tokens cloud, SSH seulement).
+ `ignore-scripts` reste une option à considérer si un jour des tokens npm/GitHub/AWS
+ durables doivent résider sur une machine de dev.
+
+**Vigilance** : ne pas régénérer le lockfile ni mettre à jour `keyv`/`flat-cache`/`cacheable*`
+ tant que l'écosystème n'est pas nettoyé.
+
+---
+
 ## 📌 Règles à respecter pour tout futur code (voir RULES.md)
 
 - **Fail-closed** : jamais accorder l'accès si une vérification échoue.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { processAndSaveImage } from "@/lib/image-downloader";
+import { logger } from "@/lib/logger";
 import { normalize } from "path";
 
 export async function POST(req: NextRequest) {
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error("[UploadImage API] Error:", error);
+        logger.error("[UploadImage API] Error", { error: String(error) });
         return NextResponse.json(
             { success: false, error: "Internal server error" },
             { status: 500 }

@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import { authConfig } from "./auth.config"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { getGodRoutePrefix } from "./lib/god-route"
 
 const { auth } = NextAuth(authConfig)
 
@@ -15,6 +16,28 @@ const ipCounters = new Map<string, { count: number; reset: number }>()
 // ─── Maintenance Mode Cache (30s TTL, avoids a DB fetch on every request) ───
 let _maintenanceCache: { value: boolean; expiresAt: number } | null = null
 const MAINTENANCE_CACHE_TTL_MS = 30_000
+
+// ─── God route prefix (R3 anti-scout, computed at build — env inlined) ─────
+const GOD_PREFIX = getGodRoutePrefix()
+
+// ─── God anti-scout route helpers (R3) ──────────────────────────────────────
+// Le panel vit sur une route secrète (GOD_ROUTE). Le middleware réécrit le
+// trafic secret → /god interne. /god direct → laissé passer (le layout serveur
+// fait la vérif fine des scopes + 404). Fail-closed : si GOD_ROUTE absent en
+// prod, GOD_PREFIX == "/__god-route-missing__" ne matche rien → 404.
+function isGodPanelPath(pathname: string): boolean {
+    return pathname === "/god" || pathname.startsWith("/god/")
+}
+function isGodApiPath(pathname: string): boolean {
+    return pathname === "/api/god" || pathname.startsWith("/api/god/")
+}
+function isGodSecretPath(pathname: string): boolean {
+    if (GOD_PREFIX === "/god") return false // dev fallback, géré par isGodPanelPath
+    return pathname.startsWith(GOD_PREFIX)
+}
+function isGodRoute(pathname: string): boolean {
+    return isGodPanelPath(pathname) || isGodApiPath(pathname) || isGodSecretPath(pathname)
+}
 
 function ipRateLimit(ip: string, limit: number, windowMs: number): boolean {
     const now = Date.now()
@@ -69,6 +92,28 @@ export default auth(async (req) => {
         return NextResponse.next();
     }
 
+    // ─── R3 ANTI-SCOUT: route secrète → réécrire vers /god interne ──────────
+    // Ex: /mng-aZ9rT3/delegates → /god/delegates ; /mng-aZ9rT3 → /god
+    // On transmet le secret demandé via un header, que le layout serveur
+    // comparera au GOD_ROUTE réel (runtime, .env du VPS). Fail-closed : un
+    // /mng-XXX incorrect n'a PAS le header attendu → layout renvoie 404.
+    if (isGodSecretPath(nextUrl.pathname)) {
+        const internalPath = "/god" + nextUrl.pathname.slice(GOD_PREFIX.length - 1);
+        const url = nextUrl.clone();
+        url.pathname = internalPath;
+        const headers = new Headers(req.headers);
+        const secretPart = nextUrl.pathname.slice(GOD_PREFIX.length).split("/")[0] || "";
+        headers.set("x-god-secret", secretPart);
+        return NextResponse.rewrite(url, { request: { headers } });
+    }
+
+    // ─── R3 ANTI-SCOUT: /god direct en production → 404 si pas authentifié ──
+    // La vérification fine des scopes (getActiveScopes) se fait dans le layout
+    // serveur. Ici, fail-closed minimal : pas de session → 404.
+    if ((nextUrl.pathname === "/god" || nextUrl.pathname === "/god/") && process.env.NODE_ENV === "production" && !req.auth?.user?.id) {
+        return new NextResponse(null, { status: 404 });
+    }
+
     const isAuthenticated = !!req.auth;
 
     const isPublicApi = 
@@ -109,8 +154,33 @@ export default auth(async (req) => {
         }
     }
 
+    // ─── R3 ANTI-SCOUT: rate-limit strict + IP allowlist optionnelle sur god ──
+    // Uniquement sur les routes god (pages + API hors notify). /api/god/notify
+    // est public et protégé par CRON_SECRET → exclu ici.
+    if (isGodRoute(nextUrl.pathname)) {
+        const ip = getClientIp(req)
+
+        // 🔒 IP allowlist OPTIONNELLE (désactivable) : si GOD_IP_ALLOWLIST est
+        // défini et non vide → SEULES ces IPs accèdent au panel. Fail-closed.
+        const allowlist = process.env.GOD_IP_ALLOWLIST;
+        if (allowlist && allowlist.trim().length > 0) {
+            const allowedIps = allowlist.split(",").map(s => s.trim()).filter(Boolean);
+            if (allowedIps.length > 0 && !allowedIps.includes(ip)) {
+                return new NextResponse(null, { status: 403 });
+            }
+        }
+
+        // Rate-limit strict sur les routes god (10 req/min).
+        if (!nextUrl.pathname.startsWith("/api/god/notify")) {
+            const allowed = ipRateLimit(`${ip}:god`, 10, 60_000);
+            if (!allowed) {
+                return new NextResponse(null, { status: 429, headers: { "Retry-After": "60" } });
+            }
+        }
+    }
+
     // --- MAINTENANCE MODE CHECK ---
-    const isMaintenanceBypassPath = nextUrl.pathname.startsWith("/maintenance") || nextUrl.pathname.startsWith("/god") || nextUrl.pathname.startsWith("/api");
+    const isMaintenanceBypassPath = nextUrl.pathname.startsWith("/maintenance") || isGodRoute(nextUrl.pathname) || nextUrl.pathname.startsWith("/api");
     const isGodUser = req.cookies.get("sigil-god-bypass")?.value;
 
     if (!isMaintenanceBypassPath && !isGodUser) {
@@ -152,6 +222,12 @@ export default auth(async (req) => {
 
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-pathname", nextUrl.pathname);
+
+    // ─── R3 ANTI-SCOUT: X-Robots-Tag noindex/nofollow sur les routes god ─────
+    // Couvre pages (/god*, /mng-*) + API (/api/god/*) d'un coup.
+    if (isGodRoute(nextUrl.pathname)) {
+        requestHeaders.set("X-Robots-Tag", "noindex, nofollow");
+    }
 
     return NextResponse.next({
         request: {

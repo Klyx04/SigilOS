@@ -72,10 +72,10 @@
 > **Source de vérité par tâche** : `src/temp/evolution4.md` (gitignoré, à relire en PRIORITÉ à chaque reprise).
 > Mode de travail : **un prompt par tâche** (R1, R2, R3…) — lire le suivi + CONTEXT.md, pas tout le code.
 
-**Branche** : `evo4-god-evolutions` → PR vers `dev`. **Dernier commit** : R2.
+**Branche** : `evo4-god-evolutions` → PR vers `dev`. **État** : R1 + R2 terminés et poussés, CI durcie (voir `docs/SECURITY_HARDENING_PLAN.md` pour la supply chain).
 - ✅ **R1** — Lectures God granuleuses par scope (`canGodAccess`) + redirect tab fail-closed + refonte `god/page.tsx` par tab. FAIT.
 - ✅ **R2** — Tuto God interactif (`god-access-banner.tsx` → client + localStorage + bouton « Revoir »). FAIT.
-- ⬜ **R3** — Anti-scout : secret route `GOD_ROUTE` (`/mng-<hash>`, `/god`→404 si non autorisé), noindex + `X-Robots-Tag`, rate-limit + IP allowlist, fuite `/god/dofus-guides` publique.
+- ✅ **R3** — Anti-scout : secret route `GOD_ROUTE`, noindex + `X-Robots-Tag`, rate-limit + IP allowlist désactivable, fuite `/god/dofus-guides` publique retirée, F-SEC-1 corrigé.
 - ⬜ **R4** — Session God + révocation live (scopeVersion + socket/SSE popup + tables GodAccessLog/GodSessionLog).
 - ⬜ **R5** — Logging exhaustif God (lifecycle + `GOD_DASHBOARD_ACCESS` layout + `console.*`→`logger`).
 - 🐞 **F-SEC-1** (avec R3) — invite Discord `permissions=8` en dur dans `god/onboarding/page.tsx` → `process.env.DISCORD_BOT_INVITE_URL`.

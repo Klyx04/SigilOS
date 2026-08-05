@@ -71,7 +71,7 @@ jobs:
           cache: 'npm'
 
       - name: Next.js Cache
-        uses: actions/cache@v6
+        uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.npm
@@ -92,6 +92,12 @@ jobs:
             exit 1
           fi
           echo "✅ Lockfile integrity verified"
+
+      - name: 🪱 Shai-Hulud IOC Scan
+        # Détecte les implants du ver Shai-Hulud (keyv/cacheable, 2026-08) :
+        # Math_Symbol.js / math_init.js, hook preinstall "node setup.mjs" + signature execFileSync/bun.
+        # Logique 3 niveaux (combinaison de signatures) → zéro faux positif sur notre install saine.
+        run: bash scripts/check-ioc-shai-hulud.sh
 
       - name: 💎 Generate Prisma Client
         run: npx prisma generate
@@ -127,14 +133,18 @@ jobs:
       - name: 🚀 Run Tests
         run: npm run test:run
 
-      # Build only on protected branches (NOT on PRs).
-      # SECURITY FIX (F-18): never inject AUTH_SECRET on a pull_request runner —
-      # a malicious PR could exfiltrate it via the build output.
+      # Build ONLY on pull_request (economy + coverage).
+      # - Sur push main/dev : le build de prod est DEJA garanti par deploy.yml
+      #   (docker buildx -> npm run build dans le Dockerfile l.41-46). Le refaire
+      #   ici = double build inutile (2x minutes Actions gratuites).
+      # - Sur PR : on garde la garantie "le build passe avant merge".
+      # SECURITY FIX (F-18): jamais d'AUTH_SECRET sur un runner pull_request —
+      # un PR malveillant pourrait l'exfiltrer via la sortie du build.
+      # Pre-requis valide : `npm run build` passe SANS AUTH_SECRET (testé 2026-08-05).
       - name: 🏗️ Production Build
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+        if: github.event_name == 'pull_request'
         run: npm run build
         env:
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           NEXT_PUBLIC_APP_URL: "http://localhost:3000"
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/unused"
 
@@ -176,10 +186,14 @@ jobs:
           fi
           echo "✅ Lockfile integrity verified"
 
+      - name: 🪱 Shai-Hulud IOC Scan (weekly deep)
+        # Idem job verify — scan complet des IOCs Shai-Hulud à chaque scan hebdo.
+        run: bash scripts/check-ioc-shai-hulud.sh
+
       - name: 🛡️ Full Security Audit
         run: npm audit --audit-level=high
 
-      - name: 🔬 Deep SAST Scan (Semgrep)
+      - name: � Deep SAST Scan (Semgrep)
         uses: semgrep/semgrep-action@v1
         with:
           config: >-
@@ -189,7 +203,7 @@ jobs:
         env:
           SEMGREP_RULES: "p/security-audit p/secrets p/owasp-top-ten"
 
-      - name: 🛡️ Full Filesystem CVE Scan (Trivy)
+      - name: �🛡️ Full Filesystem CVE Scan (Trivy)
         # F-22: pinned to a real tagged release (v0.36.0 exists) — @master could execute compromised code
         uses: aquasecurity/trivy-action@v0.36.0
         with:

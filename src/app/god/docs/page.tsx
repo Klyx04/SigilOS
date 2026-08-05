@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { getAdminDocs, deleteDoc } from "@/server/actions/doc-actions";
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash, FileText, ExternalLink, Database } from "lucide-react";
@@ -9,8 +11,9 @@ import { DeleteDocButton } from "./_components/delete-button";
 
 export default async function AdminDocsPage() {
     const session = await auth();
-    // In a real app, verify SuperAdmin access here
-    // For now, assuming middleware or layout handles it, or user is authorized
+    // Fail-closed : réservé aux super-admins (le layout accepte désormais les sub-gods)
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) redirect("/");
 
     const docs = await getAdminDocs();
 

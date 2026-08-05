@@ -54,6 +54,7 @@ const CONSOLE_PAGES = [
     { name: "Bugs & Suggs", id: "bugs", href: "/god/bugs", icon: Bug, color: "text-rose-400" },
     { name: "Roadmap Pro", id: "roadmap", href: "/god/roadmap", icon: Map, color: "text-amber-400" },
     { name: "Changelog Engine", id: "changelog", href: "/god/changelog", icon: History, color: "text-indigo-400" },
+    { name: "Sous-Gods", id: "delegates", href: "/god/delegates", icon: Shield, color: "text-violet-400" },
     { name: "Sécurité & Logs", id: "security", icon: ShieldAlert, color: "text-zinc-400" },
 ];
 

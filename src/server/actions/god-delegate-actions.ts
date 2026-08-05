@@ -1,0 +1,271 @@
+"use server";
+
+import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
+import { GOD_SCOPES } from "@/lib/god-scopes";
+import { isSuperAdmin, requireGodAccess } from "./super-admin-actions";
+import { createGodAuditLog } from "./audit-actions";
+
+// ============================================================================
+// CHANTIER A — Gestion des sub-gods (GodDelegate)
+// Sécurité fail-closed : CHAQUE action vérifie requireGodAccess("users") ET
+// est doublée par isSuperAdmin(). Chaque grant/revoke est audité.
+// ============================================================================
+
+const ScopesSchema = z.array(z.enum(GOD_SCOPES)).min(1, "Au moins un scope est requis");
+
+const GrantDelegateSchema = z.object({
+    userId: z.string().optional(),
+    discordId: z.string().optional(),
+    scopes: ScopesSchema,
+    expiresAt: z.coerce.date().optional().nullable(),
+    guildId: z.string().optional().nullable(),
+}).refine((d) => d.userId || d.discordId, {
+    message: "Il faut fournir userId OU discordId",
+    path: ["discordId"],
+});
+
+type DelegateReturn = {
+    id: string;
+    userId: string;
+    userName: string | null;
+    discordId: string | null;
+    scopes: string[];
+    grantedBy: string;
+    grantedAt: Date;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    guildId: string | null;
+};
+
+/** Récupère un userId à partir d'un discordId (via le compte Discord lié). */
+async function resolveUserIdByDiscordId(discordId: string): Promise<string | null> {
+    const account = await db.account.findFirst({
+        where: { provider: "discord", providerAccountId: discordId },
+        select: { userId: true },
+    });
+    return account?.userId ?? null;
+}
+
+/** Récupère le discordId de l'acteur connecté (pour l'audit + grantedBy). */
+async function getActorDiscordId(): Promise<string | null> {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+    const account = await db.account.findFirst({
+        where: { userId: session.user.id, provider: "discord" },
+        select: { providerAccountId: true },
+    });
+    return account?.providerAccountId ?? null;
+}
+
+/** Helper pour normaliser le retour d'un délégué. */
+function mapDelegate(d: any): DelegateReturn {
+    const discordId = (d.user?.accounts as Array<{ provider: string; providerAccountId: string }> | undefined)
+        ?.find((a) => a.provider === "discord")?.providerAccountId ?? null;
+    return {
+        id: d.id,
+        userId: d.userId,
+        userName: d.user?.name ?? null,
+        discordId,
+        scopes: d.scopes,
+        grantedBy: d.grantedBy,
+        grantedAt: d.grantedAt,
+        expiresAt: d.expiresAt,
+        revokedAt: d.revokedAt,
+        guildId: d.guildId,
+    };
+}
+
+/**
+ * Liste tous les délégués (actifs + expirés + révoqués).
+ * Réservé : scope "users" (ou super-admin).
+ */
+export async function listDelegates(): Promise<{ success: boolean; data?: DelegateReturn[]; error?: string }> {
+    try {
+        await requireGodAccess("users");
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) {
+            throw new Error("Unauthorized: Super-admin access required");
+        }
+
+        const delegates = await db.godDelegate.findMany({
+            orderBy: [{ revokedAt: "asc" }, { grantedAt: "desc" }],
+        });
+
+        // GodDelegate n'a pas de relation Prisma vers User → enrichir manuellement.
+        const userIds = delegates.map(d => d.userId);
+        const users = userIds.length > 0
+            ? await db.user.findMany({
+                where: { id: { in: userIds } },
+                include: { accounts: { select: { provider: true, providerAccountId: true } } },
+            })
+            : [];
+        const userMap = new Map(users.map(u => [u.id, u]));
+
+        const enriched = delegates.map(d => mapDelegate({ ...d, user: userMap.get(d.userId) ?? null }));
+        return { success: true, data: enriched };
+    } catch (e: any) {
+        logger.error("[listDelegates] Error:", { error: e });
+        return { success: false, error: e.message || "Erreur inconnue" };
+    }
+}
+
+/**
+ * Octroie un délégué (grant). Audit systématique.
+ * Réservé : scope "users" (ou super-admin).
+ */
+export async function grantDelegate(input: z.infer<typeof GrantDelegateSchema>): Promise<{ success: boolean; data?: DelegateReturn; error?: string }> {
+    try {
+        await requireGodAccess("users");
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) {
+            throw new Error("Unauthorized: Super-admin access required");
+        }
+
+        const parsed = GrantDelegateSchema.parse(input);
+        const actorSession = await auth();
+        if (!actorSession?.user?.id) throw new Error("Non authentifié");
+        const actorDiscordId = await getActorDiscordId();
+
+        // Résolution de la cible (userId prioritaire, sinon discordId)
+        const targetUserId = parsed.userId
+            ?? (parsed.discordId ? await resolveUserIdByDiscordId(parsed.discordId) : undefined);
+
+        if (!targetUserId) {
+            return { success: false, error: parsed.discordId ? "Aucun utilisateur trouvé pour ce Discord ID" : "Cible introuvable" };
+        }
+
+        // Vérifier que la cible existe
+        const targetUser = await db.user.findUnique({
+            where: { id: targetUserId },
+            include: { accounts: { select: { provider: true, providerAccountId: true } } },
+        });
+        if (!targetUser) {
+            return { success: false, error: "Utilisateur cible introuvable" };
+        }
+
+        // Empêcher de se retirer ses propres droits (drapeau rouge sécurité)
+        if (targetUserId === actorSession.user.id) {
+            return { success: false, error: "Impossible de s'accorder des scopes à soi-même" };
+        }
+
+        const delegate = await db.godDelegate.create({
+            data: {
+                userId: targetUserId,
+                guildId: parsed.guildId ?? null,
+                scopes: parsed.scopes,
+                grantedBy: actorDiscordId || actorSession.user.id,
+                expiresAt: parsed.expiresAt ?? null,
+            },
+        });
+
+        await createGodAuditLog({
+            action: "GOD_CONFIG_OVERRIDE",
+            targetType: "SYSTEM_GOD",
+            targetId: delegate.id,
+            newValue: { operation: "GRANT_DELEGATE", userId: targetUserId, scopes: parsed.scopes, expiresAt: parsed.expiresAt },
+            metadata: { performedBy: actorDiscordId || actorSession.user.id },
+        });
+
+        revalidatePath("/god/delegates");
+        return { success: true, data: mapDelegate({ ...delegate, user: targetUser }) };
+    } catch (e: any) {
+        logger.error("[grantDelegate] Error:", { error: e });
+        return { success: false, error: e.message || "Erreur inconnue" };
+    }
+}
+
+/**
+ * Révoque un délégué. Audit systématique. Idempotent (refuse double révocation).
+ * Réservé : scope "users" (ou super-admin).
+ */
+export async function revokeDelegate(delegateId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await requireGodAccess("users");
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) {
+            throw new Error("Unauthorized: Super-admin access required");
+        }
+
+        const actorSession = await auth();
+        const actorDiscordId = await getActorDiscordId();
+
+        const delegate = await db.godDelegate.findUnique({ where: { id: delegateId } });
+        if (!delegate) {
+            return { success: false, error: "Délégué introuvable" };
+        }
+
+        if (delegate.revokedAt) {
+            return { success: false, error: "Ce délégué est déjà révoqué" };
+        }
+
+        await db.godDelegate.update({
+            where: { id: delegateId },
+            data: { revokedAt: new Date() },
+        });
+
+        await createGodAuditLog({
+            action: "GOD_CONFIG_OVERRIDE",
+            targetType: "SYSTEM_GOD",
+            targetId: delegateId,
+            newValue: { operation: "REVOKE_DELEGATE", userId: delegate.userId },
+            metadata: { performedBy: actorDiscordId || actorSession?.user?.id || "unknown" },
+        });
+
+        revalidatePath("/god/delegates");
+        return { success: true };
+    } catch (e: any) {
+        logger.error("[revokeDelegate] Error:", { error: e });
+        return { success: false, error: e.message || "Erreur inconnue" };
+    }
+}
+
+/**
+ * Met à jour les scopes d'un délégué. Audit systématique.
+ * Réservé : scope "users" (ou super-admin).
+ */
+export async function updateDelegateScopes(delegateId: string, scopes: string[]): Promise<{ success: boolean; error?: string }> {
+    try {
+        await requireGodAccess("users");
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) {
+            throw new Error("Unauthorized: Super-admin access required");
+        }
+
+        const parsed = ScopesSchema.safeParse(scopes);
+        if (!parsed.success) {
+            return { success: false, error: "Scopes invalides : au moins un scope reconnu requis" };
+        }
+
+        const actorSession = await auth();
+        const actorDiscordId = await getActorDiscordId();
+
+        const delegate = await db.godDelegate.findUnique({ where: { id: delegateId } });
+        if (!delegate) {
+            return { success: false, error: "Délégué introuvable" };
+        }
+
+        await db.godDelegate.update({
+            where: { id: delegateId },
+            data: { scopes: parsed.data },
+        });
+
+        await createGodAuditLog({
+            action: "GOD_CONFIG_OVERRIDE",
+            targetType: "SYSTEM_GOD",
+            targetId: delegateId,
+            oldValue: { operation: "UPDATE_DELEGATE_SCOPES", scopes: delegate.scopes },
+            newValue: { operation: "UPDATE_DELEGATE_SCOPES", scopes: parsed.data },
+            metadata: { performedBy: actorDiscordId || actorSession?.user?.id || "unknown" },
+        });
+
+        revalidatePath("/god/delegates");
+        return { success: true };
+    } catch (e: any) {
+        logger.error("[updateDelegateScopes] Error:", { error: e });
+        return { success: false, error: e.message || "Erreur inconnue" };
+    }
+}

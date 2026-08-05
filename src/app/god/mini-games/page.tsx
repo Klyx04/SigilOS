@@ -1,9 +1,14 @@
 import { Suspense } from "react";
 import { getMiniGamesStatus, getPlatformConfig } from "@/server/actions/god-mini-games-actions";
 import MiniGamesGodClient from "./mini-games-god-client";
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { redirect } from "next/navigation";
 export const dynamic = 'force-dynamic';
 
 export default async function GodMiniGamesPage() {
+    // Fail-closed : réservé aux super-admins (le layout accepte désormais les sub-gods)
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) redirect("/");
     const [statuses, platformConfig] = await Promise.all([
         getMiniGamesStatus(),
         getPlatformConfig()

@@ -98,7 +98,10 @@ export default auth(async (req) => {
     // comparera au GOD_ROUTE réel (runtime, .env du VPS). Fail-closed : un
     // /mng-XXX incorrect n'a PAS le header attendu → layout renvoie 404.
     if (isGodSecretPath(nextUrl.pathname)) {
-        const internalPath = "/god" + nextUrl.pathname.slice(GOD_PREFIX.length - 1);
+        // Chemin interne = /god + ce qui suit le secret.
+        const secondSlash = nextUrl.pathname.indexOf("/", GOD_PREFIX.length);
+        const rest = secondSlash === -1 ? "" : nextUrl.pathname.slice(secondSlash);
+        const internalPath = "/god" + rest;
         const url = nextUrl.clone();
         url.pathname = internalPath;
         const headers = new Headers(req.headers);

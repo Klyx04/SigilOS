@@ -46,6 +46,7 @@ export function getGodRoute(): string {
 /**
  * Sous-partie après le préfixe : ex "/mng-aZ9rT3" -> "aZ9rT3".
  * Utilisé côté serveur pour comparer le secret reçu au secret configuré.
+ * Retourne "" si GOD_ROUTE absent/invalide (-> fail-closed 404).
  */
 export function getGodRouteSecret(): string {
   const route = getGodRoute();
@@ -59,4 +60,33 @@ export function getGodRouteSecret(): string {
  */
 export function getGodRoutePrefix(): string {
   return GOD_ROUTE_PREFIX;
+}
+
+/**
+ * Comparaison en temps constant de deux chaînes (anti timing-side-channel).
+ * Implémentation portable (xor accumulateur) — fonctionne en Node et Edge,
+ * sans dépendre de `crypto.timingSafeEqual` (Node-only).
+ * Retourne false si les longueurs diffèrent ou si l'une est vide (fail-closed).
+ */
+export function safeEqualStrings(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  if (a.length === 0) return false; // deux chaînes vides -> "secret absent" -> false
+
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/**
+ * Vérifie qu'un secret reçu (extrait de l'URL /mng-<secret>) correspond au
+ * GOD_ROUTE configuré au runtime. Fail-closed : GodRoute absent/invalide ou
+ * secret vide/incorrect -> false. Comparaison en temps constant.
+ */
+export function isValidGodSecret(receivedSecret: string): boolean {
+  if (!receivedSecret) return false;
+  const expected = getGodRouteSecret();
+  if (!expected) return false;
+  return safeEqualStrings(receivedSecret, expected);
 }

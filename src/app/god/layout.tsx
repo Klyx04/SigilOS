@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { getActiveScopes } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
@@ -6,8 +7,18 @@ import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
 import { GodAccessBanner } from "./components/god-access-banner";
+import { getGodRoute } from "@/lib/god-route";
+
+// R3 anti-scout : le panel God ne doit JAMAIS être indexé par les moteurs de recherche.
+export const metadata: Metadata = {
+    robots: { index: false, follow: false },
+};
 
 export default async function GodLayout({ children }: { children: React.ReactNode }) {
+    // R3 : route secrète du panel, injectée aux sidebars "use client"
+    // (jamais exposée dans le bundle JS — uniquement dans le HTML serveur).
+    const godRoute = getGodRoute();
+
     const session = await auth();
     if (!session?.user?.id) {
         redirect("/");
@@ -47,6 +58,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     unreadCount={unreadCount}
                     ticketCount={ticketCount}
                     activeScopes={activeScopes}
+                    godRoute={godRoute}
                 />
             </Suspense>
             
@@ -59,7 +71,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                         </span>
                     </div>
                     <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
-                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} />
+                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} godRoute={godRoute} />
                     </Suspense>
                 </div>
 

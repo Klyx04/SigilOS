@@ -576,9 +576,7 @@ function SubGuideCard({ seq, checkedSteps, onStepToggle, onMapClick, onInteracti
             ) : steps.length === 0 ? (
               <div className="sgc-empty">
                 <Info size={14}/> Ce sous-guide n&apos;est pas encore importé dans la bibliothèque.
-                <a href="/god/dofus-guides" target="_blank" rel="noreferrer" className="sgc-link">
-                  Importer <ExternalLink size={10}/>
-                </a>
+                Contactez un modérateur pour le rendre disponible.
               </div>
             ) : (
               <>

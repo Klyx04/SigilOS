@@ -2,19 +2,22 @@ import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Rocket, Link as LinkIcon, EyeOff, Globe } from "lucide-react";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
 import { redirect } from "next/navigation";
+import { getGodRoute } from "@/lib/god-route";
 
 export default async function GodOnboardingDocsPage() {
     // Fail-closed : réservé aux super-admins (le layout accepte désormais les sub-gods)
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) redirect("/");
-    const inviteLink = "https://discord.com/oauth2/authorize?client_id=1458259008355045519&permissions=8&integration_type=0&scope=bot";
+    const godRoute = getGodRoute();
+    // F-SEC-1 : lien d'invitation Discord piloté par env (fail-closed si absent).
+    const inviteLink = process.env.DISCORD_BOT_INVITE_URL || null;
 
     return (
         <div className="space-y-8 py-8 max-w-5xl mx-auto">
             {/* Header */}
             <div className="flex items-center gap-6 pb-6 border-b border-white/5">
                 <Link
-                    href="/god"
+                    href={godRoute}
                     className="p-3 bg-zinc-900/50 hover:bg-zinc-800 rounded-xl transition-colors text-zinc-400 hover:text-white"
                 >
                     <ArrowLeft className="w-5 h-5" />
@@ -33,9 +36,21 @@ export default async function GodOnboardingDocsPage() {
                     <LinkIcon className="w-5 h-5" />
                     <h2>Lien d'invitation maître SigilOS</h2>
                 </div>
-                <code className="bg-black/40 p-4 rounded-xl text-blue-300 text-sm font-mono break-all border border-blue-500/10">
-                    {inviteLink}
-                </code>
+                {inviteLink ? (
+                    <details className="group">
+                        <summary className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs font-black text-blue-300 uppercase tracking-widest cursor-pointer hover:bg-blue-500/20 transition-colors">
+                            <LinkIcon className="w-3.5 h-3.5" />
+                            Révéler le lien d'invitation
+                        </summary>
+                        <code className="mt-3 block bg-black/40 p-4 rounded-xl text-blue-300 text-sm font-mono break-all border border-blue-500/10">
+                            {inviteLink}
+                        </code>
+                    </details>
+                ) : (
+                    <p className="text-xs text-rose-400 font-mono">
+                        ⚠️ DISCORD_BOT_INVITE_URL non configuré — lien masqué (fail-closed).
+                    </p>
+                )}
                 <p className="text-xs text-blue-400/70">Ce lien représente l'identité unique de ton bot. Il ne change jamais, peu importe le protocole utilisé.</p>
             </div>
 

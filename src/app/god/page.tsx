@@ -51,6 +51,7 @@ import { WorkerTester } from "./components/worker-tester";
 import { getPlatformConfig } from "@/server/actions/god-mini-games-actions";
 import { getTelemetryStats } from "@/server/actions/telemetry-actions";
 import { TelemetryDashboard } from "./components/telemetry-dashboard";
+import { getGodRoute } from "@/lib/god-route";
 
 
 export default async function SuperAdminPage(props: {
@@ -73,19 +74,21 @@ export default async function SuperAdminPage(props: {
     };
     // 🔄 R1 — Résout la cible d'atterrissage la plus pertinente pour les scopes
     // actifs d'un sub-god. Chaque cible pointe vers une page/tab réellement existant.
-    const FALLBACK_TARGETS: Array<{ scope: string | null; target: string }> = [
-        { scope: "guilds", target: "/god?tab=guilds" },
-        { scope: "logs", target: "/god?tab=security" },
-        { scope: "game-data", target: "/god?tab=game-data" },
-        { scope: "maintenance", target: "/god?tab=infrastructure" },
-        { scope: "users", target: "/god/delegates" },
-    ];
-    function resolveGodLanding(scopes: string[]): string {
+    function resolveGodLanding(scopes: string[], godRoute: string): string {
+        const FALLBACK_TARGETS: Array<{ scope: string | null; target: string }> = [
+            { scope: "guilds", target: `${godRoute}?tab=guilds` },
+            { scope: "logs", target: `${godRoute}?tab=security` },
+            { scope: "game-data", target: `${godRoute}?tab=game-data` },
+            { scope: "maintenance", target: `${godRoute}?tab=infrastructure` },
+            { scope: "users", target: `${godRoute}/delegates` },
+        ];
         for (const fb of FALLBACK_TARGETS) {
             if (fb.scope && scopes.includes(fb.scope)) return fb.target;
         }
         return "/"; // fail-closed : aucun scope exploitable → sortie
     }
+
+    const godRoute = getGodRoute();
 
     const session = await auth();
     if (!session?.user?.id) {
@@ -119,7 +122,7 @@ export default async function SuperAdminPage(props: {
             ? isAdmin
             : activeScopes.includes(requiredScope as never);
         if (!hasAccess) {
-            redirect(resolveGodLanding(activeScopes));
+            redirect(resolveGodLanding(activeScopes, godRoute));
         }
     }
 
@@ -342,7 +345,7 @@ export default async function SuperAdminPage(props: {
                             {/* Avis de Recherche Quick Access */}
                             <div className="border-t border-white/5 pt-12">
                                 <Link
-                                    href="/god/game-data/bounties"
+href={`${godRoute}/game-data/bounties`}
                                     className="group flex items-center gap-6 p-8 rounded-3xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all shadow-xl shadow-rose-500/5"
                                 >
                                     <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 group-hover:bg-rose-500/20 transition-all shrink-0">
@@ -578,7 +581,8 @@ async function TelemetryServer() {
         const stats = await getTelemetryStats();
         return <TelemetryDashboard initialStats={stats} />;
     } catch (err) {
-        console.error("[Telemetry ERROR]", err);
+        const { logger } = await import("@/lib/logger");
+        logger.error("[Telemetry ERROR]", { error: String(err) });
         return <div className="p-8 text-center text-red-500 text-xs font-mono">Error loading telemetry data</div>;
     }
 }

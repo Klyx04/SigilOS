@@ -50,6 +50,8 @@ const ALLOWED_DOMAINS = new Set([
   "www.dofusbook.net",
   "static.barbofus.com",
   "www.barbofus.com",
+  "www.dofusskinmanga.com",
+  "static.dofusskinmanga.com",
   "static-cdn.jtvnw.net",
   "i.ytimg.com",
   "cdn.sentry.io",

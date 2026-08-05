@@ -49,7 +49,7 @@ interface ProfileBentoGridProps {
         metamobVerified?: boolean;
         metamobLastSync?: Date | null;
         altPseudos?: string[] | null;
-        dofusBookLinks?: { id: string; url: string; name: string }[] | null;
+        dofusBookLinks?: { id: string; url: string; name: string; tags?: string[]; classId?: number; createdAt?: string | null; updatedAt?: string | null; previewData?: any }[] | null;
         successPoints?: number | null;
         lastLadderUpdate?: Date | null;
         notificationPrefs?: {

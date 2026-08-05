@@ -8,18 +8,26 @@ import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { logger } from "@/lib/logger";
 
 /**
- * Route skin provider images through the internal proxy to bypass anti-hotlink
- * protections (Barbofus, DofusSkinManga) when Discord fetches the embed image.
+ * Route image provider URLs through the internal proxy to bypass anti-hotlink
+ * protections (Barbofus, DofusSkinManga, Dofusbook) when Discord fetches the embed image.
  * Discord's fetchers don't send browser-like headers, so these providers refuse
- * to serve the image and Discord falls back to the provider logo.
- * Returns undefined only if the URL is invalid (keep fallback behavior).
+ * to serve the image and Discord falls back to the provider logo or broken image.
+ * Returns undefined only if the URL is invalid.
  */
-function resolveDiscordSkinImage(rawImage: string): string | undefined {
+function resolveDiscordImage(rawImage: string, baseUrl?: string): string | undefined {
     try {
-        const parsedUrl = new URL(rawImage);
+        let cleanImage = rawImage.trim();
+        if (cleanImage.startsWith("//")) {
+            cleanImage = `https:${cleanImage}`;
+        }
+        const parsedUrl = baseUrl ? new URL(cleanImage, baseUrl) : new URL(cleanImage);
         const host = parsedUrl.hostname.toLowerCase();
-        const isProtectedProvider = host === "barbofus.com" || host.endsWith(".barbofus.com")
-            || host === "dofusskinmanga.com" || host.endsWith(".dofusskinmanga.com");
+        const isProtectedProvider = 
+            host === "barbofus.com" || host.endsWith(".barbofus.com") ||
+            host === "dofusskinmanga.com" || host.endsWith(".dofusskinmanga.com") ||
+            host === "dofusbook.net" || host.endsWith(".dofusbook.net") ||
+            host === "d-bk.net" || host.endsWith(".d-bk.net");
+
         if (isProtectedProvider) {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
             return `${appUrl}/api/proxy-image?url=${encodeURIComponent(parsedUrl.href)}`;
@@ -610,11 +618,7 @@ export async function shareGalleryItemOnDiscord(
             // Premium UI 2026: Large image for the build + Site icon as thumbnail
             const rawBuildImg = build.previewData?.thumbnail?.trim();
             if (rawBuildImg) {
-                try {
-                    embedImage = new URL(rawBuildImg).href;
-                } catch {
-                    embedImage = undefined;
-                }
+                embedImage = resolveDiscordImage(rawBuildImg, build.url);
             } else {
                 embedImage = undefined;
             }
@@ -639,9 +643,9 @@ export async function shareGalleryItemOnDiscord(
             if (!skin) return { success: false, error: "Skin introuvable" };
 
             // --- OPPORTUNISTIC RE-SCRAPE ---
-            // If thumbnailUrl is missing or empty, try to re-scrape the skin metadata
+            // If thumbnailUrl is missing, empty or relative, try to re-scrape the skin metadata
             // to fetch the image before sending to Discord.
-            if (!skin.thumbnailUrl || !skin.thumbnailUrl.trim()) {
+            if (!skin.thumbnailUrl || !skin.thumbnailUrl.trim() || (!skin.thumbnailUrl.startsWith("http://") && !skin.thumbnailUrl.startsWith("https://") && !skin.thumbnailUrl.startsWith("//"))) {
                 try {
                     const { scrapeSkinMetadata } = await import("./skin-actions");
                     const freshData = await scrapeSkinMetadata(skin.url);
@@ -667,12 +671,7 @@ export async function shareGalleryItemOnDiscord(
             // Premium UI 2026: Large image for the skin + Provider icon as thumbnail
             let rawImage = skin.thumbnailUrl?.trim();
             if (rawImage) {
-                if (rawImage.startsWith("//")) {
-                    rawImage = `https:${rawImage}`;
-                } else if (!rawImage.startsWith("http://") && !rawImage.startsWith("https://")) {
-                    rawImage = `https://${rawImage.replace(/^\/+/, '')}`;
-                }
-                embedImage = resolveDiscordSkinImage(rawImage);
+                embedImage = resolveDiscordImage(rawImage, skin.url);
             } else {
                 embedImage = undefined;
             }

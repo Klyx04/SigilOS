@@ -101,9 +101,23 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
         const headIcon = $('img[alt="Visage"]').attr('src') || 
                          $('p:contains("Visage")').next('div').find('img').attr('src');
         
+        // Extract Barbofus thumbnail image safely (support relative and protocol-relative URLs)
+        const rawOgImg = $('meta[property="og:image"]').attr('content')?.trim() || 
+                         $('meta[name="twitter:image"]').attr('content')?.trim() || 
+                         $('img[alt*="Skin"]').attr('src')?.trim() || 
+                         $('img[src*="/render/"]').attr('src')?.trim() || null;
+        let barbofusThumb: string | null = null;
+        if (rawOgImg) {
+            try {
+                barbofusThumb = rawOgImg.startsWith("//") ? `https:${rawOgImg}` : new URL(rawOgImg, url).href;
+            } catch {
+                barbofusThumb = rawOgImg;
+            }
+        }
+        
         return {
             name: $('meta[property="og:title"]').attr('content')?.replace(" - Barbofus", "").trim() || "Skin Barbofus",
-            thumbnailUrl: $('meta[property="og:image"]').attr('content')?.trim() || null,
+            thumbnailUrl: barbofusThumb,
             provider: "BARBOFUS",
             colors,
             equipment,
@@ -172,9 +186,20 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
             className?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         )?.icon.match(/classes\/(\d+)\.png/)?.[1];
 
+        const rawOgManga = $('meta[property="og:image"]').attr('content')?.trim() || 
+                           $('meta[name="twitter:image"]').attr('content')?.trim() || null;
+        let mangaThumb: string | null = null;
+        if (rawOgManga) {
+            try {
+                mangaThumb = rawOgManga.startsWith("//") ? `https:${rawOgManga}` : new URL(rawOgManga, url).href;
+            } catch {
+                mangaThumb = rawOgManga;
+            }
+        }
+
         return {
             name,
-                thumbnailUrl: $('meta[property="og:image"]').attr('content')?.trim() || null,
+            thumbnailUrl: mangaThumb,
             provider: "DOFUSSKINMANGA",
             colors,
             equipment,
@@ -192,9 +217,20 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
         const res = await fetch(url, { headers: { "User-Agent": "SigilOS/1.0" } });
         const html = await res.text();
         const $ = cheerio.load(html);
+
+        const rawOgOther = $('meta[property="og:image"]').attr('content')?.trim() || null;
+        let genericThumb: string | null = null;
+        if (rawOgOther) {
+            try {
+                genericThumb = rawOgOther.startsWith("//") ? `https:${rawOgOther}` : new URL(rawOgOther, url).href;
+            } catch {
+                genericThumb = rawOgOther;
+            }
+        }
+
         return {
             name: $('meta[property="og:title"]').attr('content')?.trim() || $('title').text() || "Nouveau Skin",
-            thumbnailUrl: $('meta[property="og:image"]').attr('content')?.trim() || null,
+            thumbnailUrl: genericThumb,
             provider: "OTHER"
         };
     } catch {

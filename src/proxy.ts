@@ -88,7 +88,17 @@ export default auth(async (req) => {
     // à providers vides) ne décode PAS le cookie ici → ne pas s'y fier pour la
     // garde God.
     // NOTE: `segurança` — ne jamás logger le token ni le secret.
-    const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+    // `getToken` infère le nom du cookie via AUTH_URL/NEXTAUTH_URL ; s'il est
+    // absent ou non reconnu derrière Caddy, il pourrait chercher le mauvais
+    // cookie (authjs.session-token au lieu de __Secure-...). On force donc
+    // explicitement le même nom/secure que défini dans auth.config.ts, pour
+    // garantir que le proxy lit le même cookie que le serveur.
+    const token = await getToken({
+        req,
+        secret: process.env.AUTH_SECRET,
+        secureCookie: process.env.NODE_ENV === "production",
+        cookieName: "__Secure-authjs.session-token",
+    });
     const hasSession = !!token?.sub;
 
     // ─── REWRITE UPLOADS: Must happen before any performance short-circuit ───

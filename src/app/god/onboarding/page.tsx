@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Rocket, Link as LinkIcon, EyeOff, Globe } from "lucide-react";
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { redirect } from "next/navigation";
 
-export default function GodOnboardingDocsPage() {
+export default async function GodOnboardingDocsPage() {
+    // Fail-closed : réservé aux super-admins (le layout accepte désormais les sub-gods)
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) redirect("/");
     const inviteLink = "https://discord.com/oauth2/authorize?client_id=1458259008355045519&permissions=8&integration_type=0&scope=bot";
 
     return (

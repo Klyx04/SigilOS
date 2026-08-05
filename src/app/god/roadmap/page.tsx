@@ -2,8 +2,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Rocket } from "lucide-react";
 import { RoadmapClient } from "./roadmap-client";
 import { getRoadmapItems, getPlatformConfig } from "@/server/actions/god-roadmap-actions";
+import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { redirect } from "next/navigation";
 
 export default async function RoadmapGodPage() {
+    // Fail-closed : réservé aux super-admins (le layout accepte désormais les sub-gods)
+    const isAdmin = await isSuperAdmin();
+    if (!isAdmin) redirect("/");
     const [itemsRes, configRes] = await Promise.all([
         getRoadmapItems(),
         getPlatformConfig()

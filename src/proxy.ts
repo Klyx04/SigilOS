@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import { authConfig } from "./auth.config"
+import { getToken } from "next-auth/jwt"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getGodRoutePrefix, isValidGodSecret } from "./lib/god-route"
@@ -82,6 +83,14 @@ function getClientIp(req: NextRequest): string {
 export default auth(async (req) => {
     const { nextUrl } = req;
 
+    // Session JWT fiable dans le Proxy : `getToken` décode le cookie Auth.js
+    // avec le même AUTH_SECRET que le serveur. `req.auth` (du wrapper NextAuth
+    // à providers vides) ne décode PAS le cookie ici → ne pas s'y fier pour la
+    // garde God.
+    // NOTE: `segurança` — ne jamás logger le token ni le secret.
+    const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+    const hasSession = !!token?.sub;
+
     // ─── REWRITE UPLOADS: Must happen before any performance short-circuit ───
     if (nextUrl.pathname.startsWith("/uploads/")) {
         const protectedPath = nextUrl.pathname.replace("/uploads/", "/api/storage/");
@@ -104,7 +113,7 @@ export default auth(async (req) => {
         // (DEBUG LOG décision) pathname + présence session, sans loguer le secret.
         logger.info(`[GodProxy] /mng-* path`, {
             pathname: nextUrl.pathname,
-            hasAuth: !!req.auth?.user?.id,
+            hasAuth: hasSession,
             hasCookie: !!req.cookies.get("__Secure-authjs.session-token")?.value || !!req.cookies.get("authjs.session-token")?.value,
         });
         // Chemin interne = /god + ce qui suit le secret.
@@ -112,7 +121,7 @@ export default auth(async (req) => {
         const rest = secondSlash === -1 ? "" : nextUrl.pathname.slice(secondSlash);
         const secretPart = nextUrl.pathname.slice(GOD_PREFIX.length).split("/")[0] || "";
         if (!isValidGodSecret(secretPart)) {
-            logger.warn(`[GodProxy] secret refusé → 404`, { pathname: nextUrl.pathname, hasAuth: !!req.auth?.user?.id });
+            logger.warn(`[GodProxy] secret refusé → 404`, { pathname: nextUrl.pathname, hasAuth: hasSession });
             return new NextResponse(null, { status: 404 });
         }
         logger.info(`[GodProxy] secret accepté → rewrite /god`, { pathname: nextUrl.pathname });
@@ -124,12 +133,12 @@ export default auth(async (req) => {
     // ─── R3 ANTI-SCOUT: /god direct en production → 404 si pas authentifié ──
     // La vérification fine des scopes (getActiveScopes) se fait dans le layout
     // serveur. Ici, fail-closed minimal : pas de session → 404.
-    if ((nextUrl.pathname === "/god" || nextUrl.pathname === "/god/") && process.env.NODE_ENV === "production" && !req.auth?.user?.id) {
-        logger.warn(`[GodProxy] /god direct sans session → 404`, { pathname: nextUrl.pathname, hasAuth: !!req.auth?.user?.id });
+    if ((nextUrl.pathname === "/god" || nextUrl.pathname === "/god/") && process.env.NODE_ENV === "production" && !hasSession) {
+        logger.warn(`[GodProxy] /god direct sans session → 404`, { pathname: nextUrl.pathname, hasAuth: hasSession });
         return new NextResponse(null, { status: 404 });
     }
     if (nextUrl.pathname === "/god" || nextUrl.pathname === "/god/") {
-        logger.info(`[GodProxy] /god direct avec session → pass-through au layout`, { pathname: nextUrl.pathname, hasAuth: !!req.auth?.user?.id });
+        logger.info(`[GodProxy] /god direct avec session → pass-through au layout`, { pathname: nextUrl.pathname, hasAuth: hasSession });
     }
 
     const isAuthenticated = !!req.auth;

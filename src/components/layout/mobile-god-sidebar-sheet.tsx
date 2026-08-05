@@ -6,7 +6,7 @@ import { GodSidebar } from "./god-sidebar";
 import { useState, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-export function MobileGodSidebarSheet({ user, unreadCount, ticketCount = 0 }: { user: any, unreadCount: number, ticketCount?: number }) {
+export function MobileGodSidebarSheet({ user, unreadCount, ticketCount = 0, activeScopes = [] }: { user: any, unreadCount: number, ticketCount?: number, activeScopes?: string[] }) {
     const [open, setOpen] = useState(false);
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -29,7 +29,7 @@ export function MobileGodSidebarSheet({ user, unreadCount, ticketCount = 0 }: { 
                   Passing the required props to the child sidebar component.
                   We force it to display fully inside the sheet with flex and w-full.
                 */}
-                <GodSidebar user={user} unreadCount={unreadCount} ticketCount={ticketCount} className="w-full h-full flex" />
+                <GodSidebar user={user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} className="w-full h-full flex" />
             </SheetContent>
         </Sheet>
     );

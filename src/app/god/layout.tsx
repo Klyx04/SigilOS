@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { GOD_SCOPES } from "@/lib/god-scopes";
 import { getActiveScopes } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
 import { Suspense } from "react";
@@ -56,7 +55,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                         </span>
                     </div>
                     <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
-                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} />
+                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} />
                     </Suspense>
                 </div>
 

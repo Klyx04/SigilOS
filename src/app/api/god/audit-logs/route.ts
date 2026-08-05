@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isSuperAdmin, } from "@/server/actions/super-admin-actions";
+import { canGodAccess } from "@/server/actions/super-admin-actions";
 import { getGlobalAuditLogs } from "@/server/actions/audit-actions";
 
 export async function GET(request: Request) {
@@ -10,8 +10,9 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
-    const superAdmin = await isSuperAdmin();
-    if (!superAdmin) {
+    // R3 : lecture des logs god = scope "logs" (cohérent R1).
+    const hasLogsScope = await canGodAccess("logs");
+    if (!hasLogsScope) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 

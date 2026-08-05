@@ -46,15 +46,15 @@ const CONSOLE_PAGES = [
     { name: "Alertes Système", id: "notifications", icon: Bell, color: "text-rose-400" },
     { name: "Tickets Support", id: "tickets", icon: Ticket, color: "text-indigo-400" },
     { name: "Données de Jeu", id: "game-data", icon: Database, color: "text-cyan-400" },
-    { name: "Mini-Jeux", id: "mini-games", href: "/god/mini-games", icon: Gamepad2, color: "text-amber-500" },
-    { name: "Avis de Recherche", id: "bounties", href: "/god/game-data/bounties", icon: ShieldAlert, color: "text-rose-500" },
-    { name: "Quêtes Dofus", id: "quetes-dofus", href: "/god/quetes-dofus", icon: Sparkles, color: "text-purple-400" },
-    { name: "Guides Optim.", id: "dofus-guides", href: "/god/dofus-guides", icon: Navigation, color: "text-emerald-400" },
-    { name: "Rush Sylvestre", id: "rush-sylvestre", href: "/god/rush-sylvestre", icon: Zap, color: "text-emerald-400" },
-    { name: "Bugs & Suggs", id: "bugs", href: "/god/bugs", icon: Bug, color: "text-rose-400" },
-    { name: "Roadmap Pro", id: "roadmap", href: "/god/roadmap", icon: Map, color: "text-amber-400" },
-    { name: "Changelog Engine", id: "changelog", href: "/god/changelog", icon: History, color: "text-indigo-400" },
-    { name: "Sous-Gods", id: "delegates", href: "/god/delegates", icon: Shield, color: "text-violet-400" },
+    { name: "Mini-Jeux", id: "mini-games", sub: "mini-games", icon: Gamepad2, color: "text-amber-500" },
+    { name: "Avis de Recherche", id: "bounties", sub: "game-data/bounties", icon: ShieldAlert, color: "text-rose-500" },
+    { name: "Quêtes Dofus", id: "quetes-dofus", sub: "quetes-dofus", icon: Sparkles, color: "text-purple-400" },
+    { name: "Guides Optim.", id: "dofus-guides", sub: "dofus-guides", icon: Navigation, color: "text-emerald-400" },
+    { name: "Rush Sylvestre", id: "rush-sylvestre", sub: "rush-sylvestre", icon: Zap, color: "text-emerald-400" },
+    { name: "Bugs & Suggs", id: "bugs", sub: "bugs", icon: Bug, color: "text-rose-400" },
+    { name: "Roadmap Pro", id: "roadmap", sub: "roadmap", icon: Map, color: "text-amber-400" },
+    { name: "Changelog Engine", id: "changelog", sub: "changelog", icon: History, color: "text-indigo-400" },
+    { name: "Sous-Gods", id: "delegates", sub: "delegates", icon: Shield, color: "text-violet-400" },
     { name: "Sécurité & Logs", id: "security", icon: ShieldAlert, color: "text-zinc-400" },
 ];
 
@@ -84,7 +84,7 @@ const SCOPE_REQUIRED: Record<string, ScopeId> = {
 // Nombre total de scopes (un super-admin les possède tous).
 const ALL_SCOPES_COUNT = 6;
 
-export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, activeScopes = [] }: { className?: string, user: any, unreadCount?: number, ticketCount?: number, activeScopes?: string[] }) {
+export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, activeScopes = [], godRoute = "/god" }: { className?: string, user: any, unreadCount?: number, ticketCount?: number, activeScopes?: string[], godRoute?: string }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const activeTab = searchParams.get("tab") || "overview";
@@ -99,7 +99,7 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
     });
 
     const isActiveRoot = (href: string) => {
-        if (href === "/god") return pathname === "/god";
+        if (href === godRoute) return pathname === godRoute;
         return pathname.startsWith(href);
     };
 
@@ -139,11 +139,11 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                         
                         <div className="space-y-1.5">
                             {visiblePages.map((page) => {
-                                const isDirectRoute = !!(page as any).href;
-                                const linkHref = isDirectRoute ? (page as any).href : `/god?tab=${page.id}`;
+                                const isDirectRoute = !!((page as any).sub);
+                                const linkHref = isDirectRoute ? `${godRoute}/${(page as any).sub}` : `${godRoute}?tab=${page.id}`;
                                 const active = isDirectRoute 
-                                    ? pathname.startsWith((page as any).href.split('?')[0]) 
-                                    : (pathname === "/god" && activeTab === page.id);
+                                    ? pathname.startsWith(`${godRoute}/${(page as any).sub}`) 
+                                    : ((pathname === godRoute || pathname === "/god") && activeTab === page.id);
                                 
                                 // Badge logic
                                 const hasBadge = (page.id === "notifications" && unreadCount > 0) || 
@@ -186,10 +186,10 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                                         {/* Sub-tabs for specific sections */}
                                         {active && page.id === "infrastructure" && (
                                             <div className="ml-8 space-y-1 border-l-2 border-white/10 pl-4 py-2 mt-2">
-                                                <Link href="/god?tab=infrastructure&sub=STATUS" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "STATUS" || sub === "NONE" ? "text-emerald-400 bg-emerald-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                <Link href={`${godRoute}?tab=infrastructure&sub=STATUS`} className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "STATUS" || sub === "NONE" ? "text-emerald-400 bg-emerald-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
                                                     <Activity className="h-4 w-4" /> Status
                                                 </Link>
-                                                <Link href="/god?tab=infrastructure&sub=STORAGE" className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "STORAGE" ? "text-blue-400 bg-blue-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
+                                                <Link href={`${godRoute}?tab=infrastructure&sub=STORAGE`} className={cn("flex items-center gap-3 px-3 py-2 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all", sub === "STORAGE" ? "text-blue-400 bg-blue-500/15" : "text-zinc-400 hover:text-zinc-200 hover:bg-white/10")}>
                                                     <HardDrive className="h-4 w-4" /> Stockage
                                                 </Link>
                                             </div>

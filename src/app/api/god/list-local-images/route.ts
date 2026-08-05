@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { canGodAccess } from "@/server/actions/super-admin-actions";
+import { logger } from "@/lib/logger";
 import { readdir } from "fs/promises";
 import { join, normalize } from "path";
 
@@ -7,11 +8,11 @@ const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 
 export async function GET(req: NextRequest) {
     try {
-        // 1. Check super admin
-        const isAdmin = await isSuperAdmin();
-        if (!isAdmin) {
+        // 1. R3 : lecture des images game-data = scope "game-data" (cohérent R1).
+        const hasGameDataScope = await canGodAccess("game-data");
+        if (!hasGameDataScope) {
             return NextResponse.json(
-                { success: false, error: "Unauthorized: Super admin only" },
+                { success: false, error: "Unauthorized: game-data scope required" },
                 { status: 403 }
             );
         }
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error("[ListLocalImages API] Error:", error);
+        logger.error("[ListLocalImages API] Error", { error: String(error) });
         return NextResponse.json(
             { success: false, error: error.message || "Internal server error" },
             { status: 500 }

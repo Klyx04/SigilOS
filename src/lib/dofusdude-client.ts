@@ -178,6 +178,18 @@ interface DofusDBQuestRaw {
     slug?: { fr?: string };
 }
 
+/**
+ * Lien public DofusDB vers une quête.
+ * ⚠️ Le suffixe correct est SINGULIER "quest" (vérifié par curl le 05/08 : 
+ * `/database/quests/` renvoie 404, `/database/quest/` renvoie 200).
+ */
+export function getDofusDbQuestUrl(id: number, slugFr?: string): string {
+    const base = `https://www.dofusdb.fr/fr/database/quest/${id}`;
+    if (!slugFr) return base;
+    const clean = slugFr.trim().replace(/\s+/g, "-");
+    return clean ? `${base}-${clean}` : base;
+}
+
 const _questCache = new Map<string, { data: DofusQuest[]; expiresAt: number }>();
 
 export async function searchDofusQuests(query: string, limit = 15): Promise<DofusQuest[]> {
@@ -205,9 +217,7 @@ export async function searchDofusQuests(query: string, limit = 15): Promise<Dofu
             levelMin: q.levelMin ?? null,
             levelMax: q.levelMax ?? null,
             isDungeonQuest: q.isDungeonQuest ?? false,
-            dofusdbUrl: q.slug?.fr
-                ? `https://www.dofusdb.fr/fr/database/quests/${q.id}-${q.slug.fr.replace(/\s+/g, "-")}`
-                : `https://www.dofusdb.fr/fr/database/quests/${q.id}`,
+            dofusdbUrl: getDofusDbQuestUrl(q.id ?? 0, q.slug?.fr),
         })).filter((q) => q.id > 0);
 
         _questCache.set(cacheKey, { data, expiresAt: Date.now() + TTL_MS });

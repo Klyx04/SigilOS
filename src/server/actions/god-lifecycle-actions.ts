@@ -21,7 +21,7 @@
 'use server';
 
 import { db } from '@/lib/prisma';
-import { isSuperAdmin } from './super-admin-actions';
+import { isSuperAdmin, canGodAccess } from './super-admin-actions';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 
@@ -325,10 +325,11 @@ export async function hardDeleteProfile(profileId: string) {
 
 /**
  * Get soft-deleted guilds
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getSoftDeletedGuilds() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.guildConfig.findMany({
         where: {
@@ -351,10 +352,11 @@ export async function getSoftDeletedGuilds() {
 
 /**
  * Get soft-deleted profiles
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getSoftDeletedProfiles() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.userProfile.findMany({
         where: {
@@ -377,10 +379,11 @@ export async function getSoftDeletedProfiles() {
 
 /**
  * Get all archived profiles (not just soft-deleted)
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getArchivedProfiles() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.userProfile.findMany({
         where: { status: 'ARCHIVED' },
@@ -401,10 +404,11 @@ export async function getArchivedProfiles() {
 
 /**
  * Get all active guilds for the control panel
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getActiveGuilds() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.guildConfig.findMany({
         where: { isActive: true },
@@ -417,10 +421,11 @@ export async function getActiveGuilds() {
 
 /**
  * Get all platform-level bans
+ * 🔄 R1 — LECTURE compatible scope "guilds".
  */
 export async function getPlatformBans() {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return [];
+    if (!isAdmin && !(await canGodAccess("guilds"))) return [];
 
     return db.platformBan.findMany({
         select: {

@@ -56,13 +56,43 @@ import { TelemetryDashboard } from "./components/telemetry-dashboard";
 export default async function SuperAdminPage(props: {
     searchParams: Promise<{ tab?: string }>;
 }) {
+    // 🔄 R1 — Every God tab must be scope-gated. A sub-god who requests a tab
+    // outside their scopes (or no tab at all → "overview" which is admin-only)
+    // is redirected to their FIRST allowed page. Fail-closed: never "overview".
+    const TAB_SCOPE: Record<string, string | null> = {
+        overview: null,          // super-admin only
+        telemetry: null,         // super-admin only
+        "game-data": "game-data",
+        "mini-games": "game-data",
+        guilds: "guilds",
+        infrastructure: "maintenance",
+        notifications: null,     // super-admin only
+        tickets: null,           // super-admin only
+        security: "logs",
+        "game-data/bounties": "game-data",
+    };
+    // 🔄 R1 — Résout la cible d'atterrissage la plus pertinente pour les scopes
+    // actifs d'un sub-god. Chaque cible pointe vers une page/tab réellement existant.
+    const FALLBACK_TARGETS: Array<{ scope: string | null; target: string }> = [
+        { scope: "guilds", target: "/god?tab=guilds" },
+        { scope: "logs", target: "/god?tab=security" },
+        { scope: "game-data", target: "/god?tab=game-data" },
+        { scope: "maintenance", target: "/god?tab=infrastructure" },
+        { scope: "users", target: "/god/delegates" },
+    ];
+    function resolveGodLanding(scopes: string[]): string {
+        for (const fb of FALLBACK_TARGETS) {
+            if (fb.scope && scopes.includes(fb.scope)) return fb.target;
+        }
+        return "/"; // fail-closed : aucun scope exploitable → sortie
+    }
+
     const session = await auth();
     if (!session?.user?.id) {
         redirect("/");
     }
 
     // Accepte super-admin ET tout sub-god avec au moins un scope actif.
-    // La page racine n'exécute que les "actions God" compatibles avec le scope.
     const isAdmin = await isSuperAdmin();
     const activeScopes = await getActiveScopes();
     if (activeScopes.length === 0) {
@@ -78,30 +108,49 @@ export default async function SuperAdminPage(props: {
     }
 
     const resolvedSearchParams = await props.searchParams;
-    const tab = resolvedSearchParams.tab || "overview";
+    const requestedTab = resolvedSearchParams.tab || "overview";
+    let tab = requestedTab;
 
+    // 🔄 R1 — Guard : si le tab demandé n'est pas couvert par les scopes du sub-god,
+    // rediriger vers son premier tab autorisé (jamais "overview" pour un sub-god).
+    if (!isAdmin) {
+        const requiredScope = TAB_SCOPE[requestedTab];
+        const hasAccess = requiredScope === null
+            ? isAdmin
+            : activeScopes.includes(requiredScope as never);
+        if (!hasAccess) {
+            redirect(resolveGodLanding(activeScopes));
+        }
+    }
 
-    // Fetch data for LifecyclePanel
-    const { getGhostUsers, getUnauthorizedBotConnections } = await import("@/server/actions/super-admin-actions");
-    const [softDeletedGuilds, softDeletedProfiles, archivedProfiles, platformBans, activeGuilds, ghostUsers, unauthorizedConnections] = await Promise.all([
-        getSoftDeletedGuilds(),
-        getSoftDeletedProfiles(),
-        getArchivedProfiles(),
-        getPlatformBans(),
-        getActiveGuilds(),
-        getGhostUsers(),
-        getUnauthorizedBotConnections()
-    ]);
-
-    const resolvedData = {
-        softDeletedGuilds,
-        softDeletedProfiles,
-        archivedProfiles,
-        platformBans,
-        activeGuilds,
-        ghostUsers,
-        unauthorizedConnections
+    // 🔄 R1 — Les lectures lourdes ne sont exécutées QUE pour le tab "guilds"
+    // (scope-gated). Les autres tabs chargent leurs données dans leurs composants.
+    let resolvedData: any = {
+        platformBans: [], softDeletedGuilds: [], softDeletedProfiles: [],
+        archivedProfiles: [], activeGuilds: [], ghostUsers: [], unauthorizedConnections: []
     };
+    if (tab === "guilds" || tab === "security") {
+        const { getGhostUsers, getUnauthorizedBotConnections } = await import("@/server/actions/super-admin-actions");
+        const [softDeletedGuilds, softDeletedProfiles, archivedProfiles, platformBans, activeGuilds, ghostUsers, unauthorizedConnections] = await Promise.allSettled([
+            getSoftDeletedGuilds(),
+            getSoftDeletedProfiles(),
+            getArchivedProfiles(),
+            getPlatformBans(),
+            getActiveGuilds(),
+            getGhostUsers(),
+            getUnauthorizedBotConnections()
+        ]);
+        const settled = (p: PromiseSettledResult<any>) => p.status === "fulfilled" ? p.value : [];
+        resolvedData = {
+            softDeletedGuilds: settled(softDeletedGuilds),
+            softDeletedProfiles: settled(softDeletedProfiles),
+            archivedProfiles: settled(archivedProfiles),
+            platformBans: settled(platformBans),
+            activeGuilds: settled(activeGuilds),
+            ghostUsers: settled(ghostUsers),
+            unauthorizedConnections: settled(unauthorizedConnections)
+        };
+    }
 
     return (
         <div className="flex-1 flex flex-col min-h-0">

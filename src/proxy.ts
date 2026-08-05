@@ -21,7 +21,7 @@ const MAINTENANCE_CACHE_TTL_MS = 30_000
 const GOD_PREFIX = getGodRoutePrefix()
 
 // ─── God anti-scout route helpers (R3) ──────────────────────────────────────
-// Le panel vit sur une route secrète (GOD_ROUTE). Le middleware réécrit le
+// Le panel vit sur une route secrète (GOD_ROUTE). Le proxy réécrit le
 // trafic secret → /god interne. /god direct → laissé passer (le layout serveur
 // fait la vérif fine des scopes + 404). Fail-closed : si GOD_ROUTE absent en
 // prod, GOD_PREFIX == "/__god-route-missing__" ne matche rien → 404.
@@ -92,13 +92,13 @@ export default auth(async (req) => {
         return NextResponse.next();
     }
 
-    // ─── R3 ANTI-SCOUT: route secrète → vérifier le secret DANS le middleware ─
+    // ─── R3 ANTI-SCOUT: route secrète → vérifier le secret DANS le proxy ────
     // Ex: /mng-aZ9rT3/delegates → /god/delegates ; /mng-aZ9rT3 → /god
-    // Le middleware tourne en Node runtime (voir config) → lit process.env.GOD_ROUTE
+    // Le proxy tourne en Node runtime (voir config) → lit process.env.GOD_ROUTE
     // AU RUNTIME (pas inliné au build). On compare le secret reçu directement à
     // GOD_ROUTE AVANT le rewrite. Fail-closed : mauvais secret → 404 immédiat,
     // rien n'atteint les RSC God. Aucun header n'est transmis (le layout ne
-    // vérifie plus le secret — c'est le middleware qui est la porte).
+    // vérifie plus le secret — c'est le proxy qui est la porte).
     if (isGodSecretPath(nextUrl.pathname)) {
         // Chemin interne = /god + ce qui suit le secret.
         const secondSlash = nextUrl.pathname.indexOf("/", GOD_PREFIX.length);
@@ -242,9 +242,10 @@ export default auth(async (req) => {
 })
 
 export const config = {
-    // Node runtime : nécessaire pour lire process.env.GOD_ROUTE au runtime (R3).
-    // Le middleware Edge inline les env au build — le secret du .env VPS ne
-    // serait pas visible. Next 16 supporte le Node runtime pour les middlewares.
-    runtime: "nodejs",
+    // Le proxy Next 16 (anciennement middleware) tourne TOUJOURS sur Node.js
+    // (imposé par Next) — contrairement à l'ancienne convention middleware.ts
+    // qui était imposée en Edge (env inlinés au build → secret GOD_ROUTE du
+    // .env VPS invisible au runtime). Ici, process.env.GOD_ROUTE est lu AU
+    // RUNTIME. (La prop `runtime` est interdite dans un fichier proxy.)
     matcher: ["/((?!api/auth|api/health|api/god/notify|_next/static|_next/image|favicon.ico|images|fonts|icons|(?!uploads/).*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf)$).*)"],
 }

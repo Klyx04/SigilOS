@@ -93,14 +93,17 @@ export default auth(async (req) => {
     }
 
     // ─── R3 ANTI-SCOUT: route secrète → réécrire vers /god interne ──────────
-    // Ex: /mng-a7x2k9/delegates → /god/delegates ; /mng-a7x2k9 → /god
+    // Ex: /mng-aZ9rT3/delegates → /god/delegates ; /mng-aZ9rT3 → /god
+    // On transmet le secret demandé via un header, que le layout serveur
+    // comparera au GOD_ROUTE réel (runtime, .env du VPS). Fail-closed : un
+    // /mng-XXX incorrect n'a PAS le header attendu → layout renvoie 404.
     if (isGodSecretPath(nextUrl.pathname)) {
-        // GOD_PREFIX ex "/mng-" ; slice(prefix.length - 1) garde le "/" final
         const internalPath = "/god" + nextUrl.pathname.slice(GOD_PREFIX.length - 1);
         const url = nextUrl.clone();
         url.pathname = internalPath;
         const headers = new Headers(req.headers);
-        headers.set("x-god-secret-access", "1");
+        const secretPart = nextUrl.pathname.slice(GOD_PREFIX.length).split("/")[0] || "";
+        headers.set("x-god-secret", secretPart);
         return NextResponse.rewrite(url, { request: { headers } });
     }
 

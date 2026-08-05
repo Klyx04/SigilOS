@@ -131,6 +131,13 @@ export default auth(async (req) => {
         const rest = secondSlash === -1 ? "" : nextUrl.pathname.slice(secondSlash);
         const secretPart = nextUrl.pathname.slice(GOD_PREFIX.length).split("/")[0] || "";
         if (!isValidGodSecret(secretPart)) {
+            // Anti-brute-force : rate-limit STRICT (10/min) sur SEUL les mauvais
+            // secrets (véritable attaquant), pas sur les URLs légitimes.
+            const ip = getClientIp(req);
+            const allowed = ipRateLimit(`${ip}:god-invalid`, 10, 60_000);
+            if (!allowed) {
+                return new NextResponse(null, { status: 429, headers: { "Retry-After": "60" } });
+            }
             logger.warn(`[GodProxy] secret refusé → 404`, { pathname: nextUrl.pathname, hasAuth: hasSession });
             return new NextResponse(null, { status: 404 });
         }
@@ -207,9 +214,13 @@ export default auth(async (req) => {
             }
         }
 
-        // Rate-limit strict sur les routes god (10 req/min).
+        // Rate-limit GÉNÉREUX (120 req/min) sur les routes God LÉGITIMES (secret
+        // valide / connecté) : évite les faux positifs 429 pendant la navigation
+        // du panel (chargement parallèle de multiples tabs/sous-routes). La vraie
+        // protection anti-brute-force est le rate-limit strict sur les MAUVAIS
+        // secrets (voir bloc isGodSecretPath) + le secret + la session.
         if (!nextUrl.pathname.startsWith("/api/god/notify")) {
-            const allowed = ipRateLimit(`${ip}:god`, 10, 60_000);
+            const allowed = ipRateLimit(`${ip}:god`, 120, 60_000);
             if (!allowed) {
                 return new NextResponse(null, { status: 429, headers: { "Retry-After": "60" } });
             }

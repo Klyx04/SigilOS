@@ -87,10 +87,16 @@
   - ⚠️ **Secret réel fuité dans l'historique git → à ROTATER** (nouvelle `GOD_ROUTE` sur beta + prod, `.env`). Procédure dans `src/temp/evolution4.md`.
 - ✅ **R4 (partiel)** — Session God + révocation live : schema Prisma fait (scopeVersion sur GodDelegate + tables GodAccessLog/GodSessionLog), revokeDelegate bump scopeVersion + GodAccessLog. **Reste** : session active GodSessionLog dans le layout + révocation live socket/SSE popup.
 - ✅ **R5** — Logging exhaustif God : `GOD_DASHBOARD_ACCESS` ajouté + remplacé le no-op `logPageAccess` dans le layout par `createGodAuditLog`.
-- ✅ **PILIER D (PIM granulaire) FAIT** — Table `GodAccessGrant` + guard `canAccessBrick` (fail-closed) + grant/revoke JIT (durée, justification obligatoire) + UI `/god/delegates` + warn anti-scout + 7 tests unitaires. Migrations R4+D1 appliquées en local.
-- ⚠️ **Navigation** : Sous-Gods pointe maintenant vers la route dédiée `/god/delegates` (plus `?tab=delegates`).
+- ✅ **PILIER D (PIM granulaire) FAIT + durci (06/08)** — Table `GodAccessGrant` + guard `canAccessBrick` (fail-closed, **fix double OR** qui laissait passer les grants expirés) + grant/revoke JIT (durée, justification obligatoire) + UI `/god/delegates` + warn anti-scout. **Ajouts 06/08 → commits `2f3dc878`, `028bac21`, `eb3ff2a8`, `31832de5`, `a1e9e593`** :
+  - **PIM réellement fonctionnel** : registre centralisé `god-bricks.ts` (`subGodAccess` fail-closed), `getAccessibleBricks()`, sidebar/layout filtrent par brique, matrice sous-god stricte (test-debug) — ses pages interdites (overview/telemetry/infra/notifications/mini-games/security/bugs/roadmap/changelog/onboarding/delegates) jamais visibles d'un sous-god, guildes en whitelist seule (ReadOnly), pages d'atterrissage via `resolveGodLanding` tenant compte des briques.
+  - **Traçage God exhaustif** : helper `logGodWrite` + nouvelles actions Audit (`GOD_GUIDE_UPDATE`, `GOD_RUSH_UPDATE`, `GOD_QUEST_DATA_UPDATE`, `GOD_GAME_DATA_UPDATE`, `GOD_TICKET_ACTION`, `GOD_DOC_UPDATE`) posées sur toutes les écritures guides/rush/quetes/game-data/tickets/docs — log UNIQUEMENT sous-god (pas de doublon admin).
+  - **Édition en place des droits** : `syncBrickAccessForDelegate()` (diff atomique : crée/révoque/prolonge, bump scopeVersion, audit) + `EditAccessManager.tsx`. Plus de « révoquer + recréer ».
+  - **UX sous-god** : `getMyActiveGrants()` → vue **« Mon accès »** dans le bandeau (remplace le lien mort `/god/delegates`) avec temps restant par brique ; **`GodExpiryGuard`** : badge permanent « Expire : X », popup <10 min, **déconnexion forcée** quand tous les accès expirent (fail-closed UI).
+  - **Refonte `/god/delegates`** : stepper 3 étapes (Délégué → Scopes & Briques → Durée & Validation), délégué créable vierge, scopes exploitables restreints, durée flexible (min/heures/jours), historique isolé dans `AccessHistory`.
+  - **`.next` corrompu** supprimé/régénéré → tsc OK ; **110 tests** ✅.
+- ⚠️ **Navigation** : Sous-Gods pointe vers la route dédiée `/god/delegates` (plus `?tab=delegates`).
 - ✅ **F-SEC-1** — Corrigé (invite Discord `permissions=8` → `DISCORD_BOT_INVITE_URL` + toggle).
-- 🧹 **À faire** : déployer PR #405 (rate-limit) beta ; rotation `GOD_ROUTE` (secret fuité) — modifier `.env` + `docker compose up -d` ; B3-B5 (refonte overview, primitives, animations) ; A4 purge/ménage.
+- 🧹 **À faire** : déployer PR #405 (rate-limit) beta ; rotation `GOD_ROUTE` (secret fuité) — modifier `.env` + `docker compose up -d` ; **R4 complet** (session GodSessionLog dans le layout + révocation live socket/SSE — le guard couvre l'expiration par polling mais pas la révocation instantanée) ; volume `GOD_DASHBOARD_ACCESS` (loggé à chaque rendu) ; B3-B5 (refonte overview, primitives, animations) ; A4 purge/ménage ; évolutions 2/3 (fuite `user.name` ~90 fichiers, etc.).
 
 **Checkpoint** : `npm run test:run` (97 tests) ✅ + `npm run build` (62 pages) ✅ + `npx tsc --noEmit` ✅ + ESLint 0 ✅.
 

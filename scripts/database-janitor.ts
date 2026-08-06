@@ -19,6 +19,10 @@ import { PrismaClient } from '@prisma/client';
 const GRACE_PERIOD_DAYS = 7;
 const AUDIT_RETENTION_DAYS = 30;
 const GOD_NOTIF_RETENTION_DAYS = 90;
+// Rétention des journaux/grants God (P4) — limite la croissance des tables PIM.
+const GOD_LOG_RETENTION_DAYS = 90;
+const GOD_GRANT_RETENTION_DAYS = 90;
+const GOD_DELEGATE_RETENTION_DAYS = 90;
 
 async function main() {
     const isDryRun = !process.argv.includes('--execute');
@@ -157,6 +161,92 @@ async function main() {
                     where: { createdAt: { lt: godNotifCutoff } }
                 });
                 console.log(`  [DEL] Successfully deleted ${result.count} old god notifications.`);
+            }
+        }
+
+        // 7. GodAccessLog Cleanup (P4 — journaux d'accès God > 90 jours)
+        const godAccessLogCutoff = new Date();
+        godAccessLogCutoff.setDate(godAccessLogCutoff.getDate() - GOD_LOG_RETENTION_DAYS);
+
+        const oldGodAccessLogs = await (db as any).godAccessLog.count({
+            where: { createdAt: { lt: godAccessLogCutoff } }
+        });
+        console.log(`[GodAccessLog] Found ${oldGodAccessLogs} access log(s) older than ${GOD_LOG_RETENTION_DAYS} days.`);
+        if (oldGodAccessLogs > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldGodAccessLogs} god access log entries.`);
+            } else {
+                const res = await (db as any).godAccessLog.deleteMany({
+                    where: { createdAt: { lt: godAccessLogCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} god access log entries.`);
+            }
+        }
+
+        // 8. GodSessionLog Cleanup (P4 — sessions God terminées/inactives > 90 jours)
+        const godSessionLogCutoff = new Date();
+        godSessionLogCutoff.setDate(godSessionLogCutoff.getDate() - GOD_LOG_RETENTION_DAYS);
+
+        const oldGodSessions = await (db as any).godSessionLog.count({
+            where: { endedAt: { lt: godSessionLogCutoff } }
+        });
+        console.log(`[GodSessionLog] Found ${oldGodSessions} ended session(s) older than ${GOD_LOG_RETENTION_DAYS} days.`);
+        if (oldGodSessions > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldGodSessions} ended god session(s).`);
+            } else {
+                const res = await (db as any).godSessionLog.deleteMany({
+                    where: { endedAt: { lt: godSessionLogCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} ended god session(s).`);
+            }
+        }
+
+        // 9. GodAccessGrant Cleanup (P4 — grants révoqués/expirés > 90 jours)
+        const godGrantCutoff = new Date();
+        godGrantCutoff.setDate(godGrantCutoff.getDate() - GOD_GRANT_RETENTION_DAYS);
+
+        const oldGrants = await (db as any).godAccessGrant.count({
+            where: {
+                OR: [
+                    { revokedAt: { lt: godGrantCutoff } },
+                    { revokedAt: null, expiresAt: { lt: godGrantCutoff } },
+                ],
+            }
+        });
+        console.log(`[GodAccessGrant] Found ${oldGrants} revoked/expired grant(s) older than ${GOD_GRANT_RETENTION_DAYS} days.`);
+        if (oldGrants > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldGrants} revoked/expired grant(s).`);
+            } else {
+                const res = await (db as any).godAccessGrant.deleteMany({
+                    where: {
+                        OR: [
+                            { revokedAt: { lt: godGrantCutoff } },
+                            { revokedAt: null, expiresAt: { lt: godGrantCutoff } },
+                        ],
+                    }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} revoked/expired grant(s).`);
+            }
+        }
+
+        // 10. GodDelegate Cleanup (P4 — délégués révoqués > 90 jours, grants déjà purgés)
+        const godDelegateCutoff = new Date();
+        godDelegateCutoff.setDate(godDelegateCutoff.getDate() - GOD_DELEGATE_RETENTION_DAYS);
+
+        const oldDelegates = await (db as any).godDelegate.count({
+            where: { revokedAt: { lt: godDelegateCutoff } }
+        });
+        console.log(`[GodDelegate] Found ${oldDelegates} revoked delegate(s) older than ${GOD_DELEGATE_RETENTION_DAYS} days.`);
+        if (oldDelegates > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldDelegates} revoked delegate(s).`);
+            } else {
+                const res = await (db as any).godDelegate.deleteMany({
+                    where: { revokedAt: { lt: godDelegateCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} revoked delegate(s).`);
             }
         }
 

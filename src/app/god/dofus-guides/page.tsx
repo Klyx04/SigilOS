@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { db } from "@/lib/prisma";
 import { Navigation, TreePine } from "lucide-react";
 import OptimizedGuideAdminClient from "./OptimizedGuideAdminClient";
@@ -13,7 +13,8 @@ export const metadata = {
 export default async function DofusGuidesGodPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/");
-  const isAdmin = await isSuperAdmin();
+  // P2 — un sous-god avec la brique "game-data-guides" accède aussi (sinon super-admin).
+  const isAdmin = await isSuperAdmin() || await canAccessBrick("game-data-guides");
   if (!isAdmin) redirect("/");
 
   const guides = await db.optimizedGuide.findMany({

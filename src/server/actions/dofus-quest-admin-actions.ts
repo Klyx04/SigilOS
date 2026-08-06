@@ -2,7 +2,8 @@
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
+import { createGodAuditLog } from "@/server/actions/audit-actions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { exec } from "child_process";
@@ -17,12 +18,34 @@ type ActionResponse<T = void> = {
 };
 
 // --- Security Helper ---
+// 🛡️ Fail-closed : autorise super-admin OU un sous-god avec la brique "game-data-quetes".
+// Retourne l'userId si autorisé, sinon null.
 async function requireSuperAdmin() {
     const session = await auth();
     if (!session?.user?.id) return null;
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return null;
+    if (isAdmin) return session.user.id;
+    const ok = await canAccessBrick("game-data-quetes");
+    if (!ok) return null;
     return session.user.id;
+}
+
+// 🛡️ Trace une écriture God UNIQUEMENT pour un sous-god (pas super-admin).
+async function logQuestWrite(op: string, targetId?: string, metadata?: Record<string, any>) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return;
+        const isAdmin = await isSuperAdmin();
+        if (isAdmin) return; // l'admin est déjà tracé par d'autres canaux
+        await createGodAuditLog({
+            action: "GOD_QUEST_DATA_UPDATE",
+            targetType: "DATA_SYNC",
+            targetId,
+            metadata: { op, ...metadata },
+        });
+    } catch {
+        // Non bloquant : ne jamais interrompre l'action applicative
+    }
 }
 
 // --- Schemas ---
@@ -111,6 +134,7 @@ export async function upsertDofusItem(id: string | null, data: z.infer<typeof Do
         const record = id 
             ? await (db as any).dofusItem.update({ where: { id }, data: validated })
             : await (db as any).dofusItem.create({ data: validated });
+        await logQuestWrite(id ? "update-dofus-item" : "create-dofus-item", id ?? (record as any)?.id, { name: validated.name });
         
         revalidatePath("/god/game-data");
         return { success: true, data: record };
@@ -183,6 +207,7 @@ export async function updateDofusTags(
 
     try {
         await (db as any).dofusItem.update({ where: { id }, data: tags });
+        await logQuestWrite("update-dofus-tags", id, { tags });
         revalidatePath("/god/game-data");
         revalidatePath("/dashboard");
         return { success: true };
@@ -198,6 +223,7 @@ export async function deleteDofusItem(id: string): Promise<ActionResponse> {
 
     try {
         await (db as any).dofusItem.delete({ where: { id } });
+        await logQuestWrite("delete-dofus-item", id);
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
@@ -215,6 +241,7 @@ export async function upsertQuestChain(id: string | null, data: z.infer<typeof C
         const record = id 
             ? await (db as any).dofusQuestChain.update({ where: { id }, data: validated })
             : await (db as any).dofusQuestChain.create({ data: validated });
+        await logQuestWrite(id ? "update-quest-chain" : "create-quest-chain", id ?? (record as any)?.id, { sectionName: validated.sectionName });
         
         revalidatePath("/god/game-data");
         return { success: true, data: record };
@@ -230,6 +257,7 @@ export async function deleteQuestChain(id: string): Promise<ActionResponse> {
 
     try {
         await (db as any).dofusQuestChain.delete({ where: { id } });
+        await logQuestWrite("delete-quest-chain", id);
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
@@ -305,6 +333,7 @@ export async function upsertQuestEntry(id: string | null, data: z.infer<typeof E
                 dofusdbId: validated.dofusdbId
             });
         }
+        await logQuestWrite(id ? "update-quest-entry" : "create-quest-entry", id ?? (record as any)?.id, { name: validated.name });
 
         revalidatePath("/god/game-data");
         return { success: true, data: record };
@@ -320,6 +349,7 @@ export async function deleteQuestEntry(id: string): Promise<ActionResponse> {
 
     try {
         await (db as any).dofusQuestEntry.delete({ where: { id } });
+        await logQuestWrite("delete-quest-entry", id);
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
@@ -499,6 +529,7 @@ export async function addQuestPrerequisite(fromQuestId: string, toQuestId: strin
         await (db as any).dofusQuestPrerequisite.create({
             data: { fromQuestId, toQuestId }
         });
+        await logQuestWrite("add-quest-prerequisite", undefined, { fromQuestId, toQuestId });
 
         revalidatePath("/god/quetes-dofus");
         return { success: true };
@@ -514,6 +545,7 @@ export async function removeQuestPrerequisite(id: string): Promise<ActionRespons
 
     try {
         await (db as any).dofusQuestPrerequisite.delete({ where: { id } });
+        await logQuestWrite("remove-quest-prerequisite", id);
         revalidatePath("/god/quetes-dofus");
         return { success: true };
     } catch (error) {

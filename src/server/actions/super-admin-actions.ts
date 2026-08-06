@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { createGodAuditLog } from "./audit-actions";
 import { GOD_SCOPES, type GodScope } from "@/lib/god-scopes";
@@ -108,6 +109,250 @@ export async function isGodDelegate(scope: GodScope): Promise<boolean> {
 export async function canGodAccess(scope: GodScope): Promise<boolean> {
     const scopes = await getActiveScopes();
     return scopes.includes(scope as GodScope);
+}
+
+/**
+ * 🔄 D2 — Vérifie l'accès granulaire à une BRICK précise (PIM).
+ *
+ * Logique fail-closed :
+ *  - super-admin → accès total (retourne true) ;
+ *  - sinon, au moins un grant ACTIF sur cette brick : grant non révoqué,
+ *    startAt <= now, expiresAt >= now (ou null = sans expiration),
+ *    ET le délégué associé doit être actif (revokedAt null) et non expiré.
+ *
+ * Le bump de `scopeVersion` (révocation immédiate) invalide TOUS les grants
+ * du délégué en une fois.
+ */
+export async function canAccessBrick(
+    brickId: string,
+    opts?: { userId?: string; guildContext?: string }
+): Promise<boolean> {
+    const session = await auth();
+    if (!session?.user?.id) return false;
+
+    // Super-admin bypass (tous les scopes = accès total)
+    if (await isSuperAdmin()) return true;
+
+    const userId = opts?.userId || session.user.id;
+    const now = new Date();
+
+    // 1. Le délégué doit être actif (non révoqué, non expiré) et porter la version courante
+    const delegates = await db.godDelegate.findMany({
+        where: {
+            userId,
+            revokedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { id: true, guildId: true, scopeVersion: true },
+    });
+
+    // 2. Grant actif sur cette brick pour ces délégués actifs
+    // ⚠️ IMPORTANT (fix fail-open D2) : un spread `...` sur la clé `OR`
+    // écraserait silencieusement le 1er OR. On construit donc des filtres
+    // combinables dans un top-level `AND` qui préserve l'expiration ET le
+    // guildContext (jamais l'un sans l'autre → fail-closed).
+    const grantFilters: Prisma.GodAccessGrantWhereInput[] = [
+        { OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] },
+    ];
+
+    if (opts?.guildContext) {
+        grantFilters.push({
+            OR: [{ guildId: opts.guildContext }, { guildId: null }],
+        });
+    }
+
+    const grantWhere: Prisma.GodAccessGrantWhereInput = {
+        userId,
+        brickId,
+        revokedAt: null,
+        startAt: { lte: now },
+        AND: grantFilters,
+    };
+
+    const grants = await db.godAccessGrant.findMany({
+        where: grantWhere,
+        select: { delegateId: true, expiresAt: true },
+    });
+
+    // 3. Un grant n'est valide que si son délégué est encore actif
+    const activeDelegateIds = new Set(delegates.map((d) => d.id));
+    const allowed = grants.some((g: { delegateId: string; expiresAt: Date | null }) => activeDelegateIds.has(g.delegateId));
+
+    // D4 : tentative refusée → warn anti-scout (faible volume, cohérent avec le proxy)
+    if (!allowed) {
+        const { logger } = await import("@/lib/logger");
+        logger.warn("[GodAccess] brick refusée (fail-closed)", { brickId, userId });
+    }
+
+    return allowed;
+}
+
+/**
+ * 🛡️ Guard fail-closed pour les actions serveur des modules ouverts aux sous-gods.
+ * Autorise si super-admin OU (page ouvrable + grant/scope sur la brique).
+ * Lève une erreur sinon (utilisable dans les server actions), et trace le refus
+ * (GodAccessLog) pour l'anti-scout, cohérent avec la sécurité RULES.md.
+ */
+export async function requireGodBrick(brickId: string): Promise<true> {
+    if (await isSuperAdmin()) return true;
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Non authentifié");
+    const ok = await canAccessBrick(brickId);
+    if (!ok) {
+        const { logger } = await import("@/lib/logger");
+        logger.warn("[GodBrickGuard] accès refusé (fail-closed)", { brickId, userId: session.user.id });
+        throw new Error("Accès non autorisé à ce module");
+    }
+    return true;
+}
+
+/**
+ * 🔄 P2 — Retourne la liste des briques réellement accessibles à un sous-god
+ * (sans bypass super-admin : retourne [] pour un admin, qui passe par ses bypass).
+ *
+ * Logique fail-closed, en UNE seule requête groupée (évite N appels DB dans la
+ * sidebar/layout) :
+ *  - un sous-god accède à une brique si `subGodAccess === true` (page ouvrable)
+ *    ET au moins un des deux :
+ *       • le scope global requis est actif (rétro-compat scopes),
+ *       • un grant de brique actif couvre cette brique (PIM).
+ *  - sinon → la brique n'est PAS dans la liste.
+ *
+ * Utilisée par la sidebar et le layout God pour ne montrer à un sous-god que
+ * les pages qu'il peut réellement voir (fail-closed par défaut).
+ */
+export type MyActiveGrant = {
+    brickId: string;
+    label: string;
+    expiresAt: string | null; // ISO ou null si illimité
+    scope: string | null;
+};
+
+/**
+ * 🔄 P3-R — Retourne les accès effectifs d'un sous-god (sans bypass super-admin).
+ * Fibre sur `getAccessibleBricks` (+ grants actifs qui apportent la date
+ * d'expiration) pour l'UX côté sous-god : badge "expire dans X",
+ * popup pré-expiration, vue "Mon accès".
+ */
+export async function getMyActiveGrants(userId: string): Promise<MyActiveGrant[]> {
+    const { GOD_BRICKS } = await import("@/lib/god-bricks");
+    const accessible = await getAccessibleBricks(userId);
+    if (accessible.length === 0) return [];
+
+    const now = new Date();
+    const delegates = await db.godDelegate.findMany({
+        where: {
+            userId,
+            revokedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { id: true },
+    });
+    const activeIds = delegates.map((d) => d.id);
+
+    // Grant actif → expiration la plus proche par brique (info la plus précise)
+    const expiresByBrick = new Map<string, string | null>();
+    if (activeIds.length > 0) {
+        const grants = await db.godAccessGrant.findMany({
+            where: {
+                userId,
+                delegateId: { in: activeIds },
+                revokedAt: null,
+                startAt: { lte: now },
+                OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+            },
+            select: { brickId: true, expiresAt: true },
+        });
+        for (const g of grants) {
+            const cur = expiresByBrick.get(g.brickId);
+            // null = illimité → priorité de garder le plus court (on veut l'alerte la plus proche)
+            const gVal = g.expiresAt ? g.expiresAt.toISOString() : null;
+            if (gVal === null) { expiresByBrick.set(g.brickId, null); continue; }
+            if (cur === undefined || (cur !== null && gVal < cur)) expiresByBrick.set(g.brickId, gVal);
+        }
+    }
+
+    const result: MyActiveGrant[] = [];
+    for (const brickId of accessible) {
+        const brick = GOD_BRICKS.find((b) => b.id === brickId);
+        result.push({
+            brickId,
+            label: brick?.label ?? brickId,
+            scope: brick?.scope ?? null,
+            expiresAt: expiresByBrick.get(brickId) ?? null,
+        });
+    }
+    return result;
+}
+
+/**
+ * 🔄 P2 — Retourne la liste des briques réellement accessibles à un sous-god
+ * (sans bypass super-admin : retourne [] pour un admin, qui passe par ses bypass).
+ *
+ * Logique fail-closed, en UNE seule requête groupée (évite N appels DB dans la
+ * sidebar/layout) :
+ *  - un sous-god accède à une brique si `subGodAccess === true` (page ouvrable)
+ *    ET au moins un des deux :
+ *       • le scope global requis est actif (rétro-compat scopes),
+ *       • un grant de brique actif couvre cette brique (PIM).
+ *  - sinon → la brique n'est PAS dans la liste.
+ *
+ * Utilisée par la sidebar et le layout God pour ne montrer à un sous-god que
+ * les pages qu'il peut réellement voir (fail-closed par défaut).
+ */
+export async function getAccessibleBricks(userId: string): Promise<string[]> {
+    const { GOD_BRICKS, getSubGodBrickIds } = await import("@/lib/god-bricks");
+    const subGodBrickIds = getSubGodBrickIds(); // briques ouvrables aux sous-gods
+
+    if (subGodBrickIds.length === 0) return [];
+
+    const now = new Date();
+
+    // 1. Déélégations actives de l'utilisateur → scopes globaux + IDs délégués
+    const delegates = await db.godDelegate.findMany({
+        where: {
+            userId,
+            revokedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { id: true, scopes: true },
+    });
+
+    // Scopes actifs (dédoublonnés)
+    const activeScopes = new Set<string>();
+    const activeDelegateIds = delegates.length > 0 ? delegates.map((d) => d.id) : [];
+
+    for (const d of delegates) {
+        for (const s of d.scopes) activeScopes.add(s);
+    }
+
+    // 2. Grants actifs (PIM) pour ces délégués, triés par brique
+    //    (filtres fail-closed : non révoqué, non expiré, startAt <= now)
+    const bricksGranted = new Set<string>();
+    if (activeDelegateIds.length > 0) {
+        const grants = await db.godAccessGrant.findMany({
+            where: {
+                userId,
+                delegateId: { in: activeDelegateIds },
+                revokedAt: null,
+                startAt: { lte: now },
+                OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+            },
+            select: { brickId: true },
+        });
+        for (const g of grants) bricksGranted.add(g.brickId);
+    }
+
+    // 3. Pour chaque brique ouvrable : accessible si scope requis actif OU grant actif
+    const accessible: string[] = [];
+    for (const b of GOD_BRICKS) {
+        if (!b.subGodAccess) continue;
+        const hasScope = b.scope ? activeScopes.has(b.scope) : false;
+        const hasGrant = bricksGranted.has(b.id);
+        if (hasScope || hasGrant) accessible.push(b.id);
+    }
+
+    return accessible;
 }
 
 /**

@@ -18,6 +18,7 @@ import {
 import {
     isSuperAdmin,
     getActiveScopes,
+    getAccessibleBricks,
     getPlatformStats,
     getPlatformActivityStats,
     getOcrApiStats,
@@ -72,20 +73,48 @@ export default async function SuperAdminPage(props: {
         security: "logs",
         "game-data/bounties": "game-data",
     };
-    // 🔄 R1 — Résout la cible d'atterrissage la plus pertinente pour les scopes
-    // actifs d'un sub-god. Chaque cible pointe vers une page/tab réellement existant.
-    function resolveGodLanding(scopes: string[], godRoute: string): string {
-        const FALLBACK_TARGETS: Array<{ scope: string | null; target: string }> = [
-            { scope: "guilds", target: `${godRoute}?tab=guilds` },
-            { scope: "logs", target: `${godRoute}?tab=security` },
-            { scope: "game-data", target: `${godRoute}?tab=game-data` },
-            { scope: "maintenance", target: `${godRoute}?tab=infrastructure` },
-            { scope: "users", target: `${godRoute}/delegates` },
+    // 🔄 P2 — Correspondance tab → brickId (registre `god-bricks.ts`), pour
+    // vérifier l'accès d'un sous-god via `getAccessibleBricks`.
+    const TAB_TO_BRICK: Record<string, string> = {
+        overview: "overview",
+        telemetry: "telemetry",
+        "game-data": "game-data",
+        "mini-games": "mini-games",
+        guilds: "guilds",
+        infrastructure: "infrastructure",
+        notifications: "notifications",
+        tickets: "tickets",
+        security: "security",
+        "game-data/bounties": "game-data-bounties",
+    };
+    // 🔄 R1/P2 — Résout la cible d'atterrissage la plus pertinente pour un sub-god.
+    // Priorité : briques accessibles (PIM), puis scopes globaux. Chaque cible pointe
+    // vers une page/tab réellement existant. /god/delegates est interdit aux sous-gods.
+    function resolveGodLanding(scopes: string[], bricks: string[], godRoute: string): string {
+        // Mapping brique accessible → cible (dans l'ordre de priorité d'affichage)
+        const BRICK_TARGETS: Array<{ brick: string; target: string }> = [
+            { brick: "guilds", target: `${godRoute}?tab=guilds` },
+            { brick: "game-data", target: `${godRoute}?tab=game-data` },
+            { brick: "tickets", target: `${godRoute}?tab=tickets` },
+            { brick: "docs", target: `${godRoute}/docs` },
+            { brick: "game-data-quetes", target: `${godRoute}/quetes-dofus` },
+            { brick: "game-data-guides", target: `${godRoute}/dofus-guides` },
+            { brick: "game-data-rush", target: `${godRoute}/rush-sylvestre` },
         ];
-        for (const fb of FALLBACK_TARGETS) {
+        // 1) Une brique accessible (grant PIM) → sa cible
+        for (const t of BRICK_TARGETS) {
+            if (bricks.includes(t.brick)) return t.target;
+        }
+        // 2) Fallback sur un scope global → cible (rétro-compat)
+        const SCOPE_TARGETS: Array<{ scope: string | null; target: string }> = [
+            { scope: "guilds", target: `${godRoute}?tab=guilds` },
+            { scope: "game-data", target: `${godRoute}?tab=game-data` },
+            { scope: "users", target: `${godRoute}?tab=tickets` },
+        ];
+        for (const fb of SCOPE_TARGETS) {
             if (fb.scope && scopes.includes(fb.scope)) return fb.target;
         }
-        return "/"; // fail-closed : aucun scope exploitable → sortie
+        return "/"; // fail-closed : aucune brique/scope exploitable → sortie
     }
 
     const godRoute = getGodRoute();
@@ -95,10 +124,11 @@ export default async function SuperAdminPage(props: {
         redirect("/");
     }
 
-    // Accepte super-admin ET tout sub-god avec au moins un scope actif.
+    // Accepte super-admin ET tout sub-god avec au moins un scope actif OU une brique accessible.
     const isAdmin = await isSuperAdmin();
     const activeScopes = await getActiveScopes();
-    if (activeScopes.length === 0) {
+    const accessibleBricks = await getAccessibleBricks(session.user.id);
+    if (activeScopes.length === 0 && accessibleBricks.length === 0) {
         // Log failed GOD attempt (uniquement si on n'a AUCUN scope)
         if (session.user.id) {
             const { logAdminAccessDenied } = await import("@/server/actions/audit-actions");
@@ -114,15 +144,17 @@ export default async function SuperAdminPage(props: {
     const requestedTab = resolvedSearchParams.tab || "overview";
     let tab = requestedTab;
 
-    // 🔄 R1 — Guard : si le tab demandé n'est pas couvert par les scopes du sub-god,
-    // rediriger vers son premier tab autorisé (jamais "overview" pour un sub-god).
+    // 🔄 P2 — Guard : si le tab demandé n'est pas couvert par les briques/ scopes
+    // du sub-god, rediriger vers son premier tab autorisé (jamais "overview"/tab sensible).
     if (!isAdmin) {
         const requiredScope = TAB_SCOPE[requestedTab];
-        const hasAccess = requiredScope === null
+        const hasScope = requiredScope === null
             ? isAdmin
             : activeScopes.includes(requiredScope as never);
+        const hasBrick = accessibleBricks.includes(requestedTab as never) || accessibleBricks.includes(TAB_TO_BRICK[requestedTab] || "");
+        const hasAccess = hasScope || hasBrick;
         if (!hasAccess) {
-            redirect(resolveGodLanding(activeScopes, godRoute));
+            redirect(resolveGodLanding(activeScopes, accessibleBricks, godRoute));
         }
     }
 
@@ -223,7 +255,7 @@ export default async function SuperAdminPage(props: {
                     {tab === "guilds" && (
                         <div className="space-y-10">
                             <Suspense fallback={<div className="h-96 bg-zinc-900/10 rounded-[3rem] animate-pulse border border-white/5" />}>
-                                <GuildsServer />
+                                <GuildsServer isReadOnly={!isAdmin} />
                             </Suspense>
 
                             <BlacklistSection bans={resolvedData.platformBans as any} />
@@ -463,7 +495,7 @@ async function GhostUsersServer() {
     } catch { return <div>Error Ghosts</div> }
 }
 
-async function GuildsServer() {
+async function GuildsServer({ isReadOnly = false }: { isReadOnly?: boolean }) {
     const { getAllowedGuilds } = await import("@/server/actions/super-admin-actions");
     const { db } = await import("@/lib/prisma");
     const [allowedGuilds, onboardedConfigs] = await Promise.all([
@@ -490,7 +522,7 @@ async function GuildsServer() {
             _count: { profiles: config?._count.profiles || 0 }
         };
     });
-    return <GuildTable guilds={mergedGuilds} />;
+    return <GuildTable guilds={mergedGuilds} isReadOnly={isReadOnly} />;
 }
 
 async function LifecycleServer() {

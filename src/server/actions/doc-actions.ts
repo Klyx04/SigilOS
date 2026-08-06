@@ -204,9 +204,11 @@ export async function getSearchableDocs(guildId?: string) {
 // --- ADMIN ACTIONS ---
 
 export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<ActionResponse<DocPageData>> {
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Unauthorized: Admins only" };
+    const isBrick = await canAccessBrick("docs");
+    if (!isAdmin && !isBrick) return { success: false, error: "Unauthorized: Admins only" };
+    const isSubGod = !isAdmin && isBrick;
 
     const { sanitizeHtml } = await import("@/lib/security");
 
@@ -252,6 +254,15 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
             });
         }
 
+        if (isSubGod) {
+            const { createGodAuditLog } = await import("@/server/actions/audit-actions");
+            await createGodAuditLog({
+                action: "GOD_DOC_UPDATE",
+                targetType: "DATA_SYNC",
+                targetId: String(doc?.id ?? ""),
+                metadata: { op: data.id ? "update-doc" : "create-doc", slug: doc?.slug },
+            });
+        }
         revalidatePath("/docs");
         revalidatePath(`/docs/${doc.slug}`);
         return { success: true, data: doc as unknown as DocPageData };
@@ -263,12 +274,22 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
 }
 
 export async function deleteDoc(id: string): Promise<ActionResponse<void>> {
-    const { isSuperAdmin } = await import("@/server/actions/super-admin-actions");
+    const { isSuperAdmin, canAccessBrick } = await import("@/server/actions/super-admin-actions");
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Unauthorized" };
+    const isBrick = await canAccessBrick("docs");
+    if (!isAdmin && !isBrick) return { success: false, error: "Unauthorized" };
 
     try {
         await db.docPage.delete({ where: { id } });
+        if (!isAdmin) {
+            const { createGodAuditLog } = await import("@/server/actions/audit-actions");
+            await createGodAuditLog({
+                action: "GOD_DOC_UPDATE",
+                targetType: "DATA_SYNC",
+                targetId: id,
+                metadata: { op: "delete-doc" },
+            });
+        }
         revalidatePath("/docs");
         return { success: true };
     } catch (error) {

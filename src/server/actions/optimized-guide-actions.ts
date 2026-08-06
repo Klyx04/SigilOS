@@ -5,8 +5,58 @@
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { auth } from "@/auth";
-import { isSuperAdmin } from "./super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "./super-admin-actions";
+import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./audit-actions";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
+
+/**
+ * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
+ * Évite le double-log pour l'admin (qui passe déjà par d'autres traces).
+ * Fail-closed côté log : n'interrompt jamais l'action applicative si le log échoue.
+ */
+async function logGodWrite({
+    action,
+    targetType,
+    targetId,
+    metadata,
+}: {
+    action: AuditAction;
+    targetType: AuditTargetType;
+    targetId?: string;
+    metadata?: Record<string, any>;
+}) {
+    try {
+        const isGod = await isSuperAdmin();
+        if (isGod) return; // l'admin est déjà tracé par d'autres canaux
+        await createGodAuditLog({ action, targetType, targetId, metadata });
+    } catch (error) {
+        logger.error("[logGodWrite] Échec du traçage (non bloquant)", { error });
+    }
+}
+
+/**
+ * 🛡️ Guard fail-closed local : autorise super-admin OU grant/scope sur la brique.
+ * Permet à un sous-god de gérer les guides optimisés (brique game-data-guides).
+ */
+async function requireGuideAccess() {
+  const isGod = await isSuperAdmin();
+  if (isGod) return true;
+  const ok = await canAccessBrick("game-data-guides");
+  if (!ok) throw new Error("Accès non autorisé à ce module");
+  return true;
+}
+
+/**
+ * 🛡️ Guard fail-closed local : autorise super-admin OU grant/scope sur la brique Rush.
+ */
+async function requireRushAccess() {
+  const isGod = await isSuperAdmin();
+  if (isGod) return true;
+  const ok = await canAccessBrick("game-data-rush");
+  if (!ok) throw new Error("Accès non autorisé à ce module");
+  return true;
+}
 
 /**
  * Résout le profileId et characterSlot à utiliser pour les actions de progression.
@@ -514,8 +564,7 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
  * Récupère le guide complet avec ses milestones et séquences pour l'admin.
  */
 export async function getGuideAdminFull(guideId: string) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   const guide = await db.optimizedGuide.findUnique({
     where: { id: guideId },
@@ -540,8 +589,7 @@ export async function getGuideAdminFull(guideId: string) {
  * Récupère la progression de tous les membres pour un guide (côté God).
  */
 export async function getGuildProgressSummary(guideId: string) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   const allProgress = await db.playerGuideProgress.findMany({
     where: { milestone: { guideId } },
@@ -574,8 +622,7 @@ export async function upsertMilestone(data: {
   posY?: number;
   isOptional?: boolean;
 }) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   // Destructure explicitly to avoid passing unknown fields (sequences, playerProgress, etc.)
   // to Prisma which would throw on unrecognized fields
@@ -601,6 +648,13 @@ export async function upsertMilestone(data: {
     ? await db.guideMilestone.update({ where: { id }, data: milestoneData })
     : await db.guideMilestone.create({ data: { guideId, ...milestoneData } });
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: id ?? guideId,
+    metadata: { op: id ? "update-milestone" : "create-milestone", title: milestoneData.title, guideId },
+  });
+
   revalidatePath("/god/dofus-guides");
   return { success: true, milestone };
 }
@@ -609,10 +663,15 @@ export async function upsertMilestone(data: {
  * Supprime un milestone (et ses séquences en cascade).
  */
 export async function deleteMilestone(milestoneId: string) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   await db.guideMilestone.delete({ where: { id: milestoneId } });
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: milestoneId,
+    metadata: { op: "delete-milestone" },
+  });
   revalidatePath("/god/dofus-guides");
   return { success: true };
 }
@@ -631,14 +690,20 @@ export async function upsertSequence(data: {
   isOptional?: boolean;
   order: number;
 }) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   const { id, milestoneId, ...seqData } = data;
 
   const sequence = id
     ? await db.guideSequence.update({ where: { id }, data: seqData })
     : await db.guideSequence.create({ data: { milestoneId, ...seqData } });
+
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: id ?? milestoneId,
+    metadata: { op: id ? "update-sequence" : "create-sequence", subGuideRef: seqData.subGuideRef, milestoneId },
+  });
 
   revalidatePath("/god/dofus-guides");
   return { success: true, sequence };
@@ -648,10 +713,15 @@ export async function upsertSequence(data: {
  * Supprime une séquence.
  */
 export async function deleteSequence(sequenceId: string) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   await db.guideSequence.delete({ where: { id: sequenceId } });
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: sequenceId,
+    metadata: { op: "delete-sequence" },
+  });
   revalidatePath("/god/dofus-guides");
   return { success: true };
 }
@@ -660,10 +730,15 @@ export async function deleteSequence(sequenceId: string) {
  * Supprime TOUS les milestones d'un guide (reset avant import).
  */
 export async function deleteAllMilestones(guideId: string) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   await db.guideMilestone.deleteMany({ where: { guideId } });
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideId,
+    metadata: { op: "delete-all-milestones" },
+  });
   revalidatePath("/god/dofus-guides");
   return { success: true };
 }
@@ -673,8 +748,7 @@ export async function deleteAllMilestones(guideId: string) {
  * Le JSON contient { id, name, steps: [{ id, web_text, pos_x, pos_y }] }
  */
 export async function importSubGuide(jsonData: any) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   const { parseSubGuideSteps } = await import("@/lib/ganymede-parser");
 
@@ -692,6 +766,13 @@ export async function importSubGuide(jsonData: any) {
     where: { guideRef },
     update: { ganymadeId, guideName, totalSteps: rawSteps.length, steps: enrichedSteps },
     create: { ganymadeId, guideName, guideRef, totalSteps: rawSteps.length, steps: enrichedSteps },
+  });
+
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideRef,
+    metadata: { op: "import-sub-guide", guideName, totalSteps: rawSteps.length },
   });
 
   revalidatePath("/god/dofus-guides");
@@ -724,8 +805,7 @@ export async function getSubGuideSteps(guideRef: string, stepFrom?: number, step
  * Liste tous les sous-guides importés.
  */
 export async function listSubGuides() {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   const subs = await db.subGuideData.findMany({
     select: { id: true, guideRef: true, guideName: true, ganymadeId: true, totalSteps: true, createdAt: true },
@@ -739,11 +819,17 @@ export async function listSubGuides() {
  * Supprime un sous-guide importé et ses références dans les séquences.
  */
 export async function deleteSubGuide(guideRef: string) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   // Supprimer le sous-guide de la bibliothèque
   await db.subGuideData.delete({ where: { guideRef } });
+
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideRef,
+    metadata: { op: "delete-sub-guide" },
+  });
 
   revalidatePath("/god/dofus-guides");
   return { success: true, message: `Sous-guide ${guideRef} supprimé.` };
@@ -775,8 +861,7 @@ export async function findGuideBySubRef(subGuideRef: string): Promise<{ success:
  * Met à jour une étape spécifique dans un sous-guide.
  */
 export async function updateSubGuideStep(guideRef: string, stepNumber: number, newData: any) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   const subGuide = await db.subGuideData.findUnique({ where: { guideRef } });
   if (!subGuide) return { success: false, error: "Sous-guide introuvable" };
@@ -792,6 +877,13 @@ export async function updateSubGuideStep(guideRef: string, stepNumber: number, n
     data: { steps }
   });
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideRef,
+    metadata: { op: "update-sub-guide-step", stepNumber },
+  });
+
   return { success: true };
 }
 
@@ -801,8 +893,7 @@ export async function updateSubGuideStep(guideRef: string, stepNumber: number, n
 export async function updateMilestonePositions(
   positions: { id: string; posX: number; posY: number }[]
 ) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   await Promise.all(
     positions.map((p) =>
@@ -812,6 +903,13 @@ export async function updateMilestonePositions(
       })
     )
   );
+
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: positions.map((p) => p.id).join(","),
+    metadata: { op: "update-milestone-positions", count: positions.length },
+  });
 
   return { success: true };
 }
@@ -829,8 +927,7 @@ export async function updateMilestonePositions(
  * - Chapitre : groupé par numéro GP de la première séquence
  */
 export async function importGanymedeGuide(guideId: string, jsonData: any) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Super-admin requis");
+  await requireGuideAccess();
 
   const guide = await db.optimizedGuide.findUnique({ where: { id: guideId } });
   if (!guide) return { success: false, error: "Guide introuvable" };
@@ -1133,6 +1230,13 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
     });
   }
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideId,
+    metadata: { op: "import-ganymede-guide", created, updated, deleted: toDelete.length },
+  });
+
   revalidatePath("/god/dofus-guides");
   return {
     success: true,
@@ -1300,12 +1404,18 @@ export async function updateGuideSettings(
   guideId: string,
   data: { isUnderConstruction?: boolean; displayMode?: "TREE" | "TIMELINE"; isActive?: boolean }
 ) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Réservé aux Super Admins");
+  await requireGuideAccess();
 
   const guide = await db.optimizedGuide.update({
     where: { id: guideId },
     data,
+  });
+
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideId,
+    metadata: { op: "update-guide-settings", data },
   });
 
   revalidatePath("/god/dofus-guides");
@@ -1345,8 +1455,7 @@ export async function getTimelineGuides(guildId: string) {
  * Le guide est automatiquement créé avec displayMode=TIMELINE si absent.
  */
 export async function getOrCreateRushSylvestreGuide() {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Accès réservé aux super-admins");
+  await requireRushAccess();
 
   let guide = await db.optimizedGuide.findUnique({
     where: { slug: "rush-sylvestre" },
@@ -1428,12 +1537,18 @@ export async function updateRushSylvestreSettings(data: {
   isActive?: boolean;
   isUnderConstruction?: boolean;
 }) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Accès réservé aux super-admins");
+  await requireRushAccess();
 
   const guide = await db.optimizedGuide.update({
     where: { slug: "rush-sylvestre" },
     data,
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: "rush-sylvestre",
+    metadata: { op: "update-rush-settings", data },
   });
 
   revalidatePath("/god/rush-sylvestre");
@@ -1457,8 +1572,7 @@ export async function upsertRushMilestone(data: {
   tips?: string;
   dofusId?: string | null;
 }) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Accès réservé aux super-admins");
+  await requireRushAccess();
 
   const guide = await db.optimizedGuide.findUniqueOrThrow({ where: { slug: "rush-sylvestre" } });
 
@@ -1524,6 +1638,13 @@ export async function upsertRushMilestone(data: {
     });
   }
 
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: data.id ?? `rush-chapter-${data.chapter}`,
+    metadata: { op: data.id ? "update-rush-milestone" : "create-rush-milestone", label: data.label },
+  });
+
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, milestone };
@@ -1533,10 +1654,15 @@ export async function upsertRushMilestone(data: {
  * (God) Supprime un milestone du Rush Sylvestre.
  */
 export async function deleteRushMilestone(milestoneId: string) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Accès réservé aux super-admins");
+  await requireRushAccess();
 
   await db.guideMilestone.delete({ where: { id: milestoneId } });
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: milestoneId,
+    metadata: { op: "delete-rush-milestone" },
+  });
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true };
@@ -1546,8 +1672,7 @@ export async function deleteRushMilestone(milestoneId: string) {
  * (God) Reordonne une liste de milestones (Drag & Drop)
  */
 export async function reorderRushMilestones(orderedIds: string[]) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Accès réservé aux super-admins");
+  await requireRushAccess();
 
   await db.$transaction(
     orderedIds.map((id, index) =>
@@ -1558,6 +1683,13 @@ export async function reorderRushMilestones(orderedIds: string[]) {
     )
   );
 
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: orderedIds.join(","),
+    metadata: { op: "reorder-rush-milestones", count: orderedIds.length },
+  });
+
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true };
@@ -1567,8 +1699,7 @@ export async function reorderRushMilestones(orderedIds: string[]) {
  * (God) Reordonne les séquences d'un milestone (Drag & Drop)
  */
 export async function reorderRushSequences(milestoneId: string, orderedIds: string[]) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Accès réservé aux super-admins");
+  await requireRushAccess();
 
   await db.$transaction(
     orderedIds.map((id, index) =>
@@ -1578,6 +1709,13 @@ export async function reorderRushSequences(milestoneId: string, orderedIds: stri
       })
     )
   );
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: milestoneId,
+    metadata: { op: "reorder-rush-sequences", count: orderedIds.length },
+  });
 
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
@@ -1604,8 +1742,7 @@ export async function upsertRushSequence(data: {
   metamobMonsterId?: number | null;
   activityTags?: Array<{ type: string; name?: string; level?: number }>;
 }) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Accès réservé aux super-admins");
+  await requireRushAccess();
 
   let seq;
   // Champs communs (sans dungeonId — géré différemment selon create/update)
@@ -1652,6 +1789,13 @@ export async function upsertRushSequence(data: {
     });
   }
 
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: data.id ?? data.milestoneId,
+    metadata: { op: data.id ? "update-rush-sequence" : "create-rush-sequence", subGuideRef: data.subGuideRef },
+  });
+
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, sequence: seq };
@@ -1661,10 +1805,15 @@ export async function upsertRushSequence(data: {
  * (God) Supprime une séquence Rush.
  */
 export async function deleteRushSequence(sequenceId: string) {
-  const isGod = await isSuperAdmin();
-  if (!isGod) throw new Error("Accès réservé aux super-admins");
+  await requireRushAccess();
 
   await db.guideSequence.delete({ where: { id: sequenceId } });
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: sequenceId,
+    metadata: { op: "delete-rush-sequence" },
+  });
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true };

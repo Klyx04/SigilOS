@@ -321,6 +321,17 @@ Le script `maintenance.sh` tourne chaque nuit à 4h00 pour purger les caches Doc
 - [SECURITY.md](./SECURITY.md) - Security policy
 - [README.md](./README.md) - Project overview
 
+## 🌐 Convention Proxy (Next 16) — Non-Négociable
+
+Sur Next 16, le proxy de routage doit être **`src/proxy.ts`** (pas `src/middleware.ts`). La convention `middleware.ts` force le runtime Edge qui **inline `process.env.*` au build** → en prod les variables d'env du serveur (ex: `GOD_ROUTE`, `AUTH_SECRET`) sont invisibles au runtime. `proxy.ts` tourne toujours en Node.js et lit `process.env` au runtime.
+
+```bash
+# ❌ INTERDIT : src/middleware.ts (Edge runtime, env inlinés au build)
+# ✅ OBLIGATOIRE : src/proxy.ts (Node runtime, process.env lu au runtime)
+```
+
+---
+
 ## ⏱️ Rate Limiting
 
 | Rule | Implementation |

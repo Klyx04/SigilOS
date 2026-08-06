@@ -147,8 +147,9 @@ model GodDelegate {
   id        String   @id @default(cuid())
   userId    String
   guildId   String?
-  scopes    String[] // ex: ["guilds", "game-data", "users", "logs", "news", "maintenance"]
-  grantedBy String
+  scopes       String[] // ex: ["guilds", "game-data", "users", "logs", "news", "maintenance"]
+  scopeVersion Int       @default(0) // R4 : bump à chaque révocation
+  grantedBy    String
   grantedAt DateTime @default(now())
   expiresAt DateTime?
   revokedAt DateTime?
@@ -168,6 +169,55 @@ model GodNotification {
   metadata  Json?
   isRead    Boolean       @default(false)
   createdAt DateTime      @default(now())
+}
+
+/// R4 : Journal des accès God (révocation live, audit exhaustif).
+model GodAccessLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  targetId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+/// R4 : Suivi de session God.
+model GodSessionLog {
+  id          String    @id @default(cuid())
+  userId      String
+  startedAt   DateTime  @default(now())
+  lastSeenAt  DateTime?
+  endedAt     DateTime?
+  active      Boolean   @default(true)
+
+  @@index([userId])
+  @@index([active])
+}
+
+/// D1 : Grant granulaire par BRIQUE (PIM) — accès à une brick précise du panel.
+/// brickId = slug public (jamais le secret). Fail-closed : un grant doit être
+/// actif (startAt <= now), non expiré (expiresAt >= now), non révoqué.
+model GodAccessGrant {
+  id          String   @id @default(cuid())
+  delegateId String   // = id du GodDelegate
+  userId     String   // userId cible (redondant avec delegate, pour requêtes rapides)
+  brickId    String   // slug de la brique (god-bricks.ts)
+  guildId    String?
+  startAt    DateTime @default(now())
+  expiresAt  DateTime?
+  grantedBy  String
+  reason     String?
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([delegateId])
+  @@index([userId])
+  @@index([brickId])
+  @@index([revokedAt])
+  @@index([expiresAt])
 }
 
 model RoadmapItem {

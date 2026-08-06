@@ -73,20 +73,32 @@
 > **Source de vérité par tâche** : `src/temp/evolution4.md` (gitignoré, à relire en PRIORITÉ à chaque reprise).
 > Mode de travail : **un prompt par tâche** — lire le suivi + CONTEXT.md, pas tout le code.
 
-**Branche** : `evo4-god-evolutions` → PR vers `dev`. **État** : R1 + R2 + R3 terminés (R3 FAIT le 05/08).
+**Branche** : `evo4-god-evolutions` → PR vers `dev`. **État** : R1 + R2 + R3 terminés (R3 FAIT confirmé en beta le 06/08).
 
 - ✅ **R1** — Lectures God granuleuses par scope (`canGodAccess`) + redirect tab fail-closed + refonte `god/page.tsx` par tab. FAIT.
 - ✅ **R2** — Tuto God interactif (`god-access-banner.tsx` → client + localStorage + bouton « Revoir »). FAIT.
-- ✅ **R3 — FAIT (05/08)** — Anti-scout : secret route `GOD_ROUTE`, noindex + `X-Robots-Tag`, rate-limit + IP allowlist désactivable, fuite `/god/dofus-guides` retirée, F-SEC-1 corrigé.
-  - ✅ Code écrit + testé (tsc/tests/build/lint), mergé (PR #398) + déployé beta.
-  - ✅ **BUG 404 admin connecté RÉSOLU** : cause = secret transmis par header `x-god-secret` posé lors du `NextResponse.rewrite` — header perdu après rewrite → `notFound()` même admin connecté. **Correctif** : vérification du secret déplacée DANS le middleware (`src/middleware.ts`, `runtime: "nodejs"`, lit `process.env.GOD_ROUTE` au runtime) + helpers `safeEqualStrings`/`isValidGodSecret` dans `src/lib/god-route.ts` + layout simplifié (plus de check header). Vérifs : `test:run` 97 tests ✅, `tsc --noEmit` 0 ✅, `lint` 0 ✅, `build` 62 pages ✅.
-  - ✅ Tests cmdline : non-connecté → 404, mauvais secret → 404, `/god` direct sans session → 404 (fail-closed OK).
-  - ⚠️ **Secret réel présent dans l'historique git de CONTEXT.md (fichier commité) → à ROTATER** (générer une nouvelle `GOD_ROUTE` sur le VPS beta + prod, mettre à jour `.env`).
-- ⬜ **R4** — Session God + révocation live (scopeVersion + socket/SSE popup + tables GodAccessLog/GodSessionLog).
-- ⬜ **R5** — Logging exhaustif God (lifecycle + `GOD_DASHBOARD_ACCESS` layout + `console.*`→`logger`).
+- ✅ **R3 — FAIT (06/08)** — Anti-scout : secret route `GOD_ROUTE`, noindex + `X-Robots-Tag`, rate-limit + IP allowlist désactivable, fuite `/god/dofus-guides` retirée, F-SEC-1 corrigé.
+  - ✅ **Confirmation beta** : admin connecté → panel `/god` affiche (200) ; non-connecté → 404 ; `/mng-FAKE` → 404.
+  - ✅ **Deux causes du 404 admin connecté corrigées** :
+    1. **Edge runtime** : `src/middleware.ts` (Next 16) forçait Edge → env inlinés au build (GOD_ROUTE/AUTH_SECRET invisibles au runtime). **Fix** : `middleware.ts` → **`src/proxy.ts`** (convention Proxy = Node runtime, `process.env` lu au runtime). Commit `f50ecdfc`.
+    2. **Décodage session dans le proxy** : `req.auth` (providers vides) ne décodait pas le cookie JWT → `hasAuth:false` même connecté → garde `/god` sans session → 404. **Fix** : `getToken` de `next-auth/jwt` (`fa8fb7de`) + forcer `cookieName`/`secureCookie` pour lire le même cookie que le serveur (`963e7c07`).
+  - ✅ **Rate-limit final (`d7cc8389`)** : 120 req/min sur routes God **légitimes** (plus de 429 sur `/mng-<secret>?tab=...`), 10 req/min sur **mauvais secrets** (anti-brute-force).
+  - ✅ Vérifs : `test:run` 97 ✅, `tsc --noEmit` 0 ✅, `lint` 0 ✅, `build` 62 pages ✅.
+  - ⚠️ **Secret réel fuité dans l'historique git → à ROTATER** (nouvelle `GOD_ROUTE` sur beta + prod, `.env`). Procédure dans `src/temp/evolution4.md`.
+- ✅ **R4 (partiel)** — Session God + révocation live : schema Prisma fait (scopeVersion sur GodDelegate + tables GodAccessLog/GodSessionLog), revokeDelegate bump scopeVersion + GodAccessLog. **Reste** : session active GodSessionLog dans le layout + révocation live socket/SSE popup.
+- ✅ **R5** — Logging exhaustif God : `GOD_DASHBOARD_ACCESS` ajouté + remplacé le no-op `logPageAccess` dans le layout par `createGodAuditLog`.
+- ✅ **PILIER D (PIM granulaire) FAIT + durci (06/08)** — Table `GodAccessGrant` + guard `canAccessBrick` (fail-closed, **fix double OR** qui laissait passer les grants expirés) + grant/revoke JIT (durée, justification obligatoire) + UI `/god/delegates` + warn anti-scout. **Ajouts 06/08 → commits `2f3dc878`, `028bac21`, `eb3ff2a8`, `31832de5`, `a1e9e593`** :
+  - **PIM réellement fonctionnel** : registre centralisé `god-bricks.ts` (`subGodAccess` fail-closed), `getAccessibleBricks()`, sidebar/layout filtrent par brique, matrice sous-god stricte (test-debug) — ses pages interdites (overview/telemetry/infra/notifications/mini-games/security/bugs/roadmap/changelog/onboarding/delegates) jamais visibles d'un sous-god, guildes en whitelist seule (ReadOnly), pages d'atterrissage via `resolveGodLanding` tenant compte des briques.
+  - **Traçage God exhaustif** : helper `logGodWrite` + nouvelles actions Audit (`GOD_GUIDE_UPDATE`, `GOD_RUSH_UPDATE`, `GOD_QUEST_DATA_UPDATE`, `GOD_GAME_DATA_UPDATE`, `GOD_TICKET_ACTION`, `GOD_DOC_UPDATE`) posées sur toutes les écritures guides/rush/quetes/game-data/tickets/docs — log UNIQUEMENT sous-god (pas de doublon admin).
+  - **Édition en place des droits** : `syncBrickAccessForDelegate()` (diff atomique : crée/révoque/prolonge, bump scopeVersion, audit) + `EditAccessManager.tsx`. Plus de « révoquer + recréer ».
+  - **UX sous-god** : `getMyActiveGrants()` → vue **« Mon accès »** dans le bandeau (remplace le lien mort `/god/delegates`) avec temps restant par brique ; **`GodExpiryGuard`** : badge permanent « Expire : X », popup <10 min, **déconnexion forcée** quand tous les accès expirent (fail-closed UI).
+  - **Refonte `/god/delegates`** : stepper 3 étapes (Délégué → Scopes & Briques → Durée & Validation), délégué créable vierge, scopes exploitables restreints, durée flexible (min/heures/jours), historique isolé dans `AccessHistory`.
+  - **`.next` corrompu** supprimé/régénéré → tsc OK ; **110 tests** ✅.
+- ⚠️ **Navigation** : Sous-Gods pointe vers la route dédiée `/god/delegates` (plus `?tab=delegates`).
 - ✅ **F-SEC-1** — Corrigé (invite Discord `permissions=8` → `DISCORD_BOT_INVITE_URL` + toggle).
+- 🧹 **À faire** : déployer PR #405 (rate-limit) beta ; rotation `GOD_ROUTE` (secret fuité) — modifier `.env` + `docker compose up -d` ; **R4 complet** (session GodSessionLog dans le layout + révocation live socket/SSE — le guard couvre l'expiration par polling mais pas la révocation instantanée) ; volume `GOD_DASHBOARD_ACCESS` (loggé à chaque rendu) ; B3-B5 (refonte overview, primitives, animations) ; A4 purge/ménage ; évolutions 2/3 (fuite `user.name` ~90 fichiers, etc.).
 
-**Checkpoint** : `npm run test:run` (88 tests) ✅ + `npm run build` (62 pages) ✅ + `npx tsc --noEmit` ✅.
+**Checkpoint** : `npm run test:run` (97 tests) ✅ + `npm run build` (62 pages) ✅ + `npx tsc --noEmit` ✅ + ESLint 0 ✅.
 
 ---
 

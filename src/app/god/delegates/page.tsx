@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getActiveScopes } from "@/server/actions/super-admin-actions";
-import { listDelegates } from "@/server/actions/god-delegate-actions";
-import { GOD_SCOPES } from "@/lib/god-scopes";
+import { listDelegates, listBrickGrants } from "@/server/actions/god-delegate-actions";
+import { SUBGOD_USABLE_SCOPES } from "@/lib/god-scopes";
 import { DelegatesManager } from "./delegates-manager";
+import { BrickGrantsManager } from "./brick-grants-manager";
+import { EditAccessManager } from "./edit-access-manager";
+import { AccessHistory, type DelegateHistoryItem, type GrantHistoryItem } from "./access-history";
 import { ShieldCheck, Users, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +36,39 @@ export default async function DelegatesPage() {
     const delegates = result.success ? (result.data ?? []) : [];
     const error = result.success ? null : result.error;
 
+    // 🔄 P2+ — délégués actifs (non révoqués, non expirés) → filtre le dropdown du BrickGrantsManager
+    const now = Date.now();
+    const activeDelegateIds = delegates
+        .filter((d) => !d.revokedAt && (!d.expiresAt || new Date(d.expiresAt).getTime() > now))
+        .map((d) => d.id);
+
+    // D5 : grants par brique (PIM)
+    const grantsResult = await listBrickGrants();
+    const brickGrants = grantsResult.success ? (grantsResult.data ?? []) : [];
+
+    // 🔄 P2+ — Historique discret : délégations + grants révoqués/expirés
+    const now2 = Date.now();
+    const delegateHistory: DelegateHistoryItem[] = delegates
+        .filter((d) => d.revokedAt || (d.expiresAt && new Date(d.expiresAt).getTime() < now2))
+        .map((d) => ({
+            id: d.id,
+            userName: d.userName,
+            status: d.revokedAt ? "REVOKED" : "EXPIRED",
+            scopes: d.scopes,
+            expiresAt: d.expiresAt?.toISOString() ?? null,
+            revokedAt: d.revokedAt?.toISOString() ?? null,
+        }));
+    const grantHistory: GrantHistoryItem[] = brickGrants
+        .filter((g: any) => g.revokedAt || (g.expiresAt && new Date(g.expiresAt).getTime() < now2))
+        .map((g: any) => ({
+            id: g.id,
+            brickId: g.brickId,
+            status: g.revokedAt ? "REVOKED" : "EXPIRED",
+            expiresAt: g.expiresAt ?? null,
+            revokedAt: g.revokedAt ?? null,
+            reason: g.reason ?? null,
+        }));
+
     return (
         <div className="p-6 md:p-10 lg:p-14 space-y-10 max-w-[1400px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/5 pb-10">
@@ -57,8 +93,8 @@ export default async function DelegatesPage() {
 
             <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-zinc-300 font-bold">
-                    <Database className="w-4 h-4 text-violet-400" /> Scopes disponibles :{" "}
-                    <span className="text-violet-300">{GOD_SCOPES.join(" · ")}</span>
+                    <Database className="w-4 h-4 text-violet-400" /> Scopes exploitables par un sous-god :{" "}
+                    <span className="text-violet-300">{SUBGOD_USABLE_SCOPES.join(" · ")}</span>
                 </div>
             </div>
 
@@ -69,6 +105,22 @@ export default async function DelegatesPage() {
             )}
 
             <DelegatesManager initialDelegates={delegates} />
+
+            {/* D5 : PIM granulaire par brique */}
+            <BrickGrantsManager
+                delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
+                initialGrants={brickGrants as any}
+                activeDelegateIds={activeDelegateIds}
+            />
+
+            {/* 🔄 P3-R : Édition en place des accès d'un délégué */}
+            <EditAccessManager
+                delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
+                initialGrants={brickGrants as any}
+                activeDelegateIds={activeDelegateIds}
+            />
+
+            <AccessHistory delegates={delegateHistory} grants={grantHistory} />
         </div>
     );
 }

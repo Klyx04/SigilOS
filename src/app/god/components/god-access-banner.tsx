@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldAlert, Eye, HelpCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShieldAlert, Eye, HelpCircle, X, ChevronLeft, ChevronRight, KeyRound } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 // Scope labels humains
 const SCOPE_LABELS: Record<string, string> = {
@@ -63,12 +64,10 @@ function getTutorialSteps(activeScopes: string[]): TutorialStep[] {
             title: "Besoin de plus d'accès ?",
             body: (
                 <>
-                    Pour obtenir des droits supplémentaires, demandez à votre administrateur
-                    via la page{" "}
-                    <Link href="/god/delegates" className="underline text-amber-300 hover:text-amber-200">
-                        /god/delegates
-                    </Link>
-                    . On accorde les accès un par un, uniquement si nécessaire.
+                    Pour obtenir des droits supplémentaires, adressez-vous à votre administrateur.
+                    On accorde les accès un par un, uniquement si nécessaire. Pour voir ce qui
+                    vous est actuellement accordé, cliquez sur le bouton{" "}
+                    <strong className="text-amber-300">"Mon accès"</strong> en haut du bandeau.
                 </>
             ),
         },
@@ -93,10 +92,11 @@ function getTutorialSteps(activeScopes: string[]): TutorialStep[] {
  * - Mini tour contextuel (cards) à la 1ère visite (localStorage), rejouable via le bouton.
  * - Non affiché pour un super-admin complet (isFullAdmin).
  */
-export function GodAccessBanner({ activeScopes, isFullAdmin }: { activeScopes: string[]; isFullAdmin: boolean }) {
+export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { activeScopes: string[]; isFullAdmin: boolean; myGrants?: { brickId: string; label: string; expiresAt: string | null; scope: string | null }[] }) {
     const [mounted, setMounted] = useState(false);
     const [tutorialOpen, setTutorialOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
+    const [accessOpen, setAccessOpen] = useState(false);
 
     // Ne pas rendre le dial de tuto avant hydraulicité (évite les erreurs d'hydratation server/client).
     useEffect(() => {
@@ -244,12 +244,13 @@ export function GodAccessBanner({ activeScopes, isFullAdmin }: { activeScopes: s
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    <Link
-                        href="/god/delegates"
+                    <button
+                        type="button"
+                        onClick={() => setAccessOpen(v => !v)}
                         className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-black text-amber-200 uppercase tracking-widest transition-colors"
                     >
-                        <Eye className="w-4 h-4" /> Mes scopes
-                    </Link>
+                        <KeyRound className="w-4 h-4" /> Mon accès
+                    </button>
                     <button
                         type="button"
                         onClick={replayTutorial}
@@ -260,6 +261,48 @@ export function GodAccessBanner({ activeScopes, isFullAdmin }: { activeScopes: s
                     </button>
                 </div>
             </div>
+
+            {/* 🔄 P3-R — Vue "Mon accès" : briques + temps restant (remplace le lien mort /god/delegates) */}
+            {accessOpen && (
+                <div className="mx-4 md:mx-8 lg:mx-12 mt-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 backdrop-blur-md">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
+                            <KeyRound className="w-3.5 h-3.5" /> Vos accès actifs
+                        </div>
+                        <button type="button" onClick={() => setAccessOpen(false)} aria-label="Fermer"
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400">
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                    {myGrants.length === 0 ? (
+                        <p className="text-xs text-zinc-500">Aucun accès basé sur une brique accordée pour le moment.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {myGrants.map((g) => {
+                                const expired = g.expiresAt ? new Date(g.expiresAt).getTime() < Date.now() : false;
+                                const minsLeft = g.expiresAt ? Math.max(0, Math.floor((new Date(g.expiresAt).getTime() - Date.now()) / 60000)) : null;
+                                return (
+                                    <div key={g.brickId} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-zinc-900/40 px-3 py-2">
+                                        <div className="space-y-0.5">
+                                            <div className="text-xs font-bold text-zinc-200">{g.label}</div>
+                                            <div className="text-[10px] text-zinc-500">{g.scope ? SCOPE_LABELS[g.scope] || g.scope : "—"}</div>
+                                        </div>
+                                        {expired ? (
+                                            <Badge className="bg-rose-500/15 text-rose-300 border-rose-500/30">EXPIRÉ</Badge>
+                                        ) : minsLeft === null ? (
+                                            <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30">ILLIMITÉ</Badge>
+                                        ) : (
+                                            <Badge className={minsLeft <= 5 ? "bg-amber-500/15 text-amber-300 border-amber-500/30" : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"}>
+                                                {minsLeft <= 5 ? `⚠️ ${minsLeft} min` : `${minsLeft} min`}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
         </>
     );
 }

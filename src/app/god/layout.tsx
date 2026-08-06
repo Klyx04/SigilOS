@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
-import { getActiveScopes, getAccessibleBricks } from "@/server/actions/super-admin-actions";
+import { getActiveScopes, getAccessibleBricks, getMyActiveGrants } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
 import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
@@ -39,6 +39,9 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     if (activeScopes.length === 0 && accessibleBricks.length === 0) {
         redirect("/");
     }
+
+    // 🔄 P3-R — Accès effectifs du sous-god (briques + expiration) pour la vue "Mon accès".
+    const myGrants = await getMyActiveGrants(session.user.id);
 
     // Super-admin complet = possède tous les scopes (getActiveScopes renvoie tous pour un admin).
     const isFullAdmin = activeScopes.length >= 6;
@@ -86,7 +89,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
 
                 {/* Scrollable content view */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} />
+                    <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} myGrants={myGrants} />
                     {children}
                 </div>
             </div>

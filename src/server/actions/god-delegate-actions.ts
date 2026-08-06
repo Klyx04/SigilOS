@@ -403,6 +403,142 @@ export async function revokeBrickAccess(grantId: string): Promise<{ success: boo
 /**
  * Liste les grants (actifs / expirés / révoqués) pour l'UI /god/delegates (D5).
  */
+const SyncBrickSchema = z.object({
+    delegateId: z.string().min(1),
+    brickIds: z.array(z.string()).min(0),
+    // Durée appliquée aux grants existants conservés (non recréés), en minutes.
+    durationMinutes: z.number().int().min(5).max(90 * 24 * 60).optional(),
+    reason: z.string().min(3).max(500),
+});
+
+/**
+ * 🔄 ÉDITION EN PLACE (P3-R) : Synchronise les grants de briques d'un délégué.
+ * Applique un diff atomique :
+ *  - crée les briques absentes,
+ *  - révoque les briques retirées de `brickIds`,
+ *  - (optionnel) prolonge la durée des grants existants conservés.
+ * Obtient le résultat en UN seul appel (fini le "révoquer + recréer").
+ */
+export async function syncBrickAccessForDelegate(
+    input: z.infer<typeof SyncBrickSchema>
+): Promise<{ success: boolean; data?: { created: number; revoked: number; kept: number }; error?: string }> {
+    try {
+        await requireGodAccess("users");
+        const isAdmin = await isSuperAdmin();
+        if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
+
+        const parsed = SyncBrickSchema.parse(input);
+        const actorSession = await auth();
+        const actorDiscordId = await getActorDiscordId();
+        const actorName = actorDiscordId || actorSession?.user?.id || "unknown";
+
+        // Vérifier le délégué
+        const delegate = await db.godDelegate.findUnique({ where: { id: parsed.delegateId } });
+        if (!delegate) return { success: false, error: "Délégué introuvable" };
+        if (delegate.revokedAt) return { success: false, error: "Ce délégué est révoqué" };
+
+        // 1. Grants actifs existants (non révoqués, non expirés)
+        const now = new Date();
+        const existing = await db.godAccessGrant.findMany({
+            where: {
+                delegateId: delegate.id,
+                revokedAt: null,
+                OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+            },
+        });
+
+        const desiredSet = new Set(parsed.brickIds);
+        const existingByBrick = new Map(existing.map(g => [g.brickId, g]));
+
+        // 2. Bricks à CRÉER
+        const toCreate = parsed.brickIds.filter(id => !existingByBrick.has(id));
+
+        // 3. Grants à RÉVOQUER (présents mais non désirés)
+        const toRevoke = existing.filter(g => !desiredSet.has(g.brickId));
+
+        let created = 0;
+        let kept = 0;
+
+        await db.$transaction(async (tx) => {
+            // Révoquer les retirés
+            for (const g of toRevoke) {
+                await tx.godAccessGrant.update({ where: { id: g.id }, data: { revokedAt: new Date() } });
+            }
+
+            // Créer les nouveaux
+            for (const brickId of toCreate) {
+                const expiresAt = parsed.durationMinutes
+                    ? new Date(Date.now() + parsed.durationMinutes * 60_000)
+                    : null;
+                await tx.godAccessGrant.create({
+                    data: {
+                        delegateId: delegate.id,
+                        userId: delegate.userId,
+                        brickId,
+                        guildId: null,
+                        startAt: new Date(),
+                        expiresAt,
+                        grantedBy: actorName,
+                        reason: parsed.reason,
+                    },
+                });
+                created++;
+            }
+        });
+
+        // 4. Prolonger la durée des grants conservés (si demandé)
+        if (parsed.durationMinutes) {
+            const keptGrants = toCreate.length === 0 ? existing.filter(g => desiredSet.has(g.brickId)) : [];
+            for (const g of keptGrants) {
+                await db.godAccessGrant.update({
+                    where: { id: g.id },
+                    data: { expiresAt: new Date(Date.now() + parsed.durationMinutes * 60_000) },
+                });
+            }
+        }
+        kept = existing.filter(g => desiredSet.has(g.brickId)).length;
+
+        // 5. Bump scopeVersion (invalidation live côté UI via le polling)
+        if (toRevoke.length > 0 || toCreate.length > 0 || parsed.durationMinutes) {
+            await db.godDelegate.update({
+                where: { id: delegate.id },
+                data: { scopeVersion: { increment: 1 } },
+            });
+        }
+
+        // 6. Audit + journal
+        await createGodAuditLog({
+            action: "GOD_CONFIG_OVERRIDE",
+            targetType: "SYSTEM_GOD",
+            targetId: delegate.id,
+            newValue: {
+                operation: "SYNC_BRICK_ACCESS",
+                delegateId: delegate.id,
+                brickIds: parsed.brickIds,
+                created,
+                revoked: toRevoke.length,
+                kept,
+                durationMinutes: parsed.durationMinutes ?? null,
+            },
+            metadata: { performedBy: actorName },
+        });
+        await db.godAccessLog.create({
+            data: {
+                userId: delegate.userId,
+                action: "SYNC",
+                targetId: delegate.id,
+                metadata: { operation: "SYNC_BRICK_ACCESS", created, revoked: toRevoke.length, kept },
+            },
+        }).catch((logErr: unknown) => logger.warn("[syncBrickAccessForDelegate] GodAccessLog failed", { error: logErr }));
+
+        revalidatePath("/god/delegates");
+        return { success: true, data: { created, revoked: toRevoke.length, kept } };
+    } catch (e: any) {
+        logger.error("[syncBrickAccessForDelegate] Error:", { error: e });
+        return { success: false, error: e.message || "Erreur inconnue" };
+    }
+}
+
 export async function listBrickGrants(): Promise<{ success: boolean; data?: any[]; error?: string }> {
     try {
         await requireGodAccess("users");

@@ -15,11 +15,14 @@ import { createGodAuditLog } from "./audit-actions";
 // est doublée par isSuperAdmin(). Chaque grant/revoke est audité.
 // ============================================================================
 
-const ScopesSchema = z.array(z.enum(GOD_SCOPES)).min(1, "Au moins un scope est requis");
+// 🔄 Un délégué peut être créé "vierge" (sans scope) : les accès réels se gèrent
+// via les grants de briques (PIM) dans le BrickGrantsManager (stepper 3 étapes).
+const ScopesSchema = z.array(z.enum(GOD_SCOPES)).min(0);
 
 const GrantDelegateSchema = z.object({
     userId: z.string().optional(),
-    discordId: z.string().optional(),
+    // 🔄 Bound & format (RULES.md) : ID Discord = 17-20 chiffres
+    discordId: z.string().regex(/^\d{17,20}$/, "ID Discord invalide (17-20 chiffres)").optional(),
     scopes: ScopesSchema,
     expiresAt: z.coerce.date().optional().nullable(),
     guildId: z.string().optional().nullable(),

@@ -18,7 +18,7 @@ import { auth } from "@/auth";
 
 // Note : on ne moke PAS isSuperAdmin — on le contrôle via process.env.SUPER_ADMIN_IDS
 // + session.user.discordId (chemin réel de la fonction).
-import { canAccessBrick } from "@/server/actions/super-admin-actions";
+import { canAccessBrick, getAccessibleBricks } from "@/server/actions/super-admin-actions";
 
 const mockAuth = auth as unknown as ReturnType<typeof vi.fn>;
 
@@ -94,5 +94,87 @@ describe("canAccessBrick (PIM D2) — fail-closed", () => {
 
         const result = await canAccessBrick("bugs");
         expect(result).toBe(false);
+    });
+
+    it("RÉGRESSION (fix double OR) : guildContext ne perd jamais le filtre d'expiration", async () => {
+        godDelegateFindMany.mockResolvedValue([{ id: "delegate-1", guildId: null, scopeVersion: 1 }]);
+        godAccessGrantFindMany.mockResolvedValue([{ delegateId: "delegate-1", expiresAt: future }]);
+
+        await canAccessBrick("delegates", { guildContext: "guild-1" });
+
+        // La requête WHERE doit combiner expiration ET guild via un top-level AND
+        // (un spread écrasant la clé OR aurait supprimé le filtre d'expiration → fail-open).
+        const where = godAccessGrantFindMany.mock.calls[0][0].where;
+        expect(where.AND).toBeDefined();
+        expect(Array.isArray(where.AND)).toBe(true);
+
+        const hasExpiration = where.AND.some(
+            (f: any) => f.OR && f.OR.some((o: any) => "expiresAt" in o)
+        );
+        const hasGuild = where.AND.some(
+            (f: any) => f.OR && f.OR.some((o: any) => "guildId" in o)
+        );
+        expect(hasExpiration).toBe(true);
+        expect(hasGuild).toBe(true);
+    });
+
+    it("RÉGRESSION (fix double OR) : grant expiré + guildContext ⇒ refusé (fail-closed)", async () => {
+        godDelegateFindMany.mockResolvedValue([{ id: "delegate-1", guildId: null, scopeVersion: 1 }]);
+        // La requête filtre le grant expiré → la DB ne retourne rien (simulé par [])
+        godAccessGrantFindMany.mockResolvedValue([]);
+
+        const result = await canAccessBrick("delegates", { guildContext: "guild-1" });
+        expect(result).toBe(false);
+    });
+});
+
+describe("getAccessibleBricks (P2) — briques ouvrables d'un sous-god", () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+        delete process.env.SUPER_ADMIN_IDS;
+        // Non-super-admin par défaut
+        mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+    });
+
+    it("retourne [] si aucune délégation ni grant", async () => {
+        godDelegateFindMany.mockResolvedValue([]);
+
+        const result = await getAccessibleBricks("user-1");
+        expect(result).toEqual([]);
+    });
+
+    it("ouvre les briques 'sous-god' dont le scope actif est requis (rétro-compat)", async () => {
+        // Délégation avec scope game-data → ouvre game-data (+ enfants game-data-*)
+        godDelegateFindMany.mockResolvedValue([{ id: "delegate-1", scopes: ["game-data"] }]);
+        godAccessGrantFindMany.mockResolvedValue([]);
+
+        const result = await getAccessibleBricks("user-1");
+        expect(result).toContain("game-data");
+        // Les briques fermées aux sous-gods ne doivent JAMAIS apparaître
+        expect(result).not.toContain("security");
+        expect(result).not.toContain("delegates");
+    });
+
+    it("ouvre une brique accordée par grant (PIM) même sans scope global", async () => {
+        godDelegateFindMany.mockResolvedValue([{ id: "delegate-1", scopes: [] }]);
+        godAccessGrantFindMany.mockResolvedValue([{ brickId: "docs" }]);
+
+        const result = await getAccessibleBricks("user-1");
+        expect(result).toContain("docs");
+    });
+
+    it("n'ouvre JAMAIS une brique interdite aux sous-gods, même accordée", async () => {
+        godDelegateFindMany.mockResolvedValue([{ id: "delegate-1", scopes: [] }]);
+        // Grant malveillant sur "delegates" / "security" → doit être ignoré
+        godAccessGrantFindMany.mockResolvedValue([
+            { brickId: "delegates" },
+            { brickId: "security" },
+        ]);
+
+        const result = await getAccessibleBricks("user-1");
+        expect(result).not.toContain("delegates");
+        expect(result).not.toContain("security");
     });
 });

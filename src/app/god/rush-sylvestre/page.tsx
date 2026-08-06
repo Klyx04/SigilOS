@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { getOrCreateRushSylvestreGuide } from "@/server/actions/optimized-guide-actions";
 import { RushSylvestreAdminClient } from "./RushSylvestreAdminClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function RushSylvestreGodPage() {
-  const isGod = await isSuperAdmin();
+  // P2 — un sous-god avec la brique "game-data-rush" accède aussi (sinon super-admin).
+  const isGod = await isSuperAdmin() || await canAccessBrick("game-data-rush");
   if (!isGod) redirect("/dashboard");
 
   const guide = await getOrCreateRushSylvestreGuide();

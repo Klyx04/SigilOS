@@ -68,12 +68,14 @@ interface Guild {
 
 interface GuildTableProps {
     guilds: Guild[];
+    /** 🔄 P2 — true pour un sous-god : whitelist seule, actions destructives masquées. */
+    isReadOnly?: boolean;
 }
 
 type FilterStatus = 'all' | 'active' | 'inactive' | 'deleted';
 type SortBy = 'name' | 'members' | 'createdAt';
 
-export function GuildTable({ guilds }: GuildTableProps) {
+export function GuildTable({ guilds, isReadOnly = false }: GuildTableProps) {
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
     const [sortBy, setSortBy] = useState<SortBy>('name');
@@ -382,6 +384,7 @@ export function GuildTable({ guilds }: GuildTableProps) {
                                         guild={guild}
                                         selected={selected.has(guild.id)}
                                         onSelect={() => toggleSelect(guild.id)}
+                                        isReadOnly={isReadOnly}
                                     />
                                 ))}
                             </AnimatePresence>
@@ -399,10 +402,12 @@ export function GuildTable({ guilds }: GuildTableProps) {
     );
 }
 
-function GuildRow({ guild, selected, onSelect }: {
+function GuildRow({ guild, selected, onSelect, isReadOnly }: {
     guild: Guild;
     selected: boolean;
     onSelect: () => void;
+    /** 🔄 P2 — true pour un sous-god : whitelist seule, actions destructives masquées. */
+    isReadOnly: boolean;
 }) {
     const [isUpdating, setIsUpdating] = useState(false);
 
@@ -621,41 +626,48 @@ function GuildRow({ guild, selected, onSelect }: {
                                         <Copy className="w-4 h-4" />
                                         Copier ID Discord
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={handleRevokeWhitelist}
-                                        className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400 font-bold"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        Révoquer Permission
-                                    </DropdownMenuItem>
+                                    {/* P2 — sous-god (readOnly) : pas de révocation de permission */}
+                                    {!isReadOnly && (
+                                        <DropdownMenuItem
+                                            onClick={handleRevokeWhitelist}
+                                            className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400 font-bold"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Révoquer Permission
+                                        </DropdownMenuItem>
+                                    )}
                                 </>
                             ) : (
                                 <>
-                                    {!guild.deletedAt ? (
-                                        <DropdownMenuItem
-                                            onClick={handleSoftDelete}
-                                            className="gap-3 p-3 cursor-pointer focus:bg-amber-500/10 focus:text-amber-400"
-                                        >
-                                            <Archive className="w-4 h-4" />
-                                            Mettre en pause
-                                        </DropdownMenuItem>
-                                    ) : (
-                                        <DropdownMenuItem
-                                            onClick={handleReactivate}
-                                            className="gap-3 p-3 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-400"
-                                        >
-                                            <RotateCcw className="w-4 h-4" />
-                                            Réactiver
-                                        </DropdownMenuItem>
-                                    )}
+                                    {!isReadOnly && (
+                                        <>
+                                            {!guild.deletedAt ? (
+                                                <DropdownMenuItem
+                                                    onClick={handleSoftDelete}
+                                                    className="gap-3 p-3 cursor-pointer focus:bg-amber-500/10 focus:text-amber-400"
+                                                >
+                                                    <Archive className="w-4 h-4" />
+                                                    Mettre en pause
+                                                </DropdownMenuItem>
+                                            ) : (
+                                                <DropdownMenuItem
+                                                    onClick={handleReactivate}
+                                                    className="gap-3 p-3 cursor-pointer focus:bg-emerald-500/10 focus:text-emerald-400"
+                                                >
+                                                    <RotateCcw className="w-4 h-4" />
+                                                    Réactiver
+                                                </DropdownMenuItem>
+                                            )}
 
-                                    <DropdownMenuItem
-                                        onClick={handleHardDelete}
-                                        className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        Hard Delete
-                                    </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={handleHardDelete}
+                                                className="gap-3 p-3 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                Hard Delete
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </DropdownMenuContent>

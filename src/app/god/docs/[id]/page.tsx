@@ -1,13 +1,14 @@
 import { auth } from "@/auth";
 import { DocEditor } from "../_components/doc-editor";
 import { db } from "@/lib/prisma";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { redirect } from "next/navigation";
 
 export default async function AdminDocEditPage({ params }: { params: Promise<{ id: string }> }) {
     const session = await auth();
     // Fail-closed : réservé aux super-admins (le layout accepte désormais les sub-gods)
-    const isAdmin = await isSuperAdmin();
+    // P2 — un sous-god avec la brique "docs" accède aussi (sinon super-admin).
+    const isAdmin = await isSuperAdmin() || await canAccessBrick("docs");
     if (!isAdmin) redirect("/");
     const { id } = await params;
 

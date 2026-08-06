@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, Timer } from "lucide-react";
+import { ShieldAlert, Timer, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getSocket } from "@/lib/socket-utils";
 
 export type MyGrant = {
     brickId: string;
@@ -22,7 +23,9 @@ export type MyGrant = {
 export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: MyGrant[]; warningMinutes?: number }) {
     const router = useRouter();
     const [warning, setWarning] = useState<MyGrant | null>(null);
+    const [revoked, setRevoked] = useState(false);
     const warnedRef = useRef<Set<string>>(new Set());
+    const redirectedRef = useRef(false);
 
     // Calcule le timestamp d'expiration minimal parmi les grants limités
     const minExpiry = (() => {
@@ -88,6 +91,39 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         return () => clearInterval(timer);
     }, [myGrants, warningMinutes, forceLogout]);
 
+    // ─── R4 — Révocation LIVE (Socket.IO) ──────────────────────────────────
+    // Le serveur WS diffuse "god:revoked" sur la room user:<userId> quand le
+    // super-admin révoque un accès. À réception : redirection immédiate.
+    // Fail-closed : si le socket est indisponible, on ne fait RIEN — le polling
+    // (30s) + canAccessBrick serveur restent la sécurité. Le live est un plus.
+    useEffect(() => {
+        let socket: ReturnType<typeof getSocket> | null = null;
+        let disposed = false;
+
+        try {
+            socket = getSocket();
+
+            socket.on("god:revoked", () => {
+                if (redirectedRef.current) return;
+                redirectedRef.current = true;
+                setRevoked(true);
+            });
+
+            socket.on("connect_error", () => {
+                // Fail-closed silencieux : le polling continue de protéger.
+            });
+        } catch {
+            // Socket indisponible → silencieux, le polling protège.
+        }
+
+        return () => {
+            disposed = true;
+            try {
+                socket?.disconnect();
+            } catch {}
+        };
+    }, []);
+
     // Affiche aussi un décompte permanent discret du temps restant global
     const globalLabel = (() => {
         if (myGrants.some(g => !g.expiresAt)) return "accès illimité";
@@ -130,6 +166,35 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
                                 className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 font-bold"
                             >
                                 J'ai compris
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* R4 — Popup de RÉVOCATION LIVE : l'accès God a été révoqué */}
+            {revoked && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" role="alertdialog" aria-modal="true">
+                    <div className="w-full max-w-md rounded-2xl border border-red-500/40 bg-[#111] p-6 shadow-2xl">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 rounded-xl bg-red-500/15 border border-red-500/30 shrink-0">
+                                <Ban className="w-5 h-5 text-red-400" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-xs font-black text-red-400 uppercase tracking-widest">Accès révoqué</div>
+                                <div className="text-sm text-zinc-200 font-bold">Votre accès a été révoqué</div>
+                                <div className="text-xs text-zinc-500">
+                                    Un administrateur a révoqué vos droits d'accès au panel God.
+                                    Vous allez être redirigé vers la page d'accueil.
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-5 flex justify-end">
+                            <Button
+                                onClick={() => router.replace("/")}
+                                className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200 font-bold"
+                            >
+                                Retour à l'accueil
                             </Button>
                         </div>
                     </div>

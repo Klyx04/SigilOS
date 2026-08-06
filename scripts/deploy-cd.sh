@@ -88,7 +88,21 @@ cd "$(dirname "$0")/.."
 # -----------------------------------------------------------------------------
 echo "Récupération du code source (étape optionnelle, non bloquante)..."
 BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
-git pull origin "$BRANCH" >/dev/null 2>&1 || echo "   ⚠️  git pull ignoré (échec) — on continue avec les images GHCR."
+PULL_LOG="$(mktemp)"
+if git pull origin "$BRANCH" >"$PULL_LOG" 2>&1; then
+    echo "   ✅ Code source récupéré (branche: ${BRANCH:-?})."
+    echo "   Dernier commit : $(git log -1 --oneline 2>/dev/null || echo 'n/a')"
+    if [ -s "$PULL_LOG" ] && ! grep -q "Already up to date" "$PULL_LOG"; then
+        echo "   ── Détail du pull ──"
+        sed 's/^/   /' "$PULL_LOG" | head -20
+    fi
+else
+    echo "   ⚠️  git pull EN ÉCHEC — on continue quand même avec les images GHCR."
+    echo "   ── Erreur (voir aussi ci-dessous pour les fichiers locaux) ──"
+    sed 's/^/   /' "$PULL_LOG" | head -20
+    echo "   ⚠️  ATTENTION : les fichiers source locaux peuvent être obsolètes (ex: prisma/seed-data)."
+fi
+rm -f "$PULL_LOG"
 
 # -----------------------------------------------------------------------------
 # ACTION : list — affiche les versions disponibles

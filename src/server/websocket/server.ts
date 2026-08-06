@@ -83,6 +83,13 @@ const subClient = redis.duplicate();
 
 const isProd = process.env.NODE_ENV === "production";
 
+// R4 — Canal "god:revoked" : le serveur Next publie sur Redis, le serveur WS
+// diffuse aux sockets du sous-god (room user:<userId>) pour déconnexion LIVE.
+const GOD_REVOKED_CHANNEL = "god:revoked";
+subClient.subscribe(GOD_REVOKED_CHANNEL, (err) => {
+    if (err) logger.error("[WS] ❌ Erreur abonnement Redis god:revoked:", { error: err });
+});
+
 const io = new Server(httpServer, {
     // 🔒 [SECURITY] Limit payload size to 1MB — prevents OOM from oversized canvas events
     maxHttpBufferSize: 1e6,
@@ -206,6 +213,20 @@ subClient.on("message", (channel, message) => {
             logger.error(`[WS] ❌ Erreur parsing message ${channel}:`, { error: e });
         }
     }
+
+    // R4 — Réception d'une révocation God → diffusion LIVE au sous-god concerné.
+    if (channel === GOD_REVOKED_CHANNEL) {
+        try {
+            const payload = JSON.parse(message);
+            if (payload.userId) {
+                // Room par utilisateur : sécurisée par le middleware (socket.data.userId).
+                io.to(`user:${payload.userId}`).emit("god:revoked", payload);
+                logger.info(`[WS] ⚡ God revoked broadcast → user:${payload.userId} (reason: ${payload.reason})`);
+            }
+        } catch (e) {
+            logger.error(`[WS] ❌ Erreur parsing god:revoked:`, { error: e });
+        }
+    }
 });
 
 // Gestionnaire global des connexions
@@ -252,6 +273,12 @@ io.on("connection", (socket: Socket) => {
         }
     } else {
         socket.join("guild:global");
+    }
+
+    // R4 — Rejoindre la room utilisateur (pour diffusions ciblées god:revoked).
+    const wsUserId = socket.data.userId as string | undefined;
+    if (wsUserId) {
+        socket.join(`user:${wsUserId}`);
     }
 
     logger.info(`[WS] 🟢 Client connecté: ${socket.id}`);

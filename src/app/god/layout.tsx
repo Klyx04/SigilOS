@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { getActiveScopes, getAccessibleBricks, getMyActiveGrants } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
 import { GodExpiryGuard } from "./components/god-expiry-guard";
+import { GodSessionTracker } from "./components/god-session-tracker";
 import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
@@ -97,6 +98,9 @@ export default async function GodLayout({ children }: { children: React.ReactNod
 
             {/* 🛡️ P3-R — Garde anti-expiration + déconnexion forcée (sous-god uniquement) */}
             {!isFullAdmin && <GodExpiryGuard myGrants={myGrants} />}
+
+            {/* R4 — Session active God (open/heartbeat/close, best-effort) */}
+            <GodSessionTracker />
         </div>
     );
 }

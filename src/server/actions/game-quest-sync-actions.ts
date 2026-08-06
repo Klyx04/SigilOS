@@ -44,7 +44,6 @@ export async function checkDofusDbDeltas() {
         const limit = 500;
         let skip = 0;
         const deltas: QuestDelta[] = [];
-        let totalProcessed = 0;
 
         while (skip < totalRemote) {
             const res = await fetch(`${DOFUSDB_API}/quests?$limit=${limit}&$skip=${skip}&$select=id,name,levelMin,levelMax,categoryId`);
@@ -90,7 +89,6 @@ export async function checkDofusDbDeltas() {
                 }
             }
 
-            totalProcessed += json.data.length;
             skip += limit;
         }
 

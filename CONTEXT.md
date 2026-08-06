@@ -52,7 +52,7 @@
 | [`docs/SECURITY_HARDENING_PLAN.md`](./docs/SECURITY_HARDENING_PLAN.md) | Plan de durcissement (quoi de fait / quoi reste) |
 | [`MAINTENANCE.md`](./MAINTENANCE.md) | Infra VPS : backups, monitoring, déploiement, urgence |
 | [`README.md`](./README.md) | Démarrage, stack, structure, scripts |
-| [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) | Guide de déploiement détaillé |
+| [`docs/REDIS-OCR-SETUP.md`](./docs/REDIS-OCR-SETUP.md) | Infra OCR & Redis (VPS) — setup spécifique |
 | [`prisma/schema.prisma`](./prisma/schema.prisma) | Schéma BDD (source de vérité des modèles) |
 
 ---
@@ -85,7 +85,7 @@
   - ✅ **Rate-limit final (`d7cc8389`)** : 120 req/min sur routes God **légitimes** (plus de 429 sur `/mng-<secret>?tab=...`), 10 req/min sur **mauvais secrets** (anti-brute-force).
   - ✅ Vérifs : `test:run` 97 ✅, `tsc --noEmit` 0 ✅, `lint` 0 ✅, `build` 62 pages ✅.
   - ⚠️ **Secret réel fuité dans l'historique git → à ROTATER** (nouvelle `GOD_ROUTE` sur beta + prod, `.env`). Procédure dans `src/temp/evolution4.md`.
-- ✅ **R4 (partiel)** — Session God + révocation live : schema Prisma fait (scopeVersion sur GodDelegate + tables GodAccessLog/GodSessionLog), revokeDelegate bump scopeVersion + GodAccessLog. **Reste** : session active GodSessionLog dans le layout + révocation live socket/SSE popup.
+- ✅ **R4 FAIT (06/08)** — Session God + révocation live complète : schema Prisma (scopeVersion + GodAccessLog/GodSessionLog), revokeDelegate bump scopeVersion + audit, **révocation LIVE socket/SSE** (Redis pub/sub `god:revoked` → WS room `user:<userId>` → popup + redirect via `GodExpiryGuard`), **session active `GodSessionLog`** (open/heartbeat/close dans le layout via `god-session-tracker`). Fail-closed si socket down (polling + garde serveur).
 - ✅ **R5** — Logging exhaustif God : `GOD_DASHBOARD_ACCESS` ajouté + remplacé le no-op `logPageAccess` dans le layout par `createGodAuditLog`.
 - ✅ **PILIER D (PIM granulaire) FAIT + durci (06/08)** — Table `GodAccessGrant` + guard `canAccessBrick` (fail-closed, **fix double OR** qui laissait passer les grants expirés) + grant/revoke JIT (durée, justification obligatoire) + UI `/god/delegates` + warn anti-scout. **Ajouts 06/08 → commits `2f3dc878`, `028bac21`, `eb3ff2a8`, `31832de5`, `a1e9e593`** :
   - **PIM réellement fonctionnel** : registre centralisé `god-bricks.ts` (`subGodAccess` fail-closed), `getAccessibleBricks()`, sidebar/layout filtrent par brique, matrice sous-god stricte (test-debug) — ses pages interdites (overview/telemetry/infra/notifications/mini-games/security/bugs/roadmap/changelog/onboarding/delegates) jamais visibles d'un sous-god, guildes en whitelist seule (ReadOnly), pages d'atterrissage via `resolveGodLanding` tenant compte des briques.

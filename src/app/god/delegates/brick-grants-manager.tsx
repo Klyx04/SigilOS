@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GOD_BRICKS } from "@/lib/god-bricks";
 import { SCOPE_TO_BRICKS, SUBGOD_USABLE_SCOPES, type GodScope } from "@/lib/god-scopes";
-import { grantBrickAccess, revokeBrickAccess, listBrickGrants } from "@/server/actions/god-delegate-actions";
+import { grantBrickAccess, revokeBrickAccess, listBrickGrants, syncBrickAccessForDelegate } from "@/server/actions/god-delegate-actions";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -58,6 +58,8 @@ export function BrickGrantsManager({ delegates, initialGrants, activeDelegateIds
     const [grants, setGrants] = useState<BrickGrantView[]>(initialGrants);
     const [loading, setLoading] = useState(false);
     const [filter, setFilter] = useState<"all" | "active" | "expired" | "revoked">("active");
+    // 🔄 Édition en place (P3-R) : grant en cours de modification
+    const [editingGrant, setEditingGrant] = useState<BrickGrantView | null>(null);
     const now = Date.now();
 
     const activeDelegates = useMemo(() => {

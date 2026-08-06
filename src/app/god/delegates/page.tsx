@@ -5,6 +5,7 @@ import { listDelegates, listBrickGrants } from "@/server/actions/god-delegate-ac
 import { SUBGOD_USABLE_SCOPES } from "@/lib/god-scopes";
 import { DelegatesManager } from "./delegates-manager";
 import { BrickGrantsManager } from "./brick-grants-manager";
+import { EditAccessManager } from "./edit-access-manager";
 import { AccessHistory, type DelegateHistoryItem, type GrantHistoryItem } from "./access-history";
 import { ShieldCheck, Users, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -107,6 +108,13 @@ export default async function DelegatesPage() {
 
             {/* D5 : PIM granulaire par brique */}
             <BrickGrantsManager
+                delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
+                initialGrants={brickGrants as any}
+                activeDelegateIds={activeDelegateIds}
+            />
+
+            {/* 🔄 P3-R : Édition en place des accès d'un délégué */}
+            <EditAccessManager
                 delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
                 initialGrants={brickGrants as any}
                 activeDelegateIds={activeDelegateIds}

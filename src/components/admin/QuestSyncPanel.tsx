@@ -12,8 +12,7 @@ import {
     CheckCircle2, 
     AlertTriangle,
     Database,
-    Sparkles,
-    ShieldAlert
+    Sparkles
 } from "lucide-react";
 import { checkDofusDbDeltas, syncDeltas, type QuestDelta } from "@/server/actions/game-quest-sync-actions";
 import { Badge } from "@/components/ui/badge";

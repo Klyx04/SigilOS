@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { GOD_SCOPES } from "@/lib/god-scopes";
 import { isSuperAdmin, requireGodAccess } from "./super-admin-actions";
 import { createGodAuditLog } from "./audit-actions";
+import { publishGodRevoked } from "@/lib/socket-r4";
 
 // ============================================================================
 // CHANTIER A — Gestion des sub-gods (GodDelegate)
@@ -231,6 +232,15 @@ export async function revokeDelegate(delegateId: string): Promise<{ success: boo
             metadata: { performedBy: actorDiscordId || actorSession?.user?.id || "unknown" },
         });
 
+        // R4 — Révocation LIVE : prévient le sous-god connecté (popup + redirect).
+        // Fail-closed : si le publish échoue, le polling GodExpiryGuard reste la sécurité.
+        await publishGodRevoked({
+            userId: delegate.userId,
+            reason: "DELEGATE_REVOKED",
+            delegateId,
+            timestamp: new Date().toISOString(),
+        });
+
         revalidatePath("/god/delegates");
         return { success: true };
     } catch (e: any) {
@@ -392,6 +402,15 @@ export async function revokeBrickAccess(grantId: string): Promise<{ success: boo
             data: { userId: grant.userId, action: "REVOKE", targetId: grantId, metadata: { brickId: grant.brickId } },
         }).catch(() => {});
 
+        // R4 — Révocation LIVE d'une brique : le sous-god perdra cet accès immédiatement.
+        await publishGodRevoked({
+            userId: grant.userId,
+            reason: "BRICK_REVOKED",
+            brickId: grant.brickId,
+            delegateId: grant.delegateId,
+            timestamp: new Date().toISOString(),
+        });
+
         revalidatePath("/god/delegates");
         return { success: true };
     } catch (e: any) {
@@ -503,6 +522,17 @@ export async function syncBrickAccessForDelegate(
             await db.godDelegate.update({
                 where: { id: delegate.id },
                 data: { scopeVersion: { increment: 1 } },
+            });
+        }
+
+        // R4 — Si des briques ont été retirées, prévient le sous-god en LIVE
+        // pour qu'il perde les accès retirés immédiatement (pas au prochain refresh).
+        if (toRevoke.length > 0) {
+            await publishGodRevoked({
+                userId: delegate.userId,
+                reason: "SCOPES_CHANGED",
+                delegateId: delegate.id,
+                timestamp: new Date().toISOString(),
             });
         }
 

@@ -1,13 +1,15 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
-import { getActiveScopes } from "@/server/actions/super-admin-actions";
+import { getActiveScopes, getAccessibleBricks, getMyActiveGrants } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
+import { GodExpiryGuard } from "./components/god-expiry-guard";
 import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
 import { GodAccessBanner } from "./components/god-access-banner";
 import { getGodRoute } from "@/lib/god-route";
+import { createGodAuditLog } from "@/server/actions/audit-actions";
 
 // R3 anti-scout : le panel God ne doit JAMAIS être indexé par les moteurs de recherche.
 export const metadata: Metadata = {
@@ -30,23 +32,27 @@ export default async function GodLayout({ children }: { children: React.ReactNod
         redirect("/");
     }
 
-    // Guard : autorise super-admin + tout sub-god avec au moins un scope actif.
-    // Chaque page/action applicative vérifie ensuite son propre scope via requireGodAccess.
+    // Guard : autorise super-admin + tout sub-god avec au moins un scope actif
+    // OU au moins une brique accessible (P2 — PIM). Fail-closed si rien.
+    // Chaque page/action applicative vérifie ensuite son propre scope/brique.
     const activeScopes = await getActiveScopes();
-    if (activeScopes.length === 0) {
+    const accessibleBricks = await getAccessibleBricks(session.user.id);
+    if (activeScopes.length === 0 && accessibleBricks.length === 0) {
         redirect("/");
     }
+
+    // 🔄 P3-R — Accès effectifs du sous-god (briques + expiration) pour la vue "Mon accès".
+    const myGrants = await getMyActiveGrants(session.user.id);
 
     // Super-admin complet = possède tous les scopes (getActiveScopes renvoie tous pour un admin).
     const isFullAdmin = activeScopes.length >= 6;
 
-    // ✅ Log access to God interface
-    const { logPageAccess } = await import('@/lib/audit-log');
-    logPageAccess({
-        userId: session.user.id,
-        userName: session.user.name || 'unknown',
-        page: '/god',
-        details: { environment: process.env.NODE_ENV }
+    // ✅ R5 : Log d'accès au dashboard God (remplace le no-op logPageAccess)
+    await createGodAuditLog({
+        action: "GOD_DASHBOARD_ACCESS",
+        targetType: "SYSTEM_GOD",
+        targetId: "/god",
+        metadata: { environment: process.env.NODE_ENV },
     });
 
     // Fetch unread counts for the sidebar badges
@@ -64,6 +70,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     unreadCount={unreadCount}
                     ticketCount={ticketCount}
                     activeScopes={activeScopes}
+                    accessibleBricks={accessibleBricks}
                     godRoute={godRoute}
                 />
             </Suspense>
@@ -77,16 +84,19 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                         </span>
                     </div>
                     <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
-                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} godRoute={godRoute} />
+                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} accessibleBricks={accessibleBricks} godRoute={godRoute} />
                     </Suspense>
                 </div>
 
                 {/* Scrollable content view */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} />
+                    <GodAccessBanner activeScopes={activeScopes} isFullAdmin={isFullAdmin} myGrants={myGrants} />
                     {children}
                 </div>
             </div>
+
+            {/* 🛡️ P3-R — Garde anti-expiration + déconnexion forcée (sous-god uniquement) */}
+            {!isFullAdmin && <GodExpiryGuard myGrants={myGrants} />}
         </div>
     );
 }

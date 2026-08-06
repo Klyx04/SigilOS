@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { GalacticFooter } from "@/components/layout/galactic-footer";
 import { getAdminDocs, deleteDoc } from "@/server/actions/doc-actions";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,8 @@ import { DeleteDocButton } from "./_components/delete-button";
 
 export default async function AdminDocsPage() {
     const session = await auth();
-    // Fail-closed : réservé aux super-admins (le layout accepte désormais les sub-gods)
-    const isAdmin = await isSuperAdmin();
+    // P2 — un sous-god avec la brique "docs" accède aussi (sinon super-admin).
+    const isAdmin = await isSuperAdmin() || await canAccessBrick("docs");
     if (!isAdmin) redirect("/");
 
     const docs = await getAdminDocs();

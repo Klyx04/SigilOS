@@ -120,12 +120,6 @@ export default auth(async (req) => {
     // rien n'atteint les RSC God. Aucun header n'est transmis (le layout ne
     // vérifie plus le secret — c'est le proxy qui est la porte).
     if (isGodSecretPath(nextUrl.pathname)) {
-        // (DEBUG LOG décision) pathname + présence session, sans loguer le secret.
-        logger.info(`[GodProxy] /mng-* path`, {
-            pathname: nextUrl.pathname,
-            hasAuth: hasSession,
-            hasCookie: !!req.cookies.get("__Secure-authjs.session-token")?.value || !!req.cookies.get("authjs.session-token")?.value,
-        });
         // Chemin interne = /god + ce qui suit le secret.
         const secondSlash = nextUrl.pathname.indexOf("/", GOD_PREFIX.length);
         const rest = secondSlash === -1 ? "" : nextUrl.pathname.slice(secondSlash);
@@ -141,7 +135,6 @@ export default auth(async (req) => {
             logger.warn(`[GodProxy] secret refusé → 404`, { pathname: nextUrl.pathname, hasAuth: hasSession });
             return new NextResponse(null, { status: 404 });
         }
-        logger.info(`[GodProxy] secret accepté → rewrite /god`, { pathname: nextUrl.pathname });
         const url = nextUrl.clone();
         url.pathname = "/god" + rest;
         return NextResponse.rewrite(url);
@@ -153,9 +146,6 @@ export default auth(async (req) => {
     if ((nextUrl.pathname === "/god" || nextUrl.pathname === "/god/") && process.env.NODE_ENV === "production" && !hasSession) {
         logger.warn(`[GodProxy] /god direct sans session → 404`, { pathname: nextUrl.pathname, hasAuth: hasSession });
         return new NextResponse(null, { status: 404 });
-    }
-    if (nextUrl.pathname === "/god" || nextUrl.pathname === "/god/") {
-        logger.info(`[GodProxy] /god direct avec session → pass-through au layout`, { pathname: nextUrl.pathname, hasAuth: hasSession });
     }
 
     const isAuthenticated = !!req.auth;

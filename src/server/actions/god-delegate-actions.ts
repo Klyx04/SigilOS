@@ -202,9 +202,22 @@ export async function revokeDelegate(delegateId: string): Promise<{ success: boo
             return { success: false, error: "Ce délégué est déjà révoqué" };
         }
 
+        // R4 : révocation immédiate — bump scopeVersion pour invalider les sessions en cours
         await db.godDelegate.update({
             where: { id: delegateId },
-            data: { revokedAt: new Date() },
+            data: { revokedAt: new Date(), scopeVersion: { increment: 1 } },
+        });
+
+        // R4/D4 : journal des accès God (révocation, best-effort ne bloque pas)
+        await db.godAccessLog.create({
+            data: {
+                userId: delegate.userId,
+                action: "REVOKE",
+                targetId: delegateId,
+                metadata: { operation: "REVOKE_DELEGATE", performedBy: actorDiscordId || actorSession?.user?.id || "unknown" },
+            },
+        }).catch((logErr: unknown) => {
+            logger.warn("[revokeDelegate] GodAccessLog REVOKE failed", { error: logErr });
         });
 
         await createGodAuditLog({

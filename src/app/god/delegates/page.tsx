@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getActiveScopes } from "@/server/actions/super-admin-actions";
-import { listDelegates } from "@/server/actions/god-delegate-actions";
+import { listDelegates, listBrickGrants } from "@/server/actions/god-delegate-actions";
 import { GOD_SCOPES } from "@/lib/god-scopes";
 import { DelegatesManager } from "./delegates-manager";
+import { BrickGrantsManager } from "./brick-grants-manager";
 import { ShieldCheck, Users, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,10 @@ export default async function DelegatesPage() {
     const result = await listDelegates();
     const delegates = result.success ? (result.data ?? []) : [];
     const error = result.success ? null : result.error;
+
+    // D5 : grants par brique (PIM)
+    const grantsResult = await listBrickGrants();
+    const brickGrants = grantsResult.success ? (grantsResult.data ?? []) : [];
 
     return (
         <div className="p-6 md:p-10 lg:p-14 space-y-10 max-w-[1400px] mx-auto">
@@ -69,6 +74,12 @@ export default async function DelegatesPage() {
             )}
 
             <DelegatesManager initialDelegates={delegates} />
+
+            {/* D5 : PIM granulaire par brique */}
+            <BrickGrantsManager
+                delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
+                initialGrants={brickGrants as any}
+            />
         </div>
     );
 }

@@ -3,7 +3,8 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { z } from "zod";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
+import { createGodAuditLog } from "@/server/actions/audit-actions";
 import { revalidatePath } from "next/cache";
 import { writeFileSync } from "fs";
 import { join } from "path";
@@ -53,14 +54,36 @@ const DungeonFormSchema = z.object({
 
 // --- Helper: Check super-admin access ---
 
+// 🛡️ Fail-closed : super-admin OU sous-god avec la brique "game-data".
 async function requireSuperAdmin(): Promise<string | null> {
     const session = await auth();
     if (!session?.user?.id) return null;
 
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return null;
+    if (isAdmin) return session.user.id;
+
+    const ok = await canAccessBrick("game-data");
+    if (!ok) return null;
 
     return session.user.id;
+}
+
+// 🛡️ Trace une écriture God UNIQUEMENT pour un sous-god (pas super-admin).
+async function logGameDataWrite(op: string, targetId?: string, metadata?: Record<string, any>) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return;
+        const isAdmin = await isSuperAdmin();
+        if (isAdmin) return;
+        await createGodAuditLog({
+            action: "GOD_GAME_DATA_UPDATE",
+            targetType: "DATA_SYNC",
+            targetId,
+            metadata: { op, ...metadata },
+        });
+    } catch {
+        // Non bloquant
+    }
 }
 
 // ===========================
@@ -142,6 +165,7 @@ export async function createMonsterFamily(
                 } : undefined
             }
         });
+        await logGameDataWrite('create-monster-family', family.id, { name: family.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: family };
@@ -175,6 +199,7 @@ export async function updateMonsterFamily(
                 } : undefined
             }
         });
+        await logGameDataWrite('update-monster-family', id, { name: family.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: family };
@@ -193,6 +218,7 @@ export async function deleteMonsterFamily(id: string): Promise<ActionResponse> {
 
     try {
         await db.monsterFamily.delete({ where: { id } });
+        await logGameDataWrite('delete-monster-family', id);
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
@@ -237,6 +263,7 @@ export async function createChallenge(
                 iconUrl: validated.iconUrl || null,
             }
         });
+        await logGameDataWrite('create-challenge', challenge.id, { name: challenge.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: challenge };
@@ -265,6 +292,7 @@ export async function updateChallenge(
                 iconUrl: validated.iconUrl || null,
             }
         });
+        await logGameDataWrite('update-challenge', id, { name: challenge.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: challenge };
@@ -283,6 +311,7 @@ export async function deleteChallenge(id: string): Promise<ActionResponse> {
 
     try {
         await db.challenge.delete({ where: { id } });
+        await logGameDataWrite('delete-challenge', id);
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
@@ -366,6 +395,7 @@ export async function createDungeon(
                 achievements: { include: { challenge: true } }
             }
         });
+        await logGameDataWrite('create-dungeon', dungeon.id, { name: dungeon.name });
 
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
@@ -434,6 +464,7 @@ export async function updateDungeon(
             });
         });
 
+        await logGameDataWrite('update-dungeon', id, { name: dungeon?.name });
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true, data: dungeon };
@@ -452,6 +483,7 @@ export async function deleteDungeon(id: string): Promise<ActionResponse> {
 
     try {
         await db.dungeon.delete({ where: { id } });
+        await logGameDataWrite('delete-dungeon', id);
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
         return { success: true };
@@ -716,6 +748,7 @@ export async function createZone(
                 dungeons: true
             }
         });
+        await logGameDataWrite('create-zone', zone.id, { name: zone.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: zone };
@@ -755,6 +788,7 @@ export async function updateZone(
                 dungeons: true
             }
         });
+        await logGameDataWrite('update-zone', id, { name: zone.name });
 
         revalidatePath('/god/game-data');
         return { success: true, data: zone };
@@ -770,6 +804,7 @@ export async function deleteZone(id: string): Promise<ActionResponse> {
 
     try {
         await db.zone.delete({ where: { id } });
+        await logGameDataWrite('delete-zone', id);
         revalidatePath('/god/game-data');
         return { success: true };
     } catch (error: any) {
@@ -1222,6 +1257,7 @@ export async function importGameData(jsonData: string): Promise<ActionResponse<s
             }
         }, { timeout: 60000 }); // 60s timeout for large imports
 
+        await logGameDataWrite('import-game-data');
         revalidatePath('/god/game-data');
         revalidatePath('/admin/missions');
 

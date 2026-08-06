@@ -6,7 +6,34 @@ import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
 import { auth } from "@/auth";
 import { isSuperAdmin, canAccessBrick } from "./super-admin-actions";
+import { createGodAuditLog, type AuditAction, type AuditTargetType } from "./audit-actions";
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/logger";
+
+/**
+ * 🛡️ Trace une écriture God UNIQUEMENT si l'acteur est un sous-god (pas super-admin).
+ * Évite le double-log pour l'admin (qui passe déjà par d'autres traces).
+ * Fail-closed côté log : n'interrompt jamais l'action applicative si le log échoue.
+ */
+async function logGodWrite({
+    action,
+    targetType,
+    targetId,
+    metadata,
+}: {
+    action: AuditAction;
+    targetType: AuditTargetType;
+    targetId?: string;
+    metadata?: Record<string, any>;
+}) {
+    try {
+        const isGod = await isSuperAdmin();
+        if (isGod) return; // l'admin est déjà tracé par d'autres canaux
+        await createGodAuditLog({ action, targetType, targetId, metadata });
+    } catch (error) {
+        logger.error("[logGodWrite] Échec du traçage (non bloquant)", { error });
+    }
+}
 
 /**
  * 🛡️ Guard fail-closed local : autorise super-admin OU grant/scope sur la brique.
@@ -621,6 +648,13 @@ export async function upsertMilestone(data: {
     ? await db.guideMilestone.update({ where: { id }, data: milestoneData })
     : await db.guideMilestone.create({ data: { guideId, ...milestoneData } });
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: id ?? guideId,
+    metadata: { op: id ? "update-milestone" : "create-milestone", title: milestoneData.title, guideId },
+  });
+
   revalidatePath("/god/dofus-guides");
   return { success: true, milestone };
 }
@@ -632,6 +666,12 @@ export async function deleteMilestone(milestoneId: string) {
   await requireGuideAccess();
 
   await db.guideMilestone.delete({ where: { id: milestoneId } });
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: milestoneId,
+    metadata: { op: "delete-milestone" },
+  });
   revalidatePath("/god/dofus-guides");
   return { success: true };
 }
@@ -658,6 +698,13 @@ export async function upsertSequence(data: {
     ? await db.guideSequence.update({ where: { id }, data: seqData })
     : await db.guideSequence.create({ data: { milestoneId, ...seqData } });
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: id ?? milestoneId,
+    metadata: { op: id ? "update-sequence" : "create-sequence", subGuideRef: seqData.subGuideRef, milestoneId },
+  });
+
   revalidatePath("/god/dofus-guides");
   return { success: true, sequence };
 }
@@ -669,6 +716,12 @@ export async function deleteSequence(sequenceId: string) {
   await requireGuideAccess();
 
   await db.guideSequence.delete({ where: { id: sequenceId } });
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: sequenceId,
+    metadata: { op: "delete-sequence" },
+  });
   revalidatePath("/god/dofus-guides");
   return { success: true };
 }
@@ -680,6 +733,12 @@ export async function deleteAllMilestones(guideId: string) {
   await requireGuideAccess();
 
   await db.guideMilestone.deleteMany({ where: { guideId } });
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideId,
+    metadata: { op: "delete-all-milestones" },
+  });
   revalidatePath("/god/dofus-guides");
   return { success: true };
 }
@@ -707,6 +766,13 @@ export async function importSubGuide(jsonData: any) {
     where: { guideRef },
     update: { ganymadeId, guideName, totalSteps: rawSteps.length, steps: enrichedSteps },
     create: { ganymadeId, guideName, guideRef, totalSteps: rawSteps.length, steps: enrichedSteps },
+  });
+
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideRef,
+    metadata: { op: "import-sub-guide", guideName, totalSteps: rawSteps.length },
   });
 
   revalidatePath("/god/dofus-guides");
@@ -758,6 +824,13 @@ export async function deleteSubGuide(guideRef: string) {
   // Supprimer le sous-guide de la bibliothèque
   await db.subGuideData.delete({ where: { guideRef } });
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideRef,
+    metadata: { op: "delete-sub-guide" },
+  });
+
   revalidatePath("/god/dofus-guides");
   return { success: true, message: `Sous-guide ${guideRef} supprimé.` };
 }
@@ -804,6 +877,13 @@ export async function updateSubGuideStep(guideRef: string, stepNumber: number, n
     data: { steps }
   });
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideRef,
+    metadata: { op: "update-sub-guide-step", stepNumber },
+  });
+
   return { success: true };
 }
 
@@ -823,6 +903,13 @@ export async function updateMilestonePositions(
       })
     )
   );
+
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: positions.map((p) => p.id).join(","),
+    metadata: { op: "update-milestone-positions", count: positions.length },
+  });
 
   return { success: true };
 }
@@ -1143,6 +1230,13 @@ export async function importGanymedeGuide(guideId: string, jsonData: any) {
     });
   }
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideId,
+    metadata: { op: "import-ganymede-guide", created, updated, deleted: toDelete.length },
+  });
+
   revalidatePath("/god/dofus-guides");
   return {
     success: true,
@@ -1317,6 +1411,13 @@ export async function updateGuideSettings(
     data,
   });
 
+  await logGodWrite({
+    action: "GOD_GUIDE_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: guideId,
+    metadata: { op: "update-guide-settings", data },
+  });
+
   revalidatePath("/god/dofus-guides");
   return { success: true, guide };
 }
@@ -1443,6 +1544,13 @@ export async function updateRushSylvestreSettings(data: {
     data,
   });
 
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: "rush-sylvestre",
+    metadata: { op: "update-rush-settings", data },
+  });
+
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, guide };
@@ -1530,6 +1638,13 @@ export async function upsertRushMilestone(data: {
     });
   }
 
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: data.id ?? `rush-chapter-${data.chapter}`,
+    metadata: { op: data.id ? "update-rush-milestone" : "create-rush-milestone", label: data.label },
+  });
+
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, milestone };
@@ -1542,6 +1657,12 @@ export async function deleteRushMilestone(milestoneId: string) {
   await requireRushAccess();
 
   await db.guideMilestone.delete({ where: { id: milestoneId } });
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: milestoneId,
+    metadata: { op: "delete-rush-milestone" },
+  });
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true };
@@ -1562,6 +1683,13 @@ export async function reorderRushMilestones(orderedIds: string[]) {
     )
   );
 
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: orderedIds.join(","),
+    metadata: { op: "reorder-rush-milestones", count: orderedIds.length },
+  });
+
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true };
@@ -1581,6 +1709,13 @@ export async function reorderRushSequences(milestoneId: string, orderedIds: stri
       })
     )
   );
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: milestoneId,
+    metadata: { op: "reorder-rush-sequences", count: orderedIds.length },
+  });
 
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
@@ -1654,6 +1789,13 @@ export async function upsertRushSequence(data: {
     });
   }
 
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: data.id ?? data.milestoneId,
+    metadata: { op: data.id ? "update-rush-sequence" : "create-rush-sequence", subGuideRef: data.subGuideRef },
+  });
+
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true, sequence: seq };
@@ -1666,6 +1808,12 @@ export async function deleteRushSequence(sequenceId: string) {
   await requireRushAccess();
 
   await db.guideSequence.delete({ where: { id: sequenceId } });
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: sequenceId,
+    metadata: { op: "delete-rush-sequence" },
+  });
   revalidatePath("/god/rush-sylvestre");
   revalidatePath("/dashboard");
   return { success: true };

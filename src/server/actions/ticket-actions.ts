@@ -10,7 +10,9 @@
 import { z } from "zod";
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { isSuperAdmin, isDiscordSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, isDiscordSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
+import { createGodAuditLog } from "@/server/actions/audit-actions";
+import { logger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
 import {
     createPrivateThread,
@@ -279,9 +281,31 @@ export async function closeSupportTicket(
 // 2.5 DELETE TICKET
 // =============================================================================
 
-export async function deleteSupportTicket(ticketId: string) {
+// 🛡️ Fail-closed : super-admin OU sous-god avec la brique "tickets".
+async function requireTicketAdmin(): Promise<boolean> {
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Accès refusé" };
+    if (isAdmin) return true;
+    return canAccessBrick("tickets");
+}
+
+// 🛡️ Trace une écriture ticket UNIQUEMENT pour un sous-god (pas super-admin).
+async function logTicketWrite(op: string, targetId?: string, metadata?: Record<string, any>) {
+    try {
+        const isAdmin = await isSuperAdmin();
+        if (isAdmin) return;
+        await createGodAuditLog({
+            action: "GOD_TICKET_ACTION",
+            targetType: "DATA_SYNC",
+            targetId,
+            metadata: { op, ...metadata },
+        });
+    } catch (error) {
+        logger.warn("[logTicketWrite] Échec (non bloquant)", { error });
+    }
+}
+
+export async function deleteSupportTicket(ticketId: string) {
+    if (!(await requireTicketAdmin())) return { success: false, error: "Accès refusé" };
 
     try {
         const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
@@ -299,6 +323,7 @@ export async function deleteSupportTicket(ticketId: string) {
 
         // 2. Delete from DB
         await db.supportTicket.delete({ where: { id: ticketId } });
+        await logTicketWrite("delete-ticket", ticketId);
 
         revalidatePath("/god");
         return { success: true };
@@ -350,8 +375,7 @@ export async function autoCloseStaleTickets(daysThreshold = 7) {
 // =============================================================================
 
 export async function validateGuildAccess(ticketId: string, discordGuildId: string, notes?: string, roleId?: string) {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Accès refusé" };
+    if (!(await requireTicketAdmin())) return { success: false, error: "Accès refusé" };
 
     try {
         const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
@@ -472,6 +496,7 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
                 closedReason: "Accès validé et whitelist créée.",
             },
         });
+        await logTicketWrite("validate-guild-access", ticketId, { discordGuildId });
 
         revalidatePath("/god");
         return { success: true };
@@ -485,8 +510,7 @@ export async function validateGuildAccess(ticketId: string, discordGuildId: stri
  * REJECT GUILD ACCESS
  */
 export async function rejectGuildAccess(ticketId: string, reason: string) {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Accès refusé" };
+    if (!(await requireTicketAdmin())) return { success: false, error: "Accès refusé" };
 
     try {
         const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
@@ -511,6 +535,7 @@ export async function rejectGuildAccess(ticketId: string, reason: string) {
         }
 
         await closeSupportTicket(ticketId, "SYSTEM", "Automation SigilOS", `Demande refusée : ${reason}`);
+        await logTicketWrite("reject-guild-access", ticketId, { reason });
 
         revalidatePath("/god");
         return { success: true };
@@ -590,8 +615,7 @@ export async function updateTicketStatus(
 }
 
 export async function sendTicketReply(ticketId: string, message: string) {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Accès refusé" };
+    if (!(await requireTicketAdmin())) return { success: false, error: "Accès refusé" };
 
     const session = await auth();
     const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } });
@@ -612,6 +636,7 @@ export async function sendTicketReply(ticketId: string, message: string) {
             data: { status: "WAITING_RESPONSE" },
         });
     }
+    await logTicketWrite("send-ticket-reply", ticketId, { messageLength: message.length });
 
     revalidatePath("/god");
     return { success: true };
@@ -635,8 +660,7 @@ export async function getTicketStats() {
 }
 
 export async function postTicketPanel(channelId: string, guildId: string) {
-    const isAdmin = await isSuperAdmin();
-    if (!isAdmin) return { success: false, error: "Accès refusé" };
+    if (!(await requireTicketAdmin())) return { success: false, error: "Accès refusé" };
 
     // SECURITY: Validate that the channel belongs to the specified guild
     const { validateChannelBelongsToGuild } = await import("@/server/discord");
@@ -675,6 +699,7 @@ export async function postTicketPanel(channelId: string, guildId: string) {
     });
 
     if (!messageId) return { success: false, error: "Échec de l'envoi du panel." };
+    await logTicketWrite("post-ticket-panel", undefined, { channelId, guildId, messageId });
     return { success: true, messageId };
 }
 

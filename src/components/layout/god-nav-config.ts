@@ -49,7 +49,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
 
     // Administration
     { id: "guilds", name: "Guildes & Users", icon: Settings2, color: "text-emerald-400", group: "administration", scope: "guilds", scopeLabel: "Guildes" },
-    { id: "delegates", name: "Sous-Gods", icon: Shield, color: "text-violet-400", group: "administration", scope: "users", scopeLabel: "Users" },
+    { id: "delegates", name: "Sous-Gods", sub: "delegates", icon: Shield, color: "text-violet-400", group: "administration", scope: "users", scopeLabel: "Users" },
     { id: "security", name: "Sécurité & Logs", icon: ShieldAlert, color: "text-zinc-400", group: "administration", scope: "logs", scopeLabel: "Logs" },
     { id: "tickets", name: "Tickets Support", icon: Ticket, color: "text-indigo-400", group: "administration", scope: "all", scopeLabel: "Toutes" },
 

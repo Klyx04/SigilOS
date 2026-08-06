@@ -55,6 +55,7 @@ export type AuditAction =
     | "GOD_CONFIG_OVERRIDE"       // Manual override of a guild's configuration
     | "GOD_DATABASE_SYNC"         // Massive data synchronization (DofusDB, etc)
     | "GOD_NEWS_PUBLISH"          // Platform-wide news published
+    | "GOD_DASHBOARD_ACCESS"      // Dashboard God accédé (R5)
     | "GOD_MAINTENANCE_MODE"
     | "MISSION_XP_OVERRIDE"
     | "GUILDATON_UPDATE"

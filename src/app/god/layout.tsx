@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { getActiveScopes, getAccessibleBricks, getMyActiveGrants } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
+import { GodExpiryGuard } from "./components/god-expiry-guard";
 import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
@@ -93,6 +94,9 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     {children}
                 </div>
             </div>
+
+            {/* 🛡️ P3-R — Garde anti-expiration + déconnexion forcée (sous-god uniquement) */}
+            {!isFullAdmin && <GodExpiryGuard myGrants={myGrants} />}
         </div>
     );
 }

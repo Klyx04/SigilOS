@@ -197,6 +197,29 @@ model GodSessionLog {
   @@index([active])
 }
 
+/// D1 : Grant granulaire par BRIQUE (PIM) — accès à une brick précise du panel.
+/// brickId = slug public (jamais le secret). Fail-closed : un grant doit être
+/// actif (startAt <= now), non expiré (expiresAt >= now), non révoqué.
+model GodAccessGrant {
+  id          String   @id @default(cuid())
+  delegateId String   // = id du GodDelegate
+  userId     String   // userId cible (redondant avec delegate, pour requêtes rapides)
+  brickId    String   // slug de la brique (god-bricks.ts)
+  guildId    String?
+  startAt    DateTime @default(now())
+  expiresAt  DateTime?
+  grantedBy  String
+  reason     String?
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([delegateId])
+  @@index([userId])
+  @@index([brickId])
+  @@index([revokedAt])
+  @@index([expiresAt])
+}
+
 model RoadmapItem {
   id          Int      @id @default(autoincrement())
   title       String

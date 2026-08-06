@@ -111,6 +111,59 @@ export async function canGodAccess(scope: GodScope): Promise<boolean> {
 }
 
 /**
+ * 🔄 D2 — Vérifie l'accès granulaire à une BRICK précise (PIM).
+ *
+ * Logique fail-closed :
+ *  - super-admin → accès total (retourne true) ;
+ *  - sinon, au moins un grant ACTIF sur cette brick : grant non révoqué,
+ *    startAt <= now, expiresAt >= now (ou null = sans expiration),
+ *    ET le délégué associé doit être actif (revokedAt null) et non expiré.
+ *
+ * Le bump de `scopeVersion` (révocation immédiate) invalide TOUS les grants
+ * du délégué en une fois.
+ */
+export async function canAccessBrick(
+    brickId: string,
+    opts?: { userId?: string; guildContext?: string }
+): Promise<boolean> {
+    const session = await auth();
+    if (!session?.user?.id) return false;
+
+    // Super-admin bypass (tous les scopes = accès total)
+    if (await isSuperAdmin()) return true;
+
+    const userId = opts?.userId || session.user.id;
+    const now = new Date();
+
+    // 1. Le délégué doit être actif (non révoqué, non expiré) et porter la version courante
+    const delegates = await db.godDelegate.findMany({
+        where: {
+            userId,
+            revokedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { id: true, guildId: true, scopeVersion: true },
+    });
+
+    // 2. Grant actif sur cette brick pour ces délégués actifs
+    const grants = await db.godAccessGrant.findMany({
+        where: {
+            userId,
+            brickId,
+            revokedAt: null,
+            startAt: { lte: now },
+            OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+            ...(opts?.guildContext ? { OR: [{ guildId: opts.guildContext }, { guildId: null }] } : {}),
+        },
+        select: { delegateId: true, expiresAt: true },
+    });
+
+    // 3. Un grant n'est valide que si son délégué est encore actif
+    const activeDelegateIds = new Set(delegates.map((d) => d.id));
+    return grants.some((g) => activeDelegateIds.has(g.delegateId));
+}
+
+/**
  * Get all allowed guilds (platform whitelist)
  * 🔄 R1 — LECTURE compatible scope "guilds" (ne lève plus pour un sub-god du scope guilds).
  */

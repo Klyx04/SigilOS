@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { logger } from "@/lib/logger";
 
 // Discord uses Ed25519 for webhook signatures
 // We'll use the Web Crypto API for verification
@@ -31,7 +32,7 @@ async function verifyDiscordSignature(
     const publicKey = process.env.DISCORD_APPLICATION_PUBLIC_KEY || process.env.DISCORD_PUBLIC_KEY;
 
     if (!signature || !timestamp || !publicKey) {
-        console.warn("[Discord Webhook] Missing signature headers or public key");
+        logger.warn("[Discord Webhook] Missing signature headers or public key");
         return false;
     }
 
@@ -52,7 +53,7 @@ async function verifyDiscordSignature(
 
         return await crypto.subtle.verify("Ed25519", key, sig.buffer as ArrayBuffer, message);
     } catch (error) {
-        console.error("[Discord Webhook] Signature verification error:", error);
+        logger.error("[Discord Webhook] Signature verification error:", { error });
         return false;
     }
 }
@@ -106,7 +107,7 @@ async function handleGuildCreate(guildId: string, guildName: string) {
             }
         }
     } catch (err) {
-        console.error("[handleGuildCreate] Failed to send welcome embed:", err);
+        logger.error("[handleGuildCreate] Failed to send welcome embed:", { error: err });
     }
 }
 
@@ -371,7 +372,7 @@ async function handleMemberRemove(guildId: string, userId: string, reason: "LEFT
             revalidatePath(`/dashboard/${guildId}/admin/members`);
             revalidatePath(`/dashboard/${guildId}/admin`);
         } catch (refreshErr) {
-            console.warn("[Discord Webhook] Live refresh skipped:", refreshErr);
+            logger.warn("[Discord Webhook] Live refresh skipped:", { error: refreshErr });
         }
     }
 }
@@ -468,7 +469,7 @@ async function handleBan(guildId: string, userId: string, userMeta?: { username:
             revalidatePath(`/dashboard/${guildId}/admin/members`);
             revalidatePath(`/dashboard/${guildId}/admin`);
         } catch (refreshErr) {
-            console.warn("[Discord Webhook] Live refresh skipped:", refreshErr);
+            logger.warn("[Discord Webhook] Live refresh skipped:", { error: refreshErr });
         }
     }
 }
@@ -480,7 +481,7 @@ export async function POST(request: NextRequest) {
         // 1. Verify Discord signature (CRITICAL for security)
         const isValid = await verifyDiscordSignature(request, body);
         if (!isValid) {
-            console.warn("[Discord Webhook] Invalid signature");
+            logger.warn("[Discord Webhook] Invalid signature");
             return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
         }
 
@@ -571,7 +572,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ status: "ok" });
     } catch (error) {
-        console.error("[Discord Webhook] Error:", error);
+        logger.error("[Discord Webhook] Error:", { error });
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 }

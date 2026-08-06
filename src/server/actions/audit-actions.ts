@@ -499,6 +499,26 @@ export async function createGodAuditLog({
         const session = await auth();
         if (!session?.user?.id) return { success: false };
 
+        // 🔵 TÂCHE 2 — Throttle GOD_DASHBOARD_ACCESS : 1 log/heure utilisateur.
+        // Le layout God se re-rend souvent (navigation, refresh) → sans throttle, le volume
+        // explose. On garde la traçabilité du premier accès + un snapshot horaire.
+        if (action === "GOD_DASHBOARD_ACCESS") {
+            const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const lastAccess = await db.auditLog.findFirst({
+                where: {
+                    action: "GOD_DASHBOARD_ACCESS",
+                    actorUserId: session.user.id,
+                    isGodLog: true,
+                    createdAt: { gte: hourAgo }
+                },
+                select: { id: true },
+                orderBy: { createdAt: "desc" }
+            });
+            if (lastAccess) {
+                return { success: true, logId: lastAccess.id };
+            }
+        }
+
         const { Prisma } = await import("@prisma/client");
         const toJson = (val: unknown) => (val === undefined || val === null ? Prisma.JsonNull : val);
 

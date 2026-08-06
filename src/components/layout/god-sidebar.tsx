@@ -14,16 +14,19 @@ import { CONSOLE_PAGES, GOD_NAV_GROUPS, ALL_SCOPES_COUNT, type GodNavItem } from
 // 🔒 SECURITY (R3): les liens utilisent TOUJOURS godRoute (jamais "/god" en dur)
 // pour passer par le proxy anti-scout.
 
-export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, activeScopes = [], godRoute = "/god" }: { className?: string; user: any; unreadCount?: number; ticketCount?: number; activeScopes?: string[]; godRoute?: string }) {
+export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, activeScopes = [], accessibleBricks = [], godRoute = "/god" }: { className?: string; user: any; unreadCount?: number; ticketCount?: number; activeScopes?: string[]; accessibleBricks?: string[]; godRoute?: string }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const activeTab = searchParams.get("tab") || "overview";
 
     const isFullAdmin = activeScopes.length >= ALL_SCOPES_COUNT;
 
+    // 🔄 P2 — Filtrage par BRIQUES ACCESSIBLES (fail-closed, calculé côté serveur).
+    //  - un super-admin (isFullAdmin) voit tout (rétro-compat) ;
+    //  - un sous-god ne voit QUE les pages dont la brique est dans accessibleBricks.
     const visiblePages = CONSOLE_PAGES.filter(p => {
-        if (p.scope === "all") return isFullAdmin;
-        return activeScopes.includes(p.scope);
+        if (isFullAdmin) return true;
+        return accessibleBricks.includes(p.brickId);
     });
 
     const grouped = GOD_NAV_GROUPS

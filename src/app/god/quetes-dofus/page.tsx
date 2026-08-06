@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { isSuperAdmin } from "@/server/actions/super-admin-actions";
+import { isSuperAdmin, canAccessBrick } from "@/server/actions/super-admin-actions";
 import { Database, Tag } from "lucide-react";
 import DofusQuestGodManager from "@/components/admin/DofusQuestGodManager";
 import { DofusTagManager } from "@/components/admin/DofusTagManager";
@@ -14,7 +14,8 @@ export const metadata = {
 export default async function QuestsDofusGodPage() {
     const session = await auth();
     if (!session?.user?.id) redirect("/");
-    const isAdmin = await isSuperAdmin();
+    // P2 — un sous-god avec la brique "game-data-quetes" accède aussi (sinon super-admin).
+    const isAdmin = await isSuperAdmin() || await canAccessBrick("game-data-quetes");
     if (!isAdmin) redirect("/");
 
     return (

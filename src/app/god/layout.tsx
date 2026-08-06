@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
-import { getActiveScopes } from "@/server/actions/super-admin-actions";
+import { getActiveScopes, getAccessibleBricks } from "@/server/actions/super-admin-actions";
 import { GodSidebar } from "@/components/layout/god-sidebar";
 import { Suspense } from "react";
 import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
@@ -31,10 +31,12 @@ export default async function GodLayout({ children }: { children: React.ReactNod
         redirect("/");
     }
 
-    // Guard : autorise super-admin + tout sub-god avec au moins un scope actif.
-    // Chaque page/action applicative vérifie ensuite son propre scope via requireGodAccess.
+    // Guard : autorise super-admin + tout sub-god avec au moins un scope actif
+    // OU au moins une brique accessible (P2 — PIM). Fail-closed si rien.
+    // Chaque page/action applicative vérifie ensuite son propre scope/brique.
     const activeScopes = await getActiveScopes();
-    if (activeScopes.length === 0) {
+    const accessibleBricks = await getAccessibleBricks(session.user.id);
+    if (activeScopes.length === 0 && accessibleBricks.length === 0) {
         redirect("/");
     }
 
@@ -64,6 +66,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                     unreadCount={unreadCount}
                     ticketCount={ticketCount}
                     activeScopes={activeScopes}
+                    accessibleBricks={accessibleBricks}
                     godRoute={godRoute}
                 />
             </Suspense>
@@ -77,7 +80,7 @@ export default async function GodLayout({ children }: { children: React.ReactNod
                         </span>
                     </div>
                     <Suspense fallback={<div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse" />}>
-                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} godRoute={godRoute} />
+                        <MobileGodSidebarSheet user={session.user} unreadCount={unreadCount} ticketCount={ticketCount} activeScopes={activeScopes} accessibleBricks={accessibleBricks} godRoute={godRoute} />
                     </Suspense>
                 </div>
 

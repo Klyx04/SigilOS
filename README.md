@@ -447,7 +447,7 @@ Tests importants :
 - **[SECURITY.md](./SECURITY.md)** : Politique de sécurité (état réel + plan)
 - **[RULES.md](./RULES.md)** : Règles de développement (sécurité, conventions)
 - **[MAINTENANCE.md](./MAINTENANCE.md)** : Guide de maintenance VPS (Backup, Cleanup, Monitoring)
-- **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)** : Guide de déploiement détaillé
+- **[REDIS-OCR-SETUP.md](./docs/REDIS-OCR-SETUP.md)** : Setup infra OCR & Redis (VPS)
 
 ---
 

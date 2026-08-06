@@ -52,6 +52,42 @@ Le détail complet des findings et remédiations est documenté **en local** (ho
 
 ---
 
+## 🔄 Maintenance Sécurité (fusion de SECURITY_MAINTENANCE.md)
+
+> L'essentiel opérationnel de l'ancien `SECURITY_MAINTENANCE.md` est consolidé ici. Le détail du durcissement (fait/à faire) reste dans [`docs/SECURITY_HARDENING_PLAN.md`](./docs/SECURITY_HARDENING_PLAN.md).
+
+### Politique de rotation des secrets
+| Secret | Localisation | Impact si fuite | Fréquence |
+|--------|--------------|-----------------|-----------|
+| `NEXTAUTH_SECRET` | `.env` | Forgery de session (Critique) | 12 mois |
+| `CRON_SECRET` | `.env` / VPS | Cron non autorisé | 6 mois |
+| `DISCORD_CLIENT_SECRET` | Discord Dev Portal | Détournement de compte | 12 mois |
+| `DATABASE_URL` | `.env` / VPS | Fuite de données (Critique) | À chaque changement d'infra |
+
+### CSP (Content-Security-Policy)
+- SigilOS utilise une **CSP basée sur Nonce** (à finaliser, voir chantiers ouverts).
+- Tout script (inline ou externe) **DOIT** passer le `nonce` (via `x-nonce`).
+- ⚠️ **Jamais `'unsafe-inline'`** dans le CSP.
+
+### Zero Console Policy
+Tous les `console.log` / `console.warn` / `console.error` sont **interdits** dans `src/server`. Utiliser le `logger` structuré (`@/lib/logger`).
+
+### Rate-Limiting WebSocket
+Le serveur WS (port 3001) est protégé par un rate-limit de connexion (défini dans `src/server/websocket/server.ts`) : **10 connexions / minute / IP**, enforcement Redis (fail-closed si Redis down).
+
+### Réponse d'urgence (vulnérabilité)
+1. Révoquer le secret concerné (ex. changer `CRON_SECRET`).
+2. Mettre à jour les variables d'environnement VPS.
+3. Redémarrer le processus Docker (`./scripts/deploy-cd.sh` ou `docker compose up -d`).
+4. Examiner les logs `logger` pour détecter des patterns d'accès non autorisés.
+
+### Rapports d'audit
+- Les rapports d'audit (`AUDIT_SECURITE_SIGILOS.md`, `AUDIT_INFRA_SIGILOS.md`, briefs `retour-kimik3.md`, `src/audit-*`) sont **générés en local et JAMAIS commités** (ils décrivent des vulnérabilités précises).
+- Centralisés dans `docs/audits/`, ignorés via `.gitignore` (`docs/audits/`, `AUDIT_*.md`, `src/audit-cyber`, `src/audit-infra`).
+- Après un audit : mettre à jour `docs/SECURITY_HARDENING_PLAN.md` (état + chantiers) et lancer `npm run test:run`.
+
+---
+
 ## CSRF (Cross-Site Request Forgery) Protection
 
 SigilOS s'appuie sur plusieurs couches de protection CSRF :

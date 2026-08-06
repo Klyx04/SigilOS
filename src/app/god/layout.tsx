@@ -8,6 +8,7 @@ import { getGodUnreadCounts } from "@/server/actions/god-notif-actions";
 import { MobileGodSidebarSheet } from "@/components/layout/mobile-god-sidebar-sheet";
 import { GodAccessBanner } from "./components/god-access-banner";
 import { getGodRoute } from "@/lib/god-route";
+import { createGodAuditLog } from "@/server/actions/audit-actions";
 
 // R3 anti-scout : le panel God ne doit JAMAIS être indexé par les moteurs de recherche.
 export const metadata: Metadata = {
@@ -40,13 +41,12 @@ export default async function GodLayout({ children }: { children: React.ReactNod
     // Super-admin complet = possède tous les scopes (getActiveScopes renvoie tous pour un admin).
     const isFullAdmin = activeScopes.length >= 6;
 
-    // ✅ Log access to God interface
-    const { logPageAccess } = await import('@/lib/audit-log');
-    logPageAccess({
-        userId: session.user.id,
-        userName: session.user.name || 'unknown',
-        page: '/god',
-        details: { environment: process.env.NODE_ENV }
+    // ✅ R5 : Log d'accès au dashboard God (remplace le no-op logPageAccess)
+    await createGodAuditLog({
+        action: "GOD_DASHBOARD_ACCESS",
+        targetType: "SYSTEM_GOD",
+        targetId: "/god",
+        metadata: { environment: process.env.NODE_ENV },
     });
 
     // Fetch unread counts for the sidebar badges

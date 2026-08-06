@@ -160,7 +160,15 @@ export async function canAccessBrick(
 
     // 3. Un grant n'est valide que si son délégué est encore actif
     const activeDelegateIds = new Set(delegates.map((d) => d.id));
-    return grants.some((g) => activeDelegateIds.has(g.delegateId));
+    const allowed = grants.some((g: { delegateId: string; expiresAt: Date | null }) => activeDelegateIds.has(g.delegateId));
+
+    // D4 : tentative refusée → warn anti-scout (faible volume, cohérent avec le proxy)
+    if (!allowed) {
+        const { logger } = await import("@/lib/logger");
+        logger.warn("[GodAccess] brick refusée (fail-closed)", { brickId, userId });
+    }
+
+    return allowed;
 }
 
 /**

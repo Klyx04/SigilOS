@@ -85,10 +85,12 @@
   - ✅ **Rate-limit final (`d7cc8389`)** : 120 req/min sur routes God **légitimes** (plus de 429 sur `/mng-<secret>?tab=...`), 10 req/min sur **mauvais secrets** (anti-brute-force).
   - ✅ Vérifs : `test:run` 97 ✅, `tsc --noEmit` 0 ✅, `lint` 0 ✅, `build` 62 pages ✅.
   - ⚠️ **Secret réel fuité dans l'historique git → à ROTATER** (nouvelle `GOD_ROUTE` sur beta + prod, `.env`). Procédure dans `src/temp/evolution4.md`.
-- ⬜ **R4** — Session God + révocation live (scopeVersion + socket/SSE popup + tables GodAccessLog/GodSessionLog).
-- ⬜ **R5** — Logging exhaustif God (lifecycle + `GOD_DASHBOARD_ACCESS` layout + `console.*`→`logger`).
+- ✅ **R4 (partiel)** — Session God + révocation live : schema Prisma fait (scopeVersion sur GodDelegate + tables GodAccessLog/GodSessionLog), revokeDelegate bump scopeVersion + GodAccessLog. **Reste** : session active GodSessionLog dans le layout + révocation live socket/SSE popup.
+- ✅ **R5** — Logging exhaustif God : `GOD_DASHBOARD_ACCESS` ajouté + remplacé le no-op `logPageAccess` dans le layout par `createGodAuditLog`.
+- ✅ **PILIER D (PIM granulaire) FAIT** — Table `GodAccessGrant` + guard `canAccessBrick` (fail-closed) + grant/revoke JIT (durée, justification obligatoire) + UI `/god/delegates` + warn anti-scout + 7 tests unitaires. Migrations R4+D1 appliquées en local.
+- ⚠️ **Navigation** : Sous-Gods pointe maintenant vers la route dédiée `/god/delegates` (plus `?tab=delegates`).
 - ✅ **F-SEC-1** — Corrigé (invite Discord `permissions=8` → `DISCORD_BOT_INVITE_URL` + toggle).
-- 🧹 **À faire** : retirer les logs temporaires `[GodProxy]` une fois R3 stabilisé ; doc `RULES.md` : precisar que `src/proxy.ts` (pas `middleware.ts`) est exigé sur Next 16 pour lire env au runtime.
+- 🧹 **À faire** : déployer PR #405 (rate-limit) beta ; rotation `GOD_ROUTE` (secret fuité) — modifier `.env` + `docker compose up -d` ; B3-B5 (refonte overview, primitives, animations) ; A4 purge/ménage.
 
 **Checkpoint** : `npm run test:run` (97 tests) ✅ + `npm run build` (62 pages) ✅ + `npx tsc --noEmit` ✅ + ESLint 0 ✅.
 

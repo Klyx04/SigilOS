@@ -221,6 +221,85 @@ export async function requireGodBrick(brickId: string): Promise<true> {
  * Utilisée par la sidebar et le layout God pour ne montrer à un sous-god que
  * les pages qu'il peut réellement voir (fail-closed par défaut).
  */
+export type MyActiveGrant = {
+    brickId: string;
+    label: string;
+    expiresAt: string | null; // ISO ou null si illimité
+    scope: string | null;
+};
+
+/**
+ * 🔄 P3-R — Retourne les accès effectifs d'un sous-god (sans bypass super-admin).
+ * Fibre sur `getAccessibleBricks` (+ grants actifs qui apportent la date
+ * d'expiration) pour l'UX côté sous-god : badge "expire dans X",
+ * popup pré-expiration, vue "Mon accès".
+ */
+export async function getMyActiveGrants(userId: string): Promise<MyActiveGrant[]> {
+    const { GOD_BRICKS } = await import("@/lib/god-bricks");
+    const accessible = await getAccessibleBricks(userId);
+    if (accessible.length === 0) return [];
+
+    const now = new Date();
+    const delegates = await db.godDelegate.findMany({
+        where: {
+            userId,
+            revokedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { id: true },
+    });
+    const activeIds = delegates.map((d) => d.id);
+
+    // Grant actif → expiration la plus proche par brique (info la plus précise)
+    const expiresByBrick = new Map<string, string | null>();
+    if (activeIds.length > 0) {
+        const grants = await db.godAccessGrant.findMany({
+            where: {
+                userId,
+                delegateId: { in: activeIds },
+                revokedAt: null,
+                startAt: { lte: now },
+                OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+            },
+            select: { brickId: true, expiresAt: true },
+        });
+        for (const g of grants) {
+            const cur = expiresByBrick.get(g.brickId);
+            // null = illimité → priorité de garder le plus court (on veut l'alerte la plus proche)
+            const gVal = g.expiresAt ? g.expiresAt.toISOString() : null;
+            if (gVal === null) { expiresByBrick.set(g.brickId, null); continue; }
+            if (cur === undefined || (cur !== null && gVal < cur)) expiresByBrick.set(g.brickId, gVal);
+        }
+    }
+
+    const result: MyActiveGrant[] = [];
+    for (const brickId of accessible) {
+        const brick = GOD_BRICKS.find((b) => b.id === brickId);
+        result.push({
+            brickId,
+            label: brick?.label ?? brickId,
+            scope: brick?.scope ?? null,
+            expiresAt: expiresByBrick.get(brickId) ?? null,
+        });
+    }
+    return result;
+}
+
+/**
+ * 🔄 P2 — Retourne la liste des briques réellement accessibles à un sous-god
+ * (sans bypass super-admin : retourne [] pour un admin, qui passe par ses bypass).
+ *
+ * Logique fail-closed, en UNE seule requête groupée (évite N appels DB dans la
+ * sidebar/layout) :
+ *  - un sous-god accède à une brique si `subGodAccess === true` (page ouvrable)
+ *    ET au moins un des deux :
+ *       • le scope global requis est actif (rétro-compat scopes),
+ *       • un grant de brique actif couvre cette brique (PIM).
+ *  - sinon → la brique n'est PAS dans la liste.
+ *
+ * Utilisée par la sidebar et le layout God pour ne montrer à un sous-god que
+ * les pages qu'il peut réellement voir (fail-closed par défaut).
+ */
 export async function getAccessibleBricks(userId: string): Promise<string[]> {
     const { GOD_BRICKS, getSubGodBrickIds } = await import("@/lib/god-bricks");
     const subGodBrickIds = getSubGodBrickIds(); // briques ouvrables aux sous-gods

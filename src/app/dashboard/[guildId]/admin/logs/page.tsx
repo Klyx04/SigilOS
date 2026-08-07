@@ -8,6 +8,7 @@ import { FileText, Shield } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AuditLogsClient } from "./_components/audit-logs-client";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -69,12 +70,15 @@ export default async function AdminLogsPage({ params }: Props) {
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Logs d'Audit"
-                description="Historique des modifications administratives"
-                icon={FileText}
-                backHref={`/dashboard/${guildId}/admin`}
-            />
+            <div data-tour="admin-logs-header">
+                <UnifiedModuleHeader
+                    title="Logs d'Audit"
+                    description="Historique des modifications administratives"
+                    icon={FileText}
+                    backHref={`/dashboard/${guildId}/admin`}
+                    actions={<AdminTourReplay phase="adminLogs" />}
+                />
+            </div>
 
             {/* Security Notice */}
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-6 flex items-start gap-4 mb-8">
@@ -89,12 +93,14 @@ export default async function AdminLogsPage({ params }: Props) {
                 </div>
 
             {/* Logs Timeline - Client Component */}
-            <AuditLogsClient
-                guildId={guildId}
-                initialLogs={serializedLogs}
-                initialTotal={total}
-                roleNames={roleNames}
-            />
+            <div data-tour="admin-logs-list">
+                <AuditLogsClient
+                    guildId={guildId}
+                    initialLogs={serializedLogs}
+                    initialTotal={total}
+                    roleNames={roleNames}
+                />
+            </div>
         </div>
     );
 }

@@ -28,6 +28,7 @@ import { AccessDenied } from "@/components/layout/access-denied";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { MemberWelcomeModal } from "@/components/dashboard/member-welcome-modal";
+import { DashboardAdminTourButton } from "@/components/tour/dashboard-admin-tour-button";
 
 export default async function DashboardPage({
     params,
@@ -136,6 +137,7 @@ export default async function DashboardPage({
                     <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-foreground/5 drop-shadow-sm uppercase italic select-none">
                         Dashboard
                     </h1>
+                    <DashboardAdminTourButton isAdmin={user.isAdmin} />
                 </header>
 
                 {/* ── 1. QUICK STATS ROW ───────────────────────────────── */}

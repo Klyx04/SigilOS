@@ -6,6 +6,7 @@ import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { redirect } from "next/navigation";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { Gavel, ScrollText, Coins, Trophy } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -61,15 +62,19 @@ export default async function UnifiedValidationPage({
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Centre de Validation"
-                description={`Gérez toutes les preuves soumises par les membres. ${totalPending > 0 ? `${totalPending} en attente.` : "Tout est à jour ✓"}`}
-                icon={Gavel}
-                iconColor="#f59e0b"
-                backHref={`/dashboard/${guildId}`}
-            />
+            <div data-tour="admin-validation-header">
+                <UnifiedModuleHeader
+                    title="Centre de Validation"
+                    description={`Gérez toutes les preuves soumises par les membres. ${totalPending > 0 ? `${totalPending} en attente.` : "Tout est à jour ✓"}`}
+                    icon={Gavel}
+                    iconColor="#f59e0b"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<AdminTourReplay phase="adminValidation" />}
+                />
+            </div>
 
-            <Tabs defaultValue={defaultTab} className="space-y-6 min-h-[600px]">
+            <div data-tour="admin-validation-inbox">
+                <Tabs defaultValue={defaultTab} className="space-y-6 min-h-[600px]">
                 <div className="overflow-x-auto no-scrollbar pb-1">
                     <TabsList className="bg-zinc-900/50 border border-white/5 p-1 h-12 rounded-xl inline-flex min-w-full sm:min-w-0">
                         <TabsTrigger
@@ -143,7 +148,8 @@ export default async function UnifiedValidationPage({
                         <ReactivationValidationQueue requests={reactivations} guildId={guildId} />
                     </TabsContent>
                 </div>
-            </Tabs>
+                </Tabs>
+            </div>
         </div>
     );
 }

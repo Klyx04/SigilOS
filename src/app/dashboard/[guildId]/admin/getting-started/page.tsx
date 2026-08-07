@@ -51,7 +51,7 @@ export default async function GettingStartedPage({
                         icon={Rocket}
                         backHref={`/dashboard/${guildId}/admin`}
                     />
-                    <AdminTourReplay />
+                    <AdminTourReplay user={user} />
                 </div>
 
                 {/* Alerte critique si étapes obligatoires non complètes */}

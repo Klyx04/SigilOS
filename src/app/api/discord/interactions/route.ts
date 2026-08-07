@@ -712,16 +712,34 @@ export async function POST(request: NextRequest) {
                         },
                     });
                 } else if (action === "close") {
-                    // ACK immediately (Deferred update)
-                    const response = NextResponse.json({ type: 6 }); 
+                    // ACK immediately (Deferred update) — nécessaire dans les 3s
+                    const response = NextResponse.json({ type: 6 });
 
-                    // Background heavy lifting
+                    const { editInteractionMessage } = await import("@/server/discord");
                     const { closeSupportTicket } = await import("@/server/actions/ticket-actions");
+
+                    // Exécution en arrière-plan MAIS avec follow-up : l'échec n'est plus silencieux,
+                    // le cliqueur voit le résultat (fermé et archivé, ou l'erreur).
                     closeSupportTicket(
                         entityId,
                         member.user.id,
                         member.user.global_name || member.user.username
-                    ).catch(err => console.error("Discord Close Error:", err));
+                    )
+                        .then((result) => {
+                            const content = result?.success
+                                ? "✅ Ticket fermé — fil Discord archivé."
+                                : `❌ ${result?.error || "Échec de la fermeture du ticket."}`;
+                            return editInteractionMessage(payload.application_id, payload.token, content);
+                        })
+                        .catch(async (err) => {
+                            const { logger } = await import("@/lib/logger");
+                            logger.error("[Tickets] Discord close error", { error: err, ticketId: entityId });
+                            return editInteractionMessage(
+                                payload.application_id,
+                                payload.token,
+                                "❌ Une erreur est survenue lors de la fermeture du ticket."
+                            );
+                        });
 
                     return response;
                 }

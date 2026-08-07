@@ -96,9 +96,25 @@
   - **`.next` corrompu** supprimé/régénéré → tsc OK ; **110 tests** ✅.
 - ⚠️ **Navigation** : Sous-Gods pointe vers la route dédiée `/god/delegates` (plus `?tab=delegates`).
 - ✅ **F-SEC-1** — Corrigé (invite Discord `permissions=8` → `DISCORD_BOT_INVITE_URL` + toggle).
-- 🧹 **À faire** : déployer PR #405 (rate-limit) beta ; rotation `GOD_ROUTE` (secret fuité) — modifier `.env` + `docker compose up -d` ; **R4 complet** (session GodSessionLog dans le layout + révocation live socket/SSE — le guard couvre l'expiration par polling mais pas la révocation instantanée) ; volume `GOD_DASHBOARD_ACCESS` (loggé à chaque rendu) ; B3-B5 (refonte overview, primitives, animations) ; A4 purge/ménage ; évolutions 2/3 (fuite `user.name` ~90 fichiers, etc.).
+- 🧹 **À faire Évol 4 restant** : déployer PR #405 (rate-limit) beta ; **rotation `GOD_ROUTE`** (secret fuité) — modifier `.env` + `docker compose up -d` ; volume `GOD_DASHBOARD_ACCESS` (loggé à chaque rendu) ; B3-B5 (refonte overview, primitives, animations) ; A4 purge/ménage ; évolutions 2/3 (fuite `user.name` ~90 fichiers, etc.).
 
-**Checkpoint** : `npm run test:run` (97 tests) ✅ + `npm run build` (62 pages) ✅ + `npx tsc --noEmit` ✅ + ESLint 0 ✅.
+**Checkpoint Évol 4** : `npm run test:run` (110 tests) ✅ + `npm run build` (62 pages) ✅ + `npx tsc --noEmit` ✅ + ESLint 0 ✅.
+
+---
+
+## 🧭 Suivi de chantier courant (Tickets & Whitelist) — FAIT le 07/08/2026
+
+> **Branche** : `fix/ticket-whitelist-2bugs` → PR vers `dev` (lien : `https://github.com/Klyx04/SigilOS/pull/new/fix/ticket-whitelist-2bugs`).
+
+- **Contexte** : corrige `src/temp/refonte-ticket-whilist.md` + `src/temp/test-debug`. Le rapport d'audit IA contenait **1 invention** (autoriser les admins de guilde ordinaires à fermer les tickets) → **refusé**, conforme à la demande de base : seul le **God super-admin ou un sous-god via PIM** peut fermer/whitelister.
+- ✅ **Commit `34e15126` — Bugs 1 & 2 corrigés** :
+  - **Bug 1 (fermer le ticket)** : `closeSupportTicket` passe à `requireTicketAdmin()` (super-admin OU sous-god PIM brique `tickets`) ; **vérification du retour d'`archiveThread`** (échec d'archivage → erreur honnête, plus de `success:true` mensonger) ; nouveau helper Discord `editInteractionMessage` (follow-up) ; handler `ticket:close` → ACK `type:6` + follow-up éphemère (succès/erreur visible). Plus de fire-and-forget silencieux.
+  - **Bug 2 (whitelist)** : rôle ajouté sur la **guilde cible** (`discordGuildId`=`targetGuildId`) + rôle auto `ticketAutoRoleId` sur serveur Support (rétro-compat) ; helper `notifyGuildAccessApproved` avec **fallback fiable** (threadId → `serviceStatusChannelId` → `godNotifyChannelId` → log) ; `addAllowedGuild`/`toggleGuildActive` accessibles aux **sous-gods PIM scope `guilds`** (fail-closed sinon) ; whitelist manuelle God → notif client si ticket ACCESS_REQUEST ouvert.
+  - **Faiblesses connexes** : `getSupportTickets`/`getSupportTicketById`/`updateTicketStatus`/`getTicketStats`/`getSupportGuildRoles` → `requireTicketAdmin()` (dashboard God utilisable par sous-god PIM tickets) ; `sendTicketReply` retourne `statusChanged` ; `console.*` → `logger.*` ; `getAppBaseUrl()` partout (URLs beta/prod dynamiques, plus de `sigilos.fr` en dur dans `discord.ts`).
+- ✅ **Commit `9c66f26f` — Refonte UI dashboard tickets** (`ticket-dashboard.tsx`) : stats avec icônes, toolbar unifiée, table hiérarchisée (avatars, chips colorées), panel Discord/Guard en grille ; **modale 2 panneaux** (gauche : auteur/détails/description/décision d'accès ; droite : fil de discussion + réponse directe + footer), bouton retour, messages honnêtes sur les actions.
+- **Vérifs** : `tsc --noEmit` 0 ✅, `lint` 0 erreur ✅, `test:run` **110 tests** ✅, `build` 62 pages ✅, pre-commit (secrets ✅, Prisma inchangé ✅).
+- **Aucune migration Prisma** (aucun champ BDD ajouté).
+- 🔜 **Prochain chantier (préparé)** : onboarding/guide admin post-whitelist — voir `src/temp/prompt-next-chantier.md`.
 
 ---
 

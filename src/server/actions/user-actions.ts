@@ -631,7 +631,9 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             perms.includes(PERMISSIONS.DASHBOARD_LOGIN)
         )
     );
-    const isOnboardingComplete = isRbacConfigured;
+    // Onboarding complet = serveur de jeu configuré (dofusServerId) ET rôles & permissions (RBAC).
+    // Cohérent avec onboarding-actions.ts (2 étapes obligatoires).
+    const isOnboardingComplete = isRbacConfigured && !!guildConfig?.dofusServerId;
 
     const hasDiscordAdminRole = myRoles.some(r => (BigInt(r.permissions || 0) & 0x8n) === 0x8n);
     const isOwner = guildInfo && guildInfo.owner_id === discordUserId;

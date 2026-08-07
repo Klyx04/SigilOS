@@ -369,7 +369,9 @@ export function MissionEditor({ guildId, isDiscordConfigured }: { guildId: strin
                 </div>
 
                 <div className="flex items-center gap-2 p-1 bg-black/40 border border-white/5 rounded-xl shadow-inner backdrop-blur-md">
-                    <BonusMenuButton guildId={guildId} />
+                    <div data-tour="admin-missions-bonus">
+                        <BonusMenuButton guildId={guildId} />
+                    </div>
                     
                     <div className="w-px h-6 bg-white/10 mx-1" />
 

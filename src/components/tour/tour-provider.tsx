@@ -3,7 +3,20 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
-export type TourPhase = "profile" | "dashboard" | "admin" | "adminModules" | null;
+export type TourPhase =
+    | "profile"
+    | "dashboard"
+    | "admin"
+    | "adminModules"
+    | "adminSettings"
+    | "adminPermissions"
+    | "adminModulesMgmt"
+    | "adminPresentation"
+    | "adminMissions"
+    | "adminValidation"
+    | "adminMembers"
+    | "adminLogs"
+    | null;
 
 interface TourStep {
     target: string; // Selector for document.querySelector
@@ -207,6 +220,169 @@ const ADMIN_MODULES_STEPS: TourStep[] = [
     }
 ];
 
+/**
+ * Tours ADMIN par module du Centre Admin.
+ * Chaque étape est conditionnée par la permission RBAC correspondante :
+ * l'admin ne verra que les étapes des modules auxquels il a réellement accès.
+ * Ces phases sont REJOUABLES à tout moment depuis le Centre Admin.
+ */
+const ADMIN_SETTINGS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-settings-header"]',
+        title: "Paramètres Généraux",
+        description: "Intégrations Discord, Metamob, Dofus et configuration globale de la plateforme.",
+        placement: "bottom",
+        requiresPerm: "canViewSettings"
+    },
+    {
+        target: '[data-tour="admin-settings-nav"]',
+        title: "Navigation par sections",
+        description: "Retrouvez les réglages par thème : Annonces, Serveur Dofus, Modules de jeu, etc.",
+        placement: "right",
+        requiresPerm: "canViewSettings"
+    },
+    {
+        target: '[data-tour="admin-settings-pane"]',
+        title: "Panneau de configuration",
+        description: "Chaque section affiche ses propres options. Les modifications sont sauvegardées en direct.",
+        placement: "left",
+        requiresPerm: "canViewSettings"
+    }
+];
+
+const ADMIN_PERMISSIONS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-permissions-header"]',
+        title: "Rôles & Permissions",
+        description: "Gestion fine des accès : définissez qui peut valider, modérer ou administrer.",
+        placement: "bottom",
+        requiresPerm: "isDiscordAdmin"
+    },
+    {
+        target: '[data-tour="admin-permissions-matrix"]',
+        title: "Matrice RBAC",
+        description: "Attribuez des permissions aux rôles Discord pour contrôler l'accès au Dashboard.",
+        placement: "top",
+        requiresPerm: "isDiscordAdmin"
+    }
+];
+
+const ADMIN_MODULES_MGMT_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-modules-header"]',
+        title: "Gestion des Modules",
+        description: "Activez ou désactivez les fonctionnalités de votre guilde.",
+        placement: "bottom",
+        requiresPerm: "isDiscordAdmin"
+    },
+    {
+        target: '[data-tour="admin-modules-list"]',
+        title: "Liste des modules",
+        description: "Activez les modules souhaités (Missions, Songes, Ocre, Services…). Rien n'est activé par défaut.",
+        placement: "top",
+        requiresPerm: "isDiscordAdmin"
+    }
+];
+
+const ADMIN_PRESENTATION_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-presentation-header"]',
+        title: "Identité de Guilde",
+        description: "Édition de la page publique, recrutement et présentation des objectifs.",
+        placement: "bottom",
+        requiresPerm: "canEditPresentation"
+    },
+    {
+        target: '[data-tour="admin-presentation-editor"]',
+        title: "Éditeur de présentation",
+        description: "Rédigez la présentation publique visible par les candidats et les visiteurs.",
+        placement: "top",
+        requiresPerm: "canEditPresentation"
+    }
+];
+
+const ADMIN_MISSIONS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-missions-header"]',
+        title: "Gestion des Missions",
+        description: "Préparation du reset hebdomadaire, création des missions et bonus de guilde.",
+        placement: "bottom",
+        requiresPerm: "canManageMissions"
+    },
+    {
+        target: '[data-tour="admin-missions-builder"]',
+        title: "Création & réglages",
+        description: "Définissez les missions, leurs objectifs, récompenses et délais.",
+        placement: "top",
+        requiresPerm: "canManageMissions"
+    },
+    {
+        target: '[data-tour="admin-missions-bonus"]',
+        title: "Bonus de guilde",
+        description: "Configurez les bonus accordés aux membres selon la performance de la guilde.",
+        placement: "top",
+        requiresPerm: "canManageMissions"
+    }
+];
+
+const ADMIN_VALIDATION_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-validation-header"]',
+        title: "Validation",
+        description: "Centre de tri des screens. Récompensez les efforts de vos membres.",
+        placement: "bottom",
+        requiresPerm: "canValidateMissions"
+    },
+    {
+        target: '[data-tour="admin-validation-inbox"]',
+        title: "File de validation",
+        description: "Vérifiez les captures soumises par les membres, validez ou refusez avec un motif.",
+        placement: "top",
+        requiresPerm: "canValidateMissions"
+    }
+];
+
+const ADMIN_MEMBERS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-members-header"]',
+        title: "Gestion des Membres",
+        description: "Annuaire admin, synchronisation des pseudos, archivage et relances Discord.",
+        placement: "bottom",
+        requiresPerm: "canManageMembers"
+    },
+    {
+        target: '[data-tour="admin-members-table"]',
+        title: "Tableau des membres",
+        description: "Consultez les membres, leurs rôles, métiers et activités. Filtres et recherche inclus.",
+        placement: "top",
+        requiresPerm: "canManageMembers"
+    },
+    {
+        target: '[data-tour="admin-members-tools"]',
+        title: "Outils d'administration",
+        description: "Synchronisation des pseudos, archivage et relances d'inactivité.",
+        placement: "top",
+        requiresPerm: "canManageMembers"
+    }
+];
+
+const ADMIN_LOGS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-logs-header"]',
+        title: "Audit Logs",
+        description: "Traçabilité totale des actions du staff pour une sécurité maximale.",
+        placement: "bottom",
+        requiresPerm: "canViewAuditLogs"
+    },
+    {
+        target: '[data-tour="admin-logs-list"]',
+        title: "Journal des actions",
+        description: "Consultez l'historique des actions sensibles : qui a fait quoi, quand.",
+        placement: "top",
+        requiresPerm: "canViewAuditLogs"
+    }
+];
+
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -242,17 +418,34 @@ export function TourProvider({
     const adminOnboardingSteps = applyFilters(ADMIN_ONBOARDING_STEPS);
     const adminModulesSteps = applyFilters(ADMIN_MODULES_STEPS);
     const dashboardSteps = applyFilters(DASHBOARD_STEPS);
+    const adminSettingsSteps = applyFilters(ADMIN_SETTINGS_STEPS);
+    const adminPermissionsSteps = applyFilters(ADMIN_PERMISSIONS_STEPS);
+    const adminModulesMgmtSteps = applyFilters(ADMIN_MODULES_MGMT_STEPS);
+    const adminPresentationSteps = applyFilters(ADMIN_PRESENTATION_STEPS);
+    const adminMissionsSteps = applyFilters(ADMIN_MISSIONS_STEPS);
+    const adminValidationSteps = applyFilters(ADMIN_VALIDATION_STEPS);
+    const adminMembersSteps = applyFilters(ADMIN_MEMBERS_STEPS);
+    const adminLogsSteps = applyFilters(ADMIN_LOGS_STEPS);
 
-    const steps = tourPhase === "profile"
-        ? PROFILE_STEPS
-        : tourPhase === "dashboard"
-            ? dashboardSteps
-            : tourPhase === "admin"
-                ? adminOnboardingSteps
-                : tourPhase === "adminModules"
-                    ? adminModulesSteps
-                    : [];
+    const getPhaseSteps = (phase: TourPhase): TourStep[] => {
+        switch (phase) {
+            case "profile": return PROFILE_STEPS;
+            case "dashboard": return dashboardSteps;
+            case "admin": return adminOnboardingSteps;
+            case "adminModules": return adminModulesSteps;
+            case "adminSettings": return adminSettingsSteps;
+            case "adminPermissions": return adminPermissionsSteps;
+            case "adminModulesMgmt": return adminModulesMgmtSteps;
+            case "adminPresentation": return adminPresentationSteps;
+            case "adminMissions": return adminMissionsSteps;
+            case "adminValidation": return adminValidationSteps;
+            case "adminMembers": return adminMembersSteps;
+            case "adminLogs": return adminLogsSteps;
+            default: return [];
+        }
+    };
 
+    const steps = getPhaseSteps(tourPhase);
     const totalSteps = steps.length;
     const activeStepData = steps[currentStep - 1] || null;
 
@@ -275,26 +468,30 @@ export function TourProvider({
         if (isActive && activeStepData) ensureSidebarSectionOpen(activeStepData.target);
     }, [isActive, activeStepData]);
 
-    // --- AUTO-START du tour ADMIN ---
-    // Admin, premier chargement (localStorage pas encore marqué) :
-    //  - guilde en cours de config → volet onboarding (admin)
-    //  - guilde déjà configurée → volet modules (adminModules)
-    // Rejouable via bouton « Revoir » (startTour("admin") / startTour("adminModules")).
+    // --- AUTO-START du tour ADMIN sur le Dashboard (1ère arrivée) ---
+    // Admin connecté sur son Dashboard (guilde déjà configurée) :
+    // on pop UNE FOIS le tour des modules (adminModules) — filtre RBAC + modules.
+    // Le tour reste rejouable à tout moment via le bouton « Revoir » (startTour).
     useEffect(() => {
         if (!isAdmin || typeof window === "undefined") return;
-        const adminDone = localStorage.getItem(`sigilos-tour-admin-done-${guildId}`) === "true";
-        if (adminDone) return;
+        // Guilde pas encore configurée → redirection gérée par la page dashboard
+        if (!isOnboardingComplete) return;
+        // On ne pop que sur le Dashboard admin (pas sur les sous-pages)
+        if (pathname !== `/dashboard/${guildId}`) return;
 
-        // Construit la phase cible selon l'état d'onboarding de la guilde
-        const phase: TourPhase = isOnboardingComplete ? "adminModules" : "admin";
+        const seenKey = `sigilos-tour-admin-modules-seen-${guildId}`;
+        const hasSeen = localStorage.getItem(seenKey) === "true";
+        if (hasSeen) return;
+
+        // Marque comme "vu" pour ne pas re-pop à chaque navigation vers le Dashboard
+        localStorage.setItem(seenKey, "true");
+        const phase: TourPhase = "adminModules";
         setTourPhase(phase);
         setCurrentStep(1);
         setIsActive(true);
         localStorage.setItem(`sigilos-tour-phase-${guildId}`, phase);
         localStorage.setItem(`sigilos-tour-step-${guildId}`, "1");
-        // On n'utilise PAS de query ici : on reste sur la page courante
-        // (le tour pointe les briques de la sidebar + les étapes getting-started).
-    }, [isAdmin, isOnboardingComplete, guildId]);
+    }, [isAdmin, isOnboardingComplete, pathname, guildId]);
 
     // Load member tour state (profile/dashboard)
     useEffect(() => {
@@ -336,18 +533,52 @@ export function TourProvider({
         setTourPhase(phase);
         setCurrentStep(1);
         setIsActive(true);
-        localStorage.removeItem(`sigilos-tour-done-${guildId}`);
-        localStorage.removeItem(`sigilos-tour-admin-done-${guildId}`);
+        // Les tours admin sont REJOUABLES : on ne pose jamais de flag "done"
+        // définitif pour les phases admin. On nettoie simplement l'étape en cours.
+        const isAdminPhase = phase.startsWith("admin");
+        if (!isAdminPhase) {
+            localStorage.removeItem(`sigilos-tour-done-${guildId}`);
+        }
         localStorage.setItem(`sigilos-tour-phase-${guildId}`, phase);
         localStorage.setItem(`sigilos-tour-step-${guildId}`, "1");
-        if (phase === "admin") {
-            router.push(`/dashboard/${guildId}/admin/getting-started`);
-        } else if (phase === "adminModules") {
-            router.push(`/dashboard/${guildId}`);
-        } else if (phase === "profile") {
-            router.push(`/dashboard/${guildId}/profile?tour=1`);
-        } else {
-            router.push(`/dashboard/${guildId}?tour=2`);
+        // Routage vers la page correspondant à la phase du tour
+        switch (phase) {
+            case "admin":
+                router.push(`/dashboard/${guildId}/admin/getting-started`);
+                break;
+            case "adminModules":
+            case "dashboard":
+                router.push(`/dashboard/${guildId}${phase === "dashboard" ? "?tour=2" : ""}`);
+                break;
+            case "profile":
+                router.push(`/dashboard/${guildId}/profile?tour=1`);
+                break;
+            case "adminSettings":
+                router.push(`/dashboard/${guildId}/admin/settings`);
+                break;
+            case "adminPermissions":
+                router.push(`/dashboard/${guildId}/admin/permissions`);
+                break;
+            case "adminModulesMgmt":
+                router.push(`/dashboard/${guildId}/admin/modules`);
+                break;
+            case "adminPresentation":
+                router.push(`/dashboard/${guildId}/admin/presentation`);
+                break;
+            case "adminMissions":
+                router.push(`/dashboard/${guildId}/missions/manage`);
+                break;
+            case "adminValidation":
+                router.push(`/dashboard/${guildId}/admin/validation`);
+                break;
+            case "adminMembers":
+                router.push(`/dashboard/${guildId}/admin/members`);
+                break;
+            case "adminLogs":
+                router.push(`/dashboard/${guildId}/admin/logs`);
+                break;
+            default:
+                break;
         }
     };
 
@@ -361,7 +592,8 @@ export function TourProvider({
             setCurrentStep(prev => stableAdvance(prev, totalSteps));
             return;
         }
-        if (tourPhase === "admin" || tourPhase === "adminModules") {
+        // Toute phase admin (onboarding, modules, module dédié) → terminer
+        if (tourPhase && tourPhase.startsWith("admin")) {
             completeTour();
         } else if (tourPhase === "profile") {
             setTourPhase("dashboard");
@@ -379,7 +611,7 @@ export function TourProvider({
             setCurrentStep(prev => prev - 1);
             return;
         }
-        if (tourPhase === "admin" || tourPhase === "adminModules") {
+        if (tourPhase && tourPhase.startsWith("admin")) {
             return;
         } else if (tourPhase === "dashboard") {
             setTourPhase("profile");
@@ -394,14 +626,13 @@ export function TourProvider({
         setIsActive(false);
         // IMPORTANT : on ne nulle PAS tourPhase ici — TourCompletion en a besoin
         // pour afficher le bon écran de fin (admin vs membre). setIsActive(false)
-        // masque déjà le TourOverlay. Les clés localStorage sont purgées pour
-        // éviter tout re-déclenchement intempestif.
-        const isAdminTour = tourPhase === "admin" || tourPhase === "adminModules";
-        localStorage.setItem(
-            isAdminTour ? `sigilos-tour-admin-done-${guildId}` : `sigilos-tour-done-${guildId}`,
-            "true"
-        );
-        localStorage.removeItem(`sigilos-tour-phase-${guildId}`);
+        // masque déjà le TourOverlay.
+        // Les tours admin sont rejouables : on mémorise uniquement la progression
+        // (pas de flag "done" définitif) pour relancer l'auto-start à la prochaine visite
+        // si l'admin ne l'a pas terminé. Le bouton "Revoir" permet de relancer à tout moment.
+        if (!tourPhase || !tourPhase.startsWith("admin")) {
+            localStorage.setItem(`sigilos-tour-done-${guildId}`, "true");
+        }
         localStorage.removeItem(`sigilos-tour-step-${guildId}`);
         setCelebrationActive(true);
     };

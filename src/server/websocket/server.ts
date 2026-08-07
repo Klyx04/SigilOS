@@ -85,7 +85,7 @@ const isProd = process.env.NODE_ENV === "production";
 
 // R4 — Canal "god:revoked" : le serveur Next publie sur Redis, le serveur WS
 // diffuse aux sockets du sous-god (room user:<userId>) pour déconnexion LIVE.
-// Ce bloc est présent depuis le commit R4 (02923c81) — trigger build GHCR beta.
+// Trigger build GHCR beta (re-déclenché après incident GitHub Actions).
 const GOD_REVOKED_CHANNEL = "god:revoked";
 subClient.subscribe(GOD_REVOKED_CHANNEL, (err) => {
     if (err) logger.error("[WS] ❌ Erreur abonnement Redis god:revoked:", { error: err });

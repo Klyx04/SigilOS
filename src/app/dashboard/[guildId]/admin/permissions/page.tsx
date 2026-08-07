@@ -9,6 +9,7 @@ import { getUserContext, getGuildMembers } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { type PermissionId } from "@/lib/permissions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { Shield, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -73,13 +74,15 @@ export default async function PermissionsPage({
 
     return (
         <div className="space-y-8 pb-12">
-            <UnifiedModuleHeader
-                title="Permissions"
-                description={`Attribuez les droits aux rôles Discord et aux membres de ${config.name}`}
-                icon={Shield}
-                backHref={`/dashboard/${guildId}/admin`}
-            />
-
+            <div data-tour="admin-permissions-header">
+                <UnifiedModuleHeader
+                    title="Permissions"
+                    description={`Attribuez les droits aux rôles Discord et aux membres de ${config.name}`}
+                    icon={Shield}
+                    backHref={`/dashboard/${guildId}/admin`}
+                    actions={<AdminTourReplay user={user} />}
+                />
+            </div>
             <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-500 shadow-lg mb-8">
                 <AlertTriangle className="h-5 w-5 !text-amber-500" />
                 <AlertTitle className="pl-8 font-black uppercase tracking-widest text-amber-500">Accès Restreint : Administrateurs Discord</AlertTitle>
@@ -88,13 +91,15 @@ export default async function PermissionsPage({
                 </AlertDescription>
             </Alert>
 
-            <PermissionsManager
-                guildId={guildId}
-                roles={roles}
-                members={membersData.members || []}
-                currentMapping={currentMapping}
-                currentUsersMapping={currentUsersMapping}
-            />
+            <div data-tour="admin-permissions-matrix">
+                <PermissionsManager
+                    guildId={guildId}
+                    roles={roles}
+                    members={membersData.members || []}
+                    currentMapping={currentMapping}
+                    currentUsersMapping={currentUsersMapping}
+                />
+            </div>
         </div>
     );
 }

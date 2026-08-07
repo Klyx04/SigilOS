@@ -18,6 +18,7 @@ import { CalendarSettingsClient } from "../calendar/_components/calendar-setting
 import { MissionSettingsClient } from "../_components/mission-settings-client";
 import { MemberSyncButton } from "@/components/admin/member-sync-button";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { DofusSettingsClient } from "@/components/admin/dofus-settings-client";
 import { MemberStatsOverview } from "@/components/admin/member-stats-overview";
 import { MemberManagementTable } from "@/components/admin/member-management-table";
@@ -142,16 +143,19 @@ export default async function FeatureSettingsPage({
 
     return (
         <div className="space-y-6 pb-12 w-full max-w-[1600px] mx-auto">
-            <UnifiedModuleHeader
-                title="Paramètres"
-                description="Intégrations Discord, Metamob, Dofus et gestion des membres"
-                icon={Settings}
-                backHref={`/dashboard/${guildId}/admin`}
-            />
+            <div data-tour="admin-settings-header">
+                <UnifiedModuleHeader
+                    title="Paramètres"
+                    description="Intégrations Discord, Metamob, Dofus et gestion des membres"
+                    icon={Settings}
+                    backHref={`/dashboard/${guildId}/admin`}
+                    actions={<AdminTourReplay user={user} />}
+                />
+            </div>
 
             <div className="flex flex-col lg:flex-row gap-8 items-start relative">
                 {/* ── SIDEBAR NAVIGATION ── */}
-                <nav className={cn(
+                <nav data-tour="admin-settings-nav" className={cn(
                     "w-full lg:w-72 shrink-0 lg:sticky lg:top-4 z-20 space-y-1 lg:space-y-1.5 p-2 rounded-2xl border border-white/8 bg-zinc-900/40 backdrop-blur-xl",
                     "flex lg:flex-col items-center lg:items-stretch overflow-x-auto lg:overflow-visible no-scrollbar hide-scrollbar"
                 )}>
@@ -203,7 +207,7 @@ export default async function FeatureSettingsPage({
                 </nav>
 
                 {/* ── CONTENT AREA ── */}
-                <div className="flex-1 w-full min-w-0 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+                <div data-tour="admin-settings-pane" className="flex-1 w-full min-w-0 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
                     {/* Section visual header */}
                     <div className={cn(
                         "relative flex flex-col sm:flex-row sm:items-center gap-5 mb-8 p-6 rounded-3xl border overflow-hidden",

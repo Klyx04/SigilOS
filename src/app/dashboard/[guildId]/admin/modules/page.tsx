@@ -5,6 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import { getGuildModules } from "@/server/actions/module-actions";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { Puzzle, ShieldAlert } from "lucide-react";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
@@ -36,12 +37,15 @@ export default async function AdminModulesPage({ params }: Props) {
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Modules"
-                description="Activez ou désactivez les fonctionnalités de votre guilde"
-                icon={Puzzle}
-                backHref={`/dashboard/${guildId}/admin`}
-            />
+            <div data-tour="admin-modules-header">
+                <UnifiedModuleHeader
+                    title="Modules"
+                    description="Activez ou désactivez les fonctionnalités de votre guilde"
+                    icon={Puzzle}
+                    backHref={`/dashboard/${guildId}/admin`}
+                    actions={<AdminTourReplay user={user} />}
+                />
+            </div>
 
             {!isRbacConfigured && (
                 <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/10 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
@@ -61,7 +65,9 @@ export default async function AdminModulesPage({ params }: Props) {
                 </div>
             )}
 
-            <ModulesClient guildId={guildId} initialModules={modules} />
+            <div data-tour="admin-modules-list">
+                <ModulesClient guildId={guildId} initialModules={modules} />
+            </div>
         </div>
     );
 }

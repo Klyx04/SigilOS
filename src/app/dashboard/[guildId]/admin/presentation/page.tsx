@@ -3,6 +3,7 @@ import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
 import { PresentationForm } from "./_components/presentation-form";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { Globe } from "lucide-react";
 
 type Props = {
@@ -26,14 +27,19 @@ export default async function PresentationAdminPage({ params }: Props) {
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Configuration Présentation"
-                description="Modifiez les informations publiques de votre guilde."
-                imageSrc="/assets/ui/icons/members.png"
-                backHref={`/dashboard/${guildId}/presentation`}
-            />
+            <div data-tour="admin-presentation-header">
+                <UnifiedModuleHeader
+                    title="Configuration Présentation"
+                    description="Modifiez les informations publiques de votre guilde."
+                    imageSrc="/assets/ui/icons/members.png"
+                    backHref={`/dashboard/${guildId}/presentation`}
+                    actions={<AdminTourReplay user={user} />}
+                />
+            </div>
 
-            <PresentationForm guildId={guildId} />
+            <div data-tour="admin-presentation-editor">
+                <PresentationForm guildId={guildId} />
+            </div>
         </div>
     );
 }

@@ -94,3 +94,5 @@ vérifier l'impact multi-tenant (guildId), jamais de breaking sans rollback poss
 ---
 
 *— Bonus : cette fiche vit à la racine (`PROMPT_START.md`) et est volontairement courte. Le vrai contenu détaillé est dans CONTEXT.md, RULES.md, SECURITY.md, MAINTENANCE.md, docs/SEO_REPRISE.md et la mémo de session `src/temp/memo-*.md`.*
+
+> ⚠️ **Tours admin** : toute modif des tutos → lire d'abord `src/temp/memo-2026-08-08-tours-admin.md` (phases, `data-tour` stables, maintenance).

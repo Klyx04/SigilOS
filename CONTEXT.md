@@ -54,6 +54,7 @@
 | [`README.md`](./README.md) | Démarrage, stack, structure, scripts |
 | [`docs/REDIS-OCR-SETUP.md`](./docs/REDIS-OCR-SETUP.md) | Infra OCR & Redis (VPS) — setup spécifique |
 | [`prisma/schema.prisma`](./prisma/schema.prisma) | Schéma BDD (source de vérité des modèles) |
+| [`src/temp/memo-2026-08-08-tours-admin.md`](./src/temp/memo-2026-08-08-tours-admin.md) | **Tours admin** : architecture, phases, logique intelligente (data-tour stables), maintenance |
 
 ---
 
@@ -138,6 +139,38 @@
 - **Aucune migration Prisma.**
 - 🔜 **À tester en beta** : pop auto du tour admin à l'arrivée (guilde neuve → onboarding ; guilde déjà configurée → modules/briques), écran de fin admin (« Centre Admin »), filtres RBAC (carte masquée si pas la perm), rejouabilité via « Revoir », disparition du flash déploiement. Rappel : `.next` corrompu → `Remove-Item -Recurse -Force .next` puis relancer `npm run dev`.
 - 🔜 **Guilde de test locale** : `1290442961380835451` whitelistée active + onboarding remis à zéro (dofusServerId null, RBAC vide, modules BDD supprimés) pour tester l'arrivée.
+
+---
+
+## 🧭 Suivi de chantier courant (Tours admin rejouables) — FAIT le 08/08/2026
+
+> **Branche** : `feat/onboarding-admin-tour` → PR vers `dev`.
+> **Mémo** : `src/temp/memo-2026-08-08-tours-admin.md` (à relire en priorité pour toute modif des tours).
+
+- ✅ **CI débloqué** : `npm audit --audit-level=high` → **0 vulnérabilités**. Overrides `nanoid ^3.3.17` (GHSA-2v37-7h3g-55p8) + `dompurify ^3.4.13` (GHSA-55q2-fjhq-7xh7). Commit `2a35ab8a`.
+- ✅ **Tutos admin rejouables par module** (commits `14ab569a`) : phases `adminSettings/Permissions/ModulesMgmt/Presentation/Missions/Validation/Members/Logs`, auto-start Dashboard une fois, rejouable à tout moment, filtrage RBAC.
+- ✅ **Tour briques `/admin`** (`6bbd4ce9`) : phase `adminOverview` (chaque carte du Centre Admin) + `tourId` stable sur `AdminCard` + bouton « Fermer » (reste sur la page) + `AdminTourReplay` par `phase`.
+- ✅ **Enrichi + mémo** (`2aa8ac32`) : descriptions complètes (Paramètres/Missions/Validation), mémo architecture/maintenance créée.
+- ⚠️ **À vérifier** : build Next.js complet (étape Verify and build) — l'audit est corrigé mais les tours ajoutés doivent compiler.
+
+---
+
+## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
+
+| Chantier | Réf / fichier | État |
+|----------|---------------|------|
+| Rotation secret `GOD_ROUTE` (fuité en git) | `src/temp/evolution4.md` | ⚠️ À faire |
+| CSP nonce-based (`unsafe-inline`) | `SECURITY.md` | Reste |
+| Clé de chiffrement de secours dev | `SECURITY.md` | Reste |
+| Cache permissions 60s (F-13) + fallback RBAC (F-01) | `SECURITY.md` | Reste |
+| Caddy rate-limit (F-14) | `SECURITY.md` | Reste |
+| proxy-image limites/footprint (F-06) | `SECURITY.md` | Reste |
+| Sanitisation HTML centralisée (F-11) | `SECURITY.md` | Reste (lié à dompurify) |
+| Activer `WS_AUTH_ENABLED` en beta | `SECURITY.md` | À activer |
+| Évol 4 restant (B3-B5 overview, A4 purge, Évo 2/3) | `CONTEXT.md` / `evolution4.md` | ⚠️ |
+| **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚠️ Suite |
+| Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ⚠️ |
+| Déployer PR #405 (rate-limit) beta + rotation GOD_ROUTE | `CONTEXT.md` | ⚠️ |
 
 ---
 

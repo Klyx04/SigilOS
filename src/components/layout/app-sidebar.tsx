@@ -199,24 +199,24 @@ export function AppSidebar({
 
     // 3. PROGRESSION
     const NAV_PROGRESSION = [
-        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", visible: user.canViewMissions && modules.missions },
-        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", visible: user.canViewLadder && modules.ladder },
-        { name: "Les Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/module-dofus/Dofus_Sylvestre.png", color: "amber", visible: user.canViewQuests && modules.quests },
-        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/icons/ocre.png", color: "amber", visible: user.canViewOcre && modules.ocre },
+        { name: "Missions", href: `/dashboard/${guildId}/missions`, icon: ScrollText, color: "amber", tourKey: "missions", visible: user.canViewMissions && modules.missions },
+        { name: "Ladder", href: `/dashboard/${guildId}/ladder`, icon: Trophy, color: "amber", tourKey: "ladder", visible: user.canViewLadder && modules.ladder },
+        { name: "Les Dofus", href: `/dashboard/${guildId}/quetes-dofus`, imgSrc: "/module-dofus/Dofus_Sylvestre.png", color: "amber", tourKey: "quetes", visible: user.canViewQuests && modules.quests },
+        { name: "Quête Ocre", href: `/dashboard/${guildId}/quete-ocre`, imgSrc: "/assets/icons/ocre.png", color: "amber", tourKey: "ocre", visible: user.canViewOcre && modules.ocre },
     ];
 
     // 4. OUTILS
     const NAV_TOOLS: any[] = [
-        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo", visible: user.canViewSonges && modules.songes },
+        { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
         { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", visible: user.canViewStuffGallery && modules.gallery },
-        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", visible: user.canViewQuests && modules.donjons },
-        { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", visible: user.canViewServices && modules.services },
+        { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
+        { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
     ];
 
     // 5. AUTRES
     const NAV_OTHERS = [
-        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, color: "cyan", visible: user.canViewMiniGames },
-        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, color: "cyan", visible: user.canViewPolls && modules.polls },
+        { name: "Mini-Jeux", href: `/dashboard/${guildId}/mini-jeux`, icon: Gamepad2, color: "cyan", tourKey: "minigames", visible: user.canViewMiniGames },
+        { name: "Sondages", href: `/dashboard/${guildId}/sondages`, icon: Gavel, color: "cyan", tourKey: "polls", visible: user.canViewPolls && modules.polls },
         { name: "Carte du Monde", href: `/dashboard/${guildId}/worldmap`, icon: Compass, color: "cyan", visible: user.canViewWorldmap && modules.worldmap },
         { name: "Roadmap", href: "/roadmap", icon: Rocket, color: "amber", visible: roadmapEnabled },
     ];
@@ -906,22 +906,25 @@ function NavItem({
 
     const scheme = colorMap[item.color || "emerald"];
 
+    const tourKey = item.tourKey;
     return (
         <Link
             href={item.href}
             prefetch={item.prefetch ?? true}
             data-tour={
-                item.isDashboard 
-                    ? "sidebar-dashboard" 
-                    : item.href?.endsWith("/missions") 
-                        ? "sidebar-missions" 
-                        : item.href?.endsWith("/ladder") 
-                            ? "sidebar-ladder" 
-                            : item.href?.endsWith("/members") 
-                                ? "sidebar-members" 
-                                : item.href?.endsWith("/calendar") 
-                                    ? "sidebar-calendar" 
-                                    : undefined
+                tourKey
+                    ? `sidebar-${tourKey}`
+                    : item.isDashboard 
+                        ? "sidebar-dashboard" 
+                        : item.href?.endsWith("/missions") 
+                            ? "sidebar-missions" 
+                            : item.href?.endsWith("/ladder") 
+                                ? "sidebar-ladder" 
+                                : item.href?.endsWith("/members") 
+                                    ? "sidebar-members" 
+                                    : item.href?.endsWith("/calendar") 
+                                        ? "sidebar-calendar" 
+                                        : undefined
             }
             className={cn(
                 "group relative flex items-center gap-3.5 transition-all duration-500 rounded-2xl border outline-none mx-2 mb-1 overflow-hidden",

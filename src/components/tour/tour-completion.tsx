@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 export function TourCompletion({ guildId }: { guildId: string }) {
-    const { isCelebrationActive, setCelebrationActive } = useTour();
+    const { isCelebrationActive, setCelebrationActive, tourPhase } = useTour();
     const router = useRouter();
     const [particles, setParticles] = useState<any[]>([]);
 
@@ -94,31 +94,59 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                         </p>
                     </div>
 
-                    {/* Actions CTAs */}
+                    {/* Actions CTAs — dédié au tour admin (arrivée) vs tour membre */}
                     <div className="w-full flex flex-col gap-3 pt-4 relative z-10">
-                        <Button
-                            onClick={() => {
-                                setCelebrationActive(false);
-                                router.push(`/dashboard/${guildId}/missions`);
-                            }}
-                            className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
-                        >
-                            <Swords className="w-4 h-4" />
-                            Voir les Missions de Guilde
-                            <ArrowRight className="w-4 h-4 ml-auto" />
-                        </Button>
-
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setCelebrationActive(false);
-                                router.push(`/dashboard/${guildId}/profile`);
-                            }}
-                            className="w-full h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all gap-2 text-zinc-200"
-                        >
-                            <User className="w-4 h-4" />
-                            Voir mon Profil
-                        </Button>
+                        {tourPhase === "admin" ? (
+                            <>
+                                <Button
+                                    onClick={() => {
+                                        setCelebrationActive(false);
+                                        router.push(`/dashboard/${guildId}/admin`);
+                                    }}
+                                    className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
+                                >
+                                    <ShieldCheck className="w-4 h-4" />
+                                    Ouvrir le Centre Admin
+                                    <ArrowRight className="w-4 h-4 ml-auto" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setCelebrationActive(false);
+                                        router.push(`/dashboard/${guildId}/admin/getting-started`);
+                                    }}
+                                    className="w-full h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all gap-2 text-zinc-200"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                    Revoir la mise en route
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button
+                                    onClick={() => {
+                                        setCelebrationActive(false);
+                                        router.push(`/dashboard/${guildId}/missions`);
+                                    }}
+                                    className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
+                                >
+                                    <Swords className="w-4 h-4" />
+                                    Voir les Missions de Guilde
+                                    <ArrowRight className="w-4 h-4 ml-auto" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setCelebrationActive(false);
+                                        router.push(`/dashboard/${guildId}/profile`);
+                                    }}
+                                    className="w-full h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all gap-2 text-zinc-200"
+                                >
+                                    <User className="w-4 h-4" />
+                                    Voir mon Profil
+                                </Button>
+                            </>
+                        )}
                     </div>
 
                     {/* CSS Confetti Fall Animation */}

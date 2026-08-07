@@ -58,6 +58,11 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
 
                 const { invalidateGuildCache } = await import("./user-actions");
                 await invalidateGuildCache(guildId);
+
+                // 🔄 Invalide le cache Redis `guild_allowed:{id}` après réactivation.
+                const { invalidateAllowedGuildCache } = await import("./super-admin-actions");
+                await invalidateAllowedGuildCache(guildId);
+
                 revalidatePath(`/dashboard/${guildId}`);
             }
             return { success: true };
@@ -87,6 +92,11 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
         const { invalidateGuildCache } = await import("./user-actions");
         await invalidateGuildCache(guildId);
+
+        // 🔄 Invalide le cache Redis `guild_allowed:{id}` (TTL 60s) pour éviter un
+        // flash "AccessDenied" si un `false` périmé était en cache avant le déploiement.
+        const { invalidateAllowedGuildCache } = await import("./super-admin-actions");
+        await invalidateAllowedGuildCache(guildId);
 
         revalidatePath(`/dashboard/${guildId}`);
 

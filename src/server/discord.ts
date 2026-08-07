@@ -1,3 +1,5 @@
+import { getAppBaseUrl } from "@/lib/utils";
+
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
@@ -442,7 +444,7 @@ export async function sendChannelMessage(
         }
 
         // Footer — default universal CTA if none provided
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
         const displayUrl = appUrl.replace(/^https?:\/\//, "");
         const footerText = options.embedFooter ?? `SigilOS · Pas encore sur le Dashboard ? → ${displayUrl}`;
         embed.footer = { text: footerText, icon_url: `${appUrl}/assets/ui/logo-v2.png` };
@@ -605,7 +607,7 @@ export async function updateChannelMessage(
         }
 
         if (options.embedUrl) embed.url = options.embedUrl;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+        const appUrl = getAppBaseUrl();
         const displayUrl = appUrl.replace(/^https?:\/\//, "");
         const updateFooterText = options.embedFooter ?? `SigilOS · Pas encore sur le Dashboard ? → ${displayUrl}`;
         embed.footer = { text: updateFooterText, icon_url: `${appUrl}/assets/ui/logo-v2.png` };
@@ -654,6 +656,44 @@ export async function updateChannelMessage(
     } catch (error: any) {
         console.error("[Discord] Error updating message:", error);
         throw error;
+    }
+}
+
+/**
+ * Edit the original interaction response (follow-up après un ACK deferred `type:6`).
+ * Utilisé pour donner un retour visible (succès / erreur) sur les boutons Discord,
+ * notamment `ticket:close`. Le message est éphemère (visible uniquement par le cliqueur).
+ */
+export async function editInteractionMessage(
+    applicationId: string,
+    interactionToken: string,
+    content: string
+): Promise<boolean> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return false;
+
+    try {
+        const res = await fetchWithRetry(
+            `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`,
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ content, flags: 64 }), // flags:64 = EPHEMERAL
+            }
+        );
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            console.error(`[Discord] editInteractionMessage failed ${res.status}: ${errBody}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error("[Discord] Error editing interaction message:", error);
+        return false;
     }
 }
 
@@ -996,7 +1036,7 @@ export async function sendSecurityAlert(data: {
  * Send a welcome embed to a guild with instructions
  */
 export async function sendGuildWelcomeEmbed(channelId: string, guildName: string) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+    const baseUrl = getAppBaseUrl();
     
     return sendChannelMessage(channelId, "", {
         embedTitle: `🏰 SigilOS rejoint **${guildName}** !`,
@@ -1020,7 +1060,7 @@ export async function sendGuildWelcomeEmbed(channelId: string, guildName: string
             }
         ],
         embedFooter: "SigilOS · L'outil ultime pour guilde Dofus",
-        embedThumbnail: "https://beta.sigilos.fr/assets/ui/logo-v2.png",
+        embedThumbnail: `${baseUrl}/assets/ui/logo-v2.png`,
         components: [
             {
                 type: 1, // Action Row

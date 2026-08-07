@@ -109,9 +109,6 @@ export const getGuildModules = cache(async (discordGuildId: string): Promise<Gui
 
         moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });
         return data;
-
-        moduleCache.set(discordGuildId, { data, expiresAt: now + MODULE_CACHE_TTL });
-        return data;
     } catch {
         return DEFAULT_MODULES;
     }

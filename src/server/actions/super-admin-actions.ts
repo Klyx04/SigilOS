@@ -414,6 +414,10 @@ export async function addAllowedGuild(data: {
         }
     });
 
+    // 🔄 Invalide le cache `guild_allowed:{id}` pour éviter un flash AccessDenied
+    // si un `false` périmé avait été mis en cache avant la whitelist.
+    await invalidateAllowedGuildCache(data.discordGuildId);
+
     // 📝 LOG ACTION (Professional Verbose)
     if (session?.user?.id) {
         await createGodAuditLog({
@@ -487,6 +491,9 @@ export async function removeAllowedGuild(discordGuildId: string) {
         where: { discordGuildId }
     });
 
+    // 🔄 Invalide le cache `guild_allowed:{id}` (suppression éventuelle d'un `true` périmé).
+    await invalidateAllowedGuildCache(discordGuildId);
+
     // 📝 LOG ACTION
     if (session?.user?.id) {
         await createGodAuditLog({
@@ -521,6 +528,9 @@ export async function toggleGuildActive(discordGuildId: string) {
         where: { discordGuildId },
         data: { isActive: !guild.isActive }
     });
+
+    // 🔄 Invalide le cache `guild_allowed:{id}` pour que le changement de statut soit immédiat.
+    await invalidateAllowedGuildCache(discordGuildId);
 
     // 📝 LOG ACTION
     const session = await auth();
@@ -667,6 +677,21 @@ export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
         return false;
     }
 }
+
+/**
+ * Invalide le cache Redis `guild_allowed:{id}` (TTL 60s) utilisé par isGuildAllowed.
+ * À appeler IMMÉDIATEMENT après toute écriture de whitelist / déploiement de guilde
+ * pour éviter qu'un `false` périmé ne déclenche un bref flash "AccessDenied".
+ * Non bloquant : erreur Redis silencieusement ignorée (le cache expire en 60s).
+ */
+export async function invalidateAllowedGuildCache(discordGuildId: string) {
+    try {
+        await redis.del(`guild_allowed:${discordGuildId}`);
+    } catch {
+        // Non bloquant
+    }
+}
+
 /**
  * CLEANUP JANITOR (GDPR & Hygiene)
  * Deletes users created > threshold ago with NO profile and NO critical data.

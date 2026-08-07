@@ -380,8 +380,12 @@ export async function addAllowedGuild(data: {
     expiresAt?: Date | null;
 }) {
     const session = await auth();
+    // ✅ Sous-god PIM du scope "guilds" autorisé (fail-closed sinon : aucun scope → throw)
+    if (!(await canGodAccess("guilds"))) throw new Error("Unauthorized: God scope required: guilds");
+    if (!session?.user?.id) throw new Error("Non authentifié");
+
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
+    const actorName = session.user.name || (isAdmin ? "Super Admin" : "Sous-God");
 
     // Get super-admin's Discord ID
     const account = await db.account.findFirst({
@@ -423,15 +427,37 @@ export async function addAllowedGuild(data: {
     }
 
     // 🔔 NOTIFY GOD
-    const adminName = session?.user?.name || "Super Admin";
     const { notifyGod } = await import("@/server/actions/god-notif-actions");
     await notifyGod({
         title: "Guilde Whitelistée",
-        message: `**${data.name || data.discordGuildId}** a été ajouté à la whitelist (tier: ${data.tier || "BETA"}).\n👤 Par: **${adminName}**`,
+        message: `**${data.name || data.discordGuildId}** a été ajouté à la whitelist (tier: ${data.tier || "BETA"}).\n👤 Par: **${actorName}**`,
         type: "SYSTEM",
         success: true,
-        metadata: { guildId: data.discordGuildId, tier: data.tier || "BETA", performedBy: adminName },
+        metadata: { guildId: data.discordGuildId, tier: data.tier || "BETA", performedBy: actorName },
     });
+
+    // 🔔 NOTIF CLIENT : si un ticket ACCESS_REQUEST ouvert existe pour cette guilde,
+    // on prévient le créateur (même message que la validation via ticket).
+    try {
+        const openAccessRequest = await db.supportTicket.findFirst({
+            where: {
+                category: "ACCESS_REQUEST",
+                targetGuildId: data.discordGuildId,
+                status: { not: "CLOSED" },
+            },
+            select: { id: true, ticketNumber: true, creatorDiscordId: true, discordThreadId: true },
+        });
+
+        if (openAccessRequest) {
+            const { notifyGuildAccessApproved } = await import("@/server/actions/ticket-actions");
+            const platformConfig = await db.platformConfig.findUnique({ where: { id: "singleton" } });
+            await notifyGuildAccessApproved(openAccessRequest, platformConfig as any, data.notes || undefined, actorName);
+        }
+    } catch (notifClientErr) {
+        // Non-bloquant : la whitelist est créée, la notif client est best-effort
+        const { logger } = await import("@/lib/logger");
+        logger.warn("[God] Notif client whitelist manuelle échouée (non bloquant)", { error: notifClientErr, guildId: data.discordGuildId });
+    }
 
     revalidatePath("/god");
     return guild;
@@ -480,8 +506,10 @@ export async function removeAllowedGuild(discordGuildId: string) {
  * Toggle guild active status
  */
 export async function toggleGuildActive(discordGuildId: string) {
+    // ✅ Sous-god PIM du scope "guilds" autorisé (fail-closed sinon)
+    if (!(await canGodAccess("guilds"))) throw new Error("Unauthorized: God scope required: guilds");
     const isAdmin = await isSuperAdmin();
-    if (!isAdmin) throw new Error("Unauthorized: Super-admin access required");
+    const adminName = (await auth())?.user?.name || (isAdmin ? "Super Admin" : "Sous-God");
 
     const guild = await db.allowedGuild.findUnique({
         where: { discordGuildId }
@@ -509,7 +537,6 @@ export async function toggleGuildActive(discordGuildId: string) {
     }
 
     // 🔔 NOTIFY GOD
-    const adminName = session?.user?.name || "Super Admin";
     const { notifyGod } = await import("@/server/actions/god-notif-actions");
     await notifyGod({
         title: updated.isActive ? "Guilde Activée" : "Guilde Désactivée",

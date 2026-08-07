@@ -153,7 +153,9 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
         
         async function loadRoles() {
             const { getSupportGuildRoles } = await import("@/server/actions/ticket-actions");
-            const res = await getSupportGuildRoles(selectedTicket!.discordGuildId);
+            // Les rôles doivent être ceux de la guilde CIBLE (serveur du client), pas du serveur Support
+            const roleGuildId = selectedTicket!.targetGuildId || selectedTicket!.discordGuildId;
+            const res = await getSupportGuildRoles(roleGuildId);
             if (res.success && res.roles) {
                 setSupportGuildRoles(res.roles);
                 // Pre-select first valid role if none
@@ -288,7 +290,7 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
             const { sendTicketReply } = await import("@/server/actions/ticket-actions");
             const res = await sendTicketReply(ticketId, replyText);
             if (res.success) {
-                toast.success("Réponse envoyée");
+                toast.success(res.statusChanged ? "✅ Réponse envoyée — le ticket est passé en attente de réponse du client" : "✅ Réponse envoyée dans le fil Discord");
                 setReplyText("");
                 await refreshTickets();
             } else {
@@ -670,7 +672,12 @@ function TicketDetailModal({
                                     <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                                         <ShieldCheck className="w-4 h-4 text-emerald-400" />
                                     </div>
-                                    <h4 className="text-xs font-black text-white uppercase tracking-widest">Décision d'Accès Technique</h4>
+                                    <div className="flex flex-col">
+                                        <h4 className="text-xs font-black text-white uppercase tracking-widest">Décision d'Accès Technique</h4>
+                                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                                            Whitelist la guilde <span className="text-emerald-400/80 font-bold">{ticket.targetGuildName || ticket.targetGuildId || "cible"}</span> et notifie le client sur Discord.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 {!rejectionMode ? (
@@ -761,7 +768,12 @@ function TicketDetailModal({
                     {/* Reply Section */}
                     {ticket.status !== "CLOSED" && (
                         <div className="space-y-3 pt-4 border-t border-white/5">
-                            <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest pl-1">Réponse directe</h4>
+                            <div className="flex flex-col">
+                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest pl-1">Réponse directe</h4>
+                                <p className="text-[10px] text-zinc-600 font-medium pl-1 mt-0.5">
+                                    Envoie un message dans le fil Discord. Le ticket passe en <span className="text-violet-400/80 font-bold">attente de réponse</span> (WAITING_RESPONSE).
+                                </p>
+                            </div>
                             <textarea
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}

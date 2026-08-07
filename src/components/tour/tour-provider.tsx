@@ -392,8 +392,15 @@ export function TourProvider({
 
     const completeTour = () => {
         setIsActive(false);
-        setTourPhase(null);
-        localStorage.setItem(`sigilos-tour-admin-done-${guildId}`, "true");
+        // IMPORTANT : on ne nulle PAS tourPhase ici — TourCompletion en a besoin
+        // pour afficher le bon écran de fin (admin vs membre). setIsActive(false)
+        // masque déjà le TourOverlay. Les clés localStorage sont purgées pour
+        // éviter tout re-déclenchement intempestif.
+        const isAdminTour = tourPhase === "admin" || tourPhase === "adminModules";
+        localStorage.setItem(
+            isAdminTour ? `sigilos-tour-admin-done-${guildId}` : `sigilos-tour-done-${guildId}`,
+            "true"
+        );
         localStorage.removeItem(`sigilos-tour-phase-${guildId}`);
         localStorage.removeItem(`sigilos-tour-step-${guildId}`);
         setCelebrationActive(true);

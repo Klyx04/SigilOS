@@ -141,6 +141,7 @@ export function TourOverlay() {
         };
     }
 
+    const isAdminPhase = tourPhase === "admin" || tourPhase === "adminModules";
     const isFirstStepGlobal = tourPhase === "profile" && currentStep === 1;
 
     return (
@@ -252,7 +253,7 @@ export function TourOverlay() {
                             >
                                 {currentStep === totalSteps ? (
                                     <>
-                                        {tourPhase === "dashboard" || tourPhase === "admin" ? "Terminer" : "Suivant"}
+                                        {tourPhase === "dashboard" || tourPhase === "admin" || tourPhase === "adminModules" ? "Terminer" : "Suivant"}
                                         <CheckCircle className="w-3.5 h-3.5 ml-1" />
                                     </>
                                 ) : (

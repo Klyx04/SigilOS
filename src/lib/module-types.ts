@@ -62,27 +62,39 @@ export type GuildModulesState = {
     minigames: boolean;
 };
 
+/**
+ * États par défaut d'une NOUVELLE guilde (aucune ligne GuildModules en BDD).
+ * « Rien d'actif par défaut sauf ce qui est nécessaire à l'arrivée » :
+ * seul `admin` reste actif pour que l'admin puisse se configurer (settings,
+ * permissions, modules). Tous les autres modules sont inactifs — l'admin les
+ * active explicitement via /admin/modules, guidé par le tour d'accueil.
+ *
+ * ⚠️ Ce fallback ne concerne QUE les guildes sans enregistrement GuildModules.
+ * Les guildes existantes avec une ligne GuildModules en BDD ne sont PAS
+ * impactées (module-actions.ts ne reporte sur DEFAULT_MODULES que les champs
+ * explicitement à `null`).
+ */
 export const DEFAULT_MODULES: GuildModulesState = {
-    presentation: true,
-    roster: true,
-    stats: true,
-    calendar: true,
-    missions: true,
-    songes: true,
-    ocre: true,
-    ladder: true,
-    services: true,
-    donjons: true,
-    profile: true,
-    docs: true,
-    gallery: true,
+    presentation: false,
+    roster: false,
+    stats: false,
+    calendar: false,
+    missions: false,
+    songes: false,
+    ocre: false,
+    ladder: false,
+    services: false,
+    donjons: false,
+    profile: false,
+    docs: false,
+    gallery: false,
     logs: false,
-    polls: true,
-    admin: true,
+    polls: false,
+    admin: true, // nécessaire à l'admin pour se configurer à l'arrivée
     quests: false,
     worldmap: false,
     resources: false,
     ladderSync: false,
-    manualLadderSync: true,
-    minigames: true,
+    manualLadderSync: false,
+    minigames: false,
 };

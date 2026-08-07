@@ -252,7 +252,7 @@ export function TourOverlay() {
                             >
                                 {currentStep === totalSteps ? (
                                     <>
-                                        {tourPhase === "profile" ? "Suivant" : "Terminer"}
+                                        {tourPhase === "dashboard" || tourPhase === "admin" ? "Terminer" : "Suivant"}
                                         <CheckCircle className="w-3.5 h-3.5 ml-1" />
                                     </>
                                 ) : (

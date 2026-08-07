@@ -98,29 +98,14 @@ export function TourCompletion({ guildId }: { guildId: string }) {
 
                     {/* Actions CTAs — dédié au tour admin (arrivée) vs tour membre vs module admin */}
                     <div className="w-full flex flex-col gap-3 pt-4 relative z-10">
-                        {tourPhase === "adminSettings" || tourPhase === "adminPermissions" || tourPhase === "adminModulesMgmt" || tourPhase === "adminPresentation" || tourPhase === "adminMissions" || tourPhase === "adminValidation" || tourPhase === "adminMembers" || tourPhase === "adminLogs" ? (
+                        {tourPhase === "adminSettings" || tourPhase === "adminPermissions" || tourPhase === "adminModulesMgmt" || tourPhase === "adminPresentation" || tourPhase === "adminMissions" || tourPhase === "adminValidation" || tourPhase === "adminMembers" || tourPhase === "adminLogs" || tourPhase === "adminOverview" ? (
                             <>
                                 <Button
-                                    onClick={() => {
-                                        setCelebrationActive(false);
-                                        router.push(`/dashboard/${guildId}/admin`);
-                                    }}
+                                    onClick={() => setCelebrationActive(false)}
                                     className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
                                 >
-                                    <ShieldCheck className="w-4 h-4" />
-                                    Retour au Centre Admin
-                                    <ArrowRight className="w-4 h-4 ml-auto" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setCelebrationActive(false);
-                                        router.push(`/dashboard/${guildId}`);
-                                    }}
-                                    className="w-full h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all gap-2 text-zinc-200"
-                                >
                                     <LayoutDashboard className="w-4 h-4" />
-                                    Aller au Dashboard
+                                    Fermer
                                 </Button>
                             </>
                         ) : tourPhase === "admin" ? (

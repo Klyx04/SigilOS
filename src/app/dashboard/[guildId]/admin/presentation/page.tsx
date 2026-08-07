@@ -33,7 +33,7 @@ export default async function PresentationAdminPage({ params }: Props) {
                     description="Modifiez les informations publiques de votre guilde."
                     imageSrc="/assets/ui/icons/members.png"
                     backHref={`/dashboard/${guildId}/presentation`}
-                    actions={<AdminTourReplay user={user} />}
+                    actions={<AdminTourReplay phase="adminPresentation" />}
                 />
             </div>
 

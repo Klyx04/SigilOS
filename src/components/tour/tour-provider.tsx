@@ -16,6 +16,7 @@ export type TourPhase =
     | "adminValidation"
     | "adminMembers"
     | "adminLogs"
+    | "adminOverview"
     | null;
 
 interface TourStep {
@@ -370,15 +371,94 @@ const ADMIN_LOGS_STEPS: TourStep[] = [
     {
         target: '[data-tour="admin-logs-header"]',
         title: "Audit Logs",
-        description: "Traçabilité totale des actions du staff pour une sécurité maximale.",
+        description: "Centre de traçabilité du staff. Chaque action sensible (validation, modération, configuration) est horodatée et reliée à son auteur. Idéal pour détecter les abus et garantir la transparence vis-à-vis des membres.",
         placement: "bottom",
         requiresPerm: "canViewAuditLogs"
     },
     {
         target: '[data-tour="admin-logs-list"]',
         title: "Journal des actions",
-        description: "Consultez l'historique des actions sensibles : qui a fait quoi, quand.",
+        description: "Filtrez par membre, type d'action ou période. Les journaux sont conservés 30 jours puis purgés automatiquement pour protéger la vie privée.",
         placement: "top",
+        requiresPerm: "canViewAuditLogs"
+    }
+];
+
+/**
+ * Tour ADMIN — Overview du Centre Admin (page /admin).
+ * Présente chaque carte/brique de supervision filtrée par RBAC.
+ * Cible les cartes AdminCard via leur `tourId` (data-tour stable),
+ * pas des composants internes fragiles.
+ */
+const ADMIN_OVERVIEW_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="admin-overview-header"]',
+        title: "Centre Admin — Supervision",
+        description: "Centralise toute l'administration de ta guilde : structure, opérations, sécurité. Chaque carte ouvre un module dédié. Les cartes auxquelles tu n'as pas accès sont masquées automatiquement.",
+        placement: "bottom",
+        requiresPerm: "isAdmin"
+    },
+    {
+        target: '[data-tour="admin-overview-structure"]',
+        title: "Structure & Configuration",
+        description: "Le socle de ta guilde : les paramètres généraux, la matrice RBAC, l'activation des modules et l'identité publique. Bien configurer cette section détermine ce que tes membres pourront voir et faire.",
+        placement: "bottom",
+        requiresPerm: "isDiscordAdmin"
+    },
+    {
+        target: '[data-tour="admin-overview-card-settings"]',
+        title: "Paramètres Généraux",
+        description: "Règle les intégrations Discord, Metamob et Dofus, les salons de notification et la configuration globale. C'est ici que tu connectes ta guilde à l'écosystème SigilOS.",
+        placement: "right",
+        requiresPerm: "canViewSettings"
+    },
+    {
+        target: '[data-tour="admin-overview-card-permissions"]',
+        title: "Rôles & Permissions",
+        description: "Le cœur de la sécurité : mappe les rôles Discord de ton serveur aux permissions SigilOS. Chaque rôle contrôle l'accès à tel ou tel module. Accessible uniquement aux admins Discord.",
+        placement: "right",
+        requiresPerm: "isDiscordAdmin"
+    },
+    {
+        target: '[data-tour="admin-overview-card-modules"]',
+        title: "Gestion des Modules",
+        description: "Active ou désactive les modules (Missions, Songes, Ocre, Services, Calendrier…). Par défaut, tout est désactivé : compose l'expérience de ta guilde sans surcharge.",
+        placement: "right",
+        requiresPerm: "isDiscordAdmin"
+    },
+    {
+        target: '[data-tour="admin-overview-card-presentation"]',
+        title: "Identité de Guilde",
+        description: "Édite la page publique de ta guilde (recrutement, objectifs, présentation). C'est la vitrine que découvrent les candidats avant de rejoindre le serveur.",
+        placement: "right",
+        requiresPerm: "canEditPresentation"
+    },
+    {
+        target: '[data-tour="admin-overview-card-missions"]',
+        title: "Gestion des Missions",
+        description: "Prépare le reset hebdomadaire, crée les missions, définit les bonus et le palier. Ces missions seront visibles par tous les membres une fois publiées.",
+        placement: "bottom",
+        requiresPerm: "canManageMissions"
+    },
+    {
+        target: '[data-tour="admin-overview-card-validation"]',
+        title: "Validation",
+        description: "Le centre de tri des preuves : missions, succès, dons de kamas, retours de vacances. Valide ou refuse avec un message pour récompenser les efforts de tes membres.",
+        placement: "bottom",
+        requiresPerm: "canValidateMissions"
+    },
+    {
+        target: '[data-tour="admin-overview-card-members"]',
+        title: "Gestion des Membres",
+        description: "Annuaire admin complet : synchronise les pseudos, archive les comptes, gère les relances d'inactivité et les rôles. Le point d'entrée pour la gestion humaine de la guilde.",
+        placement: "bottom",
+        requiresPerm: "canManageMembers"
+    },
+    {
+        target: '[data-tour="admin-overview-card-logs"]',
+        title: "Audit Logs",
+        description: "Consulte l'historique complet des actions du staff : qui a fait quoi et quand. Indispensable pour auditer ton équipe et détecter toute action suspecte.",
+        placement: "bottom",
         requiresPerm: "canViewAuditLogs"
     }
 ];
@@ -426,6 +506,7 @@ export function TourProvider({
     const adminValidationSteps = applyFilters(ADMIN_VALIDATION_STEPS);
     const adminMembersSteps = applyFilters(ADMIN_MEMBERS_STEPS);
     const adminLogsSteps = applyFilters(ADMIN_LOGS_STEPS);
+    const adminOverviewSteps = applyFilters(ADMIN_OVERVIEW_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -441,6 +522,7 @@ export function TourProvider({
             case "adminValidation": return adminValidationSteps;
             case "adminMembers": return adminMembersSteps;
             case "adminLogs": return adminLogsSteps;
+            case "adminOverview": return adminOverviewSteps;
             default: return [];
         }
     };
@@ -576,6 +658,9 @@ export function TourProvider({
                 break;
             case "adminLogs":
                 router.push(`/dashboard/${guildId}/admin/logs`);
+                break;
+            case "adminOverview":
+                router.push(`/dashboard/${guildId}/admin`);
                 break;
             default:
                 break;

@@ -43,7 +43,7 @@ export default async function AdminModulesPage({ params }: Props) {
                     description="Activez ou désactivez les fonctionnalités de votre guilde"
                     icon={Puzzle}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay user={user} />}
+                    actions={<AdminTourReplay phase="adminModulesMgmt" />}
                 />
             </div>
 

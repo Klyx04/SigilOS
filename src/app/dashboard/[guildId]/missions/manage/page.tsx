@@ -50,7 +50,7 @@ export default async function MissionsManagePage({ params }: { params: Promise<{
                     description="Préparez et publiez les missions de la semaine pour la guilde."
                     imageSrc="/assets/ui/icons/missions.png"
                     backHref={`/dashboard/${guildId}/missions`}
-                    actions={<AdminTourReplay user={user} />}
+                    actions={<AdminTourReplay phase="adminMissions" />}
                 />
             </div>
 

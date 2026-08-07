@@ -171,7 +171,7 @@ export default async function DashboardLayout({
         <NebulaClientWrapper>
             <GameProvider>
             <TelemetryTracker />
-            <TourProvider guildId={guildId} modules={modules}>
+            <TourProvider guildId={guildId} modules={modules} user={user}>
                 <TourOverlay />
                 <TourCompletion guildId={guildId} />
                 <div className="flex h-screen h-[100dvh] overflow-hidden bg-background font-sans selection:bg-primary/20 text-foreground fixed inset-0 dashboard-layout">

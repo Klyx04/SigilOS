@@ -86,7 +86,10 @@ export async function getGettingStartedProgress(guildId: string): Promise<Onboar
             id: "modules",
             title: "Configurer les Modules",
             description: "Activez les fonctionnalités dont votre guilde a besoin (Missions, Songes, Ocre...).",
-            status: guild.modules && countEnabledModules(guild.modules) > 4 ? "COMPLETED" : "IN_PROGRESS",
+            // Step "modules" complète SEULEMENT si une VRAIE config existe en BDD
+            // (>= 1 module actif). Depuis l'état vierge (aucun module actif par
+            // défaut), la step reste IN_PROGRESS jusqu'à activation explicite.
+            status: guild.modules && countEnabledModules(guild.modules) >= 1 ? "COMPLETED" : "IN_PROGRESS",
             mandatory: false,
             points: 15,
             href: `/dashboard/${guildId}/admin/modules`,

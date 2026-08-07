@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AuroraBackground } from "@/components/ui/aurora-background";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 
 export default async function GettingStartedPage({
     params,
@@ -43,12 +44,15 @@ export default async function GettingStartedPage({
             <AuroraBackground className="absolute inset-0 z-0 opacity-10 pointer-events-none" />
 
             <div className="relative z-10 space-y-8">
-                <UnifiedModuleHeader
-                    title="Mise en route"
-                    description="Configurez votre guilde en suivant les étapes obligatoires, puis les recommandées"
-                    icon={Rocket}
-                    backHref={`/dashboard/${guildId}/admin`}
-                />
+                <div className="flex items-start justify-between gap-4 mx-1">
+                    <UnifiedModuleHeader
+                        title="Mise en route"
+                        description="Configurez votre guilde en suivant les étapes obligatoires, puis les recommandées"
+                        icon={Rocket}
+                        backHref={`/dashboard/${guildId}/admin`}
+                    />
+                    <AdminTourReplay />
+                </div>
 
                 {/* Alerte critique si étapes obligatoires non complètes */}
                 {!progress.mandatoryComplete && (
@@ -142,9 +146,19 @@ export default async function GettingStartedPage({
                         const isMandatory = step.mandatory;
                         const isLocked = !isMandatory && !progress.mandatoryComplete;
 
+                        const tourTarget = {
+                            dofus: "admin-dofus",
+                            rbac: "admin-rbac",
+                            discord: "admin-discord",
+                            modules: "admin-modules",
+                            presentation: "admin-presentation",
+                            missions: "admin-missions",
+                        }[step.id];
+
                         return (
                             <div
                                 key={step.id}
+                                data-tour={tourTarget}
                                 className={cn(
                                     "group relative glass-premium p-6 rounded-xl border transition-all duration-300",
                                     isCompleted

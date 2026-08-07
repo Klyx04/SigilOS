@@ -69,7 +69,7 @@ export default async function UnifiedValidationPage({
                     icon={Gavel}
                     iconColor="#f59e0b"
                     backHref={`/dashboard/${guildId}`}
-                    actions={<AdminTourReplay user={user} />}
+                    actions={<AdminTourReplay phase="adminValidation" />}
                 />
             </div>
 

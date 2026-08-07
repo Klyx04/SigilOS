@@ -149,7 +149,7 @@ export default async function FeatureSettingsPage({
                     description="Intégrations Discord, Metamob, Dofus et gestion des membres"
                     icon={Settings}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay user={user} />}
+                    actions={<AdminTourReplay phase="adminSettings" />}
                 />
             </div>
 

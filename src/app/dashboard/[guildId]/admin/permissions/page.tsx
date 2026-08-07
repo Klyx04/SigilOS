@@ -80,7 +80,7 @@ export default async function PermissionsPage({
                     description={`Attribuez les droits aux rôles Discord et aux membres de ${config.name}`}
                     icon={Shield}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay user={user} />}
+                    actions={<AdminTourReplay phase="adminPermissions" />}
                 />
             </div>
             <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-500 shadow-lg mb-8">

@@ -76,7 +76,7 @@ export default async function AdminLogsPage({ params }: Props) {
                     description="Historique des modifications administratives"
                     icon={FileText}
                     backHref={`/dashboard/${guildId}/admin`}
-                    actions={<AdminTourReplay user={user} />}
+                    actions={<AdminTourReplay phase="adminLogs" />}
                 />
             </div>
 

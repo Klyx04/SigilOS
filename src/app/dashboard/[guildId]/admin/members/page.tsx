@@ -54,7 +54,7 @@ export default async function AdminMembersPage({ params }: AdminMembersPageProps
                     <h1 className="text-3xl font-black tracking-tight uppercase">Gestion des Membres</h1>
                     <p className="text-sm text-zinc-400 mt-1">Annuaire admin, synchronisation des pseudos, archivage et relances Discord.</p>
                 </div>
-                <AdminTourReplay user={ctx} />
+                <AdminTourReplay phase="adminMembers" />
             </div>
             <Suspense fallback={<AdminMembersSkeleton />}>
                 <div data-tour="admin-members-table">

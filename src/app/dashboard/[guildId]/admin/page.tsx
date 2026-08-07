@@ -25,6 +25,7 @@ import {
     ShieldAlert,
 } from "lucide-react";
 import { AdminCard } from "@/components/admin/admin-card";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 
 // ============================================================================
 // TYPES
@@ -37,6 +38,8 @@ type AdminCard = {
     description: string;
     accent: string; // Tailwind color token (e.g. "violet")
     permission?: keyof typeof PERMISSIONS | ((user: any) => boolean);
+    /** Identifiant stable pour le tour admin (data-tour). */
+    tourId?: string;
 };
 
 type AdminSection = {
@@ -62,6 +65,7 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Intégrations Discord, Metamob, Dofus et configuration globale de la plateforme.",
                     accent: "amber",
                     permission: (u) => u.canViewSettings,
+                    tourId: "admin-overview-card-settings",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/permissions`,
@@ -70,6 +74,7 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Gestion fine des accès. Définissez qui peut valider, modérer ou administrer.",
                     accent: "blue",
                     permission: (u) => u.isDiscordAdmin,
+                    tourId: "admin-overview-card-permissions",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/modules`,
@@ -78,6 +83,7 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Activez ou désactivez les fonctionnalités (Chat, Songe, Ocre, etc.) pour votre guilde.",
                     accent: "violet",
                     permission: (u) => u.isDiscordAdmin,
+                    tourId: "admin-overview-card-modules",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/presentation`,
@@ -86,6 +92,7 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Édition de la page publique, recrutement et présentation des objectifs.",
                     accent: "indigo",
                     permission: (u) => u.canEditPresentation,
+                    tourId: "admin-overview-card-presentation",
                 },
             ],
         },
@@ -100,6 +107,7 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Préparation du reset hebdomadaire, création des missions et bonus de guilde.",
                     accent: "emerald",
                     permission: (u) => u.canManageMissions,
+                    tourId: "admin-overview-card-missions",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/validation`,
@@ -108,6 +116,7 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Centre de tri des screens. Récompensez les efforts de vos membres.",
                     accent: "green",
                     permission: (u) => u.canValidateMissions,
+                    tourId: "admin-overview-card-validation",
                 },
                 {
                     href: `/dashboard/${guildId}/admin/members`,
@@ -116,6 +125,7 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Annuaire admin, synchronisation des pseudos, archivage et relances Discord.",
                     accent: "cyan",
                     permission: (u) => u.canManageMembers || u.canManageRelance,
+                    tourId: "admin-overview-card-members",
                 },
             ],
         },
@@ -130,6 +140,7 @@ function buildSections(guildId: string): AdminSection[] {
                     description: "Traçabilité totale des actions du staff pour une sécurité maximale.",
                     accent: "slate",
                     permission: (u) => u.canViewAuditLogs,
+                    tourId: "admin-overview-card-logs",
                 },
             ],
         },
@@ -210,13 +221,16 @@ export default async function AdminPage({
 
     return (
         <div className="space-y-16 pb-32 max-w-[1600px] mx-auto pt-10 px-6">
-            <UnifiedModuleHeader
-                title="Supervision"
-                description="Administration centrale de la guilde • Contrôle des systèmes et monitoring des opérations."
-                icon={Shield}
-                iconColor="#f43f5e"
-                backHref={`/dashboard/${guildId}`}
-            />
+            <div data-tour="admin-overview-header">
+                <UnifiedModuleHeader
+                    title="Supervision"
+                    description="Administration centrale de la guilde • Contrôle des systèmes et monitoring des opérations."
+                    icon={Shield}
+                    iconColor="#f43f5e"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<AdminTourReplay phase="adminOverview" />}
+                />
+            </div>
 
             <div className="space-y-24">
                 {sections.map((section) => {
@@ -229,8 +243,14 @@ export default async function AdminPage({
                     if (visibleCards.length === 0) return null;
 
                     const SectionIcon = section.icon;
+                    const sectionTourId = section.label === "Structure & Configuration"
+                        ? "admin-overview-structure"
+                        : section.label === "Opérations & Gestion"
+                            ? "admin-overview-operations"
+                            : "admin-overview-supervision";
+
                     return (
-                        <div key={section.label} className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                        <div key={section.label} data-tour={sectionTourId} className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
                             {/* Section header: Industrial Tech Style */}
                             <div className="flex items-center gap-6">
                                 <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.1)]">
@@ -267,6 +287,7 @@ export default async function AdminPage({
                                             guildId={guildId}
                                             initialPinned={user.pinnedNavItems?.includes(card.href) || false}
                                             warningBadge={warningBadge}
+                                            tourId={card.tourId}
                                         />
                                     );
                                 })}

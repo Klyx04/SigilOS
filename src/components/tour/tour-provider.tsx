@@ -231,21 +231,21 @@ const ADMIN_SETTINGS_STEPS: TourStep[] = [
     {
         target: '[data-tour="admin-settings-header"]',
         title: "Paramètres Généraux",
-        description: "Intégrations Discord, Metamob, Dofus et configuration globale de la plateforme.",
+        description: "Le centre de configuration de ta guilde. Toutes les intégrations (Discord, Metamob, Dofus) et toutes les options des modules de jeu se règlent ici. Les modifications sont enregistrées en direct.",
         placement: "bottom",
         requiresPerm: "canViewSettings"
     },
     {
         target: '[data-tour="admin-settings-nav"]',
         title: "Navigation par sections",
-        description: "Retrouvez les réglages par thème : Annonces, Serveur Dofus, Modules de jeu, etc.",
+        description: "La colonne de gauche regroupe les réglages par thème : Système & Canaux (Annonces, Absences, Sondages), Gestion de Guilde (Serveur Dofus, Annuaire, Blacklist) et Modules de Jeu (Calendrier, Donjons, Missions, Prêts, Ocre, Galerie, Services). Clique sur une section pour ouvrir ses options.",
         placement: "right",
         requiresPerm: "canViewSettings"
     },
     {
         target: '[data-tour="admin-settings-pane"]',
         title: "Panneau de configuration",
-        description: "Chaque section affiche ses propres options. Les modifications sont sauvegardées en direct.",
+        description: "Chaque section affiche ses propres options : salons Discord, notifications, récompenses, comportement des modules… Utilise le menu de droite pour sauter directement à un réglage précis sans navigation.",
         placement: "left",
         requiresPerm: "canViewSettings"
     }
@@ -306,21 +306,21 @@ const ADMIN_MISSIONS_STEPS: TourStep[] = [
     {
         target: '[data-tour="admin-missions-header"]',
         title: "Gestion des Missions",
-        description: "Préparation du reset hebdomadaire, création des missions et bonus de guilde.",
+        description: "Le quartier général de tes missions hebdomadaires : crée, prépare, publie et surtout admire le travail avant de l'envoyer aux membres.",
         placement: "bottom",
         requiresPerm: "canManageMissions"
     },
     {
         target: '[data-tour="admin-missions-builder"]',
         title: "Création & réglages",
-        description: "Définissez les missions, leurs objectifs, récompenses et délais.",
+        description: "L'éditeur de missions. Change de catégorie (Donjon, Régulation, Anomalie, Songes, Expédition…), règle le rang, et le palier global de la semaine. Chaque slot est une mission distincte.",
         placement: "top",
         requiresPerm: "canManageMissions"
     },
     {
         target: '[data-tour="admin-missions-bonus"]',
         title: "Bonus de guilde",
-        description: "Configurez les bonus accordés aux membres selon la performance de la guilde.",
+        description: "Configurez les bonus accordés aux membres selon la performance de la guilde. Bouton dans la barre d'outils (en haut à droite).",
         placement: "top",
         requiresPerm: "canManageMissions"
     }
@@ -330,14 +330,14 @@ const ADMIN_VALIDATION_STEPS: TourStep[] = [
     {
         target: '[data-tour="admin-validation-header"]',
         title: "Validation",
-        description: "Centre de tri des screens. Récompensez les efforts de vos membres.",
+        description: "Le centre de tri des preuves et récompenses. Chaque type de soumission (missions, succès, dons de kamas, retours de vacances) a sa propre file, avec un indicateur de volume en attente sur chaque onglet.",
         placement: "bottom",
         requiresPerm: "canValidateMissions"
     },
     {
         target: '[data-tour="admin-validation-inbox"]',
         title: "File de validation",
-        description: "Vérifiez les captures soumises par les membres, validez ou refusez avec un motif.",
+        description: "Ces onglets regroupent les preuves à traiter : Missions (screens de validation), Succès (progression), Dons Kamas et Retours d'absences. Chaque entrée peut être acceptée ou refusée avec un motif que le membre verra.",
         placement: "top",
         requiresPerm: "canValidateMissions"
     }

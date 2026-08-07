@@ -155,6 +155,15 @@
 
 ---
 
+## 🧭 Ménage des branches (nettoyage) — FAIT le 08/08/2026
+
+- ✅ **Constat** : aucune branche ne portait de travail perdu. Les fixes `test-dependabot` (esbuild/deps) et `ticket-whitelist` étaient déjà intégrés à `dev`. Le vieux commit `fix/robots-beta-indexable` (CI/CD GHCR, 03/08) était entièrement couvert par l'infra CD déjà présente et plus à jour dans `dev`/branche courante.
+- ✅ **Branche de travail** : `feat/onboarding-admin-tour` = la plus à jour, contient `dev` + les 13 commits de la session (fix audit + tours admin).
+- ✅ **Supprimées (local + GitHub)** : `evo3-god-security-fixes`, `evo4-god-evolutions`, `feat/audit-and-dofus-enhancements`, `feat/channel-preview-admin`, `feat/god-notif-performedBy`, `feat/rush-position-preview`, `feat/rush-sylvestre-refactor`, `feat/security-post-audit`, `feature/feedback-dofus`, `feature/service-dialogue-et-rendu`, `fix/landing-clarification-and-audit`, `fix/robots-beta-indexable`, `fix/sitemap-base-url`, `fix/ticket-whitelist-2bugs`, `test-dependabot`.
+- ✅ **Restent** : `main`, `dev`, `feat/onboarding-admin-tour` (local + remote).
+
+---
+
 ## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
 
 | Chantier | Réf / fichier | État |

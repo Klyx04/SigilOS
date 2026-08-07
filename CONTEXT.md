@@ -118,6 +118,21 @@
 
 ---
 
+## 🧭 Suivi de chantier courant (Onboarding admin post-whitelist + Dashboard d'arrivée) — FAIT le 08/08/2026
+
+> **Branche** : `feat/onboarding-admin-tour` → PR vers `dev` (lien : `https://github.com/Klyx04/SigilOS/pull/new/feat/onboarding-admin-tour`).
+> Source : `src/temp/prompt-next-chantier.md` + rapport `refonte-ticket-whilist.md` (Bugs 3-6 + Feature 5) + `test-debug`. Mémo : `src/temp/memo-2026-08-08-onboarding-admin.md`.
+
+- ✅ **Commit `77cff012` — TÂCHE 1 (Bug 4)** : `isOnboardingComplete = isRbacConfigured && !!guildConfig?.dofusServerId` (`user-actions.ts`). La navbar admin est désormais grisée **au backend** (toutes les perms membres forcées à false) tant que serveur de jeu + rôles & permissions ne sont pas configurés. Pas de blocage en boucle (admin garde settings/permissions + getting-started). Réponse « logique cohérente pour une arrivée » : OUI.
+- ✅ **Commit `6f7ea8cc` — TÂCHE 2 (Bug 3)** : disparition du flash « page erreur système » (~1s) au déploiement. Cause = cache Redis `guild_allowed:{id}` (TTL 60s) jamais invalidé. Nouveau helper `invalidateAllowedGuildCache` appelé dans `addAllowedGuild`, `removeAllowedGuild`, `toggleGuildActive` et `onboardGuild` (création + réactivation).
+- ✅ **Commit `0f0c08ad` — TÂCHE 3 (Bug 6)** : `DEFAULT_MODULES` → **seul `admin: true`** par défaut (tout le reste `false`). Step « modules » de `getting-started` = COMPLETED seulement si une vraie config BDD existe (≥ 1 module actif), plus jamais via le fallback `> 4`. Code mort dupliqué de `module-actions.ts` supprimé. **Aucun backfill** : guildes existantes avec une ligne `GuildModules` conservent leurs valeurs (défauts BDD `@default(true)`).
+- ✅ **Commit `1c9230f9` — TÂCHE 4 (Feature 5)** : **tuto tour admin dynamique par cartes**, rejouable, filtré par RBAC. Phase `"admin"` du `TourProvider` (réutilisé, pas dupliqué) + 6 cartes calquées sur getting-started (Serveur de Jeu, Rôles & Permissions, Lier le Bot, Modules, Présentation, Missions), filtrées par `requiresPerm` (perm RBAC admin) et `module`. Pop auto **uniquement** à l'arrivée des guildes en cours de config (`!isOnboardingComplete && isAdmin`), localStorage dédié, bouton « Revoir le tour » (`admin-tour-replay.tsx` + `data-tour` par étape). `TourOverlay` gère la phase admin ; `layout.tsx` passe `user` au provider.
+- **Vérifs** : `tsc --noEmit` 0 ✅ · `lint` 0 erreur (warnings pré-existants) ✅ · `test:run` **110 tests** ✅ · `build` 62 pages ✅ · pre-commit (secrets ✅, Prisma inchangé ✅).
+- **Aucune migration Prisma.**
+- 🔜 **À tester en beta** : pop auto du tour admin à l'arrivée, filtres RBAC (carte masquée si pas la perm), rejouabilité via « Revoir », disparition du flash déploiement.
+
+---
+
 ## 🧭 Chantiers de sécurité restants (rappel — voir SECURITY.md)
 
 **État au 01/08/2026 :** F-02, F-06/F-03, F-04, F-01, F-12, F-23/F-24, F-19/F-27/F-26/F-18/F-22 corrigés. **Session d'après-audit (01/08) ajoutée :** F-08 (auth WS), F-05 (chiffrement OAuth), F-04 (fail-closed + IP fiable), F-02 (expiration + clé dédiée), F-07 (JWT 8h), F-03 (SSRF image-downloader). **Rapports centralisés :** `docs/audits/` (hors git). Reste :

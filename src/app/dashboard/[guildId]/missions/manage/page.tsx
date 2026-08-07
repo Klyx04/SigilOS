@@ -5,6 +5,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { logAdminAccessDenied } from "@/server/actions/audit-actions";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { AdminTourReplay } from "@/components/tour/admin-tour-replay";
 import { MissionXpOverrideControl } from "@/components/missions/mission-xp-override-control";
 import { getDofusConfig, getMissionConfig } from "@/server/actions/admin-actions";
 import { getWeekMissions } from "@/server/actions/mission-actions";
@@ -43,17 +44,22 @@ export default async function MissionsManagePage({ params }: { params: Promise<{
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Gestion des Missions"
-                description="Préparez et publiez les missions de la semaine pour la guilde."
-                imageSrc="/assets/ui/icons/missions.png"
-                backHref={`/dashboard/${guildId}/missions`}
-            />
+            <div data-tour="admin-missions-header">
+                <UnifiedModuleHeader
+                    title="Gestion des Missions"
+                    description="Préparez et publiez les missions de la semaine pour la guilde."
+                    imageSrc="/assets/ui/icons/missions.png"
+                    backHref={`/dashboard/${guildId}/missions`}
+                    actions={<AdminTourReplay phase="adminMissions" />}
+                />
+            </div>
 
             {/* [MIS-1] Contrôle de la barre XP manuelle */}
             <MissionXpOverrideControl guildId={guildId} targetTier={targetTier} />
 
-            <MissionEditor guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
+            <div data-tour="admin-missions-builder">
+                <MissionEditor guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
+            </div>
         </div>
     );
 }

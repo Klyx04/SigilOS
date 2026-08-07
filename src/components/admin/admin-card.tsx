@@ -31,6 +31,8 @@ interface AdminCardProps {
     guildId: string;
     initialPinned: boolean;
     warningBadge?: string;
+    /** Identifiant stable pour le tour admin (data-tour). */
+    tourId?: string;
 }
 
 const ICONS: Record<string, LucideIcon> = {
@@ -68,6 +70,7 @@ export function AdminCard({
     guildId,
     initialPinned,
     warningBadge,
+    tourId,
 }: AdminCardProps) {
     const [isPinned, setIsPinned] = useState(initialPinned);
     const [isPending, startTransition] = useTransition();
@@ -103,7 +106,7 @@ export function AdminCard({
     };
 
     return (
-        <Link href={href} className="group outline-none relative block h-full">
+        <Link href={href} className="group outline-none relative block h-full" data-tour={tourId}>
             <div className={cn(
                 "relative flex flex-col h-full rounded-[2.5rem] border border-white/5 bg-white/[0.02] p-8 transition-all duration-700 hover:bg-white/[0.04] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] overflow-hidden",
                 a.hover,

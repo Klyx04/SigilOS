@@ -235,8 +235,14 @@ export function TicketDashboard({ initialTickets, initialTotal, initialStats }: 
         });
     }
 
-    // Update status
+    // Update status (⚠️ CLOSED est exclu : la fermeture doit passer par le bouton "Fermer"
+    // → closeSupportTicket, qui archive le fil Discord. updateTicketStatus("CLOSED")
+    // fermerait la base sans archiver le fil, avec un closedBy "DASHBOARD" trompeur.)
     async function handleStatusChange(ticketId: string, status: string) {
+        if (status === "CLOSED") {
+            toast.error("Utilise le bouton « Fermer » pour clôturer un ticket (archive le fil Discord).");
+            return;
+        }
         startTransition(async () => {
             const { updateTicketStatus } = await import("@/server/actions/ticket-actions");
             const res = await updateTicketStatus(ticketId, status as any);
@@ -658,6 +664,8 @@ function TicketDetailModal({
                     {/* Statut + fermeture */}
                     {!isClosed ? (
                         <div className="flex items-center gap-3 shrink-0">
+                            {/* Statut : CLOSED exclu — la fermeture passe par le bouton "Fermer"
+                                (→ closeSupportTicket qui archive le fil Discord). */}
                             <Select value={ticket.status} onValueChange={(val) => onStatusChange(ticket.id, val)}>
                                 <SelectTrigger className={cn("h-9 text-[10px] font-black uppercase px-3 py-1 rounded-full border bg-zinc-950 outline-none w-fit gap-2", status.color, status.chip)}>
                                     <StatusIcon className="w-3.5 h-3.5" />
@@ -667,7 +675,6 @@ function TicketDetailModal({
                                     <SelectItem value="OPEN">Nouveau</SelectItem>
                                     <SelectItem value="IN_PROGRESS">En cours</SelectItem>
                                     <SelectItem value="WAITING_RESPONSE">En attente</SelectItem>
-                                    <SelectItem value="CLOSED">Fermer</SelectItem>
                                 </SelectContent>
                             </Select>
                             <button

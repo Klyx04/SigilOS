@@ -44,7 +44,6 @@ async function run() {
         const mapId = m.id;
         const targetPath = path.join(HD_MAPS_DIR, `${mapId}.webp`);
         if (fs.existsSync(targetPath)) {
-            console.log(`  [SKIP] ${mapId}.webp already exists.`);
             continue;
         }
 
@@ -65,9 +64,10 @@ async function run() {
         }
     }
 
-    // Step 3: Compute World Grid Bounds
-    const xs = uniqueMaps.map(m => m.posX);
-    const ys = uniqueMaps.map(m => m.posY);
+    // Step 3: Compute World Grid Bounds (filtering outdoor maps)
+    const outdoorMaps = uniqueMaps.filter(m => m.posX !== 0 || m.posY !== 0);
+    const xs = outdoorMaps.map(m => m.posX);
+    const ys = outdoorMaps.map(m => m.posY);
     const minX = Math.min(...xs);
     const maxX = Math.max(...xs);
     const minY = Math.min(...ys);
@@ -75,19 +75,19 @@ async function run() {
 
     const cols = maxX - minX + 1;
     const rows = maxY - minY + 1;
-    console.log(`📐 Grid Bounds: X [${minX}..${maxX}] (${cols} cols), Y [${minY}..${maxY}] (${rows} rows)`);
+    console.log(`📐 Outdoor Grid Bounds: X [${minX}..${maxX}] (${cols} cols), Y [${minY}..${maxY}] (${rows} rows)`);
 
     // Individual map cell dimensions for compositing
-    const cellW = 400;
+    const cellW = 380;
     const cellH = 260;
-    const totalW = cols * cellW;
-    const totalH = rows * cellH;
+    const totalW = cols * cellW; // ~2660px
+    const totalH = rows * cellH; // ~1560px
 
     console.log(`🖼️ Creating composite world map canvas (${totalW}x${totalH}px)...`);
 
     // Prepare Sharp composition overlays
     const overlays = [];
-    for (const m of uniqueMaps) {
+    for (const m of outdoorMaps) {
         const mapId = m.id;
         const file = path.join(HD_MAPS_DIR, `${mapId}.webp`);
         if (!fs.existsSync(file)) continue;
@@ -97,7 +97,6 @@ async function run() {
         const left = gridX * cellW;
         const top = gridY * cellH;
 
-        // Resize individual map cell to fit composite cell
         const resizedBuf = await sharp(file)
             .resize(cellW, cellH, { fit: 'fill' })
             .toBuffer();
@@ -132,9 +131,7 @@ async function run() {
         { name: '0.5', scale: 0.5 },
         { name: '0.25', scale: 0.25 },
         { name: 'custom2', scale: 2 },
-        { name: 'custom3', scale: 3 },
-        { name: 'custom4', scale: 4 },
-        { name: 'custom5', scale: 5 }
+        { name: 'custom3', scale: 3 }
     ];
 
     console.log('🧱 Generating tile pyramid...');
@@ -154,7 +151,9 @@ async function run() {
 
         console.log(`  [BANK ${b.name}] Dimension: ${scaledW}x${scaledH}px -> ${numCols}x${numRows} tiles`);
 
+        let tileTasks = [];
         let tileIndex = 1;
+
         for (let r = 0; r < numRows; r++) {
             for (let c = 0; c < numCols; c++) {
                 const cropLeft = c * tileSize;
@@ -163,28 +162,37 @@ async function run() {
                 const cropH = Math.min(tileSize, scaledH - cropTop);
 
                 const tilePath = path.join(bankDir, `${tileIndex}.webp`);
-
-                // Extract & pad tile to exactly tileSize x tileSize if edge tile
-                let tilePipeline = sharp(scaledWorldBuf).extract({
-                    left: cropLeft,
-                    top: cropTop,
-                    width: cropW,
-                    height: cropH
-                });
-
-                if (cropW !== tileSize || cropH !== tileSize) {
-                    tilePipeline = tilePipeline.extend({
-                        top: 0,
-                        left: 0,
-                        bottom: tileSize - cropH,
-                        right: tileSize - cropW,
-                        background: { r: 10, g: 15, b: 24, alpha: 0 }
-                    });
-                }
-
-                await tilePipeline.webp({ quality: 80 }).toFile(tilePath);
+                const currentIdx = tileIndex;
                 tileIndex++;
+
+                tileTasks.push(async () => {
+                    let tilePipeline = sharp(scaledWorldBuf).extract({
+                        left: cropLeft,
+                        top: cropTop,
+                        width: cropW,
+                        height: cropH
+                    });
+
+                    if (cropW !== tileSize || cropH !== tileSize) {
+                        tilePipeline = tilePipeline.extend({
+                            top: 0,
+                            left: 0,
+                            bottom: tileSize - cropH,
+                            right: tileSize - cropW,
+                            background: { r: 10, g: 15, b: 24, alpha: 0 }
+                        });
+                    }
+
+                    await tilePipeline.webp({ quality: 80 }).toFile(tilePath);
+                });
             }
+        }
+
+        // Batch execute tile tasks concurrently (50 at a time)
+        const batchSize = 50;
+        for (let i = 0; i < tileTasks.length; i += batchSize) {
+            const batch = tileTasks.slice(i, i + batchSize);
+            await Promise.all(batch.map(fn => fn()));
         }
     }
     console.log('✅ Tile pyramid generated successfully.');
@@ -202,7 +210,7 @@ async function run() {
         mapWidth: 209,
         mapHeight: 150,
         minScale: 0.25,
-        maxScale": 1,
+        maxScale: 1,
         startScale: 0.5,
         totalWidth: totalW,
         totalHeight: totalH,
@@ -218,8 +226,6 @@ async function run() {
         className: "WorldMapData",
         m_id: WORLD_ID,
         customScales: [
-            { x: 5, y: 5, name: "custom5" },
-            { x: 4, y: 4, name: "custom4" },
             { x: 3, y: 3, name: "custom3" },
             { x: 2, y: 2, name: "custom2" },
             { x: 1, y: 1, name: "1" },
@@ -246,7 +252,6 @@ async function run() {
     const worldmapRaw = fs.readFileSync(WORLDMAP_JSON_PATH, 'utf-8');
     const worldmapData = JSON.parse(worldmapRaw);
 
-    // Merge worlds in worldmapData
     if (worldmapData.worlds) {
         const idxInWorldmap = worldmapData.worlds.findIndex(w => w.id === WORLD_ID);
         if (idxInWorldmap >= 0) {
@@ -256,7 +261,6 @@ async function run() {
         }
     }
 
-    // Merge maps into worldmapData.maps
     if (worldmapData.maps) {
         const existingMapIds = new Set(worldmapData.maps.map(m => m.id));
         for (const m of uniqueMaps) {

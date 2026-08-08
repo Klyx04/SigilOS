@@ -170,6 +170,7 @@ export type UserContext = {
     canViewAuditLogs: boolean;
     // Global Access
     isAdmin: boolean;
+    isFirstAdminForGuild?: boolean;
     isDiscordAdmin: boolean;
     isSuperAdmin: boolean;
     isMember: boolean;
@@ -648,6 +649,26 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
     const isAdmin = userHasAdminPermission || hasDiscordAdmin || isGod;
     const isAdminFinal = isAdmin;
 
+    // ── Tour admin : flag "premier admin de la guilde" (source de vérité serveur, atomique) ──
+    // Seul le TOUT PREMIER admin NON-God qui ouvre le Dashboard de CETTE guilde reçoit
+    // le tour des modules (une seule fois). Un God ne "consomme" jamais ce flag.
+    // updateMany conditionnel (!=update() unique) : si firstAdminViewAt IS NULL → ce code
+    // le pose (count===1 => c'est le premier) ; sinon count===0 => un autre est déjà passé.
+    // Fail-closed : si la BDD échoue, on n'accorde PAS le tour.
+    let isFirstAdminForGuild = false;
+    if (isAdminFinal && !isGod && guildConfig) {
+        try {
+            const firstAdminResult = await db.guildConfig.updateMany({
+                where: { id: guildConfig.id, firstAdminViewAt: null } as any,
+                data: { firstAdminViewAt: new Date() }
+            });
+            isFirstAdminForGuild = firstAdminResult.count > 0;
+        } catch (err) {
+            logger.error("[Tour Admin] Échec de la pose du flag premier admin", { guildId, error: err });
+            isFirstAdminForGuild = false;
+        }
+    }
+
     // 2. Authorization Check (The Gatekeeper) — STRICT DENY-BY-DEFAULT
     // A role MUST have DASHBOARD_LOGIN explicitly to pass. No legacy fallback.
     const hasAuthorizedRole = memberRoles.some(rId => {
@@ -898,6 +919,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         canViewSettings: !!canViewSettings,
         canViewAuditLogs: !!canViewAuditLogs,
         isAdmin: !!isAdminFinal,
+        isFirstAdminForGuild,
         isDiscordAdmin: !!(hasDiscordAdmin || isGod),
         isSuperAdmin: !!isGod,
         isMember: !!member,

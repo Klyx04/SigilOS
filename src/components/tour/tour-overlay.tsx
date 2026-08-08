@@ -54,19 +54,14 @@ export function TourOverlay() {
                 attempts = 0; // reset
             } else {
                 attempts++;
-                // Après ~2s si l'élément est introuvable (module caché/collapsé), on arrête
-                // la boucle et on affiche le tooltip en position centralisée. On N'avance PLUS
-                // automatiquement (ce qui déclenchait une cascade de skip à toute vitesse).
+                // Après ~2s si l'élément est introuvable (module caché/collapsé / sidebar repliée),
+                // on SAUTE l'étape au lieu d'afficher un tooltip centralisé inutile (anti-centrage).
+                // On avance d'une seule étape (pas de cascade) puis on stoppe la boucle rAF.
                 if (attempts > 120 && !settled) {
                     settled = true;
-                    setTargetRect({
-                        left: window.innerWidth / 2 - 150,
-                        top: window.innerHeight / 2 - 90,
-                        width: 300,
-                        height: 180,
-                        right: window.innerWidth / 2 + 150,
-                        bottom: window.innerHeight / 2 + 90,
-                    } as DOMRect);
+                    // Désactive l'overlay pour éviter un affichage résiduel centré.
+                    setTargetRect(null);
+                    advance();
                     return; // stoppe la boucle rAF
                 }
             }

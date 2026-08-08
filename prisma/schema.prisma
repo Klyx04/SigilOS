@@ -300,6 +300,7 @@ model GuildConfig {
   vaultNotifyChannelId             String?
   systemNotifyChannelId            String?
   lifecycleNotifyChannelId         String?
+  firstAdminViewAt                 DateTime?
   welcomeEnabled                   Boolean                 @default(false)
   welcomeNotifyChannelId           String?
   welcomeDashboardEnabled          Boolean                 @default(true)

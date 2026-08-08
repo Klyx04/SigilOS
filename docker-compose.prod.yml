@@ -150,7 +150,6 @@ services:
     restart: always
     env_file: .env.prod
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
     depends_on:
       - db-prod
@@ -271,11 +270,6 @@ services:
     restart: always
     env_file: .env.beta
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-beta:5432/${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - DB_HOST=db-beta
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
     depends_on:
       - db-beta

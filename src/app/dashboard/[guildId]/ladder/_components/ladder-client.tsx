@@ -350,12 +350,9 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                                                     </div>
                                                 </SelectTrigger>
                                                 <SelectContent className="bg-zinc-950/98 backdrop-blur-3xl border-white/10 p-1 rounded-xl shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)]">
-                                                    <SelectItem value="messages" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-indigo-400">💬 Messages</SelectItem>
                                                     <SelectItem value="voice" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-cyan-400">🎙️ Vocal</SelectItem>
-                                                    <SelectItem value="characters" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-emerald-400">✍️ Caractères (Écrivain)</SelectItem>
-                                                    <SelectItem value="reactions" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-amber-400">🔥 Réactions reçues (Star)</SelectItem>
+                                                    <SelectItem value="messages" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-indigo-400">💬 Messages</SelectItem>
                                                     <SelectItem value="stream" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-pink-400">📺 Streams (Vocal)</SelectItem>
-                                                    <SelectItem value="replies" className="text-[10px] uppercase font-black tracking-widest rounded-lg focus:bg-white/5 text-purple-400">🤝 Réponses (Entraide)</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         )}

@@ -57144,7 +57144,7 @@
       "x": -17,
       "y": -21,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57153,7 +57153,7 @@
       "x": -17,
       "y": -23,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57162,7 +57162,7 @@
       "x": -17,
       "y": -24,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57171,7 +57171,7 @@
       "x": -16,
       "y": -21,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57180,7 +57180,7 @@
       "x": -16,
       "y": -22,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57189,7 +57189,7 @@
       "x": -16,
       "y": -23,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57198,7 +57198,7 @@
       "x": -16,
       "y": -24,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57207,7 +57207,7 @@
       "x": -16,
       "y": -25,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57216,7 +57216,7 @@
       "x": -16,
       "y": -26,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 0
     },
@@ -57225,7 +57225,7 @@
       "x": -15,
       "y": -21,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57234,7 +57234,7 @@
       "x": -15,
       "y": -22,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57243,7 +57243,7 @@
       "x": -15,
       "y": -23,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57252,7 +57252,7 @@
       "x": -15,
       "y": -24,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57261,7 +57261,7 @@
       "x": -14,
       "y": -21,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57270,7 +57270,7 @@
       "x": -14,
       "y": -22,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57279,7 +57279,7 @@
       "x": -14,
       "y": -23,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57288,7 +57288,7 @@
       "x": -14,
       "y": -24,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57297,7 +57297,7 @@
       "x": 0,
       "y": 0,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 43
     },
@@ -57306,7 +57306,7 @@
       "x": 0,
       "y": 0,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 42
     },
@@ -57315,7 +57315,7 @@
       "x": 0,
       "y": 0,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 41
     },
@@ -57324,7 +57324,7 @@
       "x": 0,
       "y": 0,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 40
     },
@@ -57333,7 +57333,7 @@
       "x": 0,
       "y": 0,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 39
     },
@@ -57342,7 +57342,7 @@
       "x": -18,
       "y": -23,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57351,7 +57351,7 @@
       "x": -18,
       "y": -24,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -57360,7 +57360,7 @@
       "x": -19,
       "y": -23,
       "subAreaId": 76,
-      "worldMap": 1,
+      "worldMap": 38,
       "outdoor": true,
       "altitude": 1
     },
@@ -189935,5 +189935,70 @@
       "altitude": 0
     }
   ],
-  "updatedAt": "2026-04-16T11:44:59.559Z"
+  "updatedAt": "2026-04-16T11:44:59.559Z",
+  "worlds": [
+    {
+      "_id": "69a716cb96df4304dfe0af99",
+      "id": 38,
+      "origineX": 3971,
+      "origineY": 3750,
+      "mapWidth": 209,
+      "mapHeight": 150,
+      "minScale": 0.25,
+      "maxScale": 1,
+      "startScale": 0.5,
+      "totalWidth": 1463,
+      "totalHeight": 900,
+      "zoom": [
+        1,
+        0.75,
+        0.5,
+        0.25
+      ],
+      "visibleOnMap": true,
+      "name": {
+        "de": "Dorf der Brigandiner",
+        "en": "Imp Village",
+        "es": "Pueblo de los salteadorillos",
+        "fr": "Village des Brigandins",
+        "pt": "Vilarejo dos Diabretes"
+      },
+      "className": "WorldMapData",
+      "m_id": 38,
+      "customScales": [
+        {
+          "x": 3,
+          "y": 3,
+          "name": "custom3"
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "name": "custom2"
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "name": "1"
+        },
+        {
+          "x": 0.75,
+          "y": 0.75,
+          "name": "0.75"
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "name": "0.5"
+        },
+        {
+          "x": 0.25,
+          "y": 0.25,
+          "name": "0.25"
+        }
+      ],
+      "createdAt": "2026-08-08T13:00:53.597Z",
+      "updatedAt": "2026-08-08T13:00:53.599Z"
+    }
+  ]
 }

@@ -8,18 +8,17 @@ const TILES_DIR = path.join(ROOT, 'public', 'game-data', 'tiles', 'w38');
 const WORLDS_JSON_PATH = path.join(ROOT, 'public', 'game-data', 'worlds.json');
 const WORLDMAP_JSON_PATH = path.join(ROOT, 'public', 'game-data', 'worldmap.json');
 
-// Target World ID & SubArea ID for Village des Brigandins
 const WORLD_ID = 38;
 const SUBAREA_ID = 76;
 
 async function run() {
-    console.log('🚀 Starting siphonment for Village des Brigandins (World 38)...');
+    console.log('🚀 Starting seamless tile generator for Village des Brigandins (World 38)...');
 
-    // Ensure directories exist
     if (!fs.existsSync(HD_MAPS_DIR)) fs.mkdirSync(HD_MAPS_DIR, { recursive: true });
-    if (!fs.existsSync(TILES_DIR)) fs.mkdirSync(TILES_DIR, { recursive: true });
+    if (fs.existsSync(TILES_DIR)) fs.rmSync(TILES_DIR, { recursive: true, force: true });
+    fs.mkdirSync(TILES_DIR, { recursive: true });
 
-    // Step 1: Fetch all map positions for World 38
+    // Step 1: Fetch map positions from DofusDB
     console.log('📡 Fetching map positions from DofusDB API...');
     let allMaps = [];
     let skip = 0;
@@ -32,98 +31,90 @@ async function run() {
         skip += json.data.length;
     }
 
-    // Deduplicate by map ID
     const uniqueMapsMap = new Map();
     allMaps.forEach(m => uniqueMapsMap.set(m.id, m));
     const uniqueMaps = Array.from(uniqueMapsMap.values());
     console.log(`✅ Retrieved ${uniqueMaps.length} unique maps for World 38.`);
 
-    // Step 2: Download HD Map Images and save as WebP
-    console.log('🖼️ Downloading HD map images...');
+    // Download HD maps if missing
     for (const m of uniqueMaps) {
         const mapId = m.id;
         const targetPath = path.join(HD_MAPS_DIR, `${mapId}.webp`);
-        if (fs.existsSync(targetPath)) {
-            continue;
-        }
+        if (fs.existsSync(targetPath)) continue;
 
         const imgUrl = `https://api.dofusdb.fr/img/maps/1/${mapId}.jpg`;
         try {
-            console.log(`  [DOWN] Fetching map ${mapId} from ${imgUrl}...`);
+            console.log(`  [DOWN] Fetching map ${mapId}...`);
             const imgRes = await fetch(imgUrl);
             if (!imgRes.ok) throw new Error(`HTTP ${imgRes.status}`);
-            const arrayBuffer = await imgRes.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-
-            await sharp(buffer)
-                .webp({ quality: 82 })
-                .toFile(targetPath);
-            console.log(`  [OK] Saved ${mapId}.webp`);
+            const buffer = Buffer.from(await imgRes.arrayBuffer());
+            await sharp(buffer).webp({ quality: 82 }).toFile(targetPath);
         } catch (err) {
-            console.error(`  [ERR] Failed to download map ${mapId}: ${err.message}`);
+            console.error(`  [ERR] Failed map ${mapId}: ${err.message}`);
         }
     }
 
-    // Step 3: Compute World Grid Bounds (filtering outdoor maps)
-    const outdoorMaps = uniqueMaps.filter(m => m.posX !== 0 || m.posY !== 0);
+    // Filter outdoor maps with valid grid coordinates
+    const outdoorMaps = uniqueMaps.filter(m => m.posX < 0 && m.posY < 0);
     const xs = outdoorMaps.map(m => m.posX);
     const ys = outdoorMaps.map(m => m.posY);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
+    const minX = Math.min(...xs); // -19
+    const maxX = Math.max(...xs); // -14
+    const minY = Math.min(...ys); // -25
+    const maxY = Math.max(...ys); // -20
 
-    const cols = maxX - minX + 1;
-    const rows = maxY - minY + 1;
-    console.log(`📐 Outdoor Grid Bounds: X [${minX}..${maxX}] (${cols} cols), Y [${minY}..${maxY}] (${rows} rows)`);
+    const cols = maxX - minX + 1; // 6 cols (-19, -18, -17, -16, -15, -14)
+    const rows = maxY - minY + 1; // 6 rows (-25, -24, -23, -22, -21, -20)
 
-    // Individual map cell dimensions for compositing
-    const cellW = 380;
-    const cellH = 260;
-    const totalW = cols * cellW; // ~2660px
-    const totalH = rows * cellH; // ~1560px
+    // Standard Dofus secondary world map cell dimensions
+    const mapWidth = 209;
+    const mapHeight = 150;
+    const totalW = cols * mapWidth;  // 1254px
+    const totalH = rows * mapHeight; // 900px
 
-    console.log(`🖼️ Creating composite world map canvas (${totalW}x${totalH}px)...`);
+    const origineX = -minX * mapWidth;   // -(-19) * 209 = 3971
+    const origineY = -minY * mapHeight;  // -(-25) * 150 = 3750
 
-    // Prepare Sharp composition overlays
+    console.log(`📐 Grid Bounds: X [${minX}..${maxX}] (${cols} cols), Y [${minY}..${maxY}] (${rows} rows)`);
+    console.log(`📐 Exact World Dimensions: totalW=${totalW}px, totalH=${totalH}px, origineX=${origineX}, origineY=${origineY}`);
+
+    // Create composite world map image
+    console.log(`🖼️ Creating composite world map image with 4:3 active map viewport crop...`);
     const overlays = [];
     for (const m of outdoorMaps) {
-        const mapId = m.id;
-        const file = path.join(HD_MAPS_DIR, `${mapId}.webp`);
+        const file = path.join(HD_MAPS_DIR, `${m.id}.webp`);
         if (!fs.existsSync(file)) continue;
 
         const gridX = m.posX - minX;
         const gridY = m.posY - minY;
-        const left = gridX * cellW;
-        const top = gridY * cellH;
+        const left = gridX * mapWidth;
+        const top = gridY * mapHeight;
 
-        const resizedBuf = await sharp(file)
-            .resize(cellW, cellH, { fit: 'fill' })
+        // Crop 4:3 active Dofus map viewport (strip 16:9 widescreen margins & header/footer bars)
+        // 1910x970 -> crop left 368px, top 45px, width 1173px, height 880px -> resize to 209x150
+        const croppedAndResizedBuf = await sharp(file)
+            .extract({ left: 368, top: 45, width: 1173, height: 880 })
+            .resize(mapWidth, mapHeight, { fit: 'fill' })
             .toBuffer();
 
-        overlays.push({
-            input: resizedBuf,
-            left: left,
-            top: top
-        });
+        overlays.push({ input: croppedAndResizedBuf, left, top });
     }
 
-    // Generate base world composite image
     const compositeBuffer = await sharp({
         create: {
             width: totalW,
             height: totalH,
             channels: 4,
-            background: { r: 10, g: 15, b: 24, alpha: 1 }
+            background: { r: 8, g: 11, b: 18, alpha: 1 }
         }
     })
     .composite(overlays)
-    .webp({ quality: 85 })
+    .webp({ quality: 90 })
     .toBuffer();
 
-    console.log('✅ Composite world map generated.');
+    console.log('✅ Seamless composite world map generated.');
 
-    // Step 4: Generate Tile Pyramid
+    // Step 4: Tile Pyramid Generation (Leaflet 250px tiles)
     const tileSize = 250;
     const scaleBanks = [
         { name: '1', scale: 1 },
@@ -134,7 +125,7 @@ async function run() {
         { name: 'custom3', scale: 3 }
     ];
 
-    console.log('🧱 Generating tile pyramid...');
+    console.log('🧱 Generating pixel-perfect tile pyramid...');
     for (const b of scaleBanks) {
         const bankDir = path.join(TILES_DIR, b.name);
         if (!fs.existsSync(bankDir)) fs.mkdirSync(bankDir, { recursive: true });
@@ -149,8 +140,6 @@ async function run() {
         const numCols = Math.ceil(scaledW / tileSize);
         const numRows = Math.ceil(scaledH / tileSize);
 
-        console.log(`  [BANK ${b.name}] Dimension: ${scaledW}x${scaledH}px -> ${numCols}x${numRows} tiles`);
-
         let tileTasks = [];
         let tileIndex = 1;
 
@@ -160,9 +149,7 @@ async function run() {
                 const cropTop = r * tileSize;
                 const cropW = Math.min(tileSize, scaledW - cropLeft);
                 const cropH = Math.min(tileSize, scaledH - cropTop);
-
                 const tilePath = path.join(bankDir, `${tileIndex}.webp`);
-                const currentIdx = tileIndex;
                 tileIndex++;
 
                 tileTasks.push(async () => {
@@ -179,7 +166,7 @@ async function run() {
                             left: 0,
                             bottom: tileSize - cropH,
                             right: tileSize - cropW,
-                            background: { r: 10, g: 15, b: 24, alpha: 0 }
+                            background: { r: 8, g: 11, b: 18, alpha: 0 }
                         });
                     }
 
@@ -188,27 +175,24 @@ async function run() {
             }
         }
 
-        // Batch execute tile tasks concurrently (50 at a time)
-        const batchSize = 50;
+        const batchSize = 40;
         for (let i = 0; i < tileTasks.length; i += batchSize) {
-            const batch = tileTasks.slice(i, i + batchSize);
-            await Promise.all(batch.map(fn => fn()));
+            await Promise.all(tileTasks.slice(i, i + batchSize).map(fn => fn()));
         }
+        console.log(`  [BANK ${b.name}] Done (${numCols}x${numRows} tiles).`);
     }
-    console.log('✅ Tile pyramid generated successfully.');
 
     // Step 5: Update worlds.json
     console.log('📄 Updating worlds.json...');
-    const worldsJsonRaw = fs.readFileSync(WORLDS_JSON_PATH, 'utf-8');
-    const worldsData = JSON.parse(worldsJsonRaw);
+    const worldsData = JSON.parse(fs.readFileSync(WORLDS_JSON_PATH, 'utf-8'));
 
     const world38Entry = {
         _id: "69a716cb96df4304dfe0af99",
         id: WORLD_ID,
-        origineX: 3971,
-        origineY: 5225,
-        mapWidth: 209,
-        mapHeight: 150,
+        origineX: origineX,
+        origineY: origineY,
+        mapWidth: mapWidth,
+        mapHeight: mapHeight,
         minScale: 0.25,
         maxScale: 1,
         startScale: 0.5,
@@ -237,50 +221,35 @@ async function run() {
         updatedAt: new Date().toISOString()
     };
 
-    const existingIndex = worldsData.findIndex(w => w.id === WORLD_ID);
-    if (existingIndex >= 0) {
-        worldsData[existingIndex] = { ...worldsData[existingIndex], ...world38Entry };
-    } else {
-        worldsData.push(world38Entry);
-    }
+    const idx = worldsData.findIndex(w => w.id === WORLD_ID);
+    if (idx >= 0) worldsData[idx] = world38Entry;
+    else worldsData.push(world38Entry);
 
     fs.writeFileSync(WORLDS_JSON_PATH, JSON.stringify(worldsData, null, 2), 'utf-8');
-    console.log('✅ worlds.json updated with World 38.');
+    console.log('✅ worlds.json updated!');
 
     // Step 6: Update worldmap.json
     console.log('📄 Updating worldmap.json...');
-    const worldmapRaw = fs.readFileSync(WORLDMAP_JSON_PATH, 'utf-8');
-    const worldmapData = JSON.parse(worldmapRaw);
+    const wm = JSON.parse(fs.readFileSync(WORLDMAP_JSON_PATH, 'utf-8'));
 
-    if (worldmapData.worlds) {
-        const idxInWorldmap = worldmapData.worlds.findIndex(w => w.id === WORLD_ID);
-        if (idxInWorldmap >= 0) {
-            worldmapData.worlds[idxInWorldmap] = world38Entry;
-        } else {
-            worldmapData.worlds.push(world38Entry);
-        }
+    if (wm.worlds) {
+        const wIdx = wm.worlds.findIndex(w => w.id === WORLD_ID);
+        if (wIdx >= 0) wm.worlds[wIdx] = world38Entry;
+        else wm.worlds.push(world38Entry);
     }
 
-    if (worldmapData.maps) {
-        const existingMapIds = new Set(worldmapData.maps.map(m => m.id));
-        for (const m of uniqueMaps) {
-            if (!existingMapIds.has(m.id)) {
-                worldmapData.maps.push({
-                    id: m.id,
-                    x: m.posX,
-                    y: m.posY,
-                    worldMap: WORLD_ID,
-                    subAreaId: SUBAREA_ID,
-                    outdoor: m.outdoor !== false
-                });
+    if (wm.maps) {
+        for (const m of wm.maps) {
+            if (m.subAreaId === SUBAREA_ID) {
+                m.worldMap = WORLD_ID;
             }
         }
     }
 
-    fs.writeFileSync(WORLDMAP_JSON_PATH, JSON.stringify(worldmapData, null, 2), 'utf-8');
-    console.log('✅ worldmap.json updated with World 38 maps.');
+    fs.writeFileSync(WORLDMAP_JSON_PATH, JSON.stringify(wm, null, 2), 'utf-8');
+    console.log('✅ worldmap.json updated!');
 
-    console.log('🎉 Siphonment & Tile Generation completed successfully!');
+    console.log('🎉 Seamless tile generation complete for World 38!');
 }
 
 run().catch(err => {

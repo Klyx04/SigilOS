@@ -4,10 +4,6 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { ProfileStatus } from "@prisma/client";
 import { PresenceManager } from "@/lib/presence";
-
-/**
- * Returns a list of users who have been active in the last X minutes.
- */
 import { cache } from "react";
 
 // In-memory cache for internal guild IDs (5min TTL)
@@ -31,14 +27,15 @@ async function getInternalGuildId(discordGuildId: string): Promise<string | null
 }
 
 /**
- * Returns a list of users who have been active in the last X minutes.
+ * Returns a list of users who are online in the guild.
+ * Flags users as AFK if they have been inactive > 15 minutes.
  */
 export const getActivePresence = cache(async (guildId: string, limit: number = 20) => {
     try {
         const internalId = await getInternalGuildId(guildId);
         if (!internalId) return { success: false, data: [], totalActive: 0 };
 
-        // --- NEW REDIS-FIRST LOGIC ---
+        // --- REDIS-FIRST LOGIC ---
         const activeIds = await PresenceManager.getActiveUserIds(internalId);
 
         let activeUsers: any[] = [];
@@ -64,9 +61,9 @@ export const getActivePresence = cache(async (guildId: string, limit: number = 2
             });
         }
 
-        // Falls back to Prisma only if Redis returned absolutely nothing but thresholds say otherwise?
+        // Falls back to Prisma only if Redis returned absolutely nothing
         if (totalActive === 0) {
-            const threshold = new Date(Date.now() - 2 * 60 * 1000);
+            const threshold = new Date(Date.now() - 15 * 60 * 1000);
             totalActive = await db.userProfile.count({
                 where: { guildId: internalId, lastActivityAt: { gte: threshold }, status: ProfileStatus.ACTIVE }
             });
@@ -79,15 +76,25 @@ export const getActivePresence = cache(async (guildId: string, limit: number = 2
             }
         }
 
+        const now = Date.now();
+        const AFK_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
+
         return {
             success: true,
             totalActive,
-            data: activeUsers.map(u => ({
-                id: u.id,
-                name: u.discordNickname || u.pseudoDofus || u.user.name || "Inconnu",
-                image: u.user.image,
-                lastActive: u.lastActivityAt
-            }))
+            data: activeUsers.map(u => {
+                const lastActiveDate = u.lastActivityAt ? new Date(u.lastActivityAt) : null;
+                const diffMs = lastActiveDate ? (now - lastActiveDate.getTime()) : Infinity;
+                const isAfk = diffMs > AFK_THRESHOLD_MS;
+
+                return {
+                    id: u.id,
+                    name: u.discordNickname || u.pseudoDofus || u.user.name || "Inconnu",
+                    image: u.user.image,
+                    lastActive: u.lastActivityAt,
+                    isAfk
+                };
+            })
         };
     } catch (error) {
         console.error("[Presence] Failed to fetch active users:", error);
@@ -96,11 +103,11 @@ export const getActivePresence = cache(async (guildId: string, limit: number = 2
 });
 
 /**
- * Updates the lastActivityAt timestamp for the current user/guild.
- * Throttles database writes to once every 10 minutes per user/guild.
- * Always updates Redis for real-time presence.
+ * Updates presence for current user.
+ * Always updates Redis.
+ * Only updates DB lastActivityAt if user is NOT AFK (actively interacting).
  */
-export async function updateHeartbeat(guildId: string) {
+export async function updateHeartbeat(guildId: string, isAfk: boolean = false) {
     try {
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: "Unauthorized" };
@@ -109,31 +116,34 @@ export async function updateHeartbeat(guildId: string) {
         const internalId = await getInternalGuildId(guildId);
         if (!internalId) return { success: false };
 
-        // 1. ALWAYS update Redis (High-performance tracker)
+        // 1. ALWAYS update Redis (High-performance online tracker)
         await PresenceManager.updatePresence(internalId, userId);
 
-        // 2. THOROTTLE database writes (lastActivityAt)
-        // We only update the DB if the last update was more than 10 minutes ago
-        const profile = await db.userProfile.findUnique({
-            where: { 
-                userId_guildId: {
-                    userId,
-                    guildId: internalId
-                }
-            },
-            select: { id: true, lastActivityAt: true }
-        });
-
-        if (!profile) return { success: false };
-
-        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-        const shouldUpdateDB = !profile.lastActivityAt || profile.lastActivityAt < tenMinutesAgo;
-
-        if (shouldUpdateDB) {
-            await db.userProfile.update({
-                where: { id: profile.id },
-                data: { lastActivityAt: new Date() }
+        // 2. Update DB lastActivityAt ONLY IF USER IS NOT AFK
+        // If user IS AFK, we preserve their last active interaction timestamp in DB
+        if (!isAfk) {
+            const profile = await db.userProfile.findUnique({
+                where: { 
+                    userId_guildId: {
+                        userId,
+                        guildId: internalId
+                    }
+                },
+                select: { id: true, lastActivityAt: true }
             });
+
+            if (!profile) return { success: false };
+
+            // Throttle DB updates to once every 2 minutes for active users
+            const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+            const shouldUpdateDB = !profile.lastActivityAt || profile.lastActivityAt < twoMinutesAgo;
+
+            if (shouldUpdateDB) {
+                await db.userProfile.update({
+                    where: { id: profile.id },
+                    data: { lastActivityAt: new Date() }
+                });
+            }
         }
 
         return { success: true };

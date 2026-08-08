@@ -366,7 +366,7 @@ export function ProfileBentoGrid({
         <div className="flex flex-col gap-6">
             {/* Monthly Profile Reminder — only for profile owner */}
             {!readOnly && (
-                <ProfileReminderBanner guildId={guildId} />
+                <ProfileReminderBanner guildId={guildId} onSelectTab={setActiveTab} />
             )}
 
             {/* Hero Header (Glass) */}
@@ -496,7 +496,7 @@ export function ProfileBentoGrid({
 
                 {/* OVERVIEW TAB */}
                 <TabsContent value="overview" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex flex-col gap-6">
+                    <div id="profile-edit-section" className="flex flex-col gap-6">
                         {/* Classes */}
                         <div data-tour="profile-class">
                             <ClassDisplay

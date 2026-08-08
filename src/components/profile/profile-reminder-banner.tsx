@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, X, ArrowRight, RefreshCw } from "lucide-react";
+import { Bell, X, CheckCircle2, Edit3, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ProfileReminderBannerProps {
     guildId: string;
     /** Number of days between reminders. Default: 30 */
     intervalDays?: number;
+    onSelectTab?: (tab: string) => void;
 }
 
 const STORAGE_KEY_PREFIX = "sigilos-profile-reminder-";
@@ -19,6 +20,7 @@ const DEFAULT_INTERVAL_DAYS = 30;
 export function ProfileReminderBanner({
     guildId,
     intervalDays = DEFAULT_INTERVAL_DAYS,
+    onSelectTab,
 }: ProfileReminderBannerProps) {
     const [visible, setVisible] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -56,6 +58,25 @@ export function ProfileReminderBanner({
         }
     };
 
+    const handleConfirmUpToDate = () => {
+        handleDismiss();
+        toast.success("Merci ! Vos informations sont confirmées à jour pour ce mois-ci.");
+    };
+
+    const handleEditProfile = () => {
+        handleDismiss();
+        if (onSelectTab) {
+            onSelectTab("overview");
+        }
+        setTimeout(() => {
+            const el = document.getElementById("profile-edit-section");
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }, 100);
+        toast.info("Modifiez vos informations ci-dessous (classe, métiers, disponibilités).");
+    };
+
     if (!mounted) return null;
 
     return (
@@ -84,7 +105,7 @@ export function ProfileReminderBanner({
                         <X className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-200" />
                     </button>
 
-                    <div className="flex items-center gap-4 p-4 pr-10">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 pr-10">
                         {/* Icon */}
                         <div className="shrink-0 w-10 h-10 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center shadow-lg">
                             <Bell className="w-4.5 h-4.5 text-violet-400 animate-pulse" />
@@ -92,31 +113,39 @@ export function ProfileReminderBanner({
 
                         {/* Text */}
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-white uppercase tracking-widest leading-none mb-0.5">
+                            <p className="text-xs font-black text-white uppercase tracking-widest leading-none mb-1">
                                 Rappel mensuel du profil
                             </p>
-                            <p className="text-[11px] text-zinc-400 font-medium leading-snug truncate">
-                                Vérifiez que vos informations sont à jour — pseudo, classe, métiers, disponibilités.
+                            <p className="text-[11px] text-zinc-400 font-medium leading-snug">
+                                Vérifiez que vos informations de guilde sont à jour (pseudo Dofus, classe, métiers, disponibilités).
                             </p>
                         </div>
 
-                        {/* CTA */}
-                        <div className="flex items-center gap-2 shrink-0">
+                        {/* Actions */}
+                        <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
                             <Button
-                                asChild
                                 size="sm"
-                                className="h-8 px-4 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl gap-1.5 shadow-[0_4px_12px_rgba(139,92,246,0.35)] transition-all active:scale-95"
-                                onClick={handleDismiss}
+                                className="h-8 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl gap-1.5 shadow-[0_4px_12px_rgba(16,185,129,0.25)] transition-all active:scale-95"
+                                onClick={handleConfirmUpToDate}
                             >
-                                <Link href={`/dashboard/${guildId}/profile?tab=overview`}>
-                                    Mettre à jour
-                                    <ArrowRight className="w-3 h-3" />
-                                </Link>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Tout est à jour
                             </Button>
+
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-8 px-3.5 bg-violet-600/80 hover:bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl gap-1.5 border border-violet-400/30 transition-all active:scale-95"
+                                onClick={handleEditProfile}
+                            >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                Modifier
+                            </Button>
+
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 px-3 text-zinc-500 hover:text-zinc-200 text-[10px] font-black uppercase tracking-widest rounded-xl gap-1.5 transition-all"
+                                className="h-8 px-2.5 text-zinc-500 hover:text-zinc-200 text-[10px] font-black uppercase tracking-widest rounded-xl gap-1 transition-all"
                                 onClick={handleDismiss}
                             >
                                 <RefreshCw className="w-3 h-3" />
@@ -129,3 +158,4 @@ export function ProfileReminderBanner({
         </AnimatePresence>
     );
 }
+

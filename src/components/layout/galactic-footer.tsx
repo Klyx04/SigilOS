@@ -234,7 +234,7 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
                             <Link href="/legal/faq" className="hover:text-white transition-colors">Aide</Link>
                         </div>
                         <p className="text-zinc-600 text-[10px] font-medium leading-relaxed max-w-xl opacity-60">
-                            SigilOS est une plateforme indépendante. Dofus est une marque déposée d'Ankama Games. 
+                            SigilOS est une plateforme indépendante. Dofus est une marque déposée d'Ankama Games. Données & ressources complémentaires par DofusDB (LPNC-IA 1.0) et Ganymède.
                             Tous droits réservés. © 2026 Sigil Project.
                         </p>
                     </div>

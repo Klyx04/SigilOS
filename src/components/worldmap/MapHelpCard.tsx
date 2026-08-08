@@ -103,7 +103,7 @@ export function MapHelpCard({ onClose }: MapHelpCardProps) {
                         </div>
 
                         {/* Features Grid */}
-                        <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                        <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
                             {features.map((feature, i) => (
                                 <motion.div
                                     key={feature.id}
@@ -131,6 +131,32 @@ export function MapHelpCard({ onClose }: MapHelpCardProps) {
                                     </div>
                                 </motion.div>
                             ))}
+                        </div>
+
+                        {/* DofusDB Attribution Banner */}
+                        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-3.5">
+                                <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 p-1.5">
+                                    <img src="/assets/icons/dofusdb.png" alt="DofusDB Favicon" className="w-full h-full object-contain rounded-md" />
+                                </div>
+                                <div className="space-y-0.5 text-center sm:text-left">
+                                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                                        <span className="text-xs font-black text-white uppercase tracking-wider">Données Cartographiques & Jeu</span>
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 uppercase">DofusDB</span>
+                                    </div>
+                                    <p className="text-[11px] text-zinc-400 font-medium">
+                                        Données géographiques, monstres et objets issues de DofusDB. Utilisation soumise à la LPNC-IA 1.0.
+                                    </p>
+                                </div>
+                            </div>
+                            <a
+                                href="https://dofusdb.fr/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 hover:text-emerald-300 text-xs font-bold uppercase tracking-wider transition-all shrink-0 flex items-center gap-2"
+                            >
+                                Visiter DofusDB ↗
+                            </a>
                         </div>
 
                     </div>

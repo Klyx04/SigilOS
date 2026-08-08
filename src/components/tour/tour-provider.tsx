@@ -487,6 +487,10 @@ export function TourProvider({
 
     const isAdmin = !!user?.isAdmin;
     const isOnboardingComplete = !!user?.isOnboardingComplete;
+    // Flag serveur : true uniquement pour le TOUT PREMIER admin (non-God) de la guilde,
+    // posé de façon atomique côté serveur (user-actions.ts). Un God ne reçoit jamais ce flag.
+    const isFirstAdminForGuild = !!user?.isFirstAdminForGuild;
+    const isSuperAdmin = !!user?.isSuperAdmin;
 
     // Filtre les steps selon modules actifs + permissions RBAC admin
     const applyFilters = (steps: TourStep[]) => steps.filter(step => {
@@ -556,6 +560,12 @@ export function TourProvider({
     // Le tour reste rejouable à tout moment via le bouton « Revoir » (startTour).
     useEffect(() => {
         if (!isAdmin || typeof window === "undefined") return;
+        // 🔒 Le tour des modules ne pop que pour le TOUT PREMIER admin (non-God) de la guilde.
+        // Un God/super-admin ne reçoit JAMAIS le tour (isFirstAdminForGuild=false pour lui),
+        // et un admin d'une guilde déjà visitée (firstAdminViewAt posé) non plus.
+        if (!isFirstAdminForGuild) return;
+        // Garde de sécurité : exclure explicitement un God/super-admin.
+        if (isSuperAdmin) return;
         // Guilde pas encore configurée → redirection gérée par la page dashboard
         if (!isOnboardingComplete) return;
         // On ne pop que sur le Dashboard admin (pas sur les sous-pages)

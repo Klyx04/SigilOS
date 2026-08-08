@@ -36,6 +36,21 @@ if (!datasourceUrl) {
     process.exit(1);
 }
 
+// 🛡️ Fail-fast : valide que l'URL est bien formée dès le démarrage.
+// Sans cela, le bot tourne "à l'aveugle" et échoue en silence à CHAQUE écriture BDD
+// (ex: DATABASE_URL reconstruite cassée dans docker-compose → "Invalid URL").
+// Voir src/temp/prompt-next-chantier-ladder-discord.md (cause racine du bug Ladder Discord).
+try {
+    const parsed = new URL(datasourceUrl);
+    if (!parsed.hostname || !parsed.pathname || parsed.pathname === '/') {
+        throw new Error(`URL mal formée (hostname ou base manquants)`);
+    }
+} catch (e) {
+    console.error(`[Discord Bot] ❌ DATABASE_URL invalide → crash volontaire (fail-fast). Détail :`, e instanceof Error ? e.message : e);
+    console.error(`[Discord Bot]    Vérifiez la valeur dans l'environnement du conteneur.`);
+    process.exit(1);
+}
+
 // Prisma 7.x avec driverAdapters requiert un adapter explicite (datasources et datasourceUrl sont bannis)
 const adapter = new PrismaPg({ connectionString: datasourceUrl });
 const db = new PrismaClient({ adapter });
@@ -530,6 +545,11 @@ async function updateDiscordActivity(discordId: string, guildId: string | null, 
 
         if (result.count > 0) {
             console.log(`[Discord Bot] ${activityType} tracked for ${discordId} (${result.count} profile(s))`);
+        } else {
+            // ⚠️ Aucun profil trouvé : le matching repose sur user.accounts (table Account d'Auth.js).
+            // Un membre qui ne s'est JAMAIS connecté au Dashboard n'a aucun compte lié → count=0.
+            // On le loggue pour ne plus échouer en silence (diagnostic du Ladder Discord).
+            console.warn(`[Discord Bot] ⚠️ ${activityType} NOT tracked for ${discordId} — aucun UserProfile correspondant (user.accounts vide ? membre jamais connecté au Dashboard ? guildId=${guildId ?? 'null'})`);
         }
     } catch (e) {
         console.error(`[Discord Bot] Error updating activity for ${discordId}:`, e);
@@ -692,10 +712,13 @@ setInterval(async () => {
         lastResetWeek = currentWeek;
         console.log("[Discord Bot] Weekly Reset of Discord stats starting...");
         try {
-            // I-10: Scope the reset to ACTIVE profiles only to avoid a
+            // 🔒 Guild isolation (multi-tenant / RULES.md) : on ne reset QUE les guildes
+            // du bot (client.guilds.cache), jamais toutes les guildes de la base.
+            const guildIds = client.guilds.cache.map(g => g.id);
+            // I-10: Scope the reset to this bot's ACTIVE guilds only to avoid a
             // massive UPDATE locking the whole table when profiles grow.
             await db.userProfile.updateMany({
-                where: { status: "ACTIVE" },
+                where: { status: "ACTIVE", guild: { discordGuildId: { in: guildIds } } },
                 data: {
                     discordVoiceTimeWeekly: 0,
                     discordMessageCountWeekly: 0,
@@ -705,7 +728,7 @@ setInterval(async () => {
                     discordRepliesWeekly: 0
                 }
             });
-            console.log("[Discord Bot] Weekly Reset of Discord stats completed.");
+            console.log(`[Discord Bot] Weekly Reset of Discord stats completed (${client.guilds.cache.size} guildes).`);
         } catch (e) {
             console.error(`[Discord Bot] Failed to reset Weekly Discord stats:`, e);
         }
@@ -717,9 +740,11 @@ setInterval(async () => {
         lastResetMonth = currentMonth;
         console.log("[Discord Bot] Monthly Reset of Discord stats starting...");
         try {
-            // I-10: Scope the reset to ACTIVE profiles only.
+            // 🔒 Guild isolation (multi-tenant / RULES.md) : on ne reset QUE les guildes du bot.
+            const guildIds = client.guilds.cache.map(g => g.id);
+            // I-10: Scope the reset to this bot's ACTIVE guilds only.
             await db.userProfile.updateMany({
-                where: { status: "ACTIVE" },
+                where: { status: "ACTIVE", guild: { discordGuildId: { in: guildIds } } },
                 data: {
                     discordVoiceTimeMonthly: 0,
                     discordMessageCountMonthly: 0,
@@ -729,7 +754,7 @@ setInterval(async () => {
                     discordRepliesMonthly: 0
                 }
             });
-            console.log("[Discord Bot] Monthly Reset of Discord stats completed.");
+            console.log(`[Discord Bot] Monthly Reset of Discord stats completed (${client.guilds.cache.size} guildes).`);
         } catch (e) {
             console.error(`[Discord Bot] Failed to reset Monthly Discord stats:`, e);
         }

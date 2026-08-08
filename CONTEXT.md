@@ -59,7 +59,6 @@
 ---
 
 ## ⚙️ Règles d'interaction avec l'IA (moi, Cline ou autre)
-
 0. **ENV DE DEV LOCAL (POSTE) = PowerShell** — le terminal local est PowerShell sur Windows, PAS `cmd.exe`. Utiliser la syntaxe PowerShell : séparateur `;` (PAS `&&`), suppression de dossier `Remove-Item -Recurse -Force` (PAS `rmdir /s /q`), variables `$`. Les commandes `npm`/`npx`/`git` restent identiques. Note : le VPS Docker utilise du bash/sh côté serveur — rester en PowerShell uniquement pour les actions sur le poste local.
 1. **Ne jamais modifier** `docs/audits/`, `src/audit-*`, `AUDIT_*.md` (livrables locaux hors git).
 2. **Respecter strictement** `RULES.md` (fail-closed, validation, guilde isolation, logger).
@@ -139,6 +138,7 @@
 - **Aucune migration Prisma.**
 - 🔜 **À tester en beta** : pop auto du tour admin à l'arrivée (guilde neuve → onboarding ; guilde déjà configurée → modules/briques), écran de fin admin (« Centre Admin »), filtres RBAC (carte masquée si pas la perm), rejouabilité via « Revoir », disparition du flash déploiement. Rappel : `.next` corrompu → `Remove-Item -Recurse -Force .next` puis relancer `npm run dev`.
 - 🔜 **Guilde de test locale** : `1290442961380835451` whitelistée active + onboarding remis à zéro (dofusServerId null, RBAC vide, modules BDD supprimés) pour tester l'arrivée.
+- ♻️ **RESET guilde locale à la volée** : `npx tsx src/temp/reset-guild-test.ts` (gitignoré) → remet l'état « arrivée » (navbar grisée + tour admin) tout en gardant la whitelist active. Procédure détaillée dans `src/temp/memo-2026-08-08-onboarding-admin.md`.
 
 ---
 
@@ -164,6 +164,30 @@
 
 ---
 
+## 🧭 Suivi de chantier courant (Ladder Discord) — cause racine corrigée le 08/08/2026
+
+> **Branche recommandée** : `fix/ladder-discord-stats` → PR vers `dev`. Mémo : `src/temp/memo-2026-08-08-ladder-discord.md`. Prompt prêt à coller : `src/temp/prompt-next-chantier-ladder-discord.md`.
+
+- **Problème** : filtres/classements Ladder Discord vides (messages/vocal/caractères) dans le Dashboard.
+- ✅ **Cause racine confirmée (08/08)** : le bot échouait à TOUTE écriture BDD avec `ERR_INVALID_URL`
+  (`docker logs sigilos-discord-bot-beta`). Cause = override `DATABASE_URL` reconstruit dans
+  `docker-compose.prod.yml` (L153 prod / L274 beta) → variable `${POSTGRES_*}` absente ou caractère
+  spécial → URL invalide. L'app chargeait sa vraie `DATABASE_URL` via `env_file` → seul le bot était cassé.
+- ✅ **Fix appliqué** :
+  1. `docker-compose.prod.yml` : override `DATABASE_URL` reconstruit **supprimé** (prod + beta) → le bot
+     prend la `DATABASE_URL` canonique du `.env` via `env_file`.
+  2. `services/discord-bot/index.ts` : **fail-fast** sur `DATABASE_URL` (validation `new URL()` au démarrage).
+  3. `services/discord-bot/index.ts` : **log `count=0`** dans `updateDiscordActivity` (plus d'échec silencieux).
+  4. `services/discord-bot/index.ts` : **reset hebdo/mensuel scopé par guilde** (guildes du bot via
+     `client.guilds.cache`) — respecte la guild isolation.
+- ✅ **Vérifié** : `cd services/discord-bot && npm run build` (tsc) ✅.
+- ⚠️ **À faire** : redéployer (build image bot GHCR/CD puis `./scripts/deploy-cd.sh beta`), confirmer les
+  logs `tracked`, tester manuellement (6 métriques × 3 périodes), et si compteurs nuls pour certains membres
+  → investiguer SUSPECT A (matching `user.accounts` : champ `discordId` via migration Prisma OU upsert
+  fallback scopé par `guildId`).
+
+---
+
 ## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
 
 | Chantier | Réf / fichier | État |
@@ -180,6 +204,7 @@
 | **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚠️ Suite |
 | Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ⚠️ |
 | Déployer PR #405 (rate-limit) beta + rotation GOD_ROUTE | `CONTEXT.md` | ⚠️ |
+| **Ladder Discord** : déployer fix + test manuel (puis prévoir SUSPECT A si besoin) | `memo-2026-08-08-ladder-discord.md` | ✅ Corrigé, à déployer |
 
 ---
 

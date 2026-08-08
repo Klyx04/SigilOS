@@ -164,6 +164,26 @@
 
 ---
 
+## 🧭 Suivi de chantier courant (Session 08/08 — corrections en cours, branche fix/tour-admin-first-admin)
+
+> **Branche** : `fix/tour-admin-first-admin` → PR vers `dev`.
+
+### ✅ Ladder Discord — cause racine corrigée (`fix/ladder-discord-stats`)
+- **Cause** : `docker-compose.prod.yml` reconstruisait la `DATABASE_URL` du bot → `ERR_INVALID_URL` → aucun compteur écrit. Fix : override supprimé (prod+beta), fail-fast URL dans le bot, log `count=0`, reset scopé par guilde, filtre Discord limité à Vocal/Messages/Stream. Voir `memo-2026-08-08-ladder-discord.md`.
+
+### ✅ Tour admin auto-start — 1er admin uniquement (commits sur la branche courante)
+- Champ `firstAdminViewAt` sur `GuildConfig` (migration `20260808120000_add_first_admin_view_at`) + calcul atomique `isFirstAdminForGuild` dans `user-actions.ts`.
+- `tour-provider.tsx` : auto-start `adminModules` restreint à `isFirstAdminForGuild && !isSuperAdmin` (God jamais concerné).
+- `tour-overlay.tsx` : anti-centrage (skip d'une étape si `data-tour` introuvable après ~2s).
+
+### ✅ Fonctionnalité présence — flag AFK 15 min
+- `getActivePresence` : seuil d'inactivité 2 min → **15 min**, chaque membre retourné porte `isAfk`.
+- Facepile / Heartbeat / Modal : prise en compte du flag AFK.
+
+### 🪧 Autres modifs poussées sur la branche
+- Web parallèles (guide quêtes, mentions légales, footer, support orb, worldmap, profil, gallery).
+- Worldmap : `sync-assets.ps1`, workflow `siphon-worldmap.md`, données `worldmap.json`/`worlds.json`, `siphon-brigandins.js`.
+
 ## 🧭 Suivi de chantier courant (Ladder Discord) — cause racine corrigée le 08/08/2026
 
 > **Branche recommandée** : `fix/ladder-discord-stats` → PR vers `dev`. Mémo : `src/temp/memo-2026-08-08-ladder-discord.md`. Prompt prêt à coller : `src/temp/prompt-next-chantier-ladder-discord.md`.

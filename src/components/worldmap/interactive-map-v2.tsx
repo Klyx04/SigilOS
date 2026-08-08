@@ -1725,6 +1725,13 @@ export default function InteractiveMapV2({
                             highlightSubareaIds={highlightSubareaIds}
                             interactive={interactive}
                         />
+                        {/* 🏷️ DofusDB Attribution Badge */}
+                        {!hideUI && (
+                            <div className="absolute bottom-3 left-3 z-[600] pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-medium text-zinc-300 shadow-lg hover:bg-black/90 transition-all group">
+                                <img src="/assets/icons/dofusdb.png" alt="DofusDB" className="w-4 h-4 rounded-sm object-contain" />
+                                <span>Données issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">DofusDB</a> <span className="text-zinc-500 hidden sm:inline">(LPNC-IA 1.0)</span></span>
+                            </div>
+                        )}
                     </div>
                 )}
 

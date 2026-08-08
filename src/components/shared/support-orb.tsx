@@ -1,84 +1,49 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Heart, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { Heart, ExternalLink, Coffee } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
  * SupportOrb component
- * A premium, floating interactive orb to encourage donations/support.
- * Designed for SigilOS with Glassmorphism and smooth animations.
+ * A crisp, professional SaaS dashboard widget to encourage donations on Ko-fi.
+ * Clean, sharp design without over-the-top AI effects or heavy blurs.
  */
 export function SupportOrb() {
-    const [isHovered, setIsHovered] = useState(false);
-
     const stripeLink = "https://ko-fi.com/wylan"; 
 
     return (
-        <div 
-            className="fixed bottom-6 right-6 z-[100]"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-        >
-            <motion.a
+        <div className="fixed bottom-6 right-6 z-[100]">
+            <a
                 href={stripeLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                initial={false}
-                animate={{
-                    width: isHovered ? "auto" : "44px",
-                    backgroundColor: isHovered ? "rgba(9, 9, 11, 0.85)" : "rgba(9, 9, 11, 0.6)"
-                }}
                 className={cn(
-                    "flex items-center gap-2.5 h-11 overflow-hidden rounded-full",
-                    "backdrop-blur-2xl border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)]",
-                    "group transition-all duration-300 ease-out cursor-pointer hover:border-emerald-500/40"
+                    "group flex items-center gap-3 px-3.5 py-2 rounded-xl",
+                    "bg-[#0a0d14]/95 backdrop-blur-xl border border-white/10 hover:border-emerald-500/40 shadow-xl shadow-black/50",
+                    "transition-all duration-200 ease-out cursor-pointer hover:bg-zinc-900/90 active:scale-[0.98]"
                 )}
             >
-                {/* Orb Icon */}
-                <div className="flex-shrink-0 w-11 h-11 flex items-center justify-center relative">
-                    <motion.div 
-                        animate={{ 
-                            scale: [1, 1.15, 1],
-                            opacity: [0.2, 0.35, 0.2]
-                        }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                        className="absolute inset-1.5 bg-emerald-500 rounded-full blur-md"
-                    />
-                    <div className="relative w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center border border-emerald-500/30 group-hover:border-emerald-400/60 transition-colors">
-                        <Heart className={cn(
-                            "w-4 h-4 text-emerald-400 transition-all duration-300",
-                            isHovered ? "fill-emerald-400 scale-110" : "fill-emerald-400/20"
-                        )} />
-                    </div>
+                {/* Clean Icon Container */}
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 group-hover:border-emerald-500/30 transition-colors">
+                    <Heart className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20 group-hover:fill-emerald-400 transition-colors" />
                 </div>
 
-                {/* Text Content */}
-                <AnimatePresence>
-                    {isHovered && (
-                        <motion.div
-                            initial={{ opacity: 0, x: -6 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -6 }}
-                            className="flex items-center gap-1.5 pr-4 whitespace-nowrap"
-                        >
-                            <span className="text-[11px] font-black text-zinc-200 uppercase tracking-wider">
-                                Soutenir le projet
-                            </span>
-                            <ExternalLink className="w-3 h-3 text-emerald-400 shrink-0" />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </motion.a>
-
-            {/* Little "live" pulse indicator icon */}
-            {!isHovered && (
-                <div className="absolute top-0 right-0 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-zinc-950"></span>
+                {/* Text Block */}
+                <div className="flex flex-col text-left">
+                    <span className="text-[11px] font-bold text-white uppercase tracking-wider leading-none">
+                        Soutenir <span className="text-emerald-400">SigilOS</span>
+                    </span>
+                    <span className="text-[9px] font-medium text-zinc-400 mt-1 flex items-center gap-1 leading-none">
+                        <Coffee className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                        Donation Ko-fi
+                    </span>
                 </div>
-            )}
+
+                {/* CTA Arrow */}
+                <div className="pl-2 border-l border-white/10 flex items-center">
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-400 transition-colors" />
+                </div>
+            </a>
         </div>
     );
 }

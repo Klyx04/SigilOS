@@ -50,12 +50,25 @@ export default function MentionsPage() {
                     Toutes les marques, logos, images et noms issus de l'univers du jeu <strong>Dofus</strong> sont la propriété exclusive de la société <strong>Ankama Games</strong>. SigilOS n'est pas affilié à Ankama Games. L'utilisation des assets du jeu sur ce site est faite dans un but purement utilitaire pour la communauté des joueurs, sans aucune intention de porter atteinte aux droits de propriété d'Ankama.
                 </p>
 
-                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">4. Cookies</h2>
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">4. Crédits et Sources de Données Tiers</h2>
                 <p>
-                    Nous utilisons exclusivement des cookies techniques strictement nécessaires au fonctionnement de la plateforme (gestion de session d'authentification). Aucun cookie publicitaire ou de tracking tiers n'est utilisé.
+                    SigilOS s'appuie sur des ressources et bases de données communautaires ouvertes pour offrir une expérience optimisée :
+                </p>
+                <ul className="list-disc pl-6 space-y-2">
+                    <li>
+                        <strong>DofusDB :</strong> Données cartographiques, monstres, objets et API issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">DofusDB</a>. <em>« Données issues de DofusDB. Utilisation soumise à la licence LPNC-IA 1.0. »</em>
+                    </li>
+                    <li>
+                        <strong>Ganymède :</strong> Parcours d'optimisation, guides et étapes de quêtes issus du site <a href="https://ganymede-app.com/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">Ganymède</a>.
+                    </li>
+                </ul>
+
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">5. Cookies</h2>
+                <p>
+                    Nous utilisons exclusivement des cookies techniques strictly nécessaires au fonctionnement de la plateforme (gestion de session d'authentification). Aucun cookie publicitaire ou de tracking tiers n'est utilisé.
                 </p>
 
-                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">5. Droit Applicable</h2>
+                <h2 className="text-xl font-bold mt-8 mb-4 uppercase tracking-wider">6. Droit Applicable</h2>
                 <p>
                     Le présent site et ses mentions légales sont soumis au droit français.
                 </p>

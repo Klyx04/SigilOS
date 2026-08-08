@@ -2322,6 +2322,18 @@ export default function OptimizedGuideClient({
                     <HelpCircle size={12} />
                     Comment utiliser ?
                   </button>
+
+                  {/* Ganymède Credit Link */}
+                  <a
+                    href="https://ganymede-app.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 hover:text-purple-200 text-[10px] font-black uppercase tracking-wider transition-all"
+                    title="Parcours et étapes issus de Ganymède"
+                  >
+                    <img src="/assets/icons/ganymede.png" alt="Ganymède" className="w-3.5 h-3.5 rounded-sm object-contain" />
+                    <span>Ganymède ↗</span>
+                  </a>
                 </div>
               </div>
 

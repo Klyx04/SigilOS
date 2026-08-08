@@ -29,7 +29,7 @@ function resolveDiscordImage(rawImage: string, baseUrl?: string): string | undef
             host === "d-bk.net" || host.endsWith(".d-bk.net");
 
         if (isProtectedProvider) {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beta.sigilos.fr";
             return `${appUrl}/api/proxy-image?url=${encodeURIComponent(parsedUrl.href)}`;
         }
         return parsedUrl.href;
@@ -540,6 +540,7 @@ export async function shareGalleryItemOnDiscord(
     }
 
     let embedImage: string | undefined = undefined;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beta.sigilos.fr";
     try {
         const { fetchChannel, sendChannelMessage, createForumPost } = await import("@/server/discord");
 
@@ -585,7 +586,9 @@ export async function shareGalleryItemOnDiscord(
 
         if (type === "STUFF") {
             // Find build globally in the guild if authorProfileId is known
-            let build = null;
+            let build: any = null;
+            let targetProfileId = authorProfileId;
+
             if (authorProfileId) {
                 const profile = await db.userProfile.findUnique({
                     where: { id: authorProfileId },
@@ -604,32 +607,155 @@ export async function shareGalleryItemOnDiscord(
                     if (b) {
                         build = b;
                         authorName = p.pseudoDofus || p.discordNickname || authorName;
+                        targetProfileId = p.id;
                         break;
                     }
                 }
             }
             if (!build) return { success: false, error: "Build introuvable" };
 
+            // Opportunistic Auto-Bake: If previewData is missing or empty, fetch it live before sending to Discord
+            if (!build.previewData || !build.previewData.stats) {
+                try {
+                    const { getDofusbookPreview } = await import("./dofusbook-actions");
+                    const previewRes = await getDofusbookPreview(build.url);
+                    if (previewRes.success && previewRes.data) {
+                        build.previewData = previewRes.data;
+
+                        // Save updated previewData back to user profile asynchronously
+                        if (targetProfileId) {
+                            const profileObj = await db.userProfile.findUnique({
+                                where: { id: targetProfileId },
+                                select: { dofusBookLinks: true }
+                            });
+                            const updatedLinks = ((profileObj?.dofusBookLinks as any[]) || []).map(l =>
+                                l.id === build.id ? { ...l, previewData: previewRes.data, source: "dofusbook" } : l
+                            );
+                            await db.userProfile.update({
+                                where: { id: targetProfileId },
+                                data: { dofusBookLinks: updatedLinks as any }
+                            }).catch(() => {});
+                        }
+                    }
+                } catch {
+                    // Ignore error, fallback to stored build info
+                }
+            }
+
             itemName = build.name;
-            embedTitle = `🛡️ Build : ${build.name}`;
-            embedUrl = build.url;
-            embedDescription = `Partagé par **${authorName}** via SigilOS.`;
+            const pd = build.previewData;
+            const className = pd?.className || (build.classId ? String(build.classId) : "");
+            const levelStr = pd?.level ? ` · Niv. ${pd.level}` : "";
             
-            // Premium UI 2026: Large image for the build + Site icon as thumbnail
-            const rawBuildImg = build.previewData?.thumbnail?.trim();
-            if (rawBuildImg) {
-                embedImage = resolveDiscordImage(rawBuildImg, build.url);
+            embedTitle = `🛡️ Build : ${build.name}${className ? ` (${className}${levelStr})` : ""}`;
+            embedUrl = build.url;
+            const classNum = pd?.classId || build.classId;
+            embedThumbnail = classNum 
+                ? `${appUrl}/assets/dofus/classes/${classNum === 19 ? 20 : classNum}.png`
+                : `${appUrl}/assets/ui/logo-v2.png`;
+
+            // Extract numeric ID to generate the official Dofusbook render screenshot card
+            const buildIdMatch = build.url.match(/(?:equipement\/(?:[a-z]+\/)?([\d]+)|d-bk\.net\/(?:fr\/)?d\/([a-zA-Z0-9]+))/i);
+            const parsedId = buildIdMatch ? (buildIdMatch[1] || buildIdMatch[2]) : null;
+            const numericMatch = parsedId?.match(/^(\d+)/);
+            const numericId = numericMatch ? numericMatch[1] : parsedId;
+
+            const flashRenderUrl = numericId 
+                ? `https://static.dofusbook.net/equipement/render/${numericId}.png`
+                : pd?.thumbnail;
+
+            if (flashRenderUrl) {
+                embedImage = resolveDiscordImage(flashRenderUrl, build.url);
             } else {
                 embedImage = undefined;
             }
-            embedThumbnail = "https://sigilos.fr/assets/ui/dofusbook.png";
 
-            
-            if (build.classId) {
-                fields.push({ name: "Classe", value: String(build.classId).charAt(0).toUpperCase() + String(build.classId).slice(1), inline: true });
+            // 1. ⚔️ Caractéristiques principales
+            if (pd?.stats) {
+                const { pa = 6, pm = 3, po = 0, vit = 0, ini = 0, cc = 0, invo = 1 } = pd.stats;
+                fields.push({
+                    name: "⚔️ Caractéristiques",
+                    value: `**${pa}** PA · **${pm}** PM · **${po}** PO\n💖 **${vit.toLocaleString("fr-FR")}** Vitalité\n⚡ **${ini.toLocaleString("fr-FR")}** Ini · **${invo}** Invo · **${cc}%** Crit`,
+                    inline: true,
+                });
             }
+
+            // 2. 🌀 Éléments & Puissance
+            if (pd?.elements) {
+                const elNames: Record<string, string> = {
+                    fo: "Terre",
+                    in: "Feu",
+                    ch: "Eau",
+                    ag: "Air",
+                    pu: "Puissance",
+                    sa: "Sagesse",
+                };
+                const activeElements: string[] = [];
+                Object.entries(pd.elements).forEach(([key, val]) => {
+                    if (val && Number(val) > 0) {
+                        const label = elNames[key] || key;
+                        activeElements.push(`**+${val}** ${label}`);
+                    }
+                });
+                if (activeElements.length > 0) {
+                    fields.push({
+                        name: "🌀 Éléments principaux",
+                        value: activeElements.join("\n"),
+                        inline: true,
+                    });
+                }
+            }
+
+            // 3. 🛡️ Résistances %
+            if (pd?.resists) {
+                const r = pd.resists;
+                fields.push({
+                    name: "🛡️ Résistances %",
+                    value: `⚪ **${r.neutre || 0}%** N  |  🟤 **${r.terre || 0}%** T  |  🔴 **${r.feu || 0}%** F\n🔵 **${r.eau || 0}%** E  |  🟢 **${r.air || 0}%** A`,
+                    inline: false,
+                });
+            }
+
+            // 4. 🎒 Équipements équipés
+            if (pd?.items && typeof pd.items === "object") {
+                const itemNames: string[] = [];
+                Object.values(pd.items).forEach((it: any) => {
+                    if (it && it.name) {
+                        itemNames.push(`• ${it.name}`);
+                    }
+                });
+                if (itemNames.length > 0) {
+                    let itemsStr = itemNames.join("\n");
+                    if (itemsStr.length > 1000) {
+                        itemsStr = itemsStr.slice(0, 980) + "\n• ... et autres équipements";
+                    }
+                    fields.push({
+                        name: `🎒 Équipements (${itemNames.length})`,
+                        value: itemsStr,
+                        inline: false,
+                    });
+                }
+            }
+
+            // 5. ✨ Panoplies actives
+            if (Array.isArray(pd?.cloths) && pd.cloths.length > 0) {
+                const clothStr = pd.cloths.map((c: any) => `• **${c.name}** (${c.count}/${c.total})`).join("\n");
+                if (clothStr.length <= 1024) {
+                    fields.push({
+                        name: "✨ Panoplies actives",
+                        value: clothStr,
+                        inline: false,
+                    });
+                }
+            }
+
+            // 6. 🏷️ Tags
             if (build.tags && build.tags.length > 0) {
-                fields.push({ name: "Tags", value: build.tags.join(", "), inline: true });
+                fields.push({
+                    name: "🏷️ Tags",
+                    value: build.tags.map((t: string) => `\`${t}\``).join(" "),
+                    inline: true,
+                });
             }
         } else {
             // Fetch skin from DB with Guild isolation
@@ -676,18 +802,12 @@ export async function shareGalleryItemOnDiscord(
                 embedImage = undefined;
             }
 
-            // Fallback: use provider logo as main image instead of thumbnail if still no image
-            if (!embedImage) {
-                embedImage = skin.provider === "BARBOFUS"
-                    ? "https://sigilos.fr/assets/ui/barbofus.png"
-                    : "https://sigilos.fr/assets/ui/dofusskinmanga.png";
-            }
-
-
-            embedThumbnail = (skin.provider === "BARBOFUS" ? 
-                "https://sigilos.fr/assets/ui/barbofus.png" : 
-                "https://sigilos.fr/assets/ui/dofusskinmanga.png"
-            );
+            // Set valid thumbnail: class icon if available, otherwise SigilOS logo
+            const skinClassId = (skin.metadata as any)?.class;
+            const skinClassNum = skinClassId ? Number(skinClassId) : null;
+            embedThumbnail = skinClassNum 
+                ? `${appUrl}/assets/dofus/classes/${skinClassNum === 19 ? 20 : skinClassNum}.png`
+                : `${appUrl}/assets/ui/logo-v2.png`;
             
             if ((skin.metadata as any)?.class) {
                 const classData = DOFUS_CLASSES.find(c => {

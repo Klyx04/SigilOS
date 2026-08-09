@@ -139,74 +139,16 @@ const nextConfig: NextConfig = {
   // @ts-ignore
   serverExternalPackages: ['tesseract.js', 'ioredis', 'bullmq'], // Prevent Webpack from bundling Tesseract and BullMQ
   // Security Headers
+  // ⚠️ La CSP (Content-Security-Policy) est désormais gérée par le proxy
+  // (src/proxy.ts) : nonce-based, injectée en Requête (pour Next) + Réponse
+  // (pour le navigateur) en mode Report-Only par défaut (CSP_ENFORCE=true
+  // pour basculer en enforce). Ne pas réintroduire un header CSP ici — une
+  // CSP partielle sans script-src valide casserait tout (fallback default-src).
   async headers() {
-    // Build CSP — adapt CDN list to match remotePatterns above
-    const imgSrc = [
-      "'self'",
-      "data:",
-      "blob:",
-      "https://cdn.discordapp.com",
-      "https://metamob.fr https://www.metamob.fr",
-      "https://api.dofusdu.de https://api.dofusdb.fr",
-      "https://dofusdb.s3.eu-west-3.amazonaws.com https://dofusdb.fr https://static.dofusdb.fr",
-      "https://www.dofusbook.net https://static.dofusbook.net https://s.d-bk.net",
-      "https://static.ankama.com https://www.ankama.com https://www.dofus.com",
-      "https://www.dofuspourlesnoobs.com",
-      "https://static-cdn.jtvnw.net",
-      "https://i.ytimg.com",
-      "https://dofusskinmanga.com",
-      "https://barbofus.com https://www.barbofus.com https://static.barbofus.com",
-      // Google Favicon service domains
-      "https://www.google.com https://*.gstatic.com",
-      // Ganymede CDNs for guide quest/dungeon/step icons
-      "https://ganymede-dofus.com https://ganymede-app.com",
-      // Unsplash for raid selection illustrations
-      "https://images.unsplash.com",
-      // Imgur — user-submitted proof screenshots & guide images
-      "https://i.imgur.com",
-    ].join(" ");
-
-    const connectSrc = [
-      "'self'",
-      "https://*.sentry.io https://sentry.io",
-      "wss://*.sigilos.fr wss://localhost:*",
-    ].join(" ");
-
-    const isProd = process.env.NODE_ENV === "production";
-    const scriptSrc = [
-      "'self'",
-      "'unsafe-inline'",
-      ...(isProd ? [] : ["'unsafe-eval'"]),
-      "https://cdn.sentry.io",
-    ].join(" ");
-
-    const cspDirectives = [
-      "default-src 'self'",
-      // Next.js requires unsafe-inline for its runtime style injection
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com data:",
-      // Next.js + Sentry require unsafe-inline for script chunks; nonce-based CSP would require custom server
-      `script-src ${scriptSrc}`,
-      `img-src ${imgSrc}`,
-      `connect-src ${connectSrc}`,
-      "media-src 'self' blob:",
-      "worker-src 'self' blob:",
-      // Strict: no iframes allowed (replaces X-Frame-Options: DENY)
-      "frame-ancestors 'none'",
-      "frame-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      // Report violations to Sentry if DSN configured
-      ...(process.env.NEXT_PUBLIC_SENTRY_DSN
-        ? ["report-uri /monitoring"]
-        : []),
-    ].join("; ");
-
     return [
       {
         source: '/:path*',
         headers: [
-          { key: 'Content-Security-Policy', value: cspDirectives },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           // X-XSS-Protection is legacy but kept for old browsers

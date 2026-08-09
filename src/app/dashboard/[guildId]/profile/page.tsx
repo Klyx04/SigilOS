@@ -98,6 +98,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         altPseudos: (profile.altPseudos as string[]) || [],
                         dofusBookLinks: (profile.dofusBookLinks as any) || [],
                         introduction: profile.introduction,
+                        objectifs: profile.objectifs,
+                        preferredActivities: (profile.preferredActivities as string[]) || [],
+                        discordContact: profile.discordContact,
+                        activeServices: profile.activeServices || [],
+                        lastSeen: profile.lastSeen,
+                        lastActivityAt: profile.lastActivityAt,
                         notificationPrefs: profile.notificationPrefs as any,
                         successPoints: profile.successPoints,
                         lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
@@ -125,6 +131,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                         canSyncLadder: userContext.canSyncLadder,
                         canManualSyncLadder: userContext.canManualSyncLadder,
                         canViewMissions: userContext.canViewMissions,
+                        missionVitrineMode: !!userContext.missionVitrineMode,
                     }}
                     roleName={userContext.roleName}
                     roleColor={userContext.roleColor}

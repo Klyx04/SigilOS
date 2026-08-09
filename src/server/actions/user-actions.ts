@@ -196,6 +196,7 @@ export type UserContext = {
     newsBroadcastEnabled?: boolean;
     hasPendingReactivation?: boolean;
     isOnboardingComplete: boolean;
+    missionVitrineMode?: boolean;
 };
 
 export type ActionResponse<T = any> = {
@@ -943,6 +944,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         pinnedNavItems: profile?.pinnedNavItems || [],
         hiddenNavItems: profile?.hiddenNavItems || [],
         isOnboardingComplete: !!isOnboardingComplete,
+        missionVitrineMode: !!guildConfig?.missionVitrineMode,
     };
 
     if (!isOnboardingComplete && !isGod) {

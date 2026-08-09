@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, parse, addHours, isBefore } from "date-fns";
+import { format, parse, addHours, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -172,6 +172,18 @@ const EVENT_TYPES = Object.keys(TYPE_CONFIG);
 // ZOD SCHEMA with better date validation
 // ============================================
 
+const isPastDay = (d: Date) => {
+    const startOfToday = startOfDay(new Date());
+    const checkDate = startOfDay(d);
+    return checkDate < startOfToday;
+};
+
+const getValidStartDate = (d?: Date | string) => {
+    if (!d) return new Date();
+    const parsed = new Date(d);
+    return isPastDay(parsed) ? new Date() : parsed;
+};
+
 const eventFormSchema = z.object({
     title: z.string().min(3, "Le titre doit faire au moins 3 caractères").max(100),
     description: z.string().max(2000).optional(),
@@ -182,6 +194,11 @@ const eventFormSchema = z.object({
     maxParticipants: z.coerce.number().min(1).optional().nullable(),
     publishOnDiscord: z.boolean().optional(),
     mentionRoleIds: z.array(z.string()).optional(),
+}).refine((data) => {
+    return !isPastDay(data.date);
+}, {
+    message: "Impossible de créer un événement sur un jour passé",
+    path: ["date"]
 }).refine((data) => {
     // Validate end time is after start time
     const start = parse(data.startTime, "HH:mm", new Date());
@@ -382,7 +399,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
             title: initialData.title || "",
             description: initialData.description || "",
             type: validType,
-            date: initialData.startDate ? new Date(initialData.startDate) : new Date(),
+            date: initialData.startDate ? getValidStartDate(initialData.startDate) : new Date(),
             startTime: initialData.startDate 
                 ? format(new Date(initialData.startDate), "HH:mm") 
                 : "20:00",
@@ -885,7 +902,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                                                 mode="single"
                                                 selected={field.value}
                                                 onSelect={field.onChange}
-                                                disabled={(date) => date < new Date() && date.toDateString() !== new Date().toDateString()}
+                                                disabled={(date) => isBefore(startOfDay(date), startOfDay(new Date()))}
                                                 initialFocus
                                                 className="bg-zinc-900"
                                             />

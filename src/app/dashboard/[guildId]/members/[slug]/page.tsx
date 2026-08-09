@@ -136,6 +136,12 @@ export default async function MemberProfilePage({
                     metamobLastSync: profile.metamobLastSync ? new Date(profile.metamobLastSync) : null,
                     dofusBookLinks: (profile.dofusBookLinks as any) || [],
                     introduction: profile.introduction,
+                    objectifs: profile.objectifs,
+                    preferredActivities: (profile.preferredActivities as string[]) || [],
+                    discordContact: profile.discordContact,
+                    activeServices: profile.activeServices || [],
+                    lastSeen: profile.lastSeen,
+                    lastActivityAt: profile.lastActivityAt,
                     notificationPrefs: profile.notificationPrefs as any,
                     successPoints: profile.successPoints,
                     lastLadderUpdate: profile.lastLadderUpdate ? new Date(profile.lastLadderUpdate) : null,
@@ -163,6 +169,7 @@ export default async function MemberProfilePage({
                     canViewLadder: viewerContext.canViewLadder,
                     canManualSyncLadder: viewerContext.canManualSyncLadder,
                     canViewMissions: viewerContext.canViewMissions,
+                    missionVitrineMode: !!viewerContext.missionVitrineMode,
                 }}
             />
 

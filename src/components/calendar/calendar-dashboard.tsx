@@ -21,7 +21,7 @@ import {
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, addWeeks, subWeeks, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -415,6 +415,10 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
     const handleDayClick = (date: Date) => {
         if (!canManage) return;
+        if (isBefore(startOfDay(date), startOfDay(new Date()))) {
+            toast.error("Impossible de créer un événement sur un jour passé.");
+            return;
+        }
         setPrefilledDate(date);
         setIsCreateOpen(true);
     };

@@ -22,7 +22,9 @@ import {
     startOfMonth,
     endOfMonth,
     addMonths,
-    subMonths
+    subMonths,
+    isBefore,
+    startOfDay
 } from "date-fns";
 import {
     Users,
@@ -233,6 +235,7 @@ export function CalendarGrid({
                         const dayKey = format(day, "yyyy-MM-dd");
                         const dayEvents = eventsByDay.get(dayKey) || [];
                         const isCurrentDay = isToday(day);
+                        const isPastDay = isBefore(startOfDay(day), startOfDay(new Date()));
                         const isWeekend = index % 7 >= 5;
                         const minHeight = viewMode === "week" ? "min-h-[210px]" : "min-h-[140px]";
                         // Week view: show ALL events (scrollable). Month view: cap + "+N" badge.
@@ -245,15 +248,15 @@ export function CalendarGrid({
                                 className={cn(
                                     "group relative border-b border-r border-white/[0.07] p-0 transition-all duration-300 flex flex-col",
                                     minHeight,
-                                    canManage ? "cursor-pointer" : "cursor-default",
+                                    canManage && !isPastDay ? "cursor-pointer" : "cursor-default",
                                     isWeekend
                                         ? "bg-[#111618] hover:bg-[#161c1f]"
                                         : "bg-[#151c1f] hover:bg-[#1a2327]",
                                     index % 7 === 6 && "border-r-0"
                                 )}
                                 onClick={(e) => {
-                                    // Only trigger if we clicked the cell itself, not an event button
-                                    if (canManage && onDayClick) {
+                                    // Only trigger if we clicked the cell itself, not an event button, and the day is not in the past
+                                    if (canManage && !isPastDay && onDayClick) {
                                         onDayClick(day);
                                     }
                                 }}

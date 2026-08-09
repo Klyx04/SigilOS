@@ -141,7 +141,7 @@ export default async function DashboardPage({
                 </header>
 
                 {/* ── 1. QUICK STATS ROW ───────────────────────────────── */}
-                <section className="animate-in fade-in slide-in-from-top-2 duration-500">
+                <section data-tour="dash-stats" className="animate-in fade-in slide-in-from-top-2 duration-500">
                     <QuickStatsRow
                         onlineCount={onlineCount}
                         totalMembers={totalMembers}
@@ -156,27 +156,27 @@ export default async function DashboardPage({
 
                 {/* ── 2. RAID HERO (prioritaire — conditionnel) ────────── */}
                 {hasRaidNow && (
-                    <section className="animate-in fade-in slide-in-from-top-2 duration-500">
+                    <section data-tour="dash-raid" className="animate-in fade-in slide-in-from-top-2 duration-500">
                         <RaidHeroBanner guildId={guildId} raid={activeRaid as any} />
                     </section>
                 )}
 
                 {/* ── 3. INTELLIGENCE FOCUS (masqué si raid actif) ─────── */}
                 {focusData && !hasRaidNow && (
-                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                    <section data-tour="dash-focus" className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
                         <EchoDuSigil data={focusData} />
                     </section>
                 )}
 
                 {/* ── 4. EVENTS + SONDAGES ─────────────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-                    <section className="lg:col-span-7 min-h-[340px]">
+                    <section data-tour="dash-events" className="lg:col-span-7 min-h-[340px]">
                         <UpcomingEventsWidget
                             guildId={guildId}
                             events={upcomingEvents as any}
                         />
                     </section>
-                    <section className="lg:col-span-5 min-h-[340px]">
+                    <section data-tour="dash-polls" className="lg:col-span-5 min-h-[340px]">
                         <ActivePollsWidget
                             guildId={guildId}
                             polls={polls}
@@ -186,23 +186,23 @@ export default async function DashboardPage({
 
                 {/* ── 5. GROUPES ACTIFS + GALERIE ──────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-                    <section className="min-h-[360px]">
+                    <section data-tour="dash-groups" className="min-h-[360px]">
                         <RecentDjPosts guildId={guildId} groups={activeGroups} />
                     </section>
-                    <section className="min-h-[360px]">
+                    <section data-tour="dash-gallery" className="min-h-[360px]">
                         <RecentStuffGallery guildId={guildId} builds={latestBuilds} />
                     </section>
                 </div>
 
                 {/* ── 6. ALMANAX + ACTIVITÉ ────────────────────────────── */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
-                    <section>
+                    <section data-tour="dash-almanax">
                         <AlmanaxWidget
                             guildId={guildId}
                             initialAlmanax={almanaxItems?.[0] ?? null}
                         />
                     </section>
-                    <section>
+                    <section data-tour="dash-activity">
                         <GuildActivityFeed logs={guildLogs} guildId={guildId} />
                     </section>
                 </div>

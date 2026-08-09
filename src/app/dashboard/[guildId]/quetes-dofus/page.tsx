@@ -13,6 +13,7 @@ import { db } from "@/lib/prisma";
 
 import { ActivitiesNav } from "@/components/layout/activities-nav";
 import { AuroraBackground } from "@/components/ui/aurora-background";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -106,15 +107,16 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
             <div className="relative z-10 max-w-7xl mx-auto space-y-8">
                 <ActivitiesNav guildId={guildId} />
 
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6" data-tour="quetes-header">
                     <UnifiedModuleHeader
                         title="Quêtes Dofus"
                         description="Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde"
                         icon={Gem}
                         backHref={`/dashboard/${guildId}`}
+                        actions={<ModuleTourReplayButton phase="quetesDofus" />}
                     />
                     
-                    <div className="flex-shrink-0 lg:mb-1">
+                    <div className="flex-shrink-0 lg:mb-1" data-tour="quetes-character">
                         <CharacterQuestSelector 
                             mainCharacter={{ 
                                 pseudo: user.pseudoDofus || user.name || "Principal", 
@@ -128,19 +130,21 @@ export default async function QuetesDofusPage({ params, searchParams }: Props) {
                 {dofusList.length === 0 ? (
                     <EmptyState guildId={guildId} isAdmin={user.isAdmin} />
                 ) : (
-                    <DofusQuestHub
-                        dofusList={dofusList}
-                        guildStats={guildStats}
-                        guides={serializedGuides}
-                        rushSylvestreGuide={rushSylvestre}
-                        guildId={guildId}
-                        selectedCharacter={character}
-                        userProfile={userProfile}
-                        selectedGuideSlug={guideSlug}
-                        selectedGuideDetail={serializedGuideDetail}
-                        selectedGuideUserProgress={serializedGuideUserProgress}
-                        selectedGuideGuildProgress={serializedGuideGuildProgress}
-                    />
+                    <div data-tour="quetes-board">
+                        <DofusQuestHub
+                            dofusList={dofusList}
+                            guildStats={guildStats}
+                            guides={serializedGuides}
+                            rushSylvestreGuide={rushSylvestre}
+                            guildId={guildId}
+                            selectedCharacter={character}
+                            userProfile={userProfile}
+                            selectedGuideSlug={guideSlug}
+                            selectedGuideDetail={serializedGuideDetail}
+                            selectedGuideUserProgress={serializedGuideUserProgress}
+                            selectedGuideGuildProgress={serializedGuideGuildProgress}
+                        />
+                    </div>
                 )}
             </div>
         </div>

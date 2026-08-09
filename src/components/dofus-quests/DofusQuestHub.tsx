@@ -176,7 +176,7 @@ export function DofusQuestHub({
 
                         {/* ══ VUE MENU — grille 2×2 ══ */}
                         {activeTab === "menu" && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6" data-tour="quetes-menu">
 
                                 {/* CARD 1 : Rush Sylvestre — toujours visible, hard-codé */}
                                 <Link

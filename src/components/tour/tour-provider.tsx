@@ -913,6 +913,236 @@ const ANNUAIRE_STEPS: TourStep[] = [
     },
 ];
 
+
+const QUETESDOFUS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="quetes-header"]',
+        title: "Quêtes Dofus",
+        description: "Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde.",
+        placement: "bottom",
+        module: "quests",
+    },
+    {
+        target: '[data-tour="quetes-character"]',
+        title: "Personnage",
+        description: "Sélectionnez votre personnage principal ou vos mules pour suivre la progression.",
+        placement: "bottom",
+        module: "quests",
+    },
+    {
+        target: '[data-tour="quetes-menu"]',
+        title: "Le menu",
+        description: "Les cartes d'accès : guides optimisés, suivi des Dofus et statistiques de la guilde.",
+        placement: "top",
+        module: "quests",
+    },
+    {
+        target: '[data-tour="quetes-board"]',
+        title: "Progression & guides",
+        description: "Consultez votre avancée sur chaque quête et les guides pas-à-pas optimisés.",
+        placement: "top",
+        module: "quests",
+    },
+    {
+        target: '[data-tour="sidebar-quetes"]',
+        title: "Accès rapide",
+        description: "Retrouvez le module Quêtes Dofus dans la barre latérale.",
+        placement: "right",
+        module: "quests",
+    },
+];
+
+const GALERIE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="galerie-header"]',
+        title: "Galerie de Stuff",
+        description: "Partagez et découvrez les équipements et tenues des membres.",
+        placement: "bottom",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="galerie-search"]',
+        title: "Recherche",
+        description: "Recherchez un équipement ou une tenue par nom ou par mot-clé.",
+        placement: "bottom",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="galerie-filters"]',
+        title: "Filtres",
+        description: "Filtrez par classe, type de contenu ou autre critère pour affiner la galerie.",
+        placement: "bottom",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="galerie-board"]',
+        title: "Les cartes",
+        description: "Chaque carte présente un équipement ou une tenue proposé par un membre.",
+        placement: "top",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="galerie-grid"]',
+        title: "La grille",
+        description: "Parcourez la galerie de builds et de tenues, triée par les membres.",
+        placement: "top",
+        module: "gallery",
+    },
+];
+
+const RESSOURCES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="ressources-header"]',
+        title: "Ressources Dofus",
+        description: "Hub centralisé : Almanax, actualités Ankama et outils communautaires.",
+        placement: "bottom",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="ressources-tabs"]',
+        title: "Les onglets",
+        description: "Basculez entre Almanax, Actualités, Encyclopédie, Créateurs et Liens.",
+        placement: "bottom",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="ressources-almanax"]',
+        title: "Almanax — Hub Temporel",
+        description: "Consultez les offrandes du jour et les bonus d'Almanax à venir.",
+        placement: "top",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="ressources-news"]',
+        title: "Actualités",
+        description: "Suivez les nouvelles officielles d'Ankama et de Dofuspourlesnoobs.",
+        placement: "top",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="ressources-links"]',
+        title: "Bibliothèque de Liens",
+        description: "Les liens et outils utiles (builds, simulateurs, communautés) pour la guilde.",
+        placement: "top",
+        module: "resources",
+    },
+];
+
+
+const MINIJEU_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="minijeu-header"]',
+        title: "Mini-Jeux",
+        description: "Sigil-Guesser & Sigil-Bomb : défiez vos alliés sur la carte du monde !",
+        placement: "bottom",
+        module: "minigames",
+    },
+    {
+        target: '[data-tour="minijeu-board"]',
+        title: "Les jeux",
+        description: "Choisissez un mini-jeu (Géoguessr ou Bombe) et défiez la guilde.",
+        placement: "top",
+        module: "minigames",
+    },
+    {
+        target: '[data-tour="sidebar-minigames"]',
+        title: "Accès rapide",
+        description: "Retrouvez les Mini-Jeux dans la barre latérale.",
+        placement: "right",
+        module: "minigames",
+    },
+    {
+        target: '[data-tour="minijeu-board"]',
+        title: "Le classement",
+        description: "Les scores de la guilde sur chaque mini-jeu sont affichés ici.",
+        placement: "top",
+        module: "minigames",
+    },
+    {
+        target: '[data-tour="minijeu-header"]',
+        title: "Rejouer",
+        description: "Relancez ce tour à tout moment depuis le bouton « Revoir le tour ».",
+        placement: "bottom",
+        module: "minigames",
+    },
+];
+
+const STATS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="stats-header"]',
+        title: "Statistiques Guilde",
+        description: "Suivez l'activité de votre guilde et de ses membres.",
+        placement: "bottom",
+        module: "stats",
+    },
+    {
+        target: '[data-tour="stats-overview"]',
+        title: "Indicateurs clés",
+        description: "Les KPI principaux de la guilde : effectifs, activité et progression.",
+        placement: "top",
+        module: "stats",
+    },
+    {
+        target: '[data-tour="stats-charts"]',
+        title: "Graphiques",
+        description: "L'évolution de l'activité selon les modules activés (missions, songes, services…).",
+        placement: "top",
+        module: "stats",
+    },
+    {
+        target: '[data-tour="stats-board"]',
+        title: "Vue d'ensemble",
+        description: "L'ensemble des statistiques de la guilde sur une seule page.",
+        placement: "top",
+        module: "stats",
+    },
+    {
+        target: '[data-tour="stats-board"]',
+        title: "Rejouer",
+        description: "Relancez ce tour à tout moment depuis le bouton « Revoir le tour ».",
+        placement: "top",
+        module: "stats",
+    },
+];
+
+const PRESENTATION_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="presentation-header"]',
+        title: "Présentation de la Guilde",
+        description: "Informations visibles par les membres et le public.",
+        placement: "bottom",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="presentation-public"]',
+        title: "Page publique",
+        description: "Aperçu de la page publique visible par les visiteurs et les candidats.",
+        placement: "bottom",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="presentation-recrutement"]',
+        title: "Recrutement",
+        description: "L'état du recrutement : ouvert ou fermé, niveau et succès minimums.",
+        placement: "top",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="presentation-communication"]',
+        title: "Communication",
+        description: "Le lien vers votre Discord et les canaux de contact de la guilde.",
+        placement: "top",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="presentation-board"]',
+        title: "Vue d'ensemble",
+        description: "La présentation complète : histoire, équipe, recrutement et communication.",
+        placement: "top",
+        module: "presentation",
+    },
+];
+
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -971,6 +1201,12 @@ export function TourProvider({
     const calendarSteps = applyFilters(CALENDAR_STEPS);
     const sondagesSteps = applyFilters(SONDAGES_STEPS);
     const annuaireSteps = applyFilters(ANNUAIRE_STEPS);
+    const quetesDofusSteps = applyFilters(QUETESDOFUS_STEPS);
+    const galerieSteps = applyFilters(GALERIE_STEPS);
+    const ressourcesSteps = applyFilters(RESSOURCES_STEPS);
+    const minijeuSteps = applyFilters(MINIJEU_STEPS);
+    const statsSteps = applyFilters(STATS_STEPS);
+    const presentationSteps = applyFilters(PRESENTATION_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -997,6 +1233,12 @@ export function TourProvider({
             case "calendar": return calendarSteps;
             case "sondages": return sondagesSteps;
             case "annuaire": return annuaireSteps;
+            case "quetesDofus": return quetesDofusSteps;
+            case "galerie": return galerieSteps;
+            case "ressources": return ressourcesSteps;
+            case "minijeu": return minijeuSteps;
+            case "stats": return statsSteps;
+            case "presentation": return presentationSteps;
             default: return [];
         }
     };
@@ -1169,6 +1411,24 @@ export function TourProvider({
                 break;
             case "annuaire":
                 router.push(`/dashboard/${guildId}/members`);
+                break;
+            case "quetesDofus":
+                router.push(`/dashboard/${guildId}/quetes-dofus`);
+                break;
+            case "galerie":
+                router.push(`/dashboard/${guildId}/galerie-stuff`);
+                break;
+            case "ressources":
+                router.push(`/dashboard/${guildId}/ressources`);
+                break;
+            case "minijeu":
+                router.push(`/dashboard/${guildId}/mini-jeux`);
+                break;
+            case "stats":
+                router.push(`/dashboard/${guildId}/stats`);
+                break;
+            case "presentation":
+                router.push(`/dashboard/${guildId}/presentation`);
                 break;
             default:
                 break;

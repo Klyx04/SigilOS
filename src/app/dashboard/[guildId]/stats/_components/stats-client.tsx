@@ -69,7 +69,7 @@ export default function StatsClient({
             </div>
 
             {/* KPI Cards — Row 1 (Core) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-tour="stats-overview">
                 <StatCard icon={Users} label="Membres actifs" value={stats.activeMembers} accent="violet" />
                 {/* Hide XP Total in vitrine mode */}
                 {!vitrineMode && (
@@ -109,7 +109,7 @@ export default function StatsClient({
             </section>
 
             {/* Missions & Songes — 2 columns (conditional missions) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-tour="stats-charts">
                 {showMissionStats && (
                     <section className="rounded-xl border border-white/10 bg-zinc-950/40 p-5">
                         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">

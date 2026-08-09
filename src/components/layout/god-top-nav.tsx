@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
     Activity,
@@ -29,9 +29,11 @@ interface GodTopNavProps {
     onSectionChange?: (id: string) => void;
     rightContent?: React.ReactNode;
     unreadCount?: number;
+    // 🔒 R3 : route secrète du panel God (jamais "/god" en dur)
+    godRoute?: string;
 }
 
-export function GodTopNav({ activeSection, onSectionChange, rightContent, unreadCount = 0 }: GodTopNavProps) {
+export function GodTopNav({ activeSection, onSectionChange, rightContent, unreadCount = 0, godRoute = "/god" }: GodTopNavProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const activeSubTab = searchParams.get("sub") || "NONE";
@@ -45,6 +47,11 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
     };
 
     const handleSubTabChange = (subId: string) => {
+        // 🗺️ Sigil-Guesser : la blacklist des maps signalées vit sur la page dédiée /mini-games (onglet GUESSER).
+        if (subId === "GUESSER") {
+            router.push(`${godRoute}/mini-games?sub=GUESSER`);
+            return;
+        }
         const params = new URLSearchParams(searchParams.toString());
         params.set("sub", subId);
         router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false });
@@ -66,7 +73,6 @@ export function GodTopNav({ activeSection, onSectionChange, rightContent, unread
         ],
         "security": [
             { id: "AUDIT", name: "Audit Logs", icon: ShieldAlert, color: "text-zinc-400" },
-            { id: "FIREWALL", name: "Chat Firewall", icon: Bell, color: "text-rose-400" },
         ]
     };
 

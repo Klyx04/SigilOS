@@ -2,6 +2,7 @@
 
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { Activity } from "lucide-react";
+import { GodEmptyState } from "./ui";
 
 interface ActivityChartProps {
     data: Array<{ date: string; users: number; pulse: number }>;
@@ -10,10 +11,12 @@ interface ActivityChartProps {
 export function ActivityChart({ data }: ActivityChartProps) {
     if (!data || data.length === 0) {
         return (
-            <div className="h-[400px] w-full flex flex-col items-center justify-center text-zinc-500 gap-4 bg-zinc-900/40 rounded-3xl border border-white/5">
-                <Activity className="w-12 h-12 opacity-20" />
-                <p className="font-black uppercase tracking-[0.2em] text-xs">Extraction des données impossible</p>
-            </div>
+            <GodEmptyState
+                icon={Activity}
+                title="Extraction des données impossible"
+                description="Aucune donnée d'activité disponible pour l'instant."
+                className="h-[400px]"
+            />
         );
     }
 

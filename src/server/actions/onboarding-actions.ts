@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -160,7 +161,7 @@ export async function markWelcomeAsSeen(guildId: string) {
         revalidatePath(`/dashboard/${guildId}`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to mark welcome as seen", e);
+        logger.error("Failed to mark welcome as seen", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -242,7 +243,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                 })
             ]);
         } catch (e) {
-            console.error("[Welcome] Failed to create welcome records", e);
+            logger.error("[Welcome] Failed to create welcome records", e);
         }
     }
 
@@ -281,7 +282,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
             }
         }
     } catch (e) {
-        console.error("[Welcome] Failed to send global notifications", e);
+        logger.error("[Welcome] Failed to send global notifications", e);
     }
 
     // 3. Discord Welcome Ping
@@ -320,7 +321,7 @@ export async function sendWelcomeNotifications(guildConfig: any, profileId: stri
                 embedFooter: "SigilOS Onboarding System"
             });
         } catch (e) {
-            console.error("[Welcome] Failed to send Discord welcome message", e);
+            logger.error("[Welcome] Failed to send Discord welcome message", e);
         }
     }
 }

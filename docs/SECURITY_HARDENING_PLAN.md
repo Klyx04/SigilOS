@@ -50,7 +50,7 @@
 9. ~~**Caddy rate-limit (F-14)**~~ — ✅ **FAIT (09/08, commit `cde708a7`)** : image custom `sigilos-caddy` (xcaddy + `caddy-ratelimit`), `Dockerfile.caddy`, `rate_limit` borne haute (300 req/min + burst 60/s) sur routes publiques (prod/beta/monitor), jamais fin sur le dashboard authentifié. **Fix Trivy DS-0002** (commit `fbc371e2`) : `USER caddy` non-root ajouté dans `Dockerfile.caddy`.
 10. **Sanitisation HTML (F-11)** — ✅ **centralisée** dans `src/lib/security.ts` (DOMPurify) + descriptions Monstres Spéciaux + liens Ressources sanitizés (commit `d8189f42`).
 11. **proxy-image (F-06)** — ✅ **FAIT** : limite de taille streaming (5 Mo), magic bytes + blocage HTML déguisé.
-12. **Zero Console Policy (restant)** — ⚠️ **433** `console.*` dans `src/server/actions/` à convertir au `logger` (mesuré 09/08 ; chantier logiciel mécanique, sans risque métier — conversion 1-à-1, commit par fichier).
+12. **Zero Console Policy** — ✅ **FAIT (09/08)** : **433** `console.*` → `logger` dans `src/server/actions/` (branche `feat/security-hardening-suite`, commits `4355d540` + `7dc0c01f`). Logger rendu tolérant (`unknown`/Error/BigInt). Vérifs : 126/126 tests, tsc 0, build Next.js OK, 0 console actif restant. **Chantier fermé.**
 
 ---
 

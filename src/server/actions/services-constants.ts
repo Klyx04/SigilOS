@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Shared constants for the Services Guilde module.
  * Separated from "use server" files since Next.js only allows

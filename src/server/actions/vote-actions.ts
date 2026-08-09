@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -47,7 +48,7 @@ export async function toggleBuildVote(guildId: string, buildId: string) {
             return { success: true, voted: true };
         }
     } catch (error) {
-        console.error("[Vote Build] Error:", error);
+        logger.error("[Vote Build] Error:", error);
         return { success: false, error: "Erreur serveur lors du vote" };
     }
 }

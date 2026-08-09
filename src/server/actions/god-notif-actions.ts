@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { sendChannelMessage } from "@/server/discord";
@@ -66,14 +67,14 @@ export async function notifyGod(params: {
                     }
                 );
             } catch (discordErr: any) {
-                console.error("[GodNotify] Discord dispatch failed:", discordErr.message);
+                logger.error("[GodNotify] Discord dispatch failed:", discordErr.message);
                 // We still want to return success for the DB part, but log the Discord fail
             }
         }
 
         return { success: true };
     } catch (err: any) {
-        console.error("[GodNotify] Failed to send notification:", err);
+        logger.error("[GodNotify] Failed to send notification:", err);
         return { success: false, error: err.message };
     }
 }
@@ -141,7 +142,7 @@ export async function getGodUnreadCounts() {
             tickets: openTickets
         };
     } catch (err: any) {
-        console.error("[GodStats] Failed to fetch unread counts:", err);
+        logger.error("[GodStats] Failed to fetch unread counts:", err);
         return { success: false, notifications: 0, tickets: 0 };
     }
 }

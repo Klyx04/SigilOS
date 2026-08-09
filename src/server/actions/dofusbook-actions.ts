@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import redis from "@/lib/redis";
 import { processDofusbookRawData, type DofusbookPreviewData } from "@/lib/dofusbook-utils";
@@ -32,7 +33,7 @@ export async function getDofusbookId(url: string): Promise<string | null> {
 
         return null;
     } catch (e) {
-        console.error("[Dofusbook] ID extraction failed:", e);
+        logger.error("[Dofusbook] ID extraction failed:", e);
         return null;
     }
 }
@@ -88,10 +89,10 @@ export async function getDofusbookPreview(url: string, force: boolean = false): 
                 if (workerRes.ok) {
                     raw = await workerRes.json();
                 } else {
-                    console.warn(`[Dofusbook Action] CF Worker ${workerRes.status} for ${id} — VPS fallback`);
+                    logger.warn(`[Dofusbook Action] CF Worker ${workerRes.status} for ${id} — VPS fallback`);
                 }
             } catch (err) {
-                console.warn(`[Dofusbook Action] CF Worker failed for ${id}:`, err);
+                logger.warn(`[Dofusbook Action] CF Worker failed for ${id}:`, err);
             }
         }
 
@@ -111,7 +112,7 @@ export async function getDofusbookPreview(url: string, force: boolean = false): 
             });
 
             if (!response.ok) {
-                console.error(`[Dofusbook] API Error ${response.status} for build ${id}`);
+                logger.error(`[Dofusbook] API Error ${response.status} for build ${id}`);
                 if (response.status === 404) return { success: false, error: "Stuff introuvable", id };
                 return { success: false, error: `Dofusbook bloqué (${response.status})`, id };
             }
@@ -130,7 +131,7 @@ export async function getDofusbookPreview(url: string, force: boolean = false): 
 
         return { success: true, data, id };
     } catch (error) {
-        console.error("[Dofusbook] Preview error:", error);
+        logger.error("[Dofusbook] Preview error:", error);
         return { success: false, error: "Erreur lors de la récupération du build", id };
     }
 }

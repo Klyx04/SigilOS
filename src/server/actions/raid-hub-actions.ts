@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 /**
  * Raid Hub Module — Server Actions
@@ -90,7 +91,7 @@ export async function getRaidHubConfig(guildId: string): Promise<{
 
         return { success: true, config };
     } catch (error) {
-        console.error("[getRaidHubConfig]", error);
+        logger.error("[getRaidHubConfig]", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -128,7 +129,7 @@ export async function updateRaidHubConfig(
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("[updateRaidHubConfig]", error);
+        logger.error("[updateRaidHubConfig]", error);
         return { success: false, error: "Erreur serveur lors de la sauvegarde" };
     }
 }

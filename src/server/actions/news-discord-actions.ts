@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -72,7 +73,7 @@ export async function sendNewsToDiscord(guildId: string, item: DiscordNewsItem) 
 
         return { success: true, messageId };
     } catch (error) {
-        console.error("[News Discord] Error sending to guild:", error);
+        logger.error("[News Discord] Error sending to guild:", error);
         return { success: false, error: "Échec de l'envoi sur Discord" };
     }
 }

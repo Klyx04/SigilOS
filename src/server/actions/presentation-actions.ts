@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
@@ -82,7 +83,7 @@ export async function getPublicGuilds(): Promise<PublicGuildSummary[]> {
             bannerUrl: g.presentationBannerUrl ? g.presentationBannerUrl.replace(/^\/uploads\//, "/api/storage/") : null,
         }));
     } catch (error) {
-        console.error("Error fetching public guilds:", error);
+        logger.error("Error fetching public guilds:", error);
         return [];
     }
 }
@@ -282,7 +283,7 @@ export async function getDiscordMembersForSelection(
 
         return { success: true, members: humanMembers };
     } catch (error) {
-        console.error("Discord members fetch error:", error);
+        logger.error("Discord members fetch error:", error);
         return { success: false, error: "Erreur lors de la récupération" };
     }
 }
@@ -384,7 +385,7 @@ export async function updateGuildPresentation(
 
         return { success: true };
     } catch (error) {
-        console.error("Presentation update error:", error);
+        logger.error("Presentation update error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }

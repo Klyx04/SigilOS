@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 // =============================================================================
 // QUÊTE OCRE SERVER ACTIONS
@@ -378,7 +379,7 @@ export async function linkOcreAccount(
             } else if (normalizedMetamobChar !== userPseudoDofus) {
                 // If the user provided an API key, we trust ownership but log the discrepancy
                 if (apiKey) {
-                    console.warn(`[linkOcreAccount] Character name mismatch for user ${effectiveUserId}: Metamob="${metamobCharName}", Dofus="${profile.pseudoDofus}". Linking anyway because API key was provided.`);
+                    logger.warn(`[linkOcreAccount] Character name mismatch for user ${effectiveUserId}: Metamob="${metamobCharName}", Dofus="${profile.pseudoDofus}". Linking anyway because API key was provided.`);
                 } else {
                     return {
                         success: false,
@@ -418,7 +419,7 @@ export async function linkOcreAccount(
             }
         };
     } catch (error) {
-        console.error("[linkOcreAccount] Error:", error);
+        logger.error("[linkOcreAccount] Error:", error);
 
         if (error instanceof MetamobApiError) {
             switch (error.code) {
@@ -495,7 +496,7 @@ export async function unlinkOcreAccount(
 
         return { success: true };
     } catch (error) {
-        console.error("[unlinkOcreAccount] Error:", error);
+        logger.error("[unlinkOcreAccount] Error:", error);
         return { success: false, error: "Erreur lors de la suppression du lien" };
     }
 }
@@ -558,7 +559,7 @@ export async function getMyOcreProgress(
                     firstPage = await getQuestDetails(profile.metamobPseudo!, questSlug, { guildApiKey: effectiveApiKey });
                 } catch (e: any) {
                     if (e instanceof MetamobApiError && e.code === "NOT_FOUND") {
-                        console.warn(`[getMyOcreProgress] Quest slug ${questSlug} not found. Re-fetching quest list...`);
+                        logger.warn(`[getMyOcreProgress] Quest slug ${questSlug} not found. Re-fetching quest list...`);
                         const quests = await getUserQuests(profile.metamobPseudo!, { guildApiKey: effectiveApiKey });
                         const ocreQuest = quests.find(q => q.slug.includes("ocre") || q.slug.includes("eternelle-moisson"));
                         if (!ocreQuest) return { success: false, error: "NO_QUEST" };
@@ -712,7 +713,7 @@ export async function getMyOcreProgress(
                                 ocreProgressSnapshot: resData as any
                             }
                         });
-                    } catch (pe) { console.error("[PUMP ERROR]", pe); }
+                    } catch (pe) { logger.error("[PUMP ERROR]", pe); }
                 });
 
                 return { success: true, data: resData };
@@ -732,7 +733,7 @@ export async function getMyOcreProgress(
 
         return finalResultTyped;
     } catch (err: any) {
-        console.error("[CRITICAL OCRE ERROR]", err);
+        logger.error("[CRITICAL OCRE ERROR]", err);
         try {
             const pLast = await db.userProfile.findFirst({
                 where: {
@@ -748,7 +749,7 @@ export async function getMyOcreProgress(
                 return { success: true, data: { ...(pLast.ocreProgressSnapshot as any), lastSync: pLast.metamobLastSync, isOffline: true } };
             }
         } catch (rawErr) {
-            console.error("[CRITICAL RAW FALLBACK FAILED]", rawErr);
+            logger.error("[CRITICAL RAW FALLBACK FAILED]", rawErr);
         }
         return { success: false, error: "Metamob indisponible." };
     }
@@ -800,7 +801,7 @@ export async function findOcreExchangePartners(
 
         return { success: true, data: { jobId: job.id! } };
     } catch (error) {
-        console.error("[findOcreExchangePartners] Error:", error);
+        logger.error("[findOcreExchangePartners] Error:", error);
 
         if (error instanceof MetamobApiError) {
             if (error.code === "RATE_LIMIT") {
@@ -847,7 +848,7 @@ export async function getOcreExchangeJobStatus(
         return { success: true, data: { state, progress } };
 
     } catch (error) {
-        console.error("[getOcreExchangeJobStatus] Error:", error);
+        logger.error("[getOcreExchangeJobStatus] Error:", error);
         return { success: false, error: "Erreur lors de la vérification du statut du Job" };
     }
 }
@@ -976,7 +977,7 @@ export async function findMonsterOwnersAction(
         return { success: true, data: owners.sort((a, b) => b.monstersTheyHave[0].available - a.monstersTheyHave[0].available) };
 
     } catch (error) {
-        console.error("[findMonsterOwnersAction] Error:", error);
+        logger.error("[findMonsterOwnersAction] Error:", error);
         return { success: false, error: "Erreur lors de la recherche" };
     }
 }
@@ -1102,7 +1103,7 @@ export async function getProfileMatchingArchis(
         };
 
     } catch (error) {
-        console.error("[getProfileMatchingArchis] Error:", error);
+        logger.error("[getProfileMatchingArchis] Error:", error);
         return { success: false, error: "Erreur lors du calcul des échanges" };
     }
 }
@@ -1224,7 +1225,7 @@ export async function getGuildExchangeMap(
             },
         };
     } catch (error) {
-        console.error("[getGuildExchangeMap] Error:", error);
+        logger.error("[getGuildExchangeMap] Error:", error);
         return { success: false, error: "Erreur lors du chargement" };
     }
 }
@@ -1296,7 +1297,7 @@ export async function getGuildKralamoureEvents(
 
         return { success: true, data: events };
     } catch (error) {
-        console.error("[getGuildKralamoureEvents] Error:", error);
+        logger.error("[getGuildKralamoureEvents] Error:", error);
 
         if (error instanceof MetamobApiError) {
             if (error.code === "RATE_LIMIT") {
@@ -1333,7 +1334,7 @@ export async function getOcreZones(
 
         return { success: true, data: zones };
     } catch (error) {
-        console.error("[getOcreZones] Error:", error);
+        logger.error("[getOcreZones] Error:", error);
         return { success: true, data: [] }; // Silent fail
     }
 }
@@ -1429,7 +1430,7 @@ export async function refreshOcreCache(
             }
         } catch (apiError) {
             // Log but don't fail - the refresh should still work
-            console.error("[refreshOcreCache] Error detecting quest change:", apiError);
+            logger.error("[refreshOcreCache] Error detecting quest change:", apiError);
         }
 
         // Update sync timestamp if not already updated
@@ -1451,7 +1452,7 @@ export async function refreshOcreCache(
             data: { questUpdated },
         };
     } catch (error) {
-        console.error("[refreshOcreCache] Error:", error);
+        logger.error("[refreshOcreCache] Error:", error);
         return { success: false, error: "Erreur lors du rafraîchissement" };
     }
 }
@@ -1646,7 +1647,7 @@ export async function switchOcreQuest(guildId: string, questSlug: string, target
         return { success: true };
 
     } catch (error) {
-        console.error("[switchOcreQuest] Error:", error);
+        logger.error("[switchOcreQuest] Error:", error);
         return { success: false, error: "Erreur lors du changement de quête" };
     }
 }
@@ -1710,7 +1711,7 @@ export async function adminForceUnlink(
         return { success: true, data: undefined };
 
     } catch (error) {
-        console.error("Error in adminForceUnlink:", error);
+        logger.error("Error in adminForceUnlink:", error);
         return { success: false, error: "Erreur serveur interne" };
     }
 }
@@ -1747,7 +1748,7 @@ export async function searchMetamobPseudos(
 
         return { success: true, data: pseudos };
     } catch (error) {
-        console.error("Error searching Metamob pseudos:", error);
+        logger.error("Error searching Metamob pseudos:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1909,7 +1910,7 @@ export async function createTradeRequest(
                     }
                 );
             } catch (e) {
-                console.error("Failed to send Discord ping for Ocre trade:", e);
+                logger.error("Failed to send Discord ping for Ocre trade:", e);
             }
         }
 
@@ -1922,12 +1923,12 @@ export async function createTradeRequest(
             const redis = (await import("@/lib/redis")).default;
             await redis.publish("ocre:trade:update", JSON.stringify({ guildId, type: "NEW_REQUEST", monsterId }));
         } catch (e) {
-            console.error("Failed to publish ocre trade update:", e);
+            logger.error("Failed to publish ocre trade update:", e);
         }
 
         return { success: true };
     } catch (error: any) {
-        console.error("[createTradeRequest] Detailed Error:", error);
+        logger.error("[createTradeRequest] Detailed Error:", error);
         return { success: false, error: "DEBUG: " + (error?.message || "Erreur serveur interne") };
     }
 }
@@ -1972,7 +1973,7 @@ export async function rejectTradeRequest(rawData: z.infer<typeof ActionTradeSche
 
         return { success: true };
     } catch (error) {
-        console.error("[rejectTradeRequest] Error:", error);
+        logger.error("[rejectTradeRequest] Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -2012,7 +2013,7 @@ export async function cancelTradeRequest(rawData: z.infer<typeof ActionTradeSche
 
         return { success: true };
     } catch (error) {
-        console.error("[cancelTradeRequest] Error:", error);
+        logger.error("[cancelTradeRequest] Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -2090,7 +2091,7 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
                 }
             }
         } catch (syncError) {
-            console.error("[acceptTradeRequest] Auto-sync to Metamob failed:", syncError);
+            logger.error("[acceptTradeRequest] Auto-sync to Metamob failed:", syncError);
             // We do not fail the trade just because Metamob API failed, the users can do it manually worst case
         }
 
@@ -2104,7 +2105,7 @@ export async function acceptTradeRequest(rawData: z.infer<typeof ActionTradeSche
 
         return { success: true };
     } catch (error) {
-        console.error("[acceptTradeRequest] Error:", error);
+        logger.error("[acceptTradeRequest] Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -2186,7 +2187,7 @@ export async function getGuildOcreTrades(
 
         return { success: true, data: result };
     } catch (error) {
-        console.error("[getGuildOcreTrades] Error:", error);
+        logger.error("[getGuildOcreTrades] Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -2245,7 +2246,7 @@ export async function getPendingTradeRequests(guildId: string): Promise<ActionRe
                         }).catch(() => {}); // Fire and forget
                     }
                 } catch (e) {
-                    console.error(`[getPendingTradeRequests] Failed to enrich monster ${req.monsterId}:`, e);
+                    logger.error(`[getPendingTradeRequests] Failed to enrich monster ${req.monsterId}:`, e);
                 }
 
                 return { ...req, monsterName, monsterImageUrl };
@@ -2259,7 +2260,7 @@ export async function getPendingTradeRequests(guildId: string): Promise<ActionRe
 
         return { success: true, data: { incoming, outgoing } };
     } catch (error) {
-        console.error("[getPendingTradeRequests] Error:", error);
+        logger.error("[getPendingTradeRequests] Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -2309,7 +2310,7 @@ export async function getZoneArchmonsters(guildId: string, zoneName: string): Pr
 
         return { success: true, data: sorted };
     } catch (error) {
-        console.error("[getZoneArchmonsters] Error:", error);
+        logger.error("[getZoneArchmonsters] Error:", error);
         return { success: false, error: "Erreur lors du filtrage des archimonstres" };
     }
 }
@@ -2350,7 +2351,7 @@ export async function updateOcreSettingsAction(
 
         return { success: true, data: result };
     } catch (error: any) {
-        console.error("[updateOcreSettingsAction] Error:", error);
+        logger.error("[updateOcreSettingsAction] Error:", error);
         return { success: false, error: error.message || "Erreur lors de la mise à jour des paramètres" };
     }
 }
@@ -2386,7 +2387,7 @@ export async function updateMonsterTradeParamsAction(
 
         return { success: true };
     } catch (error: any) {
-        console.error("[updateMonsterTradeParamsAction] Error:", error);
+        logger.error("[updateMonsterTradeParamsAction] Error:", error);
         return { success: false, error: error.message || "Erreur lors de la mise à jour du trade" };
     }
 }
@@ -2423,7 +2424,7 @@ export async function bulkUpdateMonsterQuantitiesAction(
 
         return { success: true };
     } catch (error: any) {
-        console.error("[bulkUpdateMonsterQuantitiesAction] Error:", error);
+        logger.error("[bulkUpdateMonsterQuantitiesAction] Error:", error);
         return { success: false, error: error.message || "Erreur lors de la mise à jour groupée" };
     }
 }
@@ -2533,7 +2534,7 @@ export async function getGuildMetamobDirectory(
 
         return { success: true, data: directory };
     } catch (error: any) {
-        console.error("[getGuildMetamobDirectory] Error:", error);
+        logger.error("[getGuildMetamobDirectory] Error:", error);
         return { success: false, error: error.message || "Erreur lors de la récupération de l'annuaire Metamob" };
     }
 }

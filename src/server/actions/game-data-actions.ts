@@ -588,7 +588,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                             data.data.forEach((it: any) => { itemsMap[it.id] = it; });
                         }
                     })
-                    .catch(console.error)
+                    .catch(logger.error)
             );
         }
 
@@ -602,7 +602,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                             spellsArr = data.data;
                         }
                     })
-                    .catch(console.error)
+                    .catch(logger.error)
             );
         }
 
@@ -873,7 +873,7 @@ export async function getMonsterStats(monsterName: string, dungeonName?: string)
                         };
                     }
                 }
-            } catch (err) { console.error("Fallback coordinate fetch error:", err); }
+            } catch (err) { logger.error("Fallback coordinate fetch error:", err); }
         }
 
         return {
@@ -1036,7 +1036,7 @@ export async function getQuestsByZone(zoneName: string): Promise<ActionResponse<
 
         return { success: true, data: entries };
     } catch (error) {
-        console.error('[getQuestsByZone] Error:', error);
+        logger.error('[getQuestsByZone] Error:', error);
         return { success: false, error: 'Erreur lors de la récupération des quêtes' };
     }
 }
@@ -1134,7 +1134,7 @@ export async function getQuestsAndGuidesByPosition(x: number, y: number): Promis
 
         return { success: true, data: { quests, guides } };
     } catch (error) {
-        console.error('[getQuestsAndGuidesByPosition] Error:', error);
+        logger.error('[getQuestsAndGuidesByPosition] Error:', error);
         return { success: false, error: 'Erreur lors de la récupération des quêtes et guides' };
     }
 }

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { isSuperAdmin } from "@/server/actions/super-admin-actions";
@@ -101,7 +102,7 @@ export async function toggleRoadmapVisibility(enabled: boolean) {
         revalidatePath("/dashboard");
         return { success: true };
     } catch (e: any) {
-        console.error("[Roadmap] Toggle Visibility Error:", e);
+        logger.error("[Roadmap] Toggle Visibility Error:", e);
         return { success: false, error: "KO Prisma" };
     }
 }

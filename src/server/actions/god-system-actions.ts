@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
@@ -21,7 +22,7 @@ export async function getInternalSystemStatus() {
             dbLatency = Math.round(performance.now() - startDb);
             isDbOk = true;
         } catch (e) {
-            console.error("[SystemStatus] DB Error:", e);
+            logger.error("[SystemStatus] DB Error:", e);
         }
 
         // 2. Redis Check
@@ -33,7 +34,7 @@ export async function getInternalSystemStatus() {
             redisLatency = Math.round(performance.now() - startRedis);
             isRedisOk = pong === "PONG";
         } catch (e) {
-            console.error("[SystemStatus] Redis Error:", e);
+            logger.error("[SystemStatus] Redis Error:", e);
         }
 
         // 3. Last Backup Check
@@ -109,7 +110,7 @@ export async function getInternalSystemStatus() {
                 ladder: { waiting: lWait, active: lActive, failed: lFailed }
             };
         } catch (e) {
-            console.error("[SystemStatus] Queue Error:", e);
+            logger.error("[SystemStatus] Queue Error:", e);
         }
 
         // 9. Database Insights (Counts)
@@ -152,7 +153,7 @@ export async function getInternalSystemStatus() {
             }
         };
     } catch (e) {
-        console.error("[SystemStatus] Global Error:", e);
+        logger.error("[SystemStatus] Global Error:", e);
         throw new Error("Failed to fetch system status");
     }
 }

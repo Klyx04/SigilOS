@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
@@ -56,7 +57,7 @@ export async function sendGlobalStatusPing(
             redisLatency = Math.round(performance.now() - startRedis);
             isRedisOk = pong === "PONG";
         } catch (e) {
-            console.error("[Status Ping] Redis error:", e);
+            logger.error("[Status Ping] Redis error:", e);
         }
 
         // 2. Dynamic Info
@@ -132,7 +133,7 @@ export async function sendGlobalStatusPing(
                     actionTaken = "updated";
                 }
             } catch (e) {
-                console.warn("[Status Ping] Update failed, sending new message", e);
+                logger.warn("[Status Ping] Update failed, sending new message", e);
             }
         }
 
@@ -159,7 +160,7 @@ export async function sendGlobalStatusPing(
         };
 
     } catch (error: any) {
-        console.error("[Status Action] Critical Failure:", error);
+        logger.error("[Status Action] Critical Failure:", error);
         return { success: false, error: error.message || "Erreur de connexion Discord (vérifiez l'ID du salon)" };
     }
 }

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -337,7 +338,7 @@ export async function addUserSkin(rawData: z.infer<typeof SkinSchema>): Promise<
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true, data: skin };
     } catch (error) {
-        console.error("[Skin Actions] Add Error:", error);
+        logger.error("[Skin Actions] Add Error:", error);
         return { success: false, error: "Impossible d'ajouter le skin" };
     }
 }
@@ -363,7 +364,7 @@ export async function deleteUserSkin(guildId: string, skinId: string): Promise<A
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (error) {
-        console.error("[Skin Actions] Delete Error:", error);
+        logger.error("[Skin Actions] Delete Error:", error);
         return { success: false, error: "Impossible de supprimer le skin" };
     }
 }
@@ -380,7 +381,7 @@ export async function getUserSkins(guildId: string, profileId?: string): Promise
 
         return { success: true, data: skins };
     } catch (error) {
-        console.error("[Skin Actions] Get Error:", error);
+        logger.error("[Skin Actions] Get Error:", error);
         return { success: false, error: "Impossible de récupérer les skins" };
     }
 }
@@ -465,7 +466,7 @@ export async function updateUserSkin(guildId: string, skinId: string, data: { na
         
         return { success: true, data: updatedSkin };
     } catch (error) {
-        console.error("[Skin Actions] Update Error:", error);
+        logger.error("[Skin Actions] Update Error:", error);
         return { success: false, error: "Impossible de mettre à jour le skin" };
     }
 }

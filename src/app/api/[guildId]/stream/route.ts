@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/prisma";
 import { emitGuildActivity } from "@/server/actions/activity-actions";
+import { getDisplayName } from "@/lib/display-name";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,7 +44,7 @@ export async function GET(
 
     // ── Emit connection event (login or new member) ──────────────────────────
     const isSilent = req.nextUrl.searchParams.get("silent") === "1";
-    const actorName = profile.pseudoDofus || profile.discordNickname || profile.user.name || "Membre";
+    const actorName = getDisplayName(profile);
     const actorImage = profile.user.image ?? null;
 
     if (!isSilent) {

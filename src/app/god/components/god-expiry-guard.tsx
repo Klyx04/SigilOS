@@ -26,6 +26,8 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
     const [revoked, setRevoked] = useState(false);
     const warnedRef = useRef<Set<string>>(new Set());
     const redirectedRef = useRef(false);
+    // A2 : secondes écoulées pour rafraîchir le décompte (badge) en temps réel.
+    const [, setTick] = useState(0);
 
     // Calcule le timestamp d'expiration minimal parmi les grants limités
     const minExpiry = (() => {
@@ -40,8 +42,16 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
 
     // Force la déconnexion (fail-closed) quand plus aucun accès n'est valide
     const forceLogout = useCallback(() => {
+        if (redirectedRef.current) return;
+        redirectedRef.current = true;
         router.replace("/");
     }, [router]);
+
+    // A2 : tick 1s → le badge globalLabel se recalcule à chaque seconde.
+    useEffect(() => {
+        const t = setInterval(() => setTick((v) => v + 1), 1000);
+        return () => clearInterval(t);
+    }, []);
 
     useEffect(() => {
         if (myGrants.length === 0) return;
@@ -66,7 +76,8 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
                 }
             }
 
-            if (expiring) setWarning(expiring);
+            // A1 : ne re-affiche la popup que pour UN grant à la fois, jamais de doublon.
+            if (expiring && !warning) setWarning(expiring);
 
             // Déconnexion forcée si TOUT est expiré / plus rien de valide
             if (!hasValid) {
@@ -89,7 +100,8 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         run();
 
         return () => clearInterval(timer);
-    }, [myGrants, warningMinutes, forceLogout]);
+    }, [myGrants, warningMinutes, forceLogout, warning]);
+
 
     // ─── R4 — Révocation LIVE (Socket.IO) ──────────────────────────────────
     // Le serveur WS diffuse "god:revoked" sur la room user:<userId> quand le
@@ -105,8 +117,11 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
 
             socket.on("god:revoked", () => {
                 if (redirectedRef.current) return;
+                setWarning(null); // A1 : ne pas empiler avec la popup d'avertissement.
                 redirectedRef.current = true;
                 setRevoked(true);
+                // A3 : redirection FORCÉE après un court délai (le temps de voir la popup).
+                setTimeout(() => router.replace("/"), 2500);
             });
 
             socket.on("connect_error", () => {
@@ -124,12 +139,14 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         };
     }, []);
 
-    // Affiche aussi un décompte permanent discret du temps restant global
+    // Affiche aussi un décompte permanent discret du temps restant global (à la seconde)
     const globalLabel = (() => {
         if (myGrants.some(g => !g.expiresAt)) return "accès illimité";
         if (minExpiry === null) return null;
-        const left = Math.max(0, Math.floor((minExpiry - Date.now()) / 60_000));
-        return left <= 60 ? `${left} min` : `${Math.floor(left / 60)}h ${left % 60}m`;
+        const leftSec = Math.max(0, Math.floor((minExpiry - Date.now()) / 1000));
+        const m = Math.floor(leftSec / 60);
+        const s = leftSec % 60;
+        return m > 0 ? `${m} min ${s}s` : `${s}s`;
     })();
 
     return (

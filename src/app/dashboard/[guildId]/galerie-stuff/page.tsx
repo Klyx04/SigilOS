@@ -3,6 +3,9 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { getStuffGalleryPage, getSkinGalleryPage } from "@/server/actions/gallery-actions";
 import { isModuleEnabled } from "@/server/actions/module-actions";
 import { GalleryClient } from "./gallery-client";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
+import { Images } from "lucide-react";
 
 export default async function GalleryStuffPage({ params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
@@ -33,15 +36,27 @@ export default async function GalleryStuffPage({ params }: { params: Promise<{ g
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <GalleryClient
-                initialBuilds={stuffRes.data.builds}
-                initialTotal={stuffRes.data.total}
-                initialHasMore={stuffRes.data.hasMore}
-                initialStuffShareConfigured={stuffRes.data.isDiscordShareConfigured}
-                initialSkinTotal={skinRes.data.total}
-                guildId={guildId}
-                currentProfileId={user.profileId}
-            />
+            <div data-tour="galerie-header">
+                <UnifiedModuleHeader
+                    title="Galerie de Stuff"
+                    description="Partagez et découvrez les équipements et tenues des membres."
+                    icon={Images}
+                    iconColor="#10b981"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<ModuleTourReplayButton phase="galerie" />}
+                />
+            </div>
+            <div data-tour="galerie-board">
+                <GalleryClient
+                    initialBuilds={stuffRes.data.builds}
+                    initialTotal={stuffRes.data.total}
+                    initialHasMore={stuffRes.data.hasMore}
+                    initialStuffShareConfigured={stuffRes.data.isDiscordShareConfigured}
+                    initialSkinTotal={skinRes.data.total}
+                    guildId={guildId}
+                    currentProfileId={user.profileId}
+                />
+            </div>
         </div>
     );
 }

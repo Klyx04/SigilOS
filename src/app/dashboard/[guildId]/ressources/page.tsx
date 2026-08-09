@@ -13,6 +13,7 @@ import { ItemSearchPanel } from "@/components/ressources/ItemSearchPanel";
 import { CreatorsWidget } from "@/components/ressources/CreatorsWidget";
 import { Library, Flame, BookOpen, Link2, Tv } from "lucide-react";
 import { ResourcesTabs } from "@/components/ressources/ResourcesTabs";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export const metadata = {
     title: "Ressources Dofus | SigilOS",
@@ -88,20 +89,23 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
     return (
         <div className="space-y-12 pb-24">
             {/* ── Header ──────────────────────────────────────────────── */}
-            <UnifiedModuleHeader
-                title="Ressources Dofus"
-                description="Hub centralisé : Almanax, actualités Ankama et outils communautaires."
-                icon={Library}
-                iconColor="#a855f7"
-                backHref={`/dashboard/${guildId}`}
-            />
+            <div data-tour="ressources-header">
+                <UnifiedModuleHeader
+                    title="Ressources Dofus"
+                    description="Hub centralisé : Almanax, actualités Ankama et outils communautaires."
+                    icon={Library}
+                    iconColor="#a855f7"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<ModuleTourReplayButton phase="ressources" />}
+                />
+            </div>
 
             <ResourcesTabs 
                 initialTab={initialTab}
                 guildId={guildId}
                 isSuperAdmin={user.isSuperAdmin}
                 almanaxSection={
-                    <section>
+                    <section data-tour="ressources-almanax">
                         <SectionHeader icon={Flame} color="#f59e0b" label="Almanax — Hub Temporel" />
                         <Suspense fallback={<GenericSkeleton height="350px" />}>
                             <AlmanaxSection />
@@ -109,7 +113,7 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
                     </section>
                 }
                 newsSection={
-                    <section>
+                    <section data-tour="ressources-news">
                         <SectionHeader icon={BookOpen} color="#3b82f6" label="Actualités des Mondes — Ankama & DPLN" />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                             {/* Left: Ankama News */}
@@ -137,7 +141,7 @@ export default async function RessourcesPage({ params, searchParams }: Props) {
                     </section>
                 }
                 linksSection={
-                    <section>
+                    <section data-tour="ressources-links">
                         <SectionHeader icon={Link2} color="#10b981" label="Bibliothèque de Liens & Outils" />
                         <UsefulLinksGrid guildId={guildId} isSuperAdmin={user.isSuperAdmin} />
                     </section>

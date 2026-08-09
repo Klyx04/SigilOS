@@ -276,6 +276,36 @@
 - ✅ **`app-prod` unhealthy réparé** : cause = mot de passe DB avec caractères spéciaux (`#`,`!`) non encodés dans `DATABASE_URL` → `ERR_INVALID_URL`. Encodé (`%23`,`%21`). **+ rotation du mot de passe Postgres prod** (fuite dans les logs de session, nouveau mdp hex URL-safe).
 
 
+## 🧭 Suivi de chantier courant (Déploiement pro + TUTOS PARTOUT) — FAIT sur branche, PR → dev (10/08/2026)
+
+> **Branche** : `feat/deploy-clean-pro` → PR vers `dev` (lien : `https://github.com/Klyx04/SigilOS/pull/new/feat/deploy-clean-pro`).
+> **Mémo** : `src/temp/memo-2026-08-10-deploy-tours.md` (gitignoré). Source : Évol 3 restant (« tutos partout ») + nettoyage déploiement.
+
+### ✅ Déploiement « produit pro » (refonte de la sortie)
+- `scripts/deploy-cd.sh` **v4** : sortie lisible (bannière, récapitulatif pré-vol, 5 étapes numérotées), pulls d'images résumés en tableau (`✓ déjà à jour` / `✓ téléchargée` / `✗ ÉCHEC`), `--help`, `list beta|prod`, `git pull` non bloquant avec détection des fichiers locaux, résumé final + santé + rollback.
+- `scripts/migrate-uploads.mjs` : **silencieux** par défaut (résumé) — plus de mur de `.webp` (détail via `MIGRATE_UPLOADS_VERBOSE=1`).
+- `scripts/deploy.sh` : aligné sur le même style (helpers `info/ok/warn`).
+- **Fix `SEED_ALWAYS`** (`191ec50f`) : variable non définie sous `set -u` → `${SEED_ALWAYS:-0}` (l'ÉTAPE 5 seed plantait sinon).
+
+### ✅ TUTOS PARTOUT (Évol 3 restant) — rejouable sur CHAQUE module
+- `ModuleTourReplayButton` générique (prop `phase`), visible admin + membres, injecté dans les `UnifiedModuleHeader` de tous les modules.
+- `TourPhase` étendue (16 phases modules) + helper `isReplayableTourPhase` (rejouable, jamais de flag `done` définitif).
+- **3 lots** : Lot 1 (Missions/Ladder/Songes/Ocre), Lot 2 (Services/Donjons/Calendrier/Sondages/Annuaire), Lot 3 (Quêtes Dofus/Galerie/Ressources/Mini-jeux/Stats/Présentation). Chaque module : `<X>_STEPS` (5-12 étapes réelles), `data-tour` stables, filtrage `module` + `requiresPerm` (RBAC), routage `startTour`, écran de fin « Fermer ».
+- Ancres `data-tour` posées sur les pages + composants clients (headers, boards, tabs, grids, search, create…).
+
+### ✅ Correctifs tours
+- **Fermeture immédiate des tours modules** : garde dans l'`useEffect` d'auto-start (ne pas fermer un tour rejouable via le flag `sigilos-tour-done`).
+- **Tour profil** réécrit sur les vrais onglets (overview/metiers/planning/combat/dofus/activity/settings) ; retrait « Présente-toi » ; `DASHBOARD_STEPS` réduit (retrait Accueil/Annuaire/Calendrier) ; CTA membre → « Fermer ».
+- **Bouton « Tutoriel »** (ⓘ ?) **orange** partout à la place de « Revoir le tour ».
+- **Dernière étape = rappel navbar/sidebar** : `tourKey` ajoutés (annuaire/calendar/ressources/galerie/la-guilde) + étape « Où le retrouver » en fin de chaque tour + ouverture de la bonne section sidebar.
+
+### 🔜 À faire (en attente de merge / prod)
+- **Merger la PR `feat/deploy-clean-pro` → `dev`**, puis `./scripts/deploy-cd.sh beta` (avec le script corrigé).
+- (sécurité) `CSP_ENFORCE=true` en **prod** (fait en beta) + tester reconnexion/temps réel WS en beta.
+
+---
+
+
 ## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
 
 | Chantier | Réf / fichier | État |
@@ -298,7 +328,7 @@
 | **Zero Console Policy** | `SECURITY.md` / branche `feat/security-hardening-suite` | ✅ **FAIT (09/08)** — 433 `console.*` → `logger` (commits `4355d540` + `7dc0c01f`), 126/126 tests, build OK. Script utilitaire `.ps1` hors git |
 | **Fuites `user.name`** (~90 fichiers) → pseudo serveur | branche `fix/display-name-server-pseudo` | ✅ **FAIT (09/08, 4 commits : `d3517f6a` lot1 server actions, `e43f55f8` lot2 API/cron, `627f73f1` lot3 client, `2936f67b` lot4 God/calendrier/profil)** — `user.name` d'autres membres remplacé par `getDisplayName()`/`getGameDisplayName()` (pseudo serveur en priorité). Self/actor conservés. **~27 fichiers** · tsc/lint/tests/build OK |
 | Nav God : **blacklist géoguesser** + **firewall fantôme** | branche `feat/security-hardening-suite` | ✅ **FAIT (09/08)** — `9f012166` retrait de l'entrée fantôme « Chat Firewall » + câblage onglet GUESSER → whitelist géoguesser ; `0888a927` item sidebar direct « Blacklist Géoguesser » → `/god/mini-games?sub=GUESSER` |
-| **Évol 3 — fallback pseudo + tuto profil** | branche `fix/display-name-server-pseudo` | ✅ **FAIT (09/08, `b6820cf5` + `33bebc43`)** — toggle God **« Fallback Pseudo Manuel »** (PlatformConfig `ladderManualFallback`) : si la liaison Ankama est KO, les nouveaux ne sont plus bloqués (saisie manuelle sécurisée par Zod, sans chiffres). Vérif « loupe » **claire et obligatoire** sur identité de combat ET mules (contournée si fallback ON). + bouton **« Revoir le tour »** dans le profil. **RESTE (à faire)** : 🔜 **tutos partout** — généraliser le tutoriel contextuel à tous les modules (pas seulement profil/dashboard/admin). |
+| **Évol 3 — fallback pseudo + tuto profil** | branche `fix/display-name-server-pseudo` | ✅ **FAIT (09/08, `b6820cf5` + `33bebc43`)** — toggle God **« Fallback Pseudo Manuel »** (PlatformConfig `ladderManualFallback`) : si la liaison Ankama est KO, les nouveaux ne sont plus bloqués (saisie manuelle sécurisée par Zod, sans chiffres). Vérif « loupe » **claire et obligatoire** sur identité de combat ET mules (contournée si fallback ON). + bouton **« Tutoriel »** dans le profil. ✅ **TUTOS PARTOUT FAIT (10/08, branche `feat/deploy-clean-pro`)** — voir section « Déploiement pro + TUTOS PARTOUT » ci-dessus. |
 | **Évol 2** (refonte Game Data, modale Monstre Spécial, missions ×8, footer en jeu, Génie d'Amakna, map signalée → notif God, ping roles, republier sans notif) | `evolution2.md` | ✅ **CLÔTURÉ (09/08, décision user)** — « tout est déjà fait », ne pas relancer |
 
 ---

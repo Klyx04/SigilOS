@@ -63,7 +63,7 @@ export function GodSidebar({ className, user, unreadCount = 0, ticketCount = 0, 
                                     return (
                                         <Link
                                             key={page.id}
-                                            href={page.sub ? `${godRoute}/${page.sub}` : `${godRoute}?tab=${page.id}`}
+                                            href={page.sub ? `${godRoute}/${page.sub}${page.query ? `?${page.query}` : ""}` : `${godRoute}?tab=${page.id}`}
                                             className={cn("flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
                                                 active ? "bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20" : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent")}
                                         >

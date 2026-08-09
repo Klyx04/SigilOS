@@ -162,6 +162,25 @@ async function checkPseudoExistsOnLadder(pseudo: string, serverId: string): Prom
 }
 
 /**
+ * Indique si le toggle God « Fallback Pseudo Manuel » est actif.
+ * Utilisé côté client pour autoriser la saisie d'un pseudo SANS vérification
+ * ladder Ankama (identité de combat / pseudo principal) quand la liaison est KO.
+ */
+export async function isLadderManualFallbackEnabled(): Promise<boolean> {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return false;
+        const platform = await db.platformConfig.findUnique({
+            where: { id: "singleton" },
+            select: { ladderManualFallback: true }
+        });
+        return platform?.ladderManualFallback ?? false;
+    } catch {
+        return false; // fail-closed : sans l'info, on garde la vérification
+    }
+}
+
+/**
  * Verify a Dofus pseudo using the ladder API.
  * Accessible to all members for profile setup.
  */

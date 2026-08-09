@@ -10,8 +10,8 @@ import { SCOPE_TO_BRICKS, SUBGOD_USABLE_SCOPES } from "@/lib/god-scopes";
 import { syncBrickAccessForDelegate, listBrickGrants } from "@/server/actions/god-delegate-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Timer, ShieldCheck, X } from "lucide-react";
-import type { BrickGrantView } from "./brick-grants-manager";
+import { Timer } from "lucide-react";
+import type { BrickGrantView } from "./types";
 
 interface DelegateAccessEditorProps {
     delegateId: string;
@@ -68,15 +68,7 @@ export function DelegateAccessEditor({ delegateId, delegateName, activeGrants, o
     };
 
     return (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
-            <div className="flex items-center justify-between gap-2">
-                <div className="text-[10px] font-black text-violet-300 uppercase tracking-widest flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Modifier l'accès — {delegateName || delegateId}
-                </div>
-                <button type="button" onClick={onClose} className="text-zinc-500 hover:text-white transition-colors" title="Fermer">
-                    <X className="w-4 h-4" />
-                </button>
-            </div>
+        <div className="space-y-4">
 
             <div className="space-y-1.5">
                 <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Briques (coche celles à accorder)</div>

@@ -4,7 +4,6 @@ import { getActiveScopes } from "@/server/actions/super-admin-actions";
 import { listDelegates, listBrickGrants } from "@/server/actions/god-delegate-actions";
 import { SUBGOD_USABLE_SCOPES } from "@/lib/god-scopes";
 import { DelegatesManager } from "./delegates-manager";
-import { BrickGrantsManager } from "./brick-grants-manager";
 import { AccessHistory, type DelegateHistoryItem, type GrantHistoryItem } from "./access-history";
 import { ShieldCheck, Users, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,12 +33,6 @@ export default async function DelegatesPage() {
     const result = await listDelegates();
     const delegates = result.success ? (result.data ?? []) : [];
     const error = result.success ? null : result.error;
-
-    // 🔄 P2+ — délégués actifs (non révoqués, non expirés) → filtre le dropdown du BrickGrantsManager
-    const now = Date.now();
-    const activeDelegateIds = delegates
-        .filter((d) => !d.revokedAt && (!d.expiresAt || new Date(d.expiresAt).getTime() > now))
-        .map((d) => d.id);
 
     // D5 : grants par brique (PIM)
     const grantsResult = await listBrickGrants();
@@ -104,12 +97,6 @@ export default async function DelegatesPage() {
             )}
 
             <DelegatesManager initialDelegates={delegates} initialGrants={brickGrants as any} />
-
-            {/* D5 : PIM granulaire par brique */}
-            <BrickGrantsManager
-                delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
-                activeDelegateIds={activeDelegateIds}
-            />
 
             <AccessHistory delegates={delegateHistory} grants={grantHistory} />
         </div>

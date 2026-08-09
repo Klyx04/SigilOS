@@ -6,11 +6,11 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ShieldCheck, Users, UserPlus, Ban, Loader2, KeyRound, Clock, AlertTriangle } from "lucide-react";
-import { grantDelegate, revokeDelegate, revokeBrickAccess, listBrickGrants } from "@/server/actions/god-delegate-actions";
+import { grantDelegate, revokeDelegate, revokeBrickAccess } from "@/server/actions/god-delegate-actions";
 import { GOD_BRICKS } from "@/lib/god-bricks";
-import { cn } from "@/lib/utils";
-import type { BrickGrantView } from "./brick-grants-manager";
+import type { BrickGrantView } from "./types";
 import { DelegateAccessEditor } from "./delegate-access-editor";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 type Delegate = {
     id: string; userId: string; userName: string | null; discordId: string | null;
@@ -55,11 +55,6 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
     const [discordId, setDiscordId] = useState("");
     const [showForm, setShowForm] = useState(false);
     const [editingDelegateId, setEditingDelegateId] = useState<string | null>(null);
-
-    async function refreshGrants() {
-        const list = await listBrickGrants();
-        if (list.success) setGrants(list.data ?? []);
-    }
 
     function handleRevokeGrant(grantId: string) {
         startTransition(async () => {
@@ -190,21 +185,27 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
                                 )}
                             </div>
 
-                            {editingDelegateId === d.id && (
-                                <DelegateAccessEditor
-                                    delegateId={d.id}
-                                    delegateName={d.userName}
-                                    activeGrants={grants.filter(g => g.delegateId === d.id && !g.revokedAt)}
-                                    onClose={() => setEditingDelegateId(null)}
-                                    onGrantsChanged={(list) => setGrants(list)}
-                                />
-                            )}
+                            <Dialog open={editingDelegateId === d.id} onOpenChange={(open) => { if (!open) setEditingDelegateId(null); }}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-zinc-300 text-xs gap-1">
+                                        <KeyRound className="w-3 h-3" /> Modifier l'accès
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-zinc-950 border-white/10 text-zinc-200 sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                                    <DialogHeader>
+                                        <DialogTitle className="text-white">Modifier l'accès — {d.userName || "Utilisateur"}</DialogTitle>
+                                    </DialogHeader>
+                                    <DelegateAccessEditor
+                                        delegateId={d.id}
+                                        delegateName={d.userName}
+                                        activeGrants={grants.filter(g => g.delegateId === d.id && !g.revokedAt)}
+                                        onClose={() => setEditingDelegateId(null)}
+                                        onGrantsChanged={(list) => setGrants(list)}
+                                    />
+                                </DialogContent>
+                            </Dialog>
 
                             <div className="flex items-center gap-2">
-                                <Button size="sm" variant="outline" onClick={() => setEditingDelegateId(editingDelegateId === d.id ? null : d.id)}
-                                    className="border-white/10 bg-white/5 text-zinc-300 text-xs gap-1">
-                                    <KeyRound className="w-3 h-3" /> Modifier l'accès
-                                </Button>
                                 <Button size="sm" onClick={() => handleRevoke(d.id)} disabled={isPending} className="text-xs bg-red-600/80 hover:bg-red-600 text-white gap-1">
                                     <Ban className="w-3 h-3" /> Révoquer
                                 </Button>

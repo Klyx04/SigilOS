@@ -16,6 +16,7 @@ import {
     AlertTriangle, RefreshCw, Trash2, Clock, Building2, User,
     ShieldBan, Filter, Archive, Ban, UserX, Info, Search, Copy, Calendar, MousePointer2, CalendarCheck, Loader2
 } from 'lucide-react';
+import { getDisplayName } from "@/lib/display-name";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -490,7 +491,7 @@ function ProfileLifecycleCard({ profile }: { profile: SoftDeletedProfile }) {
         >
             <div className="flex-1 grid grid-cols-4 gap-4 text-sm">
                 <div>
-                    <div className="font-medium text-zinc-200">{profile.user.name || 'Inconnu'}</div>
+                    <div className="font-medium text-zinc-200">{getDisplayName(profile)}</div>
                     <div className="text-xs text-zinc-500">{profile.guild.name}</div>
                 </div>
                 <div>
@@ -536,7 +537,7 @@ function ProfileLifecycleCard({ profile }: { profile: SoftDeletedProfile }) {
 
                 <button
                     onClick={async () => {
-                        if (!confirm(`Supprimer définitivement le profil de ${profile.user.name || 'cet utilisateur'} ?\n\n⚠️ CETTE ACTION EST IRRÉVERSIBLE`)) return;
+                        if (!confirm(`Supprimer définitivement le profil de ${getDisplayName(profile)} ?\n\n⚠️ CETTE ACTION EST IRRÉVERSIBLE`)) return;
                         setLoading(true);
                         try {
                             const { hardDeleteProfile } = await import('@/server/actions/god-lifecycle-actions');
@@ -645,7 +646,7 @@ function OrphanPanel({
                                     <Archive className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <div className="font-medium text-zinc-200">{profile.user.name || 'Inconnu'}</div>
+                                    <div className="font-medium text-zinc-200">{getDisplayName(profile)}</div>
                                     <div className="text-xs text-zinc-500">{profile.guild.name}</div>
                                 </div>
                             </div>

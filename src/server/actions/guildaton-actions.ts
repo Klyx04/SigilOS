@@ -9,6 +9,7 @@ import { createAuditLog } from "./audit-actions";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { validateChannelBelongsToGuild } from "@/server/discord";
+import { getDisplayName } from "@/lib/display-name";
 
 const GuildatonRecordSchema = z.object({
     discordId: z.string().regex(/^(\d{17,20}|manual_[\w\d_\.\-]+)$/, "ID Discord ou manuel invalide"),
@@ -178,7 +179,7 @@ export async function getGuildatonData(guildId: string): Promise<ActionResponse<
                             || record?.username 
                             || discordMember?.user?.global_name 
                             || discordMember?.user?.username 
-                            || profile?.user.name 
+                            || getDisplayName(profile) 
                             || "Inconnu";
                             
             // Discover Role Name

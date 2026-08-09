@@ -24,6 +24,7 @@ import { logger } from "@/lib/logger";
 
 import { db } from '@/lib/prisma';
 import { isSuperAdmin, canGodAccess } from './super-admin-actions';
+import { getDisplayName } from "@/lib/display-name";
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 
@@ -562,7 +563,7 @@ export async function getGuildMembersForGod(guildId: string) {
             discordNickname: m.discordNickname,
             scheduledDeletion: m.scheduledDeletion?.toISOString() || null,
             user: {
-                name: m.user.name,
+                name: getDisplayName(m),
                 image: m.user.image,
                 accounts: m.user.accounts
             }

@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { updateMemberProfileStatus } from "@/server/actions/user-actions";
 import { Input } from "@/components/ui/input";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 
 interface ReactivationRequest {
     id: string;
@@ -103,14 +104,14 @@ export function ReactivationValidationQueue({ requests: initialRequests, guildId
                                         <div className="relative">
                                             <Avatar className="h-12 w-12 border-2 border-white/5">
                                                 <AvatarImage src={req.user.image} />
-                                                <AvatarFallback>{(req.pseudoDofus || req.user.name || "?")[0]}</AvatarFallback>
+                                                <AvatarFallback>{(getGameDisplayName(req) || "?")[0]}</AvatarFallback>
                                             </Avatar>
                                             <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-zinc-900 flex items-center justify-center">
                                                 <RefreshCcw className="w-3 h-3 text-white" />
                                             </div>
                                         </div>
                                         <div className="space-y-0.5">
-                                            <h3 className="text-sm font-black text-white uppercase tracking-tight">{req.pseudoDofus || req.user.name}</h3>
+                                            <h3 className="text-sm font-black text-white uppercase tracking-tight">{getGameDisplayName(req)}</h3>
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className="text-[9px] bg-amber-500/5 text-amber-500 border-amber-500/20 h-4 uppercase">
                                                     Archivé

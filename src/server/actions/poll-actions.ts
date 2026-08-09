@@ -13,6 +13,7 @@ type PollCategory = "SUGGESTION" | "AMELIORATION" | "EVENT" | "MISSION" | "AUTRE
 type PollStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "CANCELLED";
 import { sendChannelMessage, deleteChannelMessage, validateChannelBelongsToGuild } from "@/server/discord";
 import { createAuditLog } from "@/server/actions/audit-actions";
+import { getGameDisplayName } from "@/lib/display-name";
 import { sanitizeHtml, sanitizeName } from "@/lib/security";
 
 /**
@@ -1204,7 +1205,7 @@ export async function getMicroStatus(discordGuildId: string): Promise<ActionResp
             data: {
                 holder: {
                     id: activeGrant.profileId,
-                    name: activeGrant.profile.pseudoDofus || activeGrant.profile.discordNickname || activeGrant.profile.user.name || "Membre",
+                    name: getGameDisplayName(activeGrant.profile),
                     image: activeGrant.profile.user.image || undefined
                 },
                 expiresAt: activeGrant.expiresAt?.toISOString(),

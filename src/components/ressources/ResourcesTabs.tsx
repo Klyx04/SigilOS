@@ -50,7 +50,7 @@ export function ResourcesTabs({
 
     return (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <div className="flex justify-center mb-10">
+            <div className="flex justify-center mb-10" data-tour="ressources-tabs">
                 <TabsList className="relative h-auto p-2 bg-zinc-900/40 backdrop-blur-2xl border border-white/10 rounded-3xl gap-2 shadow-2xl flex-wrap justify-center">
                     {TABS.map((t) => (
                         <TabsTrigger

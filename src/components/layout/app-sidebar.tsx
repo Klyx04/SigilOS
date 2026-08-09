@@ -208,7 +208,7 @@ export function AppSidebar({
     // 4. OUTILS
     const NAV_TOOLS: any[] = [
         { name: "Songes", href: `/dashboard/${guildId}/songes`, icon: Sparkles, color: "indigo", tourKey: "songes", visible: user.canViewSonges && modules.songes },
-        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", visible: user.canViewStuffGallery && modules.gallery },
+        { name: "Galerie Guilde", href: `/dashboard/${guildId}/galerie-stuff`, icon: Star, color: "indigo", tourKey: "galerie", visible: user.canViewStuffGallery && modules.gallery },
         { name: "Donjons & Quêtes", href: `/dashboard/${guildId}/donjons-et-quetes`, icon: Swords, color: "indigo", tourKey: "donjons", visible: user.canViewQuests && modules.donjons },
         { name: "Services Guilde", href: `/dashboard/${guildId}/services`, icon: Activity, color: "indigo", tourKey: "services", visible: user.canViewServices && modules.services },
     ];
@@ -519,6 +519,7 @@ export function AppSidebar({
                                                     href: `/dashboard/${guildId}/guild-hub`, 
                                                     icon: Sparkles, 
                                                     color: "emerald",
+                                                    tourKey: "la-guilde",
                                                     aliases: [
                                                         `/dashboard/${guildId}/welcome`,
                                                         `/dashboard/${guildId}/presentation`,
@@ -543,7 +544,7 @@ export function AppSidebar({
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/members`) && (
                                         <NavItem 
                                             key={`nav-roster`}
-                                            item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald" }} 
+                                            item={{ name: "Annuaire", href: `/dashboard/${guildId}/members`, icon: Users, color: "emerald", tourKey: "annuaire" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/members`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
@@ -558,7 +559,7 @@ export function AppSidebar({
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/calendar`) && (
                                         <NavItem 
                                             key={`nav-calendar`}
-                                            item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald" }} 
+                                            item={{ name: "Calendrier", href: `/dashboard/${guildId}/calendar`, icon: Calendar, color: "emerald", tourKey: "calendar" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/calendar`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}
@@ -573,7 +574,7 @@ export function AppSidebar({
                                     !localHiddenHrefs.includes(`/dashboard/${guildId}/ressources`) && (
                                         <NavItem 
                                             key={`nav-resources`}
-                                            item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald" }} 
+                                            item={{ name: "Ressources Dofus", href: `/dashboard/${guildId}/ressources`, icon: BookOpen, color: "emerald", tourKey: "ressources" }} 
                                             isActive={checkIsActive(`/dashboard/${guildId}/ressources`)} 
                                             isPinned={false}
                                             onPin={handleTogglePin}

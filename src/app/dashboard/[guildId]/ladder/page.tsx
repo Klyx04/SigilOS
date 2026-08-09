@@ -9,6 +9,7 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { redirect } from "next/navigation";
 import { ActivitiesNav } from "@/components/layout/activities-nav";
 import { db } from "@/lib/prisma";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -41,23 +42,28 @@ export default async function LadderPage({ params }: Props) {
 
             <div className="relative z-10 max-w-6xl mx-auto space-y-8">
                 <ActivitiesNav guildId={guildId} />
-                <UnifiedModuleHeader
-                    title="Classement de Guilde"
-                    description="Découvrez les membres les plus actifs et leur progression en jeu."
-                    icon={Trophy}
-                    iconColor="#f59e0b"
-                    backHref={`/dashboard/${guildId}`}
-                />
+                <div data-tour="ladder-header">
+                    <UnifiedModuleHeader
+                        title="Classement de Guilde"
+                        description="Découvrez les membres les plus actifs et leur progression en jeu."
+                        icon={Trophy}
+                        iconColor="#f59e0b"
+                        backHref={`/dashboard/${guildId}`}
+                        actions={<ModuleTourReplayButton phase="ladder" />}
+                    />
+                </div>
 
                 {/* Main Client Module */}
                 <Suspense fallback={<LadderSkeleton />}>
-                    <LadderClient 
-                        guildId={guildId} 
-                        canValidate={user.canValidateMissions} 
-                        hasPseudoIssue={user.hasPseudoIssue}
-                        pseudoDofus={user.pseudoDofus}
-                        vitrineMode={vitrineMode}
-                    />
+                    <div data-tour="ladder-board">
+                        <LadderClient 
+                            guildId={guildId} 
+                            canValidate={user.canValidateMissions} 
+                            hasPseudoIssue={user.hasPseudoIssue}
+                            pseudoDofus={user.pseudoDofus}
+                            vitrineMode={vitrineMode}
+                        />
+                    </div>
                 </Suspense>
             </div>
         </div>

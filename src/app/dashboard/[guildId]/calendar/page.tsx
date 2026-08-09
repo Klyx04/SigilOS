@@ -7,6 +7,7 @@ import Link from "next/link";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { isModuleEnabled } from "@/server/actions/module-actions";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 interface CalendarPageProps {
     params: Promise<{ guildId: string }>;
@@ -56,23 +57,28 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
         <div className="flex flex-col h-full bg-foreground/[0.02] pb-12">
             <main className="flex-1 overflow-auto">
                 <div className="max-w-[1600px] mx-auto space-y-8">
-                    <UnifiedModuleHeader
-                        title="Calendrier des Événements"
-                        description="Ne manquez aucun rendez-vous important de la vie de guilde."
-                        imageSrc="/assets/ui/icons/calendar.png"
-                        backHref={`/dashboard/${guildId}`}
-                    />
+                    <div data-tour="calendar-header">
+                        <UnifiedModuleHeader
+                            title="Calendrier des Événements"
+                            description="Ne manquez aucun rendez-vous important de la vie de guilde."
+                            imageSrc="/assets/ui/icons/calendar.png"
+                            backHref={`/dashboard/${guildId}`}
+                            actions={<ModuleTourReplayButton phase="calendar" />}
+                        />
+                    </div>
 
                     {/* Main Dashboard */}
-                    <CalendarDashboard
-                        guildId={guildId}
-                        currentUserId={session.user.id}
-                        canManage={canManage}
-                        discordChannels={discordChannels}
-                        canManageRaid={ctx.canManageRaid}
-                        userPseudo={ctx.pseudoDofus || ctx.name}
-                        isAdmin={ctx.isAdmin}
-                    />
+                    <div data-tour="calendar-board">
+                        <CalendarDashboard
+                            guildId={guildId}
+                            currentUserId={session.user.id}
+                            canManage={canManage}
+                            discordChannels={discordChannels}
+                            canManageRaid={ctx.canManageRaid}
+                            userPseudo={ctx.pseudoDofus || ctx.name}
+                            isAdmin={ctx.isAdmin}
+                        />
+                    </div>
                 </div>
             </main>
         </div>

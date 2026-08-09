@@ -13,6 +13,7 @@ import { db } from "@/lib/prisma";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import { isModuleEnabled } from "@/server/actions/module-actions";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export const dynamic = "force-dynamic";
 
@@ -68,20 +69,31 @@ export default async function QueteOcrePage({
             <AuroraBackground className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
 
             <div className="relative z-10 max-w-7xl mx-auto space-y-8">
-                <UnifiedModuleHeader
-                    title="Quête Ocre"
-                    description="Suivez votre progression sur la Quête de l'Éternelle Moisson et trouvez des partenaires d'échange."
-                    icon={Crown}
-                    iconColor="#f59e0b"
-                    backHref={`/dashboard/${guildId}`}
-                    actions={<OcreSyncButton guildId={guildId} lastSync={ocreResponse.data?.lastSync} />}
-                />
+                <div data-tour="ocre-header">
+                    <UnifiedModuleHeader
+                        title="Quête Ocre"
+                        description="Suivez votre progression sur la Quête de l'Éternelle Moisson et trouvez des partenaires d'échange."
+                        icon={Crown}
+                        iconColor="#f59e0b"
+                        backHref={`/dashboard/${guildId}`}
+                        actions={
+                            <div className="flex flex-col sm:flex-row items-center gap-2">
+                                <div data-tour="ocre-sync">
+                                    <OcreSyncButton guildId={guildId} lastSync={ocreResponse.data?.lastSync} />
+                                </div>
+                                <ModuleTourReplayButton phase="ocre" />
+                            </div>
+                        }
+                    />
+                </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
                     {/* Main Content */}
                     <div className="space-y-6">
                         {ocreResponse.success && ocreResponse.data ? (
-                            <OcreDashboard data={ocreResponse.data} guildId={guildId} hasOcreChannel={hasOcreChannel} />
+                            <div data-tour="ocre-dashboard">
+                                <OcreDashboard data={ocreResponse.data} guildId={guildId} hasOcreChannel={hasOcreChannel} />
+                            </div>
                         ) : (
                             <NotLinkedState 
                                 guildId={guildId} 
@@ -96,21 +108,25 @@ export default async function QueteOcrePage({
                     {/* Sidebar */}
                     <aside className="hidden lg:block space-y-6">
                         {ocreResponse.success && ocreResponse.data && (
-                            <MetamobLink 
-                                guildId={guildId}
-                                metamobPseudo={profile?.metamobPseudo}
-                                metamobVerified={profile?.metamobVerified}
-                                metamobLastSync={profile?.metamobLastSync}
-                                progressData={ocreResponse.data}
-                            />
+                            <div data-tour="ocre-metamob">
+                                <MetamobLink 
+                                    guildId={guildId}
+                                    metamobPseudo={profile?.metamobPseudo}
+                                    metamobVerified={profile?.metamobVerified}
+                                    metamobLastSync={profile?.metamobLastSync}
+                                    progressData={ocreResponse.data}
+                                />
+                            </div>
                         )}
 
                         <Suspense fallback={<Skeleton className="h-[200px] w-full" />}>
-                            <KralamoureWidget guildId={guildId} canManageCalendar={user.canManageCalendar} />
+                            <div data-tour="ocre-kralamoure">
+                                <KralamoureWidget guildId={guildId} canManageCalendar={user.canManageCalendar} />
+                            </div>
                         </Suspense>
 
                         {/* Quick Tips */}
-                        <Card className="bg-card/30 backdrop-blur-sm border-white/10">
+                        <Card className="bg-card/30 backdrop-blur-sm border-white/10" data-tour="ocre-tips">
                             <CardContent className="p-4 space-y-3">
                                 <h3 className="text-sm font-medium flex items-center gap-2">
                                     <Sparkles className="h-4 w-4 text-amber-400" />

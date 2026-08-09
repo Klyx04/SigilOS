@@ -152,12 +152,13 @@ export function ProfileBentoGrid({
     // Synchronize activeTab with onboarding tour phase & step
     useEffect(() => {
         if (tourPhase === "profile") {
-            if (currentStep === 3) setActiveTab("metiers");
-            else if (currentStep === 4) setActiveTab("planning");
-            else if (currentStep === 5) setActiveTab("combat");
-            else if (currentStep === 6) setActiveTab("intro");
-            else if (currentStep === 7) setActiveTab("settings");
-            else if (currentStep === 1 || currentStep === 2) setActiveTab("overview");
+            if (currentStep === 4) setActiveTab("metiers");
+            else if (currentStep === 5) setActiveTab("planning");
+            else if (currentStep === 6) setActiveTab("combat");
+            else if (currentStep === 7) setActiveTab("dofus");
+            else if (currentStep === 8) setActiveTab("activity");
+            else if (currentStep === 9) setActiveTab("settings");
+            else if (currentStep >= 1 && currentStep <= 3) setActiveTab("overview");
         }
     }, [currentStep, tourPhase]);
 

@@ -201,7 +201,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
     return (
         <div className="space-y-8">
             {/* Micro Status Bar */}
-            <div className="relative overflow-hidden rounded-3xl bg-zinc-900/40 border border-white/5 p-4 sm:p-6 backdrop-blur-xl">
+            <div className="relative overflow-hidden rounded-3xl bg-zinc-900/40 border border-white/5 p-4 sm:p-6 backdrop-blur-xl" data-tour="sondages-micro">
                 <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
                         <div className="relative flex-shrink-0">
@@ -331,7 +331,7 @@ export function PollList({ polls, guildId, initialStatus = "ACTIVE" }: PollListP
             </div>
 
             {/* Stats + controls */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" >
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" data-tour="sondages-status">
                 <div className="flex items-center gap-3 flex-wrap">
                     <button
                         onClick={() => setStatusFilter("ACTIVE")}

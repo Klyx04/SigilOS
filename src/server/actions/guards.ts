@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { isGuildAllowed } from "./super-admin-actions";
+import { logger } from "@/lib/logger";
 
 export type GuardResult = {
     isAuthorized: boolean;
@@ -41,9 +42,10 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
 
     const discordUserId = account.providerAccountId;
 
-    // ─── Cache permission result for 60s (POSITIVE RESULTS ONLY) to avoid 3× Discord API calls per action ───
-    // NEVER cache a negative result — doing so would lock out legitimate admins for 60s
+    // ─── Cache permission result for 30s (POSITIVE RESULTS ONLY) to avoid 3× Discord API calls per action ───
+    // NEVER cache a negative result — doing so would lock out legitimate admins for 30s
     // if the Discord API temporarily fails, rate-limits, or returns a stale response.
+    // SECURITY (F-13): TTL reduced from 60s → 30s so a revocation/bann propagates faster.
     const cacheKey = `guard:admin:${discordUserId}:${guildId}`;
     try {
         const { redis } = await import("@/lib/redis");
@@ -79,7 +81,7 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
             // Cache positive result
             try {
                 const { redis } = await import("@/lib/redis");
-                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 30);
             } catch { /* ignore */ }
             return result;
         }
@@ -102,15 +104,15 @@ export async function requireGuildAdmin(guildId: string, context: string = "Acc�
         }
 
         const result = { isAuthorized: true, discordUserId };
-        // Cache positive result for 60s
+        // Cache positive result for 30s
         try {
             const { redis } = await import("@/lib/redis");
-            if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+            if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 30);
         } catch { /* ignore */ }
 
         return result;
     } catch (error) {
-        console.error(`[Guard] Admin check failed for ${context}:`, error);
+        logger.error(`[Guard] Admin check failed for ${context}:`, { error: (error as Error).message });
         return { isAuthorized: false, error: "Permission check failed" };
     }
 }
@@ -152,7 +154,8 @@ export async function requireGuildConfigAccess(guildId: string, context: string 
 
     const discordUserId = account.providerAccountId;
 
-    // ─── Cache permission result for 60s (POSITIVE RESULTS ONLY) ───
+    // ─── Cache permission result for 30s (POSITIVE RESULTS ONLY) ───
+    // SECURITY (F-13): TTL reduced from 60s → 30s.
     const cacheKey = `guard:config:${discordUserId}:${guildId}`;
     try {
         const { redis } = await import("@/lib/redis");
@@ -185,7 +188,7 @@ export async function requireGuildConfigAccess(guildId: string, context: string 
             const result = { isAuthorized: true, discordUserId };
             try {
                 const { redis } = await import("@/lib/redis");
-                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 30);
             } catch { /* ignore */ }
             return result;
         }
@@ -203,7 +206,7 @@ export async function requireGuildConfigAccess(guildId: string, context: string 
             const result = { isAuthorized: true, discordUserId };
             try {
                 const { redis } = await import("@/lib/redis");
-                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+                if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 30);
             } catch { /* ignore */ }
             return result;
         }
@@ -219,7 +222,7 @@ export async function requireGuildConfigAccess(guildId: string, context: string 
                 const result = { isAuthorized: true, discordUserId };
                 try {
                     const { redis } = await import("@/lib/redis");
-                    if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 60);
+                    if (redis.status === "ready") await redis.set(cacheKey, JSON.stringify(result), "EX", 30);
                 } catch { /* ignore */ }
                 return result;
             }
@@ -227,7 +230,7 @@ export async function requireGuildConfigAccess(guildId: string, context: string 
 
         return { isAuthorized: false, error: "Admin permission required" };
     } catch (error) {
-        console.error(`[Guard] Config access check failed for ${context}:`, error);
+        logger.error(`[Guard] Config access check failed for ${context}:`, { error: (error as Error).message });
         return { isAuthorized: false, error: "Permission check failed" };
     }
 }
@@ -268,7 +271,7 @@ export async function requireGuildMember(guildId: string): Promise<GuardResult> 
 
         return { isAuthorized: true, discordUserId: account.providerAccountId };
     } catch (error) {
-        console.error("[Guard] Member check failed:", error);
+        logger.error("[Guard] Member check failed:", { error: (error as Error).message });
         return { isAuthorized: false, error: "Permission check failed" };
     }
 }

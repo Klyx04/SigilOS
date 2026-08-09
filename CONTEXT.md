@@ -249,8 +249,8 @@
 - ✅ **`tests/security/csp.test.ts`** : **16 tests** (pas d'unsafe-inline, présence nonce, mode report/enforce, unsafe-eval dev-only, conservation Sentry/WS/fonts/img CDNs).
 - ✅ **Vérifs** : `test:run` 126/126 ✅ · `tsc --noEmit` 0 ✅ · lint 0 erreur ✅ · pre-commit (secrets, Prisma, lint, tsc) ✅.
 - ✅ **Déployé sur beta** : CSP Report-Only active (sans blocage), endpoint `/api/csp-report` recevant les violations.
-- ✅ **`WS_AUTH_ENABLED=true` activé sur beta PUIS PROD (09/08)** : l'auth WebSocket (F-08) — décodage session + appartenance guilde — est active sur les deux environnements (`.env.beta` + `.env.prod`). **Reste** : tester reconnexion/temps réel (présence, rush, sondages, révocation God) sur beta.
-- 🔜 **À faire** : ~~confirmer aucune violation bloquante~~ puis `CSP_ENFORCE=true` sur beta → prod.
+- ✅ **`WS_AUTH_ENABLED=true` activé sur beta PUIS PROD (09/08)** : l'auth WebSocket (F-08) — décodage session + appartenance guilde — est active sur les deux environnements (`.env.beta` + `.env.prod`). **Reste** : tester reconnexion/temps réel (présence, rush, sondages, révocation God) sur beta. ✅ **Fait le 10/08** : reconnexion / temps réel WS testé sur beta.
+- 🔜 **À faire** : ~~confirmer aucune violation bloquante~~ puis `CSP_ENFORCE=true` sur beta → prod. ✅ **Fait le 10/08** : `CSP_ENFORCE=true` activé sur **beta PUIS prod**.
 - ✅ **CSP_ENFORCE activé sur BETA (09/08)** : `CSP_ENFORCE=true` dans `.env.beta`, header `content-security-policy` (enforce) servi avec nonce, **0 violation** collectée. (Prod plus tard.)
 
 ---
@@ -301,7 +301,7 @@
 
 ### 🔜 À faire (en attente de merge / prod)
 - **Merger la PR `feat/deploy-clean-pro` → `dev`**, puis `./scripts/deploy-cd.sh beta` (avec le script corrigé).
-- (sécurité) `CSP_ENFORCE=true` en **prod** (fait en beta) + tester reconnexion/temps réel WS en beta.
+- (sécurité) CSP prod + reconnexion WS : ✅ **FAIT (10/08)**.
 
 ---
 
@@ -311,7 +311,7 @@
 | Chantier | Réf / fichier | État |
 |----------|---------------|------|
 | Rotation secret `GOD_ROUTE` (fuité en git) | `src/temp/evolution4.md` | ✅ **FAIT (09/08)** — nouvelle `GOD_ROUTE` appliquée sur `.env.beta` + `.env.prod`, conteneurs rechargés (`docker compose up -d`), vérif 404 ancienne / 200 nouvelle / 404 mauvais secret |
-| CSP nonce-based (`unsafe-inline`) | `src/temp/memo-2026-08-09-csp-nonce.md` | ✅ **Déployé** (commit `918fa308` — confirmer violations puis `CSP_ENFORCE=true`) |
+| CSP nonce-based (`unsafe-inline`) | `src/temp/memo-2026-08-09-csp-nonce.md` | ✅ **Déployé** (commit `918fa308`) · ✅ **`CSP_ENFORCE=true` activé beta PUIS prod (10/08)** — enforce, nonce, 0 violation |
 | Clé de chiffrement de secours dev | `SECURITY.md` | ✅ **Fermé** (F-09, retirée dans `encryption.ts`) |
 | Chiffrement tokens OAuth (F-05) | `SECURITY.md` / `prisma.ts` | ✅ **FAIT (09/08)** — service `token-encryption.ts` + hook `updateMany` (commit `339db4e1`) |
 | Cache permissions (F-13) + fallback RBAC (F-01) | `SECURITY.md` / `guards.ts` | ✅ **FAIT (09/08)** — TTL 30s + cache positif seulement (commit `0dd660bf`) |

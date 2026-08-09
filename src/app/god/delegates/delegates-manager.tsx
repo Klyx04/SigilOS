@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ShieldCheck, Users, UserPlus, Ban, Loader2, KeyRound, Clock, AlertTriangle } from "lucide-react";
-import { grantDelegate, revokeDelegate } from "@/server/actions/god-delegate-actions";
+import { grantDelegate, revokeDelegate, revokeBrickAccess } from "@/server/actions/god-delegate-actions";
+import { GOD_BRICKS } from "@/lib/god-bricks";
 import { cn } from "@/lib/utils";
+import type { BrickGrantView } from "./brick-grants-manager";
 
 type Delegate = {
     id: string; userId: string; userName: string | null; discordId: string | null;
@@ -44,12 +46,25 @@ function deserialize(raw: Delegate): DelegateInput {
  * 🔄 P2+ — Crée un délégué "vierge" (sans scopes). Les accès réels (scopes → briques)
  * se gèrent dans le BrickGrantsManager (stepper 3 étapes), unique endroit d'accord.
  */
-export function DelegatesManager({ initialDelegates }: { initialDelegates: Delegate[] }) {
+export function DelegatesManager({ initialDelegates, initialGrants = [] }: { initialDelegates: Delegate[]; initialGrants?: BrickGrantView[] }) {
     const [delegates, setDelegates] = useState<DelegateInput[]>(initialDelegates.map(deserialize));
+    const [grants, setGrants] = useState<BrickGrantView[]>(initialGrants);
     const [isPending, startTransition] = useTransition();
 
     const [discordId, setDiscordId] = useState("");
     const [showForm, setShowForm] = useState(false);
+
+    function handleRevokeGrant(grantId: string) {
+        startTransition(async () => {
+            const res = await revokeBrickAccess(grantId);
+            if (res.success) {
+                toast.success("Accès révoqué");
+                setGrants(prev => prev.map(g => g.id === grantId ? { ...g, revokedAt: new Date().toISOString() } : g));
+            } else {
+                toast.error(res.error || "Erreur lors de la révocation");
+            }
+        });
+    }
 
     function handleGrant() {
         if (!discordId.trim()) { toast.error("Veuillez renseigner un Discord ID"); return; }
@@ -140,6 +155,32 @@ export function DelegatesManager({ initialDelegates }: { initialDelegates: Deleg
                                 {d.scopes.length > 0
                                     ? d.scopes.map(s => SCOPE_LABELS[s] || s).join(" · ")
                                     : "Aucun accès accordé — utilise le stepper"}
+                            </div>
+
+                            {/* B1 — Grants du délégué, directement dans sa carte */}
+                            <div className="space-y-2">
+                                {grants.filter(g => g.delegateId === d.id && !g.revokedAt).map(g => {
+                                    const brick = GOD_BRICKS.find(b => b.id === g.brickId);
+                                    const gExpired = g.expiresAt ? new Date(g.expiresAt).getTime() < Date.now() : false;
+                                    return (
+                                        <div key={g.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/5 px-3 py-2">
+                                            <div className="min-w-0 space-y-0.5">
+                                                <div className="text-xs font-bold text-white truncate">{brick?.label || g.brickId}</div>
+                                                <div className="text-[10px] text-zinc-500 truncate">{g.reason || "—"}</div>
+                                                <div className="text-[10px] text-zinc-600 font-bold">
+                                                    {g.expiresAt
+                                                        ? (gExpired ? "Expiré" : `Expire dans ${Math.max(0, Math.floor((new Date(g.expiresAt).getTime() - Date.now()) / 60000))} min`)
+                                                        : "Sans expiration"}
+                                                </div>
+                                            </div>
+                                            <Button size="sm" variant="ghost" onClick={() => handleRevokeGrant(g.id)} disabled={isPending}
+                                                className="shrink-0 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-[10px]">Révoquer</Button>
+                                        </div>
+                                    );
+                                })}
+                                {grants.filter(g => g.delegateId === d.id && !g.revokedAt).length === 0 && (
+                                    <div className="text-[10px] text-zinc-600">Aucun accès actif</div>
+                                )}
                             </div>
 
                             <div className="flex items-center gap-2">

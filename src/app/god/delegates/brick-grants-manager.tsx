@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GOD_BRICKS } from "@/lib/god-bricks";
 import { SCOPE_TO_BRICKS, SUBGOD_USABLE_SCOPES, type GodScope } from "@/lib/god-scopes";
-import { grantBrickAccess, revokeBrickAccess, listBrickGrants, syncBrickAccessForDelegate } from "@/server/actions/god-delegate-actions";
+import { grantBrickAccess } from "@/server/actions/god-delegate-actions";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -37,11 +37,10 @@ const SCOPE_LABELS: Record<GodScope, string> = {
 
 interface BrickGrantsManagerProps {
     delegates: { id: string; userId: string; userName: string | null }[];
-    initialGrants: BrickGrantView[];
     activeDelegateIds?: string[];
 }
 
-export function BrickGrantsManager({ delegates, initialGrants, activeDelegateIds = [] }: BrickGrantsManagerProps) {
+export function BrickGrantsManager({ delegates, activeDelegateIds = [] }: BrickGrantsManagerProps) {
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [delegateId, setDelegateId] = useState<string>("");
     // Multi : scopes cochés + briques cochées (toutes briques confondues)
@@ -55,12 +54,7 @@ export function BrickGrantsManager({ delegates, initialGrants, activeDelegateIds
         return Math.max(5, Math.round(durationValue * mult));
     }, [durationValue, durationUnit]);
     const [reason, setReason] = useState<string>("");
-    const [grants, setGrants] = useState<BrickGrantView[]>(initialGrants);
     const [loading, setLoading] = useState(false);
-    const [filter, setFilter] = useState<"all" | "active" | "expired" | "revoked">("active");
-    // 🔄 Édition en place (P3-R) : grant en cours de modification
-    const [editingGrant, setEditingGrant] = useState<BrickGrantView | null>(null);
-    const now = Date.now();
 
     const activeDelegates = useMemo(() => {
         const activeSet = new Set(activeDelegateIds);
@@ -113,29 +107,9 @@ export function BrickGrantsManager({ delegates, initialGrants, activeDelegateIds
         setLoading(false);
         if (ok) {
             toast.success(`Accès accordé (${totalSelectedBricks} brique${totalSelectedBricks > 1 ? "s" : ""})`);
-            const list = await listBrickGrants();
-            if (list.success) setGrants(list.data ?? []);
             reset();
         }
     };
-
-    const handleRevoke = async (grantId: string) => {
-        setLoading(true);
-        const res = await revokeBrickAccess(grantId);
-        setLoading(false);
-        if (!res.success) return toast.error(res.error || "Erreur");
-        toast.success("Accès révoqué");
-        const list = await listBrickGrants();
-        if (list.success) setGrants(list.data ?? []);
-    };
-
-    const filteredGrants = grants.filter((g) => {
-        const expired = g.expiresAt ? new Date(g.expiresAt).getTime() < now : false;
-        if (filter === "active") return !g.revokedAt && !expired;
-        if (filter === "expired") return !g.revokedAt && expired;
-        if (filter === "revoked") return !!g.revokedAt;
-        return true;
-    });
 
     const canNext = step === 1 ? !!delegateId : step === 2 ? totalSelectedBricks > 0 : false;
 
@@ -263,46 +237,6 @@ export function BrickGrantsManager({ delegates, initialGrants, activeDelegateIds
                         <Button onClick={() => canNext && setStep(step === 1 ? 2 : 3)} disabled={!canNext} className="bg-violet-500 hover:bg-violet-400 text-white font-bold">Suivant →</Button>
                     </div>
                 )}
-            </div>
-
-            {/* LISTE DES GRANTS (avec filtres) */}
-            <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-widest">Grants</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {(["all", "active", "expired", "revoked"] as const).map((f) => (
-                            <button key={f} type="button" onClick={() => setFilter(f)}
-                                className={cn("px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all",
-                                    filter === f ? "bg-violet-500/20 border-violet-500/40 text-violet-300" : "bg-white/5 border-white/10 text-zinc-500 hover:text-zinc-300")}>
-                                {f === "all" ? "Tous" : f === "active" ? "Actifs" : f === "expired" ? "Expirés" : "Révoqués"}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                {filteredGrants.length === 0 ? (
-                    <div className="p-8 text-center text-sm text-zinc-500 rounded-2xl border border-dashed border-white/10">Aucun grant {filter !== "all" ? `(${filter})` : ""}</div>
-                ) : filteredGrants.map((g) => {
-                    const brick = GOD_BRICKS.find((b) => b.id === g.brickId);
-                    const expired = g.expiresAt ? new Date(g.expiresAt).getTime() < now : false;
-                    const active = !g.revokedAt && !expired;
-                    return (
-                        <div key={g.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border border-white/5 bg-zinc-900/10 p-4">
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-sm font-bold text-white">{brick?.label || g.brickId}</span>
-                                    {active ? <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30">ACTIF</Badge>
-                                        : g.revokedAt ? <Badge className="bg-rose-500/15 text-rose-300 border-rose-500/30">RÉVOQUÉ</Badge>
-                                        : <Badge className="bg-amber-500/15 text-amber-300 border-amber-500/30">EXPIRÉ</Badge>}
-                                </div>
-                                <p className="text-xs text-zinc-500">{g.reason || "—"}</p>
-                                <p className="text-[10px] text-zinc-600 font-bold">
-                                    {g.expiresAt ? (active ? `Expire dans ${Math.max(0, Math.floor((new Date(g.expiresAt).getTime() - now) / 60000))} min` : `Expiré le ${new Date(g.expiresAt).toLocaleString("fr-FR")}`) : "Sans expiration"}
-                                </p>
-                            </div>
-                            {active && <Button onClick={() => handleRevoke(g.id)} disabled={loading} variant="destructive" size="sm">Révoquer</Button>}
-                        </div>
-                    );
-                })}
             </div>
         </div>
     );

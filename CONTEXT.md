@@ -262,7 +262,7 @@
 | Clé de chiffrement de secours dev | `SECURITY.md` | ✅ **Fermé** (F-09, retirée dans `encryption.ts`) |
 | Chiffrement tokens OAuth (F-05) | `SECURITY.md` / `prisma.ts` | ✅ **FAIT (09/08)** — service `token-encryption.ts` + hook `updateMany` (commit `339db4e1`) |
 | Cache permissions (F-13) + fallback RBAC (F-01) | `SECURITY.md` / `guards.ts` | ✅ **FAIT (09/08)** — TTL 30s + cache positif seulement (commit `0dd660bf`) |
-| Caddy rate-limit (F-14) | `SECURITY.md` | ⚠️ Reste — image custom `xcaddy` + `rate_limit` haute sur routes publiques |
+| Caddy rate-limit (F-14) | `SECURITY.md` | ✅ **FAIT (09/08, commit `cde708a7`)** — `Dockerfile.caddy` (xcaddy + `caddy-ratelimit`), `rate_limit` haute (300 req/min + burst 60/s) sur routes publiques uniquement |
 | proxy-image limites/footprint (F-06) | `SECURITY.md` | ✅ **FAIT** — taille streaming 5 Mo + magic bytes + blocage HTML déguisé |
 | Sanitisation HTML centralisée (F-11) | `SECURITY.md` | ✅ **FAIT (09/08 add)** — centralisée `security.ts` + Monstres Spéciaux/Ressources (commit `d8189f42`) |
 | SSRF image-downloader (F-03) | `SECURITY.md` | ✅ **FAIT** — protocoles + IP privées/réservées + DNS rebinding |
@@ -283,10 +283,9 @@
 > ✅ **Résolu (09/08)** : **CSP nonce-based déployée** (Report-Only, commit `918fa308`) · **clé de chiffrement de secours retirée** (F-09) · **`WS_AUTH_ENABLED=true` activé en beta** (F-08, à tester puis activer en prod).
 
 **Reste :**
-- **1. Caddy rate-limit** (F-14 — au niveau proxy, image custom `xcaddy` + `rate_limit` haute sur routes publiques uniquement).
-- **2. Zero Console Policy (restant)** : ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel, hors urgence).
-- **3. Audit BDD tokens OAuth** : les éventuels anciens tokens Discord stockés en clair AVANT le fix F-05 restent en clair → script d'audit/ré-encryptage à prévoir.
-- **4. Infra restante** : I-06 (unifier Discord), I-07 (séparer Redis beta/prod), I-15 (circuit breaker).
+- **1. Zero Console Policy (restant)** : ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel, hors urgence).
+- **2. Audit BDD tokens OAuth** : les éventuels anciens tokens Discord stockés en clair AVANT le fix F-05 restent en clair → script d'audit/ré-encryptage à prévoir.
+- **3. Infra restante** : I-06 (unifier Discord), I-07 (séparer Redis beta/prod), I-15 (circuit breaker). **F-14 Caddy rate-limit : FAIT (commit `cde708a7`)**.
 
 ✅ **Résolu le 09/08** (en plus de la ligne ci-dessus) : **Cache permissions TTL 30s + cache positif seulement (F-13/F-01)** · **proxy-image borné (F-06, taille 5 Mo + magic bytes + blocage HTML)** · **sanitisation HTML centralisée + Monstres Spéciaux/Ressources (F-11)** · **hook `updateMany` chiffrement OAuth (F-05)** · **rotation `GOD_ROUTE`** · **WS auth activée beta + prod (F-08)**.
 

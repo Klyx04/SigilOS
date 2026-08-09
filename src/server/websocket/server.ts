@@ -8,7 +8,6 @@ import { GeoguesserManager } from "../games/SigilGuesser/GeoguesserManager";
 import { WorldMapService } from "../games/SigilGuesser/WorldMapService";
 import { BombManager } from "../games/SigilBomb/BombManager";
 import { rateLimit } from "../../lib/ratelimit";
-import { DiscordVoiceService } from "../discord/voice-service";
 import { getRushActiveMembers } from "../actions/rush-actions";
 import { logger as AppLogger } from "../../lib/logger";
 
@@ -43,6 +42,34 @@ const AUTH_SECRET = process.env.AUTH_SECRET;
 const SESSION_COOKIE = process.env.NODE_ENV === "production"
     ? "__Secure-authjs.session-token"
     : "authjs.session-token";
+
+// I-06 — Un seul propriétaire du Gateway (le bot) diffuse l'état voix sur Redis.
+// Le WS server s'abonne à ce canal (broadcast temps réel) et lit le snapshot
+// Redis pour l'état initial à la connexion d'un client.
+const DISCORD_VOICE_CHANNEL = "discord:voice";
+
+interface VoiceUser {
+    userId: string;
+    userName: string;
+    avatar: string | null;
+    channelId: string;
+    channelName: string;
+    isMute: boolean;
+    isDeaf: boolean;
+    isSpeaking?: boolean;
+}
+
+/** Lit le snapshot voix d'une guilde stocké par le bot (état initial à la connexion). */
+async function getCachedVoiceUsers(guildId: string): Promise<VoiceUser[]> {
+    try {
+        const raw = await redis.get(`discord:voice:${guildId}`);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed?.users) ? parsed.users as VoiceUser[] : [];
+    } catch {
+        return [];
+    }
+}
 
 /** Verify a user has an ACTIVE profile in the given Discord guild. */
 async function isMemberOfGuild(userId: string, discordGuildId: string): Promise<boolean> {
@@ -186,19 +213,8 @@ if (WS_AUTH_ENABLED) {
 const geoguesserManager = new GeoguesserManager(io);
 const bombManager = new BombManager(io);
 
-// === DISCORD VOICE MONITORING ===
-const voiceService = DiscordVoiceService.getInstance();
-voiceService.setOnUpdate((guildId, users) => {
-    io.to(`guild:${guildId}`).emit("discord:voice:update", {
-        guildId,
-        users
-    });
-    logger.info(`[WS] 🎤 Broadcast Voice Update (${users.length} users) for guild ${guildId}`);
-});
-voiceService.start().catch(err => logger.error("[WS] ❌ Erreur démarrage VoiceService:", err));
-
 // [New] Broadcast Ocre Trade & DJ Finder Updates from Redis
-subClient.subscribe("ocre:trade:update", "dj:finder:update", (err) => {
+subClient.subscribe("ocre:trade:update", "dj:finder:update", DISCORD_VOICE_CHANNEL, (err) => {
     if (err) logger.error("[WS] ❌ Erreur abonnement Redis:", { error: err });
 });
 
@@ -212,6 +228,19 @@ subClient.on("message", (channel, message) => {
             }
         } catch (e) {
             logger.error(`[WS] ❌ Erreur parsing message ${channel}:`, { error: e });
+        }
+    }
+
+    // I-06 — État voix publié par le bot (unique Gateway) → broadcast temps réel.
+    if (channel === DISCORD_VOICE_CHANNEL) {
+        try {
+            const data = JSON.parse(message);
+            if (data.guildId) {
+                io.to(`guild:${data.guildId}`).emit("discord:voice:update", { guildId: data.guildId, users: data.users || [] });
+                logger.info(`[WS] 🎤 Broadcast Voice Update pour guilde ${data.guildId}`);
+            }
+        } catch (e) {
+            logger.error(`[WS] ❌ Erreur parsing discord:voice:`, { error: e });
         }
     }
 
@@ -258,19 +287,21 @@ io.on("connection", (socket: Socket) => {
                 socket.join(`guild:${guildId}`);
                 logger.info(`[WS] 🏢 Client ${socket.id} a rejoint le salon guilde: ${guildId}`);
 
-                // Send initial voice state immediately
-                const residents = voiceService.getVoiceUsers(guildId);
-                if (residents.length > 0) {
-                    socket.emit("discord:voice:update", { guildId, users: residents });
-                }
+                // Send initial voice state immediately (snapshot Redis publié par le bot)
+                getCachedVoiceUsers(guildId).then((residents) => {
+                    if (residents.length > 0) {
+                        socket.emit("discord:voice:update", { guildId, users: residents });
+                    }
+                });
             });
         } else {
             socket.join(`guild:${guildId}`);
             logger.info(`[WS] 🏢 Client ${socket.id} a rejoint le salon guilde: ${guildId}`);
-            const residents = voiceService.getVoiceUsers(guildId);
-            if (residents.length > 0) {
-                socket.emit("discord:voice:update", { guildId, users: residents });
-            }
+            getCachedVoiceUsers(guildId).then((residents) => {
+                if (residents.length > 0) {
+                    socket.emit("discord:voice:update", { guildId, users: residents });
+                }
+            });
         }
     } else {
         socket.join("guild:global");
@@ -294,21 +325,21 @@ io.on("connection", (socket: Socket) => {
     bombManager.registerSocket(socket);
 
     // [New] Direct voice request for immediate sync
-    socket.on("discord:voice:request", (data: { guildId: string }) => {
+    socket.on("discord:voice:request", async (data: { guildId: string }) => {
         if (!data.guildId) return;
         // 🔐 (F-08) Only answer for a guild the user is a member of.
         if (WS_AUTH_ENABLED) {
             const userId = socket.data.userId as string | undefined;
             if (!userId) return;
-            isMemberOfGuild(userId, data.guildId).then((allowed) => {
+            isMemberOfGuild(userId, data.guildId).then(async (allowed) => {
                 if (!allowed) return;
-                const residents = voiceService.getVoiceUsers(data.guildId);
+                const residents = await getCachedVoiceUsers(data.guildId);
                 socket.emit("discord:voice:update", { guildId: data.guildId, users: residents });
                 logger.info(`[WS] 🎤 Manual Voice Sync (${residents.length} users) for ${socket.id}`);
             });
             return;
         }
-        const residents = voiceService.getVoiceUsers(data.guildId);
+        const residents = await getCachedVoiceUsers(data.guildId);
         socket.emit("discord:voice:update", { guildId: data.guildId, users: residents });
         logger.info(`[WS] 🎤 Manual Voice Sync (${residents.length} users) for ${socket.id}`);
     });

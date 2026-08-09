@@ -287,7 +287,12 @@ services:
   # 🌐 ROUTING
   # ===========================================================================
   caddy:
-    image: caddy:alpine
+    # SECURITY (F-14): image custom via xcaddy pour le module rate-limit
+    # (caddy:alpine officiel ne contient pas le plugin). Build sur le VPS.
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+    image: sigilos-caddy:latest
     container_name: sigilos-gateway
     restart: always
     ports:

@@ -3,6 +3,7 @@ import { db } from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { NextRequest } from "next/server";
 import { chatKey, chatPubSubChannel, CHAT_TTL_SECONDS, chatOnlineUsersKey, CHAT_HISTORY_LIMIT } from "@/lib/chat-helpers";
+import { getDisplayName } from "@/lib/display-name";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -48,7 +49,7 @@ export async function GET(
 
     const userData = {
         id: session.user.id,
-        name: profile.discordNickname || profile.pseudoDofus || profile.user?.name || session.user.name || "Inconnu",
+        name: getDisplayName(profile) || session.user.name || "Inconnu",
         image: profile.user?.image || session.user.image || undefined,
     };
     const onlineKey = chatOnlineUsersKey(discordGuildId);

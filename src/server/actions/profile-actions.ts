@@ -15,6 +15,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { z } from "zod";
 import { formatDofusPseudo } from "@/lib/utils";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
+import { getDisplayName } from "@/lib/display-name";
 
 const rankingCache = new Map<string, { data: any[], expiresAt: number }>();
 const RANKING_CACHE_TTL = 300_000; // 5 minutes
@@ -610,7 +611,7 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
                 vacationReason: profile.vacationReason || null,
-                user: { id: profile.user.id, name: profile.user.name, image: profile.user.image },
+                user: { id: profile.user.id, name: getDisplayName(profile), image: profile.user.image },
                 introduction: profile.introduction,
                 objectifs: profile.objectifs || null,
                 preferredActivities: (profile.preferredActivities as string[]) || [],
@@ -1585,8 +1586,8 @@ export async function getGuildMembers(
                 vacationStart: p.vacationStart?.toISOString() || null,
                 vacationEnd: p.vacationEnd?.toISOString() || null,
                 vacationReason: p.vacationReason || null,
-                user: { id: p.user.id, name: p.user.name, image: p.user.image },
-                displayName: p.discordNickname || p.pseudoDofus || p.user.name,
+                user: { id: p.user.id, name: getDisplayName(p), image: p.user.image },
+                displayName: getDisplayName(p),
                 roleColor: p.discordRoleColor || 0,
                 roleName: p.discordRoleName || "Membre",
                 isAdmin,
@@ -1660,7 +1661,7 @@ export async function sendVacationNotification(rawData: z.infer<typeof SendVacat
 
 
         // Use the SECURED pseudo from the database profile, not the provided one
-        const securedPseudo = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";
+        const securedPseudo = getDisplayName(profile);
 
         const channelId = guildConfig.absenceChannelId;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

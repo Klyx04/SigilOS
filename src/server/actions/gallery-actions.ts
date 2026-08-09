@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { logger } from "@/lib/logger";
+import { getGameDisplayName } from "@/lib/display-name";
 
 /**
  * Route image provider URLs through the internal proxy to bypass anti-hotlink
@@ -199,7 +200,7 @@ export async function getStuffGalleryPage(
                         },
                         author: {
                             id: profile.id,
-                            name: profile.pseudoDofus || profile.discordNickname || profile.user.name || "Membre",
+                            name: getGameDisplayName(profile),
                             image: profile.user.image
                         },
                         votesCount: votesCountMap.get(buildId) || 0,
@@ -449,7 +450,7 @@ export async function getSkinGalleryPage(
             metadata: s.metadata,
             author: {
                 id: s.profile.id,
-                name: s.profile.pseudoDofus || s.profile.discordNickname || s.profile.user.name || "Membre",
+                name: getGameDisplayName(s.profile),
                 image: s.profile.user.image
             },
             votesCount: s._count.votes,

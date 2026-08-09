@@ -10,6 +10,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { type AuditLogEntry, logAction } from "./audit-actions";
 import { emitGuildActivity } from "./activity-actions";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { PresenceManager } from "@/lib/presence";
 import { isSuperAdmin, isGuildAllowed } from "@/server/actions/super-admin-actions";
 
@@ -1209,7 +1210,7 @@ export async function searchGuildMembers(
 
         const formatted = members.map(m => ({
             id: m.id,
-            name: m.pseudoDofus || m.discordNickname || m.user.name || "Inconnu",
+            name: getGameDisplayName(m),
             subtitle: m.discordNickname !== m.pseudoDofus ? m.discordNickname : undefined,
             image: m.user.image
         }));
@@ -1422,7 +1423,7 @@ export async function getGuildMembers(guildId: string) {
             vacationStart: m.vacationStart?.toISOString() || null,
             vacationEnd: m.vacationEnd?.toISOString() || null,
             user: {
-                name: m.user.name,
+                name: getDisplayName(m),
                 image: m.user.image,
                 accounts: m.user.accounts
             }

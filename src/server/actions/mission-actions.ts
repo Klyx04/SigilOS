@@ -20,6 +20,7 @@ import { logAction } from "@/server/actions/audit-actions";
 import { getDiscordPublicUrl } from "@/lib/storage-utils";
 import { getDofusWeek } from "@/lib/date-utils";
 import { getKamaStats } from "./kama-actions";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 
 
 // --- Types & Schemas ---
@@ -945,7 +946,7 @@ export async function submitMissionProof(
         });
 
         // Notify Validators
-        const userName = profile.discordNickname || profile.pseudoDofus || profile.user.name || "Un membre";
+        const userName = getDisplayName(profile);
         const missionTitle = mission.title || "Mission Inconnue";
         const discordMessageId = await notifyValidators(
             mission.guild.discordGuildId,
@@ -1102,7 +1103,7 @@ export async function validateSubmission(
                 operation: status === "VALIDATED" ? "VALIDATE_SUBMISSION" : "REJECT_SUBMISSION",
                 missionTitle: submission.mission.title,
                 submitterId: updatedSubmission.profileId,
-                submitterName: updatedSubmission.profile.pseudoDofus || updatedSubmission.profile.discordNickname || updatedSubmission.profile.user.name,
+                submitterName: getGameDisplayName(updatedSubmission.profile),
                 status,
                 source: "dashboard",
                 xpReward: status === "VALIDATED" ? (submission.mission.xpReward || 0) : 0,
@@ -1431,7 +1432,7 @@ export async function getMissionValidators(guildId: string, missionId: string): 
             if (sub.profile && !validatorMap.has(sub.profile.id)) {
                 validatorMap.set(sub.profile.id, {
                     id: sub.profile.id,
-                    pseudo: sub.profile.pseudoDofus || sub.profile.discordNickname || sub.profile.user.name,
+                    pseudo: getGameDisplayName(sub.profile),
                     image: sub.profile.user.image,
                     date: sub.updatedAt
                 });
@@ -1441,7 +1442,7 @@ export async function getMissionValidators(guildId: string, missionId: string): 
                 if (!validatorMap.has(helper.id)) {
                     validatorMap.set(helper.id, {
                         id: helper.id,
-                        pseudo: helper.pseudoDofus || helper.discordNickname || helper.user.name,
+                        pseudo: getGameDisplayName(helper),
                         image: helper.user.image,
                         date: sub.updatedAt
                     });

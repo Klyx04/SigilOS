@@ -13,6 +13,7 @@ import {
 } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { getDofusWeek } from "@/lib/date-utils";
+import { getGameDisplayName } from "@/lib/display-name";
 import { z } from "zod";
 
 export type ActionResponse<T = any> = {
@@ -142,7 +143,7 @@ export async function getRelanceCandidates(
             return {
                 id: p.id,
                 discordId: discordAccount?.providerAccountId,
-                name: p.pseudoDofus || p.discordNickname || p.user.name || "Inconnu",
+                name: getGameDisplayName(p),
                 image: p.user.image,
                 lastSeen: p.lastSeen || p.lastActivityAt || p.updatedAt,
                 discordStats: {

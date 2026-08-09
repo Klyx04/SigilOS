@@ -11,6 +11,7 @@ import { getUserContext, invalidateUserContextCache } from "./user-actions";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { createAuditLog } from "./audit-actions";
+import { getDisplayName } from "@/lib/display-name";
 import { auth } from "@/auth";
 
 /**
@@ -339,7 +340,7 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
             targetType: "PROFILE" as any,
             targetId: targetUserId,
             metadata: {
-                description: `Purge définitive : ${target.user.name || profileId}`,
+                description: `Purge définitive : ${getDisplayName(target)}`,
                 reason: "Purge administrative Super Admin",
                 fullAccountDeleted: !hasOtherProfiles,
                 sessionsInvalidated: true

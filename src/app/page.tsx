@@ -51,6 +51,19 @@ export default async function Home({
     redirect(`/auth/error?error=${info.error}`);
   }
 
+  // Un membre connecté disposant d'au moins une guilde accessible est aiguillé
+  // directement vers son QG (le portail /dashboard redirige déjà seul vers la
+  // 1ʳᵉ guilde s'il n'y en a qu'une). Évite de rester bloqué sur la landing
+  // après le login ("je ne peux pas entrer direct"). Les non-connectés et les
+  // membres sans guilde accessible voient toujours la page d'accueil publique.
+  if (session?.user) {
+    const { getGuildsSeparated } = await import("@/server/actions/user-actions");
+    const separated = await getGuildsSeparated();
+    if (separated.active.length > 0) {
+      redirect("/dashboard");
+    }
+  }
+
   // [AUDIT 2026] Retrieve nonce for inline scripts
   const headersList = await headers();
   const nonce = headersList.get('x-nonce') ?? '';

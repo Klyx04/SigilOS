@@ -694,6 +694,32 @@ export async function invalidateAllowedGuildCache(discordGuildId: string) {
 }
 
 /**
+ * Tentatives de connexion REFUSÉES (observabilité God, fail-closed).
+ * Super-admin uniquement. Retourne les N plus récentes + le total.
+ * PII minimale : discordId + reason + createdAt (rétention > 90 j par le janitor).
+ */
+export async function getRecentAccessAttempts(
+    limit = 50
+): Promise<{ success: boolean; data?: { attempts: Array<{ id: string; discordId: string; reason: string; createdAt: Date }>; total: number }; error?: string }> {
+    try {
+        if (!(await isSuperAdmin())) return { success: false, error: "Unauthorized" };
+
+        const [attempts, total] = await Promise.all([
+            db.accessAttempt.findMany({
+                orderBy: { createdAt: "desc" },
+                take: Math.min(Math.max(limit, 1), 200)
+            }),
+            db.accessAttempt.count()
+        ]);
+
+        return { success: true, data: { attempts, total } };
+    } catch (e) {
+        logger.error("[getRecentAccessAttempts] Error:", e);
+        return { success: false, error: "Erreur" };
+    }
+}
+
+/**
  * CLEANUP JANITOR (GDPR & Hygiene)
  * Deletes users created > threshold ago with NO profile and NO critical data.
  * Default: 24h. Test Mode: 2 mins.

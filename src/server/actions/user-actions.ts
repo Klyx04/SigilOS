@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { fetchGuildRoles, fetchGuild, fetchGuildMember } from "@/server/discord";
+import { fetchGuildRoles, fetchGuild, fetchGuildMember, invalidateDiscordCache } from "@/server/discord";
 import { db } from "@/lib/prisma";
 import { PERMISSIONS, type PermissionId } from "@/lib/permissions";
 import { DEFAULT_MODULES } from "@/lib/module-types";
@@ -726,6 +726,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                     }
                 });
 
+                // Invalidation du cache membre/rôles Discord pour que le rôle
+                // octroyé au membre soit pris en compte immédiatement (évite le
+                // cache 15s périmé qui retardait l'accès d'un nouvel arrivant).
+                try {
+                    invalidateDiscordCache(`member:${actualDiscordGuildId}:${discordUserId}`);
+                    invalidateDiscordCache(`roles:${actualDiscordGuildId}`);
+                } catch { /* non bloquant */ }
+
                 // Audit & Onboarding — ONLY on genuine first-time creation (not P2002 fallback)
                 (async () => {
                     try {
@@ -986,8 +994,14 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         finalContext.canViewAuditLogs = false;
     }
 
-    // Store in Redis before returning
-    await redis.set(redisKey, JSON.stringify(finalContext), "EX", CACHE_TTL).catch(() => { });
+    // Store in Redis before returning.
+    // SECURITY/UX: ne JAMAIS mettre en cache un contexte "refusé" (guilde non
+    // autorisée OU rôle insuffisant) : sinon un rôle octroyé resterait ignoré
+    // jusqu'à expiration du TTL (latence "il faut attendre" après l'octroi).
+    const isDeniedContext = !finalContext.isAuthenticated || !finalContext.canViewDashboard;
+    if (!isDeniedContext) {
+        await redis.set(redisKey, JSON.stringify(finalContext), "EX", CACHE_TTL).catch(() => { });
+    }
 
     return finalContext;
 }

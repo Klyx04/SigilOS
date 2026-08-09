@@ -90,6 +90,13 @@ subClient.subscribe(GOD_REVOKED_CHANNEL, (err) => {
     if (err) logger.error("[WS] ❌ Erreur abonnement Redis god:revoked:", { error: err });
 });
 
+// R4 — Canal "god:access-changed" : les briques accessibles d'un sous-god ont changé
+// → on le prévient en LIVE pour qu'il rafraîchisse son UI (SANS déconnexion).
+const GOD_ACCESS_CHANGED_CHANNEL = "god:access-changed";
+subClient.subscribe(GOD_ACCESS_CHANGED_CHANNEL, (err) => {
+    if (err) logger.error("[WS] ❌ Erreur abonnement Redis god:access-changed:", { error: err });
+});
+
 const io = new Server(httpServer, {
     // 🔒 [SECURITY] Limit payload size to 1MB — prevents OOM from oversized canvas events
     maxHttpBufferSize: 1e6,
@@ -214,6 +221,19 @@ subClient.on("message", (channel, message) => {
             }
         } catch (e) {
             logger.error(`[WS] ❌ Erreur parsing god:revoked:`, { error: e });
+        }
+    }
+
+    // R4 — Accès modifié (briques) → prévient le sous-god pour refresh UI, SANS logout.
+    if (channel === GOD_ACCESS_CHANGED_CHANNEL) {
+        try {
+            const payload = JSON.parse(message);
+            if (payload.userId) {
+                io.to(`user:${payload.userId}`).emit("god:access-changed", payload);
+                logger.info(`[WS] 🔄 God access changed broadcast → user:${payload.userId}`);
+            }
+        } catch (e) {
+            logger.error(`[WS] ❌ Erreur parsing god:access-changed:`, { error: e });
         }
     }
 });

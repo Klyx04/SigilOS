@@ -44,6 +44,7 @@ import GameDataInterface from "@/components/admin/GameDataInterface";
 import { EventZoneManager } from "@/components/admin/EventZoneManager";
 
 import { OverviewTabs } from "./components/overview-tabs";
+import { GodLoadingSkeleton } from "./ui";
 import { BlacklistSection } from "./components/blacklist-section";
 import { DeletionPendingPanel } from "@/components/admin/deletion-pending-panel";
 import { getSystemAnnouncement } from "@/server/actions/announcement-actions";
@@ -225,26 +226,26 @@ export default async function SuperAdminPage(props: {
 
                             <OverviewTabs
                                 stats={
-                                    <Suspense fallback={<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse"><div className="h-24 bg-zinc-900 rounded-2xl" /></div>}>
+                                    <Suspense fallback={<GodLoadingSkeleton rows={5} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6" />}>
                                         <LiveStatsServer />
                                     </Suspense>
                                 }
                                 chart={
-                                    <Suspense fallback={<div className="h-64 bg-zinc-900/50 rounded-3xl animate-pulse" />}>
+                                    <Suspense fallback={<GodLoadingSkeleton rows={4} />}>
                                         <ActivityChartServer />
                                     </Suspense>
                                 }
                                 communication={
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                         <div className="lg:col-span-2">
-                                            <Suspense fallback={<div className="h-48 bg-zinc-900/50 rounded-3xl animate-pulse" />}>
+                                            <Suspense fallback={<GodLoadingSkeleton rows={3} />}>
                                                 <AnnouncementServer />
                                             </Suspense>
                                         </div>
                                     </div>
                                 }
                                 worker={
-                                    <Suspense fallback={<div className="h-48 bg-zinc-900/50 rounded-3xl animate-pulse" />}>
+                                    <Suspense fallback={<GodLoadingSkeleton rows={3} />}>
                                         <WorkerTester />
                                     </Suspense>
                                 }

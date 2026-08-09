@@ -151,7 +151,7 @@ export default async function MemberProfilePage({
                     alignmentLevel: profile.alignmentLevel,
                 }}
                 user={{
-                    name: profile.user.name,
+                    name: getDisplayName(profile),
                     image: profile.user.image,
                 }}
                 stats={stats}

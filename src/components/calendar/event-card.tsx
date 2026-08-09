@@ -1,5 +1,7 @@
 "use client";
 
+import { getDisplayName } from "@/lib/display-name";
+
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -154,15 +156,18 @@ export function EventCard({
 
                 {/* Attendees Avatars (Hidden on very small screens) */}
                 <div className="hidden md:flex items-center -space-x-2 mr-4">
-                    {event.attendees?.slice(0, 4).map((a: any) => (
-                        <div key={a.id} className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-zinc-800 overflow-hidden" title={a.user.name}>
-                            {a.user.image ? (
-                                <img src={a.user.image} alt={a.user.name} className="h-full w-full object-cover" />
-                            ) : (
-                                <div className="h-full w-full flex items-center justify-center text-[10px] text-zinc-400">{a.user.name?.[0]}</div>
-                            )}
-                        </div>
-                    ))}
+                    {event.attendees?.slice(0, 4).map((a: any) => {
+                        const attendeeName = getDisplayName(a.user.profiles?.[0]) || a.user.name || "?";
+                        return (
+                            <div key={a.id} className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-zinc-800 overflow-hidden" title={attendeeName}>
+                                {a.user.image ? (
+                                    <img src={a.user.image} alt={attendeeName} className="h-full w-full object-cover" />
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-[10px] text-zinc-400">{attendeeName?.[0]}</div>
+                                )}
+                            </div>
+                        );
+                    })}
                     {attendeeCount > 4 && (
                         <div className="h-8 w-8 rounded-full border-2 border-zinc-900 bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
                             +{attendeeCount - 4}

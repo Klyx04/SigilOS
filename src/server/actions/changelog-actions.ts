@@ -281,10 +281,14 @@ export async function updatePlatformConfig(data: {
     statusFrequency?: number,
     nsfwFilterEnabled?: boolean,
     donationsEnabled?: boolean,
-    questFeedbackChannelId?: string
+    questFeedbackChannelId?: string,
+    ladderManualFallback?: boolean
 }) {
     const isAdmin = await isSuperAdmin();
     if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+    const session = await auth();
+    const actorId = session?.user?.id || null;
 
     try {
         const config = await (db.platformConfig as any).upsert({
@@ -303,7 +307,13 @@ export async function updatePlatformConfig(data: {
                 ...(data.statusFrequency !== undefined && { statusFrequency: data.statusFrequency }),
                 ...(data.nsfwFilterEnabled !== undefined && { nsfwFilterEnabled: data.nsfwFilterEnabled }),
                 ...(data.donationsEnabled !== undefined && { donationsEnabled: data.donationsEnabled }),
-                ...(data.questFeedbackChannelId !== undefined && { questFeedbackChannelId: data.questFeedbackChannelId || null })
+                ...(data.questFeedbackChannelId !== undefined && { questFeedbackChannelId: data.questFeedbackChannelId || null }),
+                // Toggle God : fallback saisie manuelle pseudo si le ladder Ankama est KO.
+                ...(data.ladderManualFallback !== undefined && {
+                    ladderManualFallback: data.ladderManualFallback,
+                    ladderManualFallbackUpdatedAt: new Date(),
+                    ladderManualFallbackUpdatedBy: actorId,
+                })
             },
             create: { 
                 id: "singleton", 
@@ -320,7 +330,8 @@ export async function updatePlatformConfig(data: {
                 statusFrequency: data.statusFrequency || 15,
                 nsfwFilterEnabled: data.nsfwFilterEnabled !== undefined ? data.nsfwFilterEnabled : true,
                 donationsEnabled: data.donationsEnabled !== undefined ? data.donationsEnabled : true,
-                questFeedbackChannelId: data.questFeedbackChannelId || null
+                questFeedbackChannelId: data.questFeedbackChannelId || null,
+                ladderManualFallback: data.ladderManualFallback ?? false
             }
         });
         revalidatePath('/');

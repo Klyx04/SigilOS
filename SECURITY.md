@@ -35,17 +35,20 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 - **Fail-closed** : HMAC storage, RBAC Discord, rate-limit (partiellement), workers Cloudflare
 - **CI/CD** : `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity, `AUTH_SECRET` n'est plus injecté sur les PR
 - **Bot Discord** : `DATABASE_URL` propre + intent `GuildMessageTyping` retiré
-- **Authentification WebSocket (F-08, activée en beta 09/08)** : décodage session + appartenance guilde à chaque connexion ; kill-switch `WS_AUTH_ENABLED` (false = mode permissif d'urgence). **Reste** : tester reconnexion/temps réel sur beta puis activer en prod.
+- **Authentification WebSocket (F-08, activée en beta 09/08 puis en PROD)** : décodage session + appartenance guilde à chaque connexion ; kill-switch `WS_AUTH_ENABLED` (false = mode permissif d'urgence). **Activée en prod le 09/08** (`WS_AUTH_ENABLED=true` dans `.env.prod`, confirmé `.env.beta` + `.env.prod`).
+- **Chiffrement tokens OAuth (F-05)** : `src/lib/token-encryption.ts` (service `updateEncryptedDiscordTokens`, anti double-chiffrement) utilisé dans `auth.ts` events.signIn ; **en plus**, hook `updateMany` ajouté dans `src/lib/prisma.ts` (défense en profondeur, commit `339db4e1`) → plus aucun chemin n'écrit les tokens Discord en clair.
+- **SSRF image-downloader (F-03)** : ✅ protégé — `assertSafeUrl` bloque protocoles non-http(s), IP privées/réservées (10/172.16-31/192.168/169.254/127/0.0.0.0) + DNS rebinding (re-IP après lookup), fetch timeout 20s.
+- **JWT 8h (F-07)** : ✅ déjà en place — `src/auth.ts` override `maxAge: 8h` + `updateAge: 4h` (NIST SP 800-63B). (`auth.config.ts` affiche 24h mais l'override d'`auth.ts` gagne.)
+- **Cache permissions (F-13)** : TTL réduit 60s → **30s** dans `guards.ts` (commit `0dd660bf`), cache **positif seulement** (une révocation/ban se propage en ≤30s).
+- **proxy-image (F-06)** : ✅ protégé — limite de taille streaming (5 Mo), magic bytes (`detectMimeType`) avant traitement, blocage HTML/script déguisé en image, whitelist de domaines exacte + blocage IP internes/réservées.
+- **Sanitisation HTML (F-11)** : ✅ `sanitizeHtml()` centralisée dans `src/lib/security.ts` (DOMPurify, addHook anti-tabnabbing), appliquée aux docs, sondages, présentation, guides (processHtml), songes. **Ajout 09/08** : descriptions des Monstres Spéciaux + liens Ressources sanitizés (commit `d8189f42`).
+- **Zero Console Policy** : `auth.ts`, `image-downloader.ts`, `guards.ts` convertis au `logger` structuré (commit `c62a2835`). ⚠️ Reste : ~300 `console.*` dans `src/server/actions/` (chantier logiciel à traiter séparément).
 
 ### ⚠️ Chantiers ouverts (à résoudre — NE PAS considérer la sécurité comme complète tant qu'ils ne sont pas faits)
-- **Chiffrement des tokens OAuth (Discord)** : `updateMany` ne chiffre pas → tokens potentiellement en clair en BDD
-- **SSRF dans `image-downloader.ts`** (outil God) : aucune restriction de protocole/CIDR
-- **Durée du JWT** : 7 jours au lieu de 8h recommandé (NIST SP 800-63B)
-- **CSP nonce-based** : ✅ **DÉPLOYÉ (09/08)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, mode **Report-Only** par défaut (`CSP_ENFORCE=true` pour basculer en enforce), endpoint `/api/csp-report` + 16 tests. ✅ Auth WS **activée en beta** (WS_AUTH_ENABLED=true, 09/08). **Reste** : confirmer aucune violation bloquante sur beta via `/api/csp-report` puis activer `CSP_ENFORCE=true`.
-- ~~**Clé de chiffrement de secours dev**~~ : ✅ **Déjà retirée** (F-09, commit `de58c7b4` 02/08) — `src/lib/encryption.ts` fail-closed dans TOUS les environnements (plus aucun fallback en dur). Chantier **fermé**.
-- **Cache des permissions** : 60s avant propagation d'une révocation
-- **Grafana** : mot de passe admin à vérifier (si `GRAFANA_PASSWORD` absent → `admin/admin`)
-- **Caddy** : pas de rate-limit au niveau proxy
+- **CSP nonce-based** : ✅ **DÉPLOYÉ (09/08)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, mode **Report-Only** par défaut (`CSP_ENFORCE=true` pour basculer en enforce), endpoint `/api/csp-report` + 16 tests. ✅ Auth WS **activée en beta puis prod** (WS_AUTH_ENABLED=true). **Reste** : confirmer aucune violation bloquante sur beta via `/api/csp-report` puis activer `CSP_ENFORCE=true` (beta, puis prod après 24-48h).
+- **Grafana** : mot de passe admin à vérifier (`GRAFANA_PASSWORD` dans `.env.prod`/`.env.beta` — sinon `admin/admin` par défaut).
+- **Caddy** : pas de rate-limit au niveau proxy (F-14) — à ajouter (image custom `xcaddy` + `rate_limit` haute sur routes publiques uniquement).
+- **Zero Console Policy (restant)** : ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel, hors urgence sécurité).
 
 ### 🔒 Références
 Le détail complet des findings et remédiations est documenté **en local** (hors dépôt) dans `docs/audits/AUDIT_SECURITE_SIGILOS.md` (généré suite à l'audit). Les rapports d'audit sont centralisés dans `docs/audits/` et ne sont **jamais committés**.

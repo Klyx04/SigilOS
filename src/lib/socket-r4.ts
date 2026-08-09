@@ -35,3 +35,27 @@ export async function publishGodRevoked(payload: GodRevokedPayload): Promise<boo
         return false;
     }
 }
+
+// ─── Accès modifié (briques ajoutées/retirées/prolongées) : refresh UI, PAS de logout ───
+export const GOD_ACCESS_CHANGED_CHANNEL = "god:access-changed";
+
+export type GodAccessChangedPayload = {
+    userId: string;
+    delegateId?: string;
+    timestamp: string;
+};
+
+/**
+ * Signale qu'un sous-god a vu ses BRIQUES accessibles changer (accord, retrait,
+ * prolongation) → le client rafraîchit son UI (router.refresh) pour que les onglets
+ * apparaissent/disparaissent sans logout. Best-effort, fail-closed.
+ */
+export async function publishGodAccessChanged(payload: GodAccessChangedPayload): Promise<boolean> {
+    try {
+        await redis.publish(GOD_ACCESS_CHANGED_CHANNEL, JSON.stringify(payload));
+        return true;
+    } catch (err) {
+        logger.warn("[R4] publishGodAccessChanged échoué — refresh à la prochaine requête", { error: err });
+        return false;
+    }
+}

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
@@ -130,7 +131,7 @@ export async function getLoans(
 
         return { success: true, data: loans as unknown as LoanWithProfiles[] };
     } catch (error) {
-        console.error("[getLoans]", error);
+        logger.error("[getLoans]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -273,7 +274,7 @@ export async function createLoan(
                 );
             }
         } catch (notifErr) {
-            console.error("[createLoan] Dashboard notification failed:", notifErr);
+            logger.error("[createLoan] Dashboard notification failed:", notifErr);
         }
 
         // ── Discord Embed ──────────────────────────────────────────────────────
@@ -327,19 +328,19 @@ export async function createLoan(
                             }
                         );
                     } else {
-                        console.warn(`[createLoan] Channel ${channelId} invalid for guild ${guildId}, skipping Discord notify`);
+                        logger.warn(`[createLoan] Channel ${channelId} invalid for guild ${guildId}, skipping Discord notify`);
                     }
                 }
             } catch (discordErr) {
                 // Non-blocking: Discord failure must not break the loan creation
-                console.error("[createLoan] Discord notify failed:", discordErr);
+                logger.error("[createLoan] Discord notify failed:", discordErr);
             }
         }
 
         revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true, data: { id: loan.id } };
     } catch (error) {
-        console.error("[createLoan]", error);
+        logger.error("[createLoan]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -447,7 +448,7 @@ export async function markLoanReturned(
         revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
-        console.error("[markLoanReturned]", error);
+        logger.error("[markLoanReturned]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -509,7 +510,7 @@ export async function cancelLoan(
         revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
-        console.error("[cancelLoan]", error);
+        logger.error("[cancelLoan]", error);
         return { success: false, error: "Erreur interne" };
     }
 }

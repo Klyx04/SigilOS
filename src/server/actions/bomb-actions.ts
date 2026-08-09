@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 'use server';
 
 import { db } from "@/lib/prisma";
@@ -70,7 +71,7 @@ export async function submitBombScore(
         revalidatePath(`/dashboard/${guildId}/mini-jeux`);
         return { success: true };
     } catch (error) {
-        console.error("Failed to submit bomb score:", error);
+        logger.error("Failed to submit bomb score:", error);
         return { success: false, error: "Erreur de base de données" };
     }
 }
@@ -119,7 +120,7 @@ export async function getBombLadder(guildId: string, type: 'all_time' | 'month' 
             bestScore: s._max?.score || 0
         }));
     } catch (error) {
-        console.error("Failed to fetch bomb ladder:", error);
+        logger.error("Failed to fetch bomb ladder:", error);
         return [];
     }
 }

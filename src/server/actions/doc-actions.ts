@@ -76,7 +76,7 @@ export async function getDocBySlug(slug: string, guildId?: string): Promise<DocP
             createdAt: (doc as any).createdAt ? new Date((doc as any).createdAt).toISOString() : new Date().toISOString()
         };
     } catch (error) {
-        console.error("Error fetching doc:", error);
+        logger.error("Error fetching doc:", error);
         return null;
     }
 }
@@ -196,7 +196,7 @@ export async function getSearchableDocs(guildId?: string) {
             };
         });
     } catch (error) {
-        console.error("Error fetching searchable docs:", error);
+        logger.error("Error fetching searchable docs:", error);
         return [];
     }
 }
@@ -268,7 +268,7 @@ export async function saveDoc(data: CreateDocInput & { id?: string }): Promise<A
         return { success: true, data: doc as unknown as DocPageData };
 
     } catch (error) {
-        console.error("Error saving doc:", error);
+        logger.error("Error saving doc:", error);
         return { success: false, error: "Database error" };
     }
 }

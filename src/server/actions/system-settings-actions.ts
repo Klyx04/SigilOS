@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -14,7 +15,7 @@ export async function getSystemAnnouncementSettings(guildId: string) {
         });
         return { success: true, data: config };
     } catch (error) {
-        console.error("[System Settings] Fetch failed:", error);
+        logger.error("[System Settings] Fetch failed:", error);
         return { success: false, error: "Database error" };
     }
 }

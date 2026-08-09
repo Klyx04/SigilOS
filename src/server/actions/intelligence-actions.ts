@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
 import { getMyOcreProgress, OcreProgressData } from "./ocre-actions";
 import { getDreamRuns } from "./songes/dream-run-actions";
@@ -140,7 +141,7 @@ export async function getDashboardFocus(
         }
 
     } catch (e) {
-        console.error("[Intelligence] Focus generation failed:", e);
+        logger.error("[Intelligence] Focus generation failed:", e);
     }
 
     // Return highest priority card

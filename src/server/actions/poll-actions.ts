@@ -66,7 +66,7 @@ export async function getPollSettings(guildId: string): Promise<ActionResponse<{
             }
         };
     } catch (error) {
-        console.error("Get Poll Settings Error:", error);
+        logger.error("Get Poll Settings Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -103,7 +103,7 @@ export async function getPollPublicConfig(guildId: string): Promise<ActionRespon
             }
         };
     } catch (error) {
-        console.error("Get Poll Public Config Error:", error);
+        logger.error("Get Poll Public Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -141,7 +141,7 @@ export async function updatePollSettings(
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
-        console.error("Update Poll Settings Error:", error);
+        logger.error("Update Poll Settings Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

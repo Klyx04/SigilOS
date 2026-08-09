@@ -88,7 +88,7 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
                 }
             }
         } catch (err) {
-            console.error("[getUpcomingGuildEvents] Failed to fetch Kralamoure events:", err);
+            logger.error("[getUpcomingGuildEvents] Failed to fetch Kralamoure events:", err);
             kralaEvents = [];
         }
     }
@@ -200,7 +200,7 @@ export async function getUpcomingGuildEvents(guildId: string, limit = 5): Promis
     await redis.set(cacheKey, JSON.stringify(result), "EX", 15).catch(() => {});
     return result;
     } catch (error) {
-        console.error("[getUpcomingGuildEvents] Error:", error);
+        logger.error("[getUpcomingGuildEvents] Error:", error);
         return [];
     }
 }

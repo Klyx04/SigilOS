@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { sendChannelMessage } from "@/server/discord";
@@ -78,7 +79,7 @@ export async function sendDailySummaryReport(guildId: string, isManual = false) 
         return { success: true, messageId };
 
     } catch (error: any) {
-        console.error("[Daily Report] Error:", error);
+        logger.error("[Daily Report] Error:", error);
         return { success: false, error: error.message || "Erreur lors de la génération du rapport" };
     }
 }

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 'use server';
 
 import { db } from "@/lib/prisma";
@@ -74,7 +75,7 @@ export async function submitGeoguesserScore(
         revalidatePath(`/dashboard/${guildId}/mini-jeux`);
         return { success: true };
     } catch (error) {
-        console.error("Failed to submit score:", error);
+        logger.error("Failed to submit score:", error);
         return { success: false, error: "Erreur de base de données" };
     }
 }
@@ -123,7 +124,7 @@ export async function getGeoguesserLadder(guildId: string, type: 'all_time' | 'm
             bestScore: s._max?.score || 0
         }));
     } catch (error) {
-        console.error("Failed to fetch ladder:", error);
+        logger.error("Failed to fetch ladder:", error);
         return [];
     }
 }

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { isSuperAdmin } from "./super-admin-actions";
 import { fetchChannel, fetchBotGuilds } from "@/server/discord";
@@ -88,7 +89,7 @@ export async function diagnoseDiscordConnectivity() {
         return { success: true, results };
 
     } catch (error: any) {
-        console.error("[GodDiscordDiag] Critical Failure:", error);
+        logger.error("[GodDiscordDiag] Critical Failure:", error);
         return { success: false, error: error.message };
     }
 }
@@ -112,7 +113,7 @@ export async function scanGhostGuilds() {
 
         return { success: true, ghosts };
     } catch (error: any) {
-        console.error("[GhostScan] Failure:", error);
+        logger.error("[GhostScan] Failure:", error);
         return { success: false, error: error.message };
     }
 }
@@ -138,7 +139,7 @@ export async function forceBotLeaveGuild(guildId: string) {
             return { success: false, error: err.message || `Discord API returned ${res.status}` };
         }
     } catch (error: any) {
-        console.error("[ForceLeave] Failure:", error);
+        logger.error("[ForceLeave] Failure:", error);
         return { success: false, error: error.message };
     }
 }

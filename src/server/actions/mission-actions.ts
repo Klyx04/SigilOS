@@ -1116,7 +1116,7 @@ export async function validateSubmission(
 
         return { success: true };
     } catch (error) {
-        console.error("Validation Error:", error);
+        logger.error("Validation Error:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -1202,7 +1202,7 @@ export async function grantRewards(profileId: string, xp: number, guildatons: nu
             revalidatePath(`/dashboard/${profile.guild.discordGuildId}/stats`); // Recalculate stats too
         }
     } catch (e) {
-        console.error(`[Rewards] grantRewards failed for ${profileId}:`, e);
+        logger.error(`[Rewards] grantRewards failed for ${profileId}:`, e);
     }
 }
 
@@ -1271,7 +1271,7 @@ export async function cancelMySubmission(
 
         return { success: true };
     } catch (error) {
-        console.error("Cancel Submission Error:", error);
+        logger.error("Cancel Submission Error:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -1454,7 +1454,7 @@ export async function getMissionValidators(guildId: string, missionId: string): 
         return { success: true, data: validators };
 
     } catch (error) {
-        console.error("Fetch Validators Error:", error);
+        logger.error("Fetch Validators Error:", error);
         return { success: false, error: "Erreur BDD" };
     }
 }
@@ -1527,7 +1527,7 @@ export async function cancelMissionSubmission(
         return { success: true };
 
     } catch (error) {
-        console.error("Cancel Submission Error:", error);
+        logger.error("Cancel Submission Error:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -1673,7 +1673,7 @@ export async function publishMissionsToDiscord(
 
         return { success: true };
     } catch (error) {
-        console.error("Publish to Discord error:", error);
+        logger.error("Publish to Discord error:", error);
         return { success: false, error: "Erreur serveur lors de la publication." };
     }
 }
@@ -1799,7 +1799,7 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
             fields
         });
     } catch (e) {
-        console.error("[Discord] refreshMissionDiscordEmbed failed:", e);
+        logger.error("[Discord] refreshMissionDiscordEmbed failed:", e);
     }
 }
 
@@ -1927,7 +1927,7 @@ export async function getMissionsByIds(ids: string[]) {
         // Ensure safe JSON serialization
         return JSON.parse(JSON.stringify(missions));
     } catch (error) {
-        console.error("getMissionsByIds Error:", error);
+        logger.error("getMissionsByIds Error:", error);
         return [];
     }
 }

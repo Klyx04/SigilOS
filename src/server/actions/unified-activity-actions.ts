@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -202,7 +203,7 @@ export async function getUnifiedGuildActivity(guildId: string, limit = 15): Prom
         return sorted;
 
     } catch (error) {
-        console.error("[getUnifiedGuildActivity] Error:", error);
+        logger.error("[getUnifiedGuildActivity] Error:", error);
         return [];
     }
 }

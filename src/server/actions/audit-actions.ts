@@ -134,7 +134,7 @@ export async function reportSecurityIncident(
             const ctx = await getUserContext(guildId);
             if (ctx.name) actorName = ctx.name;
         } catch (e) {
-            console.warn("[Security] Context lookup failed, using session name", e);
+            logger.warn("[Security] Context lookup failed, using session name", e);
         }
 
         // 🛡️ FORENSICS: Get real security headers
@@ -184,7 +184,7 @@ export async function reportSecurityIncident(
 
         return { success: true };
     } catch (error) {
-        console.error("Failed to report security incident:", error);
+        logger.error("Failed to report security incident:", error);
         return { success: false, error: "Internal Error" };
     }
 }
@@ -255,7 +255,7 @@ export async function createAuditLog({
 
         return { success: true, data: { logId: log.id } };
     } catch (error) {
-        console.error("[createAuditLog] Error:", error);
+        logger.error("[createAuditLog] Error:", error);
         return { success: false, error: "Failed to create audit log" };
     }
 }
@@ -336,7 +336,7 @@ export async function logAction({
             }
         });
     } catch (error) {
-        console.error("[logAction] Silent Fail:", error);
+        logger.error("[logAction] Silent Fail:", error);
     }
 }
 
@@ -469,7 +469,7 @@ export async function logAdminAccessDenied(
         });
     } catch (error) {
         // Silent fail - logging shouldn't break the app
-        console.error("[logAdminAccessDenied] Error:", error);
+        logger.error("[logAdminAccessDenied] Error:", error);
     }
 }
 
@@ -589,7 +589,7 @@ export async function logBetaAccessAttempt(
             }
         });
     } catch (error) {
-        console.error("[logBetaAccessAttempt] Error:", error);
+        logger.error("[logBetaAccessAttempt] Error:", error);
     }
 }
 
@@ -712,7 +712,7 @@ export async function getAuditLogs(
             }
         };
     } catch (error) {
-        console.error("[getAuditLogs] Error:", error);
+        logger.error("[getAuditLogs] Error:", error);
         return { success: false, error: "Erreur lors du chargement des logs" };
     }
 }
@@ -755,7 +755,7 @@ export async function getAuditActionTypes(
             data: actions.map(a => a.action)
         };
     } catch (error) {
-        console.error("[getAuditActionTypes] Error:", error);
+        logger.error("[getAuditActionTypes] Error:", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -817,7 +817,7 @@ export async function cleanupOldAuditLogs(
             data: { deletedCount: result.count }
         };
     } catch (error) {
-        console.error("[cleanupOldAuditLogs] Error:", error);
+        logger.error("[cleanupOldAuditLogs] Error:", error);
         return { success: false, error: "Erreur lors du nettoyage des logs" };
     }
 }
@@ -887,7 +887,7 @@ export async function getGlobalAuditLogs(
             }
         };
     } catch (error) {
-        console.error("[getGlobalAuditLogs] Error:", error);
+        logger.error("[getGlobalAuditLogs] Error:", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -915,7 +915,7 @@ export async function cleanupGlobalAuditLogs(): Promise<ActionResponse<{ deleted
             data: { deletedCount: result.count }
         };
     } catch (error) {
-        console.error("[cleanupGlobalAuditLogs] Error:", error);
+        logger.error("[cleanupGlobalAuditLogs] Error:", error);
         return { success: false, error: "Erreur" };
     }
 }

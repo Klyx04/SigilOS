@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { isSuperAdmin } from "./super-admin-actions";
 import fs from "fs";
@@ -42,7 +43,7 @@ export async function getBountyAssets(type: AssetType): Promise<{ success: boole
 
         return { success: true, data: assets };
     } catch (error) {
-        console.error(`[Assets] Failed to list ${type}:`, error);
+        logger.error(`[Assets] Failed to list ${type}:`, error);
         return { success: false, error: "Erreur lors de la lecture des fichiers" };
     }
 }

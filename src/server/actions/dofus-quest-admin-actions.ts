@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -120,7 +121,7 @@ export async function getDofusManagementData(): Promise<ActionResponse<any[]>> {
         });
         return { success: true, data };
     } catch (error) {
-        console.error("[getDofusManagementData] Error:", error);
+        logger.error("[getDofusManagementData] Error:", error);
         return { success: false, error: "Erreur lors du chargement des données Dofus" };
     }
 }
@@ -139,7 +140,7 @@ export async function upsertDofusItem(id: string | null, data: z.infer<typeof Do
         revalidatePath("/god/game-data");
         return { success: true, data: record };
     } catch (error) {
-        console.error("[upsertDofusItem] Error:", error);
+        logger.error("[upsertDofusItem] Error:", error);
         return { success: false, error: "Erreur lors de la sauvegarde du Dofus" };
     }
 }
@@ -156,7 +157,7 @@ export async function updateDofusCategory(id: string, filterCategory: string, fi
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
-        console.error("[updateDofusCategory] Error:", error);
+        logger.error("[updateDofusCategory] Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour de la catégorie" };
     }
 }
@@ -186,7 +187,7 @@ export async function getDofusItemsForTagging(): Promise<ActionResponse<any[]>> 
         });
         return { success: true, data: items };
     } catch (error) {
-        console.error("[getDofusItemsForTagging] Error:", error);
+        logger.error("[getDofusItemsForTagging] Error:", error);
         return { success: false, error: "Erreur lors du chargement" };
     }
 }
@@ -212,7 +213,7 @@ export async function updateDofusTags(
         revalidatePath("/dashboard");
         return { success: true };
     } catch (error) {
-        console.error("[updateDofusTags] Error:", error);
+        logger.error("[updateDofusTags] Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour des tags" };
     }
 }
@@ -227,7 +228,7 @@ export async function deleteDofusItem(id: string): Promise<ActionResponse> {
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
-        console.error("[deleteDofusItem] Error:", error);
+        logger.error("[deleteDofusItem] Error:", error);
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }
@@ -246,7 +247,7 @@ export async function upsertQuestChain(id: string | null, data: z.infer<typeof C
         revalidatePath("/god/game-data");
         return { success: true, data: record };
     } catch (error) {
-        console.error("[upsertQuestChain] Error:", error);
+        logger.error("[upsertQuestChain] Error:", error);
         return { success: false, error: "Erreur lors de la sauvegarde de la chaîne" };
     }
 }
@@ -261,7 +262,7 @@ export async function deleteQuestChain(id: string): Promise<ActionResponse> {
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
-        console.error("[deleteQuestChain] Error:", error);
+        logger.error("[deleteQuestChain] Error:", error);
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }
@@ -338,7 +339,7 @@ export async function upsertQuestEntry(id: string | null, data: z.infer<typeof E
         revalidatePath("/god/game-data");
         return { success: true, data: record };
     } catch (error) {
-        console.error("[upsertQuestEntry] Error:", error);
+        logger.error("[upsertQuestEntry] Error:", error);
         return { success: false, error: "Erreur lors de la sauvegarde de l'étape" };
     }
 }
@@ -353,7 +354,7 @@ export async function deleteQuestEntry(id: string): Promise<ActionResponse> {
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
-        console.error("[deleteQuestEntry] Error:", error);
+        logger.error("[deleteQuestEntry] Error:", error);
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }
@@ -393,7 +394,7 @@ export async function reorderQuestChain(chainId: string, direction: "up" | "down
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
-        console.error("[reorderQuestChain] Error:", error);
+        logger.error("[reorderQuestChain] Error:", error);
         return { success: false, error: "Erreur lors du réordonnancement" };
     }
 }
@@ -435,7 +436,7 @@ export async function reorderQuestEntry(entryId: string, direction: "up" | "down
         revalidatePath("/god/game-data");
         return { success: true };
     } catch (error) {
-        console.error("[reorderQuestEntry] Error:", error);
+        logger.error("[reorderQuestEntry] Error:", error);
         return { success: false, error: "Erreur lors du réordonnancement" };
     }
 }
@@ -465,7 +466,7 @@ export async function getQuestPrerequisites(questId: string): Promise<ActionResp
 
         return { success: true, data: { from, to } };
     } catch (error) {
-        console.error("[getQuestPrerequisites] Error:", error);
+        logger.error("[getQuestPrerequisites] Error:", error);
         return { success: false, error: "Erreur lors du chargement" };
     }
 }
@@ -500,7 +501,7 @@ export async function getSiblingQuestEntries(chainId: string, excludeQuestId: st
 
         return { success: true, data: entries };
     } catch (error) {
-        console.error("[getSiblingQuestEntries] Error:", error);
+        logger.error("[getSiblingQuestEntries] Error:", error);
         return { success: false, error: "Erreur lors du chargement" };
     }
 }
@@ -534,7 +535,7 @@ export async function addQuestPrerequisite(fromQuestId: string, toQuestId: strin
         revalidatePath("/god/quetes-dofus");
         return { success: true };
     } catch (error) {
-        console.error("[addQuestPrerequisite] Error:", error);
+        logger.error("[addQuestPrerequisite] Error:", error);
         return { success: false, error: "Erreur lors de l'ajout du prérequis" };
     }
 }
@@ -549,7 +550,7 @@ export async function removeQuestPrerequisite(id: string): Promise<ActionRespons
         revalidatePath("/god/quetes-dofus");
         return { success: true };
     } catch (error) {
-        console.error("[removeQuestPrerequisite] Error:", error);
+        logger.error("[removeQuestPrerequisite] Error:", error);
         return { success: false, error: "Erreur lors de la suppression du prérequis" };
     }
 }
@@ -602,7 +603,7 @@ export async function pumpQuestsFromDofusDB(
         revalidatePath("/god/game-data");
         return { success: true, data: { count } };
     } catch (error) {
-        console.error("[pumpQuestsFromDofusDB] error:", error);
+        logger.error("[pumpQuestsFromDofusDB] error:", error);
         return { success: false, error: "Erreur lors du pompage DofusDB" };
     }
 }
@@ -626,7 +627,7 @@ export async function compileDofusChain(slug: string): Promise<ActionResponse<{ 
         revalidatePath(`/dashboard`);
         return { success: true, data: { log: `${compileOut}\n\n${seedOut}` } };
     } catch (error: any) {
-        console.error("[compileDofusChain] Error:", error);
+        logger.error("[compileDofusChain] Error:", error);
         return { success: false, error: "Erreur sync: " + (error?.message || "Inconnue") };
     }
 }
@@ -644,7 +645,7 @@ export async function compileAllDofus(): Promise<ActionResponse<{ log: string }>
         revalidatePath("/god/quetes-dofus");
         return { success: true, data: { log: compileOut || "Compilation globale terminée ✅" } };
     } catch (error: any) {
-        console.error("[compileAllDofus] Error:", error);
+        logger.error("[compileAllDofus] Error:", error);
         return { success: false, error: "Erreur globale: " + (error?.message || "Inconnue") };
     }
 }
@@ -686,7 +687,7 @@ export async function getDofusHealthReport(): Promise<ActionResponse<any[]>> {
 
         return { success: true, data: report };
     } catch (error) {
-        console.error("[getDofusHealthReport] Error:", error);
+        logger.error("[getDofusHealthReport] Error:", error);
         return { success: false, error: "Erreur lors du rapport de santé" };
     }
 }

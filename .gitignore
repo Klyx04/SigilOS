@@ -87,6 +87,9 @@ typescript-errors.txt
 /scratch/
 /tmp/
 
+# Refactoring one-shot scripts (hors git — cf. CONTEXT.md règle scripts .ps1)
+/scripts/convert-console-to-logger.ps1
+
 # Scratch & test scripts at root (one-shot dev tools)
 fix-all*.js
 fix-all*.ts

@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getGodRoutePrefix, isValidGodSecret } from "./lib/god-route"
+import { buildCsp, generateCspNonce } from "./lib/csp"
 import { logger } from "@/lib/logger"
 
 const { auth } = NextAuth(authConfig)
@@ -101,6 +102,17 @@ export default auth(async (req) => {
     });
     const hasSession = !!token?.sub;
 
+    // ─── CSP NONCE-BASED (chantier sécurité) ────────────────────────────────
+    // Next.js 16 lit le nonce depuis la CSP de la REQUÊTE entrante
+    // (content-security-policy OU content-security-policy-report-only) via
+    // getScriptNonceFromHeader(). On génère donc un nonce par requête, on
+    // l'injecte dans la requête (pour Next + pour le layout via x-nonce) ET
+    // dans la réponse (pour le navigateur).
+    // Mode : CSP_ENFORCE=true → Content-Security-Policy (enforce) ;
+    // sinon (défaut) → Content-Security-Policy-Report-Only (détection sans blocage).
+    const cspNonce = generateCspNonce();
+    const csp = buildCsp({ nonce: cspNonce, enforce: process.env.CSP_ENFORCE === "true" });
+
     // ─── REWRITE UPLOADS: Must happen before any performance short-circuit ───
     if (nextUrl.pathname.startsWith("/uploads/")) {
         const protectedPath = nextUrl.pathname.replace("/uploads/", "/api/storage/");
@@ -157,6 +169,7 @@ export default auth(async (req) => {
         nextUrl.pathname.startsWith("/api/cron/") ||       // ✅ Protected by verifyCronSecret (x-cron-secret header)
         nextUrl.pathname.startsWith("/api/discord/interactions") || 
         nextUrl.pathname.startsWith("/api/storage") || 
+        nextUrl.pathname.startsWith("/api/csp-report") || 
         nextUrl.pathname.startsWith("/api/og"); 
 
     // ─── IP Rate Limiting on public unauthenticated API routes ────────────────
@@ -261,17 +274,30 @@ export default auth(async (req) => {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-pathname", nextUrl.pathname);
 
+    // ─── CSP NONCE: fournir le nonce à Next (requête) + au layout (x-nonce) ──
+    // Next consomme la CSP de la requête pour générer son propre nonce sur les
+    // scripts d'hydratation inline. Le layout lit `x-nonce` pour les JSON-LD
+    // (F-28 : le proxy ne le posait jamais → JSON-LD sans nonce).
+    requestHeaders.set(csp.headerName, csp.headerValue);
+    requestHeaders.set("x-nonce", cspNonce);
+
     // ─── R3 ANTI-SCOUT: X-Robots-Tag noindex/nofollow sur les routes god ─────
     // Couvre pages (/god*, /mng-*) + API (/api/god/*) d'un coup.
     if (isGodRoute(nextUrl.pathname)) {
         requestHeaders.set("X-Robots-Tag", "noindex, nofollow");
     }
 
-    return NextResponse.next({
+    // ─── CSP NONCE: exposer la CSP au NAVIGATEUR (réponse) ───────────────────
+    // Le header de requête ne suffit pas — le navigateur reçoit sa propre
+    // réponse et n'exécute que les scripts qui portent le nonce présent ici.
+    const response = NextResponse.next({
         request: {
             headers: requestHeaders,
         },
     });
+    response.headers.set(csp.headerName, csp.headerValue);
+
+    return response;
 })
 
 export const config = {

@@ -1,6 +1,7 @@
 import { writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
 import sharp from "sharp";
+import { logger } from "@/lib/logger";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB before optimization
 
@@ -130,7 +131,7 @@ export async function downloadExternalImage(
 
         return await processAndSaveImage(buffer, destinationPath, type, originalSize);
     } catch (error: any) {
-        console.error("[ImageDownloader] Error:", error);
+        logger.error("[ImageDownloader] Error:", { error: error?.message || String(error) });
         return { success: false, error: error.message || "Unknown error" };
     }
 }
@@ -175,7 +176,7 @@ export async function processAndSaveImage(
             sizeReduction: `${reduction}% (${(originalSize / 1024).toFixed(0)}KB → ${(optimizedSize / 1024).toFixed(0)}KB)`
         };
     } catch (error: any) {
-        console.error("[ImageDownloader] Error:", error);
+        logger.error("[ImageDownloader] Error:", { error: error?.message || String(error) });
         return { success: false, error: error.message || "Unknown error" };
     }
 }

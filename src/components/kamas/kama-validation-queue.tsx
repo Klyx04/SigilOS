@@ -11,6 +11,7 @@ import { reviewKamaDonation } from "@/server/actions/kama-actions";
 import { SubmissionCountdown } from "@/components/missions/submission-countdown";
 import { KAMA_TRANCHE } from "@/lib/kama-constants";
 import { cn } from "@/lib/utils";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 
 type KamaDonationItem = {
     id: string;
@@ -115,7 +116,7 @@ export function KamaValidationQueue({ donations: initialDonations, guildId }: Ka
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {filtered.map(don => {
                         const tranches = Math.round(don.amount / KAMA_TRANCHE);
-                        const name = don.profile.pseudoDofus || don.profile.discordNickname || don.profile.user.name || "Membre";
+                        const name = getGameDisplayName(don.profile) || "Membre";
                         const isProcessing = processingId === don.id;
 
                         return (

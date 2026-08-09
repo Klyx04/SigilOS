@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
+import { getDisplayName } from "@/lib/display-name";
+
 import { io } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { useSession } from "next-auth/react";
@@ -206,7 +208,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                          <Avatar className="h-12 w-12 border-2 border-emerald-500/20 group-hover/item:border-emerald-500/40 transition-all shadow-xl relative z-10">
                                              <AvatarImage src={req.requester.user.image} />
                                              <AvatarFallback className="bg-zinc-800 text-zinc-400 text-sm font-black uppercase">
-                                                 {(req.requester.discordNickname || req.requester.user.name || "U")[0]}
+                                                 {(getDisplayName(req.requester) || "U")[0]}
                                              </AvatarFallback>
                                          </Avatar>
                                          <div className="absolute -bottom-1 -right-1 bg-emerald-600 p-1 rounded-full border-2 border-zinc-950 shadow-lg z-20">
@@ -217,7 +219,7 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                      <div className="space-y-3 min-w-0 flex-1">
                                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                                              <span className="font-black text-base text-white tracking-tight leading-none">
-                                                 {req.requester.discordNickname || req.requester.user.name}
+                                                 {getDisplayName(req.requester)}
                                              </span>
                                              <Badge variant="outline" className="text-[9px] font-black uppercase text-zinc-500 border-white/5 bg-white/5 py-0 px-2 h-5">
                                                  {req.requester.metamobPseudo}
@@ -316,14 +318,14 @@ export function OcreTradeInbox({ guildId }: { guildId: string }) {
                                     <Avatar className="h-10 w-10 border border-white/10 shrink-0 group-hover/item:border-zinc-700 transition-colors shadow-lg">
                                         <AvatarImage src={req.target.user.image} />
                                         <AvatarFallback className="bg-zinc-800 text-zinc-500 text-xs font-black uppercase">
-                                            {(req.target.discordNickname || req.target.user.name || "U")[0]}
+                                            {(getDisplayName(req.target) || "U")[0]}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="space-y-2.5 min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
                                             <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Destinataire</span>
                                             <span className="font-black text-sm text-zinc-200">
-                                                {req.target.discordNickname || req.target.user.name}
+                                                {getDisplayName(req.target)}
                                             </span>
                                             <Badge variant="outline" className="text-[9px] font-black uppercase text-zinc-600 border-white/5 bg-white/5 py-0 px-2 h-4">
                                                 {req.target.metamobPseudo}

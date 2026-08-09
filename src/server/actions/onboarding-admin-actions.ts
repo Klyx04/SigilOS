@@ -9,6 +9,7 @@ import { z } from "zod";
 import { ActionResponse } from "./admin-actions";
 import { sendChannelMessage, fetchGuildRoles, validateChannelBelongsToGuild } from "@/server/discord";
 import { emitGuildActivity } from "./activity-actions";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 
 const WelcomeSettingsSchema = z.object({
     guildId: z.string(),
@@ -248,14 +249,14 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
         await emitGuildActivity(
             guild.id,
             "NEW_MEMBER",
-            memberProfile.pseudoDofus || memberProfile.discordNickname || memberProfile.user.name || "Nouveau membre",
+            getDisplayName(memberProfile),
             memberProfile.user.image,
             { message: template.replace(/{member}/g, "").replace(/{user}/g, "").replace(/{guild}/g, guild.name) }
         );
 
         // 2. Publish to Dashboard if configured
         if (guild.welcomeDashboardEnabled) {
-            const memberName = memberProfile.pseudoDofus || memberProfile.discordNickname || memberProfile.user.name || "Nouveau membre";
+            const memberName = getDisplayName(memberProfile);
             const content = template
                 .replace(/{member}/g, `**${memberName}**`)
                 .replace(/{user}/g, `**${memberName}**`)
@@ -279,8 +280,7 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
                 where: { userId: memberProfile.userId, provider: "discord" }
             });
 
-            const memberName = memberProfile.pseudoDofus || memberProfile.discordNickname || memberProfile.user.name || "Nouveau membre";
-            const memberMention = discordAccount ? `<@${discordAccount.providerAccountId}>` : `**${memberName}**`;
+            const memberMention = discordAccount ? `<@${discordAccount.providerAccountId}>` : `**${getDisplayName(memberProfile)}**`;
 
             // Keep the welcome text clean for the embed description
             const welcomeDescription = discordTemplate
@@ -410,7 +410,7 @@ export async function getWelcomePosts(guildId: string) {
 
         const reactorNames: Record<string, string> = {};
         reactorProfiles.forEach(p => {
-            reactorNames[p.id] = p.pseudoDofus || p.discordNickname || p.user.name || "Inconnu";
+            reactorNames[p.id] = getGameDisplayName(p);
         });
 
         return {

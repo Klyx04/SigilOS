@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { ProfileStatus } from "@prisma/client";
 import { PresenceManager } from "@/lib/presence";
+import { getDisplayName } from "@/lib/display-name";
 import { cache } from "react";
 
 // In-memory cache for internal guild IDs (5min TTL)
@@ -90,7 +91,7 @@ export const getActivePresence = cache(async (guildId: string, limit: number = 2
 
                 return {
                     id: u.id,
-                    name: u.discordNickname || u.pseudoDofus || u.user.name || "Inconnu",
+                    name: getDisplayName(u),
                     image: u.user.image,
                     lastActive: u.lastActivityAt,
                     isAfk

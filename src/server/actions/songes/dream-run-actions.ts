@@ -13,6 +13,7 @@ import { getUserContext } from "@/server/actions/user-actions";
 import { createNotification } from "@/server/actions/notification-actions";
 import { sendChannelMessage } from "@/server/discord";
 import { rateLimit } from "@/lib/ratelimit";
+import { getDisplayName } from "@/lib/display-name";
 
 // ============================================
 // CONSTANTS & HELPERS
@@ -774,7 +775,7 @@ export async function sendJoinRequest(guildId: string, data: z.infer<typeof Send
             select: { id: true, discordNickname: true, pseudoDofus: true, user: { select: { name: true } } },
         });
         if (candidateProfile) {
-            candidateName = candidateProfile.discordNickname || candidateProfile.pseudoDofus || candidateProfile.user.name || "Un joueur";
+            candidateName = getDisplayName(candidateProfile);
             candidateProfileId = candidateProfile.id;
         }
     }
@@ -1625,7 +1626,7 @@ export async function getSongesGuildMembersForClose(
         data: profiles.map((p) => ({
             id: p.id,           // profileId (used for contribution points)
             userId: p.userId,   // internal userId (used to match run members)
-            name: p.discordNickname || p.pseudoDofus || p.user.name || "Membre",
+            name: getDisplayName(p),
             image: p.user.image,
         })),
     };

@@ -7,6 +7,7 @@ import { deleteChannelMessage } from "@/server/discord";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
+import { getDisplayName } from "@/lib/display-name";
 
 // ---------------------------------------------------------------------------
 // UTILS
@@ -899,7 +900,7 @@ export async function getDjGuildMembersForClose(
             success: true,
             data: profiles.map((p) => ({
                 id: p.id,
-                name: p.discordNickname || p.pseudoDofus || p.user.name || "Membre",
+                name: getDisplayName(p),
                 image: p.user.image,
             })),
         };

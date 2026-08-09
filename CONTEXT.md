@@ -257,14 +257,17 @@
 
 | Chantier | Réf / fichier | État |
 |----------|---------------|------|
-| Rotation secret `GOD_ROUTE` (fuité en git) | `src/temp/evolution4.md` | ⚠️ À faire |
+| Rotation secret `GOD_ROUTE` (fuité en git) | `src/temp/evolution4.md` | ✅ **FAIT (09/08)** — nouvelle `GOD_ROUTE` appliquée sur `.env.beta` + `.env.prod`, conteneurs rechargés (`docker compose up -d`), vérif 404 ancienne / 200 nouvelle / 404 mauvais secret |
 | CSP nonce-based (`unsafe-inline`) | `src/temp/memo-2026-08-09-csp-nonce.md` | ✅ **Déployé** (commit `918fa308` — confirmer violations puis `CSP_ENFORCE=true`) |
 | Clé de chiffrement de secours dev | `SECURITY.md` | ✅ **Fermé** (F-09, retirée dans `encryption.ts`) |
-| Cache permissions 60s (F-13) + fallback RBAC (F-01) | `SECURITY.md` | Reste |
-| Caddy rate-limit (F-14) | `SECURITY.md` | Reste |
-| proxy-image limites/footprint (F-06) | `SECURITY.md` | Reste |
-| Sanitisation HTML centralisée (F-11) | `SECURITY.md` | Reste (lié à dompurify) |
-| Activer `WS_AUTH_ENABLED` en beta | `SECURITY.md` | ✅ **Activé en beta** (09/08 — tester reconnexion puis prod) |
+| Chiffrement tokens OAuth (F-05) | `SECURITY.md` / `prisma.ts` | ✅ **FAIT (09/08)** — service `token-encryption.ts` + hook `updateMany` (commit `339db4e1`) |
+| Cache permissions (F-13) + fallback RBAC (F-01) | `SECURITY.md` / `guards.ts` | ✅ **FAIT (09/08)** — TTL 30s + cache positif seulement (commit `0dd660bf`) |
+| Caddy rate-limit (F-14) | `SECURITY.md` | ⚠️ Reste — image custom `xcaddy` + `rate_limit` haute sur routes publiques |
+| proxy-image limites/footprint (F-06) | `SECURITY.md` | ✅ **FAIT** — taille streaming 5 Mo + magic bytes + blocage HTML déguisé |
+| Sanitisation HTML centralisée (F-11) | `SECURITY.md` | ✅ **FAIT (09/08 add)** — centralisée `security.ts` + Monstres Spéciaux/Ressources (commit `d8189f42`) |
+| SSRF image-downloader (F-03) | `SECURITY.md` | ✅ **FAIT** — protocoles + IP privées/réservées + DNS rebinding |
+| JWT 8h (F-07) | `SECURITY.md` / `auth.ts` | ✅ **FAIT** — `maxAge: 8h` + `updateAge: 4h` |
+| Activer `WS_AUTH_ENABLED` | `SECURITY.md` | ✅ **Activé beta + PROD (09/08)** — `WS_AUTH_ENABLED=true` dans `.env.beta` et `.env.prod` |
 | Évol 4 restant (B3-B5 overview, A4 purge, Évo 2/3) | `CONTEXT.md` / `evolution4.md` | ⚠️ |
 | **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚠️ Suite |
 | Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ⚠️ |
@@ -280,11 +283,12 @@
 > ✅ **Résolu (09/08)** : **CSP nonce-based déployée** (Report-Only, commit `918fa308`) · **clé de chiffrement de secours retirée** (F-09) · **`WS_AUTH_ENABLED=true` activé en beta** (F-08, à tester puis activer en prod).
 
 **Reste :**
-- **1. Cache permissions 60s** (F-13 — réduire TTL).
-- **2. Caddy rate-limit** (F-14 — au niveau proxy).
-- **3. F-01 partiel** : fallback RBAC `guards.ts` (l.96-117, 229-244) + cache « positif seulement » à consolider.
-- **4. F-06 partiel** : proxy-image sans limite de taille ni magic bytes (à compléter).
-- **5. F-11** : sanitisation HTML centralisée.
+- **1. Caddy rate-limit** (F-14 — au niveau proxy, image custom `xcaddy` + `rate_limit` haute sur routes publiques uniquement).
+- **2. Zero Console Policy (restant)** : ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel, hors urgence).
+- **3. Audit BDD tokens OAuth** : les éventuels anciens tokens Discord stockés en clair AVANT le fix F-05 restent en clair → script d'audit/ré-encryptage à prévoir.
+- **4. Infra restante** : I-06 (unifier Discord), I-07 (séparer Redis beta/prod), I-15 (circuit breaker).
+
+✅ **Résolu le 09/08** (en plus de la ligne ci-dessus) : **Cache permissions TTL 30s + cache positif seulement (F-13/F-01)** · **proxy-image borné (F-06, taille 5 Mo + magic bytes + blocage HTML)** · **sanitisation HTML centralisée + Monstres Spéciaux/Ressources (F-11)** · **hook `updateMany` chiffrement OAuth (F-05)** · **rotation `GOD_ROUTE`** · **WS auth activée beta + prod (F-08)**.
 
 **Infra faite (01/08) :** I-03, I-04, I-05, I-10, I-11, I-12, I-02, I-08. **Faux positifs écartés :** I-01, I-17. **Reste infra :** I-06 (unifier Discord), I-07 (séparer Redis), I-15 (circuit breaker). **Gartic/Skribbl supprimés du code** (dashboard + code mort retiré).
 

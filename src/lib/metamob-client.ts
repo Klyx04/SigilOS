@@ -7,6 +7,8 @@
 
 import { z } from "zod";
 import { redis } from "./redis";
+import { CircuitBreaker } from "./circuit-breaker";
+import { logger } from "./logger";
 
 // -----------------------------------------------------------------------------
 // CONFIGURATION
@@ -14,6 +16,14 @@ import { redis } from "./redis";
 
 const METAMOB_API_BASE = "https://www.metamob.fr/api";
 const CACHE_TTL = 86400; // 24 hours fallback cache
+
+// I-15: disjoncteur dédié à l'API Metamob (incrément sur échec, reset sur succès,
+// états closed/open/half-open). Instance partagée sur tout le process.
+const metamobBreaker = new CircuitBreaker({
+    name: "metamob",
+    failureThreshold: 5,
+    recoveryTimeoutMs: 30_000,
+});
 
 // -----------------------------------------------------------------------------
 // ZOD SCHEMAS - API V2 Response Formats
@@ -355,6 +365,62 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
     }
 }
 
+/** I-15 : détecte une ressource utilisateur (privée) depuis l'URL complète. */
+function isUserResourceFromUrl(url: string): boolean {
+    return url.includes("/quests/") || url.includes("/users/");
+}
+
+/**
+ * I-15 : fetch avec disjoncteur.
+ *  - Circuit OUVERT → fail fast : renvoie "OPEN" (le caller gère cache/fail-closed)
+ *    au lieu de marteler une API en panne.
+ *  - Échec réseau ou 5xx/429 → onFailure() (incrémente le compteur).
+ *  - 2xx → onSuccess() (reset du compteur, referme le circuit).
+ *  - 4xx = réponse LÉGITIME du client (404/401/403…) → ne compte PAS comme échec
+ *    de disponibilité (ne doit pas ouvrir le circuit pour une vraie réponse).
+ */
+async function fetchWithBreaker(
+    url: string,
+    fetchOptions: RequestInit
+): Promise<Response | "OPEN"> {
+    if (!metamobBreaker.allowCall()) {
+        logger.warn(`[Metamob] Circuit breaker OPEN — fail fast sur ${url}`);
+        return "OPEN";
+    }
+    let res: Response;
+    try {
+        res = await fetchWithRetry(url, fetchOptions);
+    } catch (err) {
+        metamobBreaker.onFailure();
+        throw err;
+    }
+    if (res.ok) {
+        metamobBreaker.onSuccess();
+    } else if (res.status >= 500 || res.status === 429) {
+        metamobBreaker.onFailure();
+    }
+    return res;
+}
+
+/** Helpers partagés du fail-fast "circuit ouvert" (cache public ou fail-closed). */
+async function circuitOpenFallback<T>(
+    url: string,
+    cacheKey: string,
+    publicFallback: T
+): Promise<T> {
+    const isUserResource = isUserResourceFromUrl(url);
+    if (!isUserResource) {
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) return JSON.parse(cached) as T;
+        } catch {
+            /* ignore — on retombe sur le fallback public */
+        }
+        return publicFallback;
+    }
+    throw new MetamobApiError("CIRCUIT_OPEN", "Metamob.fr est temporairement indisponible.");
+}
+
 async function fetchApi<T>(
     endpoint: string,
     schema: z.ZodSchema<T>,
@@ -394,7 +460,11 @@ async function fetchApi<T>(
     };
 
     try {
-        const response = await fetchWithRetry(`${METAMOB_API_BASE}${endpoint}`, fetchOptions);
+        const breakerUrl = `${METAMOB_API_BASE}${endpoint}`;
+        const response = await fetchWithBreaker(breakerUrl, fetchOptions);
+        if (response === "OPEN") {
+            return await circuitOpenFallback<T>(breakerUrl, cacheKey, null as any);
+        }
 
         // [Robustness] Handle 401/403 gracefully
         if (response.status === 401 || response.status === 403) {
@@ -522,7 +592,15 @@ async function fetchPaginatedApi<T>(
     };
 
     try {
-        const response = await fetchWithRetry(`${METAMOB_API_BASE}${fullEndpoint}`, fetchOptions);
+        const breakerUrl = `${METAMOB_API_BASE}${fullEndpoint}`;
+        const response = await fetchWithBreaker(breakerUrl, fetchOptions);
+        if (response === "OPEN") {
+            return await circuitOpenFallback(
+                breakerUrl,
+                cacheKey,
+                { data: [], pagination: { total: 0, limit: 50, offset: 0 } }
+            );
+        }
 
         // [Robustness] 401/403 handling for paginated
         if ((response.status === 401 || response.status === 403) && apiKey) {

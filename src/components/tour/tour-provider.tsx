@@ -95,6 +95,12 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "bottom"
     },
     {
+        target: '[data-tour="profile-tab-overview"]',
+        title: "Ton profil en général",
+        description: "Retrouve ta présentation, ta classe et tes informations visibles par la guilde.",
+        placement: "right"
+    },
+    {
         target: '[data-tour="profile-tab-metiers"]',
         title: "Tes métiers",
         description: "Indique tes métiers actifs pour que la guilde sache à qui s'adresser pour des crafts.",
@@ -113,9 +119,15 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-intro"]',
-        title: "Présente-toi",
-        description: "Écris quelques mots sur toi pour que les autres membres de la guilde apprennent à te connaître.",
+        target: '[data-tour="profile-tab-dofus"]',
+        title: "Quêtes Dofus",
+        description: "Suis ta progression sur les quêtes des Dofus directement depuis ton profil.",
+        placement: "right"
+    },
+    {
+        target: '[data-tour="profile-tab-activity"]',
+        title: "Présence & Feed",
+        description: "Gère ta présence et consulte l'activité récente de tes compagnons.",
         placement: "right"
     },
     {
@@ -127,12 +139,6 @@ const PROFILE_STEPS: TourStep[] = [
 ];
 
 const DASHBOARD_STEPS: TourStep[] = [
-    {
-        target: '[data-tour="sidebar-dashboard"]',
-        title: "Accueil",
-        description: "Retrouve ici ton résumé d'activité, les actualités et les dernières news de la guilde.",
-        placement: "right"
-    },
     {
         target: '[data-tour="sidebar-missions"]',
         title: "Missions de guilde",
@@ -146,19 +152,6 @@ const DASHBOARD_STEPS: TourStep[] = [
         description: "Suis ton score de succès Dofus, synchronisé automatiquement depuis le site officiel Ankama.",
         placement: "right",
         module: "ladder"
-    },
-    {
-        target: '[data-tour="sidebar-members"]',
-        title: "Annuaire",
-        description: "Explore les profils de tes camarades de guilde, leurs métiers et leurs personnages.",
-        placement: "right"
-    },
-    {
-        target: '[data-tour="sidebar-calendar"]',
-        title: "Calendrier",
-        description: "Inscris-toi aux événements, sorties et runs organisés par le staff.",
-        placement: "right",
-        module: "calendar"
     }
 ];
 
@@ -1299,6 +1292,11 @@ export function TourProvider({
 
     // Load member tour state (profile/dashboard)
     useEffect(() => {
+        // Tour rejouable (module / admin / dashboardBricks) lancé via startTour :
+        // ne pas fermer ni réinitialiser lors d'un changement de route.
+        if (tourPhase && isReplayableTourPhase(tourPhase)) {
+            return;
+        }
         if (!isAdmin || isOnboardingComplete) {
             const hasDoneTour = localStorage.getItem(`sigilos-tour-done-${guildId}`) === "true";
             if (hasDoneTour) {

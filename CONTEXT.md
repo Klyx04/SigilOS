@@ -305,6 +305,32 @@
 
 ---
 
+## 🧭 Suivi de chantier courant (Login & Whitelist + Rate-limit 429) — FAIT, push le 10/08/2026
+
+> **Branche** : `feat/deploy-clean-pro` · **Commits** : `53269602` (login) + `b4d6fb4a` (rate-limit). Push sur `origin/feat/deploy-clean-pro`.
+
+### ✅ Login & Whitelist (accès dashboard immédiat + observabilité God)
+- **Problème** : candidats qui, après avoir reçu un rôle Discord autorisé, devaient vider cache / incognito / attendre pour se logger ; rien de visible côté God.
+- **Causes** : blocage `signIn` si l'API `@me/guilds` est KO/en retard (pas de fallback BDD) ; caches rôle/membre (`fetchGuildMember`/`fetchGuildRoles`) 60 s (404 15 s) ; atterrissage sur la landing `/` sans porte d'entrée pour un nouveau membre ; refus de connexion non tracés.
+- **Fix** (`53269602`) :
+  - `src/lib/access-attempt.ts` (nouveau) : `logAccessAttempt()` + `hasActiveProfileInManagedGuild()` (fail-open ciblé).
+  - `src/auth.ts` : sign-in résilient — si API Discord KO/en retard, autorise un membre ACTIVE connu d'une guilde gérée, sinon fail-closed + journalise le refus.
+  - `src/server/discord.ts` : TTL `fetchGuildMember`/`fetchGuildRoles` 60→15 s ; `404` membre 15→5 s.
+  - `src/server/actions/user-actions.ts` : invalidation cache Discord à l'arrivée ; plus de cache Redis des contextes refusés.
+  - `src/app/page.tsx` : membre connecté avec guilde accessible → `redirect('/dashboard')`.
+  - **Observabilité God** : table `AccessAttempt` (migration `20260810090000_add_access_attempt`, PII minimale, rétention 90 j via janitor) + `getRecentAccessAttempts()` + section « Tentatives de connexion refusées » dans `src/app/god/logs/page.tsx`.
+  - ⚠️ **Migration à appliquer** au déploiement via `migrate deploy`.
+
+### ✅ Rate-limit 429 en pagaille (Caddy trop strict)
+- **Cause** : snippet `rate_limit_base` du `Caddyfile` appliquée globalement à `beta.sigilos.fr` — 300 req/min + burst 60 req/s par IP sur TOUT (assets inclus). Un dashboard/monde chargé (tuiles `.webp` + prefetch RSC + manifest) dépasse 60 req/s → 429 en cascade.
+- **Fix** (`b4d6fb4a`, `Caddyfile`) : borne haute **3000 req/min + burst 500/s** + **exemption assets statiques** (`/game-data/*`, `/_next/*`, `/manifest.webmanifest`, `/images/*`, `/icons/*`, `/fonts/*`, `/api/storage/*`). ⚠️ À appliquer au prochain déploiement (recréation Caddy par `deploy.sh`).
+
+### ✅ Vérifs
+- `tsc --noEmit` 0 · eslint 0 erreur · `test:run` **137/137** · `build` **62 pages** · push OK (`43098737..b4d6fb4a`).
+- Mémos : `src/temp/memo-2026-08-10-login-whitelist.md` + `src/temp/memo-2026-08-10-rate-limit-429.md`.
+
+---
+
 
 ## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
 
@@ -315,7 +341,7 @@
 | Clé de chiffrement de secours dev | `SECURITY.md` | ✅ **Fermé** (F-09, retirée dans `encryption.ts`) |
 | Chiffrement tokens OAuth (F-05) | `SECURITY.md` / `prisma.ts` | ✅ **FAIT (09/08)** — service `token-encryption.ts` + hook `updateMany` (commit `339db4e1`) |
 | Cache permissions (F-13) + fallback RBAC (F-01) | `SECURITY.md` / `guards.ts` | ✅ **FAIT (09/08)** — TTL 30s + cache positif seulement (commit `0dd660bf`) |
-| Caddy rate-limit (F-14) | `SECURITY.md` | ✅ **FAIT (09/08, commit `cde708a7`)** — `Dockerfile.caddy` (xcaddy + `caddy-ratelimit`), `rate_limit` haute (300 req/min + burst 60/s) sur routes publiques uniquement. **Fix Trivy DS-0002** (commit `fbc371e2`) : `USER caddy` non-root ajouté |
+| Caddy rate-limit (F-14) | `SECURITY.md` / `Caddyfile` | ✅ **FAIT (09/08, commit `cde708a7`)** + **RECALIBRÉ 10/08 (commit `b4d6fb4a`)** — `Dockerfile.caddy` (xcaddy + `caddy-ratelimit`). Correctif 429 : borne haute **3000 req/min + burst 500/s** + **exemption assets statiques** (`/game-data/*`, `/_next/*`, uploads, images, manifest). Fix Trivy DS-0002 (commit `fbc371e2`) : `USER caddy` non-root ajouté |
 | proxy-image limites/footprint (F-06) | `SECURITY.md` | ✅ **FAIT** — taille streaming 5 Mo + magic bytes + blocage HTML déguisé |
 | Sanitisation HTML centralisée (F-11) | `SECURITY.md` | ✅ **FAIT (09/08 add)** — centralisée `security.ts` + Monstres Spéciaux/Ressources (commit `d8189f42`) |
 | SSRF image-downloader (F-03) | `SECURITY.md` | ✅ **FAIT** — protocoles + IP privées/réservées + DNS rebinding |

@@ -39,6 +39,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     .filter(Boolean);
                 if (discordId && superAdminIds.includes(discordId)) return true;
 
+                // Helper fail-closed : journalise le refus (observabilité God) puis
+                // renvoie le résultat du sign-in (false = refus sans redirect ciblée).
+                const deny = async (reason: "NO_MANAGED_GUILD" | "DISCORD_API_ERROR", withManagedGuildError: boolean) => {
+                    try {
+                        const { logAccessAttempt } = await import("@/lib/access-attempt");
+                        await logAccessAttempt(discordId, reason);
+                    } catch { /* non bloquant */ }
+                    logger.warn(`[Auth Security] Blocked sign-in for user ${discordId}: ${reason}.`);
+                    return withManagedGuildError ? "/auth/error?error=NoManagedGuild" : false;
+                };
+
+                // Helper fail-open CIBLÉ : tolère une API Discord KO/en retard UNIQUEMENT
+                // si l'utilisateur est déjà un membre ACTIVE connu d'une guilde gérée.
+                // Un inconnu reste refusé (fail-closed). Voir src/lib/access-attempt.ts.
+                const isKnownManagedMember = async (): Promise<boolean> => {
+                    try {
+                        const { hasActiveProfileInManagedGuild } = await import("@/lib/access-attempt");
+                        return await hasActiveProfileInManagedGuild(discordId);
+                    } catch {
+                        return false;
+                    }
+                };
+
                 // 2. Fetch User Guilds from Discord API
                 try {
                     const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
@@ -46,9 +69,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     });
                     if (!res.ok) {
                         logger.error("[Auth Security] Failed to fetch user guilds from Discord:", { status: res.status });
-                        // If rate limited or error, we might want to either block or allow.
-                        // Better block for security if we can't verify membership.
-                        return false;
+                        // API KO (rate-limit/5xx) : autorise uniquement un membre connu, sinon refus fail-closed.
+                        if (await isKnownManagedMember()) return true;
+                        return deny("DISCORD_API_ERROR", false);
                     }
                     const userGuilds = await res.json() as { id: string }[];
                     const userGuildIds = userGuilds.map(g => g.id);
@@ -68,11 +91,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                     if (allowedCount > 0) return true;
 
-                    logger.warn(`[Auth Security] Blocked sign-in for user ${discordId}: Not a member of any managed guild.`);
-                    return "/auth/error?error=NoManagedGuild"; // Redirect to specific error page
+                    // 5. Discord OK mais la guilde n'est pas encore remontée (latence) :
+                    //    on tolère un membre ACTIVE connu d'une guilde gérée.
+                    if (await isKnownManagedMember()) return true;
+
+                    return deny("NO_MANAGED_GUILD", true); // Redirect to specific error page
                 } catch (e) {
                     logger.error("[Auth Security] Critical error during sign-in check:", { error: (e as Error).message });
-                    return false;
+                    if (await isKnownManagedMember()) return true;
+                    return deny("DISCORD_API_ERROR", false);
                 }
             }
             return true;

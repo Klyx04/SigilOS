@@ -23,6 +23,8 @@ const GOD_NOTIF_RETENTION_DAYS = 90;
 const GOD_LOG_RETENTION_DAYS = 90;
 const GOD_GRANT_RETENTION_DAYS = 90;
 const GOD_DELEGATE_RETENTION_DAYS = 90;
+// Rétention des tentatives de connexion refusées (PII minimale, bornée).
+const ACCESS_ATTEMPT_RETENTION_DAYS = 90;
 
 async function main() {
     const isDryRun = !process.argv.includes('--execute');
@@ -247,6 +249,25 @@ async function main() {
                     where: { revokedAt: { lt: godDelegateCutoff } }
                 });
                 console.log(`  [DEL] Successfully deleted ${res.count} revoked delegate(s).`);
+            }
+        }
+
+        // 11. AccessAttempt Cleanup (rétention bornée des connexions refusées, PII)
+        const accessAttemptCutoff = new Date();
+        accessAttemptCutoff.setDate(accessAttemptCutoff.getDate() - ACCESS_ATTEMPT_RETENTION_DAYS);
+
+        const oldAccessAttempts = await (db as any).accessAttempt.count({
+            where: { createdAt: { lt: accessAttemptCutoff } }
+        });
+        console.log(`[AccessAttempt] Found ${oldAccessAttempts} refused sign-in(s) older than ${ACCESS_ATTEMPT_RETENTION_DAYS} days.`);
+        if (oldAccessAttempts > 0) {
+            if (isDryRun) {
+                console.log(`  [DRY] Would delete ${oldAccessAttempts} refused sign-in record(s).`);
+            } else {
+                const res = await (db as any).accessAttempt.deleteMany({
+                    where: { createdAt: { lt: accessAttemptCutoff } }
+                });
+                console.log(`  [DEL] Successfully deleted ${res.count} refused sign-in record(s).`);
             }
         }
 

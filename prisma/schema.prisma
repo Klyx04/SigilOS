@@ -184,6 +184,21 @@ model GodAccessLog {
   @@index([createdAt])
 }
 
+// Tentative de connexion REFUSÉE (observabilité God / fail-closed).
+// Enregistrée dans le callback `signIn` quand un utilisateur Discord n'est pas
+// autorisé (aucune guilde gérée, API Discord KO sans profil connu, etc.).
+// PII minimale : uniquement l'ID Discord + le motif + la date. Purge > 90 jours
+// via scripts/database-janitor.ts (rétention bornée, conformité RGPD).
+model AccessAttempt {
+  id        String   @id @default(cuid())
+  discordId String
+  reason    String   // NO_MANAGED_GUILD | DISCORD_API_ERROR | ...
+  createdAt DateTime @default(now())
+
+  @@index([discordId])
+  @@index([createdAt])
+}
+
 /// R4 : Suivi de session God.
 model GodSessionLog {
   id          String    @id @default(cuid())

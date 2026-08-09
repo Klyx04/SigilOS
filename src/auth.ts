@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
 import { fetchGuildMember } from "@/server/discord"
+import { logger } from "@/lib/logger"
 
 import Discord from "next-auth/providers/discord"
 
@@ -44,7 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         headers: { Authorization: `Bearer ${account.access_token}` }
                     });
                     if (!res.ok) {
-                        console.error("[Auth Security] Failed to fetch user guilds from Discord:", res.status);
+                        logger.error("[Auth Security] Failed to fetch user guilds from Discord:", { status: res.status });
                         // If rate limited or error, we might want to either block or allow.
                         // Better block for security if we can't verify membership.
                         return false;
@@ -67,10 +68,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                     if (allowedCount > 0) return true;
 
-                    console.warn(`[Auth Security] Blocked sign-in for user ${discordId}: Not a member of any managed guild.`);
+                    logger.warn(`[Auth Security] Blocked sign-in for user ${discordId}: Not a member of any managed guild.`);
                     return "/auth/error?error=NoManagedGuild"; // Redirect to specific error page
                 } catch (e) {
-                    console.error("[Auth Security] Critical error during sign-in check:", e);
+                    logger.error("[Auth Security] Critical error during sign-in check:", { error: (e as Error).message });
                     return false;
                 }
             }
@@ -108,7 +109,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             // Discord access tokens expire after 7 days — force re-auth if expired
             const nowSeconds = Math.floor(Date.now() / 1000);
             if (token.expiresAt && typeof token.expiresAt === 'number' && token.expiresAt < nowSeconds) {
-                console.warn(`[Auth] Discord token expired for user ${token.discordId} — forcing re-auth`);
+                logger.warn(`[Auth] Discord token expired for user ${token.discordId} — forcing re-auth`);
                 return { ...token, error: "DiscordTokenExpired" } as any;
             }
 
@@ -157,7 +158,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     scope: account.scope,
                 });
             } catch (e) {
-                console.error("[Auth] Failed to update encrypted account tokens:", e);
+                logger.error("[Auth] Failed to update encrypted account tokens:", { error: (e as Error).message });
             }
 
             // Sync Discord nickname for each guild the user is in
@@ -191,7 +192,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     }
                 }
             } catch (e) {
-                console.error("[Auth] Failed to sync Discord nicknames:", e);
+                logger.error("[Auth] Failed to sync Discord nicknames:", { error: (e as Error).message });
             }
         }
     }

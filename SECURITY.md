@@ -85,7 +85,8 @@ Le serveur WS (port 3001) est protégé par un rate-limit de connexion (défini 
 - **Activée en beta (09/08)** via `WS_AUTH_ENABLED=true` dans `.env.beta`. Le serveur WS décode la session (AUTH_SECRET) et vérifie l'appartenance guilde à chaque connexion (fail-closed : refus si décodage échoue).
 - **Kill-switch** : `WS_AUTH_ENABLED=false` + `docker compose restart ws-beta` → retour au mode permissif d'urgence (rollback immédiat sans redéploiement).
 - ⚠️ **Nécessite même `AUTH_SECRET` entre l'app et le WS** (déjà via le même `env_file`). En local dev, `WS_AUTH_ENABLED` absent = auth activée par défaut.
-- 🔜 **Avant prod** : tester reconnexion + temps réel (présence, rush, sondages, révocations God) sur beta.
+- ✅ **Testé en réel sur beta (09/08)** : présence live, 0 unauthorized, révocation God live (popup + redirect). **Avant prod** : répliquer les tests.
+- ✅ **Session hardening (09/08)** : I-06 unifier Discord (bot = unique Gateway) · I-07 Redis séparé beta/prod · I-15 circuit breaker · F-14 Caddy rate-limit **déployé** · `app-prod` réparé (mot de passe DB encodé) + **rotation mdp DB prod** · CSP_ENFORCE beta activé. Détails : CONTEXT.md (Session hardening 09/08) + chantier God UX (sur branche, non merge).
 
 ### Réponse d'urgence (vulnérabilité)
 1. Révoquer le secret concerné (ex. changer `CRON_SECRET`).

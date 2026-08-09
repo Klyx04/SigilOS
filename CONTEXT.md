@@ -250,9 +250,31 @@
 - ✅ **Vérifs** : `test:run` 126/126 ✅ · `tsc --noEmit` 0 ✅ · lint 0 erreur ✅ · pre-commit (secrets, Prisma, lint, tsc) ✅.
 - ✅ **Déployé sur beta** : CSP Report-Only active (sans blocage), endpoint `/api/csp-report` recevant les violations.
 - ✅ **`WS_AUTH_ENABLED=true` activé sur beta PUIS PROD (09/08)** : l'auth WebSocket (F-08) — décodage session + appartenance guilde — est active sur les deux environnements (`.env.beta` + `.env.prod`). **Reste** : tester reconnexion/temps réel (présence, rush, sondages, révocation God) sur beta.
-- 🔜 **À faire** : **confirmer aucune violation bloquante** via `/api/csp-report`, puis **`CSP_ENFORCE=true`** sur beta → prod.
+- 🔜 **À faire** : ~~confirmer aucune violation bloquante~~ puis `CSP_ENFORCE=true` sur beta → prod.
+- ✅ **CSP_ENFORCE activé sur BETA (09/08)** : `CSP_ENFORCE=true` dans `.env.beta`, header `content-security-policy` (enforce) servi avec nonce, **0 violation** collectée. (Prod plus tard.)
 
 ---
+
+## 🧭 Suivi de chantier courant (Session hardening 09/08) — branche `feat/security-hardening-suite`
+
+> Branch : `feat/security-hardening-suite` (poussée). Merge partiel dans `dev` via PR #424 (Zero Console + I-15 + I-07 + I-06). **Non encore mergés** : retrait overlay vocal (`96df9806`) + chantier God UX (9 commits).
+
+### 🔒 Chantiers sécurité terminés (09/08)
+- ✅ **CSP_ENFORCE beta** : activé + vérifié (enforce, nonce, 0 violation).
+- ✅ **I-15 Circuit breaker** (`7efd4bf9`) : module `src/lib/circuit-breaker.ts` (closed/open/half-open, incrément sur échec/reset sur succès) + branchement metamob + 11 tests.
+- ✅ **I-07 Redis séparé** (`de97fb3d`) : service `redis-beta` (beta-net, `REDIS_PASSWORD_BETA`), prod restreint à `prod-net`. **Déployé beta** (containers redis-beta + beta relancés, PING_OK).
+- ✅ **I-06 Unifier Discord** (`5e4921aa`) : le bot = **unique Gateway** (plus de double login 4004/4096), état voix via Redis pub/sub. **Déployé beta**. ⚠️ **Puis `96df9806`** : retrait de la feature overlay vocal (poids mort) — les overlays ont été supprimés des jeux, `use-discord-voice`/`DiscordVoiceOverlay` retirés, publication voix bot retirée (Ladder Discord vocal/stream/message **conservé**).
+- ✅ **WS auth F-08 testé en réel** : présence live, 0 unauthorized, révocation God live (popup + redirect).
+- ✅ **Ladder Discord** : fix déployé + compteurs `tracked` vérifiés (vocal/stream/message).
+
+### 🎨 Chantier God UX (nouveau, issu du test beta) — sur la branche, **PAS encore mergé**
+- `4ae63f56` garde anti-expiration (décompte réel, 1 popup, redirection forcée) · `7963fc1e` grants dans la carte du délégué · `59dbdfc0` « Modifier l'accès » en **modale** + stepper supprimé · `e2a4ec16` « Mon accès » toujours visible en **h/m/s temps réel** + badge bas-gauche retiré · `10cf55ab` bouton cliquable + justification optionnelle + modale auto à la création · `fca362e1` briques groupées par scope · `fdffe6d5` **live refresh `god:access-changed`** (briques apparaissent/disparaissent sans logout) · `caef4453` anti-doublon délégué actif. + `5177c7c5` fix `Dockerfile.caddy` (`USER 1000:1000`).
+- ➡️ Nécessite **PR → merge → `deploy-cd.sh beta`** (rebuild bot/ws) pour être visible sur beta.
+
+### 🛠️ Infra VPS réglée (09/08)
+- ✅ **F-14 Caddy rate-limit** : image custom `sigilos-caddy:latest` (plugin `rate_limit`) buildée + gateway recréé (fix `USER caddy` → `USER 1000:1000` + chown volumes caddy_data/config). Module `http.handlers.rate_limit` confirmé. Limite 300 req/min + burst 60/s par IP.
+- ✅ **`app-prod` unhealthy réparé** : cause = mot de passe DB avec caractères spéciaux (`#`,`!`) non encodés dans `DATABASE_URL` → `ERR_INVALID_URL`. Encodé (`%23`,`%21`). **+ rotation du mot de passe Postgres prod** (fuite dans les logs de session, nouveau mdp hex URL-safe).
+
 
 ## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
 
@@ -284,13 +306,13 @@
 > ✅ **Résolu (09/08)** : **CSP nonce-based déployée** (Report-Only, commit `918fa308`) · **clé de chiffrement de secours retirée** (F-09) · **`WS_AUTH_ENABLED=true` activé en beta** (F-08, à tester puis activer en prod).
 
 **Reste :**
-- **1. Zero Console Policy** : ✅ **FAIT (09/08, branche `feat/security-hardening-suite`)** — **433 `console.*`** dans `src/server/actions/` convertis au `logger` (429 actifs + 4 commentés conservés). **Commits `4355d540`** (conversion 73 fichiers + logger tolérant aux contextes `unknown`/Error/BigInt, `src/lib/logger.ts`) **+ `7dc0c01f`** (fix directive `'use server';` avant import logger, 6 fichiers). **Vérifs : 126/126 tests ✓ · tsc 0 ✓ · build Next.js complet ✓ · 0 console actif restant · 0 bug directive**. ⚠️ Le script utilitaire `scripts/convert-console-to-logger.ps1` (refactoring ponctuel) est **HORS GIT** (local uniquement, cf. règle scripts).
-- **2. Audit BDD tokens OAuth** : ✅ **TERMINÉ (09/08)** — beta 126/126 chiffrés · prod 3/3 re-chiffrés (script `scripts/re-encrypt-oauth-tokens.ts`, commit `091b7c46`) → **chantier F-05 FERMÉ**.
-- **3. Infra restante** : I-06 (unifier Discord), I-07 (séparer Redis beta/prod), I-15 (circuit breaker). **F-14 Caddy rate-limit : FAIT (commit `cde708a7`)**.
+- **1. Zero Console Policy** : ✅ **FAIT (09/08)** — 433 `console.*` → `logger` (commits `4355d540` + `7dc0c01f`). Vérifs 126/126 · tsc 0 · build OK. Script `.ps1` hors git.
+- **2. Audit BDD tokens OAuth** : ✅ **TERMINÉ (09/08)** — beta 126/126 chiffrés · prod 3/3 re-chiffrés → **F-05 FERMÉ**.
+- **3. Infra** : ✅ **I-06 (unifier Discord) FAIT + déployé beta** (`5e4921aa`) · ✅ **I-07 (séparer Redis) FAIT + déployé beta** (`de97fb3d`) · ✅ **I-15 (circuit breaker) FAIT** (`7efd4bf9`). ✅ **F-14 Caddy rate-limit : DÉPLOYÉ** (image custom `sigilos-caddy`, module `rate_limit`).
 
-✅ **Résolu le 09/08** (en plus de la ligne ci-dessus) : **Cache permissions TTL 30s + cache positif seulement (F-13/F-01)** · **proxy-image borné (F-06, taille 5 Mo + magic bytes + blocage HTML)** · **sanitisation HTML centralisée + Monstres Spéciaux/Ressources (F-11)** · **hook `updateMany` chiffrement OAuth (F-05)** · **rotation `GOD_ROUTE`** · **WS auth activée beta + prod (F-08)**.
+✅ **Résolu le 09/08** (en plus de la ligne ci-dessus) : **Cache permissions TTL 30s + cache positif (F-13/F-01)** · **proxy-image borné (F-06)** · **sanitisation HTML centralisée (F-11)** · **hook `updateMany` chiffrement OAuth (F-05)** · **rotation `GOD_ROUTE`** · **WS auth beta + prod (F-08)** · **CSP_ENFORCE beta activé** · **`app-prod` unhealthy réparé** (mot de passe DB encodé) + **rotation mot de passe Postgres prod** · **F-14 déployé**.
 
-**Infra faite (01/08) :** I-03, I-04, I-05, I-10, I-11, I-12, I-02, I-08. **Faux positifs écartés :** I-01, I-17. **Reste infra :** I-06 (unifier Discord), I-07 (séparer Redis), I-15 (circuit breaker). **Gartic/Skribbl supprimés du code** (dashboard + code mort retiré).
+**Infra :** I-01 à I-17 traités. **Reste infra :** rien de bloquant (I-06/I-07/I-15/F-14 faits). **Gartic/Skribbl supprimés** du code.
 
 ---
 

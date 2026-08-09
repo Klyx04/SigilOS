@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, Timer, Ban } from "lucide-react";
+import { ShieldAlert, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSocket } from "@/lib/socket-utils";
 
@@ -27,19 +27,10 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
     const warnedRef = useRef<Set<string>>(new Set());
     const redirectedRef = useRef(false);
 
-    // Calcule le timestamp d'expiration minimal parmi les grants limités
-    const minExpiry = (() => {
-        let min: number | null = null;
-        for (const g of myGrants) {
-            if (!g.expiresAt) continue;
-            const t = new Date(g.expiresAt).getTime();
-            if (min === null || t < min) min = t;
-        }
-        return min;
-    })();
-
     // Force la déconnexion (fail-closed) quand plus aucun accès n'est valide
     const forceLogout = useCallback(() => {
+        if (redirectedRef.current) return;
+        redirectedRef.current = true;
         router.replace("/");
     }, [router]);
 
@@ -66,7 +57,8 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
                 }
             }
 
-            if (expiring) setWarning(expiring);
+            // A1 : ne re-affiche la popup que pour UN grant à la fois, jamais de doublon.
+            if (expiring && !warning) setWarning(expiring);
 
             // Déconnexion forcée si TOUT est expiré / plus rien de valide
             if (!hasValid) {
@@ -89,7 +81,8 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         run();
 
         return () => clearInterval(timer);
-    }, [myGrants, warningMinutes, forceLogout]);
+    }, [myGrants, warningMinutes, forceLogout, warning]);
+
 
     // ─── R4 — Révocation LIVE (Socket.IO) ──────────────────────────────────
     // Le serveur WS diffuse "god:revoked" sur la room user:<userId> quand le
@@ -105,8 +98,18 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
 
             socket.on("god:revoked", () => {
                 if (redirectedRef.current) return;
+                setWarning(null); // A1 : ne pas empiler avec la popup d'avertissement.
                 redirectedRef.current = true;
                 setRevoked(true);
+                // A3 : redirection FORCÉE après un court délai (le temps de voir la popup).
+                setTimeout(() => router.replace("/"), 2500);
+            });
+
+            // god:access-changed — briques accessibles modifiées (ajout/retrait/prolongation)
+            // → rafraîchit l'UI (sidebar/onglets) en LIVE, SANS déconnexion.
+            socket.on("god:access-changed", () => {
+                if (redirectedRef.current) return;
+                router.refresh();
             });
 
             socket.on("connect_error", () => {
@@ -124,26 +127,8 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         };
     }, []);
 
-    // Affiche aussi un décompte permanent discret du temps restant global
-    const globalLabel = (() => {
-        if (myGrants.some(g => !g.expiresAt)) return "accès illimité";
-        if (minExpiry === null) return null;
-        const left = Math.max(0, Math.floor((minExpiry - Date.now()) / 60_000));
-        return left <= 60 ? `${left} min` : `${Math.floor(left / 60)}h ${left % 60}m`;
-    })();
-
     return (
         <>
-            {/* Badge discret du temps restant global (coin bas gauche) */}
-            {globalLabel && (
-                <div className="fixed bottom-4 left-4 z-[95] flex items-center gap-2 rounded-xl border border-amber-500/30 bg-[#111]/90 backdrop-blur px-3 py-2 shadow-xl">
-                    <Timer className="w-4 h-4 text-amber-400" />
-                    <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest">
-                        Expire : {globalLabel}
-                    </span>
-                </div>
-            )}
-
             {/* Popup d'avertissement d'expiration */}
             {warning && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true">

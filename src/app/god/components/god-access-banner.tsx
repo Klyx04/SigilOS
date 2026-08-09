@@ -96,7 +96,24 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
     const [mounted, setMounted] = useState(false);
     const [tutorialOpen, setTutorialOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
-    const [accessOpen, setAccessOpen] = useState(false);
+    // Tick 1s → décomptes en heures/minutes/secondes temps réel.
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const t = setInterval(() => setTick(v => v + 1), 1000);
+        return () => clearInterval(t);
+    }, []);
+
+    /** Formate un temps restant en h/m/s. */
+    const formatHMS = (expiresAt: string | null): string | null => {
+        if (!expiresAt) return null;
+        const leftMs = Math.max(0, new Date(expiresAt).getTime() - Date.now());
+        const s = Math.floor(leftMs / 1000) % 60;
+        const m = Math.floor(leftMs / 60000) % 60;
+        const h = Math.floor(leftMs / 3600000);
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
+    };
 
     // Ne pas rendre le dial de tuto avant hydraulicité (évite les erreurs d'hydratation server/client).
     useEffect(() => {
@@ -246,13 +263,6 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                 <div className="flex items-center gap-2 shrink-0">
                     <button
                         type="button"
-                        onClick={() => setAccessOpen(v => !v)}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-black text-amber-200 uppercase tracking-widest transition-colors"
-                    >
-                        <KeyRound className="w-4 h-4" /> Mon accès
-                    </button>
-                    <button
-                        type="button"
                         onClick={replayTutorial}
                         aria-label="Aide / Revoir le tutoriel"
                         className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-black text-amber-200 uppercase tracking-widest transition-colors"
@@ -262,17 +272,12 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                 </div>
             </div>
 
-            {/* 🔄 P3-R — Vue "Mon accès" : briques + temps restant (remplace le lien mort /god/delegates) */}
-            {accessOpen && (
-                <div className="mx-4 md:mx-8 lg:mx-12 mt-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 backdrop-blur-md">
-                    <div className="flex items-center justify-between gap-3 mb-3">
+            {/* 🔄 P3-R — Vue "Mon accès" : briques + temps restant, TOUJOURS visible (h/m/s temps réel) */}
+            <div className="mx-4 md:mx-8 lg:mx-12 mt-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 backdrop-blur-md">
+                    <div className="flex items-center gap-2 mb-3">
                         <div className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
-                            <KeyRound className="w-3.5 h-3.5" /> Vos accès actifs
+                            <KeyRound className="w-3.5 h-3.5" /> Vos accès actifs — temps réel
                         </div>
-                        <button type="button" onClick={() => setAccessOpen(false)} aria-label="Fermer"
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400">
-                            <X className="w-3.5 h-3.5" />
-                        </button>
                     </div>
                     {myGrants.length === 0 ? (
                         <p className="text-xs text-zinc-500">Aucun accès basé sur une brique accordée pour le moment.</p>
@@ -280,7 +285,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                             {myGrants.map((g) => {
                                 const expired = g.expiresAt ? new Date(g.expiresAt).getTime() < Date.now() : false;
-                                const minsLeft = g.expiresAt ? Math.max(0, Math.floor((new Date(g.expiresAt).getTime() - Date.now()) / 60000)) : null;
+                                const leftLabel = formatHMS(g.expiresAt);
                                 return (
                                     <div key={g.brickId} className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-zinc-900/40 px-3 py-2">
                                         <div className="space-y-0.5">
@@ -289,11 +294,11 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                                         </div>
                                         {expired ? (
                                             <Badge className="bg-rose-500/15 text-rose-300 border-rose-500/30">EXPIRÉ</Badge>
-                                        ) : minsLeft === null ? (
+                                        ) : leftLabel === null ? (
                                             <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30">ILLIMITÉ</Badge>
                                         ) : (
-                                            <Badge className={minsLeft <= 5 ? "bg-amber-500/15 text-amber-300 border-amber-500/30" : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"}>
-                                                {minsLeft <= 5 ? `⚠️ ${minsLeft} min` : `${minsLeft} min`}
+                                            <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-mono">
+                                                {leftLabel}
                                             </Badge>
                                         )}
                                     </div>
@@ -301,8 +306,7 @@ export function GodAccessBanner({ activeScopes, isFullAdmin, myGrants = [] }: { 
                             })}
                         </div>
                     )}
-                </div>
-            )}
+            </div>
         </>
     );
 }

@@ -5,7 +5,6 @@ import { listDelegates, listBrickGrants } from "@/server/actions/god-delegate-ac
 import { SUBGOD_USABLE_SCOPES } from "@/lib/god-scopes";
 import { DelegatesManager } from "./delegates-manager";
 import { BrickGrantsManager } from "./brick-grants-manager";
-import { EditAccessManager } from "./edit-access-manager";
 import { AccessHistory, type DelegateHistoryItem, type GrantHistoryItem } from "./access-history";
 import { ShieldCheck, Users, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -70,7 +69,7 @@ export default async function DelegatesPage() {
         }));
 
     return (
-        <div className="p-6 md:p-10 lg:p-14 space-y-10 max-w-[1400px] mx-auto">
+        <div className="p-6 md:p-12 lg:p-16 space-y-14 max-w-[1400px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/5 pb-10">
                 <div className="space-y-4">
                     <SectionBadge icon={ShieldCheck} label="Délégation d'accès" color="bg-violet-500/10 border-violet-500/20 text-violet-400" />
@@ -109,13 +108,6 @@ export default async function DelegatesPage() {
             {/* D5 : PIM granulaire par brique */}
             <BrickGrantsManager
                 delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
-                activeDelegateIds={activeDelegateIds}
-            />
-
-            {/* 🔄 P3-R : Édition en place des accès d'un délégué */}
-            <EditAccessManager
-                delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
-                initialGrants={brickGrants as any}
                 activeDelegateIds={activeDelegateIds}
             />
 

@@ -36,8 +36,6 @@ import { toast } from "sonner";
 import { AtmosphericParticles } from "../ui/AtmosphericParticles";
 import { ShareRoomButton } from "../shared/ShareRoomButton";
 import { useBombSounds } from "./useBombSounds";
-import { useDiscordVoice } from "@/hooks/use-discord-voice";
-import { DiscordVoiceOverlay } from "@/components/shared/DiscordVoiceOverlay";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 class BombErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
@@ -132,20 +130,6 @@ export default function BombGame({
     }, [tickVolume]);
 
     const { playTick, playUrgentTick, playExplosion, playSuccess, playDoubleKill, playTripleKill, playRampage, playGodlike, playSuddenDeath } = useBombSounds(masterVolume, tickVolume);
-
-    // Discord Voice Monitoring
-    const { voiceUsers } = useDiscordVoice(guildId, socket);
-    const [showVoiceOverlay, setShowVoiceOverlay] = useState(true);
-
-    // Filter voice users to only show active participants (not spectators)
-    const gamePlayerIds = useMemo(() => 
-        gameState?.players
-            ?.filter((p: any) => p.discordId && !p.isSpectator)
-            .map((p: any) => p.discordId) || [],
-        [gameState?.players]
-    );
-
-    const voiceUserIds = voiceUsers.map(u => u.userId);
 
 
     // WebSocket Connection — wait for session to fully load before connecting
@@ -653,14 +637,6 @@ export default function BombGame({
             </Dialog>
 
             <AtmosphericParticles />
-            {showVoiceOverlay && (
-                <DiscordVoiceOverlay 
-                    users={voiceUsers} 
-                    guildId={guildId}
-                    gamePlayerIds={gamePlayerIds} 
-                    currentUserId={(session?.user as any)?.discordId}
-                />
-            )}
             
             {/* QUEEN OF THIEVES BACKGROUND */}
             <div className="absolute inset-0 opacity-5 pointer-events-none">
@@ -928,13 +904,6 @@ export default function BombGame({
                                             {p.userName}
                                         </span>
                                     </div>
-
-                                    {/* DISCORD VOICE INDICATOR */}
-                                    {p.discordId && voiceUserIds.includes(p.discordId) && (
-                                        <div className="absolute -left-3 -top-3 z-40 bg-emerald-500 rounded-lg p-1 border border-black shadow-[0_0_10px_rgba(16,185,129,0.5)]">
-                                            <Mic size={10} className="text-white" />
-                                        </div>
-                                    )}
 
                                     {/* Ghost typing removed from here to be moved to central HUD */}
                                 </div>

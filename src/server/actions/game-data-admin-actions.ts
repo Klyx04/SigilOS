@@ -1,5 +1,6 @@
-import { logger } from "@/lib/logger";
 'use server';
+
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";

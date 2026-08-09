@@ -55,6 +55,7 @@ interface PlatformConfigPanelProps {
         questFeedbackChannelId: string | null;
         maintenanceMode: boolean;
         maintenanceMessage: string | null;
+        ladderManualFallback: boolean;
     } | null;
     availableGuilds: { id: string, name: string }[];
     availableRoles: { id: string, name: string }[];
@@ -78,7 +79,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
         donationsEnabled: config?.donationsEnabled !== undefined ? config?.donationsEnabled : true,
         questFeedbackChannelId: config?.questFeedbackChannelId || "",
         maintenanceMode: config?.maintenanceMode || false,
-        maintenanceMessage: config?.maintenanceMessage || ""
+        maintenanceMessage: config?.maintenanceMessage || "",
+        ladderManualFallback: config?.ladderManualFallback || false
     });
 
     const [diagResults, setDiagResults] = useState<any>(null);
@@ -345,7 +347,8 @@ export function PlatformConfigPanel({ config, availableGuilds, availableRoles }:
                         {[
                             { key: "nsfwFilterEnabled", label: "IA Filtre NSFW", desc: "Inspection automatique des captures pour filtrer le contenu inapproprié." },
                             { key: "godNotifyWebEnabled", label: "Notifications Web Admin", desc: "Affichage des bannières d'alerte en temps réel sur l'interface." },
-                            { key: "donationsEnabled", label: "Module Dons Orbes", desc: "Activation du widget de contribution financière sur les guildes." }
+                            { key: "donationsEnabled", label: "Module Dons Orbes", desc: "Activation du widget de contribution financière sur les guildes." },
+                            { key: "ladderManualFallback", label: "Fallback Pseudo Manuel", desc: "Autorise la saisie manuelle du pseudo Dofus si la liaison Ankama est KO (évite de bloquer les nouveaux membres)." }
                         ].map((opt) => {
                             const active = (formData as any)[opt.key];
                             return (

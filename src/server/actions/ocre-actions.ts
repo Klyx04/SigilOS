@@ -14,6 +14,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { checkGuildPermission, getUserContext } from "@/server/actions/user-actions";
 import { rateLimit } from "@/lib/ratelimit";
 import { withCache, invalidateCache } from "@/lib/cache";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import {
     getUserProfile,
     getUserQuests,
@@ -315,7 +316,7 @@ export async function linkOcreAccount(
                 // TODO: Allow force here too? For now, keep it strict as keys are sensitive.
                 return {
                     success: false,
-                    error: `Cette clé API est déjà utilisée par ${existingKeyUser.user.name || "un autre membre"} dans une autre guilde.`
+                    error: `Cette clé API est déjà utilisée par ${getDisplayName(existingKeyUser)} dans une autre guilde.`
                 };
             }
         }
@@ -359,7 +360,7 @@ export async function linkOcreAccount(
             if (!canOverwrite) {
                 return {
                     success: false,
-                    error: `Le compte Metamob "${metamobPseudo}" est déjà lié à ${existingPseudoUser.user.name || "un autre membre"} dans cette guilde.`
+                    error: `Le compte Metamob "${metamobPseudo}" est déjà lié à ${getDisplayName(existingPseudoUser)} dans cette guilde.`
                 };
             }
         }
@@ -951,7 +952,7 @@ export async function findMonsterOwnersAction(
 
                         owners.push({
                             username: member.metamobPseudo,
-                            characterName: member.user.name || member.metamobPseudo,
+                            characterName: getGameDisplayName(member),
                             discordId: member.user.id || "",
                             discordAvatar: member.user.image || undefined,
                             profileId: member.id,
@@ -1096,7 +1097,7 @@ export async function getProfileMatchingArchis(
             data: {
                 matches: matches.sort((a, b) => a.nom.localeCompare(b.nom)),
                 targetProfile: {
-                    pseudo: target.user.name || "Membre",
+                    pseudo: getGameDisplayName(target),
                     metamobPseudo: target.metamobPseudo
                 }
             }
@@ -1868,7 +1869,7 @@ export async function createTradeRequest(
                     guildId: guildConfig.id,
                     type: "OCRE_TRADE_REQUEST",
                     title: "Demande d'Échange",
-                    message: `${requesterProfile.discordNickname || requesterProfile.pseudoDofus || requesterProfile.user.name || "Un membre"} souhaite vous échanger un monstre !`,
+                    message: `${getDisplayName(requesterProfile)} souhaite vous échanger un monstre !`,
                     link: `/dashboard/${guildId}/quete-ocre`,
                 }
             });
@@ -1887,7 +1888,7 @@ export async function createTradeRequest(
 
                 const { sendChannelMessage } = await import("@/server/discord");
                 const publicUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
-                const requesterName = requesterProfile.discordNickname || requesterProfile.pseudoDofus || requesterProfile.user.name || "Un membre";
+                const requesterName = getDisplayName(requesterProfile);
                 
                 const targetMention = `<@${targetDiscordAccount.providerAccountId}>`;
                 const requesterMention = requesterDiscordAccount ? `<@${requesterDiscordAccount.providerAccountId}>` : "";
@@ -2522,7 +2523,7 @@ export async function getGuildMetamobDirectory(
                 metamobQuestSlug: m.metamobQuestSlug,
                 user: {
                     id: m.user.id,
-                    name: m.user.name,
+                    name: getDisplayName(m),
                     image: m.user.image,
                 },
                 progressPercent: hasSnapshot ? snapshot.stats.progressPercent : undefined,

@@ -157,7 +157,7 @@ const DASHBOARD_STEPS: TourStep[] = [
 
 /**
  * Tour DASHBOARD — visite des briques/widgets de la page d'accueil.
- * Rejouable à tout moment via le bouton « Revoir le tour » (DashboardAdminTourButton).
+ * Rejouable à tout moment via le bouton « Tutoriel » (DashboardAdminTourButton).
  * Cible les sections stables de la page dashboard (data-tour="dash-*").
  */
 const DASHBOARD_BRICKS_STEPS: TourStep[] = [
@@ -1054,7 +1054,7 @@ const MINIJEU_STEPS: TourStep[] = [
     {
         target: '[data-tour="minijeu-header"]',
         title: "Rejouer",
-        description: "Relancez ce tour à tout moment depuis le bouton « Revoir le tour ».",
+        description: "Relancez ce tour à tout moment depuis le bouton « Tutoriel ».",
         placement: "bottom",
         module: "minigames",
     },
@@ -1092,7 +1092,7 @@ const STATS_STEPS: TourStep[] = [
     {
         target: '[data-tour="stats-board"]',
         title: "Rejouer",
-        description: "Relancez ce tour à tout moment depuis le bouton « Revoir le tour ».",
+        description: "Relancez ce tour à tout moment depuis le bouton « Tutoriel ».",
         placement: "top",
         module: "stats",
     },

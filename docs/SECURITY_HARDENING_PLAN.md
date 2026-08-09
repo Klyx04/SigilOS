@@ -43,7 +43,7 @@
 2. **Chiffrement des tokens OAuth (Discord)** — `prisma.account.updateMany()` n'applique pas les hooks de chiffrement → tokens potentiellement en clair.
 3. **SSRF dans `image-downloader.ts`** (outil God) — accepter `http://169.254.169.254`, IP internes.
 4. **Durée du JWT** — 7 jours actuellement → cible 8h (NIST SP 800-63B).
-5. **CSP nonce-based** — `script-src 'unsafe-inline'` à remplacer par nonce.
+5. **CSP nonce-based** — ✅ **Implémenté (09/08, commit `918fa308`)** : nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, Report-Only par défaut (`CSP_ENFORCE=true` pour enforce), endpoint `/api/csp-report` + 16 tests. **À déployer en beta** puis activer enforce après confirmation d'aucune violation bloquante.
 6. **Clé de chiffrement de secours** (`encryption.ts`) — fallback dev en dur à supprimer.
 7. **Cache permissions 60s** — réduire la fenêtre de révocation.
 8. **Grafana** — vérifier que `GRAFANA_PASSWORD` est défini (sinon admin par défaut).

@@ -29,7 +29,7 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 - **GOD Dashboard** : `isSuperAdmin()` sur toutes les actions de cycle de vie
 - **Input validation** : Zod schemas sur toutes les entrées
 - **Prisma ORM** : prévention SQL injection (pas de SQL brut)
-- **Security Headers** : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `HSTS`, `CSP` (partielle, voir ci-dessous)
+- **Security Headers** : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `HSTS`, `CSP` nonce-based (via `src/proxy.ts`, Report-Only par défaut)
 - **Uploads** : magic bytes + sharp post-traitement + filenames UUID (pas d'exécution)
 - **SSRF proxy-image** : whitelist de domaines exacte + blocage IP internes/réservées
 - **Fail-closed** : HMAC storage, RBAC Discord, rate-limit (partiellement), workers Cloudflare
@@ -41,7 +41,7 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 - **Chiffrement des tokens OAuth (Discord)** : `updateMany` ne chiffre pas → tokens potentiellement en clair en BDD
 - **SSRF dans `image-downloader.ts`** (outil God) : aucune restriction de protocole/CIDR
 - **Durée du JWT** : 7 jours au lieu de 8h recommandé (NIST SP 800-63B)
-- **CSP nonce-based** : actuellement `'unsafe-inline'` sur `script-src` (protection XSS affaiblie)
+- **CSP nonce-based** : ✅ **Implémenté (09/08, commit `918fa308`)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, mode **Report-Only** par défaut (`CSP_ENFORCE=true` pour basculer en enforce), endpoint `/api/csp-report` + 16 tests. **À déployer** puis confirmer aucune violation bloquante sur beta avant enforce.
 - **Clé de chiffrement de secours** codée en dur en dev (`encryption.ts`)
 - **Cache des permissions** : 60s avant propagation d'une révocation
 - **Grafana** : mot de passe admin à vérifier (si `GRAFANA_PASSWORD` absent → `admin/admin`)
@@ -65,9 +65,12 @@ Le détail complet des findings et remédiations est documenté **en local** (ho
 | `DATABASE_URL` | `.env` / VPS | Fuite de données (Critique) | À chaque changement d'infra |
 
 ### CSP (Content-Security-Policy)
-- SigilOS utilise une **CSP basée sur Nonce** (à finaliser, voir chantiers ouverts).
-- Tout script (inline ou externe) **DOIT** passer le `nonce` (via `x-nonce`).
-- ⚠️ **Jamais `'unsafe-inline'`** dans le CSP.
+- SigilOS utilise une **CSP basée sur Nonce** (implémentée 09/08, `feat/csp-nonce-based`).
+- La CSP est **injectée dans la requête (pour Next) + la réponse (pour le navigateur)** par `src/proxy.ts`, en **Report-Only** par défaut. `CSP_ENFORCE=true` → mode enforce.
+- Tout script (inline ou externe) **DOIT** passer le `nonce` (via `x-nonce`, posé par le proxy pour les JSON-LD).
+- Les violations sont **reportées** sur `/api/csp-report` (endpoint Zod + rate-limit + logger).
+- ⚠️ **Jamais `'unsafe-inline'`** dans `script-src` (en enforce). `style-src 'unsafe-inline'` est **conservé** (exigence Next.js).
+- 🔜 **À faire** : déployer en beta, confirmer aucune violation bloquante via `/api/csp-report`, puis `CSP_ENFORCE=true` sur beta → prod.
 
 ### Zero Console Policy
 Tous les `console.log` / `console.warn` / `console.error` sont **interdits** dans `src/server`. Utiliser le `logger` structuré (`@/lib/logger`).
@@ -116,8 +119,8 @@ Les Server Actions Next.js vérifient automatiquement que le header `Origin` cor
 - **Sanitisation HTML** : `sanitizeHtml()` ([security.ts](file:///a:/SigilOS/src/lib/security.ts)) sur les contenus utilisateur
 - **Removes** : `<script>`, `<iframe>`, `<object>`, `<embed>`, handlers `on*`, protocoles `javascript:`
 
-### À renforcer (chantier ouvert)
-- **CSP `script-src`** utilise `'unsafe-inline'` → une XSS dans un champ non sanitisé pourrait s'exécuter. **Objectif : passer à un CSP nonce-based**. (à faire)
+### À renforcer
+- ✅ **CSP `script-src` nonce-based implémentée (09/08)** — plus de `'unsafe-inline'`. En **Report-Only** par défaut pour détecter les violations sans casser. **Confirmer en beta** qu'aucune violation bloquante n'apparaît via `/api/csp-report`, puis activer `CSP_ENFORCE=true`.
 
 ---
 

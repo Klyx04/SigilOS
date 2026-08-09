@@ -121,8 +121,8 @@ export async function fetchGuildRoles(guildId: string, options: { excludeManaged
     }>;
 
     // Cache the raw (unfiltered) list so both managed/unmanaged callers benefit
-    // TTL: 60 seconds (reduced from 5min to avoid onboarding lags)
-    setCached(cacheKey, roles, 60 * 1000);
+    // TTL: 15 seconds (court pour que l'octroi d'un rôle soit vu rapidement)
+    setCached(cacheKey, roles, 15 * 1000);
 
     const result = options.excludeManaged ? roles.filter(r => !r.managed) : roles;
     return result.sort((a, b) => b.position - a.position);
@@ -194,7 +194,7 @@ export async function fetchGuildMember(guildId: string, userId: string) {
 
     if (!res.ok) {
         if (res.status === 404) {
-            setCached(cacheKey, null, 15 * 1000); // Short TTL for 404 (important for onboarding)
+            setCached(cacheKey, null, 5 * 1000); // Short TTL for 404 (membre juste arrivé → revérif vite)
             return null;
         }
         throw new Error(`Failed to fetch member: ${res.statusText}`);
@@ -208,8 +208,8 @@ export async function fetchGuildMember(guildId: string, userId: string) {
         joined_at?: string;
     };
 
-    // TTL: 60 seconds (reduced from 5min to avoid onboarding lags)
-    setCached(cacheKey, data, 60 * 1000);
+    // TTL: 15 seconds (court pour que l'ajout d'un rôle soit vu rapidement)
+    setCached(cacheKey, data, 15 * 1000);
     return data;
 }
 

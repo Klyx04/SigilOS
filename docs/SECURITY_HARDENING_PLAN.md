@@ -47,7 +47,7 @@
 6. ~~**Clé de chiffrement de secours dev**~~ — ✅ **Déjà retirée** (F-09, commit `de58c7b4` 02/08) : `src/lib/encryption.ts` fail-closed dans TOUS les environnements. **Chantier fermé**.
 7. **Cache permissions** — ✅ **TTL réduit 60s → 30s** dans `guards.ts` (commit `0dd660bf`), cache **positif seulement** (F-13).
 8. **Grafana** — à vérifier que `GRAFANA_PASSWORD` est défini (sinon admin par défaut).
-9. **Caddy** — ajouter un rate-limit au niveau proxy (F-14) — image custom `xcaddy` + `rate_limit` haute sur routes publiques uniquement.
+9. ~~**Caddy rate-limit (F-14)**~~ — ✅ **FAIT (09/08, commit `cde708a7`)** : image custom `sigilos-caddy` (xcaddy + `caddy-ratelimit`), `Dockerfile.caddy`, `rate_limit` borne haute (300 req/min + burst 60/s) sur routes publiques (prod/beta/monitor), jamais fin sur le dashboard authentifié.
 10. **Sanitisation HTML (F-11)** — ✅ **centralisée** dans `src/lib/security.ts` (DOMPurify) + descriptions Monstres Spéciaux + liens Ressources sanitizés (commit `d8189f42`).
 11. **proxy-image (F-06)** — ✅ **FAIT** : limite de taille streaming (5 Mo), magic bytes + blocage HTML déguisé.
 12. **Zero Console Policy (restant)** — ⚠️ ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel séparé).

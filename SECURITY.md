@@ -47,7 +47,7 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 ### ⚠️ Chantiers ouverts (à résoudre — NE PAS considérer la sécurité comme complète tant qu'ils ne sont pas faits)
 - **CSP nonce-based** : ✅ **DÉPLOYÉ (09/08)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, mode **Report-Only** par défaut (`CSP_ENFORCE=true` pour basculer en enforce), endpoint `/api/csp-report` + 16 tests. ✅ Auth WS **activée en beta puis prod** (WS_AUTH_ENABLED=true). **Reste** : confirmer aucune violation bloquante sur beta via `/api/csp-report` puis activer `CSP_ENFORCE=true` (beta, puis prod après 24-48h).
 - **Grafana** : mot de passe admin à vérifier (`GRAFANA_PASSWORD` dans `.env.prod`/`.env.beta` — sinon `admin/admin` par défaut).
-- **Caddy** : pas de rate-limit au niveau proxy (F-14) — à ajouter (image custom `xcaddy` + `rate_limit` haute sur routes publiques uniquement).
+- ~~**Caddy rate-limit (F-14)**~~ : ✅ **FAIT (09/08, commit `cde708a7`)** — image custom `sigilos-caddy` (xcaddy + `caddy-ratelimit`), `Dockerfile.caddy`, `rate_limit` borne haute (300 req/min/IP + burst 60/s) sur **routes publiques** uniquement (prod/beta/monitor), jamais une limitation fine du dashboard authentifié.
 - **Zero Console Policy (restant)** : ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel, hors urgence sécurité).
 
 ### 🔒 Références

@@ -283,7 +283,7 @@
 
 **Reste :**
 - **1. Zero Console Policy (restant)** : **433** `console.*` dans `src/server/actions/` (mesuré 09/08) à convertir au `logger` (chantier logiciel mécanique, sans risque métier — conversion 1-à-1, commit par fichier).
-- **2. Audit BDD tokens OAuth** : ✅ **FAIT sur beta (09/08)** — 126 comptes Discord audités, **tous chiffrés** (access+refresh), 0 en clair → chantier **fermé sur beta**. ⚠️ Reste : auditer la **prod** (même requête sur `sigilos-db-prod` + `.env.prod`).
+- **2. Audit BDD tokens OAuth** : ✅ **TERMINÉ (09/08)** — beta 126/126 chiffrés · prod 3/3 re-chiffrés (script `scripts/re-encrypt-oauth-tokens.ts`, commit `091b7c46`) → **chantier F-05 FERMÉ**.
 - **3. Infra restante** : I-06 (unifier Discord), I-07 (séparer Redis beta/prod), I-15 (circuit breaker). **F-14 Caddy rate-limit : FAIT (commit `cde708a7`)**.
 
 ✅ **Résolu le 09/08** (en plus de la ligne ci-dessus) : **Cache permissions TTL 30s + cache positif seulement (F-13/F-01)** · **proxy-image borné (F-06, taille 5 Mo + magic bytes + blocage HTML)** · **sanitisation HTML centralisée + Monstres Spéciaux/Ressources (F-11)** · **hook `updateMany` chiffrement OAuth (F-05)** · **rotation `GOD_ROUTE`** · **WS auth activée beta + prod (F-08)**.

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { reviewAchievementSubmission, type AchievementSubmissionEntry } from "@/server/actions/profile-actions";
 import { SubmissionCountdown } from "@/components/missions/submission-countdown";
 import { cn } from "@/lib/utils";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 
 interface AchievementValidationQueueProps {
     submissions: AchievementSubmissionEntry[];
@@ -95,7 +96,7 @@ export function AchievementValidationQueue({ submissions: initialSubmissions, gu
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {filtered.map(sub => {
-                        const name = sub.profile.pseudoDofus || sub.profile.discordNickname || sub.profile.user.name || "Membre";
+                        const name = getGameDisplayName(sub.profile) || "Membre";
                         const isProcessing = processingId === sub.id;
 
                         return (

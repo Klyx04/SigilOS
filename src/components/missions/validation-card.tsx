@@ -15,6 +15,7 @@ import {
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { MissionCategory } from "@prisma/client";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
 import { SubmissionCountdown } from "./submission-countdown";
 
 // Shared category config (same as mission-card.tsx)
@@ -189,7 +190,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                     {submission.profile.user.image ? (
                         <Image
                             src={submission.profile.user.image}
-                            alt={submission.profile.user.name || "User"}
+                            alt={getDisplayName(submission.profile)}
                             fill
                             className="object-cover"
                             unoptimized={true}
@@ -203,7 +204,7 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                 <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-white truncate max-w-[120px]">
-                            {submission.profile.discordNickname || submission.profile.user.name || "Membre Inconnu"}
+                            {getDisplayName(submission.profile) || "Membre Inconnu"}
                         </span>
                         {submission.profile.isAdmin && (
                             <TooltipProvider>
@@ -271,12 +272,12 @@ export function ValidationCard({ submission, onValidate, onReject, onZoom, isPro
                                             <Avatar className="w-6 h-6 border-2 border-zinc-900 ring-1 ring-indigo-500/30">
                                                 <AvatarImage src={helper.user.image || undefined} />
                                                 <AvatarFallback className="text-[8px] bg-zinc-800">
-                                                    {(helper.pseudoDofus || helper.user.name || "?").slice(0, 2).toUpperCase()}
+                                                    {(getGameDisplayName(helper) || "?").slice(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="text-xs">
-                                            {helper.pseudoDofus || helper.user.name || "Membre"}
+                                            {getGameDisplayName(helper) || "Membre"}
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>

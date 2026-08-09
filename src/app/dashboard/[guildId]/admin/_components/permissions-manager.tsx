@@ -9,6 +9,7 @@ import { PermissionCard } from "./permission-card";
 import { cn } from "@/lib/utils";
 import { Save, Filter, ChevronDown, ChevronRight, Search, X, Users, ShieldAlert, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { getDisplayName } from "@/lib/display-name";
 
 type Role = {
     id: string;
@@ -128,7 +129,7 @@ export function PermissionsManager({ guildId, roles, members, currentMapping, cu
         // Find discord account ID
         const discordAccount = m.user.accounts.find((a: any) => a.provider === "discord");
         return {
-            label: m.pseudoDofus || m.discordNickname || m.user.name || "Inconnu",
+            label: getDisplayName(m),
             value: discordAccount?.providerAccountId || m.userId,
             image: m.user.image
         };

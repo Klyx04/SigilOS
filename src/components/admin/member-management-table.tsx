@@ -31,6 +31,8 @@ import {
     ChevronLeft,
     ChevronRight
 } from "lucide-react";
+import { getDisplayName, getGameDisplayName } from "@/lib/display-name";
+
 import {
     Table,
     TableBody,
@@ -177,7 +179,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
             const member = members.find(m => m.id === profileId);
             setArchiveTarget({ 
                 id: profileId, 
-                name: member?.pseudoDofus || member?.user.name || "Membre" 
+                name: getGameDisplayName(member) || "Membre" 
             });
             return;
         }
@@ -289,7 +291,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
     };
 
     const openIdDialog = (member: Member) => {
-        setIdTarget({ id: member.id, name: member.pseudoDofus || member.user.name || "Membre", currentId: member.ankamaId });
+        setIdTarget({ id: member.id, name: getGameDisplayName(member) || "Membre", currentId: member.ankamaId });
         if (member.ankamaId && member.ankamaId.includes('#')) {
             const [n, d] = member.ankamaId.split('#');
             setNamePart(n || "");
@@ -445,12 +447,12 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                         <Avatar className="h-10 w-10 border border-white/5 group-hover:border-violet-500/40 transition-all rounded-2xl shadow-lg">
                                             <AvatarImage src={member.user.image || ""} className="object-cover rounded-2xl" />
                                             <AvatarFallback className="bg-zinc-850 text-zinc-400 text-xs font-black uppercase rounded-2xl">
-                                                {member.user.name?.[0] || "?"}
+                                                {getDisplayName(member)?.[0] || "?"}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col leading-tight">
                                             <div className="font-black text-base text-zinc-200 group-hover:text-white transition-colors flex items-center gap-2">
-                                                {member.pseudoDofus || member.user.name}
+                                                {getGameDisplayName(member)}
                                                 {member.user.accounts[0]?.providerAccountId === ownerId && (
                                                     <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20 stroke-[3]" />
                                                 )}
@@ -461,7 +463,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 )}
                                             </div>
                                             <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest flex items-center gap-1">
-                                                <span>@{member.discordNickname || member.user.name}</span>
+                                                <span>@{getDisplayName(member)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -608,7 +610,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                                                 <>
                                                     <DropdownMenuSeparator className="bg-white/5" />
                                                     {isSuperAdmin && (
-                                                        <DropdownMenuItem onClick={() => handleTransferOwnership(member.userId, member.pseudoDofus || member.user.name || "Membre")} className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
+                                                        <DropdownMenuItem onClick={() => handleTransferOwnership(member.userId, getGameDisplayName(member) || "Membre")} className="gap-2 focus:bg-violet-600 focus:text-white text-violet-400 cursor-pointer text-[11px] font-black uppercase tracking-wider">
                                                             <UserCheck className="h-3.5 w-3.5" />
                                                             Proprietaire
                                                         </DropdownMenuItem>
@@ -749,7 +751,7 @@ export function MemberManagementTable({ initialMembers, guildId, welcomeBadgeNam
                     guildId={guildId}
                     profileId={vacationTarget.id}
                     userId={vacationTarget.userId}
-                    memberName={vacationTarget.pseudoDofus || vacationTarget.user.name || "Membre"}
+                    memberName={getGameDisplayName(vacationTarget) || "Membre"}
                     initialVacationStart={vacationTarget.vacationStart || null}
                     initialVacationEnd={vacationTarget.vacationEnd || null}
                     onSuccess={(start, end) => {

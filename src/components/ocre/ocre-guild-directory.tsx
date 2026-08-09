@@ -23,6 +23,8 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import Image from "next/image";
+import { getDisplayName } from "@/lib/display-name";
+
 
 interface OcreGuildDirectoryProps {
     guildId: string;
@@ -193,7 +195,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                             {member.user.image ? (
                                                 <Image 
                                                     src={member.user.image} 
-                                                    alt={member.user.name || "Avatar"} 
+                                                    alt={getDisplayName(member) || "Avatar"} 
                                                     fill 
                                                     sizes="48px"
                                                     className="object-cover" 
@@ -207,7 +209,7 @@ export function OcreGuildDirectory({ guildId }: OcreGuildDirectoryProps) {
                                         <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex items-center gap-1.5 justify-between">
                                                 <span className="font-bold text-sm text-foreground truncate block leading-tight">
-                                                    {member.user.name || "Dofusien"}
+                                                    {getDisplayName(member) || "Dofusien"}
                                                 </span>
                                                 {isLinked ? (
                                                     <Badge className="bg-emerald-500/10 text-emerald-400 border-none px-2 py-0.5 text-[9px] font-black tracking-wider uppercase shrink-0">

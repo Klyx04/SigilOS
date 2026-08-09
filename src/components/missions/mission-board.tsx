@@ -108,7 +108,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                 <ResidencyCountdown availableAt={availableAt} className="mb-6" />
             )}
             {/* 🛠️ Simplified Toolbar */}
-            <div className="flex flex-col gap-4 bg-zinc-900/40 p-3 rounded-2xl border border-white/5 backdrop-blur-sm">
+            <div className="flex flex-col gap-4 bg-zinc-900/40 p-3 rounded-2xl border border-white/5 backdrop-blur-sm" data-tour="missions-toolbar">
 
                 {/* PRIMARY ACTIONS ROW */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -116,7 +116,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
                     {/* Left: Pool & Status Logic Combined */}
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
                         {/* Pool Toggle */}
-                        <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/5 rounded-full shrink-0">
+                        <div className="flex items-center gap-1 p-1 bg-black/40 border border-white/5 rounded-full shrink-0" data-tour="missions-pool">
                             {(['CLASSIQUES', 'SPECIALES'] as MissionPool[]).map(pool => {
                                 const isActive = missionPool === pool;
                                 return (
@@ -230,7 +230,7 @@ export function MissionBoard({ missions, currentUserId, guildId, isRestricted, a
 
 
             {/* Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-tour="missions-grid">
                 {filteredMissions.map((mission) => (
                     <div key={mission.id} className="h-full">
                         <MissionCard

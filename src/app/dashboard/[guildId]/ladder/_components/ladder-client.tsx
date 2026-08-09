@@ -232,7 +232,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     <div className="flex items-center justify-between">
                         {/* Tab Container with Scroll Mask */}
                         <div className="relative flex-1 min-w-0">
-                            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mask-horizontal-scroll premium-scrollbar lg:mask-none -mb-[1px] pb-1">
+                            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mask-horizontal-scroll premium-scrollbar lg:mask-none -mb-[1px] pb-1" data-tour="ladder-tabs">
                                 {categories.map((cat) => {
                                     const isActive = activeTab === cat.id;
                                     return (
@@ -340,7 +340,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
                                 {/* Contextual Period Selector */}
                                 {(activeTab === "activity" || activeTab === "guildatons" || activeTab === "discord") && (
-                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500 w-full sm:w-auto">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500 w-full sm:w-auto" data-tour="ladder-period">
                                         {activeTab === "discord" && (
                                             <Select value={discordMetric} onValueChange={(v) => setDiscordMetric(v as any)}>
                                                 <SelectTrigger className="w-full sm:w-[220px] h-9 sm:h-10 bg-white/[0.03] border-white/10 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 rounded-xl hover:bg-white/[0.06] transition-all shadow-xl backdrop-blur-3xl focus:ring-1 focus:ring-white/20 shrink-0">
@@ -449,7 +449,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        <div className="max-w-4xl mx-auto grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <div className="max-w-4xl mx-auto grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500" data-tour="ladder-list">
                             {ladder.map((entry) => (
                                 <LeaderboardCard
                                     key={entry.profileId}
@@ -469,7 +469,7 @@ export function LadderClient({ guildId, canValidate, hasPseudoIssue, pseudoDofus
 
                         {/* Pagination UI */}
                         {pagination && pagination.totalPages > 1 && (
-                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-8 border-t border-white/5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-8 border-t border-white/5 animate-in fade-in slide-in-from-bottom-4 duration-700" data-tour="ladder-pagination">
                                 <div className="flex items-center gap-2">
                                     <Button
                                         variant="outline"

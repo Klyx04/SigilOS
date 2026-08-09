@@ -282,17 +282,17 @@ git pull origin main
   → C'est tout. Le script affichera le nouveau compte à rebours.
   ⚠️ Alternative **zéro renouvellement** : à la prochaine création, choisir un **fine-grained token sans expiration** (Repository access > SigilOS, permission **Packages: Read**) → plus jamais besoin de renouveler.
 
-#### 3c. Séparer le Redis beta/prod (chantier I-07)
-- **Problème** : la beta et la prod partagent le **même Redis** → risque de collision de jobs BullMQ/queues.
-- **Solution** : un Redis dédié par environnement.
-- **Impact** : aucun pour l'utilisateur, plus sûr.
+#### 3c. Séparer le Redis beta/prod (chantier I-07) — ✅ FAIT + DÉPLOYÉ (09/08)
+- **Problème** : la beta et la prod partageaient le **même Redis** → risque de collision de jobs BullMQ/queues.
+- **Solution** : un Redis dédié par environnement (`redis-beta` sur beta-net, `redis` prod restreint à prod-net).
+- **Impact** : aucun pour l'utilisateur, plus sûr. Déployé beta (containers redis-beta + beta relancés).
 
 ---
 
 ### 📌 Priorité recommandée (mise à jour 2026-08)
-**Fait** : phase 1, 3a (rollback), 3b (CI/CD GHCR).
+**Fait** : phase 1, 3a (rollback), 3b (CI/CD GHCR), **3c (Redis séparé — déployé beta 09/08)**.
 **Reste** :
-1. **3c** (séparer le Redis beta/prod) — chantier de sécurité I-07 déjà recensé dans SECURITY.md.
-2. **Phase 2** (image de base partagée) — optionnel, le CI/CD règle déjà le build redondant sur le VPS.
+1. **Phase 2** (image de base partagée) — optionnel, le CI/CD règle déjà le build redondant sur le VPS.
+2. **Renouveler GHCR_TOKEN** (expire ≈ début nov 2026) — cf. section 3b.
 
 

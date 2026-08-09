@@ -39,18 +39,19 @@
 
 ## 🚧 Chantiers ouverts (à traiter — priorité du plus critique au moins)
 
-1. **Authentification WebSocket (Socket.IO)** — ✅ **Activée en beta puis en PROD (09/08, `WS_AUTH_ENABLED=true`)** — décodage session + appartenance guilde à chaque connexion (F-08). Conformé sur `.env.beta` + `.env.prod`.
+1. **Authentification WebSocket (Socket.IO)** — ✅ **Activée en beta puis en PROD (09/08, `WS_AUTH_ENABLED=true`)** — décodage session + appartenance guilde à chaque connexion (F-08). **Testé en réel sur beta (09/08)** : présence live, 0 unauthorized, révocation God live.
 2. **Chiffrement des tokens OAuth (Discord)** — ✅ **FAIT + AUDITÉ (09/08)** : service `src/lib/token-encryption.ts` (anti double-chiffrement) utilisé dans `auth.ts` events.signIn **+ hook `updateMany`** dans `src/lib/prisma.ts` (commit `339db4e1`). **Audit + ré-encryptage prod terminé** : 3 tokens en clair re-chiffrés via `scripts/re-encrypt-oauth-tokens.ts` (commit `091b7c46`) → **F-05 FERMÉ** (beta 126/126 + prod 3/3 chiffrés).
 3. **SSRF dans `image-downloader.ts`** — ✅ **FAIT** : `assertSafeUrl` bloque protocoles non-http(s), IP privées/réservées + DNS rebinding (F-03).
 4. **Durée du JWT** — ✅ **FAIT** : `src/auth.ts` override `maxAge: 8h` + `updateAge: 4h` (NIST SP 800-63B) (F-07).
-5. **CSP nonce-based** — ✅ **DÉPLOYÉ (09/08, commit `918fa308`)** : nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, Report-Only par défaut, endpoint `/api/csp-report` + 16 tests. **Reste** : confirmer aucune violation bloquante sur beta puis `CSP_ENFORCE=true` (beta → prod).
+5. **CSP nonce-based** — ✅ **DÉPLOYÉ (09/08, commit `918fa308`)** : nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, Report-Only par défaut, endpoint `/api/csp-report` + 16 tests. ✅ **CSP_ENFORCE activé sur BETA (09/08)** : `CSP_ENFORCE=true`, header enforce servi avec nonce, **0 violation** collectée. **Prod plus tard.**
 6. ~~**Clé de chiffrement de secours dev**~~ — ✅ **Déjà retirée** (F-09, commit `de58c7b4` 02/08) : `src/lib/encryption.ts` fail-closed dans TOUS les environnements. **Chantier fermé**.
 7. **Cache permissions** — ✅ **TTL réduit 60s → 30s** dans `guards.ts` (commit `0dd660bf`), cache **positif seulement** (F-13).
 8. **Grafana** — à vérifier que `GRAFANA_PASSWORD` est défini (sinon admin par défaut).
-9. ~~**Caddy rate-limit (F-14)**~~ — ✅ **FAIT (09/08, commit `cde708a7`)** : image custom `sigilos-caddy` (xcaddy + `caddy-ratelimit`), `Dockerfile.caddy`, `rate_limit` borne haute (300 req/min + burst 60/s) sur routes publiques (prod/beta/monitor), jamais fin sur le dashboard authentifié. **Fix Trivy DS-0002** (commit `fbc371e2`) : `USER caddy` non-root ajouté dans `Dockerfile.caddy`.
+9. ~~**Caddy rate-limit (F-14)**~~ — ✅ **FAIT + DÉPLOYÉ (09/08)** : image custom `sigilos-caddy` (xcaddy + `caddy-ratelimit`), `Dockerfile.caddy`, `rate_limit` borne haute (300 req/min + burst 60/s) par IP. **Déployé** : image buildée + gateway recréé, fix `USER caddy` → `USER 1000:1000` + chown volumes caddy, module `http.handlers.rate_limit` confirmé.
 10. **Sanitisation HTML (F-11)** — ✅ **centralisée** dans `src/lib/security.ts` (DOMPurify) + descriptions Monstres Spéciaux + liens Ressources sanitizés (commit `d8189f42`).
 11. **proxy-image (F-06)** — ✅ **FAIT** : limite de taille streaming (5 Mo), magic bytes + blocage HTML déguisé.
 12. **Zero Console Policy** — ✅ **FAIT (09/08)** : **433** `console.*` → `logger` dans `src/server/actions/` (branche `feat/security-hardening-suite`, commits `4355d540` + `7dc0c01f`). Logger rendu tolérant (`unknown`/Error/BigInt). Vérifs : 126/126 tests, tsc 0, build Next.js OK, 0 console actif restant. **Chantier fermé.**
+13. **Infra (I-06/I-07/I-15)** — ✅ **FAITS (09/08)** : I-06 unifier Discord (bot = unique Gateway, déployé beta) · I-07 Redis séparé beta/prod (déployé beta) · I-15 circuit breaker. **`app-prod` réparé** (mot de passe DB encodé) + **rotation mdp DB prod**.
 
 ---
 

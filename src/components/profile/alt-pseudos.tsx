@@ -246,39 +246,44 @@ export function AltPseudos({
     };
 
     return (
-        <Card className="bg-zinc-900/40 backdrop-blur-md border-white/10 relative overflow-hidden group h-full flex flex-col">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -mr-8 -mt-8 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-            <CardHeader className="p-6 pb-4">
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold text-zinc-200 flex items-center gap-2">
+        <Card className="bg-zinc-950/80 backdrop-blur-md border border-white/10 relative overflow-hidden group h-full flex flex-col rounded-3xl shadow-2xl p-6">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center">
                         <Users className="w-5 h-5 text-indigo-400" />
-                        Mes Mules
-                        {!readOnly && (
-                            <span className="text-xs text-zinc-500 bg-zinc-950/50 border border-white/5 px-2 py-0.5 rounded shadow-sm font-bold">
-                                {localPseudos.length}/{maxPseudos}
-                            </span>
-                        )}
-                    </CardTitle>
-                    {!readOnly && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
-                            className={cn(
-                                "h-8 px-3 text-[10px] font-black uppercase tracking-widest transition-all border shadow-lg rounded-xl",
-                                isEditing
-                                    ? "bg-zinc-800 text-zinc-200 border-white/10 hover:bg-zinc-700"
-                                    : "bg-indigo-500/5 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500 hover:text-white"
+                    </div>
+                    <div>
+                        <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
+                            Mes Mules & Alts
+                            {!readOnly && (
+                                <span className="text-[10px] text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                                    {localPseudos.length}/{maxPseudos}
+                                </span>
                             )}
-                        >
-                            {isEditing ? <X className="w-3 h-3 mr-2" /> : <Edit2 className="w-3 h-3 mr-2" strokeWidth={2.5} />}
-                            {isEditing ? "Annuler" : "Gérer les Mules"}
-                        </Button>
-                    )}
+                        </h3>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Personnages secondaires de guilde</p>
+                    </div>
                 </div>
-            </CardHeader>
-            <CardContent className="p-6 pt-2 space-y-6 relative flex-1">
+
+                {!readOnly && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
+                        className={cn(
+                            "h-9 px-4 text-xs font-black uppercase tracking-wider transition-all border shadow-md rounded-xl cursor-pointer",
+                            isEditing
+                                ? "bg-zinc-800 text-zinc-200 border-white/10 hover:bg-zinc-700"
+                                : "bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20 hover:text-white"
+                        )}
+                    >
+                        {isEditing ? <X className="w-3.5 h-3.5 mr-1.5" /> : <Edit2 className="w-3.5 h-3.5 mr-1.5" strokeWidth={2.5} />}
+                        {isEditing ? "Fermer" : "Gérer mes Mules"}
+                    </Button>
+                )}
+            </div>
+
+            <CardContent className="p-0 space-y-6 relative flex-1">
                 {localPseudos.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                         {localPseudos.map((mule) => {
@@ -290,124 +295,124 @@ export function AltPseudos({
                                 <div
                                     key={mule.id}
                                     className={cn(
-                                        "relative flex flex-col justify-between p-4 rounded-2xl bg-zinc-950/40 border transition-all group/item overflow-hidden",
+                                        "relative flex flex-col justify-between p-4 rounded-2xl bg-black/60 border transition-all group/item overflow-hidden space-y-3",
                                         editingMuleId === mule.id 
-                                            ? "border-indigo-500/40 bg-indigo-950/10 shadow-[0_0_20px_rgba(99,102,241,0.15)]"
-                                            : "border-white/5 hover:border-white/10"
+                                            ? "border-indigo-500/50 bg-indigo-950/20 shadow-[0_0_25px_rgba(99,102,241,0.2)]"
+                                            : "border-white/10 hover:border-indigo-500/40 hover:bg-black/80"
                                     )}
                                 >
                                     <div
-                                        className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl pointer-events-none opacity-20"
+                                        className="absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl pointer-events-none opacity-25"
                                         style={{ backgroundColor: cls.color }}
                                     />
 
-                                    <div className="flex items-start justify-between z-10 w-full overflow-hidden gap-2">
-                                        <div className="flex items-center gap-3 w-full min-w-0">
-                                            <div className="w-11 h-11 rounded-[10px] bg-black/40 border border-[currentColor]/20 flex items-center justify-center overflow-hidden shrink-0 shadow-inner" style={{ color: cls.color }}>
+                                    {/* Top Row: Class Icon + Pseudo + Level Badge */}
+                                    <div className="flex items-start justify-between gap-3 z-10">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0 p-1 shadow-md" style={{ borderColor: `${cls.color}50` }}>
                                                 <NextImage
                                                     src={cls.icon}
                                                     alt={cls.name}
-                                                    width={32}
-                                                    height={32}
-                                                    className="object-contain scale-[1.15]"
+                                                    width={36}
+                                                    height={36}
+                                                    className="object-contain"
                                                     unoptimized
                                                 />
                                             </div>
-                                            <div className="flex flex-col min-w-0 w-full overflow-hidden">
-                                                <span className="font-semibold text-zinc-100 truncate w-full" title={mule.pseudo}>
-                                                    {mule.pseudo}
-                                                </span>
-                                                <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-medium flex items-center gap-1 mt-0.5" style={{ color: cls.color }}>
-                                                    Nv. {mule.level !== undefined ? mule.level : 200}
-                                                </span>
-
-                                                {/* Alignment & Order Indicator */}
-                                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                                    {alignData && alignData.id !== "neutre" && (
-                                                        <div className={cn(
-                                                            "flex items-center gap-1.5 bg-black/50 border rounded-md px-2 py-0.5 max-w-full",
-                                                            alignData.id === "bontarien" ? "border-blue-500/20" : "border-red-500/20"
-                                                        )}>
-                                                            <div className="relative w-5 h-5 shrink-0 rounded-full overflow-hidden border border-white/10">
-                                                                <NextImage src={alignData.icon} alt={alignData.name} fill className="object-cover scale-[1.2]" unoptimized />
-                                                            </div>
-                                                            <span className={cn(
-                                                                "text-[9px] font-bold truncate uppercase tracking-widest",
-                                                                alignData.id === "bontarien" ? "text-blue-400" : "text-red-400"
-                                                            )}>
-                                                                {alignData.name}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {orderData && (
-                                                        <div className="flex items-center gap-1.5 bg-black/50 border border-amber-500/20 rounded-md px-2 py-0.5 max-w-full">
-                                                            <div className="relative w-5 h-5 shrink-0 bg-black/40 rounded-md border border-white/5 p-0.5 flex items-center justify-center">
-                                                                <NextImage 
-                                                                    src={orderData.icon} 
-                                                                    alt={orderData.name} 
-                                                                    fill 
-                                                                    className="object-contain"
-                                                                    unoptimized
-                                                                />
-                                                            </div>
-                                                            <span className="text-[9px] font-bold text-amber-400 truncate uppercase tracking-widest" title={orderData.name}>
-                                                                {orderData.name.replace("Ordre de l'", "").replace("Ordre du ", "")}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-sm font-black text-white truncate" title={mule.pseudo}>
+                                                        {mule.pseudo}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: cls.color }}>
+                                                        {cls.name}
+                                                    </span>
+                                                    <span className="text-[9px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full font-mono">
+                                                        Nv. {mule.level !== undefined ? mule.level : 200}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <div className="flex flex-col gap-1.5 items-end shrink-0">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(`/w ${mule.pseudo} `);
-                                                    toast.success("Commande copiée !", { description: `/w ${mule.pseudo}` });
-                                                }}
-                                                className="h-7 w-7 text-zinc-400 hover:text-white hover:bg-white/10 transition-all bg-black/20 rounded-md"
-                                                title="Copier /w"
-                                            >
-                                                <Copy className="w-3.5 h-3.5" />
-                                            </Button>
+                                    {/* Middle Row: Alignment & Order Badges */}
+                                    <div className="flex flex-wrap items-center gap-1.5 z-10 pt-1 border-t border-white/5">
+                                        {alignData && alignData.id !== "neutre" ? (
+                                            <div className={cn(
+                                                "flex items-center gap-1.5 bg-black/60 border rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+                                                alignData.id === "bontarien" ? "border-blue-500/30 text-blue-300" : "border-red-500/30 text-red-300"
+                                            )}>
+                                                <div className="relative w-4 h-4 shrink-0 rounded-full overflow-hidden">
+                                                    <NextImage src={alignData.icon} alt={alignData.name} fill className="object-cover scale-110" unoptimized />
+                                                </div>
+                                                <span>{alignData.name}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-[10px] text-zinc-500 font-bold italic">Neutre</span>
+                                        )}
 
-                                            {isEditing && (
-                                                <>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleStartEditMule(mule)}
-                                                        className={cn(
-                                                            "h-7 w-7 transition-all bg-black/20 rounded-md border",
-                                                            editingMuleId === mule.id
-                                                                ? "border-indigo-500 text-indigo-400 bg-indigo-500/10"
-                                                                : "border-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
-                                                        )}
-                                                        title="Modifier les détails / alignement"
-                                                    >
-                                                        <Edit2 className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                    <button
-                                                        onClick={() => handleRemovePseudo(mule.id!)}
-                                                        className="h-7 w-7 flex items-center justify-center text-red-500 hover:text-white hover:bg-red-500/80 rounded-md transition-all bg-red-500/10"
-                                                        title="Supprimer"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
+                                        {orderData && (
+                                            <div className="flex items-center gap-1.5 bg-black/60 border border-amber-500/30 rounded-xl px-2.5 py-1 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
+                                                <div className="relative w-4 h-4 shrink-0">
+                                                    <NextImage src={orderData.icon} alt={orderData.name} fill className="object-contain" unoptimized />
+                                                </div>
+                                                <span className="truncate max-w-[120px]" title={orderData.name}>
+                                                    {orderData.name.replace("Ordre de l'", "").replace("Ordre du ", "")}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Bottom Row: Actions */}
+                                    <div className="flex items-center justify-between z-10 pt-2 border-t border-white/5">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(`/w ${mule.pseudo} `);
+                                                toast.success("Commande copiée !", { description: `/w ${mule.pseudo}` });
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/25 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                            title="Copier /w dans Dofus"
+                                        >
+                                            <Copy className="w-3 h-3" /> /w {mule.pseudo}
+                                        </button>
+
+                                        {isEditing && (
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleStartEditMule(mule)}
+                                                    className={cn(
+                                                        "h-7 w-7 transition-all bg-black/40 rounded-lg border cursor-pointer",
+                                                        editingMuleId === mule.id
+                                                            ? "border-indigo-500 text-indigo-400 bg-indigo-500/10"
+                                                            : "border-white/10 text-zinc-400 hover:text-white hover:bg-white/10"
+                                                    )}
+                                                    title="Modifier cette mule"
+                                                >
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </Button>
+                                                <button
+                                                    onClick={() => handleRemovePseudo(mule.id!)}
+                                                    className="h-7 w-7 flex items-center justify-center text-rose-400 hover:text-white hover:bg-rose-500/80 rounded-lg transition-all bg-rose-500/10 border border-rose-500/20 cursor-pointer"
+                                                    title="Supprimer"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
                 ) : (
-                    <div className="text-sm text-zinc-500 italic py-12 border border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center bg-zinc-950/20 gap-3">
-                        <Users className="w-8 h-8 text-zinc-700" />
-                        Aucune mule enregistrée
+                    <div className="text-xs font-bold text-zinc-500 italic py-12 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center bg-black/40 gap-3">
+                        <Users className="w-8 h-8 text-zinc-600" />
+                        Aucune mule enregistrée pour le moment.
                     </div>
                 )}
 

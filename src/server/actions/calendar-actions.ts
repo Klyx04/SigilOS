@@ -475,6 +475,16 @@ function sanitizeInput(str: string | null | undefined): string {
 }
 
 /**
+ * Helper to check if a date is on a day strictly before today
+ */
+function isPastDay(date: Date): boolean {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    return checkDate < startOfToday;
+}
+
+/**
  * Create a new guild event
  */
 export async function createCalendarEvent(guildId: string, data: GuildEventInput) {
@@ -493,6 +503,10 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
         const { publishOnDiscord, missionIds, mentionRoleIds, ...eventData } = validated.data;
+
+        if (isPastDay(eventData.startDate)) {
+            return { success: false, error: "Impossible de créer un événement sur un jour passé." };
+        }
 
         // RBAC: Raids require RAID_OFFICER permission
         if (eventData.type === "RAID_OFFICIAL") {
@@ -655,6 +669,9 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
         if (!guildConfig) return { success: false, error: "Guilde non trouvée" };
 
         const startDate = new Date(kralaEvent.event_datetime);
+        if (isPastDay(startDate)) {
+            return { success: false, error: "Impossible d'importer un événement sur un jour passé" };
+        }
         const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour duration default
 
         // ANTI-DUPLICATE (Improved): Check for duplicates within a 10-minute window instead of exact match
@@ -795,6 +812,9 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
 
         // Exclude virtual fields
         const { publishOnDiscord, missionIds, mentionRoleIds, ...updateData } = validated.data;
+        if (isPastDay(updateData.startDate)) {
+            return { success: false, error: "Impossible de déplacer un événement sur un jour passé." };
+        }
 
         // Merge missionIds into metadata
         const existingEvent = await db.guildEvent.findUnique({ where: { id: eventId }, select: { metadata: true } });

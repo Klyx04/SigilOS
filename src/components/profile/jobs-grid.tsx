@@ -84,19 +84,30 @@ export function JobsGrid({
     const activeJobsData = allJobs.filter(j => jobs.includes(j.id));
 
     return (
-        <div className="p-6 bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-white/10 transition-all hover:border-white/20 group h-full flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-                <h3 className="text-base font-semibold text-zinc-200">Maîtrise artisanale</h3>
+        <div className="p-6 bg-zinc-950/80 backdrop-blur-md rounded-3xl border border-white/10 transition-all hover:border-amber-500/30 shadow-2xl group h-full flex flex-col">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                        <Hammer className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-black text-white uppercase tracking-wider">
+                            Maîtrise Artisanale
+                        </h3>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Métiers & Tarifs Forgemagie</p>
+                    </div>
+                </div>
                 {!readOnly && (
                     <Dialog open={isOpen} onOpenChange={setIsOpen}>
                         <DialogTrigger asChild>
                             <Button 
                                 variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-all duration-300" 
+                                size="sm" 
+                                className="h-9 px-3 text-xs font-black uppercase tracking-wider text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20 rounded-xl transition-all cursor-pointer" 
                                 onClick={handleOpen}
                             >
-                                <Pencil className="w-4 h-4" strokeWidth={2.5} />
+                                <Pencil className="w-3.5 h-3.5 mr-1.5" strokeWidth={2.5} />
+                                Gérer
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 bg-zinc-950 border-zinc-800">

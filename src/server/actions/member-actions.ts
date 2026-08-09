@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -160,7 +161,7 @@ export async function getMemberReconciliation(guildId: string): Promise<ActionRe
         };
 
     } catch (error) {
-        console.error("[Member Actions] Reconciliation Error:", error);
+        logger.error("[Member Actions] Reconciliation Error:", error);
         return { success: false, error: "Échec de la récupération des données" };
     }
 }
@@ -318,7 +319,7 @@ export async function sendRosterAuditReport(rawData: z.infer<typeof RosterReport
 
         return { success: true };
     } catch (error) {
-        console.error("[sendRosterAuditReport] Error:", error);
+        logger.error("[sendRosterAuditReport] Error:", error);
         return { success: false, error: "Erreur lors de l'envoi du rapport" };
     }
 }
@@ -344,7 +345,7 @@ export async function sendManualRosterReport(guildId: string, roleId: string): P
             showMissingNames: true 
         });
     } catch (error) {
-        console.error("[sendManualRosterReport] Error:", error);
+        logger.error("[sendManualRosterReport] Error:", error);
         return { success: false, error: "Échec du déclenchement manuel" };
     }
 }

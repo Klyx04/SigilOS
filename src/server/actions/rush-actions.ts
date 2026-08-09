@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -42,7 +43,7 @@ export async function joinRushSession(
 
     return { success: true };
   } catch (e: any) {
-    console.error("[Rush] joinRushSession error:", e?.message);
+    logger.error("[Rush] joinRushSession error:", e?.message);
     return { success: false, error: "Erreur base de données" };
   }
 }
@@ -66,7 +67,7 @@ export async function leaveRushSession(guildId: string) {
 
     return { success: true };
   } catch (e: any) {
-    console.error("[Rush] leaveRushSession error:", e?.message);
+    logger.error("[Rush] leaveRushSession error:", e?.message);
     return { success: false, error: "Erreur base de données" };
   }
 }
@@ -101,7 +102,7 @@ export async function updateRushLocation(
 
     return { success: true };
   } catch (e: any) {
-    console.error("[Rush] updateRushLocation error:", e?.message);
+    logger.error("[Rush] updateRushLocation error:", e?.message);
     return { success: false, error: "Erreur base de données" };
   }
 }
@@ -174,7 +175,7 @@ export async function getRushActiveMembers(guildId: string) {
 
     return { success: true, members };
   } catch (e: any) {
-    console.error("[Rush] getRushActiveMembers error:", e?.message);
+    logger.error("[Rush] getRushActiveMembers error:", e?.message);
     return { success: false, error: "Erreur", members: [] };
   }
 }

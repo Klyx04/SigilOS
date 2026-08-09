@@ -116,7 +116,7 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
         logger.debug(`[PERF] getUnreadNotifications: DB Fetch ${Date.now() - start}ms (Auth: ${authDone - start}ms, DB: ${Date.now() - authDone}ms)`);
         return { success: true, data: notifications as Notification[] };
     } catch (error) {
-        console.error("Get Notifications Error:", error);
+        logger.error("Get Notifications Error:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -147,7 +147,7 @@ export async function markAsRead(notificationId: string, guildId?: string) {
         });
         revalidatePath("/");
     } catch (error) {
-        console.error("Mark Read Error:", error);
+        logger.error("Mark Read Error:", error);
     }
 }
 
@@ -176,7 +176,7 @@ export async function markAllAsRead(guildId?: string) {
         });
         revalidatePath("/");
     } catch (error) {
-        console.error("Mark All Read Error:", error);
+        logger.error("Mark All Read Error:", error);
     }
 }
 
@@ -239,6 +239,6 @@ export async function createNotification(
             }
         });
     } catch (error) {
-        console.error("[Notification] Creation Failed:", error);
+        logger.error("[Notification] Creation Failed:", error);
     }
 }

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -605,7 +606,7 @@ export async function getBonusConfig(
                 const channel = await fetchChannel(config.bonusNotifyChannelId);
                 if (channel) channelName = channel.name;
             } catch (err) {
-                console.error("Failed to fetch bonus channel name:", err);
+                logger.error("Failed to fetch bonus channel name:", err);
             }
         }
 

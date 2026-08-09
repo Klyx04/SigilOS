@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 'use server';
 
 import { db } from "@/lib/prisma";
@@ -69,14 +70,14 @@ export async function getActiveGeoguesserSessions(guildId: string) {
             const cached = await redis.get(cacheKey);
             if (cached) return JSON.parse(cached);
         } catch (e) {
-            console.error("[Redis] Cache read error:", e);
+            logger.error("[Redis] Cache read error:", e);
         }
     }
 
     try {
         const client = (db as any).geoguesserSession ? db : null;
         if (!client) {
-            console.error("CRITICAL: geoguesserSession model not found even in baseDb");
+            logger.error("CRITICAL: geoguesserSession model not found even in baseDb");
             return [];
         }
 
@@ -106,7 +107,7 @@ export async function getActiveGeoguesserSessions(guildId: string) {
             try {
                 await redis.set(cacheKey, JSON.stringify(sessions), "EX", LOBBY_CACHE_TTL);
             } catch (e) {
-                console.error("[Redis] Cache write error:", e);
+                logger.error("[Redis] Cache write error:", e);
             }
         }
 
@@ -178,7 +179,7 @@ export async function joinGeoguesserSession(sessionId: string, isSpectator: bool
                         }
                     });
                 } catch (e) {
-                    console.error("Failed to send notification:", e);
+                    logger.error("Failed to send notification:", e);
                 }
             }
         }
@@ -221,7 +222,7 @@ export async function startGeoguesserSession(sessionId: string, targetMapIds: nu
 
         return { success: true };
     } catch (error) {
-        console.error("Failed to start game:", error);
+        logger.error("Failed to start game:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -266,7 +267,7 @@ export async function submitSessionGuess(
 
         return { success: true };
     } catch (error) {
-        console.error("Failed to submit session guess:", error);
+        logger.error("Failed to submit session guess:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -316,7 +317,7 @@ export async function advanceSessionRound(sessionId: string, newRound: number) {
 
         return { success: true };
     } catch (error) {
-        console.error("Failed to advance round:", error);
+        logger.error("Failed to advance round:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -386,7 +387,7 @@ export async function finishGeoguesserSession(sessionId: string) {
             await redis.del(`lobby:guild:${room.guildId}`);
         }
     } catch (e) {
-        console.error("Failed to finish session:", e);
+        logger.error("Failed to finish session:", e);
     }
 }
 
@@ -410,7 +411,7 @@ async function updateGeoguesserLadder(pseudo: string, score: number) {
     try {
         await redis.zincrby("sigilguesser:ladder:v1", score, pseudo);
     } catch (e) {
-        console.error("Ladder update failed:", e);
+        logger.error("Ladder update failed:", e);
     }
 }
 

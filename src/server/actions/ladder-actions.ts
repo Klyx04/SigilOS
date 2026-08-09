@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -166,7 +167,7 @@ export async function getPresenceLadder(
             }
         };
     } catch (error) {
-        console.error("Presence Ladder Error:", error);
+        logger.error("Presence Ladder Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -384,7 +385,7 @@ export async function getActivityLadder(
             };
         }
     } catch (error) {
-        console.error("[getActivityLadder] Error:", error);
+        logger.error("[getActivityLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement" };
     }
 }
@@ -485,7 +486,7 @@ export async function getSeniorityLadder(
             }
         };
     } catch (error) {
-        console.error("[getSeniorityLadder] Error:", error);
+        logger.error("[getSeniorityLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement" };
     }
 }
@@ -586,7 +587,7 @@ export async function getSuccessLadder(
             }
         };
     } catch (error) {
-        console.error("[getSuccessLadder] Error:", error);
+        logger.error("[getSuccessLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement des succès" };
     }
 }
@@ -690,7 +691,7 @@ export async function getGeneralLadder(
             }
         };
     } catch (error) {
-        console.error("[getGeneralLadder] Error:", error);
+        logger.error("[getGeneralLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement général" };
     }
 }
@@ -791,7 +792,7 @@ export async function getContributionLadder(
             }
         };
     } catch (error) {
-        console.error("[getContributionLadder] Error:", error);
+        logger.error("[getContributionLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement de contribution" };
     }
 }
@@ -1001,7 +1002,7 @@ export async function getGuildatonsLadder(
             };
         }
     } catch (error) {
-        console.error("[getGuildatonsLadder] Error:", error);
+        logger.error("[getGuildatonsLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement de guildatons" };
     }
 }
@@ -1202,7 +1203,7 @@ export async function getRaidLadder(
             }
         };
     } catch (error) {
-        console.error("[getRaidLadder] Error:", error);
+        logger.error("[getRaidLadder] Error:", error);
         return { success: false, error: "Erreur lors du chargement du classement des raids" };
     }
 }

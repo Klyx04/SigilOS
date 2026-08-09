@@ -54,7 +54,7 @@ async function fetchAllGuildMembers(discordGuildId: string): Promise<Set<string>
 
         if (!res.ok) {
             const errText = await res.text();
-            console.error(`[Sync] Failed to fetch members: ${res.status} - ${errText}`);
+            logger.error(`[Sync] Failed to fetch members: ${res.status} - ${errText}`);
 
             if (res.status === 403) {
                 throw new Error("Discord API Forbidden (403): Le bot n'a probablement pas l'intent 'Server Members' activé dans le portail développeur Discord.");
@@ -252,7 +252,7 @@ export async function syncMembershipStatus(
     } catch (error) {
         result.success = false;
         result.errors.push(error instanceof Error ? error.message : "Unknown error");
-        console.error("[Sync] Error:", error);
+        logger.error("[Sync] Error:", error);
     }
 
     return result;

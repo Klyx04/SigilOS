@@ -87,7 +87,7 @@ export async function flushGuildUserContextCache(discordGuildId: string) {
             }
         } while (cursor !== "0");
     } catch (e) {
-        console.error("[RBAC] flushGuildUserContextCache failed:", e);
+        logger.error("[RBAC] flushGuildUserContextCache failed:", e);
     }
 }
 
@@ -254,7 +254,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
             if (data.id === session.user.id) return data;
         }
     } catch (e) {
-        console.error("[UserContext] Redis fetch error:", e);
+        logger.error("[UserContext] Redis fetch error:", e);
     }
 
     // Default context for non-authenticated or base cases
@@ -443,7 +443,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
         fetchGuildMember(actualDiscordGuildId, discordUserId).catch((err) => {
             // Discord API error (rate-limit, network, 5xx) — NOT a "member not found" case.
             // We must NOT block the user: they are likely still a valid member.
-            console.error("[UserContext] fetchGuildMember failed (Discord API error):", err?.message || err);
+            logger.error("[UserContext] fetchGuildMember failed (Discord API error):", err?.message || err);
             memberFetchFailed = true;
             return null; // Treated as unknown, NOT as "absent"
         }),
@@ -744,7 +744,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                             await sendWelcomeNotifications(guildConfig, profile!.id, displayName);
                         }
                     } catch (e) {
-                        console.error("[UserContext] Arrival processing error:", e);
+                        logger.error("[UserContext] Arrival processing error:", e);
                     }
                 })();
             } catch (e: any) {
@@ -764,7 +764,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                         data: { discordNickname: displayName }
                     });
                 } catch (e) {
-                    console.error("[getUserContext] Failed to sync discordNickname:", e);
+                    logger.error("[getUserContext] Failed to sync discordNickname:", e);
                 }
             }
 
@@ -1027,7 +1027,7 @@ export async function getUserGuilds() {
             iconUrl: p.guild.iconUrl
         }));
     } catch (error) {
-        console.error("Error fetching user guilds:", error);
+        logger.error("Error fetching user guilds:", error);
         return [];
     }
 }
@@ -1216,7 +1216,7 @@ export async function searchGuildMembers(
 
         return { success: true, data: formatted };
     } catch (error) {
-        console.error("Search Members Error:", error);
+        logger.error("Search Members Error:", error);
         return { success: false, error: "Search failed" };
     }
 }
@@ -1280,7 +1280,7 @@ export async function internalCheckPermission(
 
         return allPerms.has(PERMISSIONS.SYSTEM_CONFIG) || allPerms.has(permission);
     } catch (e) {
-        console.error(`[PermissionCheck] Error for ${discordUserId} in ${guildId}:`, e);
+        logger.error(`[PermissionCheck] Error for ${discordUserId} in ${guildId}:`, e);
         return false;
     }
 }
@@ -1452,7 +1452,7 @@ export async function updateMemberProfileStatus(
         }
         return { success: true, data: res };
     } catch (e: any) {
-        console.error("[updateMemberProfileStatus] Unexpected error:", e);
+        logger.error("[updateMemberProfileStatus] Unexpected error:", e);
         return { success: false, error: e?.message || "Erreur interne" };
     }
 }
@@ -1591,7 +1591,7 @@ export async function internalUpdateMemberProfileStatus(
                 embedTitle: dmTitle,
                 embedColor: dmColor,
                 embedDescription: dmDesc
-            }).catch(err => console.error("Failed to send DM", err));
+            }).catch(err => logger.error("Failed to send DM", err));
         }
     }
 
@@ -1747,7 +1747,7 @@ export async function getDiscordRolesAction(guildId: string, options?: { ignoreW
             }))
         };
     } catch (error) {
-        console.error("Get Discord Roles Error:", error);
+        logger.error("Get Discord Roles Error:", error);
         return { success: false, error: "Erreur lors de la récupération des rôles" };
     }
 }
@@ -1786,7 +1786,7 @@ export async function countPingedMembers(
 
         return { success: true, data: { count: uniqueIds.size } };
     } catch (error) {
-        console.error("[countPingedMembers] failed", error);
+        logger.error("[countPingedMembers] failed", error);
         return { success: false, error: "Erreur lors du calcul du ping" };
     }
 }
@@ -1829,7 +1829,7 @@ export async function updateAllowedPingRolesAction(guildId: string, roleIds: str
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
-        console.error("Update Allowed Ping Roles Error:", error);
+        logger.error("Update Allowed Ping Roles Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour des rôles autorisés" };
     }
 }

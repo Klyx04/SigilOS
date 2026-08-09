@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * 🔒 GOD - Lifecycle Management Server Actions
  * 
@@ -78,7 +79,7 @@ export async function softDeleteGuild(
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] softDeleteGuild error:', error);
+        logger.error('[GOD] softDeleteGuild error:', error);
         return { success: false, error: 'Failed to soft delete guild' };
     }
 }
@@ -138,7 +139,7 @@ export async function reactivateGuild(guildId: string) {
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] reactivateGuild error:', error);
+        logger.error('[GOD] reactivateGuild error:', error);
         return { success: false, error: 'Failed to reactivate guild' };
     }
 }
@@ -185,7 +186,7 @@ export async function hardDeleteGuild(guildId: string) {
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] hardDeleteGuild error:', error);
+        logger.error('[GOD] hardDeleteGuild error:', error);
         return { success: false, error: 'Failed to hard delete guild' };
     }
 }
@@ -231,7 +232,7 @@ export async function softDeleteProfile(
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] softDeleteProfile error:', error);
+        logger.error('[GOD] softDeleteProfile error:', error);
         return { success: false, error: 'Failed to soft delete profile' };
     }
 }
@@ -270,7 +271,7 @@ export async function reactivateProfile(profileId: string) {
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] reactivateProfile error:', error);
+        logger.error('[GOD] reactivateProfile error:', error);
         return { success: false, error: 'Failed to reactivate profile' };
     }
 }
@@ -318,7 +319,7 @@ export async function hardDeleteProfile(profileId: string) {
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] hardDeleteProfile error:', error);
+        logger.error('[GOD] hardDeleteProfile error:', error);
         return { success: false, error: 'Failed to hard delete profile' };
     }
 }
@@ -601,7 +602,7 @@ export async function transferGuildOwnership(guildId: string, newOwnerUserId: st
         revalidatePath('/god');
         return { success: true };
     } catch (error) {
-        console.error('[GOD] transferGuildOwnership error:', error);
+        logger.error('[GOD] transferGuildOwnership error:', error);
         return { success: false, error: 'Failed to transfer ownership' };
     }
 }

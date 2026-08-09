@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 /**
  * Songes Module - Server Actions
@@ -1061,7 +1062,7 @@ export async function respondToJoinRequest(guildId: string, data: z.infer<typeof
             const { deleteChannelMessage } = await import("@/server/discord");
             await deleteChannelMessage(request.discordChannelId, request.discordMessageId);
         } catch (error) {
-            console.error("[Songes] Error deleting candidacy message:", error);
+            logger.error("[Songes] Error deleting candidacy message:", error);
         }
     }
 

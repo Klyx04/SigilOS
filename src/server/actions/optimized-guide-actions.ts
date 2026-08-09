@@ -1273,7 +1273,7 @@ function loadMapData() {
       cachedWorlds = JSON.parse(fs.readFileSync(worldsPath, "utf8"));
     }
   } catch (e) {
-    console.error("Failed to load map data on server side:", e);
+    logger.error("Failed to load map data on server side:", e);
   }
 
   return { worldMap: cachedWorldMap, worlds: cachedWorlds };
@@ -1390,7 +1390,7 @@ export async function resolveMapWorldAction(x: number, y: number, textContext?: 
 
     return { success: true, worldId: bestWorldId };
   } catch (err) {
-    console.error("Failed to resolve map world:", err);
+    logger.error("Failed to resolve map world:", err);
     return { success: false, worldId: 1 };
   }
 }

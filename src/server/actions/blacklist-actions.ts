@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -40,7 +41,7 @@ export async function getBlacklistConfig(guildId: string): Promise<ActionRespons
 
         return { success: true, data: { blacklistChannelId: config.blacklistChannelId } };
     } catch (error) {
-        console.error("[Blacklist Actions] Get Config Error:", error);
+        logger.error("[Blacklist Actions] Get Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -79,7 +80,7 @@ export async function updateBlacklistSettings(guildId: string, channelId: string
 
         return { success: true };
     } catch (error) {
-        console.error("[Blacklist Actions] Settings Update Error:", error);
+        logger.error("[Blacklist Actions] Settings Update Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -122,7 +123,7 @@ export async function addBlacklistEntry(rawData: z.infer<typeof BlacklistSchema>
                     embedUrl: `${getAppBaseUrl()}/dashboard/${guildId}/admin/members`
                 });
             } catch (err) {
-                console.error("[Blacklist] Discord sync failed:", err);
+                logger.error("[Blacklist] Discord sync failed:", err);
             }
         }
 
@@ -148,7 +149,7 @@ export async function addBlacklistEntry(rawData: z.infer<typeof BlacklistSchema>
 
         return { success: true };
     } catch (error: any) {
-        console.error("[Blacklist Actions] Add Error Detail:", error);
+        logger.error("[Blacklist Actions] Add Error Detail:", error);
         return { success: false, error: "Erreur lors de l'ajout: " + error.message };
     }
 }
@@ -185,7 +186,7 @@ export async function editBlacklistEntry(guildId: string, entryId: string, conte
                     }
                 });
             } catch (err) {
-                console.warn("[Blacklist] Discord edit sync failed:", err);
+                logger.warn("[Blacklist] Discord edit sync failed:", err);
             }
         }
 
@@ -196,7 +197,7 @@ export async function editBlacklistEntry(guildId: string, entryId: string, conte
 
         return { success: true };
     } catch (error) {
-        console.error("[Blacklist Actions] Edit Error:", error);
+        logger.error("[Blacklist Actions] Edit Error:", error);
         return { success: false, error: "Erreur lors de la modification" };
     }
 }
@@ -226,7 +227,7 @@ export async function deleteBlacklistEntry(guildId: string, entryId: string): Pr
             try {
                 await deleteChannelMessage(guild.blacklistChannelId, entry.discordMessageId);
             } catch (err) {
-                console.warn("[Blacklist] Discord delete sync failed:", err);
+                logger.warn("[Blacklist] Discord delete sync failed:", err);
             }
         }
 
@@ -236,7 +237,7 @@ export async function deleteBlacklistEntry(guildId: string, entryId: string): Pr
 
         return { success: true };
     } catch (error) {
-        console.error("[Blacklist Actions] Delete Error:", error);
+        logger.error("[Blacklist Actions] Delete Error:", error);
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }
@@ -271,7 +272,7 @@ export async function getBlacklistEntries(guildId: string, search?: string): Pro
 
         return { success: true, data: entries };
     } catch (error) {
-        console.error("[Blacklist Actions] Get Error:", error);
+        logger.error("[Blacklist Actions] Get Error:", error);
         return { success: false, error: "Erreur lors de la récupération" };
     }
 }
@@ -305,7 +306,7 @@ export async function handleDiscordBlacklistCreate(discordGuildId: string, messa
         });
         revalidatePath(`/dashboard/${discordGuildId}/admin/members`);
     } catch (err) {
-        console.error("[Blacklist Webhook] Create Error:", err);
+        logger.error("[Blacklist Webhook] Create Error:", err);
     }
 }
 
@@ -323,7 +324,7 @@ export async function handleDiscordBlacklistUpdate(discordGuildId: string, messa
         });
         revalidatePath(`/dashboard/${discordGuildId}/admin/members`);
     } catch (err) {
-        console.error("[Blacklist Webhook] Update Error:", err);
+        logger.error("[Blacklist Webhook] Update Error:", err);
     }
 }
 
@@ -340,6 +341,6 @@ export async function handleDiscordBlacklistDelete(discordGuildId: string, messa
         });
         revalidatePath(`/dashboard/${discordGuildId}/admin/members`);
     } catch (err) {
-        console.error("[Blacklist Webhook] Delete Error:", err);
+        logger.error("[Blacklist Webhook] Delete Error:", err);
     }
 }

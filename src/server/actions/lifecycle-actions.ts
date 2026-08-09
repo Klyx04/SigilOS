@@ -4,6 +4,7 @@
  */
 
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, invalidateUserContextCache } from "./user-actions";
@@ -119,7 +120,7 @@ export async function archiveProfile(guildId: string, profileId?: string, durati
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (e) {
-        console.error("Archive error:", e);
+        logger.error("Archive error:", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -264,7 +265,7 @@ async function sendLifecycleNotification(
             embedFooter: `SigilOS · Lifecycle · ${new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}`,
         });
     } catch (err) {
-        console.error("[Lifecycle Notification] Failed:", err);
+        logger.error("[Lifecycle Notification] Failed:", err);
     }
 }
 
@@ -348,7 +349,7 @@ export async function deleteProfileByAdmin(guildId: string, profileId: string) {
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (e) {
-        console.error("Delete error:", e);
+        logger.error("Delete error:", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -432,7 +433,7 @@ export async function reactivateProfileByAdmin(
         revalidatePath(`/dashboard/${guildId}/admin/members`);
         return { success: true };
     } catch (e) {
-        console.error("[Reactivate] Error:", e);
+        logger.error("[Reactivate] Error:", e);
         return { success: false, error: "Erreur base de données" };
     }
 }
@@ -615,7 +616,7 @@ export async function handleGdprDeletionRequest() {
                         data: { ownerId: currentOwnerId } as any
                     });
                 } catch (err) {
-                    console.error(`[GDPR Deletion] Failed to fetch owner from Discord for ${profile.guild.name}:`, err);
+                    logger.error(`[GDPR Deletion] Failed to fetch owner from Discord for ${profile.guild.name}:`, err);
                 }
             }
 
@@ -641,13 +642,13 @@ export async function handleGdprDeletionRequest() {
                     }
                 });
             } catch (auditErr) {
-                console.error(`[GDPR Deletion] Audit log failed for guild ${profile.guild.name}:`, auditErr);
+                logger.error(`[GDPR Deletion] Audit log failed for guild ${profile.guild.name}:`, auditErr);
                 // Don't block deletion if audit log fails, but it's bad
             }
         }
 
         if (ownedCount > 0) {
-            console.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedCount} guilds`);
+            logger.warn(`[GDPR Deletion] Blocked: User is technical owner of ${ownedCount} guilds`);
             return {
                 success: false,
                 error: `Impossible de supprimer : vous êtes propriétaire de ${ownedCount} guilde(s) (ex: ${blockedGuildName}). Transférez la propriété sur Discord d'abord.`
@@ -666,7 +667,7 @@ export async function handleGdprDeletionRequest() {
 
         return { success: true };
     } catch (e: any) {
-        console.error("[GDPR Deletion] FATAL:", e);
+        logger.error("[GDPR Deletion] FATAL:", e);
         return {
             success: false,
             error: "Une erreur interne s'est produite lors de la suppression. Veuillez contacter un administrateur."
@@ -766,7 +767,7 @@ export async function syncGuildMembers(discordGuildId: string) {
                                 reason: "Bannissement Discord détecté lors de la synchro"
                             }
                         });
-                    } catch (e) { console.error("[Lifecycle Sync] Audit failed", e); }
+                    } catch (e) { logger.error("[Lifecycle Sync] Audit failed", e); }
 
                     bannedCount++;
                 } else {
@@ -801,7 +802,7 @@ export async function syncGuildMembers(discordGuildId: string) {
                                 reason: "Départ Discord détecté lors de la synchro"
                             }
                         });
-                    } catch (e) { console.error("[Lifecycle Sync] Audit failed", e); }
+                    } catch (e) { logger.error("[Lifecycle Sync] Audit failed", e); }
 
                     archivedCount++;
                 }
@@ -815,7 +816,7 @@ export async function syncGuildMembers(discordGuildId: string) {
             count: archivedCount + bannedCount
         };
     } catch (error) {
-        console.error("[Lifecycle Sync] Error:", error);
+        logger.error("[Lifecycle Sync] Error:", error);
         return { success: false, error: "Échec de la synchronisation" };
     }
 }
@@ -885,7 +886,7 @@ export async function wipeUserProfile(profileId: string, discordGuildId: string)
         revalidatePath(`/dashboard/${discordGuildId}/admin`);
         return { success: true };
     } catch (error) {
-        console.error("[Manual Wipe] Error:", error);
+        logger.error("[Manual Wipe] Error:", error);
         return { success: false, error: "Erreur lors du nettoyage" };
     }
 }
@@ -1008,14 +1009,14 @@ export async function requestProfileReactivation(guildId: string, pseudo?: strin
                 });
             }
         } catch (discordErr) {
-            console.error("Discord notification failed for reactivation request:", discordErr);
+            logger.error("Discord notification failed for reactivation request:", discordErr);
         }
 
         revalidatePath(`/dashboard/${guildId}`);
         revalidatePath(`/dashboard/${guildId}/admin/validation`);
         return { success: true };
     } catch (e) {
-        console.error("Request reactivation error:", e);
+        logger.error("Request reactivation error:", e);
         return { success: false, error: "Erreur lors de la demande" };
     }
 }
@@ -1058,7 +1059,7 @@ export async function getPendingReactivations(guildId: string) {
 
         return { success: true, data: requests };
     } catch (e) {
-        console.error("Fetch pending reactivations error:", e);
+        logger.error("Fetch pending reactivations error:", e);
         return { success: false, error: "Database error" };
     }
 }

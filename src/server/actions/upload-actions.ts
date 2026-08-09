@@ -149,7 +149,7 @@ export async function deleteGuildImage(
 
         return { success: true };
     } catch (error) {
-        console.error("Delete error:", error);
+        logger.error("Delete error:", error);
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }

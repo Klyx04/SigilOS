@@ -111,7 +111,7 @@ export async function onboardGuild(guildId: string): Promise<ActionResponse> {
 
         return { success: true };
     } catch (error) {
-        console.error("Failed to onboard guild:", error);
+        logger.error("Failed to onboard guild:", error);
         return { success: false, error: error instanceof Error ? error.message : "Database error" };
     }
 }
@@ -134,7 +134,7 @@ export async function updateRBACMapping(
     const { requireGuildAdmin } = await import("./guards");
     const guard = await requireGuildAdmin(guildId, "Modification des Permissions (RBAC)");
     if (!guard.isAuthorized) {
-        console.warn(`[Security] updateRoleMapping blocked: ${guard.error} for user ${session.user.id}`);
+        logger.warn(`[Security] updateRoleMapping blocked: ${guard.error} for user ${session.user.id}`);
         return { success: false, error: guard.error };
     }
 
@@ -223,7 +223,7 @@ export async function updateRBACMapping(
         revalidatePath(`/dashboard/${guildId}/admin`);
         return { success: true };
     } catch (error) {
-        console.error("Failed to update role mapping:", error);
+        logger.error("Failed to update role mapping:", error);
         return { success: false, error: "Database error" };
     }
 }
@@ -305,7 +305,7 @@ export async function getAbsenceConfig(guildId: string): Promise<{ success: bool
 
         return { success: true, data: { absenceChannelId: config.absenceChannelId } };
     } catch (error) {
-        console.error("Get Absence Config Error:", error);
+        logger.error("Get Absence Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -345,7 +345,7 @@ export async function updateAbsenceChannel(
         revalidatePath(`/dashboard/${guildId}/admin/absence`);
         return { success: true };
     } catch (error) {
-        console.error("Update Absence Channel Error:", error);
+        logger.error("Update Absence Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -373,7 +373,7 @@ export async function getOcreConfig(guildId: string): Promise<{ success: boolean
 
         return { success: true, data: { ocreChannelId: config.ocreNotifyChannelId } };
     } catch (error) {
-        console.error("Get Ocre Config Error:", error);
+        logger.error("Get Ocre Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -412,7 +412,7 @@ export async function updateOcreChannel(
         revalidatePath(`/dashboard/${guildId}/admin/quete-ocre`);
         return { success: true };
     } catch (error) {
-        console.error("Update Ocre Channel Error:", error);
+        logger.error("Update Ocre Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -439,7 +439,7 @@ export async function getSongesConfig(guildId: string): Promise<{ success: boole
 
         return { success: true, data: { songesChannelId: config.songesNotifyChannelId, songesPingRoleIds: config.songesPingRoleIds || [] } };
     } catch (error) {
-        console.error("Get Songes Config Error:", error);
+        logger.error("Get Songes Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -479,7 +479,7 @@ export async function updateSongesChannel(
         revalidatePath(`/dashboard/${guildId}/admin/songes`);
         return { success: true };
     } catch (error) {
-        console.error("Update Songes Channel Error:", error);
+        logger.error("Update Songes Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -529,7 +529,7 @@ export async function getCalendarConfig(guildId: string): Promise<{ success: boo
             }
         };
     } catch (error) {
-        console.error("Get Calendar Config Error:", error);
+        logger.error("Get Calendar Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -560,7 +560,7 @@ export async function updateRaidAllowedSignUpRolesAction(guildId: string, roleId
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("Update Raid Allowed SignUp Roles Error:", error);
+        logger.error("Update Raid Allowed SignUp Roles Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour des rôles d'inscription" };
     }
 }
@@ -605,7 +605,7 @@ export async function updateCalendarChannel(
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("Update Calendar Channel Error:", error);
+        logger.error("Update Calendar Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -650,7 +650,7 @@ export async function updateRaidChannel(
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("Update Raid Channel Error:", error);
+        logger.error("Update Raid Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -692,7 +692,7 @@ export async function updateRaidGigalodonChannel(
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("Update Raid Gigalodon Channel Error:", error);
+        logger.error("Update Raid Gigalodon Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -734,7 +734,7 @@ export async function updateRaidSanctuaireChannel(
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("Update Raid Sanctuaire Channel Error:", error);
+        logger.error("Update Raid Sanctuaire Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -774,7 +774,7 @@ export async function updateRaidKamaDonationThreshold(
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("Update Raid Kama Donation Threshold Error:", error);
+        logger.error("Update Raid Kama Donation Threshold Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -810,7 +810,7 @@ export async function updateRaidKamaDonationRequired(
         revalidatePath(`/dashboard/${guildId}/admin/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("Update Raid Kama Donation Required Error:", error);
+        logger.error("Update Raid Kama Donation Required Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -876,7 +876,7 @@ export async function getDofusConfig(guildId: string): Promise<{
                 parsedRanks = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
             }
         } catch (e) {
-            console.error("Error parsing missionRanks", e);
+            logger.error("Error parsing missionRanks", e);
         }
 
         return {
@@ -892,7 +892,7 @@ export async function getDofusConfig(guildId: string): Promise<{
             }
         };
     } catch (error) {
-        console.error("Get Dofus Config Error:", error);
+        logger.error("Get Dofus Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -909,7 +909,7 @@ export async function updateDofusServer(
     const { requireGuildConfigAccess } = await import("./guards");
     const guard = await requireGuildConfigAccess(guildId);
     if (!guard.isAuthorized) {
-        console.warn(`[Security] updateDofusServer blocked: ${guard.error} for user ${session.user.id}`);
+        logger.warn(`[Security] updateDofusServer blocked: ${guard.error} for user ${session.user.id}`);
         return { success: false, error: guard.error || "Admin required" };
     }
 
@@ -946,7 +946,7 @@ export async function updateDofusServer(
 
         return { success: true };
     } catch (error) {
-        console.error("Update Dofus Server Error:", error);
+        logger.error("Update Dofus Server Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -986,7 +986,7 @@ export async function updateGuildGameConfig(
         revalidatePath(`/dashboard/${guildId}/missions`);
         return { success: true };
     } catch (error) {
-        console.error("Update Guild Game Config Error:", error);
+        logger.error("Update Guild Game Config Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -1028,7 +1028,7 @@ export async function getGuildHallConfig(guildId: string): Promise<{
             }
         };
     } catch (error) {
-        console.error("Get Guild Hall Config Error:", error);
+        logger.error("Get Guild Hall Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1062,7 +1062,7 @@ export async function updateGuildHallConfig(
         revalidatePath(`/dashboard/${guildId}/missions`);
         return { success: true };
     } catch (error) {
-        console.error("Update Guild Hall Config Error:", error);
+        logger.error("Update Guild Hall Config Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }
@@ -1135,7 +1135,7 @@ export async function getMissionConfig(guildId: string): Promise<{
             }
         };
     } catch (error) {
-        console.error("Get Mission Config Error:", error);
+        logger.error("Get Mission Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1219,7 +1219,7 @@ export async function updateMissionNotifySettings(
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error: any) {
-        console.error("[AdminAction] updateMissionNotifySettings failed:", error);
+        logger.error("[AdminAction] updateMissionNotifySettings failed:", error);
         return { success: false, error: error.message || "Erreur lors de la mise à jour" };
     }
 }
@@ -1283,7 +1283,7 @@ export async function getGuildAdminsWithPermission(
             discordId: p.user.accounts[0]?.providerAccountId || "unknown"
         }));
     } catch (error) {
-        console.error("[Permissions] getGuildAdminsWithPermission error:", error);
+        logger.error("[Permissions] getGuildAdminsWithPermission error:", error);
         return [];
     }
 }
@@ -1309,7 +1309,7 @@ export async function getLoansConfig(guildId: string): Promise<{ success: boolea
         if (!config) return { success: false, error: "Guilde introuvable" };
         return { success: true, data: { loansNotifyChannelId: config.loansNotifyChannelId ?? null } };
     } catch (error) {
-        console.error("Get Loans Config Error:", error);
+        logger.error("Get Loans Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1340,7 +1340,7 @@ export async function updateLoansChannel(
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
-        console.error("Update Loans Channel Error:", error);
+        logger.error("Update Loans Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1362,7 +1362,7 @@ export async function getVaultConfig(guildId: string): Promise<{ success: boolea
         if (!config) return { success: false, error: "Guilde introuvable" };
         return { success: true, data: { vaultNotifyChannelId: config.vaultNotifyChannelId ?? null } };
     } catch (error) {
-        console.error("Get Vault Config Error:", error);
+        logger.error("Get Vault Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1393,7 +1393,7 @@ export async function updateVaultChannel(
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
-        console.error("Update Vault Channel Error:", error);
+        logger.error("Update Vault Channel Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1502,7 +1502,7 @@ export async function getServicesStatusPublic(guildId: string): Promise<{
             }
         };
     } catch (error) {
-        console.error("Get Services Status Public Error:", error);
+        logger.error("Get Services Status Public Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1552,7 +1552,7 @@ export async function getServicesStatusConfig(guildId: string): Promise<{
             }
         };
     } catch (error) {
-        console.error("Get Services Status Error:", error);
+        logger.error("Get Services Status Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1585,7 +1585,7 @@ export async function updateServicesStatusConfig(
         revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
-        console.error("Update Services Status Error:", error);
+        logger.error("Update Services Status Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1628,7 +1628,7 @@ export async function getGalleryConfig(guildId: string): Promise<{
             }
         };
     } catch (error) {
-        console.error("Get Gallery Config Error:", error);
+        logger.error("Get Gallery Config Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1685,7 +1685,7 @@ export async function updateGallerySettings(
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
-        console.error("[Admin Actions] Update Error:", error);
+        logger.error("[Admin Actions] Update Error:", error);
         return { success: false, error: "Erreur serveur lors de la mise à jour" };
     }
 }
@@ -1711,7 +1711,7 @@ export async function getGuildChannels(guildId: string): Promise<{
 
         return { success: true, data: filtered };
     } catch (error) {
-        console.error("Get Guild Channels Error:", error);
+        logger.error("Get Guild Channels Error:", error);
         return { success: false, error: "Erreur lors de la récupération des salons" };
     }
 }
@@ -1734,7 +1734,7 @@ export async function getAllBounties(): Promise<any[]> {
         });
         return bounties;
     } catch (error) {
-        console.error("[getAllBounties] Error:", error);
+        logger.error("[getAllBounties] Error:", error);
         return [];
     }
 }
@@ -1765,7 +1765,7 @@ export async function updateBountyRecord(guildId: string, bountyId: string, data
         revalidatePath(`/dashboard/${guildId}/admin/bounties`);
         return { success: true };
     } catch (error) {
-        console.error("[updateBountyRecord] Error:", error);
+        logger.error("[updateBountyRecord] Error:", error);
         return { success: false, error: "Erreur lors de la mise à jour" };
     }
 }

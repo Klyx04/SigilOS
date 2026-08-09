@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext, type ActionResponse } from "./user-actions";
@@ -15,7 +16,7 @@ async function notifyDjUpdate(guildId: string) {
     try {
         await redis.publish("dj:finder:update", JSON.stringify({ guildId }));
     } catch (err) {
-        console.error("[notifyDjUpdate] Error publishing to Redis:", err);
+        logger.error("[notifyDjUpdate] Error publishing to Redis:", err);
     }
 }
 
@@ -109,7 +110,7 @@ export async function getDungeonFinderConfig(guildId: string): Promise<ActionRes
         });
         return { success: true, data: { djNotifyChannelId: config?.djNotifyChannelId || null, djPingRoleIds: config?.djPingRoleIds || [] } };
     } catch (error) {
-        console.error("[getDungeonFinderConfig]", error);
+        logger.error("[getDungeonFinderConfig]", error);
         return { success: false, error: "Erreur lors de la récupération de la config" };
     }
 }
@@ -159,7 +160,7 @@ async function sendDiscordNotification(
 
         const channelId = guildConfig.djNotifyChannelId;
         const channelRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, { headers: { Authorization: `Bot ${token}` } });
-        if (!channelRes.ok) { console.error(`[DJ Embed] Cannot fetch channel: ${channelRes.status}`); return; }
+        if (!channelRes.ok) { logger.error(`[DJ Embed] Cannot fetch channel: ${channelRes.status}`); return; }
         const channelData = await channelRes.json();
         const isForumChannel = channelData.type === 15;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sigilos.fr";
@@ -223,7 +224,7 @@ async function sendDiscordNotification(
                 body: JSON.stringify(forumBody),
             });
             if (res.ok) { const t = await res.json(); discordChannelId = t.id; discordMessageId = t.message?.id; }
-            else { console.error("[DJ Embed] Forum thread error:", await res.json()); }
+            else { logger.error("[DJ Embed] Forum thread error:", await res.json()); }
         } else {
             const roleMentions = mentionRoleId ? mentionRoleId.split(",").map(id => `<@&${id.trim()}>`).join(" ") : "";
             const creatorMention = creatorDiscordId ? `<@${creatorDiscordId}>` : "";
@@ -239,7 +240,7 @@ async function sendDiscordNotification(
                 }),
             });
             if (res.ok) { const m = await res.json(); discordChannelId = channelId; discordMessageId = m.id; }
-            else { console.error("[DJ Embed] Text channel error:", await res.json()); }
+            else { logger.error("[DJ Embed] Text channel error:", await res.json()); }
         }
 
         if (discordChannelId && discordMessageId) {
@@ -249,7 +250,7 @@ async function sendDiscordNotification(
             });
         }
     } catch (error) {
-        console.error("[sendDiscordNotification]", error);
+        logger.error("[sendDiscordNotification]", error);
     }
 }
 
@@ -300,8 +301,8 @@ export async function updateDjDiscordEmbed(guildId: string, postId: string) {
             `https://discord.com/api/v10/channels/${post.discordChannelId}/messages/${post.discordMessageId}`,
             { method: "PATCH", headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ embeds: [embed], components }) }
         );
-        if (!patchRes.ok) console.error("[updateDjDiscordEmbed] PATCH failed:", patchRes.status);
-    } catch (err) { console.error("[updateDjDiscordEmbed]", err); }
+        if (!patchRes.ok) logger.error("[updateDjDiscordEmbed] PATCH failed:", patchRes.status);
+    } catch (err) { logger.error("[updateDjDiscordEmbed]", err); }
 }
 
 /**
@@ -326,7 +327,7 @@ async function disableDjDiscordEmbed(guildId: string, discordChannelId: string |
             await deleteChannelMessage(discordChannelId, discordMessageId);
         }
     } catch (error) { 
-        console.error("[disableDjDiscordEmbed] Failed to clean up Discord message/channel:", error); 
+        logger.error("[disableDjDiscordEmbed] Failed to clean up Discord message/channel:", error); 
     }
 }
 
@@ -421,7 +422,7 @@ export async function sendDjReminder(guildId: string, postId: string) {
 
         return { success: true };
     } catch (error) {
-        console.error("[sendDjReminder]", error);
+        logger.error("[sendDjReminder]", error);
         return { success: false, error: "Erreur lors de l'envoi du rappel" };
     }
 }
@@ -520,7 +521,7 @@ export async function sendDjCustomReminder(guildId: string, postId: string, cust
 
         return { success: true };
     } catch (error) {
-        console.error("[sendDjCustomReminder]", error);
+        logger.error("[sendDjCustomReminder]", error);
         return { success: false, error: "Erreur lors de l'envoi de la relance" };
     }
 }
@@ -727,7 +728,7 @@ export async function createDjPost(
         await notifyDjUpdate(guildId);
         return { success: true, data: { id: post.id } };
     } catch (error) {
-        console.error("[createDjPost]", error);
+        logger.error("[createDjPost]", error);
         return { success: false, error: "Erreur lors de la création du post" };
     }
 }
@@ -785,7 +786,7 @@ export async function updateDjPost(
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };
     } catch (error) {
-        console.error("[updateDjPost]", error);
+        logger.error("[updateDjPost]", error);
         return { success: false, error: "Erreur lors de la modification" };
     }
 }
@@ -861,7 +862,7 @@ export async function closeDjPostWithContributions(
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true, data: { pointsAwarded: pts } };
     } catch (error) {
-        console.error("[closeDjPostWithContributions]", error);
+        logger.error("[closeDjPostWithContributions]", error);
         return { success: false, error: "Erreur lors de la fermeture" };
     }
 }
@@ -903,7 +904,7 @@ export async function getDjGuildMembersForClose(
             })),
         };
     } catch (error) {
-        console.error("[getDjGuildMembersForClose]", error);
+        logger.error("[getDjGuildMembersForClose]", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -940,7 +941,7 @@ export async function closeDjPost(
         await notifyDjUpdate(guildId);
         return { success: true };
     } catch (error) {
-        console.error("[closeDjPost]", error);
+        logger.error("[closeDjPost]", error);
         return { success: false, error: "Erreur lors de la fermeture" };
     }
 }
@@ -978,7 +979,7 @@ export async function deleteDjPost(
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };
     } catch (error) {
-        console.error("[deleteDjPost]", error);
+        logger.error("[deleteDjPost]", error);
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }
@@ -1070,7 +1071,7 @@ export async function joinDjPost(
         await notifyDjUpdate(guildId);
         return { success: true };
     } catch (error) {
-        console.error("[joinDjPost]", error);
+        logger.error("[joinDjPost]", error);
         return { success: false, error: "Erreur lors de l'inscription" };
     }
 }
@@ -1121,7 +1122,7 @@ export async function leaveDjPost(
         await notifyDjUpdate(guildId);
         return { success: true };
     } catch (error) {
-        console.error("[leaveDjPost]", error);
+        logger.error("[leaveDjPost]", error);
         return { success: false, error: "Erreur lors du départ" };
     }
 }
@@ -1187,7 +1188,7 @@ export async function internalJoinDjPost(
 
         return { success: true };
     } catch (error) {
-        console.error("[internalJoinDjPost]", error);
+        logger.error("[internalJoinDjPost]", error);
         return { success: false, error: "Erreur lors de l'inscription" };
     }
 }
@@ -1241,7 +1242,7 @@ export async function internalLeaveDjPost(
 
         return { success: true };
     } catch (error) {
-        console.error("[internalLeaveDjPost]", error);
+        logger.error("[internalLeaveDjPost]", error);
         return { success: false, error: "Erreur lors du départ" };
     }
 }
@@ -1267,7 +1268,7 @@ export async function handleDiscordDjPostDelete(discordGuildId: string, messageI
         revalidatePath(`/dashboard/${discordGuildId}/donjons-et-quetes`);
         await notifyDjUpdate(discordGuildId);
     } catch (err) {
-        console.error("[handleDiscordDjPostDelete] Error:", err);
+        logger.error("[handleDiscordDjPostDelete] Error:", err);
     }
 }
 
@@ -1292,7 +1293,7 @@ export async function handleDiscordDjChannelDelete(discordGuildId: string, chann
         revalidatePath(`/dashboard/${discordGuildId}/donjons-et-quetes`);
         await notifyDjUpdate(discordGuildId);
     } catch (err) {
-        console.error("[handleDiscordDjChannelDelete] Error:", err);
+        logger.error("[handleDiscordDjChannelDelete] Error:", err);
     }
 }
 
@@ -1402,7 +1403,7 @@ export async function getDjPosts(
 
         return { success: true, data: data as any };
     } catch (error) {
-        console.error("[getDjPosts]", error);
+        logger.error("[getDjPosts]", error);
         return { success: false, error: "Erreur lors du chargement des posts" };
     }
 }
@@ -1441,7 +1442,7 @@ export async function acceptDjParticipant(
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };
     } catch (error) {
-        console.error("[acceptParticipant]", error);
+        logger.error("[acceptParticipant]", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -1475,7 +1476,7 @@ export async function rejectDjParticipant(
         revalidatePath(`/dashboard/${guildId}/donjons-et-quetes`);
         return { success: true };
     } catch (error) {
-        console.error("[rejectParticipant]", error);
+        logger.error("[rejectParticipant]", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -1502,7 +1503,7 @@ export async function getUserDungeonProgress(
 
         return { success: true, data: progress };
     } catch (error) {
-        console.error("[getUserDungeonProgress]", error);
+        logger.error("[getUserDungeonProgress]", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -1545,7 +1546,7 @@ export async function toggleAchievementCompleted(
             return { success: true, data: { completed: true } };
         }
     } catch (error) {
-        console.error("[toggleAchievementCompleted]", error);
+        logger.error("[toggleAchievementCompleted]", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -1626,7 +1627,7 @@ export async function findMissingAchievements(
 
         return { success: true, data: result };
     } catch (error) {
-        console.error("[findMissingAchievements]", error);
+        logger.error("[findMissingAchievements]", error);
         return { success: false, error: "Erreur lors de la recherche" };
     }
 }
@@ -1692,7 +1693,7 @@ export async function getDjPostsForDungeon(
             }),
         };
     } catch (error) {
-        console.error("[getDjPostsForDungeon]", error);
+        logger.error("[getDjPostsForDungeon]", error);
         return { success: false, error: "Erreur" };
     }
 }
@@ -1726,7 +1727,7 @@ export async function getDjSettings(guildId: string): Promise<ActionResponse<DjS
             },
         };
     } catch (error) {
-        console.error("[getDjSettings]", error);
+        logger.error("[getDjSettings]", error);
         return { success: false, error: "Erreur lors du chargement des paramètres" };
     }
 }
@@ -1779,7 +1780,7 @@ export async function updateDjSettings(
         revalidatePath(`/dashboard/${guildId}/admin/settings`);
         return { success: true };
     } catch (error) {
-        console.error("[updateDjSettings]", error);
+        logger.error("[updateDjSettings]", error);
         return { success: false, error: "Erreur lors de la mise à jour des paramètres" };
     }
 }
@@ -1904,7 +1905,7 @@ export async function getDungeonDirectory(
 
         return { success: true, data: result };
     } catch (error) {
-        console.error("[getDungeonDirectory]", error);
+        logger.error("[getDungeonDirectory]", error);
         return { success: false, error: "Erreur lors du chargement de l'annuaire" };
     }
 }

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 /**
  * Calendar Module V2 - Server Actions
@@ -161,7 +162,7 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
                     if (results) liveKralaEvents = results;
                 }
             } catch (err) {
-                console.error("[Calendar] Failed to sync Krala counts in list:", err);
+                logger.error("[Calendar] Failed to sync Krala counts in list:", err);
             }
         }
 
@@ -185,7 +186,7 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
 
         return { success: true, events: patchedEvents };
     } catch (error) {
-        console.error("[Calendar] getEvents Error:", error);
+        logger.error("[Calendar] getEvents Error:", error);
         return { success: false, error: "Erreur serveur", events: [] };
     }
 }
@@ -318,7 +319,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
                     }).catch(() => { }); // Fire-and-forget
                 }
             } catch (err) {
-                console.error("Failed to refresh Kralamoure participants", err);
+                logger.error("Failed to refresh Kralamoure participants", err);
             }
 
             // Fallback: if live fetch failed or returned null, use cached metadata participants
@@ -378,7 +379,7 @@ export async function getCalendarEventDetails(guildId: string, eventId: string) 
 
         return { success: true, event: eventData, hasMetamobKey };
     } catch (error) {
-        console.error("[Calendar] getEventDetails Error:", error);
+        logger.error("[Calendar] getEventDetails Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -417,7 +418,7 @@ export async function getUpcomingEvents(guildId: string, days: number = 7) {
 
         return { success: true, events };
     } catch (error) {
-        console.error("[Calendar] getUpcomingEvents Error:", error);
+        logger.error("[Calendar] getUpcomingEvents Error:", error);
         return { success: false, error: "Erreur serveur", events: [] };
     }
 }
@@ -631,7 +632,7 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
                 discordSent = true;
             } else {
                 discordError = result.error || "Erreur de publication Discord";
-                console.error("[Calendar] Auto-publish failed:", result.error);
+                logger.error("[Calendar] Auto-publish failed:", result.error);
             }
         }
 
@@ -640,7 +641,7 @@ export async function createCalendarEvent(guildId: string, data: GuildEventInput
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, eventId: event.id, discordSent, discordError };
     } catch (error) {
-        console.error("[Calendar] createEvent Error:", error);
+        logger.error("[Calendar] createEvent Error:", error);
         return { success: false, error: "Erreur lors de la création de l'événement" };
     }
 }
@@ -740,7 +741,7 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
                 });
             }
         } catch (err) {
-            console.error("[Calendar] Failed to fetch initial participants:", err);
+            logger.error("[Calendar] Failed to fetch initial participants:", err);
         }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
@@ -748,7 +749,7 @@ export async function importKralaEvent(guildId: string, kralaEvent: {
 
         return { success: true, eventId: event.id };
     } catch (error) {
-        console.error("[Calendar] importKralaEvent Error:", error);
+        logger.error("[Calendar] importKralaEvent Error:", error);
         return { success: false, error: "Erreur lors de l'import" };
     }
 }
@@ -781,7 +782,7 @@ export async function getImportedKralamoureIds(guildId: string): Promise<{ succe
 
         return { success: true, ids: importedIds };
     } catch (error) {
-        console.error("[Calendar] getImportedKralamoureIds Error:", error);
+        logger.error("[Calendar] getImportedKralamoureIds Error:", error);
         return { success: false, ids: [] };
     }
 }
@@ -839,13 +840,13 @@ export async function updateCalendarEvent(guildId: string, eventId: string, data
         // Sync Discord embed if the event was published on Discord
         if (event.discordMessageId && event.discordChannelId) {
             const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
-            updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+            updateDiscordEventEmbed(guildId, eventId).catch(err => logger.error("Background Embed Update Error:", err));
         }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("[Calendar] updateEvent Error:", error);
+        logger.error("[Calendar] updateEvent Error:", error);
         return { success: false, error: "Erreur lors de la modification" };
     }
 }
@@ -894,7 +895,7 @@ export async function cancelCalendarEvent(guildId: string, eventId: string) {
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("[Calendar] cancelEvent Error:", error);
+        logger.error("[Calendar] cancelEvent Error:", error);
         return { success: false, error: "Erreur lors de l'annulation" };
     }
 }
@@ -936,7 +937,7 @@ export async function deleteCalendarEvent(guildId: string, eventId: string) {
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("[Calendar] deleteEvent Error:", error);
+        logger.error("[Calendar] deleteEvent Error:", error);
         return { success: false, error: "Erreur lors de la suppression" };
     }
 }
@@ -975,7 +976,7 @@ export async function publishEvent(guildId: string, eventId: string) {
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("[Calendar] publishEvent Error:", error);
+        logger.error("[Calendar] publishEvent Error:", error);
         return { success: false, error: "Erreur lors de la publication" };
     }
 }
@@ -1043,7 +1044,7 @@ export async function completeEvent(guildId: string, eventId: string) {
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, participantsRewarded: event.participants.length, xpReward };
     } catch (error) {
-        console.error("[Calendar] completeEvent Error:", error);
+        logger.error("[Calendar] completeEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture" };
     }
 }
@@ -1127,7 +1128,7 @@ export async function completeRaidEvent(
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, rewarded: presentUserIds.length, score };
     } catch (error) {
-        console.error("[Calendar] completeRaidEvent Error:", error);
+        logger.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };
     }
 }
@@ -1203,13 +1204,13 @@ export async function undoCompleteRaidEvent(guildId: string, eventId: string) {
         // Re-send Discord embed if previously had one
         if (event.discordChannelId) {
             const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
-            updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+            updateDiscordEventEmbed(guildId, eventId).catch(err => logger.error("Background Embed Update Error:", err));
         }
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, refunded: presentUserIds.length };
     } catch (error) {
-        console.error("[Calendar] completeRaidEvent Error:", error);
+        logger.error("[Calendar] completeRaidEvent Error:", error);
         return { success: false, error: "Erreur lors de la clôture du raid" };
     }
 }
@@ -1274,12 +1275,12 @@ export async function transferRaidLead(
         });
 
         const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
-        updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+        updateDiscordEventEmbed(guildId, eventId).catch(err => logger.error("Background Embed Update Error:", err));
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, newCaptainName };
     } catch (error) {
-        console.error("[Calendar] transferRaidLead Error:", error);
+        logger.error("[Calendar] transferRaidLead Error:", error);
         return { success: false, error: "Erreur lors du transfert de Lead" };
     }
 }
@@ -1305,7 +1306,7 @@ export async function registerForEvent(
         const { processRegistration } = await import("@/server/calendar-service");
         return await processRegistration(guildId, eventId, ctx.id!, data);
     } catch (error) {
-        console.error("[Calendar] registerForEvent Error:", error);
+        logger.error("[Calendar] registerForEvent Error:", error);
         return { success: false, error: "Erreur lors de l'inscription" };
     }
 }
@@ -1322,7 +1323,7 @@ export async function unregisterFromEvent(guildId: string, eventId: string) {
         const { processUnregistration } = await import("@/server/calendar-service");
         return await processUnregistration(guildId, eventId, ctx.id!);
     } catch (error) {
-        console.error("[Calendar] unregisterFromEvent Error:", error);
+        logger.error("[Calendar] unregisterFromEvent Error:", error);
         return { success: false, error: "Erreur lors de la désinscription" };
     }
 }
@@ -1393,13 +1394,13 @@ export async function kickParticipant(guildId: string, eventId: string, targetUs
 
         // Update Discord embed
         const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
-        updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+        updateDiscordEventEmbed(guildId, eventId).catch(err => logger.error("Background Embed Update Error:", err));
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         revalidatePath(`/dashboard/${guildId}`, "layout");
         return { success: true };
     } catch (error) {
-        console.error("[Calendar] kickParticipant Error:", error);
+        logger.error("[Calendar] kickParticipant Error:", error);
         return { success: false, error: "Erreur lors de l'expulsion du participant" };
     }
 }
@@ -1450,12 +1451,12 @@ export async function transferRaidCaptaincy(guildId: string, eventId: string, ne
 
         // Update Discord embed
         const { updateDiscordEventEmbed } = await import("@/server/calendar-service");
-        updateDiscordEventEmbed(guildId, eventId).catch(err => console.error("Background Embed Update Error:", err));
+        updateDiscordEventEmbed(guildId, eventId).catch(err => logger.error("Background Embed Update Error:", err));
 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, message: "Capitanat transféré avec succès !" };
     } catch (error) {
-        console.error("[Calendar] transferRaidCaptaincy Error:", error);
+        logger.error("[Calendar] transferRaidCaptaincy Error:", error);
         return { success: false, error: "Erreur lors du transfert du capitanat" };
     }
 }
@@ -1695,7 +1696,7 @@ export async function sendEventReminder(guildId: string, eventId: string, pingRo
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, sentCount, discordSent };
     } catch (error) {
-        console.error("[Calendar] sendEventReminder Error:", error);
+        logger.error("[Calendar] sendEventReminder Error:", error);
         return { success: false, error: "Erreur lors de l'envoi des rappels" };
     }
 }
@@ -1748,7 +1749,7 @@ export async function getEventsNeedingReminders() {
 
         return { success: true, events: needsReminder };
     } catch (error) {
-        console.error("[Calendar] getEventsNeedingReminders Error:", error);
+        logger.error("[Calendar] getEventsNeedingReminders Error:", error);
         return { success: false, events: [] };
     }
 }
@@ -1799,7 +1800,7 @@ export async function autoCloseExpiredEvents(guildId: string) {
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true, closedCount: expiredEvents.length };
     } catch (error) {
-        console.error("[Calendar] autoCloseExpiredEvents Error:", error);
+        logger.error("[Calendar] autoCloseExpiredEvents Error:", error);
         return { success: false, closedCount: 0 };
     }
 }
@@ -1993,7 +1994,7 @@ export async function sendCalendarDiscordNotification(guildId: string, eventId: 
         revalidatePath(`/dashboard/${guildId}/calendar`);
         return { success: true };
     } catch (error) {
-        console.error("[Calendar] sendCalendarDiscordNotification Error:", error);
+        logger.error("[Calendar] sendCalendarDiscordNotification Error:", error);
         return { success: false, error: "Erreur lors de l'envoi" };
     }
 }
@@ -2032,7 +2033,7 @@ export async function getDiscordRolesForCalendar(guildId: string, isRaid?: boole
 
         return { roles: filtered, everyoneAllowed };
     } catch (error) {
-        console.error("[Calendar] getDiscordRolesForCalendar Error:", error);
+        logger.error("[Calendar] getDiscordRolesForCalendar Error:", error);
         return { roles: [], everyoneAllowed: false };
     }
 }

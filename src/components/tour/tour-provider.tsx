@@ -590,6 +590,13 @@ const MISSIONS_STEPS: TourStep[] = [
         placement: "top",
         module: "missions",
     },
+    {
+        target: '[data-tour="sidebar-missions"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Progression.",
+        placement: "right",
+        module: "missions",
+    },
 ];
 
 const LADDER_STEPS: TourStep[] = [
@@ -626,6 +633,13 @@ const LADDER_STEPS: TourStep[] = [
         title: "Navigation",
         description: "Parcourez les pages du classement et suivez le nombre total de membres classés.",
         placement: "top",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="sidebar-ladder"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Progression.",
+        placement: "right",
         module: "ladder",
     },
 ];
@@ -712,6 +726,13 @@ const OCRE_STEPS: TourStep[] = [
         placement: "left",
         module: "ocre",
     },
+    {
+        target: '[data-tour="sidebar-ocre"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Progression.",
+        placement: "right",
+        module: "ocre",
+    },
 ];
 
 
@@ -751,6 +772,13 @@ const SERVICES_STEPS: TourStep[] = [
         placement: "top",
         module: "services",
     },
+    {
+        target: '[data-tour="sidebar-services"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Outils.",
+        placement: "right",
+        module: "services",
+    },
 ];
 
 const DONJONS_STEPS: TourStep[] = [
@@ -787,6 +815,13 @@ const DONJONS_STEPS: TourStep[] = [
         title: "Vue d'ensemble",
         description: "L'ensemble du tableau : filtres, annonces et création de groupes.",
         placement: "top",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="sidebar-donjons"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Outils.",
+        placement: "right",
         module: "donjons",
     },
 ];
@@ -828,6 +863,13 @@ const CALENDAR_STEPS: TourStep[] = [
         placement: "top",
         module: "calendar",
     },
+    {
+        target: '[data-tour="sidebar-calendar"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Informations.",
+        placement: "right",
+        module: "calendar",
+    },
 ];
 
 const SONDAGES_STEPS: TourStep[] = [
@@ -866,6 +908,13 @@ const SONDAGES_STEPS: TourStep[] = [
         placement: "top",
         module: "polls",
     },
+    {
+        target: '[data-tour="sidebar-polls"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Autres.",
+        placement: "right",
+        module: "polls",
+    },
 ];
 
 const ANNUAIRE_STEPS: TourStep[] = [
@@ -902,6 +951,13 @@ const ANNUAIRE_STEPS: TourStep[] = [
         title: "Vue d'ensemble",
         description: "L'annuaire complet de la guilde, consultable par tous les membres.",
         placement: "top",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="sidebar-annuaire"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Informations.",
+        placement: "right",
         module: "roster",
     },
 ];
@@ -981,6 +1037,13 @@ const GALERIE_STEPS: TourStep[] = [
         placement: "top",
         module: "gallery",
     },
+    {
+        target: '[data-tour="sidebar-galerie"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Outils.",
+        placement: "right",
+        module: "gallery",
+    },
 ];
 
 const RESSOURCES_STEPS: TourStep[] = [
@@ -1019,6 +1082,13 @@ const RESSOURCES_STEPS: TourStep[] = [
         placement: "top",
         module: "resources",
     },
+    {
+        target: '[data-tour="sidebar-ressources"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Informations.",
+        placement: "right",
+        module: "resources",
+    },
 ];
 
 
@@ -1039,23 +1109,9 @@ const MINIJEU_STEPS: TourStep[] = [
     },
     {
         target: '[data-tour="sidebar-minigames"]',
-        title: "Accès rapide",
-        description: "Retrouvez les Mini-Jeux dans la barre latérale.",
+        title: "Où le retrouver",
+        description: "Retrouvez les Mini-Jeux dans la barre latérale, section Autres.",
         placement: "right",
-        module: "minigames",
-    },
-    {
-        target: '[data-tour="minijeu-board"]',
-        title: "Le classement",
-        description: "Les scores de la guilde sur chaque mini-jeu sont affichés ici.",
-        placement: "top",
-        module: "minigames",
-    },
-    {
-        target: '[data-tour="minijeu-header"]',
-        title: "Rejouer",
-        description: "Relancez ce tour à tout moment depuis le bouton « Tutoriel ».",
-        placement: "bottom",
         module: "minigames",
     },
 ];
@@ -1090,10 +1146,10 @@ const STATS_STEPS: TourStep[] = [
         module: "stats",
     },
     {
-        target: '[data-tour="stats-board"]',
-        title: "Rejouer",
-        description: "Relancez ce tour à tout moment depuis le bouton « Tutoriel ».",
-        placement: "top",
+        target: '[data-tour="sidebar-la-guilde"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, menu « La guilde ».",
+        placement: "right",
         module: "stats",
     },
 ];
@@ -1132,6 +1188,13 @@ const PRESENTATION_STEPS: TourStep[] = [
         title: "Vue d'ensemble",
         description: "La présentation complète : histoire, équipe, recrutement et communication.",
         placement: "top",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="sidebar-la-guilde"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, menu « La guilde ».",
+        placement: "right",
         module: "presentation",
     },
 ];
@@ -1243,13 +1306,13 @@ export function TourProvider({
     // Auto-open sections in sidebar based on current target step
     const ensureSidebarSectionOpen = (targetSelector: string) => {
         if (typeof document === "undefined") return;
-        if (targetSelector.includes("sidebar-missions") || targetSelector.includes("sidebar-ladder") || targetSelector.includes("sidebar-songes") || targetSelector.includes("sidebar-ocre")) {
+        if (targetSelector.includes("sidebar-missions") || targetSelector.includes("sidebar-ladder") || targetSelector.includes("sidebar-songes") || targetSelector.includes("sidebar-ocre") || targetSelector.includes("sidebar-quetes")) {
             const btn = document.querySelector('[data-tour-section="progression"] button');
             if (btn && btn.getAttribute("aria-expanded") !== "true") (btn as HTMLButtonElement).click();
-        } else if (targetSelector.includes("sidebar-members") || targetSelector.includes("sidebar-calendar") || targetSelector.includes("sidebar-services")) {
+        } else if (targetSelector.includes("sidebar-members") || targetSelector.includes("sidebar-calendar") || targetSelector.includes("sidebar-services") || targetSelector.includes("sidebar-annuaire") || targetSelector.includes("sidebar-ressources") || targetSelector.includes("sidebar-la-guilde")) {
             const btn = document.querySelector('[data-tour-section="informations"] button');
             if (btn && btn.getAttribute("aria-expanded") !== "true") (btn as HTMLButtonElement).click();
-        } else if (targetSelector.includes("sidebar-polls")) {
+        } else if (targetSelector.includes("sidebar-polls") || targetSelector.includes("sidebar-minigames")) {
             const btn = document.querySelector('[data-tour-section-guess="others"] button');
             if (btn && btn.getAttribute("aria-expanded") !== "true") (btn as HTMLButtonElement).click();
         }

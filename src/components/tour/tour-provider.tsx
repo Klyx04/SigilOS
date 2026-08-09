@@ -18,7 +18,42 @@ export type TourPhase =
     | "adminMembers"
     | "adminLogs"
     | "adminOverview"
+    // Phases des tours MODULES (rejouables, filtrées par module actif + RBAC)
+    | "missions"
+    | "ladder"
+    | "songes"
+    | "ocre"
+    | "services"
+    | "donjons"
+    | "calendar"
+    | "sondages"
+    | "annuaire"
+    | "quetesDofus"
+    | "galerie"
+    | "ressources"
+    | "docs"
+    | "minijeu"
+    | "stats"
+    | "presentation"
     | null;
+
+/**
+ * Phases des tours « modules » : rejouables à tout moment (jamais de flag
+ * "done" définitif), non bloquantes (on reste sur la page), et dont chaque
+ * étape est filtrée par le module actif + requiresPerm (RBAC).
+ */
+export const MODULE_TOUR_PHASES = [
+    "missions", "ladder", "songes", "ocre",
+    "services", "donjons", "calendar", "sondages", "annuaire",
+    "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
+] as const;
+
+export function isReplayableTourPhase(phase: TourPhase): boolean {
+    if (!phase) return false;
+    return phase.startsWith("admin")
+        || phase === "dashboardBricks"
+        || (MODULE_TOUR_PHASES as readonly string[]).includes(phase);
+}
 
 interface TourStep {
     target: string; // Selector for document.querySelector
@@ -514,6 +549,178 @@ const ADMIN_OVERVIEW_STEPS: TourStep[] = [
     }
 ];
 
+
+// ----------------------------------------------------------------------------
+// Tours MODULES (Évol 3 — « tutos partout »). Rejouables, filtrés par module
+// actif + requiresPerm. Chaque step pointe un data-tour stable et réel.
+// ----------------------------------------------------------------------------
+const MISSIONS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="missions-header"]',
+        title: "Missions de Guilde",
+        description: "Le tableau de bord des missions hebdomadaires : relevez les défis pour faire briller votre guilde.",
+        placement: "bottom",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-progress"]',
+        title: "Progression de la guilde",
+        description: "La jauge d'XP cumulée vers le prochain palier de la semaine, alimentée par les missions validées et les dons de kamas.",
+        placement: "top",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-hall"]',
+        title: "Hôtel de Guilde",
+        description: "L'état de votre Hôtel de Guilde : sa position sur la carte et son rang actuel.",
+        placement: "left",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-toolbar"]',
+        title: "Barre d'outils",
+        description: "Basculez entre le pool de missions et filtrez par catégorie ou par statut.",
+        placement: "bottom",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-pool"]',
+        title: "Missions Classiques / Spéciales",
+        description: "Choisissez le pool : les missions Classiques hebdomadaires ou les missions Spéciales (événements).",
+        placement: "bottom",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-grid"]',
+        title: "Les cartes de mission",
+        description: "Chaque carte détaille une mission : objectif, intérêts des membres et bouton pour proposer une preuve.",
+        placement: "top",
+        module: "missions",
+    },
+];
+
+const LADDER_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="ladder-header"]',
+        title: "Classement de Guilde",
+        description: "Découvrez les membres les plus actifs et leur progression en jeu.",
+        placement: "bottom",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="ladder-tabs"]',
+        title: "Les classements",
+        description: "Choisissez un classement : Activité, Contribution, Ancienneté, Succès, Général, Guildatons, Discord ou Raids.",
+        placement: "bottom",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="ladder-period"]',
+        title: "Période",
+        description: "Ajustez la fenêtre temporelle : Cette semaine, Ce mois-ci ou Global (all-time).",
+        placement: "bottom",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="ladder-list"]',
+        title: "Le classement",
+        description: "Chaque membre affiche son rang, son pseudo et sa valeur pour le classement sélectionné.",
+        placement: "top",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="ladder-pagination"]',
+        title: "Navigation",
+        description: "Parcourez les pages du classement et suivez le nombre total de membres classés.",
+        placement: "top",
+        module: "ladder",
+    },
+];
+
+
+const SONGES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="songes-header"]',
+        title: "Songes Infinis",
+        description: "Suivez la progression des runs et rejoignez vos compagnons d'armes.",
+        placement: "bottom",
+        module: "songes",
+    },
+    {
+        target: '[data-tour="songes-guide"]',
+        title: "Guide des boss",
+        description: "Ouvrez le guide des boss des Songes pour connaître les mécaniques avant de vous lancer.",
+        placement: "bottom",
+        module: "songes",
+    },
+    {
+        target: '[data-tour="songes-create"]',
+        title: "Créer un run",
+        description: "Proposez un nouveau run de Songes Infinis et définissez vos conditions de groupe.",
+        placement: "bottom",
+        module: "songes",
+    },
+    {
+        target: '[data-tour="songes-board"]',
+        title: "Les runs actifs",
+        description: "Chaque carte présente un run : étage visé, membres inscrits, statut de recrutement.",
+        placement: "top",
+        module: "songes",
+    },
+    {
+        target: '[data-tour="sidebar-songes"]',
+        title: "Accès rapide",
+        description: "Retrouvez le module Songes dans la barre latérale pour y revenir à tout moment.",
+        placement: "right",
+        module: "songes",
+    },
+];
+
+const OCRE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="ocre-header"]',
+        title: "Quête Ocre",
+        description: "Suivez votre progression sur la Quête de l'Éternelle Moisson et trouvez des partenaires d'échange.",
+        placement: "bottom",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-sync"]',
+        title: "Synchronisation",
+        description: "Synchronisez vos données Metamob pour mettre à jour votre progression et vos monstres.",
+        placement: "bottom",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-dashboard"]',
+        title: "Votre progression",
+        description: "Le détail de votre avancée sur la quête : monstres, archimonstres et gardiens de donjon capturés.",
+        placement: "top",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-metamob"]',
+        title: "Compte Metamob",
+        description: "Reliez et gérez votre compte Metamob pour synchroniser automatiquement votre progression.",
+        placement: "left",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-kralamoure"]',
+        title: "Kralamoure",
+        description: "Les prochaines apparitions de Kralamoure pour organiser les captures.",
+        placement: "left",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-tips"]',
+        title: "Astuces",
+        description: "Quelques conseils : mettez à jour votre compte régulièrement et surveillez les apparitions de Kralamoure.",
+        placement: "left",
+        module: "ocre",
+    },
+];
+
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -563,6 +770,10 @@ export function TourProvider({
     const adminMembersSteps = applyFilters(ADMIN_MEMBERS_STEPS);
     const adminLogsSteps = applyFilters(ADMIN_LOGS_STEPS);
     const adminOverviewSteps = applyFilters(ADMIN_OVERVIEW_STEPS);
+    const missionsSteps = applyFilters(MISSIONS_STEPS);
+    const ladderSteps = applyFilters(LADDER_STEPS);
+    const songesSteps = applyFilters(SONGES_STEPS);
+    const ocreSteps = applyFilters(OCRE_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -580,6 +791,10 @@ export function TourProvider({
             case "adminMembers": return adminMembersSteps;
             case "adminLogs": return adminLogsSteps;
             case "adminOverview": return adminOverviewSteps;
+            case "missions": return missionsSteps;
+            case "ladder": return ladderSteps;
+            case "songes": return songesSteps;
+            case "ocre": return ocreSteps;
             default: return [];
         }
     };
@@ -680,7 +895,7 @@ export function TourProvider({
         setIsActive(true);
         // Les tours admin sont REJOUABLES : on ne pose jamais de flag "done"
         // définitif pour les phases admin. On nettoie simplement l'étape en cours.
-        const isAdminPhase = phase.startsWith("admin");
+        const isAdminPhase = isReplayableTourPhase(phase);
         if (!isAdminPhase) {
             localStorage.removeItem(`sigilos-tour-done-${guildId}`);
         }
@@ -726,6 +941,18 @@ export function TourProvider({
             case "adminOverview":
                 router.push(`/dashboard/${guildId}/admin`);
                 break;
+            case "missions":
+                router.push(`/dashboard/${guildId}/missions`);
+                break;
+            case "ladder":
+                router.push(`/dashboard/${guildId}/ladder`);
+                break;
+            case "songes":
+                router.push(`/dashboard/${guildId}/songes`);
+                break;
+            case "ocre":
+                router.push(`/dashboard/${guildId}/quete-ocre`);
+                break;
             default:
                 break;
         }
@@ -743,7 +970,7 @@ export function TourProvider({
         }
         // Toute phase admin (onboarding, modules, module dédié) → terminer
         // La phase dashboardBricks est aussi non-bloquante et rejouable → terminer également
-        if (tourPhase && (tourPhase.startsWith("admin") || tourPhase === "dashboardBricks")) {
+        if (isReplayableTourPhase(tourPhase)) {
             completeTour();
         } else if (tourPhase === "profile") {
             setTourPhase("dashboard");
@@ -761,7 +988,7 @@ export function TourProvider({
             setCurrentStep(prev => prev - 1);
             return;
         }
-        if (tourPhase && (tourPhase.startsWith("admin") || tourPhase === "dashboardBricks")) {
+        if (isReplayableTourPhase(tourPhase)) {
             return;
         } else if (tourPhase === "dashboard") {
             setTourPhase("profile");
@@ -780,7 +1007,7 @@ export function TourProvider({
         // Les tours admin sont rejouables : on mémorise uniquement la progression
         // (pas de flag "done" définitif) pour relancer l'auto-start à la prochaine visite
         // si l'admin ne l'a pas terminé. Le bouton "Revoir" permet de relancer à tout moment.
-        if (!tourPhase || (tourPhase !== "dashboardBricks" && !tourPhase.startsWith("admin"))) {
+        if (!tourPhase || !isReplayableTourPhase(tourPhase)) {
             localStorage.setItem(`sigilos-tour-done-${guildId}`, "true");
         }
         localStorage.removeItem(`sigilos-tour-step-${guildId}`);

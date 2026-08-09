@@ -16,6 +16,7 @@ import { getDofusWeek } from "@/lib/date-utils";
 import { PersonalGuildatonWidget } from "@/components/missions/personal-guildaton-widget";
 import { db } from "@/lib/prisma";
 import { GuildHallWidget } from "@/components/missions/guild-hall-widget";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export const dynamic = 'force-dynamic';
 
@@ -109,13 +110,16 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
     return (
         <div className="space-y-6 pb-12">
             <ActivitiesNav guildId={guildId} />
-            <UnifiedModuleHeader
-                title="Missions de Guilde"
-                description={`Semaine ${week} • Année ${year} | Relevez les défis pour faire briller votre guilde.`}
-                icon={ScrollText}
-                iconColor="#ef4444"
-                backHref={`/dashboard/${guildId}`}
-            />
+            <div data-tour="missions-header">
+                <UnifiedModuleHeader
+                    title="Missions de Guilde"
+                    description={`Semaine ${week} • Année ${year} | Relevez les défis pour faire briller votre guilde.`}
+                    icon={ScrollText}
+                    iconColor="#ef4444"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<ModuleTourReplayButton phase="missions" />}
+                />
+            </div>
 
             {vitrineMode && (
                 <div className="mx-1 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-start gap-3 shadow-lg shadow-blue-500/5 animate-in fade-in duration-300">
@@ -131,7 +135,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
 
             {/* Dashboard Row 1: XP Progress & Weekly Rewards */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 px-1">
-                <div className="xl:col-span-2">
+                <div className="xl:col-span-2" data-tour="missions-progress">
                     <GuildProgressBar
                         currentXP={currentXP}
                         targetTier={targetTier}
@@ -140,7 +144,7 @@ export default async function MissionsPage({ params }: { params: Promise<{ guild
                         raidRequireKamaDonation={guildConfig?.raidRequireKamaDonation ?? true}
                     />
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-6" data-tour="missions-hall">
                     <GuildHallWidget 
                         posX={guildConfig?.guildHallPosX ?? null} 
                         posY={guildConfig?.guildHallPosY ?? null} 

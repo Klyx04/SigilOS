@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useTour } from "./tour-provider";
+import { useTour, isReplayableTourPhase } from "./tour-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ChevronLeft, Award, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -136,7 +136,7 @@ export function TourOverlay() {
         };
     }
 
-    const isAdminPhase = !!tourPhase && tourPhase.startsWith("admin");
+    const isAdminPhase = isReplayableTourPhase(tourPhase);
     const isFirstStepGlobal = tourPhase === "profile" && currentStep === 1;
 
     return (

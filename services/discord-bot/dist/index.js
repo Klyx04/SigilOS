@@ -12,6 +12,7 @@
 import { Client, GatewayIntentBits, Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType, Partials } from 'discord.js';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import Redis from 'ioredis';
 // SECURITY FIX (F-23): Use the canonical DATABASE_URL env var like the rest of the
 // app (docker-compose provides it). The previous code reassembled the connection
 // string from fragments using a 'post'+'gresql://' trick that only served to hide
@@ -39,6 +40,76 @@ catch (e) {
 // Prisma 7.x avec driverAdapters requiert un adapter explicite (datasources et datasourceUrl sont bannis)
 const adapter = new PrismaPg({ connectionString: datasourceUrl });
 const db = new PrismaClient({ adapter });
+// ========================
+// I-06 — Redis client (publication état voix pour le WS server)
+// ========================
+// Le bot est l'UNIQUE propriétaire du Gateway Discord (plus de double login
+// avec DiscordVoiceService). Il publie l'état voix par guilde sur Redis pub/sub,
+// et le WS server s'y abonne (broadcast temps réel). Le snapshot est aussi
+// stocké dans une clé Redis pour l'état initial à la connexion d'un client.
+const redisClient = new Redis({
+    host: process.env.REDIS_HOST || '127.0.0.1',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
+    maxRetriesPerRequest: null,
+    enableReadyCheck: true,
+    retryStrategy: (times) => Math.min(times * 200, 5000),
+});
+redisClient.on('error', (err) => {
+    // Non bloquant : le bot continue de fonctionner, seul le broadcast voix est dégradé.
+    console.error('[Discord Bot] ⚠️ Redis error (voice broadcast degraded):', err?.message);
+});
+// Canal Redis + TTL du snapshot voix
+const DISCORD_VOICE_CHANNEL = 'discord:voice';
+const VOICE_SNAPSHOT_TTL_SECONDS = 60 * 60; // 1h
+// guildId -> userId -> VoiceUser (cache local, alimenté par le Gateway).
+const voiceUsers = new Map();
+// I-11: debounce par guilde pour regrouper un rafale d'événements voiceStateUpdate.
+const voiceRefreshTimers = new Map();
+const VOICE_REFRESH_DEBOUNCE_MS = 500;
+/** Reconstruit l'état voix d'une guilde puis le publie (pub/sub) + le stocke (snapshot). */
+async function refreshAndPublishVoice(guildId) {
+    const guild = client.guilds.cache.get(guildId);
+    const map = new Map();
+    if (guild) {
+        guild.voiceStates.cache.forEach((vs) => {
+            if (!vs.member || vs.member.user.bot)
+                return;
+            const channel = vs.channel;
+            if (!channel)
+                return;
+            map.set(vs.id, {
+                userId: vs.id,
+                userName: vs.member.displayName,
+                avatar: vs.member.user.displayAvatarURL({ extension: 'png', size: 64 }),
+                channelId: channel.id,
+                channelName: channel.name,
+                isMute: vs.selfMute || vs.serverMute || false,
+                isDeaf: vs.selfDeaf || vs.serverDeaf || false,
+            });
+        });
+    }
+    voiceUsers.set(guildId, map);
+    const users = Array.from(map.values());
+    const payload = JSON.stringify({ guildId, users });
+    try {
+        await redisClient.publish(DISCORD_VOICE_CHANNEL, payload);
+        await redisClient.set(`discord:voice:${guildId}`, payload, 'EX', VOICE_SNAPSHOT_TTL_SECONDS);
+    }
+    catch (e) {
+        console.error('[Discord Bot] ⚠️ Redis voice publish failed:', e instanceof Error ? e.message : e);
+    }
+}
+/** Debounce : un seul refresh+publish par guilde pour une rafale d'événements. */
+function queueVoiceRefresh(guildId) {
+    const existing = voiceRefreshTimers.get(guildId);
+    if (existing)
+        clearTimeout(existing);
+    voiceRefreshTimers.set(guildId, setTimeout(() => {
+        voiceRefreshTimers.delete(guildId);
+        refreshAndPublishVoice(guildId).catch((e) => console.error('[Discord Bot] Voice refresh error:', e instanceof Error ? e.message : e));
+    }, VOICE_REFRESH_DEBOUNCE_MS));
+}
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -51,6 +122,21 @@ const client = new Client({
         // The bot must not need the right to read every keystroke/typing event.
     ],
     partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+});
+// I-06 : le bot est l'UNIQUE propriétaire du Gateway → il diffuse l'état voix
+// (pub/sub Redis) à chaque changement. (Plus de double login avec le WS server.)
+client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+    const guildId = newState.guild?.id || oldState.guild?.id;
+    if (guildId)
+        queueVoiceRefresh(guildId);
+});
+// I-06 : purge de l'état voix + timer à la suppression d'une guilde.
+client.on(Events.GuildDelete, (guild) => {
+    voiceUsers.delete(guild.id);
+    const timer = voiceRefreshTimers.get(guild.id);
+    if (timer)
+        clearTimeout(timer);
+    voiceRefreshTimers.delete(guild.id);
 });
 // ========================
 // Event: Bot Ready
@@ -81,6 +167,10 @@ client.once(Events.ClientReady, (readyClient) => {
     if (prePopulatedCount > 0) {
         console.log(`[Discord Bot] 🎙️ Pre-populated voice session for ${prePopulatedCount} members active in voice channels (${prePopulatedStreamCount} streaming)`);
     }
+    // I-06 : publier l'état voix initial de toutes les guildes (broadcast temps réel).
+    readyClient.guilds.cache.forEach(guild => {
+        refreshAndPublishVoice(guild.id).catch(e => console.error('[Discord Bot] Voice init error:', e instanceof Error ? e.message : e));
+    });
 });
 // ========================
 // Event: Guild Create (Bot Added)

@@ -6,6 +6,8 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
 import { db } from "@/lib/prisma";
 import StatsClient from "./_components/stats-client";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export default async function StatsPage({ params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
@@ -50,13 +52,27 @@ export default async function StatsPage({ params }: { params: Promise<{ guildId:
     }
 
     return (
-        <StatsClient
-            stats={result.stats}
-            missionsEnabled={missionsEnabled}
-            questsEnabled={questsEnabled}
-            servicesEnabled={servicesEnabled}
-            songesEnabled={songesEnabled}
-            minigamesEnabled={minigamesEnabled}
-        />
+        <div className="space-y-6 pb-12">
+            <div data-tour="stats-header">
+                <UnifiedModuleHeader
+                    title="Statistiques Guilde"
+                    description="Suivez l'activité de votre guilde et de ses membres."
+                    icon={BarChart3}
+                    iconColor="#a78bfa"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<ModuleTourReplayButton phase="stats" />}
+                />
+            </div>
+            <div data-tour="stats-board">
+                <StatsClient
+                    stats={result.stats}
+                    missionsEnabled={missionsEnabled}
+                    questsEnabled={questsEnabled}
+                    servicesEnabled={servicesEnabled}
+                    songesEnabled={songesEnabled}
+                    minigamesEnabled={minigamesEnabled}
+                />
+            </div>
+        </div>
     );
 }

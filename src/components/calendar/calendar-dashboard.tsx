@@ -482,6 +482,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
                             {canManage && (
                                 <Button
+                                    data-tour="calendar-create"
                                     onClick={() => setIsCreateOpen(true)}
                                     className="h-9 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02]"
                                 >
@@ -495,7 +496,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
                 {/* Filters Bar (Improved Aesthetics) */}
                 {showFilters && (
-                    <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide animate-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide animate-in slide-in-from-top-2 duration-300" data-tour="calendar-events">
                         <button
                             onClick={() => setSelectedFilter("ALL")}
                             className={cn(
@@ -559,7 +560,7 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
 
                 <div className="flex items-center gap-2">
                     {/* Week/Month segment control */}
-                    <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+                    <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5" data-tour="calendar-view">
                         <button
                             onClick={() => setGridType("week")}
                             className={cn(

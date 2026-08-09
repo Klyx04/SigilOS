@@ -162,7 +162,7 @@ run_conditional_seed() {
     local CURRENT_HASH PREV_HASH
     CURRENT_HASH="$(sha256sum "$SEED_FILE" | awk '{print $1}')"
     PREV_HASH="$(cat "$HASH_FILE" 2>/dev/null || echo '')"
-    if [[ "$SEED_ALWAYS" == "1" || "$CURRENT_HASH" != "$PREV_HASH" ]]; then
+    if [[ "${SEED_ALWAYS:-0}" == "1" || "$CURRENT_HASH" != "$PREV_HASH" ]]; then
         info "   Synchronisation des données de jeu ${TARGET^^}..."
         local SEED_LOG; SEED_LOG="$(mktemp)"
         if sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod >"$SEED_LOG" 2>&1; then

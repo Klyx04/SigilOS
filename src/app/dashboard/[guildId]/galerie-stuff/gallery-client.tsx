@@ -391,7 +391,7 @@ export function GalleryClient({
                     </div>
 
                     {/* Search bar */}
-                    <div className="relative group w-full lg:w-96">
+                    <div className="relative group w-full lg:w-96" data-tour="galerie-search">
                         <Search className={cn(
                             "absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 transition-colors",
                             activeTab === "STUFF" ? "group-focus-within:text-emerald-400" : "group-focus-within:text-sky-400"
@@ -418,7 +418,7 @@ export function GalleryClient({
                     {/* Left: Filters */}
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* 1. Class Filter */}
-                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-2 bg-black/40 p-1 rounded-2xl border border-white/5" data-tour="galerie-filters">
                             <ClassFilter selectedClass={selectedClass} onSelectClass={handleClassChange} />
                         </div>
 
@@ -520,7 +520,7 @@ export function GalleryClient({
             </div>
 
             {/* Grid */}
-            <div className={cn(
+            <div data-tour="galerie-grid" className={cn(
                 "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8",
                 isLoading && "opacity-50 pointer-events-none transition-opacity"
             )}>

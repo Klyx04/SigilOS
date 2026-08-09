@@ -4,12 +4,13 @@ import { useTour, TourPhase } from "./tour-provider";
 import { CircleHelp } from "lucide-react";
 
 /**
- * Bouton « Tutoriel » — relance le tour du MODULE COURANT.
- * Ne liste plus les autres tours : chaque page admin expose son propre tour
- * via la prop `phase` (ex: "adminSettings", "adminPermissions", "adminOverview"...).
- * Le tour reste rejouable à tout moment.
+ * Bouton « Tutoriel » générique, réutilisable sur TOUS les modules
+ * (header de module / actions de `UnifiedModuleHeader`).
+ * Visible pour les admins ET les membres : le filtrage se fait au niveau des
+ * étapes (module actif + requiresPerm RBAC), pas sur le bouton.
+ * Relance le tour du module courant via la prop `phase`.
  */
-export function AdminTourReplay({ phase }: { phase: TourPhase }) {
+export function ModuleTourReplayButton({ phase }: { phase: TourPhase }) {
     const { startTour } = useTour();
 
     return (

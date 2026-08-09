@@ -11,6 +11,7 @@ import { isModuleEnabled } from "@/server/actions/module-actions";
 import { redirect } from "next/navigation";
 import { BossGuideLauncher } from "@/components/songes/BossGuideLauncher";
 import { ActivitiesNav } from "@/components/layout/activities-nav";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export default async function SongesPage({
     params,
@@ -46,31 +47,40 @@ export default async function SongesPage({
     return (
         <div className="space-y-6 pb-12">
             <ActivitiesNav guildId={guildId} />
-            <UnifiedModuleHeader
-                title="Songes Infinis"
-                description="Suivez la progression des runs et rejoignez vos compagnons d'armes."
-                icon={Sparkles}
-                iconColor="#d946ef"
-                backHref={`/dashboard/${guildId}`}
-                actions={
-                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-                        <BossGuideLauncher />
-                        {(userContext.canCreateSonges || userContext.isAdmin) && (
-                            <CreateRunButton guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
-                        )}
-                    </div>
-                }
-            />
+            <div data-tour="songes-header">
+                <UnifiedModuleHeader
+                    title="Songes Infinis"
+                    description="Suivez la progression des runs et rejoignez vos compagnons d'armes."
+                    icon={Sparkles}
+                    iconColor="#d946ef"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={
+                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                            <div data-tour="songes-guide">
+                                <BossGuideLauncher />
+                            </div>
+                            {(userContext.canCreateSonges || userContext.isAdmin) && (
+                                <div data-tour="songes-create">
+                                    <CreateRunButton guildId={guildId} isDiscordConfigured={isDiscordConfigured} />
+                                </div>
+                            )}
+                            <ModuleTourReplayButton phase="songes" />
+                        </div>
+                    }
+                />
+            </div>
 
             {/* Active Runs Grid */}
             <Suspense fallback={<SongesGridSkeleton />}>
-                <RunCardGrid
-                    runs={runs}
-                    currentUserId={currentUserId}
-                    canJoinSonges={userContext.canJoinSonges}
-                    isAdmin={userContext.isAdmin}
-                    isDiscordConfigured={isDiscordConfigured}
-                />
+                <div data-tour="songes-board">
+                    <RunCardGrid
+                        runs={runs}
+                        currentUserId={currentUserId}
+                        canJoinSonges={userContext.canJoinSonges}
+                        isAdmin={userContext.isAdmin}
+                        isDiscordConfigured={isDiscordConfigured}
+                    />
+                </div>
             </Suspense>
         </div>
     );

@@ -18,7 +18,42 @@ export type TourPhase =
     | "adminMembers"
     | "adminLogs"
     | "adminOverview"
+    // Phases des tours MODULES (rejouables, filtrées par module actif + RBAC)
+    | "missions"
+    | "ladder"
+    | "songes"
+    | "ocre"
+    | "services"
+    | "donjons"
+    | "calendar"
+    | "sondages"
+    | "annuaire"
+    | "quetesDofus"
+    | "galerie"
+    | "ressources"
+    | "docs"
+    | "minijeu"
+    | "stats"
+    | "presentation"
     | null;
+
+/**
+ * Phases des tours « modules » : rejouables à tout moment (jamais de flag
+ * "done" définitif), non bloquantes (on reste sur la page), et dont chaque
+ * étape est filtrée par le module actif + requiresPerm (RBAC).
+ */
+export const MODULE_TOUR_PHASES = [
+    "missions", "ladder", "songes", "ocre",
+    "services", "donjons", "calendar", "sondages", "annuaire",
+    "quetesDofus", "galerie", "ressources", "docs", "minijeu", "stats", "presentation",
+] as const;
+
+export function isReplayableTourPhase(phase: TourPhase): boolean {
+    if (!phase) return false;
+    return phase.startsWith("admin")
+        || phase === "dashboardBricks"
+        || (MODULE_TOUR_PHASES as readonly string[]).includes(phase);
+}
 
 interface TourStep {
     target: string; // Selector for document.querySelector
@@ -60,6 +95,12 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "bottom"
     },
     {
+        target: '[data-tour="profile-tab-overview"]',
+        title: "Ton profil en général",
+        description: "Retrouve ta présentation, ta classe et tes informations visibles par la guilde.",
+        placement: "right"
+    },
+    {
         target: '[data-tour="profile-tab-metiers"]',
         title: "Tes métiers",
         description: "Indique tes métiers actifs pour que la guilde sache à qui s'adresser pour des crafts.",
@@ -78,9 +119,15 @@ const PROFILE_STEPS: TourStep[] = [
         placement: "right"
     },
     {
-        target: '[data-tour="profile-tab-intro"]',
-        title: "Présente-toi",
-        description: "Écris quelques mots sur toi pour que les autres membres de la guilde apprennent à te connaître.",
+        target: '[data-tour="profile-tab-dofus"]',
+        title: "Quêtes Dofus",
+        description: "Suis ta progression sur les quêtes des Dofus directement depuis ton profil.",
+        placement: "right"
+    },
+    {
+        target: '[data-tour="profile-tab-activity"]',
+        title: "Présence & Feed",
+        description: "Gère ta présence et consulte l'activité récente de tes compagnons.",
         placement: "right"
     },
     {
@@ -92,12 +139,6 @@ const PROFILE_STEPS: TourStep[] = [
 ];
 
 const DASHBOARD_STEPS: TourStep[] = [
-    {
-        target: '[data-tour="sidebar-dashboard"]',
-        title: "Accueil",
-        description: "Retrouve ici ton résumé d'activité, les actualités et les dernières news de la guilde.",
-        placement: "right"
-    },
     {
         target: '[data-tour="sidebar-missions"]',
         title: "Missions de guilde",
@@ -111,25 +152,12 @@ const DASHBOARD_STEPS: TourStep[] = [
         description: "Suis ton score de succès Dofus, synchronisé automatiquement depuis le site officiel Ankama.",
         placement: "right",
         module: "ladder"
-    },
-    {
-        target: '[data-tour="sidebar-members"]',
-        title: "Annuaire",
-        description: "Explore les profils de tes camarades de guilde, leurs métiers et leurs personnages.",
-        placement: "right"
-    },
-    {
-        target: '[data-tour="sidebar-calendar"]',
-        title: "Calendrier",
-        description: "Inscris-toi aux événements, sorties et runs organisés par le staff.",
-        placement: "right",
-        module: "calendar"
     }
 ];
 
 /**
  * Tour DASHBOARD — visite des briques/widgets de la page d'accueil.
- * Rejouable à tout moment via le bouton « Revoir le tour » (DashboardAdminTourButton).
+ * Rejouable à tout moment via le bouton « Tutoriel » (DashboardAdminTourButton).
  * Cible les sections stables de la page dashboard (data-tour="dash-*").
  */
 const DASHBOARD_BRICKS_STEPS: TourStep[] = [
@@ -514,6 +542,663 @@ const ADMIN_OVERVIEW_STEPS: TourStep[] = [
     }
 ];
 
+
+// ----------------------------------------------------------------------------
+// Tours MODULES (Évol 3 — « tutos partout »). Rejouables, filtrés par module
+// actif + requiresPerm. Chaque step pointe un data-tour stable et réel.
+// ----------------------------------------------------------------------------
+const MISSIONS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="missions-header"]',
+        title: "Missions de Guilde",
+        description: "Le tableau de bord des missions hebdomadaires : relevez les défis pour faire briller votre guilde.",
+        placement: "bottom",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-progress"]',
+        title: "Progression de la guilde",
+        description: "La jauge d'XP cumulée vers le prochain palier de la semaine, alimentée par les missions validées et les dons de kamas.",
+        placement: "top",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-hall"]',
+        title: "Hôtel de Guilde",
+        description: "L'état de votre Hôtel de Guilde : sa position sur la carte et son rang actuel.",
+        placement: "left",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-toolbar"]',
+        title: "Barre d'outils",
+        description: "Basculez entre le pool de missions et filtrez par catégorie ou par statut.",
+        placement: "bottom",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-pool"]',
+        title: "Missions Classiques / Spéciales",
+        description: "Choisissez le pool : les missions Classiques hebdomadaires ou les missions Spéciales (événements).",
+        placement: "bottom",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="missions-grid"]',
+        title: "Les cartes de mission",
+        description: "Chaque carte détaille une mission : objectif, intérêts des membres et bouton pour proposer une preuve.",
+        placement: "top",
+        module: "missions",
+    },
+    {
+        target: '[data-tour="sidebar-missions"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Progression.",
+        placement: "right",
+        module: "missions",
+    },
+];
+
+const LADDER_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="ladder-header"]',
+        title: "Classement de Guilde",
+        description: "Découvrez les membres les plus actifs et leur progression en jeu.",
+        placement: "bottom",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="ladder-tabs"]',
+        title: "Les classements",
+        description: "Choisissez un classement : Activité, Contribution, Ancienneté, Succès, Général, Guildatons, Discord ou Raids.",
+        placement: "bottom",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="ladder-period"]',
+        title: "Période",
+        description: "Ajustez la fenêtre temporelle : Cette semaine, Ce mois-ci ou Global (all-time).",
+        placement: "bottom",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="ladder-list"]',
+        title: "Le classement",
+        description: "Chaque membre affiche son rang, son pseudo et sa valeur pour le classement sélectionné.",
+        placement: "top",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="ladder-pagination"]',
+        title: "Navigation",
+        description: "Parcourez les pages du classement et suivez le nombre total de membres classés.",
+        placement: "top",
+        module: "ladder",
+    },
+    {
+        target: '[data-tour="sidebar-ladder"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Progression.",
+        placement: "right",
+        module: "ladder",
+    },
+];
+
+
+const SONGES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="songes-header"]',
+        title: "Songes Infinis",
+        description: "Suivez la progression des runs et rejoignez vos compagnons d'armes.",
+        placement: "bottom",
+        module: "songes",
+    },
+    {
+        target: '[data-tour="songes-guide"]',
+        title: "Guide des boss",
+        description: "Ouvrez le guide des boss des Songes pour connaître les mécaniques avant de vous lancer.",
+        placement: "bottom",
+        module: "songes",
+    },
+    {
+        target: '[data-tour="songes-create"]',
+        title: "Créer un run",
+        description: "Proposez un nouveau run de Songes Infinis et définissez vos conditions de groupe.",
+        placement: "bottom",
+        module: "songes",
+    },
+    {
+        target: '[data-tour="songes-board"]',
+        title: "Les runs actifs",
+        description: "Chaque carte présente un run : étage visé, membres inscrits, statut de recrutement.",
+        placement: "top",
+        module: "songes",
+    },
+    {
+        target: '[data-tour="sidebar-songes"]',
+        title: "Accès rapide",
+        description: "Retrouvez le module Songes dans la barre latérale pour y revenir à tout moment.",
+        placement: "right",
+        module: "songes",
+    },
+];
+
+const OCRE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="ocre-header"]',
+        title: "Quête Ocre",
+        description: "Suivez votre progression sur la Quête de l'Éternelle Moisson et trouvez des partenaires d'échange.",
+        placement: "bottom",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-sync"]',
+        title: "Synchronisation",
+        description: "Synchronisez vos données Metamob pour mettre à jour votre progression et vos monstres.",
+        placement: "bottom",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-dashboard"]',
+        title: "Votre progression",
+        description: "Le détail de votre avancée sur la quête : monstres, archimonstres et gardiens de donjon capturés.",
+        placement: "top",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-metamob"]',
+        title: "Compte Metamob",
+        description: "Reliez et gérez votre compte Metamob pour synchroniser automatiquement votre progression.",
+        placement: "left",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-kralamoure"]',
+        title: "Kralamoure",
+        description: "Les prochaines apparitions de Kralamoure pour organiser les captures.",
+        placement: "left",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="ocre-tips"]',
+        title: "Astuces",
+        description: "Quelques conseils : mettez à jour votre compte régulièrement et surveillez les apparitions de Kralamoure.",
+        placement: "left",
+        module: "ocre",
+    },
+    {
+        target: '[data-tour="sidebar-ocre"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Progression.",
+        placement: "right",
+        module: "ocre",
+    },
+];
+
+
+const SERVICES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="services-header"]',
+        title: "Services & Artisans",
+        description: "Commandez des services, empruntez du kamas et gérez la banque de guilde.",
+        placement: "bottom",
+        module: "services",
+    },
+    {
+        target: '[data-tour="services-summary"]',
+        title: "Résumé",
+        description: "Les compteurs et accès rapides de la page : services, prêts et banque de guilde.",
+        placement: "bottom",
+        module: "services",
+    },
+    {
+        target: '[data-tour="services-tabs"]',
+        title: "Les onglets",
+        description: "Basculez entre les sections : Services, Prêts, Banque de guilde et plus selon la configuration.",
+        placement: "bottom",
+        module: "services",
+    },
+    {
+        target: '[data-tour="services-create"]',
+        title: "Publier une offre",
+        description: "Proposez un service (craft, passage, FM) aux autres membres de la guilde.",
+        placement: "left",
+        module: "services",
+    },
+    {
+        target: '[data-tour="services-board"]',
+        title: "Le contenu de la section",
+        description: "Consultez les offres publiées et les demandes selon l'onglet actif.",
+        placement: "top",
+        module: "services",
+    },
+    {
+        target: '[data-tour="sidebar-services"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Outils.",
+        placement: "right",
+        module: "services",
+    },
+];
+
+const DONJONS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="donjons-header"]',
+        title: "Donjons & Quêtes",
+        description: "Cherchez des coéquipiers, ciblez des succès, et suivez votre progression.",
+        placement: "bottom",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="donjons-filters"]',
+        title: "Filtres",
+        description: "Affinez les recherches par type de contenu ou par configuration de groupe.",
+        placement: "bottom",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="donjons-list"]',
+        title: "Les annonces",
+        description: "Chaque annonce regroupe un donjon, les places disponibles et les participants.",
+        placement: "top",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="donjons-create"]',
+        title: "Créer un post",
+        description: "Proposez un groupe de donjon ou de quête et invitez vos compagnons.",
+        placement: "top",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="donjons-board"]',
+        title: "Vue d'ensemble",
+        description: "L'ensemble du tableau : filtres, annonces et création de groupes.",
+        placement: "top",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="sidebar-donjons"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Outils.",
+        placement: "right",
+        module: "donjons",
+    },
+];
+
+
+const CALENDAR_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="calendar-header"]',
+        title: "Calendrier des Événements",
+        description: "Ne manquez aucun rendez-vous important de la vie de guilde.",
+        placement: "bottom",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="calendar-view"]',
+        title: "Vue Semaine / Mois",
+        description: "Basculez l'affichage du calendrier entre la vue semaine et la vue mois.",
+        placement: "bottom",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="calendar-events"]',
+        title: "Les types d'événements",
+        description: "Retrouvez les différentes catégories : événements de guilde, raids et plus.",
+        placement: "bottom",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="calendar-create"]',
+        title: "Créer un événement",
+        description: "Planifiez un nouvel événement (si vous avez la permission de gestion).",
+        placement: "top",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="calendar-board"]',
+        title: "Vue d'ensemble",
+        description: "Le calendrier complet de la guilde et ses prochains rendez-vous.",
+        placement: "top",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="sidebar-calendar"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Informations.",
+        placement: "right",
+        module: "calendar",
+    },
+];
+
+const SONDAGES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="sondages-header"]',
+        title: "Sondages",
+        description: "Votez et donnez votre avis sur les décisions de la guilde.",
+        placement: "bottom",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sondages-create"]',
+        title: "Créer un sondage",
+        description: "Proposez une question à la guilde avec plusieurs options de réponse.",
+        placement: "bottom",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sondages-micro"]',
+        title: "Le Micro",
+        description: "Prenez ou reprenez le micro pour créer un sondage : il est tenu par un seul membre à la fois.",
+        placement: "bottom",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sondages-status"]',
+        title: "Statut",
+        description: "Filtrez les sondages par statut : en cours ou clôturés.",
+        placement: "bottom",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sondages-board"]',
+        title: "Les sondages",
+        description: "Chaque sondage affiche la question, les options et les votes en direct.",
+        placement: "top",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sidebar-polls"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Autres.",
+        placement: "right",
+        module: "polls",
+    },
+];
+
+const ANNUAIRE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="annuaire-header"]',
+        title: "Annuaire de Guilde",
+        description: "Retrouvez les artisans et membres de votre guilde.",
+        placement: "bottom",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="annuaire-search"]',
+        title: "Recherche",
+        description: "Recherchez un membre par pseudo, métier ou classe.",
+        placement: "bottom",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="annuaire-filters"]',
+        title: "Filtres",
+        description: "Filtrez par classe, métier ou autres critères pour trouver le bon artisan.",
+        placement: "bottom",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="annuaire-grid"]',
+        title: "Les cartes membres",
+        description: "Chaque carte présente un membre, son rôle, ses métiers et sa classe.",
+        placement: "top",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="annuaire-board"]',
+        title: "Vue d'ensemble",
+        description: "L'annuaire complet de la guilde, consultable par tous les membres.",
+        placement: "top",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="sidebar-annuaire"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Informations.",
+        placement: "right",
+        module: "roster",
+    },
+];
+
+
+const QUETESDOFUS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="quetes-header"]',
+        title: "Quêtes Dofus",
+        description: "Suivez votre progression vers chaque Dofus et comparez-vous à votre guilde.",
+        placement: "bottom",
+        module: "quests",
+    },
+    {
+        target: '[data-tour="quetes-character"]',
+        title: "Personnage",
+        description: "Sélectionnez votre personnage principal ou vos mules pour suivre la progression.",
+        placement: "bottom",
+        module: "quests",
+    },
+    {
+        target: '[data-tour="quetes-menu"]',
+        title: "Le menu",
+        description: "Les cartes d'accès : guides optimisés, suivi des Dofus et statistiques de la guilde.",
+        placement: "top",
+        module: "quests",
+    },
+    {
+        target: '[data-tour="quetes-board"]',
+        title: "Progression & guides",
+        description: "Consultez votre avancée sur chaque quête et les guides pas-à-pas optimisés.",
+        placement: "top",
+        module: "quests",
+    },
+    {
+        target: '[data-tour="sidebar-quetes"]',
+        title: "Accès rapide",
+        description: "Retrouvez le module Quêtes Dofus dans la barre latérale.",
+        placement: "right",
+        module: "quests",
+    },
+];
+
+const GALERIE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="galerie-header"]',
+        title: "Galerie de Stuff",
+        description: "Partagez et découvrez les équipements et tenues des membres.",
+        placement: "bottom",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="galerie-search"]',
+        title: "Recherche",
+        description: "Recherchez un équipement ou une tenue par nom ou par mot-clé.",
+        placement: "bottom",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="galerie-filters"]',
+        title: "Filtres",
+        description: "Filtrez par classe, type de contenu ou autre critère pour affiner la galerie.",
+        placement: "bottom",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="galerie-board"]',
+        title: "Les cartes",
+        description: "Chaque carte présente un équipement ou une tenue proposé par un membre.",
+        placement: "top",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="galerie-grid"]',
+        title: "La grille",
+        description: "Parcourez la galerie de builds et de tenues, triée par les membres.",
+        placement: "top",
+        module: "gallery",
+    },
+    {
+        target: '[data-tour="sidebar-galerie"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Outils.",
+        placement: "right",
+        module: "gallery",
+    },
+];
+
+const RESSOURCES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="ressources-header"]',
+        title: "Ressources Dofus",
+        description: "Hub centralisé : Almanax, actualités Ankama et outils communautaires.",
+        placement: "bottom",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="ressources-tabs"]',
+        title: "Les onglets",
+        description: "Basculez entre Almanax, Actualités, Encyclopédie, Créateurs et Liens.",
+        placement: "bottom",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="ressources-almanax"]',
+        title: "Almanax — Hub Temporel",
+        description: "Consultez les offrandes du jour et les bonus d'Almanax à venir.",
+        placement: "top",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="ressources-news"]',
+        title: "Actualités",
+        description: "Suivez les nouvelles officielles d'Ankama et de Dofuspourlesnoobs.",
+        placement: "top",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="ressources-links"]',
+        title: "Bibliothèque de Liens",
+        description: "Les liens et outils utiles (builds, simulateurs, communautés) pour la guilde.",
+        placement: "top",
+        module: "resources",
+    },
+    {
+        target: '[data-tour="sidebar-ressources"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, section Informations.",
+        placement: "right",
+        module: "resources",
+    },
+];
+
+
+const MINIJEU_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="minijeu-header"]',
+        title: "Mini-Jeux",
+        description: "Sigil-Guesser & Sigil-Bomb : défiez vos alliés sur la carte du monde !",
+        placement: "bottom",
+        module: "minigames",
+    },
+    {
+        target: '[data-tour="minijeu-board"]',
+        title: "Les jeux",
+        description: "Choisissez un mini-jeu (Géoguessr ou Bombe) et défiez la guilde.",
+        placement: "top",
+        module: "minigames",
+    },
+    {
+        target: '[data-tour="sidebar-minigames"]',
+        title: "Où le retrouver",
+        description: "Retrouvez les Mini-Jeux dans la barre latérale, section Autres.",
+        placement: "right",
+        module: "minigames",
+    },
+];
+
+const STATS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="stats-header"]',
+        title: "Statistiques Guilde",
+        description: "Suivez l'activité de votre guilde et de ses membres.",
+        placement: "bottom",
+        module: "stats",
+    },
+    {
+        target: '[data-tour="stats-overview"]',
+        title: "Indicateurs clés",
+        description: "Les KPI principaux de la guilde : effectifs, activité et progression.",
+        placement: "top",
+        module: "stats",
+    },
+    {
+        target: '[data-tour="stats-charts"]',
+        title: "Graphiques",
+        description: "L'évolution de l'activité selon les modules activés (missions, songes, services…).",
+        placement: "top",
+        module: "stats",
+    },
+    {
+        target: '[data-tour="stats-board"]',
+        title: "Vue d'ensemble",
+        description: "L'ensemble des statistiques de la guilde sur une seule page.",
+        placement: "top",
+        module: "stats",
+    },
+    {
+        target: '[data-tour="sidebar-la-guilde"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, menu « La guilde ».",
+        placement: "right",
+        module: "stats",
+    },
+];
+
+const PRESENTATION_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="presentation-header"]',
+        title: "Présentation de la Guilde",
+        description: "Informations visibles par les membres et le public.",
+        placement: "bottom",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="presentation-public"]',
+        title: "Page publique",
+        description: "Aperçu de la page publique visible par les visiteurs et les candidats.",
+        placement: "bottom",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="presentation-recrutement"]',
+        title: "Recrutement",
+        description: "L'état du recrutement : ouvert ou fermé, niveau et succès minimums.",
+        placement: "top",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="presentation-communication"]',
+        title: "Communication",
+        description: "Le lien vers votre Discord et les canaux de contact de la guilde.",
+        placement: "top",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="presentation-board"]',
+        title: "Vue d'ensemble",
+        description: "La présentation complète : histoire, équipe, recrutement et communication.",
+        placement: "top",
+        module: "presentation",
+    },
+    {
+        target: '[data-tour="sidebar-la-guilde"]',
+        title: "Où le retrouver",
+        description: "Retrouvez ce module dans la barre latérale, menu « La guilde ».",
+        placement: "right",
+        module: "presentation",
+    },
+];
+
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -563,6 +1248,21 @@ export function TourProvider({
     const adminMembersSteps = applyFilters(ADMIN_MEMBERS_STEPS);
     const adminLogsSteps = applyFilters(ADMIN_LOGS_STEPS);
     const adminOverviewSteps = applyFilters(ADMIN_OVERVIEW_STEPS);
+    const missionsSteps = applyFilters(MISSIONS_STEPS);
+    const ladderSteps = applyFilters(LADDER_STEPS);
+    const songesSteps = applyFilters(SONGES_STEPS);
+    const ocreSteps = applyFilters(OCRE_STEPS);
+    const servicesSteps = applyFilters(SERVICES_STEPS);
+    const donjonsSteps = applyFilters(DONJONS_STEPS);
+    const calendarSteps = applyFilters(CALENDAR_STEPS);
+    const sondagesSteps = applyFilters(SONDAGES_STEPS);
+    const annuaireSteps = applyFilters(ANNUAIRE_STEPS);
+    const quetesDofusSteps = applyFilters(QUETESDOFUS_STEPS);
+    const galerieSteps = applyFilters(GALERIE_STEPS);
+    const ressourcesSteps = applyFilters(RESSOURCES_STEPS);
+    const minijeuSteps = applyFilters(MINIJEU_STEPS);
+    const statsSteps = applyFilters(STATS_STEPS);
+    const presentationSteps = applyFilters(PRESENTATION_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -580,6 +1280,21 @@ export function TourProvider({
             case "adminMembers": return adminMembersSteps;
             case "adminLogs": return adminLogsSteps;
             case "adminOverview": return adminOverviewSteps;
+            case "missions": return missionsSteps;
+            case "ladder": return ladderSteps;
+            case "songes": return songesSteps;
+            case "ocre": return ocreSteps;
+            case "services": return servicesSteps;
+            case "donjons": return donjonsSteps;
+            case "calendar": return calendarSteps;
+            case "sondages": return sondagesSteps;
+            case "annuaire": return annuaireSteps;
+            case "quetesDofus": return quetesDofusSteps;
+            case "galerie": return galerieSteps;
+            case "ressources": return ressourcesSteps;
+            case "minijeu": return minijeuSteps;
+            case "stats": return statsSteps;
+            case "presentation": return presentationSteps;
             default: return [];
         }
     };
@@ -591,13 +1306,13 @@ export function TourProvider({
     // Auto-open sections in sidebar based on current target step
     const ensureSidebarSectionOpen = (targetSelector: string) => {
         if (typeof document === "undefined") return;
-        if (targetSelector.includes("sidebar-missions") || targetSelector.includes("sidebar-ladder") || targetSelector.includes("sidebar-songes") || targetSelector.includes("sidebar-ocre")) {
+        if (targetSelector.includes("sidebar-missions") || targetSelector.includes("sidebar-ladder") || targetSelector.includes("sidebar-songes") || targetSelector.includes("sidebar-ocre") || targetSelector.includes("sidebar-quetes")) {
             const btn = document.querySelector('[data-tour-section="progression"] button');
             if (btn && btn.getAttribute("aria-expanded") !== "true") (btn as HTMLButtonElement).click();
-        } else if (targetSelector.includes("sidebar-members") || targetSelector.includes("sidebar-calendar") || targetSelector.includes("sidebar-services")) {
+        } else if (targetSelector.includes("sidebar-members") || targetSelector.includes("sidebar-calendar") || targetSelector.includes("sidebar-services") || targetSelector.includes("sidebar-annuaire") || targetSelector.includes("sidebar-ressources") || targetSelector.includes("sidebar-la-guilde")) {
             const btn = document.querySelector('[data-tour-section="informations"] button');
             if (btn && btn.getAttribute("aria-expanded") !== "true") (btn as HTMLButtonElement).click();
-        } else if (targetSelector.includes("sidebar-polls")) {
+        } else if (targetSelector.includes("sidebar-polls") || targetSelector.includes("sidebar-minigames")) {
             const btn = document.querySelector('[data-tour-section-guess="others"] button');
             if (btn && btn.getAttribute("aria-expanded") !== "true") (btn as HTMLButtonElement).click();
         }
@@ -640,6 +1355,11 @@ export function TourProvider({
 
     // Load member tour state (profile/dashboard)
     useEffect(() => {
+        // Tour rejouable (module / admin / dashboardBricks) lancé via startTour :
+        // ne pas fermer ni réinitialiser lors d'un changement de route.
+        if (tourPhase && isReplayableTourPhase(tourPhase)) {
+            return;
+        }
         if (!isAdmin || isOnboardingComplete) {
             const hasDoneTour = localStorage.getItem(`sigilos-tour-done-${guildId}`) === "true";
             if (hasDoneTour) {
@@ -680,7 +1400,7 @@ export function TourProvider({
         setIsActive(true);
         // Les tours admin sont REJOUABLES : on ne pose jamais de flag "done"
         // définitif pour les phases admin. On nettoie simplement l'étape en cours.
-        const isAdminPhase = phase.startsWith("admin");
+        const isAdminPhase = isReplayableTourPhase(phase);
         if (!isAdminPhase) {
             localStorage.removeItem(`sigilos-tour-done-${guildId}`);
         }
@@ -726,6 +1446,51 @@ export function TourProvider({
             case "adminOverview":
                 router.push(`/dashboard/${guildId}/admin`);
                 break;
+            case "missions":
+                router.push(`/dashboard/${guildId}/missions`);
+                break;
+            case "ladder":
+                router.push(`/dashboard/${guildId}/ladder`);
+                break;
+            case "songes":
+                router.push(`/dashboard/${guildId}/songes`);
+                break;
+            case "ocre":
+                router.push(`/dashboard/${guildId}/quete-ocre`);
+                break;
+            case "services":
+                router.push(`/dashboard/${guildId}/services`);
+                break;
+            case "donjons":
+                router.push(`/dashboard/${guildId}/donjons-et-quetes`);
+                break;
+            case "calendar":
+                router.push(`/dashboard/${guildId}/calendar`);
+                break;
+            case "sondages":
+                router.push(`/dashboard/${guildId}/sondages`);
+                break;
+            case "annuaire":
+                router.push(`/dashboard/${guildId}/members`);
+                break;
+            case "quetesDofus":
+                router.push(`/dashboard/${guildId}/quetes-dofus`);
+                break;
+            case "galerie":
+                router.push(`/dashboard/${guildId}/galerie-stuff`);
+                break;
+            case "ressources":
+                router.push(`/dashboard/${guildId}/ressources`);
+                break;
+            case "minijeu":
+                router.push(`/dashboard/${guildId}/mini-jeux`);
+                break;
+            case "stats":
+                router.push(`/dashboard/${guildId}/stats`);
+                break;
+            case "presentation":
+                router.push(`/dashboard/${guildId}/presentation`);
+                break;
             default:
                 break;
         }
@@ -743,7 +1508,7 @@ export function TourProvider({
         }
         // Toute phase admin (onboarding, modules, module dédié) → terminer
         // La phase dashboardBricks est aussi non-bloquante et rejouable → terminer également
-        if (tourPhase && (tourPhase.startsWith("admin") || tourPhase === "dashboardBricks")) {
+        if (isReplayableTourPhase(tourPhase)) {
             completeTour();
         } else if (tourPhase === "profile") {
             setTourPhase("dashboard");
@@ -761,7 +1526,7 @@ export function TourProvider({
             setCurrentStep(prev => prev - 1);
             return;
         }
-        if (tourPhase && (tourPhase.startsWith("admin") || tourPhase === "dashboardBricks")) {
+        if (isReplayableTourPhase(tourPhase)) {
             return;
         } else if (tourPhase === "dashboard") {
             setTourPhase("profile");
@@ -780,7 +1545,7 @@ export function TourProvider({
         // Les tours admin sont rejouables : on mémorise uniquement la progression
         // (pas de flag "done" définitif) pour relancer l'auto-start à la prochaine visite
         // si l'admin ne l'a pas terminé. Le bouton "Revoir" permet de relancer à tout moment.
-        if (!tourPhase || (tourPhase !== "dashboardBricks" && !tourPhase.startsWith("admin"))) {
+        if (!tourPhase || !isReplayableTourPhase(tourPhase)) {
             localStorage.setItem(`sigilos-tour-done-${guildId}`, "true");
         }
         localStorage.removeItem(`sigilos-tour-step-${guildId}`);

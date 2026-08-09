@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export default async function MembersPage({ params }: { params: Promise<{ guildId: string }> }) {
     const session = await auth();
@@ -36,18 +37,23 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
-            <UnifiedModuleHeader
-                title="Annuaire de Guilde"
-                description="Retrouvez les artisans et membres de votre guilde."
-                imageSrc="/assets/ui/icons/members.png"
-                backHref={`/dashboard/${guildId}`}
-            />
+            <div data-tour="annuaire-header">
+                <UnifiedModuleHeader
+                    title="Annuaire de Guilde"
+                    description="Retrouvez les artisans et membres de votre guilde."
+                    imageSrc="/assets/ui/icons/members.png"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<ModuleTourReplayButton phase="annuaire" />}
+                />
+            </div>
 
-            <MemberDirectory 
-                initialMembers={response.data || []} 
-                legendaryItems={legendaryItems}
-                guildId={guildId} 
-            />
+            <div data-tour="annuaire-board">
+                <MemberDirectory 
+                    initialMembers={response.data || []} 
+                    legendaryItems={legendaryItems}
+                    guildId={guildId} 
+                />
+            </div>
         </div>
     );
 }

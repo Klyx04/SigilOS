@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import AccessDenied from "@/components/access-denied";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 type Props = {
     params: Promise<{ guildId: string }>;
@@ -34,6 +35,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
 
     return (
         <div className="space-y-6 pb-12">
+            <div data-tour="presentation-header">
             <UnifiedModuleHeader
                 title="Présentation de la Guilde"
                 description="Informations visibles par les membres et le public."
@@ -63,12 +65,13 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                             </Tooltip>
                         </TooltipProvider>
 
-                        <Link href={`/guilds/${guildId}`} target="_blank">
+                        <Link href={`/guilds/${guildId}`} target="_blank" data-tour="presentation-public">
                             <Button variant="outline" size="sm" className="gap-2 border-white/10 hover:bg-white/5 h-9">
                                 <ExternalLink className="w-4 h-4" />
                                 <span className="hidden md:inline">Voir page publique</span>
                             </Button>
                         </Link>
+                        <ModuleTourReplayButton phase="presentation" />
                         {canEdit && (
                             <Link href={`/dashboard/${guildId}/admin/presentation`}>
                                 <Button size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700 font-black h-9">
@@ -80,6 +83,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                     </div>
                 }
             />
+            </div>
 
             {!guild.history && (
                 <Alert className="bg-indigo-500/5 border-indigo-500/20 text-indigo-400">
@@ -91,7 +95,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                 </Alert>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-tour="presentation-board">
                 {/* Main Info Column */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Banner & Logo */}
@@ -235,7 +239,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
                     </Card>
 
                     {/* Recruitment Info */}
-                    <Card className="border-zinc-800 bg-zinc-900/50">
+                    <Card className="border-zinc-800 bg-zinc-900/50" data-tour="presentation-recrutement">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <Swords className="w-5 h-5 text-pink-400" />
@@ -268,7 +272,7 @@ export default async function GuildMemberPresentationPage({ params }: Props) {
 
                     {/* Socials */}
                     {guild.discord && (
-                        <Card className="border-zinc-800 bg-zinc-900/50">
+                        <Card className="border-zinc-800 bg-zinc-900/50" data-tour="presentation-communication">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <MessageSquare className="w-5 h-5 text-blue-400" />

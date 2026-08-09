@@ -130,7 +130,7 @@ export function DungeonFinderClient({
     return (
         <div className="space-y-8">
             {/* Dissociated Professional Tabs */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-tour="donjons-filters">
                 {TABS.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -345,6 +345,7 @@ export function DungeonFinderClient({
                                 </p>
                                 {canCreate && (
                                     <Button
+                                        data-tour="donjons-create"
                                         className="mt-5 bg-white hover:bg-zinc-200 text-zinc-900 font-bold"
                                         onClick={() => setIsCreateOpen(true)}
                                     >
@@ -355,7 +356,7 @@ export function DungeonFinderClient({
                         ) : (
                             <motion.div
                                 layout
-                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-tour="donjons-list"
                             >
                                 <AnimatePresence>
                                     {filteredPosts.map((post) => (

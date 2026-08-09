@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTour } from "./tour-provider";
+import { useTour, isReplayableTourPhase } from "./tour-provider";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, User, Swords, ShieldCheck, LayoutDashboard } from "lucide-react";
+import { Sparkles, ArrowRight, ShieldCheck, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -90,15 +90,15 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                             Exploration terminée
                         </h3>
                         <p className="text-zinc-400 text-xs font-semibold leading-relaxed max-w-xs mx-auto pt-2">
-                            {tourPhase && (tourPhase.startsWith("admin") || tourPhase === "dashboardBricks")
-                                ? "Tu connais maintenant les bases de ce module. Tu peux le rejouer à tout moment depuis le bouton « Revoir le tour »."
+                            {isReplayableTourPhase(tourPhase) && tourPhase !== "admin"
+                                ? "Tu connais maintenant les bases de ce module. Tu peux le rejouer à tout moment depuis le bouton « Tutoriel »."
                                 : "Ton profil est configuré et tu as maintenant toutes les clés pour utiliser au mieux le tableau de bord de la guilde !"}
                         </p>
                     </div>
 
                     {/* Actions CTAs — dédié au tour admin (arrivée) vs tour membre vs module admin */}
                     <div className="w-full flex flex-col gap-3 pt-4 relative z-10">
-                        {tourPhase === "adminSettings" || tourPhase === "adminPermissions" || tourPhase === "adminModulesMgmt" || tourPhase === "adminPresentation" || tourPhase === "adminMissions" || tourPhase === "adminValidation" || tourPhase === "adminMembers" || tourPhase === "adminLogs" || tourPhase === "adminOverview" || tourPhase === "adminModules" || tourPhase === "dashboardBricks" ? (
+                        {isReplayableTourPhase(tourPhase) && tourPhase !== "admin" ? (
                             <>
                                 <Button
                                     onClick={() => setCelebrationActive(false)}
@@ -134,30 +134,13 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                                 </Button>
                             </>
                         ) : (
-                            <>
-                                <Button
-                                    onClick={() => {
-                                        setCelebrationActive(false);
-                                        router.push(`/dashboard/${guildId}/missions`);
-                                    }}
-                                    className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
-                                >
-                                    <Swords className="w-4 h-4" />
-                                    Voir les Missions de Guilde
-                                    <ArrowRight className="w-4 h-4 ml-auto" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setCelebrationActive(false);
-                                        router.push(`/dashboard/${guildId}/profile`);
-                                    }}
-                                    className="w-full h-12 border-white/10 bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-widest rounded-xl transition-all gap-2 text-zinc-200"
-                                >
-                                    <User className="w-4 h-4" />
-                                    Voir mon Profil
-                                </Button>
-                            </>
+                            <Button
+                                onClick={() => setCelebrationActive(false)}
+                                className="w-full h-12 bg-violet-600 hover:bg-violet-700 font-black uppercase tracking-widest text-xs rounded-xl shadow-[0_4px_15px_rgba(139,92,246,0.3)] transition-all active:scale-95 text-white gap-2"
+                            >
+                                <LayoutDashboard className="w-4 h-4" />
+                                Fermer
+                            </Button>
                         )}
                     </div>
 

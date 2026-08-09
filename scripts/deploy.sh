@@ -25,6 +25,20 @@
 #           .deploy-seed-hash.<target>.
 # =============================================================================
 
+# Couleurs + helpers (même style que deploy-cd.sh)
+if [[ -t 1 ]]; then
+    C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
+    C_RED=$'\033[31m';  C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'
+    C_CYAN=$'\033[36m'
+else
+    C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_CYAN=""
+fi
+info() { printf "${C_CYAN}%s${C_RESET}\n" "$*"; }
+ok()   { printf "${C_GREEN}✓ %s${C_RESET}\n" "$*"; }
+warn() { printf "${C_YELLOW}⚠  %s${C_RESET}\n" "$*"; }
+err()  { printf "${C_RED}✗ %s${C_RESET}\n" "$*" >&2; }
+dim()  { printf "${C_DIM}%s${C_RESET}\n" "$*"; }
+
 TARGET=$1
 
 if [ "$TARGET" != "beta" ] && [ "$TARGET" != "prod" ]; then
@@ -38,21 +52,21 @@ fi
 ENV_FILE=".env.prod"
 [ "$TARGET" == "beta" ] && ENV_FILE=".env.beta"
 
-echo "🚀 Démarrage du déploiement : $TARGET (via $ENV_FILE)"
+info "🚀 Démarrage du déploiement : $TARGET ($ENV_FILE)"
 
 # 1. On s'assure d'être dans le bon dossier
 cd "$(dirname "$0")/.."
 
 # 2. Mise à jour du code
-echo "📦 Récupération du code..."
+info "📦 Récupération du code..."
 if [ -d "public/uploads/guides" ]; then
-    echo "🧹 Nettoyage temporaire des guides pour éviter les conflits de pull..."
+    dim "🧹 Nettoyage temporaire des guides pour éviter les conflits de pull..."
     rm -rf public/uploads/guides
 fi
 git pull origin "$(git rev-parse --abbrev-ref HEAD)"
 
 # 3. Mise à jour de l'infrastructure de monitoring (silencieux)
-echo "📊 Mise à jour de l'infrastructure de monitoring..."
+info "📊 Mise à jour de l'infrastructure de monitoring..."
 sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" pull -q prometheus grafana node-exporter cadvisor postgres-exporter
 sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d prometheus grafana node-exporter cadvisor postgres-exporter
 
@@ -66,7 +80,7 @@ run_conditional_seed() {
     local SEED_FILE="prisma/seed-data/game-data.json"
 
     if [ ! -f "$SEED_FILE" ]; then
-        echo "⚠️  $SEED_FILE introuvable — seed ignoré."
+        warn "$SEED_FILE introuvable — seed ignoré."
         return
     fi
 
@@ -76,12 +90,12 @@ run_conditional_seed() {
     [ -f "$HASH_FILE" ] && PREV_HASH="$(cat "$HASH_FILE")"
 
     if [ "$SEED_ALWAYS" == "1" ] || [ "$CURRENT_HASH" != "$PREV_HASH" ]; then
-        echo "🌱 Seeding des données de jeu ${TARGET^^} (données modifiées)..."
+        info "🌱 Seeding des données de jeu ${TARGET^^} (données modifiées)..."
         sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec "$APP_SERVICE" npm run seed:game-data:prod
         echo "$CURRENT_HASH" > "$HASH_FILE"
-        echo "✅ Seed terminé."
+        ok "Seed terminé."
     else
-        echo "⏭️  Seeding ignoré (game-data.json inchangé depuis le dernier déploiement)."
+        dim "⏭️  Seeding ignoré (game-data.json inchangé depuis le dernier déploiement)."
     fi
 }
 
@@ -96,7 +110,7 @@ tag_images_with_sha() {
     local IMAGES=("app" "worker" "ws" "discord-bot")
     local KEEP=5
 
-    echo "🔖 Tagging des images avec le SHA git ($SHA)..."
+    info "🔖 Tagging des images avec le SHA git ($SHA)..."
     for NAME in "${IMAGES[@]}"; do
         local IMG="sigilos-${NAME}-${SUFFIX}"
         sudo docker tag "$IMG:latest" "$IMG:$SHA" 2>/dev/null || true
@@ -127,14 +141,14 @@ if [ "$TARGET" == "beta" ]; then
     CADDY_CONTAINER="sigilos-gateway"
 
     echo ""
-    echo "🛠️ Activation de la page maintenance BETA..."
+    info "🛠️ Activation de la page maintenance BETA..."
     sudo docker exec "$CADDY_CONTAINER" touch /srv/maintenance-beta-on 2>/dev/null || true
 
     echo ""
-    echo "🧪 Construction BÊTA (mode silencieux — erreurs uniquement)..."
+    info "🧪 Construction BÊTA (mode silencieux — erreurs uniquement)..."
     BUILD_LOG="$(mktemp)"
     if ! sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" build -q app-beta worker-beta ws-beta discord-bot-beta >"$BUILD_LOG" 2>&1; then
-        echo "❌ Build échoué. Dernières lignes :"
+        err "❌ Build échoué. Dernières lignes :"
         tail -40 "$BUILD_LOG"
         rm -f "$BUILD_LOG"
         # On relève la maintenance pour ne pas laisser la beta down
@@ -142,18 +156,18 @@ if [ "$TARGET" == "beta" ]; then
         exit 1
     fi
     rm -f "$BUILD_LOG"
-    echo "✅ Build terminé."
+    ok "Build terminé."
 
     tag_images_with_sha beta
 
-    echo "Mise à jour des conteneurs BÊTA (attente healthcheck)..."
+    info "Mise à jour des conteneurs BÊTA (attente healthcheck)..."
     # --wait : ne passe à la suite que quand les services avec healthcheck sont healthy
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-beta worker-beta ws-beta discord-bot-beta
 
-    echo "📂 Migration des fichiers vers Private Storage BÊTA..."
+    info "📂 Migration des fichiers vers Private Storage BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npm run migrate:uploads
 
-    echo "🧹 Synchronisation des migrations BÊTA..."
+    info "🧹 Synchronisation des migrations BÊTA..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma migrate deploy
     # Le `db push` reste en beta pour itérer vite sur le schéma (dev-like)
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-beta npx --yes prisma db push
@@ -163,10 +177,10 @@ if [ "$TARGET" == "beta" ]; then
     # Caddy recréé à la FIN avec la nouvelle config.
     # Pendant build + migrations, l'ANCIEN Caddy sert la maintenance (flag actif).
     # Après le recreate, Caddy route vers les nouveaux conteneurs (déjà prêts).
-    echo "🔄 Recréation du proxy Caddy (nouvelle config)..."
+    info "🔄 Recréation du proxy Caddy (nouvelle config)..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --force-recreate --no-deps caddy
 
-    echo "✅ Désactivation de la page maintenance BETA..."
+    ok "✅ Désactivation de la page maintenance BETA..."
     sudo docker exec "$CADDY_CONTAINER" rm -f /srv/maintenance-beta-on 2>/dev/null || true
 
 # =============================================================================
@@ -174,26 +188,26 @@ if [ "$TARGET" == "beta" ]; then
 # =============================================================================
 else
     echo ""
-    echo "🏰 Construction PRODUCTION (mode silencieux)..."
+    info "🏰 Construction PRODUCTION (mode silencieux)..."
     BUILD_LOG="$(mktemp)"
     if ! sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" build -q app-prod worker-prod ws-prod discord-bot-prod >"$BUILD_LOG" 2>&1; then
-        echo "❌ Build échoué. Dernières lignes :"
+        err "❌ Build échoué. Dernières lignes :"
         tail -40 "$BUILD_LOG"
         rm -f "$BUILD_LOG"
         exit 1
     fi
     rm -f "$BUILD_LOG"
-    echo "✅ Build terminé."
+    ok "Build terminé."
 
     tag_images_with_sha prod
 
-    echo "Mise à jour des conteneurs PRODUCTION (attente healthcheck)..."
+    info "Mise à jour des conteneurs PRODUCTION (attente healthcheck)..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --wait app-prod worker-prod ws-prod discord-bot-prod
 
-    echo "📂 Migration des fichiers vers Private Storage PROD..."
+    info "📂 Migration des fichiers vers Private Storage PROD..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npm run migrate:uploads
 
-    echo "🧹 Synchronisation des migrations PRODUCTION..."
+    info "🧹 Synchronisation des migrations PRODUCTION..."
     sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec app-prod npx --yes prisma migrate deploy
     # 🛑 `prisma db push` est volontairement ABSENT en prod.
     # Seule `migrate deploy` est autorisée sur une base de production :
@@ -205,7 +219,7 @@ fi
 
 # 5. Vérification de santé post-déploiement
 echo ""
-echo "🔎 Vérification de la santé post-déploiement..."
+info "🔎 Vérification de la santé post-déploiement..."
 if [ "$TARGET" == "beta" ]; then
     HEALTH_URL="https://beta.sigilos.fr/api/health"
 else
@@ -216,15 +230,15 @@ HEALTH_HTTP="$(curl -fsS -m 20 -w '\n%{http_code}' "$HEALTH_URL" 2>/dev/null)"
 if [ $? -eq 0 ]; then
     HTTP_CODE="$(echo "$HEALTH_HTTP" | tail -1)"
     BODY="$(echo "$HEALTH_HTTP" | head -n -1)"
-    echo "✅ $HEALTH_URL → HTTP $HTTP_CODE"
+    ok "$HEALTH_URL → HTTP $HTTP_CODE"
     echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
 else
-    echo "❌ Santé KO : $HEALTH_URL ne répond pas."
+    err "❌ Santé KO : $HEALTH_URL ne répond pas."
     echo "   ⚠️  Les conteneurs viennent d'être mis à jour — à vérifier manuellement."
 fi
 
 echo ""
-echo "✅ Déploiement $TARGET terminé."
+ok "✅ Déploiement $TARGET terminé."
 
 # 6. État des conteneurs
 sudo docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" ps

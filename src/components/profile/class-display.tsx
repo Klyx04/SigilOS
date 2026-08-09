@@ -10,7 +10,7 @@ import { ClassIcon } from "@/components/shared/class-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { verifyDofusPseudo } from "@/server/actions/profile-actions";
+import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 import { Loader2, Search, UserCheck, AlertTriangle, Pencil, Info, Plus, UserCircle } from "lucide-react";
 
 interface ClassDisplayProps {
@@ -34,6 +34,18 @@ export function ClassDisplay({
     const [localPseudo, setLocalPseudo] = useState<string>(pseudoDofus || "");
     const [isVerifying, setIsVerifying] = useState(false);
     const [verifyStatus, setVerifyStatus] = useState<"idle" | "success" | "error">("idle");
+    // Toggle God « Fallback Pseudo Manuel » : si ON, on autorise la saisie du
+    // pseudo SANS vérification ladder Ankama (sanitisation conservée via
+    // formatDofusPseudo + schéma Zod côté serveur).
+    const [manualFallback, setManualFallback] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        isLadderManualFallbackEnabled().then((enabled) => {
+            if (active) setManualFallback(enabled);
+        });
+        return () => { active = false; };
+    }, []);
 
     // Auto-open if redirected with ?edit=identity (Security: check readOnly)
     useEffect(() => {
@@ -51,7 +63,7 @@ export function ClassDisplay({
             return;
         }
 
-        if (localPseudo !== (pseudoDofus || "") && verifyStatus !== "success") {
+        if (localPseudo !== (pseudoDofus || "") && verifyStatus !== "success" && !manualFallback) {
             toast.error("Veuillez vérifier votre pseudo avec la loupe avant de confirmer.");
             return;
         }
@@ -232,9 +244,14 @@ export function ClassDisplay({
                                             <UserCheck className="w-3.5 h-3.5" />
                                             Pseudo trouvé et validé sur le ladder officiel.
                                         </span>
+                                    ) : manualFallback ? (
+                                        <span className="text-amber-400/90 font-semibold flex items-center gap-2">
+                                            <Info className="w-3.5 h-3.5" />
+                                            Saisie manuelle autorisée (fallback actif) — la vérification Ankama est désactivée. Le pseudo doit rester EXACT (Majuscules, tirets, etc.).
+                                        </span>
                                     ) : (
                                         <>
-                                            Le pseudo doit être <strong className="text-zinc-300 uppercase tracking-tighter">EXACT</strong> (Majuscules, tirets, etc.) pour que la synchronisation fonctionne. Utilisez la loupe <Search className="inline w-3 h-3 mb-0.5" /> pour vérifier.
+                                            <strong className="text-zinc-300 uppercase tracking-tighter">Vérification requise :</strong> cliquez sur la loupe <Search className="inline w-3 h-3 mb-0.5" /> pour valider le pseudo sur le ladder Ankama avant de confirmer. Il doit être <strong className="text-zinc-300 uppercase tracking-tighter">EXACT</strong> (Majuscules, tirets, etc.).
                                         </>
                                     )}
                                 </p>

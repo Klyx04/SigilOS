@@ -71,11 +71,12 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
     function handleGrant() {
         if (!discordId.trim()) { toast.error("Veuillez renseigner un Discord ID"); return; }
         startTransition(async () => {
-            // Délégué vierge : les scopes sont accordés via le stepper de briques.
             const res = await grantDelegate({ discordId: discordId.trim(), scopes: [], expiresAt: null });
             if (res.success && res.data) {
-                toast.success("Délégué ajouté — accorde ensuite les accès via le stepper");
+                toast.success("Délégué ajouté — configure maintenant ses accès");
                 setDelegates(prev => [...prev, deserialize(res.data!)]);
+                // Ouvre automatiquement la modale d'accès pour régler scopes/briques/temps.
+                setEditingDelegateId(res.data!.id);
                 setDiscordId(""); setShowForm(false);
             } else {
                 toast.error(res.error || "Erreur lors de l'ajout");
@@ -185,7 +186,7 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
                                 )}
                             </div>
 
-                            <Dialog open={editingDelegateId === d.id} onOpenChange={(open) => { if (!open) setEditingDelegateId(null); }}>
+                            <Dialog open={editingDelegateId === d.id} onOpenChange={(open) => setEditingDelegateId(open ? d.id : null)}>
                                 <DialogTrigger asChild>
                                     <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-zinc-300 text-xs gap-1">
                                         <KeyRound className="w-3 h-3" /> Modifier l'accès

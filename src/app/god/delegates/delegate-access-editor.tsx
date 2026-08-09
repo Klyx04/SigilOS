@@ -55,7 +55,6 @@ export function DelegateAccessEditor({ delegateId, delegateName, activeGrants, o
     };
 
     const handleSave = async () => {
-        if (!reason.trim()) return toast.error("Justification obligatoire (auditée)");
         setLoading(true);
         const res = await syncBrickAccessForDelegate({ delegateId, brickIds: selectedBricks, durationMinutes, reason: reason.trim() });
         setLoading(false);

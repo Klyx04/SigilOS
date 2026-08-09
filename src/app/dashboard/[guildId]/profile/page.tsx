@@ -8,6 +8,7 @@ import { AuroraBackground } from "@/components/ui/aurora-background";
 import type { AvailabilityMap } from "@/lib/dofus-assets";
 import AccessDenied from "@/components/access-denied";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ProfileTourReplayButton } from "@/components/profile/profile-tour-replay-button";
 import { UserCircle } from "lucide-react";
 
 export default async function ProfilePage({ params }: { params: Promise<{ guildId: string }> }) {
@@ -75,6 +76,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ guildI
                     imageSrc="/assets/ui/icons/profile.png"
                     backHref={`/dashboard/${guildId}`}
                 />
+
+                <div className="flex justify-end">
+                    <ProfileTourReplayButton />
+                </div>
 
                 <ProfileBentoGrid
                     profile={{

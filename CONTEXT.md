@@ -257,7 +257,7 @@
 
 ## 🧭 Suivi de chantier courant (Session hardening 09/08) — branche `feat/security-hardening-suite`
 
-> Branch : `feat/security-hardening-suite` (poussée). Merge partiel dans `dev` via PR #424 (Zero Console + I-15 + I-07 + I-06). **Non encore mergés** : retrait overlay vocal (`96df9806`) + chantier God UX (9 commits).
+> Branch : `feat/security-hardening-suite` (poussée). Merge partiel dans `dev` via PR #424 (Zero Console + I-15 + I-07 + I-06). **Non encore mergés** : retrait overlay vocal (`96df9806`) + chantier God UX (9 commits) + **session 09/08** (A4 purge `ba7e2cf7`, B3-B5 `ca11584d`/`0757308f`/`db9a4e47`, nav God géoguesser/firewall `9f012166`/`0888a927`).
 
 ### 🔒 Chantiers sécurité terminés (09/08)
 - ✅ **CSP_ENFORCE beta** : activé + vérifié (enforce, nonce, 0 violation).
@@ -291,11 +291,15 @@
 | SSRF image-downloader (F-03) | `SECURITY.md` | ✅ **FAIT** — protocoles + IP privées/réservées + DNS rebinding |
 | JWT 8h (F-07) | `SECURITY.md` / `auth.ts` | ✅ **FAIT** — `maxAge: 8h` + `updateAge: 4h` |
 | Activer `WS_AUTH_ENABLED` | `SECURITY.md` | ✅ **Activé beta + PROD (09/08)** — `WS_AUTH_ENABLED=true` dans `.env.beta` et `.env.prod` |
-| Évol 4 restant (B3-B5 overview, A4 purge, Évo 2/3) | `CONTEXT.md` / `evolution4.md` | ⚠️ |
+| Évol 4 restant (B3-B5 overview, A4 purge) | `CONTEXT.md` / `evolution4.md` | ✅ **FAIT (09/08, branche `feat/security-hardening-suite`)** — `ba7e2cf7` A4 purge, `ca11584d` B3 overview, `0757308f` B4 primitives, `db9a4e47` B5 animations. Reste Évol 2/3 (voir chantier `user.name` ci-dessous) |
 | **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚪ **Abandonné (décision 09/08)** — hors priorité, ne pas relancer |
-| Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ⚠️ |
-| **Ladder Discord** : déployer fix + test manuel (puis prévoir SUSPECT A si besoin) | `memo-2026-08-08-ladder-discord.md` | ✅ **Corrigé + mergé dans `dev` (PR #416, commit `fa66e8fe`)** — reste : déployer beta + test manuel |
+| Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ✅ **FAIT (09/08)** — branche **ancêtre de `dev`** (déjà mergée), tours admin présents, build garanti par CI au merge. Rien à corriger |
+| **Ladder Discord** : déployer fix + test manuel (puis prévoir SUSPECT A si besoin) | `memo-2026-08-08-ladder-discord.md` | ✅ **Corrigé + mergé (PR #416, `fa66e8fe`) + DÉPLOYÉ + VÉRIFIÉ (09/08)** — logs bot 48 h = **0 `NOT tracked`**, compteurs écrits. **SUSPECT A FERMÉ** : pas de migration `discordId` (aucun membre actif non-tracké) |
 | **Zero Console Policy** | `SECURITY.md` / branche `feat/security-hardening-suite` | ✅ **FAIT (09/08)** — 433 `console.*` → `logger` (commits `4355d540` + `7dc0c01f`), 126/126 tests, build OK. Script utilitaire `.ps1` hors git |
+| **Fuites `user.name`** (~90 fichiers) → pseudo serveur | branche `fix/display-name-server-pseudo` | ✅ **FAIT (09/08, 4 commits : `d3517f6a` lot1 server actions, `e43f55f8` lot2 API/cron, `627f73f1` lot3 client, `2936f67b` lot4 God/calendrier/profil)** — `user.name` d'autres membres remplacé par `getDisplayName()`/`getGameDisplayName()` (pseudo serveur en priorité). Self/actor conservés. **~27 fichiers** · tsc/lint/tests/build OK |
+| Nav God : **blacklist géoguesser** + **firewall fantôme** | branche `feat/security-hardening-suite` | ✅ **FAIT (09/08)** — `9f012166` retrait de l'entrée fantôme « Chat Firewall » + câblage onglet GUESSER → whitelist géoguesser ; `0888a927` item sidebar direct « Blacklist Géoguesser » → `/god/mini-games?sub=GUESSER` |
+| **Évol 3 — fallback pseudo + tuto profil** | branche `fix/display-name-server-pseudo` | ✅ **FAIT (09/08, `b6820cf5`)** — toggle God **« Fallback Pseudo Manuel »** (PlatformConfig `ladderManualFallback`, déjà branché dans `verifyDofusPseudo`) : si la liaison Ankama est KO, les nouveaux ne sont plus bloqués et saisissent leur pseudo à la main (sécurisé par Zod). + bouton **« Revoir le tour »** dans le profil perso (`ProfileTourReplayButton` → `startTour("profile")`). Le tuto profil/dashboard existait déjà (contextualisé par `module`/`requiresPerm` + sync d'onglets) |
+| **Évol 2** (refonte Game Data, modale Monstre Spécial, missions ×8, footer en jeu, Génie d'Amakna, map signalée → notif God, ping roles, republier sans notif) | `evolution2.md` | ✅ **CLÔTURÉ (09/08, décision user)** — « tout est déjà fait », ne pas relancer |
 
 ---
 

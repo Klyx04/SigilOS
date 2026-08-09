@@ -104,12 +104,11 @@ export default async function DelegatesPage() {
                 </div>
             )}
 
-            <DelegatesManager initialDelegates={delegates} />
+            <DelegatesManager initialDelegates={delegates} initialGrants={brickGrants as any} />
 
             {/* D5 : PIM granulaire par brique */}
             <BrickGrantsManager
                 delegates={delegates.map((d) => ({ id: d.id, userId: d.userId, userName: d.userName }))}
-                initialGrants={brickGrants as any}
                 activeDelegateIds={activeDelegateIds}
             />
 

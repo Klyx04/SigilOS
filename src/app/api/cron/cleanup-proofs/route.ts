@@ -5,6 +5,7 @@ import { existsSync } from "fs";
 import path from "path";
 import { sendChannelMessage } from "@/server/discord";
 import { logger } from "@/lib/logger";
+import { getDisplayName } from "@/lib/display-name";
 
 // ---------------------------------------------------------------------------
 // CLEANUP: supprime les screenshots de preuve
@@ -163,8 +164,8 @@ export async function POST(request: NextRequest) {
                     const lenderDiscordId = await getDiscordId(loan.lender.userId);
                     const borrowerDiscordId = await getDiscordId(loan.borrower.userId);
 
-                    const lenderName = loan.lender.pseudoDofus || loan.lender.discordNickname || loan.lender.user.name || "Prêteur";
-                    const borrowerName = loan.borrower.pseudoDofus || loan.borrower.discordNickname || loan.borrower.user.name || "Emprunteur";
+                    const lenderName = getDisplayName(loan.lender) || "Prêteur";
+                    const borrowerName = getDisplayName(loan.borrower);
 
                     const mentions = [
                         lenderDiscordId ? `<@${lenderDiscordId}>` : lenderName,
@@ -244,7 +245,7 @@ export async function POST(request: NextRequest) {
                 // Discord ping notification
                 if (entry.guild.loansNotifyChannelId) {
                     const memberDiscordId = await getDiscordId(entry.profile.userId);
-                    const memberName = entry.profile.pseudoDofus || entry.profile.discordNickname || entry.profile.user.name || "Membre";
+                    const memberName = getDisplayName(entry.profile);
                     const mention = memberDiscordId ? `<@${memberDiscordId}>` : memberName;
                     const actionLabel = entry.action === "DEPOSIT" ? "Dépôt" : "Retrait";
 
@@ -339,8 +340,8 @@ export async function POST(request: NextRequest) {
 
                 // 3. Ping Discord optionnel (non-bloquant)
                 if (loan.guild.loansNotifyChannelId) {
-                    const lenderName = loan.lender.pseudoDofus || loan.lender.discordNickname || loan.lender.user.name || "Prêteur";
-                    const borrowerName = loan.borrower.pseudoDofus || loan.borrower.discordNickname || loan.borrower.user.name || "Emprunteur";
+                    const lenderName = getDisplayName(loan.lender) || "Prêteur";
+                    const borrowerName = getDisplayName(loan.borrower);
                     const lenderDiscordId = await getDiscordId(loan.lender.userId).catch(() => null);
                     const borrowerDiscordId = await getDiscordId(loan.borrower.userId).catch(() => null);
                     const mentions = [

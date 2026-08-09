@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 export type TourPhase =
     | "profile"
     | "dashboard"
+    | "dashboardBricks"
     | "admin"
     | "adminModules"
     | "adminSettings"
@@ -123,6 +124,56 @@ const DASHBOARD_STEPS: TourStep[] = [
         description: "Inscris-toi aux événements, sorties et runs organisés par le staff.",
         placement: "right",
         module: "calendar"
+    }
+];
+
+/**
+ * Tour DASHBOARD — visite des briques/widgets de la page d'accueil.
+ * Rejouable à tout moment via le bouton « Revoir le tour » (DashboardAdminTourButton).
+ * Cible les sections stables de la page dashboard (data-tour="dash-*").
+ */
+const DASHBOARD_BRICKS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="dash-stats"]',
+        title: "Vue d'ensemble",
+        description: "Les indicateurs clés de la guilde : membres en ligne, progression Dofus, événements et actualité du haut du classement.",
+        placement: "bottom"
+    },
+    {
+        target: '[data-tour="dash-events"]',
+        title: "Événements à venir",
+        description: "Les sorties, raids et événements planifiés. Inscris-toi pour ne rien manquer.",
+        placement: "top"
+    },
+    {
+        target: '[data-tour="dash-polls"]',
+        title: "Sondages",
+        description: "Donne ton avis sur les décisions de la guilde via les sondages actifs.",
+        placement: "top"
+    },
+    {
+        target: '[data-tour="dash-groups"]',
+        title: "Groupes & Quêtes",
+        description: "Rejoins des groupes pour les donjons et les quêtes, ou crée le tien.",
+        placement: "top"
+    },
+    {
+        target: '[data-tour="dash-gallery"]',
+        title: "Galerie Stuffs",
+        description: "Les derniers équipements partagés par les membres. Inspire-toi ou partage le tien.",
+        placement: "top"
+    },
+    {
+        target: '[data-tour="dash-almanax"]',
+        title: "Almanax",
+        description: "Le don du jour de l'Almanax et son bonus associé, mis à jour quotidiennement.",
+        placement: "top"
+    },
+    {
+        target: '[data-tour="dash-activity"]',
+        title: "Activité de la guilde",
+        description: "Le fil d'activité récent : validations, événements, nouveaux arrivants et actions de la guilde.",
+        placement: "top"
     }
 ];
 
@@ -502,6 +553,7 @@ export function TourProvider({
     const adminOnboardingSteps = applyFilters(ADMIN_ONBOARDING_STEPS);
     const adminModulesSteps = applyFilters(ADMIN_MODULES_STEPS);
     const dashboardSteps = applyFilters(DASHBOARD_STEPS);
+    const dashboardBricksSteps = applyFilters(DASHBOARD_BRICKS_STEPS);
     const adminSettingsSteps = applyFilters(ADMIN_SETTINGS_STEPS);
     const adminPermissionsSteps = applyFilters(ADMIN_PERMISSIONS_STEPS);
     const adminModulesMgmtSteps = applyFilters(ADMIN_MODULES_MGMT_STEPS);
@@ -516,6 +568,7 @@ export function TourProvider({
         switch (phase) {
             case "profile": return PROFILE_STEPS;
             case "dashboard": return dashboardSteps;
+            case "dashboardBricks": return dashboardBricksSteps;
             case "admin": return adminOnboardingSteps;
             case "adminModules": return adminModulesSteps;
             case "adminSettings": return adminSettingsSteps;
@@ -640,6 +693,7 @@ export function TourProvider({
                 break;
             case "adminModules":
             case "dashboard":
+            case "dashboardBricks":
                 router.push(`/dashboard/${guildId}${phase === "dashboard" ? "?tour=2" : ""}`);
                 break;
             case "profile":
@@ -688,7 +742,8 @@ export function TourProvider({
             return;
         }
         // Toute phase admin (onboarding, modules, module dédié) → terminer
-        if (tourPhase && tourPhase.startsWith("admin")) {
+        // La phase dashboardBricks est aussi non-bloquante et rejouable → terminer également
+        if (tourPhase && (tourPhase.startsWith("admin") || tourPhase === "dashboardBricks")) {
             completeTour();
         } else if (tourPhase === "profile") {
             setTourPhase("dashboard");
@@ -706,7 +761,7 @@ export function TourProvider({
             setCurrentStep(prev => prev - 1);
             return;
         }
-        if (tourPhase && tourPhase.startsWith("admin")) {
+        if (tourPhase && (tourPhase.startsWith("admin") || tourPhase === "dashboardBricks")) {
             return;
         } else if (tourPhase === "dashboard") {
             setTourPhase("profile");
@@ -725,7 +780,7 @@ export function TourProvider({
         // Les tours admin sont rejouables : on mémorise uniquement la progression
         // (pas de flag "done" définitif) pour relancer l'auto-start à la prochaine visite
         // si l'admin ne l'a pas terminé. Le bouton "Revoir" permet de relancer à tout moment.
-        if (!tourPhase || !tourPhase.startsWith("admin")) {
+        if (!tourPhase || (tourPhase !== "dashboardBricks" && !tourPhase.startsWith("admin"))) {
             localStorage.setItem(`sigilos-tour-done-${guildId}`, "true");
         }
         localStorage.removeItem(`sigilos-tour-step-${guildId}`);

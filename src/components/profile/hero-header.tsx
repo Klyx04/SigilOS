@@ -118,12 +118,12 @@ export function HeroHeader({
     const TierIcon = tierConfig?.icon || Star;
 
     return (
-        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 backdrop-blur-2xl shadow-2xl">
             {/* Background Gradient */}
             <div
-                className="absolute inset-0 opacity-30"
+                className="absolute inset-0 opacity-25 pointer-events-none"
                 style={{
-                    background: `linear-gradient(135deg, ${roleHexColor}15 0%, transparent 50%, ${roleHexColor}10 100%)`
+                    background: `radial-gradient(circle at 10% 20%, ${roleHexColor}30 0%, transparent 60%)`
                 }}
             />
 

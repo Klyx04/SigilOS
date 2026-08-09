@@ -20,12 +20,12 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
         redirect("/login");
     }
 
-    // Module guard
-    if (!await isModuleEnabled(guildId, "calendar")) {
+    const ctx = await getUserContext(guildId);
+
+    // Module guard (admins bypass module toggle)
+    if (!ctx.isAdmin && !(await isModuleEnabled(guildId, "calendar"))) {
         redirect(`/dashboard/${guildId}`);
     }
-
-    const ctx = await getUserContext(guildId);
 
     // Check view permission
     if (!ctx.canViewCalendar) {

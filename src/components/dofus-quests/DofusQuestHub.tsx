@@ -152,10 +152,12 @@ export function DofusQuestHub({
                 {activeTab !== "menu" ? (
                     <button
                         onClick={() => handleTabChange("menu")}
-                        className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors group"
+                        className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-white/10 bg-zinc-900/90 hover:bg-zinc-800 hover:border-emerald-500/40 text-xs font-black uppercase tracking-[0.2em] text-zinc-200 hover:text-white transition-all shadow-md group backdrop-blur-md cursor-pointer"
                     >
-                        <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        Retour au menu
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <ChevronLeft className="w-4 h-4 text-emerald-400 group-hover:-translate-x-0.5 transition-transform" />
+                        </div>
+                        <span>Retour au menu Quêtes</span>
                     </button>
                 ) : <div />}
                 <QuestFeedbackButton guildId={guildId} sourcePage="hub-dofus" compact />
@@ -370,6 +372,16 @@ export function DofusQuestHub({
                         {/* ══ VUE DOFUS — grille + filtres ══ */}
                         {activeTab === "dofus" && (
                             <div className="flex flex-col gap-6">
+                                {/* Banner explicatif */}
+                                <div className="flex items-center gap-3 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 backdrop-blur-md shadow-sm">
+                                    <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                                        <Sparkles className="w-4 h-4 text-indigo-400" />
+                                    </div>
+                                    <div className="text-xs leading-relaxed">
+                                        <strong className="text-white font-bold">💡 Suivi individuel des Dofus :</strong> Suivez l&apos;avancement quête par quête de chaque Dofus. Votre progression est enregistrée automatiquement et alimente la vue synthétique sur votre profil.
+                                    </div>
+                                </div>
+
                                 {/* Filtres */}
                                 <div className="flex flex-wrap items-center gap-4">
                                     <div className="relative group">

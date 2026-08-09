@@ -87,21 +87,30 @@ export function ClassDisplay({
     };
 
     return (
-        <div className="p-4 bg-zinc-900/40 backdrop-blur-md rounded-xl border border-white/10 transition-all hover:border-white/20 group">
+        <div className="p-6 bg-zinc-950/80 backdrop-blur-md rounded-3xl border border-white/10 transition-all hover:border-amber-500/30 shadow-2xl group space-y-4">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
-                        Identité de Combat
-                    </h3>
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                            <UserCheck className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-black text-white uppercase tracking-wider">
+                                Identité de Combat
+                            </h3>
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Pseudo Dofus officiel & Classe</p>
+                        </div>
+                    </div>
                     {!readOnly && (
                         <DialogTrigger asChild>
                             <Button 
                                 variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-all duration-300"
+                                size="sm" 
+                                className="h-9 px-3 text-xs font-black uppercase tracking-wider text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20 rounded-xl transition-all cursor-pointer"
                                 onClick={handleOpen}
                             >
-                                <Pencil className="w-4 h-4" strokeWidth={2.5} />
+                                <Pencil className="w-3.5 h-3.5 mr-1.5" strokeWidth={2.5} />
+                                Modifier
                             </Button>
                         </DialogTrigger>
                     )}
@@ -109,35 +118,34 @@ export function ClassDisplay({
 
                 {/* Main Class Display - Premium Card COMPACT */}
                 {mainClassData ? (
-                    <div className="relative overflow-hidden rounded-lg border border-white/5 bg-gradient-to-br from-zinc-900 to-black p-4 mb-3 group-hover:border-white/10 transition-colors">
-                        {/* Background Glow - Reduced blur/size */}
-                        <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full blur-[50px] opacity-15 pointer-events-none"
+                    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/60 p-5 group-hover:border-amber-500/40 transition-colors">
+                        {/* Background Glow */}
+                        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-[40px] opacity-25 pointer-events-none"
                             style={{ backgroundColor: mainClassData.color }}
                         />
 
                         <div className="relative flex items-center gap-4">
-                            <div className="relative flex items-center justify-center w-14 h-14 rounded-xl bg-zinc-950 border border-white/10 shadow-lg shrink-0">
-                                <ClassIcon classId={mainClassData.id} size={36} className="drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
-                                <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
+                            <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-900 border border-white/10 shadow-lg shrink-0" style={{ borderColor: `${mainClassData.color}50` }}>
+                                <ClassIcon classId={mainClassData.id} size={38} className="drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
                             </div>
 
-                            <div className="flex-1 space-y-1.5">
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest shrink-0">Pseudo en jeu</span>
+                            <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest shrink-0">Pseudo Dofus :</span>
                                     {pseudoDofus ? (
-                                        <span className="text-lg font-black text-amber-500 italic tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                                        <span className="text-lg font-black text-amber-400 tracking-wide drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
                                             {pseudoDofus}
                                         </span>
                                     ) : (
-                                        <span className="text-xs font-black text-amber-500/80 animate-pulse uppercase tracking-widest">
+                                        <span className="text-xs font-black text-amber-400/80 animate-pulse uppercase tracking-widest">
                                             Non renseigné
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest shrink-0">Classe principale</span>
-                                    <span className="text-base font-black text-white tracking-wide" style={{ textShadow: `0 0 15px ${mainClassData.color}50` }}>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest shrink-0">Classe principale :</span>
+                                    <span className="text-sm font-black text-white uppercase tracking-wider" style={{ color: mainClassData.color }}>
                                         {mainClassData.name}
                                     </span>
                                 </div>

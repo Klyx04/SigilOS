@@ -526,6 +526,9 @@ model UserProfile {
   notificationPrefs          Json?
   hasSeenWelcome             Boolean                    @default(false)
   introduction               String?
+  objectifs                  String?
+  preferredActivities        Json?
+  discordContact             String?
   isInGame                   Boolean                    @default(false)
   lastSeen                   DateTime?                  @default(now())
   showPresence               Boolean                    @default(true)

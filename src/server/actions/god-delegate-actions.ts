@@ -8,7 +8,7 @@ import { logger } from "@/lib/logger";
 import { GOD_SCOPES } from "@/lib/god-scopes";
 import { isSuperAdmin, requireGodAccess } from "./super-admin-actions";
 import { createGodAuditLog } from "./audit-actions";
-import { publishGodRevoked } from "@/lib/socket-r4";
+import { publishGodRevoked, publishGodAccessChanged } from "@/lib/socket-r4";
 
 // ============================================================================
 // CHANTIER A — Gestion des sub-gods (GodDelegate)
@@ -306,8 +306,8 @@ const GrantBrickSchema = z.object({
     guildId: z.string().optional().nullable(),
     // Durée en minutes (min 5, max 90 jours)
     durationMinutes: z.number().int().min(5).max(90 * 24 * 60),
-    // Justification OBLIGATOIRE (sécurité : toute élévation doit être motivée)
-    reason: z.string().min(3).max(500),
+    // Justification OPTIONNELLE (auditée si renseignée)
+    reason: z.string().max(500).optional().default(""),
 });
 
 /**
@@ -357,6 +357,13 @@ export async function grantBrickAccess(input: z.infer<typeof GrantBrickSchema>):
             data: { userId: delegate.userId, action: "GRANT", targetId: grant.id, metadata: { brickId: parsed.brickId, expiresAt: expiresAt.toISOString(), reason: parsed.reason } },
         }).catch(() => {});
 
+        // R4 — Accès accordé → le sous-god rafraîchit son UI en LIVE (nouvelle brique visible).
+        await publishGodAccessChanged({
+            userId: delegate.userId,
+            delegateId: delegate.id,
+            timestamp: new Date().toISOString(),
+        });
+
         revalidatePath("/god/delegates");
         return { success: true };
     } catch (e: any) {
@@ -402,11 +409,9 @@ export async function revokeBrickAccess(grantId: string): Promise<{ success: boo
             data: { userId: grant.userId, action: "REVOKE", targetId: grantId, metadata: { brickId: grant.brickId } },
         }).catch(() => {});
 
-        // R4 — Révocation LIVE d'une brique : le sous-god perdra cet accès immédiatement.
-        await publishGodRevoked({
+        // R4 — Accès modifié : le sous-god rafraîchit son UI en LIVE (perd la brique, SANS logout).
+        await publishGodAccessChanged({
             userId: grant.userId,
-            reason: "BRICK_REVOKED",
-            brickId: grant.brickId,
             delegateId: grant.delegateId,
             timestamp: new Date().toISOString(),
         });
@@ -427,7 +432,7 @@ const SyncBrickSchema = z.object({
     brickIds: z.array(z.string()).min(0),
     // Durée appliquée aux grants existants conservés (non recréés), en minutes.
     durationMinutes: z.number().int().min(5).max(90 * 24 * 60).optional(),
-    reason: z.string().min(3).max(500),
+    reason: z.string().max(500).optional().default(""),
 });
 
 /**
@@ -525,12 +530,11 @@ export async function syncBrickAccessForDelegate(
             });
         }
 
-        // R4 — Si des briques ont été retirées, prévient le sous-god en LIVE
-        // pour qu'il perde les accès retirés immédiatement (pas au prochain refresh).
-        if (toRevoke.length > 0) {
-            await publishGodRevoked({
+        // R4 — Accès modifié (briques ajoutées/retirées/prolongées) → le sous-god
+        // rafraîchit son UI en LIVE (les onglets apparaissent/disparaissent SANS logout).
+        if (toRevoke.length > 0 || toCreate.length > 0 || parsed.durationMinutes) {
+            await publishGodAccessChanged({
                 userId: delegate.userId,
-                reason: "SCOPES_CHANGED",
                 delegateId: delegate.id,
                 timestamp: new Date().toISOString(),
             });

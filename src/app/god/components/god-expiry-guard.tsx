@@ -105,6 +105,13 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
                 setTimeout(() => router.replace("/"), 2500);
             });
 
+            // god:access-changed — briques accessibles modifiées (ajout/retrait/prolongation)
+            // → rafraîchit l'UI (sidebar/onglets) en LIVE, SANS déconnexion.
+            socket.on("god:access-changed", () => {
+                if (redirectedRef.current) return;
+                router.refresh();
+            });
+
             socket.on("connect_error", () => {
                 // Fail-closed silencieux : le polling continue de protéger.
             });

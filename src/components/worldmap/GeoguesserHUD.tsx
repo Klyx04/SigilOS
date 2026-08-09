@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock, Trophy, Flag, Mic } from 'lucide-react';
+import { Clock, Trophy, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GeoguesserHUDProps {
@@ -11,12 +11,10 @@ interface GeoguesserHUDProps {
     score: number;
     gamePhase: 'playing' | 'result' | 'summary';
     spectators?: any[];
-    voiceUsers?: any[];
     onReportMap?: () => void;
 }
 
-export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gamePhase, spectators = [], voiceUsers = [], onReportMap }: GeoguesserHUDProps) {
-    const voiceUserIds = voiceUsers.map(u => u.userId);
+export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gamePhase, spectators = [], onReportMap }: GeoguesserHUDProps) {
     return (
         <div className="flex items-center justify-center gap-2 sm:gap-4 animate-in slide-in-from-top-10 duration-700 pointer-events-auto">
             {/* Spectators - Floating on the left */}
@@ -26,11 +24,6 @@ export default function GeoguesserHUD({ round, maxRounds, timeLeft, score, gameP
                         {spectators.slice(0, 3).map(s => (
                              <div key={s.userId || s.id} className="w-6 h-6 rounded-lg border border-black p-0.5 bg-zinc-900 overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-help relative" title={s.userName}>
                                  <img src={s.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${s.userName}`} className="w-full h-full object-cover rounded-md" alt="" />
-                                 {voiceUserIds.includes(s.userId) && (
-                                     <div className="absolute -top-0.5 -right-0.5 z-10 p-0.5 bg-emerald-500 rounded border border-zinc-950 shadow-sm">
-                                         <Mic size={6} className="text-white fill-white/20" />
-                                     </div>
-                                 )}
                              </div>
                         ))}
                         {spectators.length > 3 && (

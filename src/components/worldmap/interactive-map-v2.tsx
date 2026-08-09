@@ -31,8 +31,6 @@ import { io, Socket } from "socket.io-client";
 import { buildWsUrl } from "@/lib/socket-utils";
 import { cn } from "@/lib/utils";
 import { playSoundEffect } from "@/lib/sounds";
-import { useDiscordVoice } from '@/hooks/use-discord-voice';
-import { DiscordVoiceOverlay } from '@/components/shared/DiscordVoiceOverlay';
 
 const LeafletMapCore = dynamic<any>(() => import('./leaflet-map-core'), {
     ssr: false,
@@ -181,22 +179,6 @@ export default function InteractiveMapV2({
 
     const [socket, setSocket] = useState<Socket | null>(null);
     const reportedMapsRef = useRef<Set<number>>(new Set());
-
-    // Discord Voice Monitoring
-    const { voiceUsers } = useDiscordVoice(guildId, socket);
-    const [showVoiceOverlay, setShowVoiceOverlay] = useState(true);
-
-    // Filter voice users to only show active participants
-    const gameParticipantIds = useMemo(() => 
-        activeSession?.participants?.map((p: any) => p.userId).filter(Boolean) as string[] || [],
-        [activeSession?.participants]
-    );
-    const filteredVoiceUsers = useMemo(() => 
-        voiceUsers.filter(u => gameParticipantIds.includes(u.userId)),
-        [voiceUsers, gameParticipantIds]
-    );
-
-    const voiceUserIds = filteredVoiceUsers.map(u => u.userId);
 
     
     // Auto-sync state if initial props change (essential for embedded usage like Dungeon Finder)
@@ -1538,11 +1520,6 @@ export default function InteractiveMapV2({
                                                         <div className="flex flex-col">
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-white text-[11px] font-black uppercase italic tracking-wider">{p.userName}</span>
-                                                                {voiceUserIds.includes(p.userId) && (
-                                                                    <div className="p-0.5 bg-emerald-500/20 rounded border border-emerald-500/30">
-                                                                        <Mic size={8} className="text-emerald-500" />
-                                                                    </div>
-                                                                )}
                                                                 {isMe && <span className="px-1 py-0.5 rounded bg-emerald-500 text-[7px] text-black font-black uppercase italic">Toi</span>}
                                                             </div>
                                                             {!p.hasGuessed ? (
@@ -1747,7 +1724,6 @@ export default function InteractiveMapV2({
                                     score={score}
                                     gamePhase={gamePhase}
                                     spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
-                                    voiceUsers={filteredVoiceUsers}
                                     onReportMap={handleReportMap}
                                 />,
                                 document.getElementById('sigil-geoguesser-header-hud')!
@@ -1761,7 +1737,6 @@ export default function InteractiveMapV2({
                                     score={score}
                                     gamePhase={gamePhase}
                                     spectators={activeSession.participants?.filter((p: any) => p.isSpectator)}
-                                    voiceUsers={filteredVoiceUsers}
                                     onReportMap={handleReportMap}
                                 />
                             </div>
@@ -2846,11 +2821,6 @@ export default function InteractiveMapV2({
                                             <div className="flex flex-col">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-white font-black text-sm uppercase italic tracking-tight">{p.userName}</span>
-                                                    {voiceUserIds.includes(p.userId) && (
-                                                        <div className="p-1 bg-emerald-500 rounded-md border border-zinc-950 shadow-lg">
-                                                            <Mic size={10} className="text-white fill-white/20" />
-                                                        </div>
-                                                    )}
                                                 </div>
                                                 {p.userId === activeSession.hostId && (
                                                     <span className="text-emerald-500 text-[9px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
@@ -3093,14 +3063,6 @@ export default function InteractiveMapV2({
                     )}
                 </AnimatePresence>
             </div>
-            {showVoiceOverlay && (
-                <DiscordVoiceOverlay 
-                    users={voiceUsers} 
-                    guildId={guildId}
-                    gamePlayerIds={gameParticipantIds} 
-                    currentUserId={(sessionData?.user as any)?.discordId}
-                />
-            )}
         </div>
     );
 }

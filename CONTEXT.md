@@ -236,7 +236,7 @@
 
 ---
 
-## 🧭 Suivi de chantier courant (CSP nonce-based) — IMPLÉMENTÉ, poussé le 09/08/2026
+## 🧭 Suivi de chantier courant (CSP nonce-based) — DÉPLOYÉ le 09/08/2026 + WS auth activée en beta
 
 > **Branche** : `feat/csp-nonce-based` → PR vers `dev` (lien : `https://github.com/Klyx04/SigilOS/pull/new/feat/csp-nonce-based`). **Commit : `918fa308`**.
 > **Mémo** : `src/temp/memo-2026-08-09-csp-nonce.md` (gitignoré).
@@ -247,7 +247,9 @@
 - ✅ **`src/app/api/csp-report/route.ts`** : endpoint de rapport — validation **Zod**, borne taille 64 Ko → 413, rate-limit IP 60/min → 429, log `logger` (jamais console), retour 204.
 - ✅ **`tests/security/csp.test.ts`** : **16 tests** (pas d'unsafe-inline, présence nonce, mode report/enforce, unsafe-eval dev-only, conservation Sentry/WS/fonts/img CDNs).
 - ✅ **Vérifs** : `test:run` 126/126 ✅ · `tsc --noEmit` 0 ✅ · lint 0 erreur ✅ · pre-commit (secrets, Prisma, lint, tsc) ✅.
-- 🔜 **À faire** : ouvrir la PR vers `dev`, déployer en beta, **confirmer aucune violation bloquante** via `/api/csp-report`, puis **`CSP_ENFORCE=true`** sur beta → prod.
+- ✅ **Déployé sur beta** : CSP Report-Only active (sans blocage), endpoint `/api/csp-report` recevant les violations.
+- ✅ **`WS_AUTH_ENABLED=true` activé sur beta (09/08)** : l'auth WebSocket (F-08) — décodage session + appartenance guilde — est active. **Reste** : tester reconnexion/temps réel sur beta puis activer en prod.
+- 🔜 **À faire** : **confirmer aucune violation bloquante** via `/api/csp-report`, puis **`CSP_ENFORCE=true`** sur beta → prod.
 
 ---
 
@@ -256,13 +258,13 @@
 | Chantier | Réf / fichier | État |
 |----------|---------------|------|
 | Rotation secret `GOD_ROUTE` (fuité en git) | `src/temp/evolution4.md` | ⚠️ À faire |
-| CSP nonce-based (`unsafe-inline`) | `src/temp/memo-2026-08-09-csp-nonce.md` | ✅ **Implémenté** (commit `918fa308`, à déployer) |
-| Clé de chiffrement de secours dev | `SECURITY.md` | Reste |
+| CSP nonce-based (`unsafe-inline`) | `src/temp/memo-2026-08-09-csp-nonce.md` | ✅ **Déployé** (commit `918fa308` — confirmer violations puis `CSP_ENFORCE=true`) |
+| Clé de chiffrement de secours dev | `SECURITY.md` | ✅ **Fermé** (F-09, retirée dans `encryption.ts`) |
 | Cache permissions 60s (F-13) + fallback RBAC (F-01) | `SECURITY.md` | Reste |
 | Caddy rate-limit (F-14) | `SECURITY.md` | Reste |
 | proxy-image limites/footprint (F-06) | `SECURITY.md` | Reste |
 | Sanitisation HTML centralisée (F-11) | `SECURITY.md` | Reste (lié à dompurify) |
-| Activer `WS_AUTH_ENABLED` en beta | `SECURITY.md` | À activer |
+| Activer `WS_AUTH_ENABLED` en beta | `SECURITY.md` | ✅ **Activé en beta** (09/08 — tester reconnexion puis prod) |
 | Évol 4 restant (B3-B5 overview, A4 purge, Évo 2/3) | `CONTEXT.md` / `evolution4.md` | ⚠️ |
 | **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚠️ Suite |
 | Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ⚠️ |
@@ -275,15 +277,14 @@
 
 **État au 01/08/2026 :** F-02, F-06/F-03, F-04, F-01, F-12, F-23/F-24, F-19/F-27/F-26/F-18/F-22 corrigés. **Session d'après-audit (01/08) ajoutée :** F-08 (auth WS), F-05 (chiffrement OAuth), F-04 (fail-closed + IP fiable), F-02 (expiration + clé dédiée), F-07 (JWT 8h), F-03 (SSRF image-downloader). **Rapports centralisés :** `docs/audits/` (hors git). Reste :
 
-- **1. CSP nonce-based** (remplacer `unsafe-inline`) — chantier séparé (Report-Only d'abord).
-- **2. Clé de chiffrement de secours** en dev (`encryption.ts` fallback).
-- **3. Cache permissions 60s** (F-13 — réduire TTL).
-- **4. Caddy rate-limit** (F-14 — au niveau proxy).
-- **5. F-01 partiel** : fallback RBAC `guards.ts` (l.96-117, 229-244) + cache « positif seulement » à consolider.
-- **6. F-06 partiel** : proxy-image sans limite de taille ni magic bytes (à compléter).
-- **7. F-11** : sanitisation HTML centralisée.
+> ✅ **Résolu (09/08)** : **CSP nonce-based déployée** (Report-Only, commit `918fa308`) · **clé de chiffrement de secours retirée** (F-09) · **`WS_AUTH_ENABLED=true` activé en beta** (F-08, à tester puis activer en prod).
 
-**Déploiement :** F-08 (auth WS) est fourni avec kill-switch `WS_AUTH_ENABLED=false` → **activer en beta d'abord**, tester reconnexion, puis prod.
+**Reste :**
+- **1. Cache permissions 60s** (F-13 — réduire TTL).
+- **2. Caddy rate-limit** (F-14 — au niveau proxy).
+- **3. F-01 partiel** : fallback RBAC `guards.ts` (l.96-117, 229-244) + cache « positif seulement » à consolider.
+- **4. F-06 partiel** : proxy-image sans limite de taille ni magic bytes (à compléter).
+- **5. F-11** : sanitisation HTML centralisée.
 
 **Infra faite (01/08) :** I-03, I-04, I-05, I-10, I-11, I-12, I-02, I-08. **Faux positifs écartés :** I-01, I-17. **Reste infra :** I-06 (unifier Discord), I-07 (séparer Redis), I-15 (circuit breaker). **Gartic/Skribbl supprimés du code** (dashboard + code mort retiré).
 

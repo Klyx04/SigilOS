@@ -39,12 +39,12 @@
 
 ## 🚧 Chantiers ouverts (à traiter — priorité du plus critique au moins)
 
-1. **Authentification WebSocket (Socket.IO)** — le canal temps réel n'a aucune vérification d'identité / appartenance guilde. Vecteur : `guildId` arbitraire dans le handshake. **Priorité 1.**
+1. **Authentification WebSocket (Socket.IO)** — ✅ **Activée en beta (09/08, `WS_AUTH_ENABLED=true`)** — décodage session + appartenance guilde à chaque connexion (F-08). **Reste** : tester reconnexion/temps réel sur beta puis activer en prod.
 2. **Chiffrement des tokens OAuth (Discord)** — `prisma.account.updateMany()` n'applique pas les hooks de chiffrement → tokens potentiellement en clair.
 3. **SSRF dans `image-downloader.ts`** (outil God) — accepter `http://169.254.169.254`, IP internes.
 4. **Durée du JWT** — 7 jours actuellement → cible 8h (NIST SP 800-63B).
-5. **CSP nonce-based** — ✅ **Implémenté (09/08, commit `918fa308`)** : nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, Report-Only par défaut (`CSP_ENFORCE=true` pour enforce), endpoint `/api/csp-report` + 16 tests. **À déployer en beta** puis activer enforce après confirmation d'aucune violation bloquante.
-6. **Clé de chiffrement de secours** (`encryption.ts`) — fallback dev en dur à supprimer.
+5. **CSP nonce-based** — ✅ **DÉPLOYÉ (09/08, commit `918fa308`)** : nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, Report-Only par défaut, endpoint `/api/csp-report` + 16 tests. **Reste** : confirmer aucune violation bloquante sur beta puis `CSP_ENFORCE=true`.
+6. ~~**Clé de chiffrement de secours dev**~~ — ✅ **Déjà retirée** (F-09, commit `de58c7b4` 02/08) : `src/lib/encryption.ts` fail-closed dans TOUS les environnements. **Chantier fermé**.
 7. **Cache permissions 60s** — réduire la fenêtre de révocation.
 8. **Grafana** — vérifier que `GRAFANA_PASSWORD` est défini (sinon admin par défaut).
 9. **Caddy** — ajouter un rate-limit au niveau proxy.

@@ -598,6 +598,7 @@ export function ProfileBentoGrid({
                                 altPseudos={localProfile.altPseudos as any || []}
                                 onSave={handleAltPseudosSave}
                                 readOnly={!canEdit}
+                                guildId={guildId}
                             />
                         </div>
                     )}

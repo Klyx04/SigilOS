@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Users, Plus, X, Save, Edit2, AlertCircle, Copy, Shield, Trash2, Check, Sparkles, Info } from "lucide-react";
+import { Users, Plus, X, Save, Edit2, AlertCircle, Copy, Shield, Trash2, Check, Sparkles, Info, Search, Loader2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { DOFUS_CLASSES, getClass, ALIGNMENTS, ORDERS, getAlignment, getOrder } from "@/lib/dofus-assets";
 import NextImage from "next/image";
+import { verifyDofusPseudo, isLadderManualFallbackEnabled } from "@/server/actions/profile-actions";
 
 export type Mule = {
     id?: string;
@@ -24,6 +25,7 @@ interface AltPseudosProps {
     onSave?: (pseudos: Mule[]) => Promise<any>;
     readOnly?: boolean;
     maxPseudos?: number;
+    guildId?: string;
 }
 
 export function AltPseudos({
@@ -31,6 +33,7 @@ export function AltPseudos({
     onSave,
     readOnly = false,
     maxPseudos = 10,
+    guildId,
 }: AltPseudosProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [localPseudos, setLocalPseudos] = useState<Mule[]>([]);
@@ -41,6 +44,19 @@ export function AltPseudos({
     const [newLevel, setNewLevel] = useState<string>("200");
     const [newAlignment, setNewAlignment] = useState<string>("neutre");
     const [newOrder, setNewOrder] = useState<string | null>(null);
+
+    // Vérification du pseudo (loupe) + fallback God : même logique que l'identité.
+    const [newPseudoVerified, setNewPseudoVerified] = useState(false);
+    const [isVerifyingMule, setIsVerifyingMule] = useState(false);
+    const [manualFallback, setManualFallback] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        isLadderManualFallbackEnabled().then((enabled) => {
+            if (active) setManualFallback(enabled);
+        });
+        return () => { active = false; };
+    }, []);
 
     // Edit tracking state
     const [editingMuleId, setEditingMuleId] = useState<string | null>(null);
@@ -82,6 +98,28 @@ export function AltPseudos({
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setNewPseudo(formatPseudo(e.target.value));
+        setNewPseudoVerified(false);
+    };
+
+    const handleVerifyMule = async () => {
+        const trimmed = newPseudo.trim();
+        if (!trimmed || trimmed.length < 3 || !guildId) return;
+        setIsVerifyingMule(true);
+        try {
+            const res = await verifyDofusPseudo(trimmed, guildId);
+            if (res.success) {
+                setNewPseudoVerified(true);
+                toast.success("Pseudo vérifié sur le ladder Ankama");
+            } else {
+                setNewPseudoVerified(false);
+                toast.error(res.error || "Pseudo introuvable sur le ladder Ankama");
+            }
+        } catch {
+            setNewPseudoVerified(false);
+            toast.error("Impossible de vérifier le pseudo (service indisponible).");
+        } finally {
+            setIsVerifyingMule(false);
+        }
     };
 
     const validatePseudo = (pseudo: string): { valid: boolean; error?: string } => {
@@ -94,6 +132,7 @@ export function AltPseudos({
     const handleStartEditMule = (mule: Mule) => {
         setEditingMuleId(mule.id || null);
         setNewPseudo(mule.pseudo);
+        setNewPseudoVerified(true); // pseudo déjà validé à l'ajout ; re-saisie → reset via handleInputChange
         setNewClass(mule.classe || "cra");
         setNewLevel(mule.level?.toString() || "200");
         setNewAlignment(mule.alignment || "neutre");
@@ -111,6 +150,7 @@ export function AltPseudos({
     const handleCancelFormEdit = () => {
         setEditingMuleId(null);
         setNewPseudo("");
+        setNewPseudoVerified(false);
         setNewClass("cra");
         setNewLevel("200");
         setNewAlignment("neutre");
@@ -124,6 +164,12 @@ export function AltPseudos({
         const validation = validatePseudo(trimmed);
         if (!validation.valid) {
             toast.error(validation.error);
+            return;
+        }
+
+        // Vérif « loupe » requise (sauf si le fallback manuel God est actif).
+        if (!newPseudoVerified && !manualFallback) {
+            toast.error("Veuillez vérifier ce pseudo avec la loupe avant de l'ajouter.");
             return;
         }
 
@@ -187,6 +233,11 @@ export function AltPseudos({
             // If there's content left in the input, auto-commit it first if valid
             const trimmed = newPseudo.trim();
             if (trimmed && !editingMuleId) {
+                if (!newPseudoVerified && !manualFallback) {
+                    toast.error("Veuillez vérifier ce pseudo avec la loupe avant d'enregistrer.");
+                    setIsSubmitting(false);
+                    return;
+                }
                 const validation = validatePseudo(trimmed);
                 if (validation.valid && !localPseudos.some(p => p.pseudo.toLowerCase() === trimmed.toLowerCase()) && localPseudos.length < maxPseudos) {
                     let lvl = parseInt(newLevel, 10);
@@ -484,17 +535,53 @@ export function AltPseudos({
                                 <div className="flex flex-col sm:flex-row gap-4 items-end">
                                     <div className="grid gap-1.5 flex-[2] w-full relative">
                                         <label className="text-[11px] text-zinc-400 font-black uppercase tracking-wider ml-1">Pseudo</label>
-                                        <Input
-                                            value={newPseudo}
-                                            onChange={handleInputChange}
-                                            onKeyDown={handleKeyDown}
-                                            placeholder="Ex: Darksasuke"
-                                            className="bg-zinc-900/80 border-white/10 h-10 pl-10 focus-visible:ring-indigo-500/50 font-medium"
-                                            maxLength={20}
-                                        />
-                                        <div className="absolute left-3 top-[32px] text-zinc-500 text-sm font-mono pointer-events-none">
-                                            /w
+                                        <div className="flex gap-2 items-center">
+                                            <div className="relative flex-1">
+                                                <Input
+                                                    value={newPseudo}
+                                                    onChange={handleInputChange}
+                                                    onKeyDown={handleKeyDown}
+                                                    placeholder="Ex: Darksasuke"
+                                                    className={cn(
+                                                        "bg-zinc-900/80 border-white/10 h-10 pl-10 focus-visible:ring-indigo-500/50 font-medium",
+                                                        newPseudoVerified && "border-emerald-500/50"
+                                                    )}
+                                                    maxLength={20}
+                                                />
+                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-mono pointer-events-none">
+                                                    /w
+                                                </div>
+                                                {newPseudoVerified && (
+                                                    <UserCheck className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                                                )}
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={handleVerifyMule}
+                                                disabled={!newPseudo.trim() || isVerifyingMule || newPseudo.trim().length < 3}
+                                                className={cn(
+                                                    "h-10 w-10 shrink-0 bg-zinc-900/80 border-white/10 px-0",
+                                                    newPseudoVerified && "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
+                                                )}
+                                                title="Vérifier le pseudo sur le ladder Ankama"
+                                            >
+                                                {isVerifyingMule ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                            </Button>
                                         </div>
+                                        <p className="text-[10px] leading-relaxed text-zinc-500 ml-1">
+                                            {newPseudoVerified ? (
+                                                <span className="text-emerald-500 font-bold flex items-center gap-1.5">
+                                                    <UserCheck className="w-3 h-3" /> Pseudo validé sur le ladder Ankama.
+                                                </span>
+                                            ) : manualFallback ? (
+                                                <span className="text-amber-400/90 font-semibold">
+                                                    Saisie manuelle autorisée (fallback actif) — vérification Ankama désactivée.
+                                                </span>
+                                            ) : (
+                                                <span>Vérification requise : cliquez sur la loupe <Search className="inline w-3 h-3 mb-0.5" /> pour valider le pseudo avant de l'ajouter.</span>
+                                            )}
+                                        </p>
                                     </div>
 
                                     <div className="grid gap-1.5 w-full sm:w-28">

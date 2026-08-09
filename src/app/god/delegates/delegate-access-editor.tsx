@@ -13,6 +13,15 @@ import { cn } from "@/lib/utils";
 import { Timer } from "lucide-react";
 import type { BrickGrantView } from "./types";
 
+const SCOPE_LABELS: Record<string, string> = {
+    guilds: "Guildes (whitelist)",
+    "game-data": "Données de Jeu",
+    users: "Tickets (support)",
+    logs: "Logs",
+    news: "Docs",
+    maintenance: "Maintenance",
+};
+
 interface DelegateAccessEditorProps {
     delegateId: string;
     delegateName: string | null;
@@ -41,13 +50,14 @@ export function DelegateAccessEditor({ delegateId, delegateName, activeGrants, o
         return Math.max(5, Math.round(durationValue * mult));
     }, [durationValue, durationUnit]);
 
-    // Toutes les briques "sous-god" exploitables (union des scopes utilisables)
-    const allSubgodBricks = useMemo(() => {
-        const ids = new Set<string>();
-        for (const s of SUBGOD_USABLE_SCOPES) {
-            for (const id of SCOPE_TO_BRICKS[s] || []) ids.add(id);
-        }
-        return GOD_BRICKS.filter((b) => ids.has(b.id));
+    // Briques "sous-god" exploitables, GROUPÉES PAR SCOPE (clarté).
+    const bricksByScope = useMemo(() => {
+        return SUBGOD_USABLE_SCOPES
+            .map((s) => ({
+                scope: s,
+                bricks: GOD_BRICKS.filter((b) => (SCOPE_TO_BRICKS[s] || []).includes(b.id)),
+            }))
+            .filter((g) => g.bricks.length > 0);
     }, []);
 
     const toggleBrick = (brickId: string) => {
@@ -69,22 +79,29 @@ export function DelegateAccessEditor({ delegateId, delegateName, activeGrants, o
     return (
         <div className="space-y-4">
 
-            <div className="space-y-1.5">
+            <div className="space-y-3">
                 <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Briques (coche celles à accorder)</div>
-                <div className="grid grid-cols-1 gap-1.5">
-                    {allSubgodBricks.map((b) => {
-                        const on = selectedBricks.includes(b.id);
-                        return (
-                            <button key={b.id} type="button" onClick={() => toggleBrick(b.id)}
-                                className={cn("w-full flex items-center justify-between rounded-lg border px-3 py-1.5 text-xs transition-all",
-                                    on ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200" : "bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200")}>
-                                <span>{b.label}</span>
-                                <span className={cn("w-4 h-4 rounded border flex items-center justify-center text-[9px]",
-                                    on ? "bg-emerald-500 border-emerald-400 text-white" : "border-white/20 text-transparent")}>✓</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                {bricksByScope.map((group) => (
+                    <div key={group.scope} className="space-y-1.5">
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-violet-400 border-b border-white/5 pb-1">
+                            {SCOPE_LABELS[group.scope] || group.scope}
+                        </div>
+                        <div className="grid grid-cols-1 gap-1.5">
+                            {group.bricks.map((b) => {
+                                const on = selectedBricks.includes(b.id);
+                                return (
+                                    <button key={b.id} type="button" onClick={() => toggleBrick(b.id)}
+                                        className={cn("w-full flex items-center justify-between rounded-lg border px-3 py-1.5 text-xs transition-all",
+                                            on ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200" : "bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200")}>
+                                        <span>{b.label}</span>
+                                        <span className={cn("w-4 h-4 rounded border flex items-center justify-center text-[9px]",
+                                            on ? "bg-emerald-500 border-emerald-400 text-white" : "border-white/20 text-transparent")}>✓</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
             </div>
 
             <div className="space-y-2">

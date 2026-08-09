@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { isSuperAdmin } from "./super-admin-actions";
 import { logger } from "@/lib/logger";
+import { sanitizeHtml } from "@/lib/security";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -171,10 +172,14 @@ export async function deleteResourceCategory(id: string, guildId: string) {
 
 export async function upsertResourceLink(guildId: string, data: any) {
     if (!(await isSuperAdmin())) throw new Error("Unauthorized");
+    // SECURITY (F-11): sanitize free-text HTML fields (description) and bound/validate URL
+    const description = sanitizeHtml(data.description ?? null, 2000) || null;
+    const url = typeof data.url === "string" ? data.url.slice(0, 2048) : "";
+    const title = typeof data.title === "string" ? data.title.slice(0, 200) : "";
     const res = await db.resourceLink.upsert({
         where: { id: data.id || "new-link" },
-        update: { title: data.title, description: data.description, url: data.url, emoji: data.emoji, isOfficial: data.isOfficial, order: data.order },
-        create: { categoryId: data.categoryId, title: data.title, description: data.description, url: data.url, emoji: data.emoji || "🔗", isOfficial: data.isOfficial || false, order: data.order }
+        update: { title, description, url, emoji: data.emoji, isOfficial: data.isOfficial, order: data.order },
+        create: { categoryId: data.categoryId, title, description, url, emoji: data.emoji || "🔗", isOfficial: data.isOfficial || false, order: data.order }
     });
     revalidatePath(`/dashboard/${guildId}/ressources`);
     return { success: true, data: res };

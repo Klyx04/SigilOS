@@ -1,4 +1,4 @@
-# Security Policy
+
 
 ## Supported Versions
 
@@ -29,23 +29,26 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 - **GOD Dashboard** : `isSuperAdmin()` sur toutes les actions de cycle de vie
 - **Input validation** : Zod schemas sur toutes les entrées
 - **Prisma ORM** : prévention SQL injection (pas de SQL brut)
-- **Security Headers** : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `HSTS`, `CSP` (partielle, voir ci-dessous)
+- **Security Headers** : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `HSTS`, `CSP` nonce-based (via `src/proxy.ts`, Report-Only par défaut)
 - **Uploads** : magic bytes + sharp post-traitement + filenames UUID (pas d'exécution)
 - **SSRF proxy-image** : whitelist de domaines exacte + blocage IP internes/réservées
 - **Fail-closed** : HMAC storage, RBAC Discord, rate-limit (partiellement), workers Cloudflare
 - **CI/CD** : `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity, `AUTH_SECRET` n'est plus injecté sur les PR
 - **Bot Discord** : `DATABASE_URL` propre + intent `GuildMessageTyping` retiré
+- **Authentification WebSocket (F-08, activée en beta 09/08 puis en PROD)** : décodage session + appartenance guilde à chaque connexion ; kill-switch `WS_AUTH_ENABLED` (false = mode permissif d'urgence). **Activée en prod le 09/08** (`WS_AUTH_ENABLED=true` dans `.env.prod`, confirmé `.env.beta` + `.env.prod`).
+- **Chiffrement tokens OAuth (F-05)** : `src/lib/token-encryption.ts` (service `updateEncryptedDiscordTokens`, anti double-chiffrement) utilisé dans `auth.ts` events.signIn ; **en plus**, hook `updateMany` ajouté dans `src/lib/prisma.ts` (défense en profondeur, commit `339db4e1`) → plus aucun chemin n'écrit les tokens Discord en clair.
+- **SSRF image-downloader (F-03)** : ✅ protégé — `assertSafeUrl` bloque protocoles non-http(s), IP privées/réservées (10/172.16-31/192.168/169.254/127/0.0.0.0) + DNS rebinding (re-IP après lookup), fetch timeout 20s.
+- **JWT 8h (F-07)** : ✅ déjà en place — `src/auth.ts` override `maxAge: 8h` + `updateAge: 4h` (NIST SP 800-63B). (`auth.config.ts` affiche 24h mais l'override d'`auth.ts` gagne.)
+- **Cache permissions (F-13)** : TTL réduit 60s → **30s** dans `guards.ts` (commit `0dd660bf`), cache **positif seulement** (une révocation/ban se propage en ≤30s).
+- **proxy-image (F-06)** : ✅ protégé — limite de taille streaming (5 Mo), magic bytes (`detectMimeType`) avant traitement, blocage HTML/script déguisé en image, whitelist de domaines exacte + blocage IP internes/réservées.
+- **Sanitisation HTML (F-11)** : ✅ `sanitizeHtml()` centralisée dans `src/lib/security.ts` (DOMPurify, addHook anti-tabnabbing), appliquée aux docs, sondages, présentation, guides (processHtml), songes. **Ajout 09/08** : descriptions des Monstres Spéciaux + liens Ressources sanitizés (commit `d8189f42`).
+- **Zero Console Policy** : `auth.ts`, `image-downloader.ts`, `guards.ts` convertis au `logger` structuré (commit `c62a2835`). ⚠️ Reste : ~300 `console.*` dans `src/server/actions/` (chantier logiciel à traiter séparément).
 
 ### ⚠️ Chantiers ouverts (à résoudre — NE PAS considérer la sécurité comme complète tant qu'ils ne sont pas faits)
-- **Authentification WebSocket (Socket.IO)** : le canal temps réel n'a **pas** de vérification d'identité ni d'appartenance guilde → **à sécuriser en priorité**
-- **Chiffrement des tokens OAuth (Discord)** : `updateMany` ne chiffre pas → tokens potentiellement en clair en BDD
-- **SSRF dans `image-downloader.ts`** (outil God) : aucune restriction de protocole/CIDR
-- **Durée du JWT** : 7 jours au lieu de 8h recommandé (NIST SP 800-63B)
-- **CSP nonce-based** : actuellement `'unsafe-inline'` sur `script-src` (protection XSS affaiblie)
-- **Clé de chiffrement de secours** codée en dur en dev (`encryption.ts`)
-- **Cache des permissions** : 60s avant propagation d'une révocation
-- **Grafana** : mot de passe admin à vérifier (si `GRAFANA_PASSWORD` absent → `admin/admin`)
-- **Caddy** : pas de rate-limit au niveau proxy
+- **CSP nonce-based** : ✅ **DÉPLOYÉ (09/08)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, mode **Report-Only** par défaut (`CSP_ENFORCE=true` pour basculer en enforce), endpoint `/api/csp-report` + 16 tests. ✅ Auth WS **activée en beta puis prod** (WS_AUTH_ENABLED=true). **Reste** : confirmer aucune violation bloquante sur beta via `/api/csp-report` puis activer `CSP_ENFORCE=true` (beta, puis prod après 24-48h).
+- **Grafana** : mot de passe admin à vérifier (`GRAFANA_PASSWORD` dans `.env.prod`/`.env.beta` — sinon `admin/admin` par défaut).
+- ~~**Caddy rate-limit (F-14)**~~ : ✅ **FAIT (09/08, commit `cde708a7`)** — image custom `sigilos-caddy` (xcaddy + `caddy-ratelimit`), `Dockerfile.caddy`, `rate_limit` borne haute (300 req/min/IP + burst 60/s) sur **routes publiques** uniquement (prod/beta/monitor), jamais une limitation fine du dashboard authentifié.
+- **Zero Console Policy (restant)** : ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel, hors urgence sécurité).
 
 ### 🔒 Références
 Le détail complet des findings et remédiations est documenté **en local** (hors dépôt) dans `docs/audits/AUDIT_SECURITE_SIGILOS.md` (généré suite à l'audit). Les rapports d'audit sont centralisés dans `docs/audits/` et ne sont **jamais committés**.
@@ -65,15 +68,24 @@ Le détail complet des findings et remédiations est documenté **en local** (ho
 | `DATABASE_URL` | `.env` / VPS | Fuite de données (Critique) | À chaque changement d'infra |
 
 ### CSP (Content-Security-Policy)
-- SigilOS utilise une **CSP basée sur Nonce** (à finaliser, voir chantiers ouverts).
-- Tout script (inline ou externe) **DOIT** passer le `nonce` (via `x-nonce`).
-- ⚠️ **Jamais `'unsafe-inline'`** dans le CSP.
+- SigilOS utilise une **CSP basée sur Nonce** (implémentée 09/08, `feat/csp-nonce-based`).
+- La CSP est **injectée dans la requête (pour Next) + la réponse (pour le navigateur)** par `src/proxy.ts`, en **Report-Only** par défaut. `CSP_ENFORCE=true` → mode enforce.
+- Tout script (inline ou externe) **DOIT** passer le `nonce` (via `x-nonce`, posé par le proxy pour les JSON-LD).
+- Les violations sont **reportées** sur `/api/csp-report` (endpoint Zod + rate-limit + logger).
+- ⚠️ **Jamais `'unsafe-inline'`** dans `script-src` (en enforce). `style-src 'unsafe-inline'` est **conservé** (exigence Next.js).
+- 🔜 **À faire** : confirmer aucune violation bloquante en beta via `/api/csp-report`, puis `CSP_ENFORCE=true` sur beta → prod.
 
 ### Zero Console Policy
 Tous les `console.log` / `console.warn` / `console.error` sont **interdits** dans `src/server`. Utiliser le `logger` structuré (`@/lib/logger`).
 
 ### Rate-Limiting WebSocket
 Le serveur WS (port 3001) est protégé par un rate-limit de connexion (défini dans `src/server/websocket/server.ts`) : **10 connexions / minute / IP**, enforcement Redis (fail-closed si Redis down).
+
+### WebSocket Auth (F-08)
+- **Activée en beta (09/08)** via `WS_AUTH_ENABLED=true` dans `.env.beta`. Le serveur WS décode la session (AUTH_SECRET) et vérifie l'appartenance guilde à chaque connexion (fail-closed : refus si décodage échoue).
+- **Kill-switch** : `WS_AUTH_ENABLED=false` + `docker compose restart ws-beta` → retour au mode permissif d'urgence (rollback immédiat sans redéploiement).
+- ⚠️ **Nécessite même `AUTH_SECRET` entre l'app et le WS** (déjà via le même `env_file`). En local dev, `WS_AUTH_ENABLED` absent = auth activée par défaut.
+- 🔜 **Avant prod** : tester reconnexion + temps réel (présence, rush, sondages, révocations God) sur beta.
 
 ### Réponse d'urgence (vulnérabilité)
 1. Révoquer le secret concerné (ex. changer `CRON_SECRET`).
@@ -116,8 +128,8 @@ Les Server Actions Next.js vérifient automatiquement que le header `Origin` cor
 - **Sanitisation HTML** : `sanitizeHtml()` ([security.ts](file:///a:/SigilOS/src/lib/security.ts)) sur les contenus utilisateur
 - **Removes** : `<script>`, `<iframe>`, `<object>`, `<embed>`, handlers `on*`, protocoles `javascript:`
 
-### À renforcer (chantier ouvert)
-- **CSP `script-src`** utilise `'unsafe-inline'` → une XSS dans un champ non sanitisé pourrait s'exécuter. **Objectif : passer à un CSP nonce-based**. (à faire)
+### À renforcer
+- ✅ **CSP `script-src` nonce-based implémentée (09/08)** — plus de `'unsafe-inline'`. En **Report-Only** par défaut pour détecter les violations sans casser. **Confirmer en beta** qu'aucune violation bloquante n'apparaît via `/api/csp-report`, puis activer `CSP_ENFORCE=true`.
 
 ---
 

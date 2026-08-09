@@ -2,7 +2,7 @@
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
-import { encrypt, decrypt } from './encryption'
+import { encrypt, decrypt, isEncrypted } from './encryption'
 
 // Récupération et nettoyage strict - v3.0.7 (OCR Module Integration)
 const getEnv = (key: string, fallback: string) => {
@@ -36,6 +36,12 @@ try {
     // Fallback to parsed user/pwd from env
 }
 
+// Encrypt a token unless it is already encrypted (avoids double-encryption when
+// an explicit service (token-encryption.ts) already encrypted it).
+function encryptIfNeeded(value: string): string {
+    return isEncrypted(value) ? value : encrypt(value);
+}
+
 const createPrismaClient = () => {
     const isDev = process.env.NODE_ENV !== 'production';
     
@@ -67,15 +73,27 @@ const createPrismaClient = () => {
         query: {
             account: {
                 async create({ args, query }) {
-                    if (args.data.access_token) args.data.access_token = encrypt(args.data.access_token);
-                    if (args.data.refresh_token) args.data.refresh_token = encrypt(args.data.refresh_token);
-                    if (args.data.id_token) args.data.id_token = encrypt(args.data.id_token);
+                    if (args.data.access_token) args.data.access_token = encryptIfNeeded(args.data.access_token);
+                    if (args.data.refresh_token) args.data.refresh_token = encryptIfNeeded(args.data.refresh_token);
+                    if (args.data.id_token) args.data.id_token = encryptIfNeeded(args.data.id_token);
                     return query(args);
                 },
                 async update({ args, query }) {
-                    if (typeof args.data.access_token === 'string') args.data.access_token = encrypt(args.data.access_token);
-                    if (typeof args.data.refresh_token === 'string') args.data.refresh_token = encrypt(args.data.refresh_token);
-                    if (typeof args.data.id_token === 'string') args.data.id_token = encrypt(args.data.id_token);
+                    if (typeof args.data.access_token === 'string') args.data.access_token = encryptIfNeeded(args.data.access_token);
+                    if (typeof args.data.refresh_token === 'string') args.data.refresh_token = encryptIfNeeded(args.data.refresh_token);
+                    if (typeof args.data.id_token === 'string') args.data.id_token = encryptIfNeeded(args.data.id_token);
+                    return query(args);
+                },
+                // SECURITY (F-05): updateMany previously bypassed the create/update
+                // encryption hooks — the OAuth refresh path used updateMany, writing
+                // Discord tokens in PLAINTEXT. This hook applies the same encryption
+                // as a safety net for ANY updateMany on account tokens (defense-in-depth,
+                // in addition to the explicit service src/lib/token-encryption.ts).
+                async updateMany({ args, query }) {
+                    const data = args.data as any;
+                    if (typeof data.access_token === 'string') data.access_token = encryptIfNeeded(data.access_token);
+                    if (typeof data.refresh_token === 'string') data.refresh_token = encryptIfNeeded(data.refresh_token);
+                    if (typeof data.id_token === 'string') data.id_token = encryptIfNeeded(data.id_token);
                     return query(args);
                 }
             },

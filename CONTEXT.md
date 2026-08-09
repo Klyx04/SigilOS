@@ -206,20 +206,68 @@
   → investiguer SUSPECT A (matching `user.accounts` : champ `discordId` via migration Prisma OU upsert
   fallback scopé par `guildId`).
 
+## 🧭 Suivi de chantier courant (Refonte profil « rendu pro ») — FAIT & MERGÉ le 09/08/2026
+
+> **Branche** : `fix/tour-admin-first-admin` → PRs vers `dev` (PR #417 + #418 mergées). **Commit final : `c9f7b58e`**.
+> Source : retour de session — refonte de l'affichage du profil pour un rendu plus pro.
+
+- ✅ **Refonte profil « rendu pro »** (`c9f7b58e`, 26 fichiers, +1505/-298) : hero-header, bento-grid, onglets (Activité & Feed, Quêtes Dofus, Services), présentation, avatars/badges, migration Prisma `20260808140000_add_profile_presentation_fields` (objectifs, preferredActivities, discordContact).
+- ✅ **Migration Prisma** `prisma/migrations/20260808140000_add_profile_presentation_fields` + champs cohérents dans `prisma/schema.prisma`.
+- ✅ **Nouveaux composants profil** : `presentation-card.tsx`, `profile-activity-tab.tsx`, `profile-dofus-tab.tsx`, `profile-services-tab.tsx`.
+
+### ✅ Tuto d'arrivée (« tour membre ») non cassé
+- La refonte du profil conserve tous les `data-tour` du parcours d'arrivée (`profile-header`, `profile-class`, `profile-tab-metiers/planning/combat/intro/settings`) → les nouveaux onglets respectent les ancrages, aucune étape du tuto ne pointe vers un élément disparu.
+
+### ✅ Bug modale « Revoir le tour » corrigé (dashboard)
+- **Avant** : le bouton « Revoir le tour » lançait `adminModules` (tour de la **sidebar**), et la modale de fin affichait les CTA **membre** (« Voir les Missions » / « Voir mon Profil ») — incohérent pour un admin.
+- **Après** : nouvelle phase **`dashboardBricks`** (`tour-provider.tsx`) qui visite les **widgets de la page d'accueil** (stats, événements, sondages, groupes, galerie, almanax, activité) avec des bulles explicatives. La modale affiche « Fermer ». Le bouton lance `dashboardBricks`. Le `tour-overlay` gère le skip des widgets absents (anti-centrage existant).
+- Fichiers : `src/components/tour/dashboard-admin-tour-button.tsx`, `tour-provider.tsx`, `tour-completion.tsx`, `tour-overlay.tsx`, `src/app/dashboard/[guildId]/page.tsx` (data-tour `dash-*`).
+
+### ✅ Images services dans l'onglet « Services Proposés » du profil
+- **Avant** : image pleine largeur trop grosse, pas d'icônes.
+- **Après** : **miniature** (`h-12 w-12`, comme le module services) + **icônes métiers** (FM/Métiers) et **classes** (Tutorat) via `getJob`/`getClass`. Métiers supplémentaires en petites icônes empilées. Prix ajusté au format `string` réel du schéma.
+- `src/server/actions/profile-actions.ts` : mappings `activeServices` enrichis (professions, dungeonName, dungeonImageUrl, dofusItemIconUrl, dofusItemName) dans `getUserProfile` ET `getMemberProfile`.
+
+### 🪧 VPS / git — notes utiles
+- **Alias SSH poste** : `ssh myvps` (gère port 2222 + user) — utilisé pour `scp myvps:...`.
+- **Clé SSH VPS en lecture seule** : `git push` impossible depuis le VPS (le commit worldmap a été fait là-bas mais pas pushé). **Travail worldmap/worlds déjà sécurisé** : commités dans git (`1e40bdd9`) + tuiles gitignorées + bind mount VPS.
+- `git update-index --skip-worktree` utilisé sur les assets `game-data` du VPS pour débloquer le `git pull` (assets restent intacts via bind mount). Si de nouveaux assets apparaissent → rejouer la commande de marquage.
+- **Vérifié** : toute la branche `fix/tour-admin-first-admin` est poussée (working tree clean, up to date).
+
+---
+
+## 🧭 Suivi de chantier courant (CSP nonce-based) — DÉPLOYÉ le 09/08/2026 + WS auth activée en beta
+
+> **Branche** : `feat/csp-nonce-based` → PR vers `dev` (lien : `https://github.com/Klyx04/SigilOS/pull/new/feat/csp-nonce-based`). **Commit : `918fa308`**.
+> **Mémo** : `src/temp/memo-2026-08-09-csp-nonce.md` (gitignoré).
+
+- ✅ **`src/lib/csp.ts`** : module descriptif pur — `generateCspNonce()` (randomBytes base64url), `buildCsp({ nonce, enforce })` (script-src **sans `'unsafe-inline'`** + nonce, style-src conservé, img/connect/font/frame conservés, `report-uri /api/csp-report` + `report-to csp-endpoint`). Mode : `CSP_ENFORCE=true` → enforce, sinon report-only.
+- ✅ **`src/proxy.ts`** : génère le nonce **par requête** (Node runtime), l'injecte dans la **requête** (Next la consomme via `getScriptNonceFromHeader`) + dans la **réponse** (navigateur) + pose `x-nonce` pour les JSON-LD (F-28). Ajoute `/api/csp-report` aux routes publiques (rate-limit IP).
+- ✅ **`next.config.ts`** : **CSP statique retirée** (conflit avec une CSP partielle) — les autres security headers (`X-Frame-Options`, HSTS, etc.) conservés.
+- ✅ **`src/app/api/csp-report/route.ts`** : endpoint de rapport — validation **Zod**, borne taille 64 Ko → 413, rate-limit IP 60/min → 429, log `logger` (jamais console), retour 204.
+- ✅ **`tests/security/csp.test.ts`** : **16 tests** (pas d'unsafe-inline, présence nonce, mode report/enforce, unsafe-eval dev-only, conservation Sentry/WS/fonts/img CDNs).
+- ✅ **Vérifs** : `test:run` 126/126 ✅ · `tsc --noEmit` 0 ✅ · lint 0 erreur ✅ · pre-commit (secrets, Prisma, lint, tsc) ✅.
+- ✅ **Déployé sur beta** : CSP Report-Only active (sans blocage), endpoint `/api/csp-report` recevant les violations.
+- ✅ **`WS_AUTH_ENABLED=true` activé sur beta (09/08)** : l'auth WebSocket (F-08) — décodage session + appartenance guilde — est active. **Reste** : tester reconnexion/temps réel sur beta puis activer en prod.
+- 🔜 **À faire** : **confirmer aucune violation bloquante** via `/api/csp-report`, puis **`CSP_ENFORCE=true`** sur beta → prod.
+
 ---
 
 ## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
 
 | Chantier | Réf / fichier | État |
 |----------|---------------|------|
-| Rotation secret `GOD_ROUTE` (fuité en git) | `src/temp/evolution4.md` | ⚠️ À faire |
-| CSP nonce-based (`unsafe-inline`) | `SECURITY.md` | Reste |
-| Clé de chiffrement de secours dev | `SECURITY.md` | Reste |
-| Cache permissions 60s (F-13) + fallback RBAC (F-01) | `SECURITY.md` | Reste |
-| Caddy rate-limit (F-14) | `SECURITY.md` | Reste |
-| proxy-image limites/footprint (F-06) | `SECURITY.md` | Reste |
-| Sanitisation HTML centralisée (F-11) | `SECURITY.md` | Reste (lié à dompurify) |
-| Activer `WS_AUTH_ENABLED` en beta | `SECURITY.md` | À activer |
+| Rotation secret `GOD_ROUTE` (fuité en git) | `src/temp/evolution4.md` | ✅ **FAIT (09/08)** — nouvelle `GOD_ROUTE` appliquée sur `.env.beta` + `.env.prod`, conteneurs rechargés (`docker compose up -d`), vérif 404 ancienne / 200 nouvelle / 404 mauvais secret |
+| CSP nonce-based (`unsafe-inline`) | `src/temp/memo-2026-08-09-csp-nonce.md` | ✅ **Déployé** (commit `918fa308` — confirmer violations puis `CSP_ENFORCE=true`) |
+| Clé de chiffrement de secours dev | `SECURITY.md` | ✅ **Fermé** (F-09, retirée dans `encryption.ts`) |
+| Chiffrement tokens OAuth (F-05) | `SECURITY.md` / `prisma.ts` | ✅ **FAIT (09/08)** — service `token-encryption.ts` + hook `updateMany` (commit `339db4e1`) |
+| Cache permissions (F-13) + fallback RBAC (F-01) | `SECURITY.md` / `guards.ts` | ✅ **FAIT (09/08)** — TTL 30s + cache positif seulement (commit `0dd660bf`) |
+| Caddy rate-limit (F-14) | `SECURITY.md` | ✅ **FAIT (09/08, commit `cde708a7`)** — `Dockerfile.caddy` (xcaddy + `caddy-ratelimit`), `rate_limit` haute (300 req/min + burst 60/s) sur routes publiques uniquement |
+| proxy-image limites/footprint (F-06) | `SECURITY.md` | ✅ **FAIT** — taille streaming 5 Mo + magic bytes + blocage HTML déguisé |
+| Sanitisation HTML centralisée (F-11) | `SECURITY.md` | ✅ **FAIT (09/08 add)** — centralisée `security.ts` + Monstres Spéciaux/Ressources (commit `d8189f42`) |
+| SSRF image-downloader (F-03) | `SECURITY.md` | ✅ **FAIT** — protocoles + IP privées/réservées + DNS rebinding |
+| JWT 8h (F-07) | `SECURITY.md` / `auth.ts` | ✅ **FAIT** — `maxAge: 8h` + `updateAge: 4h` |
+| Activer `WS_AUTH_ENABLED` | `SECURITY.md` | ✅ **Activé beta + PROD (09/08)** — `WS_AUTH_ENABLED=true` dans `.env.beta` et `.env.prod` |
 | Évol 4 restant (B3-B5 overview, A4 purge, Évo 2/3) | `CONTEXT.md` / `evolution4.md` | ⚠️ |
 | **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚠️ Suite |
 | Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ⚠️ |
@@ -232,15 +280,14 @@
 
 **État au 01/08/2026 :** F-02, F-06/F-03, F-04, F-01, F-12, F-23/F-24, F-19/F-27/F-26/F-18/F-22 corrigés. **Session d'après-audit (01/08) ajoutée :** F-08 (auth WS), F-05 (chiffrement OAuth), F-04 (fail-closed + IP fiable), F-02 (expiration + clé dédiée), F-07 (JWT 8h), F-03 (SSRF image-downloader). **Rapports centralisés :** `docs/audits/` (hors git). Reste :
 
-- **1. CSP nonce-based** (remplacer `unsafe-inline`) — chantier séparé (Report-Only d'abord).
-- **2. Clé de chiffrement de secours** en dev (`encryption.ts` fallback).
-- **3. Cache permissions 60s** (F-13 — réduire TTL).
-- **4. Caddy rate-limit** (F-14 — au niveau proxy).
-- **5. F-01 partiel** : fallback RBAC `guards.ts` (l.96-117, 229-244) + cache « positif seulement » à consolider.
-- **6. F-06 partiel** : proxy-image sans limite de taille ni magic bytes (à compléter).
-- **7. F-11** : sanitisation HTML centralisée.
+> ✅ **Résolu (09/08)** : **CSP nonce-based déployée** (Report-Only, commit `918fa308`) · **clé de chiffrement de secours retirée** (F-09) · **`WS_AUTH_ENABLED=true` activé en beta** (F-08, à tester puis activer en prod).
 
-**Déploiement :** F-08 (auth WS) est fourni avec kill-switch `WS_AUTH_ENABLED=false` → **activer en beta d'abord**, tester reconnexion, puis prod.
+**Reste :**
+- **1. Zero Console Policy (restant)** : ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel, hors urgence).
+- **2. Audit BDD tokens OAuth** : les éventuels anciens tokens Discord stockés en clair AVANT le fix F-05 restent en clair → script d'audit/ré-encryptage à prévoir.
+- **3. Infra restante** : I-06 (unifier Discord), I-07 (séparer Redis beta/prod), I-15 (circuit breaker). **F-14 Caddy rate-limit : FAIT (commit `cde708a7`)**.
+
+✅ **Résolu le 09/08** (en plus de la ligne ci-dessus) : **Cache permissions TTL 30s + cache positif seulement (F-13/F-01)** · **proxy-image borné (F-06, taille 5 Mo + magic bytes + blocage HTML)** · **sanitisation HTML centralisée + Monstres Spéciaux/Ressources (F-11)** · **hook `updateMany` chiffrement OAuth (F-05)** · **rotation `GOD_ROUTE`** · **WS auth activée beta + prod (F-08)**.
 
 **Infra faite (01/08) :** I-03, I-04, I-05, I-10, I-11, I-12, I-02, I-08. **Faux positifs écartés :** I-01, I-17. **Reste infra :** I-06 (unifier Discord), I-07 (séparer Redis), I-15 (circuit breaker). **Gartic/Skribbl supprimés du code** (dashboard + code mort retiré).
 

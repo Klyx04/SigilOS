@@ -9,6 +9,7 @@ import { withCache } from "@/lib/cache";
 import fs from 'fs';
 import path from 'path';
 import { logger } from "@/lib/logger";
+import { sanitizeHtml } from "@/lib/security";
 
 type ActionResponse<T = void> = {
     success: boolean;
@@ -316,7 +317,8 @@ export async function upsertGameDataMonster(data: {
             level: data.level || 0,
             zone: data.zone?.trim() || null,
             imageUrl: data.imageUrl?.trim() || null,
-            description: data.description?.trim() || null,
+            // SECURITY (F-11): sanitize free-text HTML description
+            description: sanitizeHtml(data.description?.trim() ?? null, 5000) || null,
         };
 
         // Si un id est fourni → on le cherche (édition)

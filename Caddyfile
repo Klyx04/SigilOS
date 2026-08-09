@@ -9,11 +9,32 @@
     header Referrer-Policy "strict-origin-when-cross-origin"
 }
 
+# ─── Rate-limit (F-14) — dernier rempart anti-DoS au niveau proxy ─────────────
+# ⚠️ Borne HAUTE par IP (300 req/min + burst 60/s) : ce n'est PAS une limitation
+# fine du dashboard authentifié (la régulation par utilisateur est déjà faite
+# dans l'app via Redis). Un gros dashboard derrière un même NAT/proxy ne sera
+# pas bloqué tant qu'il reste sous 300 req/min/IP.
+(rate_limit_base) {
+    rate_limit {
+        zone public_ip {
+            key {remote_host}
+            events 300
+            window 1m
+        }
+        zone burst {
+            key {remote_host}
+            events 60
+            window 1s
+        }
+    }
+}
+
 # =============================================================================
 # 🔴 PRODUCTION — Page d'attente premium (pas encore lancée)
 # =============================================================================
 sigilos.fr {
     import security_headers
+    import rate_limit_base
 
     @google path /google*.html
     handle @google {
@@ -41,6 +62,7 @@ sigilos.fr {
 # =============================================================================
 beta.sigilos.fr {
     import security_headers
+    import rate_limit_base
 
     # If maintenance flag file exists, serve the maintenance page
     @maintenance_on expression `file("/srv/maintenance-beta-on")`
@@ -73,5 +95,6 @@ beta.sigilos.fr {
 # =============================================================================
 monitor.sigilos.fr {
     import security_headers
+    import rate_limit_base
     reverse_proxy sigilos-grafana:3000
 }

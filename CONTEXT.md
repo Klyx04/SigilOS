@@ -248,7 +248,7 @@
 - ✅ **`tests/security/csp.test.ts`** : **16 tests** (pas d'unsafe-inline, présence nonce, mode report/enforce, unsafe-eval dev-only, conservation Sentry/WS/fonts/img CDNs).
 - ✅ **Vérifs** : `test:run` 126/126 ✅ · `tsc --noEmit` 0 ✅ · lint 0 erreur ✅ · pre-commit (secrets, Prisma, lint, tsc) ✅.
 - ✅ **Déployé sur beta** : CSP Report-Only active (sans blocage), endpoint `/api/csp-report` recevant les violations.
-- ✅ **`WS_AUTH_ENABLED=true` activé sur beta (09/08)** : l'auth WebSocket (F-08) — décodage session + appartenance guilde — est active. **Reste** : tester reconnexion/temps réel sur beta puis activer en prod.
+- ✅ **`WS_AUTH_ENABLED=true` activé sur beta PUIS PROD (09/08)** : l'auth WebSocket (F-08) — décodage session + appartenance guilde — est active sur les deux environnements (`.env.beta` + `.env.prod`). **Reste** : tester reconnexion/temps réel (présence, rush, sondages, révocation God) sur beta.
 - 🔜 **À faire** : **confirmer aucune violation bloquante** via `/api/csp-report`, puis **`CSP_ENFORCE=true`** sur beta → prod.
 
 ---
@@ -262,17 +262,16 @@
 | Clé de chiffrement de secours dev | `SECURITY.md` | ✅ **Fermé** (F-09, retirée dans `encryption.ts`) |
 | Chiffrement tokens OAuth (F-05) | `SECURITY.md` / `prisma.ts` | ✅ **FAIT (09/08)** — service `token-encryption.ts` + hook `updateMany` (commit `339db4e1`) |
 | Cache permissions (F-13) + fallback RBAC (F-01) | `SECURITY.md` / `guards.ts` | ✅ **FAIT (09/08)** — TTL 30s + cache positif seulement (commit `0dd660bf`) |
-| Caddy rate-limit (F-14) | `SECURITY.md` | ✅ **FAIT (09/08, commit `cde708a7`)** — `Dockerfile.caddy` (xcaddy + `caddy-ratelimit`), `rate_limit` haute (300 req/min + burst 60/s) sur routes publiques uniquement |
+| Caddy rate-limit (F-14) | `SECURITY.md` | ✅ **FAIT (09/08, commit `cde708a7`)** — `Dockerfile.caddy` (xcaddy + `caddy-ratelimit`), `rate_limit` haute (300 req/min + burst 60/s) sur routes publiques uniquement. **Fix Trivy DS-0002** (commit `fbc371e2`) : `USER caddy` non-root ajouté |
 | proxy-image limites/footprint (F-06) | `SECURITY.md` | ✅ **FAIT** — taille streaming 5 Mo + magic bytes + blocage HTML déguisé |
 | Sanitisation HTML centralisée (F-11) | `SECURITY.md` | ✅ **FAIT (09/08 add)** — centralisée `security.ts` + Monstres Spéciaux/Ressources (commit `d8189f42`) |
 | SSRF image-downloader (F-03) | `SECURITY.md` | ✅ **FAIT** — protocoles + IP privées/réservées + DNS rebinding |
 | JWT 8h (F-07) | `SECURITY.md` / `auth.ts` | ✅ **FAIT** — `maxAge: 8h` + `updateAge: 4h` |
 | Activer `WS_AUTH_ENABLED` | `SECURITY.md` | ✅ **Activé beta + PROD (09/08)** — `WS_AUTH_ENABLED=true` dans `.env.beta` et `.env.prod` |
 | Évol 4 restant (B3-B5 overview, A4 purge, Évo 2/3) | `CONTEXT.md` / `evolution4.md` | ⚠️ |
-| **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚠️ Suite |
+| **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚪ **Abandonné (décision 09/08)** — hors priorité, ne pas relancer |
 | Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ⚠️ |
-| Déployer PR #405 (rate-limit) beta + rotation GOD_ROUTE | `CONTEXT.md` | ⚠️ |
-| **Ladder Discord** : déployer fix + test manuel (puis prévoir SUSPECT A si besoin) | `memo-2026-08-08-ladder-discord.md` | ✅ Corrigé, à déployer |
+| **Ladder Discord** : déployer fix + test manuel (puis prévoir SUSPECT A si besoin) | `memo-2026-08-08-ladder-discord.md` | ✅ **Corrigé + mergé dans `dev` (PR #416, commit `fa66e8fe`)** — reste : déployer beta + test manuel |
 
 ---
 
@@ -283,7 +282,7 @@
 > ✅ **Résolu (09/08)** : **CSP nonce-based déployée** (Report-Only, commit `918fa308`) · **clé de chiffrement de secours retirée** (F-09) · **`WS_AUTH_ENABLED=true` activé en beta** (F-08, à tester puis activer en prod).
 
 **Reste :**
-- **1. Zero Console Policy (restant)** : ~300 `console.*` dans `src/server/actions/` à convertir au `logger` (chantier logiciel, hors urgence).
+- **1. Zero Console Policy (restant)** : **433** `console.*` dans `src/server/actions/` (mesuré 09/08) à convertir au `logger` (chantier logiciel mécanique, sans risque métier — conversion 1-à-1, commit par fichier).
 - **2. Audit BDD tokens OAuth** : les éventuels anciens tokens Discord stockés en clair AVANT le fix F-05 restent en clair → script d'audit/ré-encryptage à prévoir.
 - **3. Infra restante** : I-06 (unifier Discord), I-07 (séparer Redis beta/prod), I-15 (circuit breaker). **F-14 Caddy rate-limit : FAIT (commit `cde708a7`)**.
 

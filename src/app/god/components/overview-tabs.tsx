@@ -1,8 +1,15 @@
 "use client";
 
 import { Zap } from "lucide-react";
+import { motion } from "framer-motion";
 import { SystemHealthDashboard } from "./system-health-dashboard";
 import { GodSectionHeader, GodCard, GodCardHeader, GodCardBody } from "../ui";
+
+const sectionFade = {
+    initial: { opacity: 0, y: 12 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.4, ease: "easeOut" as const },
+};
 
 interface OverviewTabsProps {
     stats: React.ReactNode;
@@ -15,7 +22,7 @@ export function OverviewTabs({ stats, chart, communication, worker }: OverviewTa
     return (
         <div className="space-y-12">
             {/* Section 1: System Status & Infrastructure (Immediate Full-Width Visibility) */}
-            <div className="space-y-4">
+            <motion.div className="space-y-4" {...sectionFade}>
                 <GodSectionHeader
                     title="État des Services & Infrastructures"
                     description="Santé des services, files de jobs et infrastructure en temps réel."
@@ -23,10 +30,14 @@ export function OverviewTabs({ stats, chart, communication, worker }: OverviewTa
                     badgeVariant="success"
                 />
                 <SystemHealthDashboard />
-            </div>
+            </motion.div>
 
             {/* Section 2: Unified Two-Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <motion.div
+                className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start"
+                {...sectionFade}
+                transition={{ ...sectionFade.transition, delay: 0.1 }}
+            >
                 {/* Left Column (2 Cols): Communication & System Announcements */}
                 <div className="lg:col-span-2 space-y-6">
                     {communication}
@@ -48,7 +59,7 @@ export function OverviewTabs({ stats, chart, communication, worker }: OverviewTa
                         <GodCardBody>{worker}</GodCardBody>
                     </GodCard>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 }

@@ -206,6 +206,49 @@
   → investiguer SUSPECT A (matching `user.accounts` : champ `discordId` via migration Prisma OU upsert
   fallback scopé par `guildId`).
 
+## 🧭 Suivi de chantier courant (Refonte profil « rendu pro ») — FAIT & MERGÉ le 09/08/2026
+
+> **Branche** : `fix/tour-admin-first-admin` → PRs vers `dev` (PR #417 + #418 mergées). **Commit final : `c9f7b58e`**.
+> Source : retour de session — refonte de l'affichage du profil pour un rendu plus pro.
+
+- ✅ **Refonte profil « rendu pro »** (`c9f7b58e`, 26 fichiers, +1505/-298) : hero-header, bento-grid, onglets (Activité & Feed, Quêtes Dofus, Services), présentation, avatars/badges, migration Prisma `20260808140000_add_profile_presentation_fields` (objectifs, preferredActivities, discordContact).
+- ✅ **Migration Prisma** `prisma/migrations/20260808140000_add_profile_presentation_fields` + champs cohérents dans `prisma/schema.prisma`.
+- ✅ **Nouveaux composants profil** : `presentation-card.tsx`, `profile-activity-tab.tsx`, `profile-dofus-tab.tsx`, `profile-services-tab.tsx`.
+
+### ✅ Tuto d'arrivée (« tour membre ») non cassé
+- La refonte du profil conserve tous les `data-tour` du parcours d'arrivée (`profile-header`, `profile-class`, `profile-tab-metiers/planning/combat/intro/settings`) → les nouveaux onglets respectent les ancrages, aucune étape du tuto ne pointe vers un élément disparu.
+
+### ✅ Bug modale « Revoir le tour » corrigé (dashboard)
+- **Avant** : le bouton « Revoir le tour » lançait `adminModules` (tour de la **sidebar**), et la modale de fin affichait les CTA **membre** (« Voir les Missions » / « Voir mon Profil ») — incohérent pour un admin.
+- **Après** : nouvelle phase **`dashboardBricks`** (`tour-provider.tsx`) qui visite les **widgets de la page d'accueil** (stats, événements, sondages, groupes, galerie, almanax, activité) avec des bulles explicatives. La modale affiche « Fermer ». Le bouton lance `dashboardBricks`. Le `tour-overlay` gère le skip des widgets absents (anti-centrage existant).
+- Fichiers : `src/components/tour/dashboard-admin-tour-button.tsx`, `tour-provider.tsx`, `tour-completion.tsx`, `tour-overlay.tsx`, `src/app/dashboard/[guildId]/page.tsx` (data-tour `dash-*`).
+
+### ✅ Images services dans l'onglet « Services Proposés » du profil
+- **Avant** : image pleine largeur trop grosse, pas d'icônes.
+- **Après** : **miniature** (`h-12 w-12`, comme le module services) + **icônes métiers** (FM/Métiers) et **classes** (Tutorat) via `getJob`/`getClass`. Métiers supplémentaires en petites icônes empilées. Prix ajusté au format `string` réel du schéma.
+- `src/server/actions/profile-actions.ts` : mappings `activeServices` enrichis (professions, dungeonName, dungeonImageUrl, dofusItemIconUrl, dofusItemName) dans `getUserProfile` ET `getMemberProfile`.
+
+### 🪧 VPS / git — notes utiles
+- **Alias SSH poste** : `ssh myvps` (gère port 2222 + user) — utilisé pour `scp myvps:...`.
+- **Clé SSH VPS en lecture seule** : `git push` impossible depuis le VPS (le commit worldmap a été fait là-bas mais pas pushé). **Travail worldmap/worlds déjà sécurisé** : commités dans git (`1e40bdd9`) + tuiles gitignorées + bind mount VPS.
+- `git update-index --skip-worktree` utilisé sur les assets `game-data` du VPS pour débloquer le `git pull` (assets restent intacts via bind mount). Si de nouveaux assets apparaissent → rejouer la commande de marquage.
+- **Vérifié** : toute la branche `fix/tour-admin-first-admin` est poussée (working tree clean, up to date).
+
+---
+
+## 🧭 Suivi de chantier courant (CSP nonce-based) — IMPLÉMENTÉ, poussé le 09/08/2026
+
+> **Branche** : `feat/csp-nonce-based` → PR vers `dev` (lien : `https://github.com/Klyx04/SigilOS/pull/new/feat/csp-nonce-based`). **Commit : `918fa308`**.
+> **Mémo** : `src/temp/memo-2026-08-09-csp-nonce.md` (gitignoré).
+
+- ✅ **`src/lib/csp.ts`** : module descriptif pur — `generateCspNonce()` (randomBytes base64url), `buildCsp({ nonce, enforce })` (script-src **sans `'unsafe-inline'`** + nonce, style-src conservé, img/connect/font/frame conservés, `report-uri /api/csp-report` + `report-to csp-endpoint`). Mode : `CSP_ENFORCE=true` → enforce, sinon report-only.
+- ✅ **`src/proxy.ts`** : génère le nonce **par requête** (Node runtime), l'injecte dans la **requête** (Next la consomme via `getScriptNonceFromHeader`) + dans la **réponse** (navigateur) + pose `x-nonce` pour les JSON-LD (F-28). Ajoute `/api/csp-report` aux routes publiques (rate-limit IP).
+- ✅ **`next.config.ts`** : **CSP statique retirée** (conflit avec une CSP partielle) — les autres security headers (`X-Frame-Options`, HSTS, etc.) conservés.
+- ✅ **`src/app/api/csp-report/route.ts`** : endpoint de rapport — validation **Zod**, borne taille 64 Ko → 413, rate-limit IP 60/min → 429, log `logger` (jamais console), retour 204.
+- ✅ **`tests/security/csp.test.ts`** : **16 tests** (pas d'unsafe-inline, présence nonce, mode report/enforce, unsafe-eval dev-only, conservation Sentry/WS/fonts/img CDNs).
+- ✅ **Vérifs** : `test:run` 126/126 ✅ · `tsc --noEmit` 0 ✅ · lint 0 erreur ✅ · pre-commit (secrets, Prisma, lint, tsc) ✅.
+- 🔜 **À faire** : ouvrir la PR vers `dev`, déployer en beta, **confirmer aucune violation bloquante** via `/api/csp-report`, puis **`CSP_ENFORCE=true`** sur beta → prod.
+
 ---
 
 ## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
@@ -213,7 +256,7 @@
 | Chantier | Réf / fichier | État |
 |----------|---------------|------|
 | Rotation secret `GOD_ROUTE` (fuité en git) | `src/temp/evolution4.md` | ⚠️ À faire |
-| CSP nonce-based (`unsafe-inline`) | `SECURITY.md` | Reste |
+| CSP nonce-based (`unsafe-inline`) | `src/temp/memo-2026-08-09-csp-nonce.md` | ✅ **Implémenté** (commit `918fa308`, à déployer) |
 | Clé de chiffrement de secours dev | `SECURITY.md` | Reste |
 | Cache permissions 60s (F-13) + fallback RBAC (F-01) | `SECURITY.md` | Reste |
 | Caddy rate-limit (F-14) | `SECURITY.md` | Reste |

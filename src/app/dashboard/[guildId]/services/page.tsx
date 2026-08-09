@@ -8,6 +8,9 @@ import { getVaultEntries, getVaultBalance } from "@/server/actions/vault-actions
 import { getServicesStatusPublic } from "@/server/actions/admin-actions";
 import { PassagesClient } from "./_components/passages-client";
 import { db } from "@/lib/prisma";
+import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
+import { ConciergeBell } from "lucide-react";
 
 
 export default async function ServicesPage({ params }: { params: Promise<{ guildId: string }> }) {
@@ -41,20 +44,35 @@ export default async function ServicesPage({ params }: { params: Promise<{ guild
     const vaultDiscordConfigured = !!guildConfig?.vaultNotifyChannelId;
 
     return (
-        <PassagesClient
-            guildId={guildId}
-            profileId={user.profileId || undefined}
-            isAdmin={isAdmin}
-            canCreate={user.canViewServices}
-            listings={listingsRes.success ? (listingsRes.data || []) : []}
-            loans={loansRes.success ? (loansRes.data || []) : []}
-            vaultEntries={vaultRes.success ? (vaultRes.data || []) : []}
-            vaultSummary={vaultBalanceRes.success ? (vaultBalanceRes.data || []) : []}
-            maintenance={statusRes.success ? statusRes.data : undefined}
-            servicesDiscordConfigured={servicesDiscordConfigured}
-            loansDiscordConfigured={loansDiscordConfigured}
-            vaultDiscordConfigured={vaultDiscordConfigured}
-        />
+        <div className="space-y-6 pb-12">
+            <div data-tour="services-header">
+                <UnifiedModuleHeader
+                    title="Services & Artisans"
+                    description="Commandez des services, empruntez du kamas et gérez la banque de guilde."
+                    icon={ConciergeBell}
+                    iconColor="#06b6d4"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<ModuleTourReplayButton phase="services" />}
+                />
+            </div>
+
+            <div data-tour="services-board">
+                <PassagesClient
+                    guildId={guildId}
+                    profileId={user.profileId || undefined}
+                    isAdmin={isAdmin}
+                    canCreate={user.canViewServices}
+                    listings={listingsRes.success ? (listingsRes.data || []) : []}
+                    loans={loansRes.success ? (loansRes.data || []) : []}
+                    vaultEntries={vaultRes.success ? (vaultRes.data || []) : []}
+                    vaultSummary={vaultBalanceRes.success ? (vaultBalanceRes.data || []) : []}
+                    maintenance={statusRes.success ? statusRes.data : undefined}
+                    servicesDiscordConfigured={servicesDiscordConfigured}
+                    loansDiscordConfigured={loansDiscordConfigured}
+                    vaultDiscordConfigured={vaultDiscordConfigured}
+                />
+            </div>
+        </div>
     );
 }
 

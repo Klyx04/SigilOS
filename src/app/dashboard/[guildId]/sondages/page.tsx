@@ -7,6 +7,7 @@ import { getPolls, checkCanCreatePoll, getMicroStatus, getPollSettings, getPollP
 import { PollList } from "@/components/sondages/poll-list";
 import { PollCreator } from "@/components/sondages/poll-creator";
 import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export default async function PollsPage({ params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
@@ -49,23 +50,32 @@ export default async function PollsPage({ params }: { params: Promise<{ guildId:
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Sondages"
-                description="Votez et donnez votre avis sur les décisions de la guilde."
-                icon={Activity}
-                iconColor="#06b6d4"
-                backHref={`/dashboard/${guildId}`}
-                actions={
-                    canCreate && (
-                        <PollCreator
-                            guildId={guildId}
-                            initialMicroStatus={microStatus}
-                        />
-                    )
-                }
-            />
+            <div data-tour="sondages-header">
+                <UnifiedModuleHeader
+                    title="Sondages"
+                    description="Votez et donnez votre avis sur les décisions de la guilde."
+                    icon={Activity}
+                    iconColor="#06b6d4"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                            {canCreate && (
+                                <div data-tour="sondages-create">
+                                    <PollCreator
+                                        guildId={guildId}
+                                        initialMicroStatus={microStatus}
+                                    />
+                                </div>
+                            )}
+                            <ModuleTourReplayButton phase="sondages" />
+                        </div>
+                    }
+                />
+            </div>
 
-            <PollList polls={polls} guildId={guildId} />
+            <div data-tour="sondages-board">
+                <PollList polls={polls} guildId={guildId} />
+            </div>
         </div>
     );
 }

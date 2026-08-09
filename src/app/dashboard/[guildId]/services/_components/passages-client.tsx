@@ -183,7 +183,7 @@ export function PassagesClient({
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/5 blur-[100px] pointer-events-none" />
                 
-                <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 z-10">
+                <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 z-10" data-tour="services-summary">
                     <div className="flex items-center gap-6">
                         <div className="relative h-20 w-20 shrink-0 group">
                             <div className="absolute inset-0 bg-cyan-500/20 rounded-2xl blur-xl group-hover:bg-cyan-500/30 transition-all duration-500" />
@@ -221,7 +221,7 @@ export function PassagesClient({
 
             {/* Tabs & Filters Navigation */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2">
-                <div ref={tabsRef} className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-zinc-900/40 border border-white/10 w-fit backdrop-blur-md">
+                <div ref={tabsRef} className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-zinc-900/40 border border-white/10 w-fit backdrop-blur-md" data-tour="services-tabs">
                     {TAB_CONFIG.map((t) => {
                         const isActive = tab === t.key;
                         const Icon = t.icon;
@@ -258,6 +258,7 @@ export function PassagesClient({
                 <div className="flex items-center gap-3">
                     {tab === "services" && canCreate && !isMarketplaceDisabled && (
                         <Button
+                            data-tour="services-create"
                             disabled={discordBlocked}
                             onClick={() => setShowServiceForm(true)}
                             className="bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-widest h-11 px-6 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-cyan-600 disabled:shadow-none"

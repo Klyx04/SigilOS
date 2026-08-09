@@ -721,6 +721,198 @@ const OCRE_STEPS: TourStep[] = [
     },
 ];
 
+
+const SERVICES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="services-header"]',
+        title: "Services & Artisans",
+        description: "Commandez des services, empruntez du kamas et gérez la banque de guilde.",
+        placement: "bottom",
+        module: "services",
+    },
+    {
+        target: '[data-tour="services-summary"]',
+        title: "Résumé",
+        description: "Les compteurs et accès rapides de la page : services, prêts et banque de guilde.",
+        placement: "bottom",
+        module: "services",
+    },
+    {
+        target: '[data-tour="services-tabs"]',
+        title: "Les onglets",
+        description: "Basculez entre les sections : Services, Prêts, Banque de guilde et plus selon la configuration.",
+        placement: "bottom",
+        module: "services",
+    },
+    {
+        target: '[data-tour="services-create"]',
+        title: "Publier une offre",
+        description: "Proposez un service (craft, passage, FM) aux autres membres de la guilde.",
+        placement: "left",
+        module: "services",
+    },
+    {
+        target: '[data-tour="services-board"]',
+        title: "Le contenu de la section",
+        description: "Consultez les offres publiées et les demandes selon l'onglet actif.",
+        placement: "top",
+        module: "services",
+    },
+];
+
+const DONJONS_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="donjons-header"]',
+        title: "Donjons & Quêtes",
+        description: "Cherchez des coéquipiers, ciblez des succès, et suivez votre progression.",
+        placement: "bottom",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="donjons-filters"]',
+        title: "Filtres",
+        description: "Affinez les recherches par type de contenu ou par configuration de groupe.",
+        placement: "bottom",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="donjons-list"]',
+        title: "Les annonces",
+        description: "Chaque annonce regroupe un donjon, les places disponibles et les participants.",
+        placement: "top",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="donjons-create"]',
+        title: "Créer un post",
+        description: "Proposez un groupe de donjon ou de quête et invitez vos compagnons.",
+        placement: "top",
+        module: "donjons",
+    },
+    {
+        target: '[data-tour="donjons-board"]',
+        title: "Vue d'ensemble",
+        description: "L'ensemble du tableau : filtres, annonces et création de groupes.",
+        placement: "top",
+        module: "donjons",
+    },
+];
+
+
+const CALENDAR_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="calendar-header"]',
+        title: "Calendrier des Événements",
+        description: "Ne manquez aucun rendez-vous important de la vie de guilde.",
+        placement: "bottom",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="calendar-view"]',
+        title: "Vue Semaine / Mois",
+        description: "Basculez l'affichage du calendrier entre la vue semaine et la vue mois.",
+        placement: "bottom",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="calendar-events"]',
+        title: "Les types d'événements",
+        description: "Retrouvez les différentes catégories : événements de guilde, raids et plus.",
+        placement: "bottom",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="calendar-create"]',
+        title: "Créer un événement",
+        description: "Planifiez un nouvel événement (si vous avez la permission de gestion).",
+        placement: "top",
+        module: "calendar",
+    },
+    {
+        target: '[data-tour="calendar-board"]',
+        title: "Vue d'ensemble",
+        description: "Le calendrier complet de la guilde et ses prochains rendez-vous.",
+        placement: "top",
+        module: "calendar",
+    },
+];
+
+const SONDAGES_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="sondages-header"]',
+        title: "Sondages",
+        description: "Votez et donnez votre avis sur les décisions de la guilde.",
+        placement: "bottom",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sondages-create"]',
+        title: "Créer un sondage",
+        description: "Proposez une question à la guilde avec plusieurs options de réponse.",
+        placement: "bottom",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sondages-micro"]',
+        title: "Le Micro",
+        description: "Prenez ou reprenez le micro pour créer un sondage : il est tenu par un seul membre à la fois.",
+        placement: "bottom",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sondages-status"]',
+        title: "Statut",
+        description: "Filtrez les sondages par statut : en cours ou clôturés.",
+        placement: "bottom",
+        module: "polls",
+    },
+    {
+        target: '[data-tour="sondages-board"]',
+        title: "Les sondages",
+        description: "Chaque sondage affiche la question, les options et les votes en direct.",
+        placement: "top",
+        module: "polls",
+    },
+];
+
+const ANNUAIRE_STEPS: TourStep[] = [
+    {
+        target: '[data-tour="annuaire-header"]',
+        title: "Annuaire de Guilde",
+        description: "Retrouvez les artisans et membres de votre guilde.",
+        placement: "bottom",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="annuaire-search"]',
+        title: "Recherche",
+        description: "Recherchez un membre par pseudo, métier ou classe.",
+        placement: "bottom",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="annuaire-filters"]',
+        title: "Filtres",
+        description: "Filtrez par classe, métier ou autres critères pour trouver le bon artisan.",
+        placement: "bottom",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="annuaire-grid"]',
+        title: "Les cartes membres",
+        description: "Chaque carte présente un membre, son rôle, ses métiers et sa classe.",
+        placement: "top",
+        module: "roster",
+    },
+    {
+        target: '[data-tour="annuaire-board"]',
+        title: "Vue d'ensemble",
+        description: "L'annuaire complet de la guilde, consultable par tous les membres.",
+        placement: "top",
+        module: "roster",
+    },
+];
+
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
@@ -774,6 +966,11 @@ export function TourProvider({
     const ladderSteps = applyFilters(LADDER_STEPS);
     const songesSteps = applyFilters(SONGES_STEPS);
     const ocreSteps = applyFilters(OCRE_STEPS);
+    const servicesSteps = applyFilters(SERVICES_STEPS);
+    const donjonsSteps = applyFilters(DONJONS_STEPS);
+    const calendarSteps = applyFilters(CALENDAR_STEPS);
+    const sondagesSteps = applyFilters(SONDAGES_STEPS);
+    const annuaireSteps = applyFilters(ANNUAIRE_STEPS);
 
     const getPhaseSteps = (phase: TourPhase): TourStep[] => {
         switch (phase) {
@@ -795,6 +992,11 @@ export function TourProvider({
             case "ladder": return ladderSteps;
             case "songes": return songesSteps;
             case "ocre": return ocreSteps;
+            case "services": return servicesSteps;
+            case "donjons": return donjonsSteps;
+            case "calendar": return calendarSteps;
+            case "sondages": return sondagesSteps;
+            case "annuaire": return annuaireSteps;
             default: return [];
         }
     };
@@ -952,6 +1154,21 @@ export function TourProvider({
                 break;
             case "ocre":
                 router.push(`/dashboard/${guildId}/quete-ocre`);
+                break;
+            case "services":
+                router.push(`/dashboard/${guildId}/services`);
+                break;
+            case "donjons":
+                router.push(`/dashboard/${guildId}/donjons-et-quetes`);
+                break;
+            case "calendar":
+                router.push(`/dashboard/${guildId}/calendar`);
+                break;
+            case "sondages":
+                router.push(`/dashboard/${guildId}/sondages`);
+                break;
+            case "annuaire":
+                router.push(`/dashboard/${guildId}/members`);
                 break;
             default:
                 break;

@@ -6,10 +6,11 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ShieldCheck, Users, UserPlus, Ban, Loader2, KeyRound, Clock, AlertTriangle } from "lucide-react";
-import { grantDelegate, revokeDelegate, revokeBrickAccess } from "@/server/actions/god-delegate-actions";
+import { grantDelegate, revokeDelegate, revokeBrickAccess, listBrickGrants } from "@/server/actions/god-delegate-actions";
 import { GOD_BRICKS } from "@/lib/god-bricks";
 import { cn } from "@/lib/utils";
 import type { BrickGrantView } from "./brick-grants-manager";
+import { DelegateAccessEditor } from "./delegate-access-editor";
 
 type Delegate = {
     id: string; userId: string; userName: string | null; discordId: string | null;
@@ -53,6 +54,12 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
 
     const [discordId, setDiscordId] = useState("");
     const [showForm, setShowForm] = useState(false);
+    const [editingDelegateId, setEditingDelegateId] = useState<string | null>(null);
+
+    async function refreshGrants() {
+        const list = await listBrickGrants();
+        if (list.success) setGrants(list.data ?? []);
+    }
 
     function handleRevokeGrant(grantId: string) {
         startTransition(async () => {
@@ -96,7 +103,7 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
     const activeDelegates = delegates.filter(d => d.isActive);
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
                     <h2 className="text-xl font-black text-white flex items-center gap-2">
@@ -134,9 +141,9 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {activeDelegates.map(d => (
-                        <div key={d.id} className="rounded-2xl border border-white/10 bg-zinc-950/40 backdrop-blur-md p-5 space-y-4">
+                        <div key={d.id} className="rounded-2xl border border-white/10 bg-zinc-950/40 backdrop-blur-md p-6 space-y-5">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <div className="font-black text-white truncate flex items-center gap-2">
@@ -183,7 +190,21 @@ export function DelegatesManager({ initialDelegates, initialGrants = [] }: { ini
                                 )}
                             </div>
 
+                            {editingDelegateId === d.id && (
+                                <DelegateAccessEditor
+                                    delegateId={d.id}
+                                    delegateName={d.userName}
+                                    activeGrants={grants.filter(g => g.delegateId === d.id && !g.revokedAt)}
+                                    onClose={() => setEditingDelegateId(null)}
+                                    onGrantsChanged={(list) => setGrants(list)}
+                                />
+                            )}
+
                             <div className="flex items-center gap-2">
+                                <Button size="sm" variant="outline" onClick={() => setEditingDelegateId(editingDelegateId === d.id ? null : d.id)}
+                                    className="border-white/10 bg-white/5 text-zinc-300 text-xs gap-1">
+                                    <KeyRound className="w-3 h-3" /> Modifier l'accès
+                                </Button>
                                 <Button size="sm" onClick={() => handleRevoke(d.id)} disabled={isPending} className="text-xs bg-red-600/80 hover:bg-red-600 text-white gap-1">
                                     <Ban className="w-3 h-3" /> Révoquer
                                 </Button>

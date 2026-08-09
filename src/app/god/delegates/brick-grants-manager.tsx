@@ -116,7 +116,7 @@ export function BrickGrantsManager({ delegates, activeDelegateIds = [] }: BrickG
     return (
         <div className="space-y-8">
             {/* STEPPER 3 ÉTAPES */}
-            <div className="rounded-3xl border border-white/5 bg-zinc-900/10 backdrop-blur-xl p-6 space-y-6">
+            <div className="rounded-3xl border border-white/5 bg-zinc-900/10 backdrop-blur-xl p-8 space-y-6">
                 <div className="flex flex-wrap items-center gap-3">
                     {[{ n: 1, label: "Délégué", icon: Users }, { n: 2, label: "Scopes & Briques", icon: Layers }, { n: 3, label: "Durée & Validation", icon: Lock }].map((s) => (
                         <div key={s.n} className={cn("flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-black uppercase tracking-widest transition-all",

@@ -1,4 +1,4 @@
-# Security Policy
+
 
 ## Supported Versions
 
@@ -35,14 +35,14 @@ If you discover a security vulnerability in SigilOS, please report it responsibl
 - **Fail-closed** : HMAC storage, RBAC Discord, rate-limit (partiellement), workers Cloudflare
 - **CI/CD** : `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity, `AUTH_SECRET` n'est plus injecté sur les PR
 - **Bot Discord** : `DATABASE_URL` propre + intent `GuildMessageTyping` retiré
+- **Authentification WebSocket (F-08, activée en beta 09/08)** : décodage session + appartenance guilde à chaque connexion ; kill-switch `WS_AUTH_ENABLED` (false = mode permissif d'urgence). **Reste** : tester reconnexion/temps réel sur beta puis activer en prod.
 
 ### ⚠️ Chantiers ouverts (à résoudre — NE PAS considérer la sécurité comme complète tant qu'ils ne sont pas faits)
-- **Authentification WebSocket (Socket.IO)** : le canal temps réel n'a **pas** de vérification d'identité ni d'appartenance guilde → **à sécuriser en priorité**
 - **Chiffrement des tokens OAuth (Discord)** : `updateMany` ne chiffre pas → tokens potentiellement en clair en BDD
 - **SSRF dans `image-downloader.ts`** (outil God) : aucune restriction de protocole/CIDR
 - **Durée du JWT** : 7 jours au lieu de 8h recommandé (NIST SP 800-63B)
-- **CSP nonce-based** : ✅ **Implémenté (09/08, commit `918fa308`)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, mode **Report-Only** par défaut (`CSP_ENFORCE=true` pour basculer en enforce), endpoint `/api/csp-report` + 16 tests. **À déployer** puis confirmer aucune violation bloquante sur beta avant enforce.
-- **Clé de chiffrement de secours** codée en dur en dev (`encryption.ts`)
+- **CSP nonce-based** : ✅ **DÉPLOYÉ (09/08)** — nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, mode **Report-Only** par défaut (`CSP_ENFORCE=true` pour basculer en enforce), endpoint `/api/csp-report` + 16 tests. ✅ Auth WS **activée en beta** (WS_AUTH_ENABLED=true, 09/08). **Reste** : confirmer aucune violation bloquante sur beta via `/api/csp-report` puis activer `CSP_ENFORCE=true`.
+- ~~**Clé de chiffrement de secours dev**~~ : ✅ **Déjà retirée** (F-09, commit `de58c7b4` 02/08) — `src/lib/encryption.ts` fail-closed dans TOUS les environnements (plus aucun fallback en dur). Chantier **fermé**.
 - **Cache des permissions** : 60s avant propagation d'une révocation
 - **Grafana** : mot de passe admin à vérifier (si `GRAFANA_PASSWORD` absent → `admin/admin`)
 - **Caddy** : pas de rate-limit au niveau proxy
@@ -70,13 +70,19 @@ Le détail complet des findings et remédiations est documenté **en local** (ho
 - Tout script (inline ou externe) **DOIT** passer le `nonce` (via `x-nonce`, posé par le proxy pour les JSON-LD).
 - Les violations sont **reportées** sur `/api/csp-report` (endpoint Zod + rate-limit + logger).
 - ⚠️ **Jamais `'unsafe-inline'`** dans `script-src` (en enforce). `style-src 'unsafe-inline'` est **conservé** (exigence Next.js).
-- 🔜 **À faire** : déployer en beta, confirmer aucune violation bloquante via `/api/csp-report`, puis `CSP_ENFORCE=true` sur beta → prod.
+- 🔜 **À faire** : confirmer aucune violation bloquante en beta via `/api/csp-report`, puis `CSP_ENFORCE=true` sur beta → prod.
 
 ### Zero Console Policy
 Tous les `console.log` / `console.warn` / `console.error` sont **interdits** dans `src/server`. Utiliser le `logger` structuré (`@/lib/logger`).
 
 ### Rate-Limiting WebSocket
 Le serveur WS (port 3001) est protégé par un rate-limit de connexion (défini dans `src/server/websocket/server.ts`) : **10 connexions / minute / IP**, enforcement Redis (fail-closed si Redis down).
+
+### WebSocket Auth (F-08)
+- **Activée en beta (09/08)** via `WS_AUTH_ENABLED=true` dans `.env.beta`. Le serveur WS décode la session (AUTH_SECRET) et vérifie l'appartenance guilde à chaque connexion (fail-closed : refus si décodage échoue).
+- **Kill-switch** : `WS_AUTH_ENABLED=false` + `docker compose restart ws-beta` → retour au mode permissif d'urgence (rollback immédiat sans redéploiement).
+- ⚠️ **Nécessite même `AUTH_SECRET` entre l'app et le WS** (déjà via le même `env_file`). En local dev, `WS_AUTH_ENABLED` absent = auth activée par défaut.
+- 🔜 **Avant prod** : tester reconnexion + temps réel (présence, rush, sondages, révocations God) sur beta.
 
 ### Réponse d'urgence (vulnérabilité)
 1. Révoquer le secret concerné (ex. changer `CRON_SECRET`).

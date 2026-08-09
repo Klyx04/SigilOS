@@ -30,6 +30,8 @@ export interface GodNavItem {
     color: string;
     group: "operations" | "supervision" | "administration" | "game-data" | "tools";
     sub?: string;
+    /** Query ajoutée au sous-route (ex: "sub=GUESSER" pour ouvrir la blacklist géoguesser). */
+    query?: string;
     scope: string; // "all" = super-admin seulement
     scopeLabel?: string;
     /** 🔄 P2 — id de la brique dans le registre `god-bricks.ts` (source de vérité du PIM). */
@@ -59,6 +61,7 @@ export const CONSOLE_PAGES: GodNavItem[] = [
     { id: "infrastructure", name: "Système & Infra", icon: HardDrive, color: "text-amber-400", group: "supervision", scope: "maintenance", scopeLabel: "Maintenance", brickId: "infrastructure" },
     { id: "notifications", name: "Alertes Système", icon: Bell, color: "text-rose-400", group: "supervision", scope: "all", scopeLabel: "Toutes", brickId: "notifications" },
     { id: "mini-games", name: "Mini-Jeux", icon: Gamepad2, color: "text-amber-500", group: "supervision", sub: "mini-games", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },
+    { id: "geo-blacklist", name: "Blacklist Géoguesser", icon: Map, color: "text-rose-400", group: "supervision", sub: "mini-games", query: "sub=GUESSER", scope: "all", scopeLabel: "Toutes", brickId: "mini-games" },
 
     // Données de Jeu (sous-god friendly)
     { id: "game-data", name: "Données de Jeu", icon: Database, color: "text-cyan-400", group: "game-data", scope: "game-data", scopeLabel: "Game Data", brickId: "game-data" },

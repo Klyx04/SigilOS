@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, Timer, Ban } from "lucide-react";
+import { ShieldAlert, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSocket } from "@/lib/socket-utils";
 
@@ -26,19 +26,6 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
     const [revoked, setRevoked] = useState(false);
     const warnedRef = useRef<Set<string>>(new Set());
     const redirectedRef = useRef(false);
-    // A2 : secondes écoulées pour rafraîchir le décompte (badge) en temps réel.
-    const [, setTick] = useState(0);
-
-    // Calcule le timestamp d'expiration minimal parmi les grants limités
-    const minExpiry = (() => {
-        let min: number | null = null;
-        for (const g of myGrants) {
-            if (!g.expiresAt) continue;
-            const t = new Date(g.expiresAt).getTime();
-            if (min === null || t < min) min = t;
-        }
-        return min;
-    })();
 
     // Force la déconnexion (fail-closed) quand plus aucun accès n'est valide
     const forceLogout = useCallback(() => {
@@ -46,12 +33,6 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         redirectedRef.current = true;
         router.replace("/");
     }, [router]);
-
-    // A2 : tick 1s → le badge globalLabel se recalcule à chaque seconde.
-    useEffect(() => {
-        const t = setInterval(() => setTick((v) => v + 1), 1000);
-        return () => clearInterval(t);
-    }, []);
 
     useEffect(() => {
         if (myGrants.length === 0) return;
@@ -139,28 +120,8 @@ export function GodExpiryGuard({ myGrants, warningMinutes = 10 }: { myGrants: My
         };
     }, []);
 
-    // Affiche aussi un décompte permanent discret du temps restant global (à la seconde)
-    const globalLabel = (() => {
-        if (myGrants.some(g => !g.expiresAt)) return "accès illimité";
-        if (minExpiry === null) return null;
-        const leftSec = Math.max(0, Math.floor((minExpiry - Date.now()) / 1000));
-        const m = Math.floor(leftSec / 60);
-        const s = leftSec % 60;
-        return m > 0 ? `${m} min ${s}s` : `${s}s`;
-    })();
-
     return (
         <>
-            {/* Badge discret du temps restant global (coin bas gauche) */}
-            {globalLabel && (
-                <div className="fixed bottom-4 left-4 z-[95] flex items-center gap-2 rounded-xl border border-amber-500/30 bg-[#111]/90 backdrop-blur px-3 py-2 shadow-xl">
-                    <Timer className="w-4 h-4 text-amber-400" />
-                    <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest">
-                        Expire : {globalLabel}
-                    </span>
-                </div>
-            )}
-
             {/* Popup d'avertissement d'expiration */}
             {warning && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true">

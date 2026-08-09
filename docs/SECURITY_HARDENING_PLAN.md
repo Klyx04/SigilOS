@@ -40,7 +40,7 @@
 ## 🚧 Chantiers ouverts (à traiter — priorité du plus critique au moins)
 
 1. **Authentification WebSocket (Socket.IO)** — ✅ **Activée en beta puis en PROD (09/08, `WS_AUTH_ENABLED=true`)** — décodage session + appartenance guilde à chaque connexion (F-08). Conformé sur `.env.beta` + `.env.prod`.
-2. **Chiffrement des tokens OAuth (Discord)** — ✅ **FAIT (09/08)** : service `src/lib/token-encryption.ts` (anti double-chiffrement) utilisé dans `auth.ts` events.signIn **+ hook `updateMany`** dans `src/lib/prisma.ts` (commit `339db4e1`) → plus aucun chemin écrit les tokens en clair (F-05). ⚠️ Reste : audit des colonnes existantes en BDD (les anciens tokens en clair restent en clair).
+2. **Chiffrement des tokens OAuth (Discord)** — ✅ **FAIT (09/08)** : service `src/lib/token-encryption.ts` (anti double-chiffrement) utilisé dans `auth.ts` events.signIn **+ hook `updateMany`** dans `src/lib/prisma.ts` (commit `339db4e1`) → plus aucun chemin écrit les tokens en clair (F-05). **Audit BDD beta (09/08)** : 126 comptes Discord tous chiffrés, 0 en clair → **fermé sur beta**. ⚠️ Reste : auditer la **prod**.
 3. **SSRF dans `image-downloader.ts`** — ✅ **FAIT** : `assertSafeUrl` bloque protocoles non-http(s), IP privées/réservées + DNS rebinding (F-03).
 4. **Durée du JWT** — ✅ **FAIT** : `src/auth.ts` override `maxAge: 8h` + `updateAge: 4h` (NIST SP 800-63B) (F-07).
 5. **CSP nonce-based** — ✅ **DÉPLOYÉ (09/08, commit `918fa308`)** : nonce par requête (proxy), `script-src` sans `'unsafe-inline'`, Report-Only par défaut, endpoint `/api/csp-report` + 16 tests. **Reste** : confirmer aucune violation bloquante sur beta puis `CSP_ENFORCE=true` (beta → prod).

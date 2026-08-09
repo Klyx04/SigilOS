@@ -55,6 +55,10 @@ const UpdateProfileSchema = z.object({
     alignment: z.string().nullable().optional(),
     alignmentOrder: z.string().nullable().optional(),
     alignmentLevel: z.number().min(0).max(100).optional(),
+    introduction: z.string().max(2000, "Présentation trop longue").nullable().optional(),
+    objectifs: z.string().max(1000, "Objectifs trop longs").nullable().optional(),
+    preferredActivities: z.array(z.string()).optional(),
+    discordContact: z.string().max(200, "Contact trop long").nullable().optional(),
     targetUserId: z.string().optional(),
 });
 
@@ -288,6 +292,16 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
 
         if (!profile) return { success: false, error: "Profil introuvable" };
 
+        // Attach active services if exists
+        const activeServices = await db.serviceListing.findMany({
+            where: {
+                profileId: profile.id,
+                guildId: guildConfig.id,
+                status: "ACTIVE"
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
         // Attach pending submission if exists
         const pendingSubmission = await (db as any).achievementSubmission.findFirst({
             where: {
@@ -309,6 +323,9 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 vacationReason: profile.vacationReason || null,
                 hasSeenWelcome: profile.hasSeenWelcome,
                 introduction: profile.introduction,
+                objectifs: profile.objectifs || null,
+                preferredActivities: (profile.preferredActivities as string[]) || [],
+                discordContact: profile.discordContact || null,
                 showPresence: profile.showPresence,
                 pinnedNavItems: profile.pinnedNavItems,
                 hiddenNavItems: profile.hiddenNavItems,
@@ -320,6 +337,20 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
                 metamobVerified: profile.metamobVerified,
                 metamobLastSync: profile.metamobLastSync,
                 dofusBookLinks: profile.dofusBookLinks,
+                activeServices: activeServices.map(s => ({
+                    id: s.id,
+                    title: s.title,
+                    category: s.category,
+                    price: s.price,
+                    description: s.description,
+                    imageUrl: s.dofusItemIconUrl || s.dungeonImageUrl || null,
+                    professions: s.professions,
+                    dungeonName: s.dungeonName || null,
+                    dungeonImageUrl: s.dungeonImageUrl || null,
+                    dofusItemIconUrl: s.dofusItemIconUrl || null,
+                    dofusItemName: s.dofusItemName || null,
+                    createdAt: s.createdAt.toISOString()
+                })),
                 sigilRoles: profile.roleGrants.map(rg => ({
                     id: rg.role.id,
                     slug: rg.role.slug,
@@ -559,6 +590,16 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
         // Count validated missions (Total)
         const validatedMissionsCount = allValidatedSubmissions.length;
 
+        // Fetch active services for member
+        const activeServices = await db.serviceListing.findMany({
+            where: {
+                profileId: profile.id,
+                guildId: guildConfig.id,
+                status: "ACTIVE"
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
         return {
             success: true,
             data: {
@@ -571,6 +612,9 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 vacationReason: profile.vacationReason || null,
                 user: { id: profile.user.id, name: profile.user.name, image: profile.user.image },
                 introduction: profile.introduction,
+                objectifs: profile.objectifs || null,
+                preferredActivities: (profile.preferredActivities as string[]) || [],
+                discordContact: profile.discordContact || null,
                 alignment: profile.alignment,
                 alignmentOrder: profile.alignmentOrder,
                 alignmentLevel: profile.alignmentLevel,
@@ -579,6 +623,20 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 metamobVerified: profile.metamobVerified,
                 metamobLastSync: profile.metamobLastSync,
                 dofusBookLinks: profile.dofusBookLinks,
+                activeServices: activeServices.map(s => ({
+                    id: s.id,
+                    title: s.title,
+                    category: s.category,
+                    price: s.price,
+                    description: s.description,
+                    imageUrl: s.dofusItemIconUrl || s.dungeonImageUrl || null,
+                    professions: s.professions,
+                    dungeonName: s.dungeonName || null,
+                    dungeonImageUrl: s.dungeonImageUrl || null,
+                    dofusItemIconUrl: s.dofusItemIconUrl || null,
+                    dofusItemName: s.dofusItemName || null,
+                    createdAt: s.createdAt.toISOString()
+                })),
                 discordInfo,
                 sigilRoles: profile.roleGrants.map(rg => ({
                     id: rg.role.id,
@@ -655,7 +713,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
 
     const validation = UpdateProfileSchema.safeParse(rawData);
     if (!validation.success) return { success: false, error: "Données invalides" };
-    const { guildId, classe, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, alignment, alignmentOrder, alignmentLevel, targetUserId } = validation.data;
+    const { guildId, classe, metiers, forgemagieStatus, fmPriceClassic, fmPriceTrans, fmPriceExo, showPresence, alignment, alignmentOrder, alignmentLevel, introduction, objectifs, preferredActivities, discordContact, targetUserId } = validation.data;
     let { pseudoDofus } = validation.data;
 
     // Formater le pseudo Dofus
@@ -729,6 +787,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 alignment: alignment !== undefined ? alignment : undefined,
                 alignmentOrder: alignmentOrder !== undefined ? alignmentOrder : undefined,
                 alignmentLevel: alignmentLevel !== undefined ? alignmentLevel : undefined,
+                introduction: introduction !== undefined ? (introduction || null) : undefined,
+                objectifs: objectifs !== undefined ? (objectifs || null) : undefined,
+                preferredActivities: preferredActivities !== undefined ? (preferredActivities as any) : undefined,
+                discordContact: discordContact !== undefined ? (discordContact || null) : undefined,
             },
             create: {
                 userId: effectiveUserId,
@@ -744,6 +806,10 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 alignment: alignment || null,
                 alignmentOrder: alignmentOrder || null,
                 alignmentLevel: alignmentLevel || 0,
+                introduction: introduction || null,
+                objectifs: objectifs || null,
+                preferredActivities: preferredActivities ? (preferredActivities as any) : undefined,
+                discordContact: discordContact || null,
                 status: "ACTIVE"
             }
         });
@@ -2242,4 +2308,83 @@ function getISOWeek(date: Date): number {
     d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
     const week1 = new Date(d.getFullYear(), 0, 4);
     return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+}
+
+export async function getMemberDofusSummaryForProfile(guildId: string, profileId: string): Promise<ActionResponse<{
+    mainCharacter: { pseudo: string; dofusList: { slug: string; name: string; color: string | null; imageUrl: string | null; isObtained: boolean; progressPercent: number }[] };
+    mules: { pseudo: string; dofusList: { slug: string; name: string; color: string | null; imageUrl: string | null; isObtained: boolean; progressPercent: number }[] }[];
+}>> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    try {
+        const profile = await db.userProfile.findUnique({
+            where: { id: profileId },
+            select: { id: true, pseudoDofus: true, altPseudos: true, ocreProgressSnapshot: true }
+        });
+        if (!profile) return { success: false, error: "Profil introuvable" };
+
+        const dofusItems = await (db as any).dofusItem.findMany({
+            orderBy: { displayOrder: "asc" },
+            select: { id: true, slug: true, nameShort: true, color: true, imageUrl: true }
+        });
+
+        const allProgress = await (db as any).playerDofusProgress.findMany({
+            where: { profileId: profile.id },
+            select: { dofusId: true, characterName: true, isObtained: true, completionPercent: true }
+        });
+
+        const progressByChar = new Map<string, Map<string, { isObtained: boolean; percent: number }>>();
+        allProgress.forEach((p: any) => {
+            const char = p.characterName || "PRINCIPAL";
+            if (!progressByChar.has(char)) progressByChar.set(char, new Map());
+            progressByChar.get(char)!.set(p.dofusId, { isObtained: p.isObtained, percent: p.completionPercent });
+        });
+
+        const mainName = profile.pseudoDofus || "Principal";
+        const mainMap = progressByChar.get("PRINCIPAL") || new Map();
+
+        const mainDofusList = dofusItems.map((d: any) => {
+            const prog = mainMap.get(d.id);
+            return {
+                slug: d.slug,
+                name: d.nameShort,
+                color: d.color,
+                imageUrl: d.imageUrl,
+                isObtained: prog?.isObtained ?? false,
+                progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
+            };
+        });
+
+        const mulesList: any[] = [];
+        const alts = Array.isArray(profile.altPseudos) ? profile.altPseudos : [];
+        for (const alt of alts) {
+            const charName = typeof alt === "string" ? alt : (alt && typeof alt === "object" && "pseudo" in (alt as any) ? String((alt as any).pseudo) : null);
+            if (!charName) continue;
+            const charMap = progressByChar.get(charName) || new Map();
+            const dofusList = dofusItems.map((d: any) => {
+                const prog = charMap.get(d.id);
+                return {
+                    slug: d.slug,
+                    name: d.nameShort,
+                    color: d.color,
+                    imageUrl: d.imageUrl,
+                    isObtained: prog?.isObtained ?? false,
+                    progressPercent: prog?.isObtained ? 100 : (prog?.percent ?? 0)
+                };
+            });
+            mulesList.push({ pseudo: charName, dofusList });
+        }
+
+        return {
+            success: true,
+            data: {
+                mainCharacter: { pseudo: mainName, dofusList: mainDofusList },
+                mules: mulesList
+            }
+        };
+    } catch (e: any) {
+        logger.error("getMemberDofusSummaryForProfile error:", e);
+        return { success: false, error: "Erreur lors de la récupération des Dofus" };
+    }
 }

@@ -90,7 +90,7 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                             Exploration terminée
                         </h3>
                         <p className="text-zinc-400 text-xs font-semibold leading-relaxed max-w-xs mx-auto pt-2">
-                            {tourPhase && tourPhase.startsWith("admin")
+                            {tourPhase && (tourPhase.startsWith("admin") || tourPhase === "dashboardBricks")
                                 ? "Tu connais maintenant les bases de ce module. Tu peux le rejouer à tout moment depuis le bouton « Revoir le tour »."
                                 : "Ton profil est configuré et tu as maintenant toutes les clés pour utiliser au mieux le tableau de bord de la guilde !"}
                         </p>
@@ -98,7 +98,7 @@ export function TourCompletion({ guildId }: { guildId: string }) {
 
                     {/* Actions CTAs — dédié au tour admin (arrivée) vs tour membre vs module admin */}
                     <div className="w-full flex flex-col gap-3 pt-4 relative z-10">
-                        {tourPhase === "adminSettings" || tourPhase === "adminPermissions" || tourPhase === "adminModulesMgmt" || tourPhase === "adminPresentation" || tourPhase === "adminMissions" || tourPhase === "adminValidation" || tourPhase === "adminMembers" || tourPhase === "adminLogs" || tourPhase === "adminOverview" ? (
+                        {tourPhase === "adminSettings" || tourPhase === "adminPermissions" || tourPhase === "adminModulesMgmt" || tourPhase === "adminPresentation" || tourPhase === "adminMissions" || tourPhase === "adminValidation" || tourPhase === "adminMembers" || tourPhase === "adminLogs" || tourPhase === "adminOverview" || tourPhase === "adminModules" || tourPhase === "dashboardBricks" ? (
                             <>
                                 <Button
                                     onClick={() => setCelebrationActive(false)}

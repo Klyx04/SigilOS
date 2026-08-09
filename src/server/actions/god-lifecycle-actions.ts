@@ -1,4 +1,3 @@
-import { logger } from "@/lib/logger";
 /**
  * 🔒 GOD - Lifecycle Management Server Actions
  * 
@@ -20,6 +19,8 @@ import { logger } from "@/lib/logger";
  */
 
 'use server';
+
+import { logger } from "@/lib/logger";
 
 import { db } from '@/lib/prisma';
 import { isSuperAdmin, canGodAccess } from './super-admin-actions';

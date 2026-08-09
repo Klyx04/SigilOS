@@ -1,4 +1,3 @@
-import { logger } from "@/lib/logger";
 /**
  * 📝 Changelog - Server Actions
  *
@@ -7,6 +6,8 @@ import { logger } from "@/lib/logger";
  */
 
 'use server';
+
+import { logger } from "@/lib/logger";
 
 import { z } from 'zod';
 import { db } from '@/lib/prisma';

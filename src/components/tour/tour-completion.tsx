@@ -91,7 +91,7 @@ export function TourCompletion({ guildId }: { guildId: string }) {
                         </h3>
                         <p className="text-zinc-400 text-xs font-semibold leading-relaxed max-w-xs mx-auto pt-2">
                             {isReplayableTourPhase(tourPhase) && tourPhase !== "admin"
-                                ? "Tu connais maintenant les bases de ce module. Tu peux le rejouer à tout moment depuis le bouton « Revoir le tour »."
+                                ? "Tu connais maintenant les bases de ce module. Tu peux le rejouer à tout moment depuis le bouton « Tutoriel »."
                                 : "Ton profil est configuré et tu as maintenant toutes les clés pour utiliser au mieux le tableau de bord de la guilde !"}
                         </p>
                     </div>

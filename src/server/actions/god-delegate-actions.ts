@@ -156,6 +156,14 @@ export async function grantDelegate(input: z.infer<typeof GrantDelegateSchema>):
             return { success: false, error: "Impossible de s'accorder des scopes à soi-même" };
         }
 
+        // Anti-doublon : un délégué ACTIF (non révoqué) existe déjà pour cette cible.
+        const existingDelegate = await db.godDelegate.findFirst({
+            where: { userId: targetUserId, revokedAt: null },
+        });
+        if (existingDelegate) {
+            return { success: false, error: "Cet utilisateur est déjà un délégué actif. Modifiez son accès existant au lieu de le recréer." };
+        }
+
         const delegate = await db.godDelegate.create({
             data: {
                 userId: targetUserId,

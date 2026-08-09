@@ -8,6 +8,7 @@ import { UnifiedModuleHeader } from "@/components/layout/unified-module-header";
 import AccessDenied from "@/components/access-denied";
 import { DungeonFinderClient } from "@/components/dungeon-finder/DungeonFinderClient";
 import type { DjPostWithDetails } from "@/server/actions/dungeon-finder-actions";
+import { ModuleTourReplayButton } from "@/components/tour/module-tour-replay-button";
 
 export const metadata = {
     title: "Donjons & Quêtes | SigilOS",
@@ -47,13 +48,16 @@ export default async function FinderPage({
 
     return (
         <div className="space-y-6 pb-12">
-            <UnifiedModuleHeader
-                title="Donjons & Quêtes"
-                description="Cherchez des coéquipiers, ciblez des succès, et suivez votre progression."
-                icon={Swords}
-                iconColor="#ffffff"
-                backHref={`/dashboard/${guildId}`}
-            />
+            <div data-tour="donjons-header">
+                <UnifiedModuleHeader
+                    title="Donjons & Quêtes"
+                    description="Cherchez des coéquipiers, ciblez des succès, et suivez votre progression."
+                    icon={Swords}
+                    iconColor="#ffffff"
+                    backHref={`/dashboard/${guildId}`}
+                    actions={<ModuleTourReplayButton phase="donjons" />}
+                />
+            </div>
 
             <Suspense
                 fallback={
@@ -62,14 +66,16 @@ export default async function FinderPage({
                     </div>
                 }
             >
-                <DungeonFinderClient
-                    guildId={guildId}
-                    initialPosts={initialPosts}
-                    currentProfileId={user.profileId ?? undefined}
-                    isAdmin={user.isAdmin}
-                    refreshPosts={refreshPosts}
-                    isDiscordConfigured={isDiscordConfigured}
-                />
+                <div data-tour="donjons-board">
+                    <DungeonFinderClient
+                        guildId={guildId}
+                        initialPosts={initialPosts}
+                        currentProfileId={user.profileId ?? undefined}
+                        isAdmin={user.isAdmin}
+                        refreshPosts={refreshPosts}
+                        isDiscordConfigured={isDiscordConfigured}
+                    />
+                </div>
             </Suspense>
         </div>
     );

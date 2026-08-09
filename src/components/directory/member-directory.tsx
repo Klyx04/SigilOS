@@ -154,7 +154,7 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
 
     return (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12" data-tour="annuaire-grid">
                 {/* --- Roster Card --- */}
                 <button
                     onClick={() => setActiveTab("roster")}
@@ -293,11 +293,11 @@ export function MemberDirectory({ initialMembers, legendaryItems, guildId }: Mem
             <TabsContent value="roster" className="mt-0 border-0 p-0 animate-in fade-in zoom-in-95 duration-500">
 
             {/* FILTER BAR — UI UX 2026 PREMIUM */}
-            <div className="relative overflow-hidden p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 shadow-2xl bg-zinc-950 group/filterbar border border-white/5 mb-6">
+            <div className="relative overflow-hidden p-2.5 rounded-2xl flex flex-col md:flex-row gap-3 shadow-2xl bg-zinc-950 group/filterbar border border-white/5 mb-6" data-tour="annuaire-filters">
                 <div className="noise-overlay absolute inset-0 opacity-10" />
                 
                 {/* Search Input — High Fidelity */}
-                <div className="relative flex-1 group/search">
+                <div className="relative flex-1 group/search" data-tour="annuaire-search">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within/search:text-indigo-400 transition-colors duration-500" />
                     <Input
                         placeholder="Rechercher par pseudo, alt, discord..."

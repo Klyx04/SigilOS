@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Discord Interaction Validation Actions
  *
@@ -84,7 +85,7 @@ export async function internalValidateMissionSubmission(
                     const { deleteChannelMessage } = await import("@/server/discord");
                     await deleteChannelMessage(channelId, msgId);
                 } catch (e) {
-                    console.error("[internalValidateMissionSubmission] Failed to delete Discord embed", e);
+                    logger.error("[internalValidateMissionSubmission] Failed to delete Discord embed", e);
                 }
             }
         }
@@ -155,14 +156,14 @@ export async function internalValidateMissionSubmission(
         if (status === "VALIDATED") {
             const { refreshMissionDiscordEmbed } = await import("./mission-actions");
             refreshMissionDiscordEmbed(discordGuildId).catch((e) =>
-                console.error("[Discord] refreshMissionDiscordEmbed after Discord validation failed:", e)
+                logger.error("[Discord] refreshMissionDiscordEmbed after Discord validation failed:", e)
             );
         }
 
         const memberName = updated.profile.discordNickname || updated.profile.pseudoDofus || updated.profile.user?.name || "Membre";
         return { success: true, memberName, missionTitle: submission.mission.title ?? undefined };
     } catch (error) {
-        console.error("[internalValidateMissionSubmission]", error);
+        logger.error("[internalValidateMissionSubmission]", error);
         return { success: false, error: "Erreur serveur." };
     }
 }
@@ -244,7 +245,7 @@ export async function internalReviewKamaDonation(
                     const { deleteChannelMessage } = await import("@/server/discord");
                     await deleteChannelMessage(channelId, msgId);
                 } catch (e) {
-                    console.error("[internalReviewKamaDonation] Failed to delete Discord embed", e);
+                    logger.error("[internalReviewKamaDonation] Failed to delete Discord embed", e);
                 }
             }
         }
@@ -257,14 +258,14 @@ export async function internalReviewKamaDonation(
         if (newStatus === "VALIDATED") {
             const { refreshMissionDiscordEmbed } = await import("./mission-actions");
             refreshMissionDiscordEmbed(discordGuildId).catch((e) =>
-                console.error("[Discord] refreshMissionDiscordEmbed after kama Discord validation failed:", e)
+                logger.error("[Discord] refreshMissionDiscordEmbed after kama Discord validation failed:", e)
             );
         }
 
         const memberName = donation.profile?.discordNickname || donation.profile?.pseudoDofus || donation.profile?.user?.name || "Membre";
         return { success: true, memberName, amount: donation.amount };
     } catch (error) {
-        console.error("[internalReviewKamaDonation]", error);
+        logger.error("[internalReviewKamaDonation]", error);
         return { success: false, error: "Erreur serveur." };
     }
 }
@@ -331,7 +332,7 @@ export async function internalReviewAchievementSubmission(
                     const { deleteChannelMessage } = await import("@/server/discord");
                     await deleteChannelMessage(channelId, msgId);
                 } catch (e) {
-                    console.error("[internalReviewAchievementSubmission] Failed to delete Discord embed", e);
+                    logger.error("[internalReviewAchievementSubmission] Failed to delete Discord embed", e);
                 }
             }
         }
@@ -343,7 +344,7 @@ export async function internalReviewAchievementSubmission(
         const memberName = submission.profile?.discordNickname || submission.profile?.pseudoDofus || submission.profile?.user?.name || "Membre";
         return { success: true, memberName, points: submission.points };
     } catch (error) {
-        console.error("[internalReviewAchievementSubmission]", error);
+        logger.error("[internalReviewAchievementSubmission]", error);
         return { success: false, error: "Erreur serveur." };
     }
 }

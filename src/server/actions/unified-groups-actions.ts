@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -113,7 +114,7 @@ export async function getUnifiedActiveGroups(guildId: string): Promise<{ success
 
         return { success: true, groups: allGroups };
     } catch (error) {
-        console.error("[getUnifiedActiveGroups]", error);
+        logger.error("[getUnifiedActiveGroups]", error);
         return { success: false, groups: [] };
     }
 }

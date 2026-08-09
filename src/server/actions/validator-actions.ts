@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -68,7 +69,7 @@ export async function getValidatorStats(guildId: string) {
 
         return { success: true, data };
     } catch (error) {
-        console.error("[ValidatorStats] Error:", error);
+        logger.error("[ValidatorStats] Error:", error);
         return { success: false, error: "Database error" };
     }
 }

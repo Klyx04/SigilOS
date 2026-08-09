@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 type AlmanaxData = {
     bonus: {
@@ -61,7 +62,7 @@ export async function getAlmanaxData(): Promise<{
         });
 
         if (!res.ok) {
-            console.warn(`Direct fetch for Almanax data failed (${res.status}), trying proxy...`);
+            logger.warn(`Direct fetch for Almanax data failed (${res.status}), trying proxy...`);
             const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
             res = await fetch(proxyUrl, {
                 headers: { "User-Agent": "SigilOS/1.0" },
@@ -85,7 +86,7 @@ export async function getAlmanaxData(): Promise<{
         const data = await res.json();
         return { success: true, data, secondsUntilMidnight };
     } catch (error) {
-        console.error("Almanax Fetch Error:", error);
+        logger.error("Almanax Fetch Error:", error);
         return { success: false, error: "Impossible de charger l'Almanax" };
     }
 }

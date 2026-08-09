@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
@@ -165,7 +166,7 @@ export async function getGuildStats(guildId: string): Promise<{
             return { success: true, stats: JSON.parse(cached) as GuildStats };
         }
     } catch (e) {
-        console.error("[Stats] Redis error:", e);
+        logger.error("[Stats] Redis error:", e);
     }
 
     const ctx = await getUserContext(guildId);
@@ -725,7 +726,7 @@ export async function getGuildStats(guildId: string): Promise<{
             stats
         };
     } catch (error) {
-        console.error("[getGuildStats] Error:", error);
+        logger.error("[getGuildStats] Error:", error);
         return { success: false, error: "Erreur lors du chargement des statistiques" };
     }
 }

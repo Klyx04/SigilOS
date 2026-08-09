@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -43,7 +44,7 @@ export async function logTelemetryEvent(rawInput: z.infer<typeof logTelemetrySch
 
         return { success: true };
     } catch (err) {
-        console.error("[Telemetry] Failed to log telemetry event:", err);
+        logger.error("[Telemetry] Failed to log telemetry event:", err);
         return { success: false, error: "Internal Error" };
     }
 }
@@ -387,7 +388,7 @@ export async function getTelemetryStats(filterGuildId?: string) {
             chartData
         };
     } catch (err) {
-        console.error("[getTelemetryStats Error]:", err);
+        logger.error("[getTelemetryStats Error]:", err);
         throw err;
     }
 }

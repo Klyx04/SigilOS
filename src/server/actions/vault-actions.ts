@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -103,7 +104,7 @@ export async function getVaultEntries(
 
         return { success: true, data: entries as VaultEntryWithProfile[] };
     } catch (error) {
-        console.error("[getVaultEntries]", error);
+        logger.error("[getVaultEntries]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -263,19 +264,19 @@ export async function createVaultEntry(
                             }
                         );
                     } else {
-                        console.warn(`[createVaultEntry] Channel ${channelId} invalid for guild ${guildId}`);
+                        logger.warn(`[createVaultEntry] Channel ${channelId} invalid for guild ${guildId}`);
                     }
                 }
             } catch (discordErr) {
                 // Non-blocking
-                console.error("[createVaultEntry] Discord notify failed:", discordErr);
+                logger.error("[createVaultEntry] Discord notify failed:", discordErr);
             }
         }
 
         revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true, data: { id: entry.id } };
     } catch (error) {
-        console.error("[createVaultEntry]", error);
+        logger.error("[createVaultEntry]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -325,7 +326,7 @@ export async function deleteVaultEntry(
         revalidatePath(`/dashboard/${guildId}/services`);
         return { success: true };
     } catch (error) {
-        console.error("[deleteVaultEntry]", error);
+        logger.error("[deleteVaultEntry]", error);
         return { success: false, error: "Erreur interne" };
     }
 }
@@ -381,7 +382,7 @@ export async function getVaultBalance(
 
         return { success: true, data: summary };
     } catch (error) {
-        console.error("[getVaultBalance]", error);
+        logger.error("[getVaultBalance]", error);
         return { success: false, error: "Erreur interne" };
     }
 }

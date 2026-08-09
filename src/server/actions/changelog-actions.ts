@@ -7,6 +7,8 @@
 
 'use server';
 
+import { logger } from "@/lib/logger";
+
 import { z } from 'zod';
 import { db } from '@/lib/prisma';
 import { isSuperAdmin } from './super-admin-actions';
@@ -65,7 +67,7 @@ export async function createChangelogEntry(input: CreateChangelogInput) {
 
         return { success: true, entry };
     } catch (error) {
-        console.error('[Changelog] Create error:', error);
+        logger.error('[Changelog] Create error:', error);
         return { success: false, error: 'Failed to create changelog entry' };
     }
 }
@@ -99,7 +101,7 @@ export async function updateChangelogEntry(id: string, input: Partial<CreateChan
 
         return { success: true, entry };
     } catch (error) {
-        console.error('[Changelog] Update error:', error);
+        logger.error('[Changelog] Update error:', error);
         return { success: false, error: 'Failed to update changelog entry' };
     }
 }
@@ -127,7 +129,7 @@ export async function deleteChangelogEntry(id: string) {
 
         return { success: true };
     } catch (error) {
-        console.error('[Changelog] Delete error:', error);
+        logger.error('[Changelog] Delete error:', error);
         return { success: false, error: 'Failed to delete changelog entry' };
     }
 }
@@ -156,7 +158,7 @@ export async function getChangelogEntries(category?: ChangelogCategory, onlyPubl
             publishedAt: e.publishedAt.toISOString()
         }));
     } catch (error) {
-        console.error('[Changelog] Fetch error:', error);
+        logger.error('[Changelog] Fetch error:', error);
         return [];
     }
 }
@@ -177,7 +179,7 @@ export async function getChangelogEntry(id: string) {
             publishedAt: entry.publishedAt.toISOString()
         };
     } catch (error) {
-        console.error('[Changelog] Fetch single error:', error);
+        logger.error('[Changelog] Fetch single error:', error);
         return null;
     }
 }
@@ -198,7 +200,7 @@ export async function getLatestChangelogEntry() {
             publishedAt: entry.publishedAt.toISOString()
         };
     } catch (error) {
-        console.error('[Changelog] Fetch latest error:', error);
+        logger.error('[Changelog] Fetch latest error:', error);
         return null;
     }
 }
@@ -224,7 +226,7 @@ export async function checkChangelogVisibility() {
 
         return { show: true, changelog: latest };
     } catch (error) {
-        console.error('[Changelog] Visibility check error:', error);
+        logger.error('[Changelog] Visibility check error:', error);
         return { show: false };
     }
 }
@@ -244,7 +246,7 @@ export async function markChangelogAsSeen(changelogId: string) {
 
         return { success: true };
     } catch (error) {
-        console.error('[Changelog] Mark as seen error:', error);
+        logger.error('[Changelog] Mark as seen error:', error);
         return { success: false };
     }
 }
@@ -327,7 +329,7 @@ export async function updatePlatformConfig(data: {
         revalidatePath('/maintenance');
         return { success: true, config };
     } catch (e) {
-        console.error('[updatePlatformConfig]', e);
+        logger.error('[updatePlatformConfig]', e);
         return { success: false, error: "Erreur écriture config" };
     }
 }
@@ -357,7 +359,7 @@ export async function toggleMaintenanceMode(enabled: boolean, message?: string) 
         revalidatePath('/god');
         return { success: true };
     } catch (e) {
-        console.error('[toggleMaintenanceMode]', e);
+        logger.error('[toggleMaintenanceMode]', e);
         return { success: false, error: "Erreur maintenance" };
     }
 }
@@ -372,7 +374,7 @@ export async function testStatusPing(channelId?: string) {
         // This ensures the test ALWAYS pushes a notification that the admin can see at the bottom
         return await sendGlobalStatusPing(true, 'notification', undefined, channelId);
     } catch (e: any) {
-        console.error('[testStatusPing]', e);
+        logger.error('[testStatusPing]', e);
         return { success: false, error: e.message || "Erreur interne" };
     }
 }
@@ -397,7 +399,7 @@ export async function testBackupNotification(channelId?: string) {
             }
         });
     } catch (e: any) {
-        console.error('[testBackupNotification]', e);
+        logger.error('[testBackupNotification]', e);
         return { success: false, error: e.message || "Erreur interne" };
     }
 }
@@ -459,7 +461,7 @@ export async function sendChangelogToDiscord(entryId: string) {
         if (!mid) return { success: false, error: `Discord a rejeté le message (Salon introuvable ou permissions manquantes)` };
         return { success: true };
     } catch (error) {
-        console.error('[Changelog Discord] Fetch error:', error);
+        logger.error('[Changelog Discord] Fetch error:', error);
         return { success: false, error: "Erreur réseau lors de l'envoi" };
     }
 }

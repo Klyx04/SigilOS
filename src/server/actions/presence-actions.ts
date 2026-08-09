@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -97,7 +98,7 @@ export const getActivePresence = cache(async (guildId: string, limit: number = 2
             })
         };
     } catch (error) {
-        console.error("[Presence] Failed to fetch active users:", error);
+        logger.error("[Presence] Failed to fetch active users:", error);
         return { success: false, data: [] };
     }
 });
@@ -148,7 +149,7 @@ export async function updateHeartbeat(guildId: string, isAfk: boolean = false) {
 
         return { success: true };
     } catch (error) {
-        console.error("[Presence] Heartbeat failed:", error);
+        logger.error("[Presence] Heartbeat failed:", error);
         return { success: false };
     }
 }

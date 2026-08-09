@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "@/server/actions/user-actions";
@@ -123,7 +124,7 @@ export async function giveHelpCredit(formData: z.infer<typeof GiveHelpCreditSche
 
         return { success: true };
     } catch (error) {
-        console.error("[HelpActions] Error giving credit:", error);
+        logger.error("[HelpActions] Error giving credit:", error);
         return { success: false, error: "Une erreur est survenue lors de l'attribution du remerciement" };
     }
 }

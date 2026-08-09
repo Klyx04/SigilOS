@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -113,7 +114,7 @@ export async function searchQuestsLocalThenDofusDB(query: string) {
             }))
         };
     } catch (error) {
-        console.error("[searchQuestsLocalThenDofusDB] Error:", error);
+        logger.error("[searchQuestsLocalThenDofusDB] Error:", error);
         return { success: false, error: "Erreur lors de la recherche des quêtes" };
     }
 }
@@ -196,7 +197,7 @@ export async function getQuestPrerequisites(dofusDbId: number) {
                             }
                         }
                     } catch (e) {
-                        console.error(`Error resolving quest ${id}:`, e);
+                        logger.error(`Error resolving quest ${id}:`, e);
                     }
                 }));
             }
@@ -214,7 +215,7 @@ export async function getQuestPrerequisites(dofusDbId: number) {
                         }
                     }
                 } catch (e) {
-                    console.error(`Error resolving achievement ${id}:`, e);
+                    logger.error(`Error resolving achievement ${id}:`, e);
                 }
             }));
         }
@@ -229,7 +230,7 @@ export async function getQuestPrerequisites(dofusDbId: number) {
             }
         };
     } catch (error: any) {
-        console.error("[getQuestPrerequisites] Error:", error);
+        logger.error("[getQuestPrerequisites] Error:", error);
         return { success: false, error: "Impossible de récupérer les prérequis" };
     }
 }
@@ -268,7 +269,7 @@ export async function searchGuideQuests(query: string) {
             data: Array.from(names).slice(0, 10).map(name => ({ id: name, name }))
         };
     } catch (error) {
-        console.error("[searchGuideQuests] Error:", error);
+        logger.error("[searchGuideQuests] Error:", error);
         return { success: false, error: "Erreur recherche quêtes" };
     }
 }

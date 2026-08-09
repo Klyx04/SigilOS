@@ -65,6 +65,7 @@
 3. **Vérifier** avant tout commit : pas de secret, pas d'audit, `npm run test:run` + `npm run build` en local.
 4. **Nommer les findings** avec référence (F-xx) si on parle d'audit, et pointer le fichier précis.
 5. **Pousser** sur une branche, puis PR vers `dev` (pas directement sur `main`/`dev` sauf cas exceptionnel).
+6. **Scripts `.ps1` de refactoring ponctuel = HORS GIT** (ex. `convert-console-to-logger.ps1`) — utilitaires de dev locaux, jamais commités ni pushés. Seuls les scripts de **build/déploiement/maintenance** légitimes sont commités (ex. `scripts/sync-assets.ps1`). Documenter l'existence des scripts ponctuels dans le CONTEXT (pas dans git).
 
 ---
 
@@ -272,6 +273,7 @@
 | **Tours admin** : enrichir + sous-cartes par module | `src/temp/memo-2026-08-08-tours-admin.md` | ⚪ **Abandonné (décision 09/08)** — hors priorité, ne pas relancer |
 | Vérifier build Next.js complet (CI Verify and build) | branche `feat/onboarding-admin-tour` | ⚠️ |
 | **Ladder Discord** : déployer fix + test manuel (puis prévoir SUSPECT A si besoin) | `memo-2026-08-08-ladder-discord.md` | ✅ **Corrigé + mergé dans `dev` (PR #416, commit `fa66e8fe`)** — reste : déployer beta + test manuel |
+| **Zero Console Policy** | `SECURITY.md` / branche `feat/security-hardening-suite` | ✅ **FAIT (09/08)** — 433 `console.*` → `logger` (commits `4355d540` + `7dc0c01f`), 126/126 tests, build OK. Script utilitaire `.ps1` hors git |
 
 ---
 
@@ -282,7 +284,7 @@
 > ✅ **Résolu (09/08)** : **CSP nonce-based déployée** (Report-Only, commit `918fa308`) · **clé de chiffrement de secours retirée** (F-09) · **`WS_AUTH_ENABLED=true` activé en beta** (F-08, à tester puis activer en prod).
 
 **Reste :**
-- **1. Zero Console Policy (restant)** : **433** `console.*` dans `src/server/actions/` (mesuré 09/08) à convertir au `logger` (chantier logiciel mécanique, sans risque métier — conversion 1-à-1, commit par fichier).
+- **1. Zero Console Policy** : ✅ **FAIT (09/08, branche `feat/security-hardening-suite`)** — **433 `console.*`** dans `src/server/actions/` convertis au `logger` (429 actifs + 4 commentés conservés). **Commits `4355d540`** (conversion 73 fichiers + logger tolérant aux contextes `unknown`/Error/BigInt, `src/lib/logger.ts`) **+ `7dc0c01f`** (fix directive `'use server';` avant import logger, 6 fichiers). **Vérifs : 126/126 tests ✓ · tsc 0 ✓ · build Next.js complet ✓ · 0 console actif restant · 0 bug directive**. ⚠️ Le script utilitaire `scripts/convert-console-to-logger.ps1` (refactoring ponctuel) est **HORS GIT** (local uniquement, cf. règle scripts).
 - **2. Audit BDD tokens OAuth** : ✅ **TERMINÉ (09/08)** — beta 126/126 chiffrés · prod 3/3 re-chiffrés (script `scripts/re-encrypt-oauth-tokens.ts`, commit `091b7c46`) → **chantier F-05 FERMÉ**.
 - **3. Infra restante** : I-06 (unifier Discord), I-07 (séparer Redis beta/prod), I-15 (circuit breaker). **F-14 Caddy rate-limit : FAIT (commit `cde708a7`)**.
 

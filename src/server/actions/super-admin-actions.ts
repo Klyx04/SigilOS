@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -638,7 +639,7 @@ export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
         const cached = await redis.get(cacheKey);
         if (cached !== null) return cached === 'true';
     } catch (e) {
-        console.warn(`[Security] Redis read failed for ${cacheKey}, falling back to DB.`);
+        logger.warn(`[Security] Redis read failed for ${cacheKey}, falling back to DB.`);
     }
 
     // 2. Fetch from DB if not cached
@@ -667,12 +668,12 @@ export async function isGuildAllowed(discordGuildId: string): Promise<boolean> {
         try {
             await redis.setex(cacheKey, 60, isAllowed ? 'true' : 'false');
         } catch (redisErr) {
-            console.warn(`[Security] Redis write failed for ${cacheKey}`);
+            logger.warn(`[Security] Redis write failed for ${cacheKey}`);
         }
 
         return isAllowed;
     } catch (e) {
-        console.error(`[Security] Error checking guild status for ${discordGuildId}:`, e);
+        logger.error(`[Security] Error checking guild status for ${discordGuildId}:`, e);
         // Fail closed for security
         return false;
     }
@@ -898,7 +899,7 @@ export async function getUnauthorizedBotConnections() {
             icon: g.icon
         }));
     } catch (err) {
-        console.error("[SuperAdmin] Failed to fetch unauthorized guilds:", err);
+        logger.error("[SuperAdmin] Failed to fetch unauthorized guilds:", err);
         return [];
     }
 }
@@ -998,7 +999,7 @@ export async function forceDeleteUser(userId: string) {
 
         return { success: true };
     } catch (error) {
-        console.error("Delete Error:", error);
+        logger.error("Delete Error:", error);
         return { success: false, error: "Deletion failed" };
     }
 }

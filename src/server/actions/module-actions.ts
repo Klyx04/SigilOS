@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { db } from "@/lib/prisma";
 import { getUserContext } from "./user-actions";
@@ -188,7 +189,7 @@ export async function updateGuildModules(
 
         return { success: true };
     } catch (error) {
-        console.error("[updateGuildModules] Error:", error);
+        logger.error("[updateGuildModules] Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }

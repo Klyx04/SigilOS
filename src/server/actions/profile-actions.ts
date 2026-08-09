@@ -368,7 +368,7 @@ export async function getUserProfile(guildId: string): Promise<ActionResponse<an
             }
         };
     } catch (error) {
-        console.error("Get Profile Error:", error);
+        logger.error("Get Profile Error:", error);
         return { success: false, error: "Erreur serveur" };
     }
 }
@@ -1156,7 +1156,7 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
 
     const validation = UpdateDofusBookLinksSchema.safeParse(rawData);
     if (!validation.success) {
-        console.error("[DofusBook Validation Error]", JSON.stringify(validation.error.format(), null, 2));
+        logger.error("[DofusBook Validation Error]", JSON.stringify(validation.error.format(), null, 2));
         return { success: false, error: "Données invalides" };
     }
     const { guildId, links, targetUserId } = validation.data;
@@ -1239,7 +1239,7 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
                     };
                 }
             } catch (e) {
-                console.error(`[Server Baking] Failed for ${link.url}:`, e);
+                logger.error(`[Server Baking] Failed for ${link.url}:`, e);
             }
             return { 
                 ...link, 

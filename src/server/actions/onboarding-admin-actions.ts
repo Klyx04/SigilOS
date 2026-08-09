@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
@@ -71,7 +72,7 @@ export async function getOnboardingSettings(guildId: string) {
             }
         }));
     } catch (e) {
-        console.error("Failed to get onboarding settings", e);
+        logger.error("Failed to get onboarding settings", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -110,7 +111,7 @@ export async function updateWelcomeSettings(data: z.infer<typeof WelcomeSettings
         revalidatePath(`/dashboard/${data.guildId}/admin/settings`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to update welcome settings", e);
+        logger.error("Failed to update welcome settings", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -155,7 +156,7 @@ export async function updateWelcomeBadgeName(data: z.infer<typeof WelcomeBadgeSc
         revalidatePath(`/dashboard/${data.guildId}/profile`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to update welcome badge name", e);
+        logger.error("Failed to update welcome badge name", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -215,7 +216,7 @@ export async function grantWelcomeBadge(data: z.infer<typeof GrantBadgeSchema>) 
         revalidatePath(`/dashboard/${data.guildId}/members`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to grant welcome badge", e);
+        logger.error("Failed to grant welcome badge", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -312,7 +313,7 @@ export async function sendWelcomeMessage(guildId: string, memberProfileId: strin
         revalidatePath(`/dashboard/${guildId}`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to send welcome message", e);
+        logger.error("Failed to send welcome message", e);
         return { success: false, error: "Database error" };
     }
 }
@@ -364,7 +365,7 @@ export async function saveMemberIntroduction(guildId: string, introduction: stri
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
     } catch (e) {
-        console.error("Failed to save introduction", e);
+        logger.error("Failed to save introduction", e);
         return { success: false, error: "Erreur lors de la sauvegarde" };
     }
 }
@@ -418,7 +419,7 @@ export async function getWelcomePosts(guildId: string) {
             reactorNames
         };
     } catch (e) {
-        console.error("Failed to get welcome posts", e);
+        logger.error("Failed to get welcome posts", e);
         return { posts: [], reactorNames: {} };
     }
 }
@@ -479,7 +480,7 @@ export async function toggleWelcomeReaction(welcomeId: string, emoji: string) {
         revalidatePath(`/dashboard/${welcome.guild.discordGuildId}/welcome`);
         return { success: true };
     } catch (e) {
-        console.error("[toggleWelcomeReaction] Failed", e);
+        logger.error("[toggleWelcomeReaction] Failed", e);
         return { success: false, error: "Erreur serveur, réessaie dans un instant." };
     }
 }

@@ -22,7 +22,6 @@ import {
     Swords,
     FileText,
     ChevronDown,
-    ChevronRight,
     ChevronsUpDown,
     Plus,
     Hammer,
@@ -136,55 +135,24 @@ export function AppSidebar({
         return false;
     };
 
-    // Auto-expand sections if any sub-route is active
-    const progressionRoutes = [
-        `/dashboard/${guildId}/missions`,
-        `/dashboard/${guildId}/songes`,
-        `/dashboard/${guildId}/quete-ocre`,
-        `/dashboard/${guildId}/quetes-dofus`,
-        `/dashboard/${guildId}/ladder`,
-    ];
     const [progressionOpen, setProgressionOpen] = useState(
-        () => progressionRoutes.some(r => pathname.startsWith(r))
+        true
     );
 
-    const toolsRoutes = [
-        `/dashboard/${guildId}/galerie-stuff`,
-        `/dashboard/${guildId}/donjons-et-quetes`,
-        `/dashboard/${guildId}/services`,
-    ];
     const [toolsOpen, setToolsOpen] = useState(
-        () => toolsRoutes.some(r => pathname.startsWith(r))
+        true
     );
 
-    const infoRoutes = [
-        `/dashboard/${guildId}/guild-hub`,
-        `/dashboard/${guildId}/welcome`,
-        `/dashboard/${guildId}/presentation`,
-        `/dashboard/${guildId}/stats`,
-        `/dashboard/${guildId}/members`,
-        `/dashboard/${guildId}/calendar`,
-        `/dashboard/${guildId}/ressources`,
-    ];
     const [infoOpen, setInfoOpen] = useState(
-        () => infoRoutes.some(r => pathname.startsWith(r))
+        true
     );
 
-    const othersRoutes = [
-        `/dashboard/${guildId}/mini-jeux`,
-        `/dashboard/${guildId}/sondages`,
-        `/dashboard/${guildId}/worldmap`,
-    ];
     const [othersOpen, setOthersOpen] = useState(
-        () => othersRoutes.some(r => pathname.startsWith(r)) || pathname === "/roadmap" || pathname === "/changelog"
+        true
     );
 
-    const adminRoutes = [
-        `/dashboard/${guildId}/admin`,
-        `/dashboard/${guildId}/missions/manage`,
-    ];
     const [adminOpen, setAdminOpen] = useState(
-        () => adminRoutes.some(r => pathname.startsWith(r))
+        true
     );
 
     const [pinnedOpen, setPinnedOpen] = useState(true);
@@ -299,7 +267,7 @@ export function AppSidebar({
         .map(href => NAV_REGISTRY.find(item => item.href === href))
         .filter(item => item && item.visible !== false) as any[];
 
-    const [hiddenOpen, setHiddenOpen] = useState(false);
+    const [hiddenOpen, setHiddenOpen] = useState(true);
 
     const handleTogglePin = async (href: string) => {
         // Optimistic Update
@@ -826,7 +794,7 @@ export function AppSidebar({
     );
 }
 
-function SectionTitle({ label, collapsible, isOpen, onToggle }: { label: string; collapsible?: boolean; isOpen?: boolean; onToggle?: () => void }) {
+function SectionTitle({ label, collapsible: _collapsible, isOpen: _isOpen, onToggle: _onToggle }: { label: string; collapsible?: boolean; isOpen?: boolean; onToggle?: () => void }) {
     const isSupervision = label === "Supervision";
     const isInfo = label.includes("Info");
     const isOutils = label.includes("Outil");
@@ -835,13 +803,7 @@ function SectionTitle({ label, collapsible, isOpen, onToggle }: { label: string;
     const isPinned = label.includes("Favori");
 
     return (
-        <div 
-            className={cn(
-                "flex items-center gap-4 px-4 py-2 mb-2 mt-4 group/title select-none relative",
-                collapsible && "cursor-pointer"
-            )}
-            onClick={onToggle}
-        >
+        <div className="flex items-center gap-4 px-4 py-2 mb-2 mt-4 group/title select-none relative">
             {/* Background Pill - UI 2026 */}
             <div className="absolute inset-x-2 inset-y-0 bg-white/[0.02] dark:bg-white/[0.03] rounded-2xl -z-10 group-hover/title:bg-white/[0.05] transition-colors duration-150" />
             
@@ -866,14 +828,7 @@ function SectionTitle({ label, collapsible, isOpen, onToggle }: { label: string;
                 isOutils ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" :
                 isAutres ? "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent" :
                 "bg-gradient-to-r from-emerald-500 via-emerald-500/50 to-transparent"
-            )} />
-            
-            {collapsible && (
-                <div className="p-1 rounded-lg bg-white/5 border border-white/5 transition-all group-hover/title:border-white/10">
-                    <ChevronRight className={cn("w-3 h-3 text-muted-foreground/40 transition-colors duration-150", isOpen && "rotate-90 text-primary")} />
-                </div>
-            )}
-        </div>
+            )} />        </div>
     );
 }
 

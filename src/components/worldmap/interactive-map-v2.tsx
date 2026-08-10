@@ -565,24 +565,19 @@ export default function InteractiveMapV2({
     }, []);
 
     useEffect(() => {
-        // Plein écran dès qu'une partie est en cours (phase de jeu, résultat, ou session active hors lobby)
-        const inGame = gamePhase !== 'idle'
-            || !!guessResult
-            || (!!activeSession && activeSession.state && activeSession.state !== 'LOBBY');
+        // Plein écran uniquement pendant une partie (gamePhase != idle) → se retire en revenant au menu
+        const inGame = gamePhase !== 'idle';
         applyFullscreen(inGame);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gamePhase, activeSession, guessResult]);
+    }, [gamePhase]);
 
     // Secours : vérifie périodiquement et force le plein écran tant qu'une partie est active
     useEffect(() => {
         const interval = setInterval(() => {
-            const inGame = gamePhase !== 'idle'
-                || !!guessResult
-                || (!!activeSession && activeSession.state && activeSession.state !== 'LOBBY');
-            if (inGame) applyFullscreen(true); // force seulement pendant la partie (ne casse pas le fullscreen manuel)
+            if (gamePhase !== 'idle') applyFullscreen(true); // force seulement pendant la partie
         }, 600);
         return () => clearInterval(interval);
-    }, [gamePhase, guessResult, activeSession, applyFullscreen]);
+    }, [gamePhase, applyFullscreen]);
 
     // Nettoyage du plein écran à la sortie de la page (retour dashboard = normal)
     useEffect(() => {

@@ -92,7 +92,7 @@ export default async function QueteOcrePage({
                     <div className="space-y-6">
                         {ocreResponse.success && ocreResponse.data ? (
                             <div data-tour="ocre-dashboard">
-                                <OcreDashboard data={ocreResponse.data} guildId={guildId} hasOcreChannel={hasOcreChannel} />
+                                <OcreDashboard data={JSON.parse(JSON.stringify(ocreResponse.data))} guildId={guildId} hasOcreChannel={hasOcreChannel} />
                             </div>
                         ) : (
                             <NotLinkedState 
@@ -114,7 +114,7 @@ export default async function QueteOcrePage({
                                     metamobPseudo={profile?.metamobPseudo}
                                     metamobVerified={profile?.metamobVerified}
                                     metamobLastSync={profile?.metamobLastSync}
-                                    progressData={ocreResponse.data}
+                                    progressData={JSON.parse(JSON.stringify(ocreResponse.data))}
                                 />
                             </div>
                         )}

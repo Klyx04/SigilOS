@@ -47,7 +47,7 @@ export default async function ArchimonstresPage({
 
                 {/* Content */}
                 {archiResponse.success && archiResponse.data ? (
-                    <ArchiHub data={archiResponse.data} guildId={guildId} />
+                    <ArchiHub data={JSON.parse(JSON.stringify(archiResponse.data))} guildId={guildId} />
                 ) : (
                     <NotLinkedState guildId={guildId} error={archiResponse.error} />
                 )}

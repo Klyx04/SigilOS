@@ -81,8 +81,8 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                 <button
                     onClick={handleBadgeClick}
                     className={cn(
-                        "flex h-8 items-center gap-2.5 px-3 rounded-full bg-red-600/10 border border-red-500/20 hover:bg-red-600/20 transition-all duration-300 group shadow-lg shadow-red-500/20 shrink-0 cursor-pointer",
-                        "animate-in fade-in slide-in-from-top-2 duration-700"
+                        "flex h-8 items-center gap-2 px-3 rounded-full bg-red-600/10 border border-red-500/20 hover:bg-red-500/15 transition-colors shrink-0 cursor-pointer",
+                        "animate-in fade-in duration-150"
                     )}
                 >
                     <span className="relative flex h-2 w-2">
@@ -92,7 +92,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
 
                     <Tv className="w-3 h-3 text-red-500" />
 
-                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground leading-none whitespace-nowrap italic">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground leading-none whitespace-nowrap">
                         {text}
                     </span>
 

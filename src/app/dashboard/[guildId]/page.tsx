@@ -112,6 +112,18 @@ export default async function DashboardPage({
     const topActivityName = guildStats?.records?.[0]?.label || "";
     const topActivityValue = guildStats?.records?.[0]?.value || "";
 
+    // Comparaisons temporelles (point 4 — KPI "parlants") : réutilise des données
+    // DÉJÀ calculées par getGuildStats (0 requête supplémentaire → pas d'impact sur le pool).
+    // - Membres : croissance nette du dernier mois (joins − leaves) via retention.growth.
+    // - Événements : nombre créés ce mois-ci via events.thisMonth.
+    const growth = guildStats?.retention?.growth || [];
+    const lastGrowth = growth[growth.length - 1];
+    const membersDelta = lastGrowth ? lastGrowth.joins - lastGrowth.leaves : null;
+    const eventsDelta = typeof guildStats?.events?.thisMonth === "number" ? guildStats.events.thisMonth : null;
+    // Vitrine (admin → missions) : on masque la carte "Progression Dofus" (même règle
+    // que l'onglet "Présence & Feed" des profils — infos de progression cachées en lecture seule).
+    const isVitrineActive = !!user.missionVitrineMode;
+
     // Contextual greeting (direction 2026 : header contextuel, plus de watermark ghost)
     const hour = new Date().getHours();
     const greeting = hour < 6 ? "Bonne nuit" : hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
@@ -172,6 +184,9 @@ export default async function DashboardPage({
                         topActivityName={topActivityName}
                         topActivityValue={topActivityValue}
                         onlineUsers={onlineUsers}
+                        membersDelta={membersDelta}
+                        eventsDelta={eventsDelta}
+                        hideDofusProgress={isVitrineActive}
                     />
                 </section>
 

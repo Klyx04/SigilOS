@@ -2332,6 +2332,18 @@ export default function OptimizedGuideClient({
               exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
               className="guide-content"
             >
+              {/* Breadcrumb de progression sticky */}
+              <div className="guide-read-crumb">
+                <div className="guide-read-crumb-path">
+                  Phase {selected.chapter > 0 ? selected.chapter : "Intro"}
+                  {selected.chapterLabel ? <><span className="sep"> · </span><span>{selected.chapterLabel}</span></> : null}
+                  <span className="sep"> · </span>
+                  <span className="here">{overallPct}% complété</span>
+                </div>
+                <div className="guide-read-crumb-bar"><div style={{ width: `${overallPct}%` }} /></div>
+                <span className="guide-read-crumb-pct">{overallPct}%</span>
+              </div>
+
               {/* Guide name banner */}
               <div className="guide-name-banner mb-6 p-4 rounded-2xl bg-gradient-to-r from-zinc-950/80 via-emerald-950/20 to-zinc-950/80 border border-emerald-500/20 shadow-2xl flex items-center justify-between">
                 <div className="flex items-center gap-2">

@@ -522,7 +522,8 @@ export default function InteractiveMapV2({
     }, []);
 
     useEffect(() => {
-        const inGame = gamePhase === 'countdown' || gamePhase === 'playing' || gamePhase === 'result';
+        // Plein écran dès qu'une partie est en cours (toutes phases sauf idle)
+        const inGame = gamePhase !== 'idle';
         applyFullscreen(inGame);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gamePhase]);
@@ -1877,31 +1878,20 @@ export default function InteractiveMapV2({
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-6 flex-wrap">
                                         <div className="px-5 py-3 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center min-w-[100px]">
                                             <span className="text-white/20 text-[8px] font-black uppercase tracking-[0.2em] mb-1 italic">Prochain Round dans</span>
                                             <span className="text-white font-black text-2xl italic tracking-tighter leading-none">{timeLeft}s</span>
                                         </div>
                                         <motion.button
-                                            whileHover={{ scale: 1.02 }}
+                                            whileHover={{ scale: 1.02, y: -2 }}
                                             whileTap={{ scale: 0.98 }}
-                                            onClick={handleLeaveSession}
-                                            className="px-6 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-black uppercase text-[10px] italic transition-all border border-red-500/20 flex items-center gap-2"
+                                            onClick={handleNextRound}
+                                            className="px-8 py-4 rounded-2xl bg-emerald-500 text-white font-black uppercase text-xs italic transition-all flex items-center gap-3 border-b-4 border-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.2)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.3)]"
                                         >
-                                            <LogOut size={14} />
-                                            Quitter
+                                            <span>Suivant</span>
+                                            <ChevronRight size={18} />
                                         </motion.button>
-                                        {(activeSession?.hostId === currentUserId || isSoloMode) && activeSession.state !== 'IN_PROGRESS' && (
-                                            <motion.button
-                                                whileHover={{ scale: 1.02, y: -2 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={handleNextRound}
-                                                className="px-8 py-4 rounded-2xl bg-emerald-500 text-white font-black uppercase text-xs italic transition-all flex items-center gap-3 border-b-4 border-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.2)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.3)]"
-                                            >
-                                                <span>Suivant</span>
-                                                <ChevronRight size={18} />
-                                            </motion.button>
-                                        )}
                                     </div>
                                 </div>
 
@@ -1916,8 +1906,8 @@ export default function InteractiveMapV2({
                                                             <Target className="text-emerald-400 w-6 h-6 sm:w-8 sm:h-8" />
                                                         </div>
                                                         <div>
-                                                            <div className="text-white/20 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 italic">Score Précision</div>
-                                                            <div className="text-white font-black text-2xl sm:text-3xl italic flex items-baseline gap-2 sm:gap-3">
+                                                            <div className="text-emerald-400/80 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 italic">Score Précision</div>
+                                                            <div className="text-white font-black text-3xl sm:text-4xl italic flex items-baseline gap-2 sm:gap-3">
                                                                 {Math.round(guessResult.distance)} Maps
                                                                 <span className="text-emerald-500/40 text-[10px] sm:text-[14px] font-bold uppercase tracking-widest break-words leading-tight">de distance</span>
                                                             </div>

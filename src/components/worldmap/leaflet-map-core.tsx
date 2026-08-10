@@ -201,8 +201,8 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             const subArea = subAreasById.get(subAreaId);
             
             ctx.save();
-            ctx.fillStyle = 'rgba(99, 102, 241, 0.45)';
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.65)';
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.8)';
             ctx.lineWidth = 1;
             ctx.lineJoin = 'round';
             ctx.shadowBlur = 0;
@@ -510,8 +510,8 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         const maxGY = Math.ceil(Math.max(g1Y, g2Y)) + 1;
 
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.lineWidth = 1.5;
 
         for (let gx = minGX; gx <= maxGX + 1; gx++) {
             const p = toCP(gx, 0);

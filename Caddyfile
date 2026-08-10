@@ -106,6 +106,17 @@ beta.sigilos.fr {
         }
     }
 
+    # 🗺️ Assets monde (tuiles webp, worldmap.json, maps HD) servis en STATIQUE
+    # directement par Caddy — évite de faire transiter 2.18G par Node (Next.js
+    # en mode standalone ne sert pas de façon fiable le dossier public bind-mounté).
+    # Le dossier est monté dans le conteneur Caddy via docker-compose
+    # (./public/game-data:/srv/game-data:ro), mis à jour par sync-assets.sh.
+    handle /game-data/* {
+        root * /srv/game-data
+        uri strip_prefix /game-data
+        file_server
+    }
+
     handle {
         reverse_proxy sigilos-beta:3000 {
             header_up X-Real-IP {remote_host}

@@ -264,6 +264,11 @@ git pull origin main
   ./scripts/deploy-cd.sh beta <sha>          # déployer la version <sha> en beta
   ./scripts/deploy-cd.sh beta                # déployer latest
   ```
+- ⚠️ **`deploy-cd.sh` ne recrée PAS le conteneur Caddy** : après toute modification du `Caddyfile` (ex : rate-limit/429, ajout de site), recréer Caddy manuellement :
+  ```bash
+  sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps caddy   # beta
+  sudo docker compose -f docker-compose.prod.yml --env-file .env.prod  up -d --force-recreate --no-deps caddy   # prod
+  ```
 - **Note** : le workflow GHCR ne remplace PAS `verify.yml` (qui reste le garde-fou lint/test/audit). Les deux coexistent : `verify` valide, `deploy.yml` build/push.
 - ⚠️ **Prérequis secrets GitHub** : `BETA_PASSWORD` (settings > secrets). `NEXT_PUBLIC_APP_URL` est défini automatiquement selon la branche.
 - ⚠️ **GHCR Token sur le VPS** : générer un PAT GitHub avec scope `read:packages`, et l'exporter (ou le mettre dans le `.bashrc`/cron).

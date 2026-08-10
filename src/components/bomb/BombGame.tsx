@@ -129,6 +129,28 @@ export default function BombGame({
         localStorage.setItem('bomb_tick_volume', tickVolume.toString());
     }, [tickVolume]);
 
+    // Plein écran automatique pendant les parties (Sigil Bomb)
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const applyFullscreen = (fs: boolean) => {
+        setIsFullscreen(fs);
+        const el = document.getElementById('sigil-bomb-page');
+        if (el) el.classList.toggle('worldmap-fullscreen', fs);
+        document.body.classList.toggle('map-fullscreen', fs);
+    };
+    useEffect(() => {
+        const inGame = gameState?.state === 'PLAYING' || gameState?.state === 'COUNTDOWN' || gameState?.state === 'STARTING';
+        applyFullscreen(inGame);
+    }, [gameState?.state]);
+    // Nettoyage du plein écran à la sortie (retour dashboard = normal)
+    useEffect(() => {
+        return () => {
+            setIsFullscreen(false);
+            const el = document.getElementById('sigil-bomb-page');
+            if (el) el.classList.remove('worldmap-fullscreen');
+            document.body.classList.remove('map-fullscreen');
+        };
+    }, []);
+
     const { playTick, playUrgentTick, playExplosion, playSuccess, playDoubleKill, playTripleKill, playRampage, playGodlike, playSuddenDeath } = useBombSounds(masterVolume, tickVolume);
 
 
@@ -599,6 +621,16 @@ export default function BombGame({
             isImmersive ? "fixed inset-0 z-[100]" : "h-full w-full",
             shakeCount > 0 && "animate-shake"
         )}>
+            {/* Croix de sortie du plein écran (visible pendant la partie) */}
+            {isFullscreen && (
+                <button
+                    onClick={() => applyFullscreen(false)}
+                    className="fixed top-4 right-4 z-[10001] w-11 h-11 rounded-full bg-black/85 border border-white/20 text-white flex items-center justify-center hover:bg-red-600/90 hover:border-red-400 shadow-2xl transition-colors"
+                    title="Quitter le plein écran"
+                >
+                    <XCircle size={22} />
+                </button>
+            )}
             {/* QUIT CONFIRMATION DIALOG */}
             <Dialog open={showQuitConfirm} onOpenChange={setShowQuitConfirm}>
                 <DialogContent className="max-w-md bg-slate-950/95 border border-white/10 text-white rounded-[2rem] p-6 backdrop-blur-xl">

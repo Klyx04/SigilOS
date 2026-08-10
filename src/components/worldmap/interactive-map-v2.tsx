@@ -527,6 +527,16 @@ export default function InteractiveMapV2({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gamePhase]);
 
+    // Nettoyage du plein écran à la sortie de la page (retour dashboard = normal)
+    useEffect(() => {
+        return () => {
+            setIsFullscreen(false);
+            const el = document.getElementById('worldmap-page');
+            if (el) el.classList.remove('worldmap-fullscreen');
+            document.body.classList.remove('map-fullscreen');
+        };
+    }, []);
+
     useEffect(() => {
         // Initial fetch
         fetchLobbies();

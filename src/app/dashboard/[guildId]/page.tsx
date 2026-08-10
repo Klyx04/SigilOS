@@ -13,6 +13,7 @@ import { getStuffGalleryPage } from "@/server/actions/gallery-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
 import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
 import { getPolls } from "@/server/actions/poll-actions";
+import Link from "next/link";
 
 import { QuickStatsRow } from "./_components/quick-stats-row";
 import { RecentDjPosts } from "./_components/recent-dj-posts";
@@ -119,6 +120,14 @@ export default async function DashboardPage({
     const contextLine = nextEvent?.title
         ? `Prochain rendez-vous : ${nextEvent.title}`
         : "Rien de prévu — la guilde est au calme";
+    // "À faire maintenant" (direction 2026 §9.3) — actions compactes, jamais de vide pur
+    const todoItems: { href: string; label: string; action: string }[] = [];
+    if (polls.length > 0) todoItems.push({ href: `/dashboard/${guildId}/sondages`, label: `${polls.length} sondage${polls.length > 1 ? "s" : ""} en cours`, action: "Voter" });
+    if (nextEvent?.title) todoItems.push({ href: `/dashboard/${guildId}/calendar`, label: `Prochain : ${nextEvent.title}`, action: "Voir" });
+    const todayAlmanax = almanaxItems?.[0];
+    if (todayAlmanax) todoItems.push({ href: `/dashboard/${guildId}/ressources`, label: "Almanax du jour", action: "Offrande" });
+
+
 
     return (
         <div className="relative w-full min-h-full pb-20">
@@ -164,6 +173,31 @@ export default async function DashboardPage({
                         onlineUsers={onlineUsers}
                     />
                 </section>
+
+                {/* ── 1.5 À FAIRE MAINTENANT (compact, direction §9.3) ──── */}
+                {todoItems.length > 0 && (
+                    <section data-tour="dash-todo" className="animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="rounded-xl border border-border/60 bg-background/40 p-3.5">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">À faire maintenant</span>
+                                <span className="flex-1 h-px bg-white/[0.06]" />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                                {todoItems.map((item) => (
+                                    <Link
+                                        key={item.href + item.label}
+                                        href={item.href}
+                                        className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
+                                    >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                        <span className="text-[13px] truncate">{item.label}</span>
+                                        <span className="ml-auto text-[12px] font-medium text-emerald-400/80 shrink-0">{item.action}</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
 
                 {/* ── 2. RAID HERO (prioritaire — conditionnel) ────────── */}
                 {hasRaidNow && (

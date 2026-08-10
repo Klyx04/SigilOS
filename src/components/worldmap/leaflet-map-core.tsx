@@ -124,7 +124,7 @@ function SigilTilesLayer({ activeWorld, selectedWorldId }: any) {
 // -------------------------------------------------------------------------------------
 const TOOLTIP_THROTTLE_MS = 100;
 
-function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds }: any) {
+function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight }: any) {
     const map = useMap();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoveredCellRef = useRef<string | null>(null);
@@ -166,6 +166,9 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         const canvas = canvasRef.current;
         const world = activeWorld;
         if (!canvas || !world) return;
+        // POC : le shape officiel de la sous-zone 76 (Village des Brigandins) est décalé →
+        // on force le fallback "cellules des maps" pour couvrir toutes les maps.
+        const forceCellFallback = world?.id === 38;
 
         const size = map.getSize();
         const dpr = window.devicePixelRatio || 1;
@@ -194,7 +197,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         const cellKey = hoveredCellRef.current;
         const activeSubArea = subAreaId ? subAreasById?.get(subAreaId) : null;
 
-        if (subAreaId !== null && mapsBySubAreaId && subAreasById) {
+        if (zoneHighlight && subAreaId !== null && mapsBySubAreaId && subAreasById) {
             const subArea = subAreasById.get(subAreaId);
             
             ctx.save();
@@ -205,7 +208,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
             ctx.shadowBlur = 0;
             ctx.shadowColor = 'transparent';
 
-            if (subArea && subArea.shape && subArea.shape.length > 2) {
+            if (!forceCellFallback && subArea && subArea.shape && subArea.shape.length > 2) {
                 // Rendu Doflex Pixel-Perfect via Shape officielle
                 // La shape de DofusDB encode parfois plusieurs polygones avec des headers (ex: 10924).
                 const shape = subArea.shape;
@@ -279,7 +282,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
 
             activeHighlights.forEach((highlightId: number) => {
                 const subArea = subAreasById.get(highlightId);
-                if (subArea && subArea.shape && subArea.shape.length > 2) {
+                if (!forceCellFallback && subArea && subArea.shape && subArea.shape.length > 2) {
                     const shape = subArea.shape;
                     let isFirstPoint = true;
                     ctx.beginPath();
@@ -526,7 +529,7 @@ function MapGridOverlay({ activeWorld, mapsByCoords, mapsBySubAreaId, subAreasBy
         // Labels de coordonnées sur la grille debug
         ctx.font = 'bold 9px Inter, sans-serif';
         // L'affichage du texte des coordonnées en mode debug a été supprimé à la demande de l'utilisateur.
-    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds]);
+    }, [map, activeWorld, mapsByCoords, mapsBySubAreaId, subAreasById, showDebugGrid, isMiniMap, guessResult, selectedPosition, participants, currentUserId, highlightSubareaIds, zoneHighlight]);
 
     // ── Sync highlight ref & manage blink animation loop ──
     useEffect(() => {
@@ -991,6 +994,7 @@ interface LeafletMapCoreProps {
     autoCopyTravel?: boolean;
     onHoverMap?: (pos: { x: number, y: number, found: boolean } | null) => void;
     highlightSubareaIds?: number[];
+    zoneHighlight?: boolean;
     minZoom?: number;
 }
 export default function LeafletMapCore(props: LeafletMapCoreProps) {
@@ -1002,7 +1006,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
         mapsBySubAreaId, setSelectedPosition, setSelectedDungeon, triggerCenterPosition,
         triggerWorldId, isMiniMap, guessResult, minimapZoomLevel, minimapRecenterTrigger,
         participants, currentUserId, isSpectator, hideUI, interactive = true, 
-        autoCopyTravel = false, onHoverMap, highlightSubareaIds, initialZoom: initialZoomProp
+        autoCopyTravel = false, onHoverMap, highlightSubareaIds, initialZoom: initialZoomProp, zoneHighlight
     } = props;
 
     const correctedActiveWorld = useMemo(() => {
@@ -1203,6 +1207,7 @@ export default function LeafletMapCore(props: LeafletMapCoreProps) {
                     mapsBySubAreaId={mapsBySubAreaId}
                     subAreasById={subAreasById}
                     showDebugGrid={showDebugGrid}
+                    zoneHighlight={zoneHighlight}
                     isMiniMap={isMiniMap}
                     guessResult={guessResult}
                     selectedPosition={selectedPosition}

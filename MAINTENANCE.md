@@ -292,6 +292,24 @@ git pull origin main
 - **Solution** : un Redis dédié par environnement (`redis-beta` sur beta-net, `redis` prod restreint à prod-net).
 - **Impact** : aucun pour l'utilisateur, plus sûr. Déployé beta (containers redis-beta + beta relancés).
 
+#### 3d. Assets monde (tuiles/maps) — servis en STATIQUE par Caddy (10/08)
+- **Problème** : Next.js en mode `standalone` ne sert pas de façon fiable le dossier `public/game-data` bind-mounté → les tuiles renvoyaient **404** (alors qu'elles étaient bien sur le VPS, visibles dans le conteneur).
+- **Solution** : servir `/game-data/*` **directement par Caddy**, avant le proxy vers Next :
+  - `Caddyfile` → `handle /game-data/*` (root `/srv/game-data` + `uri strip_prefix /game-data` + `file_server`) dans le bloc `beta.sigilos.fr`.
+  - `docker-compose.prod.yml` → volume `./public/game-data:/srv/game-data:ro` sur le service `caddy`.
+- **Procédure de mise à jour des tuiles d'un monde** :
+  ```bash
+  # 1. Générer/convertir les tuiles localement (ex : scripts/sync-world38-tiles.js)
+  # 2. Envoyer sur le VPS (tuiles hors git → rsync OBLIGATOIRE) :
+  ./scripts/sync-assets.sh beta          # ou prod
+  # 3. PAS de rebuild app nécessaire (volume ro suit le host). Recréer Caddy SEULEMENT si le Caddyfile/compose a changé :
+  sudo docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps caddy
+  # 4. Vérif :
+  curl -s -o /dev/null -w "%{http_code}\n" https://beta.sigilos.fr/game-data/tiles/w38/1/204.webp   # → 200
+  ```
+- ⚠️ Les tuiles (`public/game-data/tiles/...`) sont **ignorées par git** → un `git pull`/`deploy-cd.sh` ne les mettra **jamais** à jour. C'est `sync-assets.sh` qui les synchronise (volume bind-mount `ro`, lu directement par Caddy).
+- ⏳ **Prod (main)** : ajouter le même `handle /game-data/*` dans le bloc `sigilos.fr` quand le site sera lancé.
+
 ---
 
 ### 📌 Priorité recommandée (mise à jour 2026-08)

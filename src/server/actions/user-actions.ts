@@ -357,6 +357,7 @@ async function _getUserContext(targetGuildId?: string): Promise<UserContext> {
                 welcomeDiscordMessageTemplate: true,
                 welcomeBadgeName: true,
                 newsBroadcastEnabled: true,
+                missionVitrineMode: true,
                 modules: {
                     select: {
                         missions: true,

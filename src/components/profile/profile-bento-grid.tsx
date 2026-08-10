@@ -192,7 +192,16 @@ export function ProfileBentoGrid({
 
     const displayName = discordNickname || profile.pseudoDofus || "Voyageur";
 
-    const isVitrineActive = missionVitrineMode && !isAdmin;
+    const isVitrineActive = missionVitrineMode;
+
+    // Si la vitrine est active, l'onglet "Présence & Feed" est masqué : on repousse
+    // l'onglet actif vers "overview" s'il pointait vers un onglet désormais invisible
+    // (évite un contenu affiché sans onglet visible, ex. via ?tab=activity dans l'URL).
+    useEffect(() => {
+        if (isVitrineActive && activeTab === "activity") {
+            setActiveTab("overview");
+        }
+    }, [isVitrineActive, activeTab]);
 
     // Compute empty section flags for readOnly mode (hide tabs/sections that have no data)
     const isEmpty: Record<string, boolean> = {

@@ -835,11 +835,10 @@
   overflow: hidden;
 }
 
-/* Focused Guide View HUD - High visual fidelity */
+/* Focused Guide View HUD */
 .step-navigator.focused {
-  border-color: rgba(16, 185, 129, 0.3);
-  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.06), inset 0 0 12px rgba(16, 185, 129, 0.02);
-  background: linear-gradient(135deg, rgba(20, 22, 31, 0.85) 0%, rgba(16, 185, 129, 0.03) 100%);
+  border-color: rgba(212, 168, 83, 0.35);
+  background: var(--guide-surface);
 }
 
 .step-navigator.focused::before {
@@ -849,7 +848,7 @@
   left: 0;
   height: 3px;
   width: 100%;
-  background: linear-gradient(to right, #10b981, #3b82f6);
+  background: var(--guide-gold);
 }
 
 .step-nav-info {
@@ -878,8 +877,9 @@
   display: block;
   width: 16px;
   height: 12px;
-  background: linear-gradient(to bottom, #002395 33%, #fff 33%, #fff 66%, #ed2939 66%); /* French flag placeholder icon */
-  border-radius: 2px;
+  background: var(--guide-gold-soft);
+  border: 1px solid rgba(212, 168, 83, 0.4);
+  border-radius: 3px;
 }
 
 .step-nav-controls {
@@ -929,7 +929,6 @@
 }
 .step-status .lucide-check-circle-2 {
   color: #10b981 !important;
-  filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.6));
   stroke-width: 3px;
 }
 .step-status .lucide-circle {
@@ -970,9 +969,9 @@
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #d946ef;
-  background: rgba(217, 70, 239, 0.1);
-  border: 1px solid rgba(217, 70, 239, 0.2);
+  color: var(--guide-gold);
+  background: var(--guide-gold-soft);
+  border: 1px solid rgba(212, 168, 83, 0.2);
   padding: 0.3rem 0.6rem;
   border-radius: 0.5rem;
 }
@@ -1013,9 +1012,9 @@
   border: 1px solid rgba(255,255,255,0.05);
 }
 
-.narrative-lore { background: rgba(139, 92, 246, 0.05); border-color: rgba(139, 92, 246, 0.2); }
-.narrative-lore .narrative-icon { color: #a78bfa; }
-.narrative-lore .narrative-body { font-style: italic; color: #d8b4fe; }
+.narrative-lore { background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.2); }
+.narrative-lore .narrative-icon { color: #93c5fd; }
+.narrative-lore .narrative-body { font-style: italic; color: #cbd5e1; }
 
 .narrative-tip { background: rgba(245, 158, 11, 0.03); border-color: rgba(245, 158, 11, 0.15); }
 .narrative-tip .narrative-icon { color: #f59e0b; }
@@ -1197,8 +1196,6 @@
   background: rgba(59, 130, 246, 0.2);
   color: #fff;
   border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
-  transform: scale(1.03);
 }
 
 .sgc-flag.resume:active {
@@ -1324,11 +1321,9 @@
   color: #10b981;
   opacity: 1;
   transform: scale(1.22);
-  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
 }
 .sgc-step:hover .checked-icon {
   transform: scale(1.22);
-  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
 }
 .checked-icon { 
   color: #10b981; 
@@ -1403,33 +1398,43 @@
   border-bottom-color: transparent;
 }
 
-/* Clickable Entities (Dungeons, Items) */
+/* Clickable Entities (Dungeons, Items) — palette disciplinée */
 .clickable-entity {
   cursor: pointer;
-  color: #a78bfa; /* Violet/Purple for entities */
+  color: var(--guide-text);
   font-weight: 700;
-  border-bottom: 2px solid rgba(167, 139, 250, 0.2);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 2px solid rgba(255,255,255,0.15);
+  transition: border-color var(--guide-t-fast), color var(--guide-t-fast);
   padding: 0 0.15rem;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
 }
 .clickable-entity:hover {
-  background: rgba(167, 139, 250, 0.1);
-  color: #c4b5fd;
-  border-bottom-color: #a78bfa;
-  transform: translateY(-1px);
+  color: #fff;
+  border-bottom-color: currentColor;
 }
 
 .clickable-entity.quest {
-  color: #3b82f6;
-  border-bottom-color: rgba(59, 130, 246, 0.2);
+  color: var(--guide-gold);
+  border-bottom-color: rgba(212, 168, 83, 0.35);
 }
 .clickable-entity.quest:hover {
-  background: rgba(59, 130, 246, 0.1);
-  color: #60a5fa;
-  border-bottom-color: #3b82f6;
+  color: #e8c97e;
+  border-bottom-color: var(--guide-gold);
+}
+
+.clickable-entity.boss {
+  color: #fb7185;
+  border-bottom-color: rgba(251, 113, 133, 0.3);
+}
+.clickable-entity.mob {
+  color: #fb923c;
+  border-bottom-color: rgba(251, 146, 60, 0.3);
+}
+.clickable-entity.item {
+  color: var(--guide-text-dim);
+  border-bottom-color: rgba(203, 213, 225, 0.3);
 }
 
 /* Guide References [GPx] */

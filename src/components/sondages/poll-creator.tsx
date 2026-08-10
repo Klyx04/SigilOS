@@ -241,16 +241,16 @@ export function PollCreator({
                     if (res.success && res.roles) {
                         const filtered = res.roles.filter(r => r.name !== "@everyone") as any;
                         setDiscordRolesList(filtered);
-                        // Auto-fill all whitelisted ping roles (they come pre-filtered by context)
-                        if (filtered.length > 0 && !isEdit) {
-                            setMentionRoleIds(filtered.map((r: any) => r.id));
-                        }
+                        // No auto-selection: default = aucun rôle pingé
+                        // L'utilisateur doit choisir explicitement
                     }
                 })
                 .catch(console.error)
                 .finally(() => setIsLoadingRoles(false));
         }
     }, [step, publishToDiscord, guildId, isEdit, discordRolesList.length]);
+
+
 
     const executeSubmit = () => {
         const expiresAt = hasExpiry
@@ -687,6 +687,12 @@ export function PollCreator({
 
                                         {publishToDiscord && discordRolesList.length > 0 && (
                                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-6 border-t border-cyan-500/20 space-y-3">
+                                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
+                                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                                    <p className="text-[10px] text-amber-300/80 font-medium leading-relaxed">
+                                                        <span className="font-bold text-amber-400">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour donner de la visibilité à votre sondage.
+                                                    </p>
+                                                </div>
                                                 <span className="text-[10px] font-black text-cyan-400/70 uppercase tracking-widest ml-1">Mentionner un rôle (Ping)</span>
                                                 <Popover open={roleOpen} onOpenChange={setRoleOpen}>
                                                     <PopoverTrigger asChild>

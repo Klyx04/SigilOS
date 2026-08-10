@@ -44,12 +44,13 @@ export async function globalSearch(query: string, guildId: string): Promise<Sear
         });
 
         members.forEach((m) => {
+            const slug = m.pseudoDofus || m.discordNickname || m.id;
             results.push({
                 id: m.id,
                 title: m.discordNickname || m.pseudoDofus || "Membre",
                 subtitle: m.pseudoDofus ? `Dofus: ${m.pseudoDofus}` : "Membre de guilde",
                 type: "MEMBER",
-                href: `/dashboard/${guildId}/profile/${m.userId === ctx.id ? "" : m.id}`,
+                href: `/dashboard/${guildId}/members/${encodeURIComponent(slug)}`,
             });
         });
     }

@@ -216,6 +216,16 @@ export function CalendarDashboard({ guildId, currentUserId, canManage, canManage
         });
     }, [currentDate, guildId, canManage]);
 
+    const searchParams = useSearchParams();
+
+    // Auto-open event detail modal if ?event= ID parameter is present in URL
+    useEffect(() => {
+        const eventIdFromUrl = searchParams.get("event");
+        if (eventIdFromUrl) {
+            setSelectedEventId(eventIdFromUrl);
+        }
+    }, [searchParams]);
+
     useEffect(() => {
         if (selectedEventId) {
             fetchEventDetails(selectedEventId);

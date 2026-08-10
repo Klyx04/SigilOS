@@ -42,15 +42,38 @@ import { Users, Settings, LogOut } from "lucide-react";
 import { GamesLiveWidget } from "@/components/shared/GamesLiveWidget";
 import { Suspense, use, useState } from "react";
 
-// Helper to format breadcrumbs
+// Helper to format breadcrumbs with friendly labels
+const MODULE_NAMES: Record<string, string> = {
+    members: "Membres",
+    missions: "Missions",
+    songes: "Songes Infinis",
+    "donjons-et-quetes": "Donjons & Quêtes",
+    "quete-ocre": "Quête Ocre",
+    ladder: "Classement",
+    services: "Services & Artisans",
+    ressources: "Ressources",
+    "stuff-hub": "Galerie de Stuff",
+    "guild-hub": "La Guilde",
+    worldmap: "Carte du Monde",
+    "mini-jeux": "Mini-Jeux",
+    profile: "Mon Profil",
+    admin: "Administration",
+    validation: "Validation",
+    settings: "Paramètres",
+    calendar: "Calendrier",
+    polls: "Sondages",
+};
+
 const formatSegment = (segment: string) => {
-    // Detect CUIDs or long technical IDs (e.g. for runs, missions, etc)
-    // SigilOS IDs are typically cuids (starts with c, ~24-25 chars)
+    if (MODULE_NAMES[segment.toLowerCase()]) {
+        return MODULE_NAMES[segment.toLowerCase()];
+    }
+
     if (segment.length > 20) {
         return "Détails";
     }
 
-    return segment
+    return decodeURIComponent(segment)
         .replace(/-/g, " ")
         .replace(/^\w/, c => c.toUpperCase());
 };
@@ -87,10 +110,10 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
     const [roomCount, setRoomCount] = useState(0);
 
     return (
-        <header className="sticky top-0 z-40 bg-background lg:bg-background/80 lg:backdrop-blur-2xl border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-all duration-300">
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border h-14 px-4 lg:px-6 flex items-center justify-between gap-4 transition-all duration-300">
 
-            {/* LEFT: Mobile Trigger & Breadcrumbs */}
-            <div className="flex items-center gap-6 shrink-0">
+            {/* LEFT: Mobile Trigger & Clear Readable Breadcrumbs */}
+            <div className="flex items-center gap-4 shrink-0">
 
                 {/* Mobile Sidebar Trigger */}
                 <Sheet>
@@ -99,40 +122,44 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                             <Menu className="h-5 w-5" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-[260px] border-r border-border bg-zinc-950 shadow-[20px_0_40px_rgba(0,0,0,0.5)]">
+                    <SheetContent side="left" className="p-0 w-[260px] border-r border-border bg-zinc-950 shadow-2xl">
                         <SheetTitle className="sr-only">Menu de Navigation Mobile</SheetTitle>
                         <SheetDescription className="sr-only">Accédez aux différents modules et outils de votre guilde.</SheetDescription>
                         <AppSidebar {...sidebarProps} />
                     </SheetContent>
                 </Sheet>
 
-                {/* Breadcrumbs */}
-                <nav className="hidden sm:flex items-center text-[11px] font-black tracking-tighter uppercase italic text-muted-foreground/60">
-                    <Link href={`/dashboard/${sidebarProps.guildId}`} className="hover:text-primary transition-all flex items-center gap-1.5 group">
-                        <Home className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">Dashboard</span>
+                {/* Clear, High-Contrast Breadcrumbs */}
+                <nav className="hidden sm:flex items-center text-xs font-medium text-zinc-400 gap-1.5">
+                    <Link 
+                        href={`/dashboard/${sidebarProps.guildId}`} 
+                        className={cn(
+                            "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:text-white hover:bg-white/5",
+                            breadcrumbSegments.length === 0 ? "text-white font-bold bg-white/5" : "text-zinc-400"
+                        )}
+                    >
+                        <Home className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>Tableau de bord</span>
                     </Link>
-
-                    {breadcrumbSegments.length > 0 && <ChevronRight className="h-3 w-3 mx-2 text-muted-foreground/30" />}
 
                     {breadcrumbSegments.map((segment, index) => {
                         const href = `/dashboard/${sidebarProps.guildId}/${breadcrumbSegments.slice(0, index + 1).join("/")}`;
                         const isLast = index === breadcrumbSegments.length - 1;
 
                         return (
-                            <div key={href} className="flex items-center">
-                                 <Link
+                            <div key={href} className="flex items-center gap-1.5">
+                                <ChevronRight className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
+                                <Link
                                     href={href}
                                     className={cn(
-                                        "transition-all truncate max-w-[100px] lg:max-w-[180px] hover:text-foreground",
+                                        "px-2 py-1 rounded-md transition-colors truncate max-w-[120px] lg:max-w-[200px]",
                                         isLast 
-                                            ? "text-foreground font-black uppercase tracking-[0.2em] text-[10px]" 
-                                            : "text-muted-foreground/60 dark:text-muted-foreground/50 font-bold"
+                                            ? "text-white font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-sm" 
+                                            : "text-zinc-400 hover:text-white hover:bg-white/5 font-medium"
                                     )}
                                 >
                                     {formatSegment(segment)}
                                 </Link>
-                                {!isLast && <ChevronRight className="h-3 w-3 mx-1.5 text-muted-foreground/20" />}
                             </div>
                         );
                     })}
@@ -249,86 +276,55 @@ export function TopNav({ sidebarProps, userId, events = [], eventsPromise, roadm
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button
-                                    className="flex items-center gap-3 pl-3 pr-1 py-1 rounded-2xl hover:bg-white/[0.03] dark:hover:bg-foreground/5 transition-all group outline-none relative overflow-hidden active:scale-95"
+                                    className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-white/5 transition-colors outline-none"
                                 >
-                                    {/* Hover Highlight Layer */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-                                    
                                     <div className="flex flex-col items-end leading-tight hidden lg:flex">
-                                        <span className="text-[11px] font-black text-foreground/90 group-hover:text-primary transition-colors uppercase italic tracking-tighter">
+                                        <span className="text-xs font-bold text-zinc-200 group-hover:text-white transition-colors">
                                             {sidebarProps.user.name}
                                         </span>
-                                        <span className="text-[9px] uppercase tracking-tighter text-muted-foreground group-hover:text-muted-foreground/80 font-black">
+                                        <span className="text-[10px] text-zinc-500 font-medium">
                                             {sidebarProps.user.roleName || "Membre"}
                                         </span>
                                     </div>
-                                    <div className="relative">
-                                        <Avatar className="h-9 w-9 border border-border/40 ring-0 group-hover:ring-4 group-hover:ring-primary/10 transition-all duration-300 rounded-xl shadow-xl flex-shrink-0 relative z-10">
-                                            <AvatarImage src={sidebarProps.user.image || ""} />
-                                            <AvatarFallback className="text-[11px] font-black bg-muted text-muted-foreground">
-                                                {sidebarProps.user.name?.slice(0, 2).toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        {/* Pulse effect on hover */}
-                                        <div className="absolute inset-0 rounded-xl bg-primary/20 scale-100 group-hover:scale-125 opacity-0 group-hover:opacity-100 blur-md transition-all duration-500" />
-                                    </div>
+                                    <Avatar className="h-8 w-8 border border-white/10 rounded-lg shrink-0">
+                                        <AvatarImage src={sidebarProps.user.image || ""} />
+                                        <AvatarFallback className="text-xs font-bold bg-zinc-800 text-zinc-300">
+                                            {sidebarProps.user.name?.slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent 
-                                className="w-56 bg-background/95 border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] rounded-2xl p-1.5 backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200" 
+                                className="w-52 bg-zinc-950 border border-white/10 shadow-2xl rounded-xl p-1 backdrop-blur-xl animate-in fade-in duration-150" 
                                 align="end" 
-                                sideOffset={10}
+                                sideOffset={8}
                             >
-                                <DropdownMenuLabel className="p-3 text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] opacity-40 italic">
-                                    Contrôle Utilisateur
+                                <DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                    Mon Compte
                                 </DropdownMenuLabel>
-                                <DropdownMenuSeparator className="bg-white/5 mx-1" />
-                                <DropdownMenuItem asChild className="focus:bg-primary/5 focus:text-primary cursor-pointer rounded-xl m-1 py-3 px-4 transition-all duration-500 group/item relative overflow-hidden">
-                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile`} className="flex items-center gap-3 relative z-10 font-black">
-                                        {/* Shine Effect */}
-                                        <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 translate-x-[-100%] group-focus/item:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-                                        
-                                        <div className="p-2 rounded-lg bg-muted group-focus/item:bg-primary/20 group-focus/item:scale-110 transition-all duration-300 shadow-sm group-focus/item:shadow-primary/20">
-                                            <Users className="w-4 h-4 text-muted-foreground group-focus/item:text-primary transition-colors" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[11px] uppercase tracking-[0.2em] group-focus/item:translate-x-1 transition-transform duration-300">Mon Profil</span>
-                                            <span className="text-[8px] font-bold opacity-30 group-focus/item:opacity-60 transition-opacity uppercase tracking-tighter">Identité & Classe</span>
-                                        </div>
+                                <DropdownMenuSeparator className="bg-white/5" />
+                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
+                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile`} className="flex items-center gap-2.5 text-xs font-medium text-zinc-300 hover:text-white">
+                                        <Users className="w-4 h-4 text-zinc-400" />
+                                        <span>Mon Profil</span>
                                     </Link>
                                 </DropdownMenuItem>
                                 
-                                <DropdownMenuItem asChild className="focus:bg-primary/5 focus:text-primary cursor-pointer rounded-xl m-1 py-3 px-4 transition-all duration-500 group/item relative overflow-hidden">
-                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile?tab=settings`} className="flex items-center gap-3 relative z-10 font-black">
-                                        {/* Shine Effect */}
-                                        <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 translate-x-[-100%] group-focus/item:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-
-                                        <div className="p-2 rounded-lg bg-muted group-focus/item:bg-primary/20 group-focus/item:scale-110 transition-all duration-300 shadow-sm group-focus/item:shadow-primary/20">
-                                            <Settings className="w-4 h-4 text-muted-foreground group-focus/item:text-primary transition-colors" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[11px] uppercase tracking-[0.2em] group-focus/item:translate-x-1 transition-transform duration-300">Réglages</span>
-                                            <span className="text-[8px] font-bold opacity-30 group-focus/item:opacity-60 transition-opacity uppercase tracking-tighter">Préférences & Notifications</span>
-                                        </div>
+                                <DropdownMenuItem asChild className="focus:bg-white/5 cursor-pointer rounded-lg px-3 py-2.5 transition-colors">
+                                    <Link href={`/dashboard/${sidebarProps.guildId}/profile?tab=settings`} className="flex items-center gap-2.5 text-xs font-medium text-zinc-300 hover:text-white">
+                                        <Settings className="w-4 h-4 text-zinc-400" />
+                                        <span>Réglages</span>
                                     </Link>
                                 </DropdownMenuItem>
                                 
-                                <DropdownMenuSeparator className="bg-white/5 mx-1" />
+                                <DropdownMenuSeparator className="bg-white/5" />
                                 
                                 <DropdownMenuItem 
                                     onClick={() => signOut()} 
-                                    className="text-rose-500 focus:text-rose-400 focus:bg-rose-500/5 cursor-pointer rounded-xl m-1 py-3 px-4 transition-all duration-500 group/item relative overflow-hidden"
+                                    className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer rounded-lg px-3 py-2.5 transition-colors flex items-center gap-2.5 text-xs font-medium"
                                 >
-                                    {/* Shine Effect (Red) */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-rose-500/0 via-rose-500/10 to-rose-500/0 translate-x-[-100%] group-focus/item:translate-x-[100%] transition-transform duration-1000 ease-in-out pointer-events-none" />
-
-                                    <div className="p-2 rounded-lg bg-rose-500/10 group-focus/item:bg-rose-500/20 group-focus/item:scale-110 transition-all duration-300 shadow-sm relative z-10">
-                                        <LogOut className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex flex-col relative z-10 font-black">
-                                        <span className="text-[11px] uppercase tracking-[0.2em] group-focus/item:translate-x-1 transition-transform duration-300">Déconnexion</span>
-                                        <span className="text-[8px] font-bold opacity-30 group-focus/item:opacity-60 transition-opacity uppercase tracking-tighter">Sécurisée</span>
-                                    </div>
+                                    <LogOut className="w-4 h-4" />
+                                    <span>Déconnexion</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

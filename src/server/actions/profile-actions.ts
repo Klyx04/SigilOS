@@ -626,6 +626,7 @@ export async function getMemberProfile(guildId: string, profileId: string): Prom
                 ...profile,
                 createdAt: profile.createdAt.toISOString(),
                 updatedAt: profile.updatedAt.toISOString(),
+                userUpdatedAt: profile.userUpdatedAt ? profile.userUpdatedAt.toISOString() : profile.createdAt.toISOString(),
                 lastActivityAt: profile.lastActivityAt?.toISOString() || null,
                 vacationStart: profile.vacationStart?.toISOString() || null,
                 vacationEnd: profile.vacationEnd?.toISOString() || null,
@@ -788,6 +789,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
             }
         }
 
+        const now = new Date();
         await db.userProfile.upsert({
             where: {
                 userId_guildId: {
@@ -811,6 +813,7 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 objectifs: objectifs !== undefined ? (objectifs || null) : undefined,
                 preferredActivities: preferredActivities !== undefined ? (preferredActivities as any) : undefined,
                 discordContact: discordContact !== undefined ? (discordContact || null) : undefined,
+                userUpdatedAt: now,
             },
             create: {
                 userId: effectiveUserId,
@@ -830,7 +833,8 @@ export async function updateUserProfile(rawData: z.infer<typeof UpdateProfileSch
                 objectifs: objectifs || null,
                 preferredActivities: preferredActivities ? (preferredActivities as any) : undefined,
                 discordContact: discordContact || null,
-                status: "ACTIVE"
+                status: "ACTIVE",
+                userUpdatedAt: now,
             }
         });
 
@@ -883,7 +887,10 @@ export async function updateAvailability(rawData: z.infer<typeof UpdateAvailabil
             where: {
                 userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
-            data: { availability: availability as any }
+            data: { 
+                availability: availability as any,
+                userUpdatedAt: new Date()
+            }
         });
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache
@@ -934,6 +941,7 @@ export async function updateVacationMode(rawData: z.infer<typeof UpdateVacationS
                 vacationEnd: vacationEnd ? new Date(vacationEnd) : null,
                 vacationNotify: vacationNotify ?? false,
                 vacationReason: vacationReason ?? null,
+                userUpdatedAt: new Date()
             }
         });
 
@@ -1278,7 +1286,10 @@ export async function updateDofusBookLinks(rawData: z.infer<typeof UpdateDofusBo
             where: {
                 userId_guildId: { userId: effectiveUserId, guildId: guildConfig.id }
             },
-            data: { dofusBookLinks: filteredLinks as any }
+            data: { 
+                dofusBookLinks: filteredLinks as any,
+                userUpdatedAt: new Date()
+            }
         });
 
         // 🛡️ CRITICAL: Invalidate Server-side memory cache

@@ -703,7 +703,9 @@ html {
 
 /* ── Plein écran de la Carte du Monde ─────────────────────────────── */
 body.map-fullscreen .dashboard-sidebar,
-body.map-fullscreen .dashboard-topnav {
+body.map-fullscreen .dashboard-topnav,
+body.map-fullscreen .dashboard-footer,
+body.map-fullscreen .dashboard-tour {
   display: none !important;
 }
 #worldmap-page.worldmap-fullscreen,

@@ -2349,7 +2349,7 @@ export default function InteractiveMapV2({
                                             "flex-1 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
                                             gamesSubTab === 'arena' 
                                                 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
-                                                : "text-white/20 hover:text-white/40 hover:bg-white/5"
+                                                : "text-white/70 hover:text-white hover:bg-white/10"
                                         )}
                                     >
                                         <Rocket size={14} className={cn("transition-transform", gamesSubTab === 'arena' && "animate-bounce-subtle")} />
@@ -2361,7 +2361,7 @@ export default function InteractiveMapV2({
                                             "flex-1 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all gap-2 flex items-center justify-center",
                                             gamesSubTab === 'ladder' 
                                                 ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
-                                                : "text-white/20 hover:text-white/40 hover:bg-white/5"
+                                                : "text-white/70 hover:text-white hover:bg-white/10"
                                         )}
                                     >
                                         <Trophy size={14} className={cn("transition-transform", gamesSubTab === 'ladder' && "animate-bounce-subtle")} />
@@ -2414,7 +2414,7 @@ export default function InteractiveMapV2({
                                                         <button 
                                                             onClick={() => handleJoinRoom(room, true)} 
                                                             disabled={joiningId === room.id}
-                                                            className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all disabled:opacity-50"
+                                                            className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white font-black uppercase text-[10px] transition-all disabled:opacity-50"
                                                         >
                                                             Regarder
                                                         </button>
@@ -2435,7 +2435,7 @@ export default function InteractiveMapV2({
                                                         ) : (
                                                             <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}`} className="px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg bg-red-500 text-white font-black uppercase text-[10px] shadow-md shadow-red-600/20 opacity-90 hover:opacity-100 transition-all text-center">Rejoindre</a>
                                                         )}
-                                                        <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/5 text-white/40 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
+                                                        <a href={`/dashboard/${guildId}/mini-jeux/sigil-bomb?room=${room.roomId}&spectate=true`} className="px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white font-black uppercase text-[10px] transition-all text-center">Regarder</a>
                                                     </div>
                                                 </div>
                                             ))}

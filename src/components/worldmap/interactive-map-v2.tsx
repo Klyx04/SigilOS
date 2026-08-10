@@ -1126,7 +1126,7 @@ export default function InteractiveMapV2({
                                         <button
                                             ref={worldDropdownBtnRef}
                                             onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
-                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/10 border border-white/25 text-white hover:bg-white/15 transition-colors"
+                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-white hover:bg-emerald-500/20 transition-colors"
                                         >
                                             <MapIcon size={12} className="text-emerald-500" />
                                             <span className="text-[9px] sm:text-[10px] font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
@@ -1141,7 +1141,7 @@ export default function InteractiveMapV2({
                                             onClick={() => setShowDebugGrid(!showDebugGrid)}
                                             className={cn(
                                                 "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
-                                                showDebugGrid ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300" : "bg-white/10 border-white/25 text-white/90 hover:bg-white/15 hover:text-white"
+                                                showDebugGrid ? "bg-emerald-500/25 border-emerald-400/60 text-emerald-200" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20"
                                             )}
                                             title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
                                         >
@@ -1154,7 +1154,7 @@ export default function InteractiveMapV2({
                                             onClick={() => setZoneHighlight(!zoneHighlight)}
                                             className={cn(
                                                 "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
-                                                zoneHighlight ? "bg-indigo-500/20 border-indigo-400/50 text-indigo-300" : "bg-white/10 border-white/25 text-white/90 hover:bg-white/15 hover:text-white"
+                                                zoneHighlight ? "bg-indigo-500/25 border-indigo-400/60 text-indigo-200" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20"
                                             )}
                                             title={zoneHighlight ? "Masquer le surlignage de zone" : "Afficher le surlignage de zone"}
                                         >
@@ -1175,7 +1175,7 @@ export default function InteractiveMapV2({
                                             }}
                                             className={cn(
                                                 "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
-                                                isFullscreen ? "bg-teal-500/20 border-teal-400/50 text-teal-300" : "bg-white/10 border-white/25 text-white/90 hover:bg-white/15 hover:text-white"
+                                                isFullscreen ? "bg-teal-500/25 border-teal-400/60 text-teal-200" : "bg-teal-500/10 border-teal-500/30 text-teal-300 hover:bg-teal-500/20"
                                             )}
                                             title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
                                         >
@@ -1188,20 +1188,12 @@ export default function InteractiveMapV2({
                                             onClick={() => setShowMapHelp(true)}
                                             className={cn(
                                                 "p-2 rounded-xl border transition-all",
-                                                showMapHelp ? "bg-amber-500/20 border-amber-400/50 text-amber-300" : "bg-white/10 border-white/25 text-white/90 hover:bg-white/15 hover:text-white"
+                                                showMapHelp ? "bg-amber-500/25 border-amber-400/60 text-amber-200" : "bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
                                             )}
                                             title="Aide du Monde"
                                         >
                                             <HelpCircle size={14} />
                                         </button>
-
-                                        {/* 🏷️ DofusDB Attribution */}
-                                        {!hideUI && (
-                                            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/40 border border-white/15 text-[10px] font-medium text-zinc-100 group">
-                                                <img src="/assets/icons/dofusdb.png" alt="DofusDB" className="w-4 h-4 rounded-sm object-contain" />
-                                                <span>Données issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">DofusDB</a> <span className="text-zinc-400 hidden xl:inline">(LPNC-IA 1.0)</span></span>
-                                            </div>
-                                        )}
 
                                     </div>
                                 </div>
@@ -1236,7 +1228,7 @@ export default function InteractiveMapV2({
 
                                 {/* Zone Search + Filter */}
                                 <div className="relative hidden md:block">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={12} />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50" size={13} />
                                     {isSearchingArchi && (
                                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400/50 animate-spin" size={10} />
                                     )}
@@ -1245,7 +1237,7 @@ export default function InteractiveMapV2({
                                         value={search}
                                         onChange={e => { setSearch(e.target.value); setSearchFilter('all'); setPendingFilter(null); setPreloadedFilterResults([]); }}
                                         placeholder="Zone, monstre, boss, archimonstre..."
-                                        className="w-36 lg:w-56 rounded-xl bg-white/5 py-2 pl-9 pr-4 text-white text-[10px] uppercase font-bold border border-white/5 focus:border-emerald-500/50 outline-none transition-all focus:bg-white/10 placeholder:text-white/10"
+                                        className="w-40 lg:w-60 rounded-xl bg-white/10 py-2 pl-9 pr-4 text-white text-[11px] uppercase font-bold border border-white/20 focus:border-emerald-500/60 outline-none transition-all focus:bg-white/15 placeholder:text-white/40"
                                     />
 
                                     {/* Dropdown with filter chips + results (TOUJOURS visible, pré-chargement possible) */}
@@ -1454,6 +1446,14 @@ export default function InteractiveMapV2({
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* 🏷️ DofusDB Attribution — tout à droite */}
+                                {!hideUI && (
+                                    <div className="hidden lg:flex items-center gap-2 ml-2 pl-2 border-l border-white/10 text-[10px] font-medium text-zinc-300">
+                                        <img src="/assets/icons/dofusdb.png" alt="DofusDB" className="w-4 h-4 rounded-sm object-contain" />
+                                        <span>Données issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">DofusDB</a> <span className="text-zinc-400 hidden 2xl:inline">(LPNC-IA 1.0)</span></span>
+                                    </div>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>

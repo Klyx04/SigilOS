@@ -72,14 +72,23 @@
 
 ### 🔜 Suite (non fait)
 - **PR `refonte/dashboard-ui-moins-ia` → `dev`** (link + merge + déploiement).
-- **DB pool/infra** : si timeouts persistent en prod sous charge → `max_connections` Postgres + réduire le parallélisme de la home (13 requêtes).
-- **Landing v3 complète** (showcase mini-dashboards par guilde, section features/CTA) — seule la passe Calme est faite.
-- Home **KPI avec comparaisons temporelles** (+3 ce mois).
+- **DB pool/infra** : si timeouts persistent en prod sous charge → `max_connections` Postgres + réduire le parallélisme de la home (11 requêtes, après retrait de 2 appels `getActivityLadder` morts — voir ci-dessous).
 - Commiter les modifs préexistantes `CONTEXT.md`/`MAINTENANCE.md` (assets Caddy §3d) non encore commitées.
 
----
+### ✅ Session 10/08 — commit `25918f3d` (poussé sur `refonte/dashboard-ui-moins-ia`) + points 4/5
+- **Home KPI avec comparaisons temporelles** (point 4) : `QuickStatsRow` affiche des deltas (`▲ +3 ce mois` / `▼` / « stable ») pour Membres actifs (croissance nette via `retention.growth`) et Événements (`events.thisMonth`). **0 requête BDD en plus** (réutilise `guildStats` déjà chargé) → cohérent avec le point 2.
+- **Mode vitrine (missions) → masque aussi pour les admins** :
+  - **Cause racine** : `getUserContext` (`user-actions.ts`) ne sélectionnait **pas** `missionVitrineMode` dans le `select` du `guildConfig` → `user.missionVitrineMode` toujours `false`. Fix : champ ajouté au select.
+  - **Home** : carte « Progression Dofus » masquée quand vitrine active (`hideDofusProgress`).
+  - **Profils** (`profile-bento-grid.tsx`) : `isVitrineActive = missionVitrineMode` (retiré le `&& !isAdmin` qui laissait l'onglet visible sur les profils admin) → onglet « Présence & Feed » masqué **aussi pour les admins** (profil perso + profils membres, bento partagé) + garde repousse `?tab=activity`.
+  - **Fix annuaire (React #441)** : `UserProfile.totalXp` est un **BigInt** (seul du schéma). `getGuildMembers` (`profile-actions.ts`) propageait `...p` → `JSON.stringify` throw sur BigInt quand un membre avait `totalXp` non-null → crash SSR #441. Fix : `totalXp.toString()` dans le mapping.
+- **Landing v3** : branche `SaasFeatures` + `HowItWorks` + `PreFooterCta` (composants préexistants jamais branchés) + `landing-carousel.tsx` aligné direction Calme (retrait blobs amber, `backdrop-blur-xl`→md, transitions→150/`transition-colors`).
+- **Landing v3 — showcase mini-dashboards par guilde** (point 4) : nouvelle action publique `getPublicGuildShowcase(limit=6)` (`presentation-actions.ts`) agrège par guilde : membres actifs, missions validées, songes complétés, progression Dofus moyenne. **Léger** : cache Redis 5 min + agrégats groupés. Nouveau composant `guild-showcase-section.tsx` branché sur la landing.
+- **Perf home (point 5)** : retrait de **2 requêtes mortes** `getActivityLadder(weekly/monthly)` (jamais utilisées dans le rendu, signalées par lint) → parallélisme **13 → 11 requêtes**.
+- **Validation** : `tsc --noEmit` 0 · eslint 0 erreur (warnings pré-existants) · `test:run` **137/137** · pre-commit vert.
 
 ---
+
 
 ## 🔒 Non-négociables (résumé — toujours appliqués)
 

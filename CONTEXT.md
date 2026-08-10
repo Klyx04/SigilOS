@@ -106,6 +106,11 @@
 - **Type** : développeur (refonte UI/UX complète du guide, dans la direction design 2026 « moins IA » : une seule accent emerald, zéro glow, typo ≥11px, motion ≤200ms).
 - **Source de vérité session** : `src/temp/memo-2026-08-10-module-ganymede.md` (à créer au démarrage).
 - **Branche** : `refonte-module-ganymede` (ouverte, prête). PR vers `dev` à la fin.
+- 🎨 **Périmètre élargi (10/08, décision user)** : **unifier visuellement** la refonte GANYMEDE sur **3 vues du module Quêtes Dofus** (mêmes tokens/palette/zéro glow/typo ≥11px/motion ≤200ms) :
+  1. **Guide complet** → `quetes-dofus/guide/[slug]/OptimizedGuideClient.tsx` (+ `guide-styles.css`).
+  2. **Module par Dofus** → `src/components/dofus-quests/DofusQuestHub.tsx` (+ `GuildDofusOverview.tsx`, `DofusTimelineQuest.tsx`).
+  3. **Guide sylvestre (timeline)** → `quetes-dofus/guide/[slug]/RushTimelineClient.tsx` (+ `RushTimelineClient` timeline rush).
+  - Palette retenue : **doré = fil de quête** (signature), **emerald = progression/validation**, **rouge = danger**, **bleu = coordonnées/infos**. Admin/composer (`god/dofus-guides/OptimizedGuideAdminClient.tsx`) → traitement séparé (PR dédiée, phase 6).
 
 ---
 

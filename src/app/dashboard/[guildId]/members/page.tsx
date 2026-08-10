@@ -49,8 +49,8 @@ export default async function MembersPage({ params }: { params: Promise<{ guildI
 
             <div data-tour="annuaire-board">
                 <MemberDirectory 
-                    initialMembers={response.data || []} 
-                    legendaryItems={legendaryItems}
+                    initialMembers={JSON.parse(JSON.stringify(response.data || []))} 
+                    legendaryItems={JSON.parse(JSON.stringify(legendaryItems))}
                     guildId={guildId} 
                 />
             </div>

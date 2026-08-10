@@ -121,6 +121,37 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
     }
 }
 
+export async function getAllNotifications(guildId?: string, limit = 100): Promise<{ success: boolean; data?: Notification[]; error?: string }> {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    let internalGuildId: string | undefined;
+    if (guildId) {
+        const ctx = await getUserContext(guildId);
+        if (!ctx.isMember) {
+            return { success: false, error: "Forbidden: Member access required" };
+        }
+        internalGuildId = await resolveInternalGuildId(guildId);
+    }
+
+    try {
+        const notifications = await db.notification.findMany({
+            where: {
+                userId: session.user.id,
+                ...buildGuildScopeFilter(internalGuildId),
+            },
+            orderBy: { createdAt: "desc" },
+            take: limit,
+        });
+
+        return { success: true, data: notifications as Notification[] };
+    } catch (error) {
+        logger.error("Get All Notifications Error:", error);
+        return { success: false, error: "Database error" };
+    }
+}
+
+
 export async function markAsRead(notificationId: string, guildId?: string) {
     const session = await auth();
     if (!session?.user?.id) return;

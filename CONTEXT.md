@@ -332,6 +332,32 @@
 ---
 
 
+## 🧭 Suivi de chantier — Refonte onglet Guilde Quêtes Dofus (10/08/2026)
+
+> **Branche** : `feat/deploy-clean-pro` (à pousser).
+
+### ✅ Refonte UI/UX — onglet Guilde (`/quetes-dofus?tab=guilde`)
+- **Progression guilde** : barres horizontales triées par % (couleur officielle du Dofus via nouveau `dofus-colors.ts`, valeur `nb obtenus/total` + `%` sur la barre).
+- **Insights guilde** : 3 KPIs (Dofus uniques obtenus, taux global, Dofus le plus avancé) + **filtres rapides** (Tous / >50% / 20–50% / <20%).
+- **Table d'Honneur** : top 3 distinct (or/argent/bronze), tooltips au survol, légende, **recherche de membre sur les 121 actifs** (serveur : nouveau type `GuildMemberSummary`, `getGuildDofusStats` renvoie désormais `members`).
+- **Fiche membre** : libellés clairs, tri (obtenus → % → alpha), badge « Obtenu », lien direct vers le guide, statut Obtenu/%/À faire.
+- **Modale « Progression par Dofus »** : tri par défaut, filtres avancés, opacité des obtenus, chip « Rendu ici », tooltip Moy. Progression, pagination « Afficher plus ».
+- **Accessibilité** : `role="dialog"` + `aria-modal` + fermeture sur Échap (les 2 modales).
+- **Style** : adouci (moins de glow/italic, plus « pro ») ; bouton « Signaler » **rouge rétabli** (après passage temporaire discret).
+
+### ✅ « Rendu ici » posable + avatars Discord (page détail `/quetes-dofus/[slug]`)
+- Réutilise l'état `PlayerDofusQuestProgress.status = IN_PROGRESS` → **aucune migration**.
+- Bouton **« Rendu ici »** par quête (surlignage ambre) + **avatars Discord empilés** des membres présents sur la quête + **modale** au clic (liste pseudo + avatar).
+- Fix : la `synergy` excluait l'utilisateur courant → avatar « toi » ajouté localement ; `loadSynergy()` appelé après chaque toggle (mise à jour immédiate).
+
+### ✅ Fichiers
+`GuildDofusOverview.tsx`, `DofusQuestHub.tsx`, `DofusTimelineQuest.tsx`, `DofusQuestManagerV3.tsx`, `QuestFeedbackButton.tsx`, `dofus-colors.ts` (nouveau), `dofus-quest-actions.ts`.
+
+### ✅ Vérifs
+`tsc --noEmit` 0 erreur · eslint 0 erreur (sur les fichiers modifiés).
+
+---
+
 ## 🗂️ Chantiers restants documentés (rappel — d'autres arriveront)
 
 | Chantier | Réf / fichier | État |

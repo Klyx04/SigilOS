@@ -116,6 +116,14 @@ export type MemberDofusSummary = {
     dofusList: { slug: string; name: string; color: string | null; isObtained: boolean }[];
 };
 
+export type GuildMemberSummary = {
+    profileId: string;
+    pseudo: string;
+    image: string | null;
+    dofusObtained: number;
+    dofusTotal: number;
+};
+
 export type MemberOnQuest = {
     profileId: string;
     pseudo: string;
@@ -490,6 +498,7 @@ export async function getGuildDofusStats(guildId: string): Promise<{
     data?: {
         stats: GuildDofusStats[];
         topMembers: MemberDofusSummary[];
+        members: GuildMemberSummary[];
         totalMembers: number;
     };
 }> {
@@ -634,7 +643,30 @@ export async function getGuildDofusStats(guildId: string): Promise<{
             };
         });
 
-        return { success: true, data: { stats, topMembers, totalMembers } };
+        // Full active member list (for member search across the guild)
+        const memberProfiles = await db.userProfile.findMany({
+            where: { guildId: internalGuildId, status: "ACTIVE" },
+            select: {
+                id: true,
+                discordNickname: true,
+                pseudoDofus: true,
+                user: { select: { image: true } },
+            },
+            orderBy: { discordNickname: "asc" },
+        });
+
+        const members: GuildMemberSummary[] = memberProfiles.map((p: any) => {
+            const obtained = progressByMember.get(p.id) ?? new Set<string>();
+            return {
+                profileId: p.id,
+                pseudo: p.discordNickname || p.pseudoDofus || "Inconnu",
+                image: p.user?.image || null,
+                dofusObtained: obtained.size,
+                dofusTotal: dofusItems.length,
+            };
+        });
+
+        return { success: true, data: { stats, topMembers, totalMembers, members } };
     } catch (error) {
         logger.error("[dofus-quest-actions] getGuildDofusStats error:", { error });
         return { success: false, error: "Erreur serveur" };

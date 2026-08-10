@@ -2252,6 +2252,7 @@ export default function OptimizedGuideClient({
 
             {/* Focus mode plein écran */}
             <button
+              type="button"
               className={`sb-action-btn ${focusMode ? "active" : ""}`}
               style={{ color: focusMode ? "#10b981" : undefined, borderColor: focusMode ? "rgba(16,185,129,0.4)" : undefined }}
               onClick={toggleFocusMode}

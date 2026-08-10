@@ -41,23 +41,26 @@
 .guide-shell.focus-mode .guide-sidebar {
   display: none;
 }
+.guide-shell.focus-mode .guide-content {
+  max-width: none;
+  padding: 2rem clamp(1.5rem, 6vw, 5rem);
+}
 .guide-shell.focus-mode .guide-read-crumb {
-  max-width: 840px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  max-width: 100%;
+  padding-left: clamp(1rem, 5vw, 4rem);
+  padding-right: clamp(1rem, 5vw, 4rem);
 }
 .guide-focus-exit {
   position: fixed;
-  top: 1rem;
-  left: 1rem;
+  top: 5.25rem;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 80;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.5rem 0.9rem;
-  border-radius: 0.6rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
   background: var(--guide-surface-2);
   border: 1px solid var(--guide-border);
   color: var(--guide-text-dim);

@@ -72,15 +72,8 @@ export function LandingCarousel() {
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
         >
-            {/* Decoration Glows */}
-            <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/10  rounded-full pointer-events-none" />
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/10  rounded-full pointer-events-none" />
-
             {/* Main Framework Wrap */}
-            <div className="relative aspect-[16/10] md:aspect-[16/9] rounded-[2rem] md:rounded-[3rem] overflow-hidden bg-zinc-950 border border-white/10 ">
-                
-                {/* Background Glow */}
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-amber-500/5 opacity-50" />
+            <div className="relative aspect-[16/10] md:aspect-[16/9] rounded-2xl md:rounded-3xl overflow-hidden bg-zinc-950 border border-white/10 ">
 
                 {/* Animated Image Track */}
                 <div className="relative w-full h-full flex items-center justify-center">
@@ -116,27 +109,27 @@ export function LandingCarousel() {
                 </div>
 
                 {/* Overlays (Bezel effect) */}
-                <div className="absolute inset-0 pointer-events-none border-[6px] md:border-[10px] border-zinc-950 rounded-[2rem] md:rounded-[3rem]" />
-                <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-[2rem] md:rounded-[3rem]" />
+                <div className="absolute inset-0 pointer-events-none border-[6px] md:border-[10px] border-zinc-950 rounded-2xl md:rounded-3xl" />
+                <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-2xl md:rounded-3xl" />
             </div>
 
             {/* Navigation Buttons */}
             <button
                 onClick={prev}
-                className="absolute left-8 top-1/2 -translate-y-1/2 p-4 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/60 hover:scale-110 active:scale-95 z-20"
+                className="absolute left-8 top-1/2 -translate-y-1/2 p-4 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-colors hover:bg-black/60 z-20"
             >
                 <ChevronLeft className="w-6 h-6" />
             </button>
             <button
                 onClick={next}
-                className="absolute right-8 top-1/2 -translate-y-1/2 p-4 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/60 hover:scale-110 active:scale-95 z-20"
+                className="absolute right-8 top-1/2 -translate-y-1/2 p-4 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-colors hover:bg-black/60 z-20"
             >
                 <ChevronRight className="w-6 h-6" />
             </button>
 
             {/* Indicators & Controls */}
             <div className="flex flex-col md:flex-row items-center justify-center gap-6 mt-12">
-                <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl">
+                <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
                     {SCREENSHOTS.map((_, index) => (
                         <button
                             key={index}
@@ -145,7 +138,7 @@ export function LandingCarousel() {
                                 setCurrentIndex(index);
                             }}
                             className={cn(
-                                "h-1.5 transition-all duration-150 rounded-full",
+                                "h-1.5 transition-colors duration-150 rounded-full",
                                 index === currentIndex
                                     ? "w-8 bg-emerald-500 "
                                     : "w-1.5 bg-zinc-600 hover:bg-zinc-400"
@@ -157,7 +150,7 @@ export function LandingCarousel() {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setIsPaused(!isPaused)}
-                        className="p-3 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all hover:bg-white/10"
+                        className="p-3 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-colors hover:bg-white/10"
                     >
                         {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                     </button>

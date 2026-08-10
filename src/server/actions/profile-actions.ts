@@ -1616,6 +1616,11 @@ export async function getGuildMembers(
                 vacationStart: p.vacationStart?.toISOString() || null,
                 vacationEnd: p.vacationEnd?.toISOString() || null,
                 vacationReason: p.vacationReason || null,
+                // SECURITY/CORRECTNESS: totalXp is BigInt (non-sérialisable par JSON).
+                // Le spread ...p le propageait tel quel → crash rendu serveur (#441) quand
+                // un membre avait une valeur non-null (JSON.stringify throw sur BigInt).
+                // Converti explicitement en string pour être sérialisable.
+                totalXp: p.totalXp != null ? p.totalXp.toString() : null,
                 user: { id: p.user.id, name: getDisplayName(p), image: p.user.image },
                 displayName: getDisplayName(p),
                 roleColor: p.discordRoleColor || 0,

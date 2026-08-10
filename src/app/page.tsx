@@ -9,6 +9,9 @@ import { GuildDirectorySection } from "@/components/landing/guild-directory-sect
 import { PublicHeader } from "@/components/layout/public-header";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { SaasFeatures } from "@/components/landing/saas-features";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { PreFooterCta } from "@/components/landing/pre-footer-cta";
 
 export const revalidate = 3600; // ISR 1h — page d'accueil publique (contenu stable), accélère le chargement & la performance SEO
 
@@ -117,6 +120,15 @@ export default async function Home({
               <GuildDirectorySection guilds={guilds} />
             </div>
           </section>
+
+          {/* Features (direction 2026 : section calme, showcase des fonctionnalités) */}
+          <SaasFeatures />
+
+          {/* Comment ça marche */}
+          <HowItWorks />
+
+          {/* CTA final */}
+          <PreFooterCta />
 
         </main>
 

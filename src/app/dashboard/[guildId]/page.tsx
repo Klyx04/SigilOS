@@ -122,7 +122,8 @@ export default async function DashboardPage({
         : "Rien de prévu — la guilde est au calme";
     // "À faire maintenant" (direction 2026 §9.3) — actions compactes, jamais de vide pur
     const todoItems: { href: string; label: string; action: string }[] = [];
-    if (polls.length > 0) todoItems.push({ href: `/dashboard/${guildId}/sondages`, label: `${polls.length} sondage${polls.length > 1 ? "s" : ""} en cours`, action: "Voter" });
+    const activePolls = (polls as any[]).filter((p: any) => p?.status === "ACTIVE");
+    if (activePolls.length > 0) todoItems.push({ href: `/dashboard/${guildId}/sondages`, label: `${activePolls.length} sondage${activePolls.length > 1 ? "s" : ""} en cours`, action: "Voter" });
     if (nextEvent?.title) todoItems.push({ href: `/dashboard/${guildId}/calendar`, label: `Prochain : ${nextEvent.title}`, action: "Voir" });
     const todayAlmanax = almanaxItems?.[0];
     if (todayAlmanax) todoItems.push({ href: `/dashboard/${guildId}/ressources`, label: "Almanax du jour", action: "Offrande" });

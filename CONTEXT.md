@@ -23,6 +23,30 @@
 - **CI/CD** : GitHub Actions (`dev`→beta, `main`→prod), `npm audit`, Semgrep, Trivy, Gitleaks, lockfile integrity
 - **Déploiement CD (2026-08)** : build sur GitHub → images poussées vers **GHCR** (`.github/workflows/deploy.yml`) → le VPS fait `./scripts/deploy-cd.sh` (pull + up, ~30s, aucun build local). Fallback historique : `./scripts/deploy.sh`. **Rollback en 1 commande** : `./scripts/rollback.sh`. Voir `MAINTENANCE.md` (section 3b + procédures).
 
+## 🧭 Suivi de chantier — Carte du Monde, 429, mini-jeux (10/08/2026) — FAIT sur `feat/deploy-clean-pro`
+
+> Tous les commits poussés sur `feat/deploy-clean-pro` (PR à merger vers `dev`). Détail complet : `src/temp/memo-2026-08-10-worldmap-jeux-429-suite.md`.
+
+### ✅ Rate-limit Caddy 429 (correctif appliqué en beta)
+- `Caddyfile` : bornes hautes (**3000 req/min + burst 500/s**) + exemption assets (`/game-data/*`, `/_next/*`, `/manifest.webmanifest`, `/images/*`, `/icons/*`, `/fonts/*`, `/assets/*`, `/uploads/*`, `/api/storage/*`).
+- Belle page 429 : `public/429.html` + snippet `(error_page_429)` (`handle_errors 429`).
+- ⚠️ **`deploy-cd.sh` ne recrée PAS caddy** → recreate manuel : `docker compose -f docker-compose.prod.yml --env-file .env.beta up -d --force-recreate --no-deps caddy`.
+- ⏳ **Prod (main)** : même recréation à faire après merge.
+
+### ✅ Monde 38 (Village des Brigandins) réparé
+- Specs officielles DofusDB (`4085×2861`, mapWidth 510, mapHeight 366, origine 9908/9402) dans `worlds.json` + **tuiles officielles** (banks 1=204, 0.75=117, 0.5=54, 0.25=15) via `scripts/sync-world38-tiles.js` (hors git → `sync-assets.sh`).
+- Coordonnées `x/y` des maps corrigées ; **POC vue HD à fort zoom** (`map-hd-overlay.tsx`, monde 38).
+
+### ✅ Plein écran des mini-jeux (Sigil Guesser + Bomb)
+- Mécanisme unifié : `worldmap-fullscreen` (sur `#worldmap-page` / `#mini-games-page` / `#sigil-bomb-page`) + `map-fullscreen` sur `<body>` (cache sidebar/topnav/footer/tours).
+- ForceFullscreen + style inline + interval de secours ; déclencheur = **`gamePhase !== 'idle'`** (retour menu sans blocage).
+- HUD (score/timer/round) en haut en plein écran + **bouton Quitter la partie** + croix (dans la zone `activeTab==='games'`).
+- Guesser : **zone cible / carte monde 50/50**, classement en bandeau + scores agrandis, **pré-chargement tuiles** (anti-clignotement), fix monde `-1` (recherche monstre).
+
+➡️ **Action** : merger PR `feat/deploy-clean-pro` → `dev`, puis `./scripts/deploy-cd.sh beta` (rebuild) + `./scripts/sync-assets.sh beta` (tuiles monde 38 + favicon). Ensuite Prod (`main`).
+
+---
+
 ---
 
 ## 🔒 Non-négociables (résumé — toujours appliqués)

@@ -1,10 +1,10 @@
-﻿/* SigilOS â€” Guide Ops Center Styles */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   TOKENS â€” Direction design 2026 Â« moins IA Â»
-   Palette disciplinÃ©e : dorÃ© = fil de quÃªte Â· emerald = progression
-   Â· rouge = danger Â· bleu = coords/infos. ZÃ©ro glow, typo â‰¥11px,
-   motion â‰¤200ms.
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* SigilOS — Guide Ops Center Styles */
+/* ═══════════════════════════════════════════════════════════
+   TOKENS — Direction design 2026 « moins IA »
+   Palette disciplinée : doré = fil de quête · emerald = progression
+   · rouge = danger · bleu = coords/infos. Zéro glow, typo ≥11px,
+   motion ≤200ms.
+   ═══════════════════════════════════════════════════════════ */
 :root {
   --guide-bg: #0a0b10;
   --guide-bg-mission: #050608;
@@ -27,7 +27,7 @@
   --guide-read-width: 840px;
 }
 
-/* â”€â”€ Shell & Layout â”€â”€ */
+/* ── Shell & Layout ── */
 .guide-shell {
   display: flex;
   height: calc(100vh - 80px);
@@ -37,7 +37,7 @@
   padding: 0;
 }
 
-/* â”€â”€ Sommaire / sidebar repliable (mode unique plein Ã©cran) â”€â”€ */
+/* ── Sommaire / sidebar repliable (mode unique plein écran) ── */
 .guide-shell.sidebar-collapsed .guide-sidebar {
   display: none;
 }
@@ -51,7 +51,7 @@
   padding-right: clamp(1rem, 5vw, 4rem);
 }
 
-/* Bouton Â« Sommaire Â» dans le bandeau (ouvre/ferme la sidebar) */
+/* Bouton « Sommaire » dans le bandeau (ouvre/ferme la sidebar) */
 .guide-sommaire-btn {
   display: inline-flex;
   align-items: center;
@@ -75,7 +75,7 @@
   background: var(--guide-green-soft);
 }
 
-/* Bouton flottant rouvrir le sommaire (quand la sidebar est repliÃ©e) */
+/* Bouton flottant rouvrir le sommaire (quand la sidebar est repliée) */
 .guide-sommaire-open {
   position: fixed;
   top: 5.25rem;
@@ -103,7 +103,7 @@
   background: var(--guide-green-soft);
 }
 
-/* â”€â”€ Sidebar â”€â”€ */
+/* ── Sidebar ── */
 .guide-sidebar {
   flex: 0 0 380px;
   background: var(--guide-surface);
@@ -114,7 +114,7 @@
   z-index: 10;
 }
 
-/* â”€â”€ Compact Sidebar Header â”€â”€ */
+/* ── Compact Sidebar Header ── */
 .sidebar-compact-header {
   display: flex;
   align-items: center;
@@ -185,7 +185,7 @@
   color: #fff;
 }
 
-/* â”€â”€ Compact Sidebar Toolbar â”€â”€ */
+/* ── Compact Sidebar Toolbar ── */
 .sidebar-toolbar {
   padding: 0.5rem 0.75rem;
   display: flex;
@@ -264,7 +264,7 @@
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Color Coding for Sidebar Actions Buttons â€” palette disciplinÃ©e */
+/* Color Coding for Sidebar Actions Buttons — palette disciplinée */
 .sb-action-btn-hide-completed {
   color: var(--guide-green);
   border-color: var(--guide-green-soft);
@@ -521,7 +521,7 @@
 }
 .search-clear:hover { color: #fff; }
 
-/* â”€â”€ Guild Radar â”€â”€ */
+/* ── Guild Radar ── */
 .sidebar-radar {
   margin: 0 1rem 1rem 1rem;
   padding: 1rem;
@@ -608,7 +608,7 @@
   user-select: none;
 }
 
-/* â”€â”€ Chapters â”€â”€ */
+/* ── Chapters ── */
 .chapter-group {
   margin-bottom: 0.5rem;
 }
@@ -843,7 +843,7 @@
 }
 
 
-/* â”€â”€ Main Content â”€â”€ */
+/* ── Main Content ── */
 .guide-main {
   flex: 1;
   background: #09090b;
@@ -933,7 +933,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Step Navigator (GanymÃ¨de Style) */
+/* Step Navigator (Ganymède Style) */
 .step-navigator {
   background: rgba(20, 22, 31, 0.6);
   backdrop-filter: blur(12px);
@@ -1539,7 +1539,7 @@
   border-bottom-color: transparent;
 }
 
-/* Clickable Entities (Dungeons, Items) â€” palette disciplinÃ©e */
+/* Clickable Entities (Dungeons, Items) — palette disciplinée */
 .clickable-entity {
   cursor: pointer;
   color: var(--guide-text);
@@ -1765,7 +1765,7 @@
   box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
 }
 
-/* â”€â”€ Guide Name Banner â”€â”€ */
+/* ── Guide Name Banner ── */
 .guide-name-banner {
   display: flex;
   align-items: center;
@@ -1801,7 +1801,7 @@
   text-overflow: ellipsis;
 }
 
-/* â”€â”€ Hide Completed Toggle â”€â”€ */
+/* ── Hide Completed Toggle ── */
 .hide-completed-toggle {
   display: flex;
   align-items: center;
@@ -1842,14 +1842,14 @@
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
-/* â”€â”€ Bookmark in sidebar rows â”€â”€ */
+/* ── Bookmark in sidebar rows ── */
 .state-bookmark { color: #f59e0b; }
 .ms-row.bookmarked {
   border-left: 2px solid #f59e0b;
   background: rgba(245, 158, 11, 0.05);
 }
 
-/* â”€â”€ Step Actions (footer button group) â”€â”€ */
+/* ── Step Actions (footer button group) ── */
 .step-actions {
   display: flex;
   align-items: stretch;
@@ -1857,7 +1857,7 @@
   flex: 2;
 }
 
-/* Fix step-nav responsive â€” wrap on small viewports */
+/* Fix step-nav responsive — wrap on small viewports */
 .step-nav {
   display: flex;
   align-items: stretch;
@@ -1867,7 +1867,7 @@
 }
 .step-nav .nav-btn { min-width: 100px; }
 
-/* â”€â”€ Bookmark Button â”€â”€ */
+/* ── Bookmark Button ── */
 .bookmark-btn {
   display: flex;
   align-items: center;
@@ -1895,7 +1895,7 @@
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
 }
 
-/* â”€â”€ Guide-step cross-guide link â”€â”€ */
+/* ── Guide-step cross-guide link ── */
 .guide-step-link {
   cursor: pointer;
   display: inline-flex;
@@ -1934,7 +1934,7 @@
   transition: none !important;
 }
 
-/* â”€â”€ Subguide Controls & Focus Mode â”€â”€ */
+/* ── Subguide Controls & Focus Mode ── */
 .sgc-controls {
   display: flex;
   align-items: center;
@@ -2097,7 +2097,7 @@
   border-color: #3b82f6;
 }
 
-/* Legacy GanymÃ¨de formatting fallbacks & Premium Enhancements */
+/* Legacy Ganymède formatting fallbacks & Premium Enhancements */
 .ganymade-step-text {
   font-family: inherit;
   color: #d1d5db;
@@ -2643,7 +2643,7 @@
   gap: 0.4rem;
 }
 .ganymade-step-text li[data-type="taskItem"]::before { 
-  content: "âœ¦"; 
+  content: "✦"; 
   position: absolute; 
   left: 0.25rem; 
   top: 50%;
@@ -2659,7 +2659,7 @@
   font-weight: 800; 
 }
 
-/* â”€â”€ Comprehensive Responsive & Grid Pass â”€â”€ */
+/* ── Comprehensive Responsive & Grid Pass ── */
 @media (max-width: 1200px) {
   .guide-shell {
     flex-direction: column;
@@ -2753,7 +2753,7 @@
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
 }
 
-/* â”€â”€ Step presence avatar row â”€â”€ */
+/* ── Step presence avatar row ── */
 .sgc-step-presence {
   display: flex;
   align-items: center;
@@ -2891,7 +2891,7 @@
   z-index: 1;
 }
 
-/* â”€â”€ Quest Hub Embedded Overrides â”€â”€ */
+/* ── Quest Hub Embedded Overrides ── */
 .quest-hub-guide-wrapper .guide-shell {
   height: 100%;
   border-radius: 1.5rem;
@@ -2924,7 +2924,7 @@
   margin-bottom: 1.5rem;
 }
 
-/* â”€â”€ Active Guide Dynamic Sidebar Highlight â”€â”€ */
+/* ── Active Guide Dynamic Sidebar Highlight ── */
 .chapter-header.active {
   background: linear-gradient(145deg, color-mix(in srgb, var(--accent-color, #3b82f6) 18%, transparent), color-mix(in srgb, var(--accent-color, #3b82f6) 4%, transparent)) !important;
   border-color: color-mix(in srgb, var(--accent-color, #3b82f6) 40%, transparent) !important;

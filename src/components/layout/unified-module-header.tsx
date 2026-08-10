@@ -37,7 +37,7 @@ export function UnifiedModuleHeader({
 }: UnifiedModuleHeaderProps) {
     return (
         <div className={cn(
-            "relative animate-in fade-in slide-in-from-top-4 duration-700",
+            "relative animate-in fade-in slide-in-from-top-2 duration-150",
             compact ? "space-y-1 mb-2" : "space-y-4 mb-8 md:mb-12",
             className
         )}>
@@ -46,10 +46,10 @@ export function UnifiedModuleHeader({
                 <Button
                     asChild
                     variant="ghost"
-                    className="inline-flex h-auto items-center gap-2.5 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition-all group mb-2 p-0 bg-transparent hover:bg-transparent"
+                    className="inline-flex h-auto items-center gap-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors group mb-2 p-0 bg-transparent hover:bg-transparent"
                 >
                     <Link href={backHref}>
-                        <div className="h-8 w-8 rounded-xl border border-foreground/5 bg-foreground/[0.03] backdrop-blur-xl flex items-center justify-center group-hover:border-foreground/20 group-hover:bg-foreground/10 transition-all group-hover:scale-105 group-hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.05)]">
+                        <div className="h-8 w-8 rounded-xl border border-foreground/5 bg-foreground/[0.03] backdrop-blur-xl flex items-center justify-center group-hover:border-foreground/20 group-hover:bg-foreground/10 transition-colors">
                             <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
                         </div>
                         <span className="opacity-70 group-hover:opacity-100 transition-opacity">{backLabel}</span>
@@ -70,26 +70,22 @@ export function UnifiedModuleHeader({
                                 "relative shrink-0",
                                 compact ? "h-8 w-8 md:h-10 md:w-10" : "h-14 w-14 md:h-18 md:w-18"
                             )}>
-                                <div className="absolute -inset-4 bg-primary/10 rounded-full blur-3xl animate-pulse" />
                                 <Image
                                     src={imageSrc}
                                     alt={title}
                                     fill
-                                    className="object-contain brightness-110 drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] transition-transform duration-500 hover:scale-110"
-                                    priority
+                                    sizes="(max-width: 768px) 40px, 72px"
+                                    className="object-contain"
                                 />
                             </div>
                         ) : Icon ? (
                             <div className={cn(
-                                "relative shrink-0 flex items-center justify-center bg-foreground/[0.03] backdrop-blur-2xl rounded-xl border border-foreground/5 shadow-2xl group transition-all",
+                                "relative shrink-0 flex items-center justify-center bg-foreground/[0.03] backdrop-blur-2xl rounded-xl border border-foreground/5 group transition-colors",
                                 compact ? "h-9 w-9 md:h-10 md:w-10 rounded-xl" : "h-14 w-14 md:h-16 md:w-16 rounded-2xl"
                             )}>
                                 <Icon
-                                    className={cn("transition-all duration-500 group-hover:scale-110", compact ? "h-4 w-4 md:h-5 md:w-5" : "h-7 w-7 md:h-8 md:w-8")}
-                                    style={{
-                                        color: iconColor,
-                                        filter: `drop-shadow(0 0 15px ${iconColor}60)`
-                                    }}
+                                    className={cn("transition-colors duration-150", compact ? "h-4 w-4 md:h-5 md:w-5" : "h-7 w-7 md:h-8 md:w-8")}
+                                    style={{ color: iconColor }}
                                     strokeWidth={2.5}
                                 />
                                 <div className="absolute inset-0 bg-foreground/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -99,7 +95,7 @@ export function UnifiedModuleHeader({
                         {/* TITLE SECTION - Fluid Typography 2026 */}
                         <div className="min-w-0">
                             <h1 className={cn(
-                                compact ? "text-lg md:text-xl font-extrabold tracking-tight py-0" : "text-[clamp(1.75rem,8vw,3.5rem)] font-black tracking-tighter leading-[0.9] py-1",
+                                compact ? "text-lg md:text-xl font-bold tracking-tight py-0" : "text-[clamp(1.75rem,8vw,3.5rem)] font-bold tracking-tight leading-[0.9] py-1",
                                 "uppercase text-foreground"
                             )}>
                                 {title}
@@ -130,7 +126,6 @@ export function UnifiedModuleHeader({
             {/* 3. PREMIUM DIVIDER - Modern subtle aesthetic */}
             <div className="relative h-px w-full overflow-hidden mt-2">
                 <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-border/40 via-border/20 to-transparent" />
-                <div className="absolute inset-y-0 left-0 w-24 h-[1px] bg-gradient-to-r from-primary to-transparent blur-[1px]" />
             </div>
         </div>
     );

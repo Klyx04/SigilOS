@@ -68,7 +68,7 @@ export default async function KamaWeeklySummaryPage({
             />
 
             <KamaWeeklySummary
-                data={summaryRes.data}
+                data={summaryRes.data ? JSON.parse(JSON.stringify(summaryRes.data)) : undefined}
                 isOfficer={isOfficer}
                 guildId={guildId}
             />

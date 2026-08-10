@@ -75,31 +75,33 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
 
     if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
-    // SECURITY (I-XX): guild isolation — l'utilisateur doit être membre de la guilde
-    // demandée avant de pouvoir lire ses notifications (fail-closed, posture SECURITY.md).
-    // Les notifs système sans guilde restent visibles via le scope OR [guildId, null].
-    let internalGuildId: string | undefined;
-    if (guildId) {
-        const ctx = await getUserContext(guildId);
-        if (!ctx.isMember) {
-            logger.warn(`[Notification] Blocked unread notifications access for user ${session.user.id} on unauthorized guild ${guildId}`);
-            return { success: false, error: "Forbidden: Member access required" };
-        }
-        internalGuildId = await resolveInternalGuildId(guildId);
-    }
-
     const cacheKey = guildId
         ? `notifs:unread:${session.user.id}:${guildId}`
         : `notifs:unread:${session.user.id}`;
 
     try {
-        // 1. Check Redis Cache first (Short TTL: 5s to allow fast polling without DB load)
+        // 1. Cache FIRST — évite le getUserContext lourd (~5s) à chaque poll (sidebar 10s).
+        //    Le cache est scopé user+guilde et n'est peuplé qu'après un contrôle membre réussi
+        //    (TTL 5s) => safe de le lire avant la vérification de membership.
         const cached = await redis.get(cacheKey).catch(() => null);
         if (cached) {
             logger.debug(`[PERF] getUnreadNotifications: Returned from CACHE (${Date.now() - start}ms)`);
             return { success: true, data: JSON.parse(cached) as Notification[] };
         }
 
+        // 2. SECURITY (I-XX): guild isolation — membre requis (fail-closed, SECURITY.md)
+        //    Les notifs système sans guilde restent visibles via le scope OR [guildId, null].
+        let internalGuildId: string | undefined;
+        if (guildId) {
+            const ctx = await getUserContext(guildId);
+            if (!ctx.isMember) {
+                logger.warn(`[Notification] Blocked unread notifications access for user ${session.user.id} on unauthorized guild ${guildId}`);
+                return { success: false, error: "Forbidden: Member access required" };
+            }
+            internalGuildId = await resolveInternalGuildId(guildId);
+        }
+
+        // 3. DB query
         const notifications = await db.notification.findMany({
             where: {
                 userId: session.user.id,
@@ -110,8 +112,8 @@ export async function getUnreadNotifications(guildId?: string): Promise<{ succes
             take: 50, // PERF: limit results to prevent unbounded accumulation
         });
 
-        // 2. Store in Redis for 5 seconds
-        await redis.set(cacheKey, JSON.stringify(notifications), "EX", 5).catch(() => {});
+        // 4. Cache 10s (aligné sur le polling sidebar 10s => quasi-100% de hits)
+        await redis.set(cacheKey, JSON.stringify(notifications), "EX", 10).catch(() => {});
 
         logger.debug(`[PERF] getUnreadNotifications: DB Fetch ${Date.now() - start}ms (Auth: ${authDone - start}ms, DB: ${Date.now() - authDone}ms)`);
         return { success: true, data: notifications as Notification[] };

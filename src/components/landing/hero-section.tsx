@@ -31,8 +31,8 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
 
             {/* Background Effects */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[100px]" />
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/10 rounded-full " />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full " />
                 <div className="absolute inset-0 bg-[url(/noise.svg)] opacity-[0.03] mix-blend-overlay" />
 
                 {/* Grid Accent */}
@@ -49,7 +49,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                     className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mx-auto"
                 >
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">
+                    <span className="text-[11px] font-semibold text-white/50 uppercase tracking-wider">
                         {user ? `Session Active : ${user.name}` : "Système Bêta Ouvert"}
                     </span>
                 </motion.div>
@@ -59,7 +59,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.4 }}
                     aria-hidden="true"
-                    className="text-[clamp(2.25rem,10vw,5rem)] font-black tracking-tighter text-white font-heading leading-[0.95] md:leading-[1.05]"
+                    className="text-[clamp(2.25rem,10vw,5rem)] font-semibold tracking-tighter text-white font-heading leading-[0.95] md:leading-[1.05]"
                 >
                     {user ? (
                         <span>
@@ -102,7 +102,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             {userGuilds.length > 0 && (
                                 <div className="space-y-6 w-full flex flex-col items-center animate-in fade-in zoom-in-95 duration-1000">
                                     <div className="flex flex-col items-center gap-1">
-                                        <h3 className="text-sm font-black text-emerald-400 uppercase tracking-[0.3em]">
+                                        <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">
                                             {userGuilds.length > 1 ? "Mes Guildes" : "Mon Accès Guilde"}
                                         </h3>
                                         <div className="h-px w-12 bg-emerald-500/30" />
@@ -118,22 +118,22 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                             >
                                                 <Link
                                                     href={`/dashboard/${userGuilds[0].id}`}
-                                                    className="relative flex items-center gap-5 p-5 rounded-[2rem] bg-zinc-900/60 border border-white/10 hover:bg-zinc-900 hover:border-emerald-500/50 transition-all group overflow-hidden shadow-2xl hover:-translate-y-2 h-[100px]"
+                                                    className="relative flex items-center gap-5 p-5 rounded-[2rem] bg-zinc-900/60 border border-white/10 hover:bg-zinc-900 hover:border-emerald-500/50 transition-all group overflow-hidden  hover:-translate-y-2 h-[100px]"
                                                 >
                                                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                                     {userGuilds[0].iconUrl ? (
                                                         <Image src={userGuilds[0].iconUrl} alt={userGuilds[0].name} width={56} height={56} className="rounded-2xl relative z-10 border border-white/10" />
                                                     ) : (
-                                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-amber-500 flex items-center justify-center text-xl font-black shrink-0 shadow-lg">
+                                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-xl font-semibold shrink-0 ">
                                                             {userGuilds[0].name[0]}
                                                         </div>
                                                     )}
                                                     <div className="text-left relative z-10 flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                            <div className="text-[10px] font-black text-emerald-400/80 uppercase tracking-widest leading-none">Entrée Directe</div>
+                                                            <div className="text-[11px] font-semibold text-emerald-400/80 uppercase tracking-wider leading-none">Entrée Directe</div>
                                                         </div>
-                                                        <div className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors truncate tracking-tighter uppercase italic">{userGuilds[0].name}</div>
+                                                        <div className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors truncate tracking-tighter uppercase italic">{userGuilds[0].name}</div>
                                                     </div>
                                                     <ChevronRight className="w-5 h-5 text-zinc-700 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
                                                 </Link>
@@ -144,16 +144,16 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                                 <motion.button
                                                     initial={{ opacity: 0, y: 20 }}
                                                     animate={{ opacity: 1, y: 0 }}
-                                                    className="group relative flex items-center gap-6 p-6 rounded-[2.5rem] bg-zinc-900/80 border border-white/10 hover:border-emerald-500/50 transition-all shadow-2xl hover:-translate-y-2 w-full sm:w-auto min-w-[340px]"
+                                                    className="group relative flex items-center gap-6 p-6 rounded-[2.5rem] bg-zinc-900/80 border border-white/10 hover:border-emerald-500/50 transition-all  hover:-translate-y-2 w-full sm:w-auto min-w-[340px]"
                                                 >
                                                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]" />
 
                                                     <div className="flex -space-x-4 relative z-10">
                                                         {userGuilds.slice(0, 3).map((g, idx) => (
                                                             <div key={g.id} className="relative transition-transform group-hover:scale-110" style={{ zIndex: 10 - idx }}>
-                                                                <Avatar className="w-14 h-14 border-[3px] border-zinc-900 rounded-2xl shadow-2xl">
+                                                                <Avatar className="w-14 h-14 border-[3px] border-zinc-900 rounded-2xl ">
                                                                     <AvatarImage src={g.iconUrl || ""} />
-                                                                    <AvatarFallback className="bg-zinc-800 text-zinc-500 font-black">{g.name[0]}</AvatarFallback>
+                                                                    <AvatarFallback className="bg-zinc-800 text-zinc-500 font-semibold">{g.name[0]}</AvatarFallback>
                                                                 </Avatar>
                                                             </div>
                                                         ))}
@@ -161,9 +161,9 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
 
                                                     <div className="text-left relative z-10">
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <div className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] leading-none">Gestion Multi-Guilde</div>
+                                                            <div className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider leading-none">Gestion Multi-Guilde</div>
                                                         </div>
-                                                        <div className="text-xl font-black text-white group-hover:text-emerald-400 transition-colors tracking-tighter uppercase italic">
+                                                        <div className="text-xl font-semibold text-white group-hover:text-emerald-400 transition-colors tracking-tighter uppercase italic">
                                                             Mes {userGuilds.length} Guildes
                                                         </div>
                                                     </div>
@@ -186,7 +186,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                     className="h-auto py-6 px-12 rounded-2xl"
                                 >
                                     <span className="flex flex-col items-start leading-none gap-1 text-left">
-                                        <span className="text-[10px] tracking-widest text-emerald-950/60 uppercase font-black">Chef de Guilde ?</span>
+                                        <span className="text-[11px] tracking-wider text-emerald-950/60 uppercase font-semibold">Chef de Guilde ?</span>
                                         <span className="text-lg">Demander l&apos;accès</span>
                                     </span>
                                     <ChevronRight className="w-5 h-5 ml-2" />
@@ -201,11 +201,11 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                                 <Button
                                     type="submit"
                                     variant="sigil-emerald"
-                                    className="h-auto py-6 px-14 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+                                    className="h-auto py-6 px-14 rounded-2xl "
                                 >
                                     <DiscordIcon className="w-8 h-8 flex-shrink-0 text-white" />
                                     <span className="flex flex-col items-start leading-none gap-1 text-left">
-                                        <span className="text-[10px] tracking-widest text-emerald-950/80 uppercase font-black">Accès Membre</span>
+                                        <span className="text-[11px] tracking-wider text-emerald-950/80 uppercase font-semibold">Accès Membre</span>
                                         <span className="text-xl">Se Connecter avec Discord</span>
                                     </span>
                                     <ChevronRight className="w-5 h-5 ml-2" />
@@ -218,7 +218,7 @@ export function HeroSection({ user, userGuilds = [] }: HeroSectionProps) {
                             {/* Séparateur contextuel pour chefs de guilde */}
                             <div className="flex items-center gap-4 w-full max-w-sm pt-4 border-t border-white/10">
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-500/30" />
-                                <span className="text-[11px] font-black text-amber-400/90 uppercase tracking-widest whitespace-nowrap flex items-center gap-1.5">
+                                <span className="text-[11px] font-semibold text-amber-400/90 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
                                     <Crown className="w-3.5 h-3.5 text-amber-400" />
                                     Vous gérez une guilde ?
                                 </span>

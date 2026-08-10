@@ -69,7 +69,7 @@ export default async function FinderPage({
                 <div data-tour="donjons-board">
                     <DungeonFinderClient
                         guildId={guildId}
-                        initialPosts={initialPosts}
+                        initialPosts={JSON.parse(JSON.stringify(initialPosts))}
                         currentProfileId={user.profileId ?? undefined}
                         isAdmin={user.isAdmin}
                         refreshPosts={refreshPosts}

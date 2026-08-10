@@ -48,7 +48,7 @@ export default async function GalleryStuffPage({ params }: { params: Promise<{ g
             </div>
             <div data-tour="galerie-board">
                 <GalleryClient
-                    initialBuilds={stuffRes.data.builds}
+                    initialBuilds={JSON.parse(JSON.stringify(stuffRes.data.builds))}
                     initialTotal={stuffRes.data.total}
                     initialHasMore={stuffRes.data.hasMore}
                     initialStuffShareConfigured={stuffRes.data.isDiscordShareConfigured}

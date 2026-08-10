@@ -51,7 +51,7 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
         return () => clearInterval(interval);
     }, [guildId]);
 
-    const handleDismiss = (e: React.MouseEvent) => {
+    const handleDismiss = (e: React.SyntheticEvent) => {
         e.preventDefault();
         e.stopPropagation();
         localStorage.setItem(`live-badge-dismissed-${guildId}`, Date.now().toString());
@@ -81,8 +81,8 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
                 <button
                     onClick={handleBadgeClick}
                     className={cn(
-                        "flex h-8 items-center gap-2.5 px-3 rounded-full bg-red-600/10 border border-red-500/20 hover:bg-red-600/20 transition-all duration-300 group shadow-lg shadow-red-500/20 shrink-0 cursor-pointer",
-                        "animate-in fade-in slide-in-from-top-2 duration-700"
+                        "flex h-8 items-center gap-2 px-3 rounded-full bg-red-600/10 border border-red-500/20 hover:bg-red-500/15 transition-colors shrink-0 cursor-pointer",
+                        "animate-in fade-in duration-150"
                     )}
                 >
                     <span className="relative flex h-2 w-2">
@@ -92,17 +92,27 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
 
                     <Tv className="w-3 h-3 text-red-500" />
 
-                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground leading-none whitespace-nowrap italic">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground leading-none whitespace-nowrap">
                         {text}
                     </span>
 
-                    <button
+                    <span
+                        role="button"
+                        tabIndex={0}
                         onClick={handleDismiss}
-                        className="ml-1 p-0.5 rounded-full hover:bg-black/20 text-foreground/20 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDismiss(e);
+                            }
+                        }}
+                        className="ml-1 p-0.5 rounded-full hover:bg-black/20 text-foreground/20 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
                         title="Cacher pour 4h"
+                        aria-label="Cacher pour 4h"
                     >
                         <X className="w-2.5 h-2.5" />
-                    </button>
+                    </span>
                 </button>
             </div>
 

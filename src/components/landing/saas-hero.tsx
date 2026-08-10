@@ -20,7 +20,7 @@ export function SaasHero({ user }: { user?: User }) {
                 <div className="max-w-4xl mx-auto text-center mb-20 fade-in-up">
                     {/* Badge */}
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-gold/10 border border-accent-gold/20 mb-8">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-accent-gold">Beta Ouverte ! </span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-accent-gold">Beta Ouverte ! </span>
                     </div>
 
                     {/* Headline */}
@@ -44,7 +44,7 @@ export function SaasHero({ user }: { user?: User }) {
                             </Button>
                         ) : (
                             <Button size="lg" className="h-14 px-10 rounded-full bg-accent-teal text-bg-primary hover:bg-accent-teal/90 font-bold uppercase tracking-wider teal-glow group flex items-center gap-3" onClick={() => loginWithDiscord()}>
-                                <DiscordIcon className="w-5 h-5 group-hover:rotate-12 transition-transform duration-500" />
+                                <DiscordIcon className="w-5 h-5 group-hover:rotate-12 transition-transform duration-150" />
                                 Connexion Discord
                                 <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </Button>

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { AuroraBackground } from "@/components/ui/aurora-background";
+
 import { getUserContext } from "@/server/actions/user-actions";
 import { getGuildStats } from "@/server/actions/guild-stats-actions";
 import { getActivePresence } from "@/server/actions/presence-actions";
@@ -13,6 +13,7 @@ import { getStuffGalleryPage } from "@/server/actions/gallery-actions";
 import { getUnifiedGuildActivity } from "@/server/actions/unified-activity-actions";
 import { getUpcomingEvents, getActiveRaid } from "@/server/actions/calendar-actions";
 import { getPolls } from "@/server/actions/poll-actions";
+import Link from "next/link";
 
 import { QuickStatsRow } from "./_components/quick-stats-row";
 import { RecentDjPosts } from "./_components/recent-dj-posts";
@@ -111,11 +112,29 @@ export default async function DashboardPage({
     const topActivityName = guildStats?.records?.[0]?.label || "";
     const topActivityValue = guildStats?.records?.[0]?.value || "";
 
+    // Contextual greeting (direction 2026 : header contextuel, plus de watermark ghost)
+    const hour = new Date().getHours();
+    const greeting = hour < 6 ? "Bonne nuit" : hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+    const firstName = (user.name || "Aventurier").split(" ")[0];
+    const nextEvent = upcomingEvents[0] as any;
+    const contextLine = nextEvent?.title
+        ? `Prochain rendez-vous : ${nextEvent.title}`
+        : "Rien de prévu — la guilde est au calme";
+    // "À faire maintenant" (direction 2026 §9.3) — actions compactes, jamais de vide pur
+    const todoItems: { href: string; label: string; action: string }[] = [];
+    const activePolls = (polls as any[]).filter((p: any) => p?.status === "ACTIVE");
+    if (activePolls.length > 0) todoItems.push({ href: `/dashboard/${guildId}/sondages`, label: `${activePolls.length} sondage${activePolls.length > 1 ? "s" : ""} en cours`, action: "Voter" });
+    if (nextEvent?.title) todoItems.push({ href: `/dashboard/${guildId}/calendar`, label: `Prochain : ${nextEvent.title}`, action: "Voir" });
+    const todayAlmanax = almanaxItems?.[0];
+    if (todayAlmanax) todoItems.push({ href: `/dashboard/${guildId}/ressources`, label: "Almanax du jour", action: "Offrande" });
+
+
+
     return (
         <div className="relative w-full min-h-full pb-20">
-            {/* Background Decorators */}
-            <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] bg-[radial-gradient(circle_at_50%_50%,var(--primary),transparent_70%)]" />
-            <AuroraBackground className="absolute inset-0 z-0 h-full w-full pointer-events-none opacity-[0.02] dark:opacity-[0.04] saturate-100 blur-3xl scale-125 transition-opacity duration-1000" />
+            
+            
+            
 
             {/* Modals */}
             {user.isAdmin && profile && !profile.hasSeenWelcome && (
@@ -132,16 +151,18 @@ export default async function DashboardPage({
 
             <div className="relative z-10 p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
 
-                {/* ── 0. Subtle page label ─────────────────────────────── */}
-                <header className="flex items-end justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-1000">
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-foreground/5 drop-shadow-sm uppercase italic select-none">
-                        Dashboard
-                    </h1>
+                <header className="flex items-end justify-between gap-6">
+                    <div>
+                        <h1 className="text-[26px] md:text-[28px] font-bold italic tracking-tight text-foreground">
+                            {greeting} {firstName} ⚔
+                        </h1>
+                        <p className="text-[13px] text-muted-foreground mt-1">{contextLine}</p>
+                    </div>
                     <DashboardAdminTourButton isAdmin={user.isAdmin} />
                 </header>
 
                 {/* ── 1. QUICK STATS ROW ───────────────────────────────── */}
-                <section data-tour="dash-stats" className="animate-in fade-in slide-in-from-top-2 duration-500">
+                <section data-tour="dash-stats" className="animate-in fade-in slide-in-from-top-1 duration-150">
                     <QuickStatsRow
                         onlineCount={onlineCount}
                         totalMembers={totalMembers}
@@ -154,22 +175,47 @@ export default async function DashboardPage({
                     />
                 </section>
 
+                {/* ── 1.5 À FAIRE MAINTENANT (compact, direction §9.3) ──── */}
+                {todoItems.length > 0 && (
+                    <section data-tour="dash-todo" className="animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="rounded-xl border border-border/60 bg-background/40 p-3.5">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">À faire maintenant</span>
+                                <span className="flex-1 h-px bg-white/[0.06]" />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                                {todoItems.map((item) => (
+                                    <Link
+                                        key={item.href + item.label}
+                                        href={item.href}
+                                        className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
+                                    >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                        <span className="text-[13px] truncate">{item.label}</span>
+                                        <span className="ml-auto text-[12px] font-medium text-emerald-400/80 shrink-0">{item.action}</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
                 {/* ── 2. RAID HERO (prioritaire — conditionnel) ────────── */}
                 {hasRaidNow && (
-                    <section data-tour="dash-raid" className="animate-in fade-in slide-in-from-top-2 duration-500">
+                    <section data-tour="dash-raid" className="animate-in fade-in slide-in-from-top-1 duration-150">
                         <RaidHeroBanner guildId={guildId} raid={activeRaid as any} />
                     </section>
                 )}
 
                 {/* ── 3. INTELLIGENCE FOCUS (masqué si raid actif) ─────── */}
                 {focusData && !hasRaidNow && (
-                    <section data-tour="dash-focus" className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                    <section data-tour="dash-focus" className="animate-in fade-in slide-in-from-bottom-2 duration-150">
                         <EchoDuSigil data={focusData} />
                     </section>
                 )}
 
                 {/* ── 4. EVENTS + SONDAGES ─────────────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <section data-tour="dash-events" className="lg:col-span-7 min-h-[340px]">
                         <UpcomingEventsWidget
                             guildId={guildId}
@@ -185,7 +231,7 @@ export default async function DashboardPage({
                 </div>
 
                 {/* ── 5. GROUPES ACTIFS + GALERIE ──────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <section data-tour="dash-groups" className="min-h-[360px]">
                         <RecentDjPosts guildId={guildId} groups={activeGroups} />
                     </section>
@@ -195,7 +241,7 @@ export default async function DashboardPage({
                 </div>
 
                 {/* ── 6. ALMANAX + ACTIVITÉ ────────────────────────────── */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <section data-tour="dash-almanax">
                         <AlmanaxWidget
                             guildId={guildId}

@@ -1199,7 +1199,7 @@ const PRESENTATION_STEPS: TourStep[] = [
     },
 ];
 
-const TourContext = createContext<TourContextType | undefined>(undefined);
+export const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({
     children,

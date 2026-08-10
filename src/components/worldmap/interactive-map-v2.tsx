@@ -68,6 +68,27 @@ interface InteractiveMapProps {
     showGameEntry?: boolean;
 }
 
+// Force le plein écran du guesser quand une partie est active (monté directement dans le rendu du jeu)
+function ForceFullscreen() {
+    useEffect(() => {
+        const el = document.getElementById('worldmap-page');
+        if (el) {
+            el.style.position = 'fixed';
+            el.style.inset = '0';
+            el.style.width = '100vw';
+            el.style.height = '100vh';
+            el.style.margin = '0';
+            el.style.border = 'none';
+            el.style.borderRadius = '0';
+            el.style.padding = '0';
+            el.style.zIndex = '9999';
+            el.classList.add('worldmap-fullscreen');
+        }
+        document.body.classList.add('map-fullscreen');
+    }, []);
+    return null;
+}
+
 export default function InteractiveMapV2({ 
     worldMap, 
     initialLadder, 
@@ -1514,6 +1535,8 @@ export default function InteractiveMapV2({
 
             {/* Main Content Area (Map or Game) */}
             <div className="flex-1 relative flex overflow-hidden">
+                {activeTab === 'games' && gamePhase !== 'idle' && <ForceFullscreen />}
+
 
                 {/* 🎯 MODE SIGIL GUESSER - ACTIVE GAMEPLAY */}
                 {activeTab === 'games' && gamePhase === 'playing' && (

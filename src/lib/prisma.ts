@@ -50,8 +50,8 @@ const createPrismaClient = () => {
         user: poolUser || undefined,
         password: poolPassword || undefined,
         max: isDev ? 8 : 30, // Reduced from 10 to prevent exhaustion in local HMR
-        idleTimeoutMillis: 5000, // Reduced from 30s to release connections faster
-        connectionTimeoutMillis: 5000, // Fail fast (5s) instead of hanging (15s)
+        idleTimeoutMillis: 15000, // Release idle conns, but avoid churn/reconnect storms
+        connectionTimeoutMillis: 10000, // Wait longer for a free conn (home = 13 requêtes parallèles)
         // Kill any query that takes longer than 10s in prod (30s in dev for debugging)
         // Prevents runaway queries from exhausting the connection pool
         statement_timeout: isDev ? 30_000 : 10_000,

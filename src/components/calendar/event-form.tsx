@@ -295,14 +295,9 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
 
                         setWhitelistedRoleIds(res.data.raidAllowedSignUpRoleIds || []);
 
-                        // Auto-fill ping roles if not already set (initial load, no initialData)
-                        if (!initialData) {
-                            const isRaidType = res.data.raidPingRoleIds && res.data.raidPingRoleIds.length > 0;
-                            const autoRoles = isRaidType ? (res.data.raidPingRoleIds || []) : (res.data.calendarPingRoleIds || []);
-                            if (autoRoles.length > 0) {
-                                form.setValue("mentionRoleIds", autoRoles);
-                            }
-                        }
+                        // No auto-fill: default = aucun rôle pingé
+                        // L'utilisateur doit sélectionner les rôles explicitement
+                        // pour que son événement ait de la visibilité
                     }
                 });
             });
@@ -440,7 +435,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
         }
     };
 
-    // When raid subtype changes, auto-set max participants
+    // When raid subtype changes, auto-set max participants (locked)
     const handleRaidTypeChange = (rt: "jardin" | "gigalodon") => {
         setRaidType(rt);
         const raidDef = RAID_TYPES.find(r => r.id === rt);
@@ -464,6 +459,7 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
             const raidDef = RAID_TYPES.find(r => r.id === raidType);
             if (raidDef) {
                 form.setValue("title", `Raid : ${raidDef.short}`);
+                form.setValue("maxParticipants", raidDef.max); // toujours figé au max du raid
                 form.clearErrors("title");
             }
         } else if (!initialData && startTime) {
@@ -963,30 +959,32 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         <FormItem>
                             <FormLabel className="text-zinc-300">Places max</FormLabel>
                             <FormControl>
-                                <div className="relative w-48">
-                                    <Users className="absolute left-3 top-3.5 h-4 w-4 text-zinc-500" />
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        placeholder="∞"
-                                        {...field}
-                                        value={field.value || ""}
-                                        onChange={(e) => {
-                                            const value = e.target.value.replace(/[^0-9]/g, "");
-                                            const numValue = value ? parseInt(value) : undefined;
-
-                                            // Strict limit for Raids
-                                            if (selectedType === "RAID_OFFICIAL" && numValue && numValue > 16) {
-                                                field.onChange(16);
-                                                return;
-                                            }
-
-                                            field.onChange(numValue);
-                                        }}
-                                        className="h-11 pl-10 bg-zinc-950 border border-zinc-800 text-zinc-100 shadow-inner"
-                                    />
-                                </div>
+                                {isRaid ? (
+                                    // Locked for raids — value is fixed per raid type
+                                    <div className="flex items-center gap-3 h-11 pl-4 pr-5 rounded-lg border border-amber-500/20 bg-amber-500/5 w-fit">
+                                        <Users className="h-4 w-4 text-amber-400/70 shrink-0" />
+                                        <span className="text-amber-300 font-black text-lg tabular-nums">{field.value}</span>
+                                        <span className="text-[10px] font-bold text-amber-400/50 uppercase tracking-widest ml-1">places (fixe)</span>
+                                    </div>
+                                ) : (
+                                    <div className="relative w-48">
+                                        <Users className="absolute left-3 top-3.5 h-4 w-4 text-zinc-500" />
+                                        <Input
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            placeholder="∞"
+                                            {...field}
+                                            value={field.value || ""}
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/[^0-9]/g, "");
+                                                const numValue = value ? parseInt(value) : undefined;
+                                                field.onChange(numValue);
+                                            }}
+                                            className="h-11 pl-10 bg-zinc-950 border border-zinc-800 text-zinc-100 shadow-inner"
+                                        />
+                                    </div>
+                                )}
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -1133,6 +1131,12 @@ export function EventForm({ guildId, initialData, onSubmit, discordChannels, can
                         name="mentionRoleIds"
                         render={({ field }) => (
                             <FormItem className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                    <p className="text-[10px] text-amber-300/80 font-medium leading-relaxed">
+                                        <span className="font-bold text-amber-400">Aucun ping par défaut.</span> Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour que ton événement soit visible.
+                                    </p>
+                                </div>
                                 <div className="flex items-center gap-2 mb-1 ml-1">
                                     <Hash className="h-3.5 w-3.5 text-indigo-400" />
                                     <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest">Mentionner un rôle (Ping)</span>

@@ -60,6 +60,8 @@ export class BombManager {
             logger.info(`[SigilBomb] Solo mode detected for new room ${roomId} — adding bot.`);
             room.updateConfig(socket.id, { isSoloMode: true });
         }
+
+        this.broadcastRoomList(playerObj.guildId);
     }
 
     private leaveRoom(socket: Socket) {
@@ -93,10 +95,13 @@ export class BombManager {
                             });
                             this.rooms.delete(roomId);
                             logger.info(`[SigilBomb] Room Destroyed: ${roomId}`);
+                            this.broadcastRoomList();
                         }
                     }
                 }, 10000); 
             }
+
+            this.broadcastRoomList();
         }
     }
 
@@ -119,6 +124,17 @@ export class BombManager {
     private getRoom(socket: Socket): SigilBombRoom | undefined {
         const roomId = this.socketToRoom.get(socket.id);
         return roomId ? this.rooms.get(roomId) : undefined;
+    }
+
+    private broadcastRoomList(guildId?: string) {
+        const list = Array.from(this.rooms.values())
+            .filter(r => r.getState() === 'LOBBY' && r.getPlayers().some(p => !p.isBot))
+            .map(r => r.getPublicInfo());
+        
+        if (guildId) {
+            this.io.to(`guild:${guildId}`).emit("bomb:room:list", list);
+        }
+        this.io.emit("bomb:room:list", list);
     }
 
     private listRooms(socket: Socket) {

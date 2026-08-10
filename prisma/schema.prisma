@@ -583,6 +583,7 @@ model UserProfile {
   hiddenNavItems             String[]                   @default([])
   pinnedNavItems             String[]                   @default([])
   lastGalleryShareAt         DateTime?
+  userUpdatedAt              DateTime?                  @default(now())
   achievementSubmissions     AchievementSubmission[]
   djParticipations           DjSearchParticipant[]
   djSearchPosts              DjSearchPost[]

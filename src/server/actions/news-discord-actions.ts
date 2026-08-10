@@ -113,3 +113,24 @@ export async function broadcastNewsToAllGuilds(item: DiscordNewsItem) {
 
     return { success: true, results };
 }
+/**
+ * Get the name of the system notification channel for news broadcasts
+ */
+export async function getNewsTargetChannelName(guildId: string): Promise<{ success: boolean; channelName?: string }> {
+    try {
+        const config = await db.guildConfig.findUnique({
+            where: { discordGuildId: guildId },
+            select: { systemNotifyChannelId: true }
+        });
+        if (!config?.systemNotifyChannelId) return { success: false };
+
+        const { getDiscordChannelInfo } = await import("@/server/actions/discord-actions");
+        const chanRes = await getDiscordChannelInfo(guildId, config.systemNotifyChannelId);
+        if (chanRes.success && chanRes.data) {
+            return { success: true, channelName: chanRes.data.name };
+        }
+        return { success: false };
+    } catch {
+        return { success: false };
+    }
+}

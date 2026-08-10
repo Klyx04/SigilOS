@@ -797,16 +797,29 @@ export function SkinLibrary({ initialSkins, guildId, readOnly = false, profileId
                                             </h3>
                                             <div className="grid grid-cols-2 gap-2">
                                                 {Object.entries(selectedSkin.colors).map(([label, hex]) => (
-                                                    <div key={label} className="bg-white/5 border border-white/5 rounded-xl p-2 flex items-center gap-3 hover:bg-white/10 transition-colors">
-                                                        <div 
-                                                            className="w-8 h-8 rounded-lg shadow-inner border border-white/10 shrink-0"
-                                                            style={{ backgroundColor: hex as string }}
-                                                        />
-                                                        <div className="min-w-0">
-                                                            <p className="text-[9px] font-bold text-zinc-500 truncate uppercase tracking-tighter">{label}</p>
-                                                            <p className="text-[11px] font-black text-white uppercase font-mono">{hex as string}</p>
+                                                    <button 
+                                                        key={label} 
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(hex as string);
+                                                            toast.success(`Couleur ${label} (${hex}) copiée ! 🎨`);
+                                                        }}
+                                                        className="bg-white/5 border border-white/5 rounded-xl p-2 flex items-center justify-between gap-3 hover:bg-pink-500/10 hover:border-pink-500/30 transition-all text-left group/color cursor-pointer active:scale-95"
+                                                        title="Cliquer pour copier le code hexadécimal"
+                                                    >
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <div 
+                                                                className="w-8 h-8 rounded-lg shadow-inner border border-white/10 shrink-0 transition-transform group-hover/color:scale-105"
+                                                                style={{ backgroundColor: hex as string }}
+                                                            />
+                                                            <div className="min-w-0">
+                                                                <p className="text-[9px] font-bold text-zinc-500 truncate uppercase tracking-tighter group-hover/color:text-pink-300 transition-colors">{label}</p>
+                                                                <p className="text-[11px] font-black text-white uppercase font-mono">{hex as string}</p>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                        <div className="p-1.5 rounded-lg bg-white/5 text-zinc-400 group-hover/color:bg-pink-500/20 group-hover/color:text-pink-400 transition-all shrink-0">
+                                                            <Copy className="w-3.5 h-3.5" />
+                                                        </div>
+                                                    </button>
                                                 ))}
                                             </div>
                                         </div>

@@ -52,29 +52,63 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
             }
         });
 
-        // Extract Equipment — all item types (Objet vivant, Objet d'apparat, Mimibiotable, etc.)
-        const BARBOFUS_ITEM_TYPES = new Set([
-            "Objet d'apparat",
-            "Objet vivant",
-            "Mimibiotable",
-            "Familier",
-            "Dragodinde",
-            "Monture",
-        ]);
+        // Extract Equipment — Robust extraction for all Barbofus item types
+        const seenNames = new Set<string>();
 
-        $('p').each((_, el) => {
-            const text = $(el).text().trim();
-            if (BARBOFUS_ITEM_TYPES.has(text)) {
-                const itemDiv = $(el).closest('div').next('div');
-                if (itemDiv.length) {
-                    const name = itemDiv.find('p').text().trim();
-                    const icon = itemDiv.find('img').attr('src');
-                    if (name) {
-                        equipment.push({ name, type: text, icon });
-                    }
+        // Strategy A: Targeted extraction via item image elements & adjacent card containers
+        $("img[src*='/items/']").each((_, el) => {
+            const src = $(el).attr("src") || "";
+            if (!src.includes("/subcategories/")) {
+                const parentBlock = $(el).closest("div.flex.items-center.pr-4, div[class*='bg-primary-100']");
+                const name = parentBlock.find("p").text().trim();
+                
+                const metaBlock = parentBlock.prev("div.flex.items-center");
+                const type = metaBlock.find("p").first().text().trim() || "Équipement";
+                const level = metaBlock.find("p").last().text().trim();
+                
+                if (name && !seenNames.has(name)) {
+                    seenNames.add(name);
+                    equipment.push({
+                        name,
+                        type: (level && level !== type) ? `${type} (${level})` : type,
+                        icon: src.startsWith("http") ? src : `https://barbofus.com${src}`
+                    });
                 }
             }
         });
+
+        // Strategy B: Fallback text-based selector if Strategy A yielded nothing
+        if (equipment.length === 0) {
+            const BARBOFUS_ITEM_TYPES = new Set([
+                "Objet d'apparat",
+                "Objet vivant",
+                "Mimibiotable",
+                "Familier",
+                "Dragodinde",
+                "Monture",
+                "Équipement",
+                "Costume"
+            ]);
+
+            $('p').each((_, el) => {
+                const text = $(el).text().trim();
+                if (Array.from(BARBOFUS_ITEM_TYPES).some(t => text.includes(t))) {
+                    const itemDiv = $(el).closest('div').next('div');
+                    if (itemDiv.length) {
+                        const name = itemDiv.find('p').text().trim();
+                        const icon = itemDiv.find('img').attr('src');
+                        if (name && !seenNames.has(name)) {
+                            seenNames.add(name);
+                            equipment.push({ 
+                                name, 
+                                type: text, 
+                                icon: icon ? (icon.startsWith("http") ? icon : `https://barbofus.com${icon}`) : undefined 
+                            });
+                        }
+                    }
+                }
+            });
+        }
 
         
         // Extract Author (Robust)
@@ -102,17 +136,19 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
         const headIcon = $('img[alt="Visage"]').attr('src') || 
                          $('p:contains("Visage")').next('div').find('img').attr('src');
         
-        // Extract Barbofus thumbnail image safely (support relative and protocol-relative URLs)
+        // Extract Barbofus thumbnail image safely (support relative and protocol-relative URLs & trim trailing/leading whitespace)
         const rawOgImg = $('meta[property="og:image"]').attr('content')?.trim() || 
                          $('meta[name="twitter:image"]').attr('content')?.trim() || 
+                         $('img[src*="/storage/images/skins/"]').attr('src')?.trim() ||
                          $('img[alt*="Skin"]').attr('src')?.trim() || 
                          $('img[src*="/render/"]').attr('src')?.trim() || null;
         let barbofusThumb: string | null = null;
         if (rawOgImg) {
             try {
-                barbofusThumb = rawOgImg.startsWith("//") ? `https:${rawOgImg}` : new URL(rawOgImg, url).href;
+                const cleanedRaw = rawOgImg.replace(/\s+/g, "");
+                barbofusThumb = cleanedRaw.startsWith("//") ? `https:${cleanedRaw}` : new URL(cleanedRaw, url).href;
             } catch {
-                barbofusThumb = rawOgImg;
+                barbofusThumb = rawOgImg.trim();
             }
         }
         
@@ -335,6 +371,12 @@ export async function addUserSkin(rawData: z.infer<typeof SkinSchema>): Promise<
             });
         }
 
+        // Touch profile userUpdatedAt on skin changes
+        await db.userProfile.update({
+            where: { id: ctx.profileId },
+            data: { userUpdatedAt: new Date() }
+        }).catch(() => {});
+
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true, data: skin };
     } catch (error) {
@@ -360,6 +402,11 @@ export async function deleteUserSkin(guildId: string, skinId: string): Promise<A
         }
 
         await db.userSkin.delete({ where: { id: skinId } });
+
+        await db.userProfile.update({
+            where: { id: ctx.profileId },
+            data: { userUpdatedAt: new Date() }
+        }).catch(() => {});
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         return { success: true };
@@ -460,6 +507,11 @@ export async function updateUserSkin(guildId: string, skinId: string, data: { na
             where: { id: skinId },
             data: updateData
         });
+
+        await db.userProfile.update({
+            where: { id: ctx.profileId },
+            data: { userUpdatedAt: new Date() }
+        }).catch(() => {});
 
         revalidatePath(`/dashboard/${guildId}/profile`);
         revalidatePath(`/dashboard/${guildId}/galerie-stuff`);

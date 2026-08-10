@@ -607,7 +607,7 @@ export async function POST(request: NextRequest) {
                                 components: [{
                                     type: 4, custom_id: "member_count",
                                     label: "Nombre de membres",
-                                    style: 1, placeholder: "Entre 1 et 500 (chiffres uniquement)",
+                                    style: 1, placeholder: "Entre 1 et 350 (chiffres uniquement)",
                                     required: true, min_length: 1, max_length: 3,
                                 }],
                             },
@@ -924,31 +924,31 @@ export async function POST(request: NextRequest) {
                         });
                     }
 
-                    // 2. Validate Names (STRICT: Letters and spaces only)
-                    const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/; // Added hyphen and apostrophe
+                    // 2. Validate Names & Pseudo (Nomenclature Dofus SigilOS : lettres, espaces, tirets et crochets, pas de chiffres)
+                    const dofusPseudoRegex = /^[a-zA-Z\u00C0-\u017F\u00DF\u00FF\u0100-\u017F\-\s\[\]]+$/;
                     const guildName = fields.guild_name || "";
                     const pseudoDofus = fields.pseudo_dofus || "";
 
-                    if (!nameRegex.test(guildName)) {
+                    if (!dofusPseudoRegex.test(guildName)) {
                         return NextResponse.json({
                             type: 4,
-                            data: { content: "❌ Le nom de guilde ne doit contenir que des lettres (pas de chiffres ou caractères spéciaux).", flags: 64 },
+                            data: { content: "❌ Le nom de guilde ne doit contenir que des lettres, espaces, tirets ou crochets (pas de chiffres).", flags: 64 },
                         });
                     }
-                    if (!nameRegex.test(pseudoDofus)) {
+                    if (!dofusPseudoRegex.test(pseudoDofus)) {
                         return NextResponse.json({
                             type: 4,
-                            data: { content: "❌ Le pseudo Dofus ne doit contenir que des lettres (pas de chiffres ou caractères spéciaux).", flags: 64 },
+                            data: { content: "❌ Le pseudo Dofus ne doit contenir que des lettres, espaces, tirets ou crochets (pas de chiffres).", flags: 64 },
                         });
                     }
 
-                    // 3. Validate Member Count
+                    // 3. Validate Member Count (Max 350 - Quota SigilOS)
                     const memberCountRaw = fields.member_count || "";
                     const count = parseInt(memberCountRaw, 10);
-                    if (isNaN(count) || count < 1 || count > 500) {
+                    if (isNaN(count) || count < 1 || count > 350) {
                         return NextResponse.json({
                             type: 4,
-                            data: { content: "❌ Le nombre de membres doit être un chiffre entre 1 et 500.", flags: 64 },
+                            data: { content: "❌ Le nombre de membres doit être un chiffre entre 1 et 350 (quota max SigilOS).", flags: 64 },
                         });
                     }
 

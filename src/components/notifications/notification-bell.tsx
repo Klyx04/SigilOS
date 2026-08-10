@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 export function NotificationBell({ userId, guildId, mode = "popover", className }: { userId: string, guildId: string, mode?: "popover" | "simple", className?: string }) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [activeCategory, setActiveCategory] = useState<string>("ALL");
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
@@ -131,22 +132,66 @@ export function NotificationBell({ userId, guildId, mode = "popover", className 
                         </Button>
                     )}
                 </div>
+
+                {/* Filter Chips */}
+                {notifications.length > 0 && (
+                    <div className="flex items-center gap-1 p-2 border-b border-white/5 bg-black/20 overflow-x-auto no-scrollbar">
+                        {[
+                            { id: "ALL", label: "Toutes" },
+                            { id: "MISSION", label: "Missions" },
+                            { id: "SONGES", label: "Songes" },
+                            { id: "DONJONS", label: "Donjons" },
+                            { id: "EVENT", label: "Events" },
+                            { id: "POLL", label: "Sondages" },
+                            { id: "ADMIN_ALERT", label: "Admin" },
+                        ].map((cat) => {
+                            const count = cat.id === "ALL"
+                                ? notifications.length
+                                : notifications.filter(n => n.category === cat.id).length;
+
+                            if (cat.id !== "ALL" && count === 0) return null;
+
+                            return (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setActiveCategory(cat.id)}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-all",
+                                        activeCategory === cat.id
+                                            ? "bg-white/15 text-white border border-white/20"
+                                            : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                                    )}
+                                >
+                                    {cat.label}
+                                    {count > 0 && (
+                                        <span className="ml-1 text-[9px] opacity-60">({count})</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
                 <ScrollArea className="h-[350px]">
                     {isLoading ? (
                         <div className="p-12 text-center text-xs text-zinc-500 flex flex-col items-center gap-4">
                             <Loader2 className="w-5 h-5 animate-spin text-zinc-700" />
                             Chargement...
                         </div>
-                    ) : notifications.length === 0 ? (
+                    ) : notifications.filter(n => activeCategory === "ALL" || n.category === activeCategory).length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[300px] text-zinc-500 gap-4">
                             <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
                                 <Bell className="h-6 w-6 opacity-20" />
                             </div>
-                            <p className="text-xs font-medium uppercase tracking-widest">Aucune notification</p>
+                            <p className="text-xs font-medium uppercase tracking-widest">
+                                {activeCategory === "ALL" ? "Aucune notification" : "Aucune notification dans ce filtre"}
+                            </p>
                         </div>
                     ) : (
                         <div className="grid divide-y divide-white/5">
-                            {notifications.map((n) => (
+                            {notifications
+                                .filter(n => activeCategory === "ALL" || n.category === activeCategory)
+                                .map((n) => (
                                 <div
                                     key={n.id}
                                     className="p-4 hover:bg-muted/50 cursor-pointer transition-colors flex items-start gap-3"

@@ -554,19 +554,58 @@ function GuildRow({ guild, selected, onSelect, isReadOnly }: {
             </td>
 
             <td className="p-4 hidden md:table-cell">
-                <div className="space-y-1.5 min-w-[100px]">
+                <div className="space-y-1.5 min-w-[120px]">
                     <div className="flex items-center justify-between text-[10px]">
                         <div className="flex items-center gap-1 font-medium">
                             <Users className="w-3 h-3 text-zinc-500" />
                             <span>{guild._count.profiles}</span>
                         </div>
-                        <span className="text-zinc-500 font-mono">/{guild.maxMembers}</span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-zinc-500 font-mono">/{guild.maxMembers}</span>
+                            {!isReadOnly && !guild.isWhitelistOnly && (
+                                <button
+                                    onClick={async () => {
+                                        const input = prompt(`Nouvelle capacité max de membres pour "${guild.name}" :`, String(guild.maxMembers));
+                                        if (!input) return;
+                                        const newCap = parseInt(input, 10);
+                                        if (isNaN(newCap) || newCap < 1 || newCap > 1000) {
+                                            toast.error("Capacité invalide (1 - 1000)");
+                                            return;
+                                        }
+                                        const { updateGuildMaxMembers } = await import('@/server/actions/god-lifecycle-actions');
+                                        const res = await updateGuildMaxMembers(guild.id, newCap);
+                                        if (res.success) {
+                                            toast.success(`Capacité portée à ${newCap} membres !`);
+                                            window.location.reload();
+                                        } else {
+                                            toast.error(res.error || "Erreur lors de la modification");
+                                        }
+                                    }}
+                                    className="p-0.5 hover:bg-white/10 rounded text-violet-400 transition-colors"
+                                    title="Modifier le nombre d'emplacements"
+                                >
+                                    ✏️
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Alert Badges (50% / 80%) */}
+                    {guild.maxMembers > 0 && (guild._count.profiles / guild.maxMembers) >= 0.8 ? (
+                        <div className="text-[9px] font-black text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded text-center uppercase tracking-wider animate-pulse">
+                            ⚠️ Seuil &gt; 80% ({Math.round((guild._count.profiles / guild.maxMembers) * 100)}%)
+                        </div>
+                    ) : guild.maxMembers > 0 && (guild._count.profiles / guild.maxMembers) >= 0.5 ? (
+                        <div className="text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-center uppercase tracking-wider">
+                            ⚡ Capacité &gt; 50% ({Math.round((guild._count.profiles / guild.maxMembers) * 100)}%)
+                        </div>
+                    ) : null}
+
                     {/* Capacity Bar */}
-                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                         <div
-                            className={`h-full rounded-full transition-all duration-1000 ${(guild._count.profiles / guild.maxMembers) >= 0.95 ? "bg-red-500" :
-                                (guild._count.profiles / guild.maxMembers) >= 0.8 ? "bg-amber-500" :
+                            className={`h-full rounded-full transition-all duration-1000 ${(guild._count.profiles / guild.maxMembers) >= 0.8 ? "bg-red-500 shadow-sm shadow-red-500/50" :
+                                (guild._count.profiles / guild.maxMembers) >= 0.5 ? "bg-amber-500 shadow-sm shadow-amber-500/50" :
                                     "bg-emerald-500"
                                 }`}
                             style={{ width: `${Math.min(100, (guild._count.profiles / guild.maxMembers) * 100)}%` }}

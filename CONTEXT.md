@@ -385,6 +385,66 @@
 
 ---
 
+## 🧭 Suivi de chantier courant (Session 10/08/2026 — Copie Couleurs, Barbofus, Date Profil, Tickets, God, Missions, SigilBomb)
+
+> **Branche** : `feat/deploy-clean-pro` (modifications de la session du 10/08/2026).
+
+### ✅ Presse-papier Hexa (Copie de couleur dans les modales)
+- **Galerie de guilde** ([gallery-client.tsx](file:///a:/SigilOS/src/app/dashboard/%5BguildId%5D/galerie-stuff/gallery-client.tsx)) & **Garde-Robe / Profil** ([skin-library.tsx](file:///a:/SigilOS/src/components/profile/skin-library.tsx)) : Les cartes de couleurs sont devenues des boutons interactifs avec icône de copie. Un clic copie la couleur Hexa (ex: `#12AB34`) dans le presse-papier avec notification Toast de confirmation (`Couleur Peau (#12AB34) copiée ! 🎨`).
+
+### ✅ Extraction Barbofus & Correctif Embed Discord
+- **Scraper Barbofus Avancé** ([skin-actions.ts](file:///a:/SigilOS/src/server/actions/skin-actions.ts)) : Récupération exhaustive via `img[src*='/items/']` de 100% des types d'équipements Dofus 2 & Unity (costumes, mimibiotables, apparats, objets vivants, familiers, montures, épaulières, boucliers, etc.).
+- **Fix Embed Image Discord** ([skin-actions.ts](file:///a:/SigilOS/src/server/actions/skin-actions.ts)) : Nettoyage des caractères invisibles (`\r\n\t`) présents dans les balises `<meta property="og:image">` de Barbofus. Re-scrape et auto-cache à la volée avant l'envoi sur Discord. Les images de skins Barbofus s'affichent désormais parfaitement en grand format dans les embeds Discord.
+
+### ✅ Isolation de la Date d'Édition Manuelle du Profil (`userUpdatedAt`)
+- **Problème** : `profile.updatedAt` se rafraîchissait automatiquement lors des cron jobs (Ladder, Metamob, Discord Sync, validation de missions), affichant des dates trompeuses ("Aujourd'hui à 03:02").
+- **Fix** :
+  - Migration Prisma `20260810073345_add_user_updated_at_to_user_profile` (`schema.prisma`) : Ajout de `userUpdatedAt DateTime? @default(now())`.
+  - [profile-actions.ts](file:///a:/SigilOS/src/server/actions/profile-actions.ts) & [skin-actions.ts](file:///a:/SigilOS/src/server/actions/skin-actions.ts) : `userUpdatedAt` n'est mis à jour QUE lors des actions explicites du membre (infos profil, disponibilités, vacances, builds Dofusbook, skins).
+  - Front-end ([page.tsx](file:///a:/SigilOS/src/app/dashboard/%5BguildId%5D/members/%5Bslug%5D/page.tsx)) : L'en-tête `"Dernière mise à jour du profil"` consomme `profile.userUpdatedAt`.
+
+### ✅ Embed Discord Missions — Fix Type "Spéciales" sur Missions Normales
+- **Problème** : Les missions Songe (Plongée en Cauchemar/Paradoxe) et Anomalie étaient catégorisées comme "Spéciales" dans l'embed Discord même si l'admin ne les avait pas configurées comme telles.
+- **Fix** ([mission-actions.ts](file:///a:/SigilOS/src/server/actions/mission-actions.ts)) : L'embed regroupe désormais les missions par leur **vrai type BDD** (`missionType`), et non par règle heuristique sur le nom. Seules les missions avec `missionType === 'SPECIAL'` apparaissent dans la section "Spéciales". Missions Songe et Anomalie en mode normal → section normale.
+
+### ✅ Sanitisation & Validation des Inputs Tickets Discord
+- **Ticket Whitelist** ([route.ts](file:///a:/SigilOS/src/app/api/discord/interactions/route.ts)) : Validation stricte de toutes les saisies utilisateur du modal de demande d'accès :
+  - **ID Discord Serveur** : regex `^\d{17,20}$` (snowflake Discord strict)
+  - **Nom de guilde Dofus** : regex nomenclature Dofus (lettres, accents, tirets, crochets — sans chiffres ni caractères spéciaux)
+  - **Pseudo Dofus** : regex Dofus SigilOS stricte (`formatDofusPseudo` — pas de chiffres)
+  - **Nombre de membres** : entier entre 1 et **350** (ancienne limite 500 corrigée, placeholder mis à jour)
+  - Rate-limiting côté bot : 1 création de ticket toutes les 10s par utilisateur Discord.
+
+### ✅ Capacité Max Membres par Guilde Whitelistée (`maxMembers`) & Alertes 50%/80%
+- **Nouvelle Server Action** ([god-lifecycle-actions.ts](file:///a:/SigilOS/src/server/actions/god-lifecycle-actions.ts)) : `updateGuildMaxMembers(guildId, maxMembers)` permet aux Super-Admins et délégués God d'ajuster le quota d'emplacements d'une guilde (1 à 1000) avec notification God automatique.
+- **Édition Directe dans le Dashboard God** ([guild-table.tsx](file:///a:/SigilOS/src/app/god/components/guild-table.tsx)) : Bouton crayon `✏️` au survol de la colonne Membres permettant de modifier le nombre d'emplacements d'une guilde à la volée.
+- **Alertes de Capacité (50% & 80%)** ([member-stats-overview.tsx](file:///a:/SigilOS/src/components/admin/member-stats-overview.tsx)) :
+  - **Seuil > 50%** : Badge ambre `⚡ Capacité > 50%` + bannière d'attention.
+  - **Seuil > 80%** : Badge rouge clignotant `⚠️ Seuil > 80%` + bannière d'alerte critique pulsée.
+
+### ✅ SigilBomb — Correctifs Majeurs (Modale, Solo, Salons)
+
+#### 🚫 Blocage Lancement Solo Non-Autorisé
+- **Validation côté serveur** ([SigilBombRoom.ts](file:///a:/SigilOS/src/server/games/SigilBomb/SigilBombRoom.ts)) : `startGame` vérifie `humanCount < 2 && !this.config.isSoloMode`. Impossible de lancer seul sans activer le mode Solo ou avoir 2 joueurs humains.
+
+#### ⚙️ Modale de Configuration — Non-Fermeture sur Modification
+- **Double problème racine** ([BombGame.tsx](file:///a:/SigilOS/src/components/bomb/BombGame.tsx)) :
+  1. Le handler WebSocket `bomb:sync` appelait `setShowOptions(false)` après chaque config update → fermeture systématique.
+  2. Le `useEffect` monitorant `gameState.state === 'LOBBY'` appelait aussi `setShowOptions(false)` → même résultat.
+  3. La modale était imbriquée dans un conteneur `overflow-hidden` → tronquée + clics parasites.
+- **Fix complet** :
+  - Suppression de tous les appels `setShowOptions(false)` dans `bomb:sync` et le `useEffect` LOBBY.
+  - Modale déplacée en **overlay fixe `fixed inset-0 z-[999]`** au root du composant, hors de tout conteneur clippant.
+  - `e.preventDefault()` + `e.stopPropagation()` sur tous les éléments interactifs de la modale.
+  - `max-h-[75vh] overflow-y-auto custom-scrollbar` : plus de débordement vertical.
+  - Toggle **🤖 Mode Solo (Robot Crâ-Mée)** réintégré dans la modale.
+  - Bouton **"⚡ Lancer l'Épreuve"** dynamiquement désactivé (grisé avec texte explicatif) si les conditions ne sont pas réunies.
+
+#### 🔄 Synchro Temps Réel des Salons (sans F5)
+- ([BombManager.ts](file:///a:/SigilOS/src/server/games/SigilBomb/BombManager.ts)) : Méthode `broadcastRoomList()` ajoutée, appelée automatiquement lors de la création, destruction et mise à jour des rooms. Les salons s'actualisent en temps réel sans refresh page.
+
+---
+
 ## 🧭 Chantiers de sécurité restants (rappel — voir SECURITY.md)
 
 **État au 01/08/2026 :** F-02, F-06/F-03, F-04, F-01, F-12, F-23/F-24, F-19/F-27/F-26/F-18/F-22 corrigés. **Session d'après-audit (01/08) ajoutée :** F-08 (auth WS), F-05 (chiffrement OAuth), F-04 (fail-closed + IP fiable), F-02 (expiration + clé dédiée), F-07 (JWT 8h), F-03 (SSRF image-downloader). **Rapports centralisés :** `docs/audits/` (hors git). Reste :
@@ -400,6 +460,42 @@
 
 **Infra :** I-01 à I-17 traités. **Reste infra :** rien de bloquant (I-06/I-07/I-15/F-14 faits). **Gartic/Skribbl supprimés** du code.
 
+### ✅ Correctifs du Module Ressources (Tutoriel & Notification Serveur)
+- **Fix du Tutoriel qui sautait (Actualités)** ([ResourcesTabs.tsx](file:///a:/SigilOS/src/components/ressources/ResourcesTabs.tsx) & [tour-provider.tsx](file:///a:/SigilOS/src/components/tour/tour-provider.tsx)) : Les ancres `data-tour` du tutoriel (`ressources-news-tab`, `ressources-links-tab`) ont été déplacées sur les **onglets principaux** (toujours présents dans le DOM) au lieu des conteneurs de contenu conditionnels. Le tutoriel ne saute plus l'étape des actualités après 2s d'attente.
+- **Suppression du 404 & Erreur Notification** ([NewsGrid.tsx](file:///a:/SigilOS/src/components/ressources/NewsGrid.tsx) & [news-discord-actions.ts](file:///a:/SigilOS/src/server/actions/news-discord-actions.ts)) : Remplacement du fetch mort vers `/api/dashboard/${guildId}/config` (route absente produisant une exception 404/erreur serveur) par la server action directe `getNewsTargetChannelName(guildId)`.
+
+### ✅ Correctifs UI/UX & Stabilité Sigil-Guesser (Zoom 100%, Écran Noir, Design Gaming Pro)
+- **Ajustement de la hauteur du viewport** ([page.tsx](file:///a:/SigilOS/src/app/dashboard/%5BguildId%5D/mini-jeux/page.tsx)) : passage de `calc(100vh-120px)` à `calc(100vh-80px)` pour s'adapter parfaitement aux écrans 100% sans générer de barres de défilement globales ni bloquer les conteneurs.
+- **Fix Clignotement / Écran Noir en Fin de Round** ([interactive-map-v2.tsx](file:///a:/SigilOS/src/components/worldmap/interactive-map-v2.tsx)) : Bornage strict (`Math.max(0, Math.min(100, ...))`) de la barre de distance et du calcul de score pour éviter tout dépassement d'intervalle ou valeur `NaN` qui provoquait un clignotement/écran noir à partir d'une certaine distance.
+- **Refonte Design Pro Gaming des Menus & Cartes** ([interactive-map-v2.tsx](file:///a:/SigilOS/src/components/worldmap/interactive-map-v2.tsx)) : Remplacement du style générique (gros biseaux `rounded-[3rem]`, paddings exagérés `py-5`, typographies italiques disproportionnées) par un design sombre épuré pro gaming (`rounded-2xl`, typographie hiérarchisée `zinc-400`, boutons `rounded-xl` réactifs).
+
+### ✅ Correctifs UI/UX Globaux (Search, Membres 404, Calendrier, Headbar, Footer & Live Badge)
+- **Fix 404 Clic Membre dans la Recherche** ([search-actions.ts](file:///a:/SigilOS/src/server/actions/search-actions.ts)) : Redirection corrigée vers `/dashboard/${guildId}/members/${encodeURIComponent(slug)}` (au lieu de la route inexistante `/profile/[id]`).
+- **Refonte Bouton Rechercher & Command Menu** ([sidebar-search.tsx](file:///a:/SigilOS/src/components/layout/sidebar-search.tsx) & [command-menu.tsx](file:///a:/SigilOS/src/components/layout/command-menu.tsx)) : Élimination des effets "IA slop" (scanlines, badges sur-stylisés `v3.0`, bordures animées). Bouton de recherche épuré pro-gaming avec badge `<kbd>⌘K</kbd>` propre.
+- **Clôture Automatique des Événements du Calendrier** ([calendar-actions.ts](file:///a:/SigilOS/src/server/actions/calendar-actions.ts)) : Basculement automatique au statut `COMPLETED` lors du fetch pour tout événement dont la date de fin est dépassée par rapport à `now`.
+- **Simplification Headbar & Footer** ([top-nav.tsx](file:///a:/SigilOS/src/components/layout/top-nav.tsx) & [galactic-footer.tsx](file:///a:/SigilOS/src/components/layout/galactic-footer.tsx)) : Suppression des animations de balayage `shine`, typographies italiques disproportionnées et dégradés bariolés au profit d'un design épuré, sombre et minimaliste.
+- **Fix Modale "Créateurs en LIVE"** ([live-stream-badge.tsx](file:///a:/SigilOS/src/components/notifications/live-stream-badge.tsx)) : Correction des contraintes de largeur (`max-w-sm`), suppression du débordement à droite et ajustement du layout.
+
+- **Refonte des Fil d'Ariane (Breadcrumbs Header)** ([top-nav.tsx](file:///a:/SigilOS/src/components/layout/top-nav.tsx)) : Les chemins de navigation (ex: `Tableau de bord` > `Membres` > `Wylan`) sont désormais clairs, lisibles et hautement contrastés avec un dictionnaire de noms propres (`MODULE_NAMES`), un décodage URL propre et une mise en valeur verte (`bg-emerald-500/10`) pour l'emplacement actuel.
+
+- **Ouverture Directe de la Modale d'Événement depuis le Header** ([calendar-dashboard.tsx](file:///a:/SigilOS/src/components/calendar/calendar-dashboard.tsx) & [page.tsx](file:///a:/SigilOS/src/app/dashboard/%5BguildId%5D/calendar/page.tsx)) : Les clics sur les événements défilants de la barre supérieure redirigent désormais avec le paramètre `?event=ID`. Le tableau de bord du calendrier écoute ce paramètre et ouvre automatiquement la modale de détails (`EventDetailModal`) au lieu d'afficher uniquement le calendrier global.
+
+### ✅ Désactivation des Pings Rôles par Défaut & Message d'Avertissement
+- **Changement UX global** ([CreateRunButton.tsx](file:///a:/SigilOS/src/components/songes/CreateRunButton.tsx), [event-form.tsx](file:///a:/SigilOS/src/components/calendar/event-form.tsx), [DjPostCreateModal.tsx](file:///a:/SigilOS/src/components/dungeon-finder/DjPostCreateModal.tsx), [poll-creator.tsx](file:///a:/SigilOS/src/components/sondages/poll-creator.tsx)) : Suppression de la pré-sélection / auto-fill automatique de tous les rôles Discord lors de la création d'un événement, d'une run de Songes, d'un groupe Donjon/Quête ou d'un Sondage. Par défaut, aucun rôle n'est pré-coché (`mentionRoleIds = []`).
+- **Bannière d'information claire** : Ajout d'un callout explicatif au-dessus du sélecteur de rôles dans chaque modale : `⚠️ Aucun ping par défaut. Sans sélection, personne ne sera notifié. Choisissez un ou plusieurs rôles pour donner de la visibilité.`
+
+### ✅ Verrouillage Stricte des Places Max en Raid
+- **Places Max Figées par Type de Raid** ([event-form.tsx](file:///a:/SigilOS/src/components/calendar/event-form.tsx)) : 
+  - **Gigalodon** : bloqué et figé à **12 places**.
+  - **Sanctuaire des Jardins Éternels** : bloqué et figé à **16 places**.
+  - L'input `maxParticipants` modifiable est remplacé par un badge verrouillé `12 places (fixe)` / `16 places (fixe)` lorsque le type sélectionné est un Raid Officiel.
+
+### ✅ Suppression du Bloc "Ton Stuff" dans les Songes
+- **Nettoyage UI / Formulaires Songes** ([CreateRunButton.tsx](file:///a:/SigilOS/src/components/songes/CreateRunButton.tsx) & [RunCard.tsx](file:///a:/SigilOS/src/components/songes/RunCard.tsx)) : Suppression complète du bloc "🛡️ Ton Stuff pour cette Run" (grille de miniatures, saisie d'un nom personnalisé de stuff, et sélection de build dans la galerie) à la fois lors de la création d'une run de Songes et dans la modale de candidature/postulation.
+
+### ✅ Filtres par Catégorie/Type dans le Popover de Notifications
+- **Filtres rapides intégrés** ([notification-bell.tsx](file:///a:/SigilOS/src/components/notifications/notification-bell.tsx)) : Ajout de puces de filtrage interactives par catégorie (Toutes, Missions, Songes, Donjons, Events, Sondages, Admin) dans le menu déroulant de la cloche de notification. La page dédiée ([page.tsx](file:///a:/SigilOS/src/app/dashboard/%5BguildId%5D/notifications/page.tsx)) possédait déjà ces filtres, ils sont désormais aussi accessibles directement depuis la cloche du header.
+
 ---
 
-*— Fichier de contexte global maintenu à jour (créé à l'issue de l'audit 2026). —*
+*— Fichier de contexte global maintenu à jour (créé à l'issue de l'audit 2026). Session 10/08/2026 intégrée. —*

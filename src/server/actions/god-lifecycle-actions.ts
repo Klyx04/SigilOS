@@ -608,3 +608,47 @@ export async function transferGuildOwnership(guildId: string, newOwnerUserId: st
         return { success: false, error: 'Failed to transfer ownership' };
     }
 }
+
+/**
+ * 👑 Augmenter ou modifier la capacité max de membres d'une guilde (Super-admin ou God scope "guilds")
+ */
+export async function updateGuildMaxMembers(guildId: string, maxMembers: number) {
+    const isAdmin = await isSuperAdmin();
+    const hasScope = await canGodAccess("guilds");
+    if (!isAdmin && !hasScope) return { success: false, error: "Non autorisé" };
+
+    if (isNaN(maxMembers) || maxMembers < 1 || maxMembers > 1000) {
+        return { success: false, error: "La capacité doit être comprise entre 1 et 1000 membres." };
+    }
+
+    try {
+        const session = await auth();
+        const adminName = session?.user?.name || "Admin SigilOS";
+
+        const isDiscordId = guildId.length < 25;
+        const guild = await db.guildConfig.update({
+            where: {
+                id: isDiscordId ? undefined : guildId,
+                discordGuildId: isDiscordId ? guildId : undefined
+            },
+            data: { maxMembers }
+        });
+
+        const { notifyGod } = await import('./god-notif-actions');
+        await notifyGod({
+            title: "📈 Capacité de Guilde Modifiée",
+            message: `La guilde **"${guild.name}"** a une nouvelle capacité max de **${maxMembers}** membres (précédemment : ${guild.maxMembers}).\n👤 Par : **${adminName}**`,
+            type: "SYSTEM",
+            success: true,
+            metadata: { guildId: guild.id, discordGuildId: guild.discordGuildId, maxMembers, performedBy: adminName, operation: "UPDATE_MAX_MEMBERS" },
+        });
+
+        revalidatePath('/god');
+        revalidatePath(`/dashboard/${guild.discordGuildId}/admin/members`);
+        return { success: true, maxMembers: guild.maxMembers };
+    } catch (error) {
+        logger.error('[GOD] updateGuildMaxMembers error:', error);
+        return { success: false, error: 'Échec de la modification de la capacité' };
+    }
+}
+

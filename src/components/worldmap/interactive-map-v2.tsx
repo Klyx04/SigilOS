@@ -2196,7 +2196,7 @@ export default function InteractiveMapV2({
                                             );
                                         })()}
 
-                                        <div className="flex flex-col flex-1 min-h-0">
+                                        <div className="flex flex-col flex-1 min-h-0 bg-white/[0.03] border border-white/10 rounded-3xl p-4">
                                             <div className="flex items-center justify-between mb-5 px-4 shrink-0">
                                                 <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em] italic">Classement Round</div>
                                                 <div className="px-3 py-1 bg-zinc-800 rounded-lg text-white/40 text-[9px] font-black italic tracking-widest">
@@ -2248,7 +2248,7 @@ export default function InteractiveMapV2({
 
                                                         <div className="flex flex-col items-end gap-0.5">
                                                             <div className="flex items-center gap-2">
-                                                                <span className={`font-black text-lg italic leading-none ${isMe ? 'text-emerald-400' : 'text-white'} ${(p.lastGuess?.score || 0) > 4000 ? 'text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.2)]' : ''}`}>
+                                                                <span className={`font-black text-2xl italic leading-none ${isMe ? 'text-emerald-400' : 'text-white'} ${(p.lastGuess?.score || 0) > 4000 ? 'text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.2)]' : ''}`}>
                                                                     +{p.lastGuess?.score || 0}
                                                                 </span>
                                                                 {i === 0 && <Crown size={14} className="text-amber-500" strokeWidth={2.5} />}

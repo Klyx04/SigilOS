@@ -700,4 +700,20 @@ html {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* ── Plein écran de la Carte du Monde ─────────────────────────────── */
+body.map-fullscreen .dashboard-sidebar,
+body.map-fullscreen .dashboard-topnav {
+  display: none !important;
+}
+#worldmap-page.worldmap-fullscreen {
+  inset: 0 !important;
+  z-index: 9999 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+#worldmap-page.worldmap-fullscreen .worldmap-header {
+  display: none !important;
+}
+
 

@@ -178,7 +178,7 @@ export default async function DashboardLayout({
 
 
                 {/* 1. DESKTOP SIDEBAR (Fixed) */}
-                <div className="hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
+                <div className="dashboard-sidebar hidden lg:flex w-[280px] flex-col fixed inset-y-0 z-50">
                     <AppSidebar
                         guildId={guildId}
                         user={user}
@@ -196,7 +196,7 @@ export default async function DashboardLayout({
                 {/* 2. MAIN CONTENT AREA */}
                 <div className="flex-1 flex flex-col lg:pl-[280px] h-full overflow-hidden">
                     {/* Top Navigation - Fixed at top of content area */}
-                    <div className="flex-shrink-0 z-50 border-b border-border bg-background/40 backdrop-blur-xl">
+                    <div className="dashboard-topnav flex-shrink-0 z-50 border-b border-border bg-background/40 backdrop-blur-xl">
                         <TopNav
                             userId={user.id || ""}
                             sidebarProps={{ guildId, user, guildData, userGuilds, modules }}

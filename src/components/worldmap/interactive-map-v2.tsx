@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import {
     Search, Map as MapIcon, Loader2, Target, Eye, EyeOff, Trophy,
     Clock, ZoomIn, Compass, ChevronDown, ChevronRight, Plus, Minus, Users, Trash2, X, CheckCircle2, Copy,
-    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap
+    Crown, Play, Palette, Smartphone, HelpCircle, LogOut, RotateCcw, Flag, Rocket, Bomb, Lock, Shield, Mic, Zap, MapPin, Maximize2, Minimize2
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { WorldData, MapNode, SubArea, Dungeon } from '@/types/worldmap';
@@ -95,6 +95,8 @@ export default function InteractiveMapV2({
     // UI States
     const [search, setSearch] = useState('');
     const [showDebugGrid, setShowDebugGrid] = useState(false);
+    const [zoneHighlight, setZoneHighlight] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [selectedPosition, setSelectedPosition] = useState<any>(null);
     const [selectedDungeon, setSelectedDungeon] = useState<Dungeon[] | null>(null);
     const [triggerCenterPosition, setTriggerCenterPosition] = useState<{ x: number, y: number } | null>(
@@ -1124,7 +1126,7 @@ export default function InteractiveMapV2({
                                         <button
                                             ref={worldDropdownBtnRef}
                                             onClick={() => { setWorldDropdownPos(null); setWorldDropdownOpen(o => !o); }}
-                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white hover:bg-white/10 transition-colors"
+                                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl bg-white/10 border border-white/25 text-white hover:bg-white/15 transition-colors"
                                         >
                                             <MapIcon size={12} className="text-emerald-500" />
                                             <span className="text-[9px] sm:text-[10px] font-black uppercase italic tracking-tighter truncate max-w-[80px] sm:max-w-none">{activeWorld.name.fr}</span>
@@ -1139,7 +1141,7 @@ export default function InteractiveMapV2({
                                             onClick={() => setShowDebugGrid(!showDebugGrid)}
                                             className={cn(
                                                 "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
-                                                showDebugGrid ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/5 text-white/40 hover:text-white/60"
+                                                showDebugGrid ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300" : "bg-white/10 border-white/25 text-white/90 hover:bg-white/15 hover:text-white"
                                             )}
                                             title={showDebugGrid ? "Masquer la grille" : "Afficher la grille"}
                                         >
@@ -1147,17 +1149,59 @@ export default function InteractiveMapV2({
                                             <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">Grille</span>
                                         </button>
 
+                                        {/* Zone Highlight Toggle */}
+                                        <button
+                                            onClick={() => setZoneHighlight(!zoneHighlight)}
+                                            className={cn(
+                                                "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
+                                                zoneHighlight ? "bg-indigo-500/20 border-indigo-400/50 text-indigo-300" : "bg-white/10 border-white/25 text-white/90 hover:bg-white/15 hover:text-white"
+                                            )}
+                                            title={zoneHighlight ? "Masquer le surlignage de zone" : "Afficher le surlignage de zone"}
+                                        >
+                                            <MapPin size={14} />
+                                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">Zone</span>
+                                        </button>
+
+                                        {/* Fullscreen Toggle */}
+                                        <button
+                                            onClick={() => {
+                                                setIsFullscreen(f => {
+                                                    const next = !f;
+                                                    const el = document.getElementById('worldmap-page');
+                                                    if (el) el.classList.toggle('worldmap-fullscreen', next);
+                                                    document.body.classList.toggle('map-fullscreen', next);
+                                                    return next;
+                                                });
+                                            }}
+                                            className={cn(
+                                                "px-3 py-2 rounded-xl border transition-all flex items-center gap-2",
+                                                isFullscreen ? "bg-teal-500/20 border-teal-400/50 text-teal-300" : "bg-white/10 border-white/25 text-white/90 hover:bg-white/15 hover:text-white"
+                                            )}
+                                            title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+                                        >
+                                            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest italic">{isFullscreen ? 'Réduire' : 'Écran'}</span>
+                                        </button>
+
                                         {/* Help Toggle */}
                                         <button
                                             onClick={() => setShowMapHelp(true)}
                                             className={cn(
                                                 "p-2 rounded-xl border transition-all",
-                                                showMapHelp ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-white/5 border-white/5 text-white/40 hover:text-white/60"
+                                                showMapHelp ? "bg-amber-500/20 border-amber-400/50 text-amber-300" : "bg-white/10 border-white/25 text-white/90 hover:bg-white/15 hover:text-white"
                                             )}
                                             title="Aide du Monde"
                                         >
                                             <HelpCircle size={14} />
                                         </button>
+
+                                        {/* 🏷️ DofusDB Attribution */}
+                                        {!hideUI && (
+                                            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/40 border border-white/15 text-[10px] font-medium text-zinc-100 group">
+                                                <img src="/assets/icons/dofusdb.png" alt="DofusDB" className="w-4 h-4 rounded-sm object-contain" />
+                                                <span>Données issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">DofusDB</a> <span className="text-zinc-400 hidden xl:inline">(LPNC-IA 1.0)</span></span>
+                                            </div>
+                                        )}
 
                                     </div>
                                 </div>
@@ -1684,6 +1728,7 @@ export default function InteractiveMapV2({
                             dungeonsByMapId={dungeonsByMapId}
                             groupedDungeons={groupedDungeons}
                             showDebugGrid={showDebugGrid}
+                            zoneHighlight={zoneHighlight}
                             selectedPosition={selectedPosition}
                             setSelectedPosition={handleMapClick}
                             setSelectedDungeon={setSelectedDungeon}
@@ -1702,13 +1747,25 @@ export default function InteractiveMapV2({
                             highlightSubareaIds={highlightSubareaIds}
                             interactive={interactive}
                         />
-                        {/* 🏷️ DofusDB Attribution Badge */}
-                        {!hideUI && (
-                            <div className="absolute bottom-3 left-3 z-[600] pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-medium text-zinc-300 shadow-lg hover:bg-black/90 transition-all group">
-                                <img src="/assets/icons/dofusdb.png" alt="DofusDB" className="w-4 h-4 rounded-sm object-contain" />
-                                <span>Données issues de <a href="https://dofusdb.fr/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">DofusDB</a> <span className="text-zinc-500 hidden sm:inline">(LPNC-IA 1.0)</span></span>
-                            </div>
+
+                        {/* Croix de sortie du plein écran */}
+                        {isFullscreen && (
+                            <button
+                                onClick={() => {
+                                    setIsFullscreen(false);
+                                    const el = document.getElementById('worldmap-page');
+                                    if (el) el.classList.remove('worldmap-fullscreen');
+                                    document.body.classList.remove('map-fullscreen');
+                                }}
+                                className="fixed top-4 right-4 z-[10000] w-11 h-11 rounded-full bg-black/85 border border-white/20 text-white flex items-center justify-center hover:bg-red-600/90 hover:border-red-400 shadow-2xl transition-colors"
+                                title="Quitter le plein écran"
+                            >
+                                <X size={22} />
+                            </button>
                         )}
+
+                        {/* 🏷️ DofusDB Attribution Badge — déplacé dans le bandeau du haut */}
+
                     </div>
                 )}
 

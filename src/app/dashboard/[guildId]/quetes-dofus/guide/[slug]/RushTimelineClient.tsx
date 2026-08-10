@@ -1444,20 +1444,20 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         </div>
       </div>
       <button onClick={()=>setHideDone(v=>!v)}
-        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${
+        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest shrink-0 ${
           hideDone
-            ? "bg-amber-600/25 border-amber-400/60 text-amber-300 shadow-amber-500/10"
-            : "bg-zinc-900/60 border-zinc-700/50 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+            ? "bg-zinc-800 border-white/15 text-zinc-200"
+            : "bg-zinc-900/70 border-white/8 text-zinc-500 hover:bg-zinc-800/80 hover:border-white/12 hover:text-zinc-300"
         }`}
       >
         {hideDone ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
         {hideDone ? "Afficher tout" : "Masquer les terminées"}
       </button>
       <button onClick={resumeRush}
-        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-2 border-emerald-400/50 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 shrink-0"
+        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/10 bg-zinc-900/70 text-zinc-300 hover:bg-zinc-800/80 hover:border-white/15 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shrink-0"
         title="Aller à l'étape active"
       >
-        <MapPin className="w-3.5 h-3.5" />
+        <MapPin className="w-3.5 h-3.5 text-emerald-400" />
         Reprendre mon étape
       </button>
       <button onClick={() => {
@@ -1469,21 +1469,15 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
         }
       }}
         aria-label="Activer/désactiver les aides"
-        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shrink-0 ${
+        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest shrink-0 ${
           contextualHelpEnabled
-            ? "bg-emerald-600/20 border-emerald-400/50 text-emerald-300"
-            : "bg-zinc-950 border-white/5 text-zinc-600 hover:border-white/20"
+            ? "bg-zinc-800 border-white/15 text-zinc-200"
+            : "bg-zinc-900/70 border-white/8 text-zinc-500 hover:bg-zinc-800/80 hover:border-white/12 hover:text-zinc-300"
         }`}
       >
         <CircleHelp className="w-3.5 h-3.5" />
         <span className="hidden md:inline">Aide</span>
       </button>
-      <QuestFeedbackButton
-        guildId={guildId}
-        sourcePage={`guide:${guide.slug}`}
-        targetSlug={guide.slug}
-        compact
-      />
     </div>
     {/* ── Résultats de recherche ─────────────────────────────────────────── */}
     {searchResults !== null && (

@@ -430,9 +430,9 @@ export function CommandMenu({ guildId, user }: CommandMenuProps) {
                     )}
                 </CommandList>
 
-                <div className="p-3 bg-white/[0.02] border-t border-white/5 flex items-center justify-between text-[9px] font-black text-zinc-700 uppercase tracking-widest px-6">
+                <div className="p-3 bg-zinc-950 border-t border-white/5 flex items-center justify-between text-[10px] font-medium text-zinc-500 px-5">
                     <span>Recherche globale</span>
-                    <span>v3.0</span>
+                    <span>Taper <kbd className="font-mono bg-white/5 px-1 py-0.5 rounded text-[9px] text-zinc-400">Esc</kbd> pour fermer</span>
                 </div>
             </div>
         </CommandDialog>

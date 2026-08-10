@@ -358,6 +358,16 @@ export class SigilBombRoom {
     public startGame(socketId: string) {
         if (this.hostId !== socketId) return;
         const participants = this.players.filter((p) => !p.isSpectator);
+        const humanCount = participants.filter((p) => !p.isBot).length;
+
+        // Block launch in solo mode if attempted without bot or less than 2 humans
+        if (humanCount < 2 && !this.config.isSoloMode) {
+            this.io.to(socketId).emit("bomb:word-error", {
+                message: "Il faut au moins 2 joueurs (ou activer le mode Solo) !",
+            });
+            return;
+        }
+
         const allReady = participants.every((p) => p.isReady || p.isBot);
         if (!allReady || participants.length === 0) {
             this.io.to(socketId).emit("bomb:word-error", {

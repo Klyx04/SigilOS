@@ -84,7 +84,11 @@ export default async function MemberProfilePage({
                     Dernière mise à jour du profil
                 </div>
                 <div className="text-[10px] font-bold text-zinc-400">
-                    {profile.updatedAt ? format(new Date(profile.updatedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr }) : "Inconnue"}
+                    {profile.userUpdatedAt 
+                        ? format(new Date(profile.userUpdatedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr }) 
+                        : profile.updatedAt 
+                            ? format(new Date(profile.updatedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr }) 
+                            : "Inconnue"}
                 </div>
             </div>
 

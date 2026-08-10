@@ -1574,8 +1574,8 @@ export async function publishMissionsToDiscord(
             return { success: false, error: "Aucune mission n'est publiée pour cette semaine." };
         }
 
-        const specialCategories = ["EVENT", "SONGES", "ANOMALIE"];
-        const specialMissionsList = missions.filter(m => specialCategories.includes(m.category));
+        // Special missions are strictly those in slots 12-19 (Pool SPECIALES)
+        const specialMissionsList = missions.filter(m => m.slotIndex >= 12);
 
         // Pick a thematic thumbnail for the embed
         const thumbnailUrl = getMissionThumbnailUrl(missions);
@@ -1605,17 +1605,6 @@ export async function publishMissionsToDiscord(
             ? "Les missions de la semaine sont disponibles sur le dashboard !"
             : "Les missions de la semaine sont disponibles sur le dashboard — envoyez vos preuves de missions !";
 
-        const specialMissionsLines = specialMissionsList.length > 0
-            ? [
-                "\n🎯 **Missions Spéciales :**",
-                ...specialMissionsList.map(m => {
-                    const label = m.title || m.category;
-                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
-                    return `${icon} ${label}`;
-                }),
-            ].join("\n")
-            : "";
-
         const embedTitle = `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`;
 
         const fields: any[] = [];
@@ -1625,8 +1614,8 @@ export async function publishMissionsToDiscord(
                 name: "🎯 Missions Spéciales",
                 value: `${specialMissionsList.map(m => {
                     const label = m.title || m.category;
-                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
-                    return `${icon}  **${label}**`;
+                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : m.category === "ANOMALIE" ? "⚡" : "✨";
+                    return `${icon} **${label}**`;
                 }).join("\n")}\n\u200B`,
                 inline: false
             });
@@ -1641,7 +1630,7 @@ export async function publishMissionsToDiscord(
         const messageId = await sendChannelMessage(guild.missionNotifyChannelId, "", {
             mentionContent,
             embedTitle,
-            embedDescription: `${baseAnnounce}${specialMissionsLines}\n\u200B`,
+            embedDescription: `${baseAnnounce}\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
             embedThumbnail: thumbnailUrl,
@@ -1740,8 +1729,8 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
             where: { guildId: guild.id, weekNumber: week, year }
         });
         
-        const specialCategories = ["EVENT", "SONGES", "ANOMALIE"];
-        const specialMissionsList = missions.filter(m => specialCategories.includes(m.category));
+        // Special missions are strictly those in slots 12-19 (Pool SPECIALES)
+        const specialMissionsList = missions.filter(m => m.slotIndex >= 12);
 
         // Vitrine — lecture seule pour les membres (pas d'upload de preuves)
         const vitrineMode = guild.missionVitrineMode === true;
@@ -1759,17 +1748,6 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
             ? "Les missions de la semaine sont disponibles sur le dashboard !"
             : "Les missions de la semaine sont disponibles sur le dashboard — envoyez vos preuves de missions !";
 
-        const specialMissionsLines = specialMissionsList.length > 0
-            ? [
-                "\n🎯 **Missions Spéciales :**",
-                ...specialMissionsList.map(m => {
-                    const label = m.title || m.category;
-                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
-                    return `${icon} ${label}`;
-                }),
-            ].join("\n")
-            : "";
-
         const fields: any[] = [];
 
         if (specialMissionsList.length > 0) {
@@ -1777,8 +1755,8 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
                 name: "🎯 Missions Spéciales",
                 value: `${specialMissionsList.map(m => {
                     const label = m.title || m.category;
-                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : "⚡";
-                    return `${icon}  **${label}**`;
+                    const icon = m.category === "EVENT" ? "🔥" : m.category === "SONGES" ? "🌙" : m.category === "ANOMALIE" ? "⚡" : "✨";
+                    return `${icon} **${label}**`;
                 }).join("\n")}\n\u200B`,
                 inline: false
             });
@@ -1792,7 +1770,7 @@ export async function refreshMissionDiscordEmbed(discordGuildId: string) {
 
         await updateChannelMessage(channelId, messageId, "", {
             embedTitle: `📅 Objectifs Hebdomadaires — ${formatDofusRange()}`,
-            embedDescription: `${baseAnnounce}${specialMissionsLines}\n\u200B`,
+            embedDescription: `${baseAnnounce}\n\u200B`,
             embedColor: 0x00f2ff, // Neon Cyan
             embedUrl: dashboardUrl,
             embedThumbnail: thumbnailUrl,

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { Suspense } from "react";
 import { getUserContext } from "@/server/actions/user-actions";
 import { CalendarDashboard } from "@/components/calendar/calendar-dashboard";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -69,15 +70,17 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
                     {/* Main Dashboard */}
                     <div data-tour="calendar-board">
-                        <CalendarDashboard
-                            guildId={guildId}
-                            currentUserId={session.user.id}
-                            canManage={canManage}
-                            discordChannels={discordChannels}
-                            canManageRaid={ctx.canManageRaid}
-                            userPseudo={ctx.pseudoDofus || ctx.name}
-                            isAdmin={ctx.isAdmin}
-                        />
+                        <Suspense fallback={<div className="p-12 text-center text-zinc-500 font-medium">Chargement du calendrier...</div>}>
+                            <CalendarDashboard
+                                guildId={guildId}
+                                currentUserId={session.user.id}
+                                canManage={canManage}
+                                discordChannels={discordChannels}
+                                canManageRaid={ctx.canManageRaid}
+                                userPseudo={ctx.pseudoDofus || ctx.name}
+                                isAdmin={ctx.isAdmin}
+                            />
+                        </Suspense>
                     </div>
                 </div>
             </main>

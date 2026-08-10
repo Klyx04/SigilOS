@@ -108,20 +108,20 @@ export function LiveStreamBadge({ guildId }: { guildId: string }) {
 
             {/* Streamer Picker Modal */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="w-[95vw] sm:max-w-md bg-zinc-900/98 backdrop-blur-xl border border-white/10 p-0 overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.15)]">
-                    <div className="relative p-6 border-b border-red-500/10 bg-red-500/5">
+                <DialogContent className="w-[90vw] max-w-sm bg-zinc-950 border border-white/10 p-0 overflow-hidden shadow-2xl rounded-2xl">
+                    <div className="p-4 border-b border-white/5 bg-white/[0.02]">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                                <Tv className="h-5 w-5 text-red-400" />
+                            <div className="w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                                <Tv className="h-4 w-4 text-red-400" />
                             </div>
-                            <div>
-                                <DialogTitle className="text-white font-black uppercase tracking-tight">Créateurs en LIVE</DialogTitle>
-                                <p className="text-[11px] text-zinc-500 uppercase tracking-wider">Choisis qui regarder</p>
+                            <div className="min-w-0 flex-1">
+                                <DialogTitle className="text-sm font-bold text-white uppercase tracking-wider truncate">Créateurs en LIVE</DialogTitle>
+                                <p className="text-[10px] text-zinc-400 font-medium">Choisis un streamer à regarder</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="p-4 space-y-2">
+                    <div className="p-3 space-y-1.5 max-h-[300px] overflow-y-auto">
                         {liveStreamers.map((streamer) => (
                             <a
                                 key={streamer.creatorId}

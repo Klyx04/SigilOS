@@ -1314,7 +1314,7 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
             <span>Quêtes Dofus</span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-medium">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>Conseillé dès le <strong className="text-white font-black">Niv. 200</strong></span>
@@ -1324,6 +1324,13 @@ const timelineItems=useMemo(()=>{const s=[...milestones].sort((a,b)=>a.order-b.o
               <p className="font-bold text-emerald-400 mb-1">📖 Guide Rush Sylvestre</p>
               <p>Ce module interactif vous permet de suivre votre timeline pas à pas. Cliquez sur le bouton <strong className="text-amber-400">RENDU ICI</strong> pour poser votre repère de reprise visible par vos coéquipiers de guilde.</p>
             </ContextualHelp>
+
+            <QuestFeedbackButton
+              guildId={guildId}
+              sourcePage={`guide:${guide.slug}`}
+              targetSlug={guide.slug}
+              compact
+            />
           </div>
         </div>
 

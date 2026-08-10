@@ -96,21 +96,30 @@
 - ✅ **`SECURITY.md` resynchronisé** : CSP_ENFORCE activé beta+prod (10/08), WS auth activé+testé prod — lignes « À faire » obsolètes retirées.
 - ✅ **Nouvelle branche de travail** : `refonte-module-ganymede` (ouverte depuis la HEAD mergée, contenant toute la session).
 
-### 🔜 Nouveau chantier — Refonte module GANYMEDE (guide complet)
-- **Module cible** : `https://beta.sigilos.fr/dashboard/1290442961380835451/quetes-dofus/guide/progression-complete` (Guide complet d'une quête → route `src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx`).
-- **Périmètre (fichiers du module)** : copies de référence dans `C:\tmp\sigilos-module-guide-ganymede` :
-  - Parser/helpers : `src/lib/ganymede-parser.ts`, `src/lib/guide-progress-helpers.ts`
-  - Actions serveur : `src/server/actions/optimized-guide-actions.ts`
-  - Rendu guide (`quetes-dofus/guide/[slug]/`) : `OptimizedGuideClient.tsx`, `components.tsx`, `DofusProgressStrip.tsx`, `GuildStatusPanel.tsx`, `QuestGroup.tsx`, `RushTimelineClient.tsx`, `split-implementation.ts`, `page.tsx`, `guide-styles.css`
-  - Onglet + admin : `src/components/dofus-quests/OptimizedGuideTab.tsx`, `src/app/god/dofus-guides/`
-- **Type** : développeur (refonte UI/UX complète du guide, dans la direction design 2026 « moins IA » : une seule accent emerald, zéro glow, typo ≥11px, motion ≤200ms).
-- **Source de vérité session** : `src/temp/memo-2026-08-10-module-ganymede.md` (à créer au démarrage).
-- **Branche** : `refonte-module-ganymede` (ouverte, prête). PR vers `dev` à la fin.
-- 🎨 **Périmètre élargi (10/08, décision user)** : **unifier visuellement** la refonte GANYMEDE sur **3 vues du module Quêtes Dofus** (mêmes tokens/palette/zéro glow/typo ≥11px/motion ≤200ms) :
-  1. **Guide complet** → `quetes-dofus/guide/[slug]/OptimizedGuideClient.tsx` (+ `guide-styles.css`).
-  2. **Module par Dofus** → `src/components/dofus-quests/DofusQuestHub.tsx` (+ `GuildDofusOverview.tsx`, `DofusTimelineQuest.tsx`).
-  3. **Guide sylvestre (timeline)** → `quetes-dofus/guide/[slug]/RushTimelineClient.tsx` (+ `RushTimelineClient` timeline rush).
-  - Palette retenue : **doré = fil de quête** (signature), **emerald = progression/validation**, **rouge = danger**, **bleu = coordonnées/infos**. Admin/composer (`god/dofus-guides/OptimizedGuideAdminClient.tsx`) → traitement séparé (PR dédiée, phase 6).
+### ✅ Refonte module GANYMEDE (guide complet) — FAIT sur `refonte-module-ganymede` (10/08/2026)
+
+> **Branche** : `refonte-module-ganymede` → PR vers `dev`. **Mémo** : `src/temp/memo-2026-08-10-module-ganymede.md`. Mock de référence : `src/guide-complet-refonte.html` (jamais commité).
+
+- **Module cible** : `https://beta.sigilos.fr/dashboard/1290442961380835451/quetes-dofus/guide/progression-complete` (route `src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/page.tsx`).
+- **Périmètre (fichiers)** : parser `src/lib/ganymede-parser.ts` · actions `optimized-guide-actions.ts` · rendu `OptimizedGuideClient.tsx` + `guide-styles.css` · `RushTimelineClient.tsx` (sylvestre, **non touché**) · onglet/admin `OptimizedGuideTab.tsx` / `god/dofus-guides/` (phase 6 séparée).
+- **Direction design 2026 « moins IA » appliquée** : palette disciplinée **doré = fil de quête · emerald = progression · rouge = danger · bleu = coords/infos**, zéro glow, typo ≥11px, motion ≤200ms, colonne lecture 840px + breadcrumb sticky.
+
+### 🎯 Architecture finale (décision user 10/08) — **mode unique « Guide Focus »**
+- **Un seul mode** plein écran (plus de bascule). **Mode mission supprimé** (overlay, CTA, état, CSS — nettoyé).
+- **Sidebar → sommaire repliable** : `sidebarOpen` (localStorage `guide-sommaire-{slug}`), bouton « Sommaire » (PanelLeft) + raccourci `S`, bouton flottant « Sommaire » quand repliée, contenu élargi plein écran.
+- **Bouton « Signaler un bug » restauré** (`QuestFeedbackButton`, `sourcePage=guide:<slug>`).
+- **Popin sociale 3ᵉ niveau** conservée (qui a validé / qui est dessus + « Demander de l'aide ») sur les étapes des cartes sous-guide accordéon.
+- **Par-Dofus gardé** (10/08) : refonte zero-glow `DofusQuestHub.tsx` + **fix hydration `<button>` imbriqués** dans `DofusTimelineQuest.tsx` (2 endroits → `<span role=button>`).
+
+### Commits clés (poussés, ~10 sur la branche)
+`631ae4c8` tokens · `46aa6378` nettoyage AI slop · `5c1e6dc2` mode mission · `ef1dd0ce` lecture · `e5578ac3` entraide/reward/tags · `f15f766e` par-Dofus + fix hydration · `767f7839` focus · `3a175e93` désencombrement · `9e15d73b` mode unique Guide Focus (+ mission supprimée) · `e3660144` **fix corruption encodage UTF-8** (mojibake Ganymède/›/🗺️ via PowerShell — attention : Windows PowerShell 5.1 `Get-Content` lit en ANSI, utiliser `[IO.File]::ReadAllText/WriteAllText` UTF-8 ou l'outil éditeur).
+
+### ⚠️ Restant / à savoir
+- **PR `refonte-module-ganymede` → `dev`** pas encore créée.
+- **Images guides en 404** (`/uploads/guides/*.webp`, `guide_*.webp`) : **fichiers absents côté serveur** (infra/données, pas une régression code) — vérifier `/uploads/guides/` sur le VPS / ré-importer.
+- **Warning `Cannot update component (Router) while rendering OptimizedGuideClient`** : pré-existant, lié à `useSearchParams()` (~ligne 1286) — correctif = composant enfant sous Suspense (option).
+- **Leaflet `_leaflet_pos`** (`map-viewer.tsx`) : pré-existant, map détachée/cleanup.
+- **Rush sylvestre** : **NE PAS toucher**. Admin/composer : PR dédiée (phase 6).
 
 ---
 

@@ -112,8 +112,8 @@ export function SaasFeatures() {
         <section id="features" className="py-32 bg-background relative overflow-hidden">
             
             {/* Background elements */}
-            <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
-            <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-amber-500/5 blur-[120px] rounded-full pointer-events-none" />
+            <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-emerald-500/5  rounded-full pointer-events-none" />
+            <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-amber-500/5  rounded-full pointer-events-none" />
 
             <div className="container px-6 mx-auto relative z-10">
 
@@ -123,7 +123,7 @@ export function SaasFeatures() {
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6 font-mono text-[10px] text-emerald-400 uppercase tracking-widest"
+                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6 font-mono text-[11px] text-emerald-400 uppercase tracking-wider"
                     >
                         Le Cockpit Ultime
                     </motion.div>
@@ -158,13 +158,13 @@ export function SaasFeatures() {
                             viewport={{ once: true }}
                             transition={{ delay: idx * 0.05 }}
                             className={cn(
-                                "group relative overflow-hidden rounded-3xl p-8 bg-zinc-900/40 border border-white/5 hover:border-emerald-500/20 transition-all duration-500 hover:bg-zinc-900/60 flex flex-col gap-6",
+                                "group relative overflow-hidden rounded-3xl p-8 bg-zinc-900/40 border border-white/5 hover:border-emerald-500/20 transition-all duration-150 hover:bg-zinc-900/60 flex flex-col gap-6",
                                 feature.className
                             )}
                         >
                             {/* Icon & Glow */}
                             <div className="flex items-start justify-between">
-                                <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/5 group-hover:scale-110 transition-transform duration-500", feature.color)}>
+                                <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/5 group-hover:scale-110 transition-transform duration-150", feature.color)}>
                                     <feature.icon className="w-6 h-6" />
                                 </div>
                                 
@@ -185,14 +185,14 @@ export function SaasFeatures() {
                             {/* Tags */}
                             <div className="flex flex-wrap gap-2 mt-auto">
                                 {feature.tags.map((tag) => (
-                                    <span key={tag} className="text-[10px] font-bold text-zinc-400 bg-white/5 border border-white/5 px-3 py-1 rounded-full uppercase tracking-wider">
+                                    <span key={tag} className="text-[11px] font-bold text-zinc-400 bg-white/5 border border-white/5 px-3 py-1 rounded-full uppercase tracking-wider">
                                         {tag}
                                     </span>
                                 ))}
                             </div>
 
                             {/* Interactive Background Gradient */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 via-transparent to-transparent group-hover:from-emerald-500/5 transition-all duration-500 pointer-events-none" />
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 via-transparent to-transparent group-hover:from-emerald-500/5 transition-all duration-150 pointer-events-none" />
                         </motion.div>
                     ))}
                 </div>

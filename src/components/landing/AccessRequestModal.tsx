@@ -49,8 +49,8 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
 
                         {/* Background glow */}
-                        <div className="absolute top-[-40%] left-[-10%] w-[80%] h-[80%] bg-amber-500/6 rounded-full blur-[140px] pointer-events-none" />
-                        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
+                        <div className="absolute top-[-40%] left-[-10%] w-[80%] h-[80%] bg-amber-500/6 rounded-full  pointer-events-none" />
+                        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full  pointer-events-none" />
 
                         {/* Header */}
                         <div className="relative flex items-start justify-between p-6 sm:p-10 pb-6 sm:pb-8">
@@ -59,9 +59,9 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                                     <div className="h-8 w-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center">
                                         <Crown className="w-4 h-4 text-amber-400" />
                                     </div>
-                                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.35em]">Réservé Chefs de Guilde & Admins</span>
+                                    <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">Réservé Chefs de Guilde & Admins</span>
                                 </div>
-                                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight mb-3">
+                                <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight leading-tight mb-3">
                                     Activer SigilOS <br />
                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">pour votre guilde.</span>
                                 </h2>
@@ -105,12 +105,12 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                                     rel="noopener noreferrer"
                                     className="flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-5"
                                 >
-                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 group-hover:bg-indigo-500/30 transition-all">
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center flex-shrink-0  group-hover:bg-indigo-500/30 transition-all">
                                         <DiscordIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white/90" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <span className="font-black text-white text-lg sm:text-xl block mb-1 truncate">Ouvrir un ticket Discord</span>
-                                        <div className="text-[10px] sm:text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <span className="font-semibold text-white text-lg sm:text-xl block mb-1 truncate">Ouvrir un ticket Discord</span>
+                                        <div className="text-[11px] sm:text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors flex flex-wrap items-center gap-x-2 gap-y-1">
                                             <span>Salons <span className="text-indigo-400 font-mono">#OUVRIR-TICKET</span></span>
                                             <span className="inline-flex items-center gap-1 text-emerald-400/80 font-semibold">
                                                 <Sparkles className="w-3 h-3" /> 24–48h
@@ -122,7 +122,7 @@ function ModalContent({ onClose }: { onClose: () => void }) {
                             </Button>
 
                             {/* Already have access */}
-                            <p className="text-center text-[10px] sm:text-[11px] text-zinc-500 pt-1">
+                            <p className="text-center text-[11px] sm:text-[11px] text-zinc-500 pt-1">
                                 Déjà membre ?{" "}
                                 <button onClick={onClose} className="text-emerald-400 font-semibold hover:text-emerald-300 underline underline-offset-2 transition-colors">
                                     Fermer et se connecter via Discord ↑

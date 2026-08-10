@@ -63,7 +63,7 @@ export function BentoGrid() {
                             </div>
 
                             {/* Hover Gradient */}
-                            <div className="absolute inset-0 z-0 bg-gradient-to-br from-indigo-500/0 via-indigo-500/0 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <div className="absolute inset-0 z-0 bg-gradient-to-br from-indigo-500/0 via-indigo-500/0 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
                         </motion.div>
                     );
                 })}

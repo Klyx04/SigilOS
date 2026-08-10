@@ -7,7 +7,7 @@ export function PreFooterCta() {
     return (
         <section className="py-32 bg-background relative overflow-hidden">
             <div className="container px-6 mx-auto">
-                <div className="relative group p-12 md:p-20 rounded-[3rem] bg-gradient-to-br from-bg-secondary to-bg-primary border border-white/10 overflow-hidden text-center shadow-2xl">
+                <div className="relative group p-12 md:p-20 rounded-[3rem] bg-gradient-to-br from-bg-secondary to-bg-primary border border-white/10 overflow-hidden text-center ">
                     {/* Decorative Teal Beam */}
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-teal/50 to-transparent" />
 
@@ -21,12 +21,12 @@ export function PreFooterCta() {
                         </p>
                         <Button
                             size="lg"
-                            className="h-16 px-12 rounded-2xl bg-white text-black hover:scale-105 active:scale-95 font-black uppercase tracking-[0.2em] transition-all shadow-2xl shadow-white/10 text-[10px]"
+                            className="h-16 px-12 rounded-2xl bg-white text-black hover:scale-105 active:scale-95 font-semibold uppercase tracking-wider transition-all  shadow-white/10 text-[11px]"
                             onClick={() => loginWithDiscord()}
                         >
                             Démarrer l&apos;Aventure SigilOS
                         </Button>
-                        <p className="mt-8 text-zinc-600 text-[10px] font-bold uppercase tracking-[0.2em]">
+                        <p className="mt-8 text-zinc-600 text-[11px] font-bold uppercase tracking-wider">
                             Intégration Discord instantanée
                         </p>
                     </div>

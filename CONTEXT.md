@@ -36,6 +36,7 @@
 ### ✅ Monde 38 (Village des Brigandins) réparé
 - Specs officielles DofusDB (`4085×2861`, mapWidth 510, mapHeight 366, origine 9908/9402) dans `worlds.json` + **tuiles officielles** (banks 1=204, 0.75=117, 0.5=54, 0.25=15) via `scripts/sync-world38-tiles.js` (hors git → `sync-assets.sh`).
 - Coordonnées `x/y` des maps corrigées ; **POC vue HD à fort zoom** (`map-hd-overlay.tsx`, monde 38).
+- **Fix 404 tuiles (10/08)** : Next.js en mode `standalone` ne sert pas de façon fiable le dossier `public/game-data` bind-mounté → `/game-data/*` est désormais servi **en statique par Caddy** (`handle /game-data/*` + `uri strip_prefix`, volume `./public/game-data:/srv/game-data:ro` sur le service `caddy`). Déployé beta (curl → 200). Mise à jour tuiles = `sync-assets.sh beta` (hors git) + recreate Caddy. Détail : `MAINTENANCE.md` §3d.
 
 ### ✅ Plein écran des mini-jeux (Sigil Guesser + Bomb)
 - Mécanisme unifié : `worldmap-fullscreen` (sur `#worldmap-page` / `#mini-games-page` / `#sigil-bomb-page`) + `map-fullscreen` sur `<body>` (cache sidebar/topnav/footer/tours).
@@ -44,6 +45,37 @@
 - Guesser : **zone cible / carte monde 50/50**, classement en bandeau + scores agrandis, **pré-chargement tuiles** (anti-clignotement), fix monde `-1` (recherche monstre).
 
 ➡️ **Action** : merger PR `feat/deploy-clean-pro` → `dev`, puis `./scripts/deploy-cd.sh beta` (rebuild) + `./scripts/sync-assets.sh beta` (tuiles monde 38 + favicon). Ensuite Prod (`main`).
+
+## 🧭 Suivi de chantier — Refonte UI « moins IA » (dashboard + landing) — FAIT sur `refonte/dashboard-ui-moins-ia`
+
+> **Branche** : `refonte/dashboard-ui-moins-ia` → PR vers `dev` (lien : `https://github.com/Klyx04/SigilOS/pull/new/refonte/dashboard-ui-moins-ia`). **Mémo** : `src/temp/memo-2026-08-10-refonte-ui-moins-ia.md` (gitignoré).
+> Application de la direction design 2026 (`src/temp/sigilos-design-system-etat-de-l-art.md` + `sigilos-home-direction-2026.html` + `sigilos-landing-direction-2026-v3.html`). **21 commits**, poussée le 10/08/2026. tsc 0 · eslint 0 · hooks verts.
+
+### Principes appliqués (partout)
+- **Une seule couleur d'accent** (emerald) ; **zéro glow/aura** (profondeur par surfaces + bordures) ; **typo ≥11px** (plus d'italic-black hors display) ; **motion ≤200ms** ; décor coloré retiré.
+
+### Chrome & home
+- **Sidebar** (`app-sidebar.tsx`) : **plate** (sections dépliées), dashboard item normal, footer neutre (Docs/Maj/Bugs), **densité verticale réduite** (~moitié du scroll), `SectionTitle` statique.
+- **Top bar** (`top-nav.tsx`) : **centre vidé** (ticker retiré), LiveStreamBadge + **pilulier « prochain event »** + **stack d'avatars en ligne** (SmartBar) repliés à droite, breadcrumb page courante en `foreground`.
+- **Home** (`page.tsx`) : header contextuel « Bonsoir {prénom} ⚔ », suppression fond aurora glow, KPI strip neutre, bande **« À faire maintenant »** (sondages ACTIVE, prochain event, almanax).
+- **Drawer mobile** + **panneau god** (god-sidebar/god-top-nav) : même traitement Calme (statuts sémantiques conservés).
+- **Landing** : passe Calme sur 11 composants (`src/components/landing/*` + `src/app/page.tsx`), SEO/ISR/JSON-LD conservés.
+
+### Bug fixes (en passant)
+- Hydration `<button>` imbriqué (`live-stream-badge.tsx` → span role=button a11y) ; Image `fill` missing `sizes` (`unified-module-header.tsx`).
+- **9 pages Prisma → composants client sérialisées** (`JSON.parse(JSON.stringify(...))`) : members, missions, validation, services, donjons, galerie, kamas, ocre, archimonstres (erreur « plain objects / symbol properties »).
+- Hydration SmartBar (compteur live, `suppressHydrationWarning`) ; crash **`useTour` SSR** (garde context null via `useContext(TourContext)`) ; badge live nettoyé.
+
+### Perf / infra
+- `getUnreadNotifications` : **cache-first** (évite `getUserContext` ~5s par poll sidebar) + TTL 10s.
+- Pool pg (`src/lib/prisma.ts`) : `connectionTimeoutMillis` 5→10s, `idleTimeoutMillis` 5→15s (réduit « timeout exceeded when trying to connect » sous charge).
+
+### 🔜 Suite (non fait)
+- **PR `refonte/dashboard-ui-moins-ia` → `dev`** (link + merge + déploiement).
+- **DB pool/infra** : si timeouts persistent en prod sous charge → `max_connections` Postgres + réduire le parallélisme de la home (13 requêtes).
+- **Landing v3 complète** (showcase mini-dashboards par guilde, section features/CTA) — seule la passe Calme est faite.
+- Home **KPI avec comparaisons temporelles** (+3 ce mois).
+- Commiter les modifs préexistantes `CONTEXT.md`/`MAINTENANCE.md` (assets Caddy §3d) non encore commitées.
 
 ---
 

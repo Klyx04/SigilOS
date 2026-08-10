@@ -77,9 +77,9 @@ export function SmartBar({ memberCount, onlineCount }: SmartBarProps) {
                         }}
                         className="flex flex-col items-center justify-center leading-none px-2 py-1 rounded-lg hover:bg-white/5 transition-colors group/stats active:scale-95"
                     >
-                        <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest scale-90 mb-0.5 group-hover/stats:text-indigo-400 transition-colors">Membres</span>
-                        <div className="flex items-center gap-1 text-[11px] font-black text-zinc-300">
-                            <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]">{liveOnlineCount ?? 0}</span>
+                        <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider mb-0.5 group-hover/stats:text-emerald-400 transition-colors">Membres</span>
+                        <div className="flex items-center gap-1 text-[12px] font-semibold text-zinc-300">
+                            <span className="text-emerald-400" suppressHydrationWarning>{liveOnlineCount ?? 0}</span>
                             <span className="text-zinc-700">/</span>
                             <span>{memberCount ?? 0}</span>
                         </div>

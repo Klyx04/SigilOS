@@ -7,7 +7,7 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, Loader2, Search, X,
   BookOpen, MapPin, AlertTriangle, Lightbulb, Info, Flag, Skull,
   Users, Star, ArrowRight, ChevronLeft, ExternalLink, Copy, HelpCircle,
-  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, Focus, Maximize2, Minimize2
+  Bookmark, BookmarkCheck, EyeOff, Eye, BookOpenCheck, ChevronUp, RotateCcw, Crown, Maximize2, Minimize2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -2513,37 +2513,6 @@ export default function OptimizedGuideClient({
                     </span>
                     {selected.isOptional && <span className="step-optional-badge">Bonus</span>}
                   </div>
-                </div>
-                
-                {/* Structure / Hierarchy flow */}
-                <div className="flex items-center flex-wrap gap-2 text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-4 bg-zinc-950/20 px-3 py-2 rounded-xl border border-white/5">
-                  <span className="text-zinc-400">Structure :</span>
-                  <div className="flex items-center gap-1 text-blue-400">
-                    <BookOpen size={10} className="shrink-0" />
-                    <span>{guide.name}</span>
-                  </div>
-                  <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
-                  <div className="flex items-center gap-1 text-zinc-300">
-                    <span>Phase {selected.chapter > 0 ? selected.chapter : "Intro"} : {selected.chapterLabel}</span>
-                  </div>
-                  <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
-                  <div className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    <Flag size={10} className="shrink-0" />
-                    <span className="max-w-[120px] sm:max-w-[200px] truncate">{decodeTitle(selected.title)}</span>
-                  </div>
-                  {selected.sequences.length > 0 && (() => {
-                    const sortedSeqs = [...selected.sequences].sort((a,b) => a.order - b.order);
-                    const activeSeq = sortedSeqs[activeSeqIndex] || sortedSeqs[0];
-                    return (
-                      <>
-                        <ChevronRight size={10} className="text-zinc-700 animate-pulse" />
-                        <div className="flex items-center gap-1 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                          <span className="truncate">Sous-Guide {activeSeq.subGuideRef}</span>
-                        </div>
-                      </>
-                    );
-                  })()}
                 </div>
 
                 <h1 className="step-title">{decodeTitle(selected.title)}</h1>

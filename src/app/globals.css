@@ -709,6 +709,7 @@ body.map-fullscreen .dashboard-tour {
   display: none !important;
 }
 #worldmap-page.worldmap-fullscreen,
+#mini-games-page.worldmap-fullscreen,
 #sigil-bomb-page.worldmap-fullscreen {
   inset: 0 !important;
   z-index: 9999 !important;
@@ -721,7 +722,8 @@ body.map-fullscreen .dashboard-tour {
   max-width: none !important;
   box-shadow: none !important;
 }
-#worldmap-page.worldmap-fullscreen .worldmap-header {
+#worldmap-page.worldmap-fullscreen .worldmap-header,
+#mini-games-page.worldmap-fullscreen .worldmap-header {
   display: none !important;
 }
 

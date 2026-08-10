@@ -19,8 +19,11 @@
 #  - reste (pages, RSC, API) → limite haute 3000 req/min + burst 500 req/s/IP.
 # Correctif 2026-08-10 : anciens seuils (300/min + burst 60/s) déclenchaient des
 # 429 en pagaille sur le monde/tuiles et le prefetch RSC d'un utilisateur normal.
+# Recalibrage 2026-08-10 (suite) : + `/assets/*` (logo-ui, icônes, images Dofus)
+# et `/uploads/*` (preuves/guides) dans l'exemption — ces ressources légitimes
+# ne doivent JAMAIS être limitées.
 (rate_limit_base) {
-    @rl_exempt not path /game-data/* /_next/* /manifest.webmanifest /images/* /icons/* /fonts/* /api/storage/*
+    @rl_exempt not path /game-data/* /_next/* /manifest.webmanifest /images/* /icons/* /fonts/* /assets/* /uploads/* /api/storage/*
 
     rate_limit @rl_exempt {
         zone public_ip {
@@ -36,12 +39,26 @@
     }
 }
 
+# ─── Page d'erreur 429 personnalisée (rate-limit) ────────────────────────────
+# Le module caddy-ratelimit émet la 429 via caddyhttp.Error(429) → interceptée
+# par handle_errors (confirmé dans le code du module). `file_server` préserve le
+# code 429 tout en servant notre vraie page (body + Content-Type: text/html) →
+# fini la page Chrome générique / le "MIME type non exécutable" / l'erreur React.
+(error_page_429) {
+    handle_errors 429 {
+        root * /srv/static
+        rewrite * /429.html
+        file_server
+    }
+}
+
 # =============================================================================
 # 🔴 PRODUCTION — Page d'attente premium (pas encore lancée)
 # =============================================================================
 sigilos.fr {
     import security_headers
     import rate_limit_base
+    import error_page_429
 
     @google path /google*.html
     handle @google {
@@ -70,6 +87,7 @@ sigilos.fr {
 beta.sigilos.fr {
     import security_headers
     import rate_limit_base
+    import error_page_429
 
     # If maintenance flag file exists, serve the maintenance page
     @maintenance_on expression `file("/srv/maintenance-beta-on")`
@@ -103,5 +121,6 @@ beta.sigilos.fr {
 monitor.sigilos.fr {
     import security_headers
     import rate_limit_base
+    import error_page_429
     reverse_proxy sigilos-grafana:3000
 }

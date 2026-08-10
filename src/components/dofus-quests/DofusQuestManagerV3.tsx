@@ -86,6 +86,7 @@ export function DofusQuestManagerV3({
             const res = await toggleQuestStatus(guildId, questId, newStatus, selectedCharacter);
             if (res.success) {
                 router.refresh();
+                loadSynergy();
             } else {
                 toast.error(res.error || "Erreur de mise à jour");
                 setLocalOverrides(prev => {

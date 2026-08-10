@@ -101,13 +101,25 @@ export async function getCalendarEvents(guildId: string, start: Date, end: Date)
         });
         if (!guildConfig) return { success: false, error: "Guilde non trouvée", events: [] };
 
+        const now = new Date();
+
+        // Auto-complete past events that are still PUBLISHED
+        await db.guildEvent.updateMany({
+            where: {
+                guildId: guildConfig.id,
+                endDate: { lt: now },
+                status: "PUBLISHED"
+            },
+            data: { status: "COMPLETED" }
+        }).catch(() => {});
+
         const events = await db.guildEvent.findMany({
             where: {
                 guildId: guildConfig.id,
                 startDate: { gte: start },
                 endDate: { lte: end },
-                // Only show published events to non-admins
-                ...(ctx.canManageCalendar ? {} : { status: "PUBLISHED" })
+                // Only show published/completed events to non-admins
+                ...(ctx.canManageCalendar ? {} : { status: { in: ["PUBLISHED", "COMPLETED"] } })
             },
             include: {
                 creator: {

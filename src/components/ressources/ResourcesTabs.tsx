@@ -41,11 +41,11 @@ export function ResourcesTabs({
     };
 
     const TABS = [
-        { value: "almanax", label: "Almanax", icon: Flame, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-        { value: "news", label: "Actualités", icon: BookOpen, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-        { value: "encyclopedia", label: "Encyclopédie", icon: Library, color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20" },
-        { value: "creators", label: "Créateurs", icon: Tv, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
-        { value: "links", label: "Liens & Outils", icon: Link2, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" }
+        { value: "almanax", label: "Almanax", icon: Flame, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20", tourKey: "ressources-almanax-tab" },
+        { value: "news", label: "Actualités", icon: BookOpen, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20", tourKey: "ressources-news-tab" },
+        { value: "encyclopedia", label: "Encyclopédie", icon: Library, color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20", tourKey: null },
+        { value: "creators", label: "Créateurs", icon: Tv, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", tourKey: null },
+        { value: "links", label: "Liens & Outils", icon: Link2, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", tourKey: "ressources-links-tab" }
     ];
 
     return (
@@ -56,6 +56,7 @@ export function ResourcesTabs({
                         <TabsTrigger
                             key={t.value}
                             value={t.value}
+                            {...(t.tourKey ? { "data-tour": t.tourKey } : {})}
                             className="relative px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.15em] transition-all duration-500 
                                      data-[state=inactive]:text-zinc-500 data-[state=inactive]:hover:text-zinc-300 data-[state=inactive]:hover:bg-white/5
                                      data-[state=active]:text-white z-10 border border-transparent data-[state=active]:border-white/10 overflow-hidden"

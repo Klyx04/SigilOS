@@ -77,77 +77,63 @@ export function GalacticFooter({ variant = "compact", isMember = false }: Galact
 
     const isCompact = variant === "compact";
 
-    if (isCompact) {
         return (
             <div className={cn(
-                "fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-full max-w-5xl px-4 sm:px-6 pointer-events-none transition-all duration-500 ease-in-out transform",
-                isVisible ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0 pointer-events-none"
+                "fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-full max-w-4xl px-4 pointer-events-none transition-all duration-300 ease-in-out transform",
+                isVisible ? "translate-y-0 opacity-100" : "translate-y-16 opacity-0 pointer-events-none"
             )}>
-                <footer className="w-full relative rounded-2xl border border-white/10 bg-[#050505]/80 backdrop-blur-2xl py-3 px-5 sm:px-8 pointer-events-auto shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5 transition-all hover:bg-[#050505]/95 group/footer">
-                    <div className="flex items-center justify-between gap-4 sm:gap-8 relative z-10">
+                <footer className="w-full relative rounded-xl border border-white/5 bg-zinc-950/90 backdrop-blur-xl py-2.5 px-4 sm:px-6 pointer-events-auto shadow-2xl transition-all">
+                    <div className="flex items-center justify-between gap-4 relative z-10">
                         
                         {/* 1. BRAND & LEGAL */}
-                        <div className="flex items-center gap-4 sm:gap-6">
-                            <Link href="/" className="flex items-center gap-2.5 group/brand shrink-0">
-                                <span className="font-black tracking-tighter text-white uppercase text-sm sm:text-base italic transition-transform group-hover/brand:scale-105">Sigil<span className="text-emerald-500">OS</span></span>
+                        <div className="flex items-center gap-4">
+                            <Link href="/" className="flex items-center gap-2 group/brand shrink-0">
+                                <span className="font-bold tracking-tight text-white uppercase text-xs">Sigil<span className="text-emerald-400">OS</span></span>
                             </Link>
 
-                            <div className="h-4 w-px bg-white/10 hidden xl:block" />
+                            <div className="h-3 w-px bg-white/10 hidden sm:block" />
 
-                            <nav className="hidden xl:flex items-center gap-5 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                            <nav className="hidden sm:flex items-center gap-4 text-[10px] font-medium text-zinc-400">
                                 <Link href="/legal/cgu" className="hover:text-white transition-colors">CGU</Link>
                                 <Link href="/legal/privacy" className="hover:text-white transition-colors">Confidentialité</Link>
                                 <Link href="/legal/mentions" className="hover:text-white transition-colors">Mentions</Link>
-                                <Link href="/legal/faq" className="hover:text-white transition-colors text-emerald-500/80">Aide</Link>
                             </nav>
                         </div>
 
-                        {/* 2. SYSTEM STATUS (Dynamic Pill) */}
+                        {/* 2. SYSTEM STATUS (Simple Dot) */}
                         <Link
                             href="/status"
-                            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-1.5 rounded-xl bg-white/5 border border-white/5 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-300 group/status shrink-0"
+                            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors shrink-0"
                         >
                             <div className={cn(
-                                "w-1.5 h-1.5 rounded-full animate-pulse",
-                                systemStatus === "online" ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" : 
-                                systemStatus === "degraded" ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]" : 
-                                "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)]"
+                                "w-1.5 h-1.5 rounded-full",
+                                systemStatus === "online" ? "bg-emerald-400" : 
+                                systemStatus === "degraded" ? "bg-amber-400" : 
+                                "bg-red-400"
                             )}></div>
-                            <span className={cn(
-                                "hidden lg:inline-block font-black tracking-[0.25em] text-[10px] uppercase whitespace-nowrap",
-                                systemStatus === "online" ? "text-emerald-500" : 
-                                systemStatus === "degraded" ? "text-amber-500" : 
-                                "text-rose-500"
-                            )}>
-                                {systemStatus === "online" ? "Systems Active" : systemStatus === "degraded" ? "Degraded" : "Maintenance"}
+                            <span className="text-[10px] font-semibold text-zinc-300">
+                                {systemStatus === "online" ? "Système Opérationnel" : "Maintenance"}
                             </span>
                         </Link>
 
-                        {/* 3. SUPPORT & INTERACTION */}
-                        <div className="flex items-center gap-3 sm:gap-6">
+                        {/* 3. SUPPORT */}
+                        <div className="flex items-center gap-3">
                             <Link
                                 href="https://discord.gg/uX7G6SUDgN"
                                 target="_blank"
-                                className="flex items-center gap-2.5 text-zinc-400 hover:text-white transition-all hover:scale-105 group/discord shrink-0"
+                                className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors shrink-0 text-xs font-medium"
                             >
-                                <svg className="w-4 h-4 transition-transform group-hover/discord:rotate-12" viewBox="0 0 127.14 96.36" fill="currentColor">
-                                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.11,77.11,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.89,105.89,0,0,0,126.6,80.22c2.91-27.55-13.48-51.67-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
-                                </svg>
-                                <span className="hidden sm:inline-block font-black uppercase tracking-widest text-[9px]">Discord</span>
+                                <span className="text-[10px] font-medium">Discord</span>
                             </Link>
 
-                            <div className="scale-[0.85] sm:scale-90 origin-right transition-transform hover:scale-100 shrink-0">
+                            <div className="scale-90 origin-right shrink-0">
                                 <BugReportButton />
                             </div>
                         </div>
                     </div>
-
-                    {/* Subtle scanline effect */}
-                    <div className="absolute inset-0 bg-scanlines opacity-[0.02] pointer-events-none rounded-2xl" />
                 </footer>
             </div>
         );
-    }
 
     // STANDARD FULL FOOTER
     return (

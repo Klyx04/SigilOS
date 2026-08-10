@@ -1069,17 +1069,17 @@ const RESSOURCES_STEPS: TourStep[] = [
         module: "resources",
     },
     {
-        target: '[data-tour="ressources-news"]',
+        target: '[data-tour="ressources-news-tab"]',
         title: "Actualités",
-        description: "Suivez les nouvelles officielles d'Ankama et de Dofuspourlesnoobs.",
-        placement: "top",
+        description: "Suivez les nouvelles officielles d'Ankama et de Dofuspourlesnoobs depuis cet onglet.",
+        placement: "bottom",
         module: "resources",
     },
     {
-        target: '[data-tour="ressources-links"]',
+        target: '[data-tour="ressources-links-tab"]',
         title: "Bibliothèque de Liens",
         description: "Les liens et outils utiles (builds, simulateurs, communautés) pour la guilde.",
-        placement: "top",
+        placement: "bottom",
         module: "resources",
     },
     {

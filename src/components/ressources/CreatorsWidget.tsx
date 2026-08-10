@@ -38,8 +38,9 @@ export function CreatorsWidget({ guildId, isSuperAdmin }: { guildId: string, isS
             if (res.success && res.data) {
                 setLiveData(res.data);
             }
-        } catch (e) {
-            console.error("Creators Load Error:", e);
+        } catch {
+            // Silently fail — component shows empty state gracefully
+
         } finally {
             setLoading(false);
         }

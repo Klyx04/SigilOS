@@ -16,7 +16,7 @@ import {
     DialogFooter,
     DialogDescription
 } from "@/components/ui/dialog";
-import { getDiscordChannelInfo } from "@/server/actions/discord-actions";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -447,23 +447,20 @@ export function NewsGrid({
     const params = useParams();
     const discordGuildId = params.guildId as string;
 
+
     useEffect(() => {
         getUserContext(discordGuildId).then(setUserCtx);
         
-        // Fetch News Target Channel (System)
-        fetch(`/api/dashboard/${discordGuildId}/config`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.systemNotifyChannelId) {
-                    getDiscordChannelInfo(discordGuildId, data.systemNotifyChannelId).then(chanRes => {
-                        if (chanRes.success && chanRes.data) {
-                            setTargetChannelName(chanRes.data.name);
-                        }
-                    });
+        // Fetch News Target Channel name via server action
+        import("@/server/actions/news-discord-actions").then(({ getNewsTargetChannelName }) => {
+            getNewsTargetChannelName(discordGuildId).then(res => {
+                if (res.success && res.channelName) {
+                    setTargetChannelName(res.channelName);
                 }
-            })
-            .catch(() => {});
+            }).catch(() => {});
+        }).catch(() => {});
     }, [discordGuildId]);
+
 
     const currentFeed = FEEDS.find(f => f.key === activeFeed) ?? FEEDS[0];
 

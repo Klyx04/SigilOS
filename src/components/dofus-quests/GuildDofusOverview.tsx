@@ -1,9 +1,10 @@
 "use client";
  
-import { useState, useMemo } from "react";
-import { Trophy, Users, TrendingUp, Crown, Search, X, Gem, CheckCircle2, Star, BookOpen } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Trophy, Users, TrendingUp, Crown, Search, X, Gem, CheckCircle2, Star, BookOpen, Medal, Info, BarChart3, Flag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { GuildDofusStats, MemberDofusSummary } from "@/server/actions/dofus-quest-actions";
+import type { GuildDofusStats, MemberDofusSummary, GuildMemberSummary } from "@/server/actions/dofus-quest-actions";
+import { getDofusColor } from "./dofus-colors";
 import {
     Select,
     SelectContent,
@@ -15,16 +16,36 @@ import {
 interface GuildDofusOverviewProps {
     stats: GuildDofusStats[];
     topMembers: MemberDofusSummary[];
+    members?: GuildMemberSummary[];
     totalMembers: number;
     guildId?: string;
     onMemberClick?: (profileId: string, pseudo: string, avatarUrl?: string) => void;
 }
  
-export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberClick }: GuildDofusOverviewProps) {
+export function GuildDofusOverview({ stats, topMembers, members = [], totalMembers, onMemberClick }: GuildDofusOverviewProps) {
     const [search, setSearch] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("Tous");
     const [selectedDofus, setSelectedDofus] = useState<GuildDofusStats | null>(null);
     const [modalSearch, setModalSearch] = useState("");
+    const [progressFilter, setProgressFilter] = useState("Tous");
+    const [modalStatusFilter, setModalStatusFilter] = useState<"Tous" | "Avec le Dofus" | "Sans le Dofus" | ">50%" | "<50%">("Tous");
+    const [memberQuery, setMemberQuery] = useState("");
+    const [modalVisibleCount, setModalVisibleCount] = useState(12);
+
+    // Réinitialise la pagination de la liste quand on ouvre la modale
+    useEffect(() => {
+        setModalVisibleCount(12);
+    }, [selectedDofus]);
+
+    // Fermeture de la modale sur Échap
+    useEffect(() => {
+        if (!selectedDofus) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setSelectedDofus(null);
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [selectedDofus]);
 
     // Get unique filter categories from stats
     const categories = useMemo(() => {
@@ -46,12 +67,61 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
         });
     }, [stats, search, categoryFilter]);
 
+    const insights = useMemo(() => {
+        if (stats.length === 0) return null;
+        const uniqueObtained = stats.filter(s => s.obtainedCount > 0).length;
+        const globalRate = Math.round(stats.reduce((sum, s) => sum + s.obtainedPercent, 0) / stats.length);
+        const sorted = [...stats].sort((a, b) => b.obtainedPercent - a.obtainedPercent);
+        return {
+            uniqueObtained,
+            globalRate,
+            most: sorted[0],
+            least: sorted[sorted.length - 1],
+        };
+    }, [stats]);
+
+    const quickFilteredStats = useMemo(() => {
+        return filteredStats
+            .filter(s => {
+                switch (progressFilter) {
+                    case ">50%": return s.obtainedPercent > 50;
+                    case "20-50%": return s.obtainedPercent >= 20 && s.obtainedPercent <= 50;
+                    case "<20%": return s.obtainedPercent < 20;
+                    default: return true;
+                }
+            })
+            .sort((a, b) => b.obtainedPercent - a.obtainedPercent);
+    }, [filteredStats, progressFilter]);
+
+    const filteredMembers = useMemo(() => {
+        if (!memberQuery.trim()) return [];
+        const q = memberQuery.toLowerCase();
+        return (members || [])
+            .filter(m => (m.pseudo || "").toLowerCase().includes(q))
+            .slice(0, 8);
+    }, [members, memberQuery]);
+
     const modalFilteredProgress = useMemo(() => {
         if (!selectedDofus) return [];
-        return selectedDofus.membersProgress.filter(m => 
-            !modalSearch || m.pseudo.toLowerCase().includes(modalSearch.toLowerCase())
-        );
-    }, [selectedDofus, modalSearch]);
+        const sorted = [...selectedDofus.membersProgress]
+            .filter(m => !modalSearch || m.pseudo.toLowerCase().includes(modalSearch.toLowerCase()))
+            .sort((a, b) => {
+                const aObtained = a.isObtained ? 1 : 0;
+                const bObtained = b.isObtained ? 1 : 0;
+                if (aObtained !== bObtained) return aObtained - bObtained;
+                if (a.percent !== b.percent) return b.percent - a.percent;
+                return a.pseudo.localeCompare(b.pseudo);
+            });
+        switch (modalStatusFilter) {
+            case "Avec le Dofus": return sorted.filter(m => m.isObtained);
+            case "Sans le Dofus": return sorted.filter(m => !m.isObtained);
+            case ">50%": return sorted.filter(m => !m.isObtained && m.percent > 50);
+            case "<50%": return sorted.filter(m => !m.isObtained && m.percent < 50);
+            default: return sorted;
+        }
+    }, [selectedDofus, modalSearch, modalStatusFilter]);
+
+    const visibleProgress = useMemo(() => modalFilteredProgress.slice(0, modalVisibleCount), [modalFilteredProgress, modalVisibleCount]);
  
     return (
         <div className="flex flex-col gap-12 pt-4">
@@ -72,6 +142,48 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                         </span>
                     </div>
 
+                    {/* Rechercher un membre */}
+                    <div className="px-4 relative">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+                            <input
+                                type="text"
+                                placeholder="Rechercher un membre..."
+                                value={memberQuery}
+                                onChange={(e) => setMemberQuery(e.target.value)}
+                                className="pl-9 pr-3 py-2 w-full text-[11px] font-bold bg-black/40 border border-white/10 rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-400/50 transition-all"
+                            />
+                        </div>
+                        {memberQuery.trim() && (
+                            <div className="absolute left-4 right-4 top-full mt-2 z-20 bg-zinc-950/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                                {filteredMembers.length === 0 ? (
+                                    <p className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-zinc-600">Aucun membre trouvé</p>
+                                ) : (
+                                    filteredMembers.map((m) => (
+                                        <button
+                                            key={m.profileId}
+                                            onClick={() => {
+                                                setMemberQuery("");
+                                                onMemberClick?.(m.profileId, m.pseudo, m.image || undefined);
+                                            }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors cursor-pointer text-left border-b border-white/5 last:border-0"
+                                        >
+                                            <div className="w-7 h-7 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 border border-white/10">
+                                                {m.image ? (
+                                                    <img src={m.image} alt={m.pseudo} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-[10px] flex items-center justify-center h-full font-black uppercase text-white/40">{m.pseudo[0]}</span>
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] font-black text-white uppercase truncate flex-1">{m.pseudo}</span>
+                                            <span className="text-[9px] text-zinc-500 font-black tabular-nums flex-shrink-0">{m.dofusObtained}/{m.dofusTotal}</span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                     <div className="flex flex-col gap-2.5">
                         {topMembers.slice(0, 10).map((member, index) => {
                             const isFirst = index === 0;
@@ -85,9 +197,14 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                                     transition={{ delay: index * 0.05 }}
                                     key={member.profileId}
                                     onClick={() => onMemberClick?.(member.profileId, member.pseudo, member.image || undefined)}
+                                    title={`${member.pseudo} — ${member.dofusObtained}/${member.dofusTotal} Dofus obtenus`}
                                     className={`group/member flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 cursor-pointer relative border ${
                                         isFirst 
-                                            ? "bg-gradient-to-br from-amber-500/10 via-zinc-950 to-zinc-950 border-amber-500/25 shadow-[0_4px_20px_rgba(251,191,36,0.06)] hover:border-amber-500/40" 
+                                            ? "bg-gradient-to-br from-amber-500/10 via-zinc-950 to-zinc-950 border-amber-500/40 shadow-[0_4px_24px_rgba(251,191,36,0.12)] hover:border-amber-500/60" 
+                                            : isSecond
+                                            ? "bg-gradient-to-br from-zinc-300/[0.06] via-zinc-950 to-zinc-950 border-zinc-400/25 shadow-[0_4px_20px_rgba(212,212,216,0.05)] hover:border-zinc-300/50"
+                                            : isThird
+                                            ? "bg-gradient-to-br from-amber-800/10 via-zinc-950 to-zinc-950 border-amber-700/35 shadow-[0_4px_20px_rgba(180,83,9,0.08)] hover:border-amber-700/55"
                                             : "bg-zinc-950/40 border-white/5 hover:bg-white/[0.03] hover:border-white/10"
                                     }`}
                                 >
@@ -99,9 +216,9 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                                         {isFirst ? (
                                             <Crown className="w-5 h-5 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)] animate-pulse" />
                                         ) : isSecond ? (
-                                            <span className="text-sm font-black italic text-zinc-300 drop-shadow-[0_0_4px_rgba(255,255,255,0.2)]">#2</span>
+                                            <Medal className="w-4 h-4 text-zinc-300 drop-shadow-[0_0_6px_rgba(228,228,231,0.35)]" />
                                         ) : isThird ? (
-                                            <span className="text-sm font-black italic text-amber-700/80">#3</span>
+                                            <Medal className="w-4 h-4 text-amber-700 drop-shadow-[0_0_6px_rgba(180,83,9,0.4)]" />
                                         ) : (
                                             <span className="text-xs font-bold italic text-zinc-600 group-hover/member:text-zinc-500 transition-colors">
                                                 #{index + 1}
@@ -158,6 +275,14 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                             );
                         })}
                     </div>
+
+                    {/* Légende des points colorés */}
+                    <div className="px-4">
+                        <p className="flex items-start gap-2 text-[10px] text-zinc-600 font-medium leading-relaxed">
+                            <Info className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0 mt-0.5" />
+                            <span>Les points colorés représentent les Dofus obtenus par le membre. Survole un membre pour voir son résumé.</span>
+                        </p>
+                    </div>
                 </div>
  
                 {/* ⚔️ PROGRESSION DES DOFUS */}
@@ -199,18 +324,104 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                         </div>
                     </div>
  
-                    <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
+                    {/* INSIGHTS GUILDE */}
+                    {insights && (
+                        <div className="px-4 grid grid-cols-3 gap-2.5">
+                            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/10 min-w-0">
+                                <Gem className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[8px] font-semibold text-zinc-500 uppercase tracking-wider truncate">Dofus obtenus (≥1)</p>
+                                    <p className="text-base font-bold text-white tabular-nums leading-tight">{insights.uniqueObtained}<span className="text-[10px] text-zinc-500 font-semibold">/{stats.length}</span></p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/10 min-w-0">
+                                <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[8px] font-semibold text-zinc-500 uppercase tracking-wider truncate">Taux global</p>
+                                    <p className="text-base font-bold text-emerald-400 tabular-nums leading-tight">{insights.globalRate}%</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/10 min-w-0">
+                                <BarChart3 className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[8px] font-semibold text-zinc-500 uppercase tracking-wider truncate">Plus avancé</p>
+                                    <p className="text-sm font-bold text-white uppercase truncate leading-tight">{insights.most.nameShort}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FILTRES RAPIDES */}
+                    <div className="px-4 flex flex-wrap items-center gap-1.5">
+                        {(["Tous", ">50%", "20-50%", "<20%"] as const).map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => setProgressFilter(f)}
+                                className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                    progressFilter === f
+                                        ? "bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-400/40"
+                                        : "bg-white/[0.03] border border-white/5 text-zinc-500 hover:text-zinc-300"
+                                }`}
+                            >
+                                {f === ">50%" ? "Progression >50%" : f === "20-50%" ? "20 – 50%" : f === "<20%" ? "<20%" : "Tous"}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* LISTE DE PROGRESSION — barres horizontales triées */}
+                    <div className="px-4 flex flex-col gap-2">
                         <AnimatePresence mode="popLayout">
-                            {filteredStats.map((s) => (
-                                <DofusGuildProgressCard 
-                                    key={s.dofusId} 
-                                    stat={s} 
-                                    onClick={() => {
-                                        setSelectedDofus(s);
-                                        setModalSearch("");
-                                    }} 
-                                />
-                            ))}
+                            {quickFilteredStats.map((s) => {
+                                const dofusGlow = getDofusColor(s.slug, s.color);
+                                return (
+                                    <motion.div
+                                        layout
+                                        key={s.dofusId}
+                                        initial={{ opacity: 0, scale: 0.97 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.97 }}
+                                        onClick={() => {
+                                            setSelectedDofus(s);
+                                            setModalSearch("");
+                                            setModalStatusFilter("Tous");
+                                        }}
+                                        className="group flex items-center gap-3 px-3 py-2 rounded-2xl bg-zinc-950/40 border border-white/5 hover:border-white/15 hover:bg-white/[0.02] transition-all cursor-pointer"
+                                        whileHover={{ x: 3 }}
+                                    >
+                                        <div className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center flex-shrink-0 p-1 overflow-hidden">
+                                            {s.imageUrl ? (
+                                                <img src={s.slug === "dofoozbz" ? "/module-dofus/Dofus_dofoozbz.png" : s.imageUrl.replace(/^\/public/, "")} alt={s.nameShort} className="w-full h-full object-contain" />
+                                            ) : (
+                                                <div className="w-full h-full rounded-lg" style={{ background: dofusGlow }} />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[11px] font-bold text-zinc-100 uppercase tracking-wider truncate">{s.nameShort}</span>
+                                                <div className="flex items-baseline gap-1 flex-shrink-0 ml-2">
+                                                    <span className="text-[11px] font-bold text-white tabular-nums">{s.obtainedCount}</span>
+                                                    <span className="text-[9px] text-zinc-500 font-black">/{s.totalMembers}</span>
+                                                </div>
+                                            </div>
+                                            <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/5 relative">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${s.obtainedPercent}%` }}
+                                                    className="h-full rounded-full relative overflow-hidden"
+                                                    style={{ background: `linear-gradient(90deg, ${dofusGlow}88, ${dofusGlow})` }}
+                                                >
+                                                    {s.obtainedPercent >= 15 && (
+                                                        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-black/70 tabular-nums">{s.obtainedPercent}%</span>
+                                                    )}
+                                                </motion.div>
+                                                {s.obtainedPercent < 15 && (
+                                                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-zinc-500 tabular-nums">{s.obtainedPercent}%</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
                         </AnimatePresence>
                         
                         {filteredStats.length === 0 && (
@@ -228,6 +439,9 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
             <AnimatePresence>
                 {selectedDofus && (
                     <motion.div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={selectedDofus ? `Progression globale — ${selectedDofus.name}` : "Progression par Dofus"}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -243,18 +457,18 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                             transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                             className="relative w-full max-w-xl bg-zinc-950/95 border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
                             style={{ 
-                                boxShadow: `0 0 60px ${selectedDofus.color || "#6366f1"}15, 0 0 120px rgba(0,0,0,0.8)` 
+                                boxShadow: `0 0 60px ${getDofusColor(selectedDofus.slug, selectedDofus.color)}15, 0 0 120px rgba(0,0,0,0.8)` 
                             }}
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Background ambient light */}
                             <div 
                                 className="absolute top-0 right-0 w-64 h-64 blur-[80px] pointer-events-none opacity-20"
-                                style={{ background: selectedDofus.color || "#6366f1" }}
+                                style={{ background: getDofusColor(selectedDofus.slug, selectedDofus.color) }}
                             />
 
                             {/* Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-white/5 relative z-10">
+                            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/5 relative z-10">
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 bg-black/60 rounded-2xl border border-white/10 flex items-center justify-center p-1.5 shadow-lg shrink-0">
                                         {selectedDofus.imageUrl ? (
@@ -264,7 +478,7 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                                                 className="w-full h-full object-contain" 
                                             />
                                         ) : (
-                                            <div className="w-full h-full rounded-xl" style={{ background: selectedDofus.color || "#6366f1" }} />
+                                            <div className="w-full h-full rounded-xl" style={{ background: getDofusColor(selectedDofus.slug, selectedDofus.color) }} />
                                         )}
                                     </div>
                                     <div>
@@ -281,7 +495,7 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                             </div>
 
                             {/* Stats summary banner */}
-                            <div className="px-6 py-4 bg-white/[0.01] border-b border-white/5 grid grid-cols-3 gap-4 text-center shrink-0">
+                            <div className="px-4 sm:px-6 py-4 bg-white/[0.01] border-b border-white/5 grid grid-cols-3 gap-4 text-center shrink-0">
                                 <div className="p-2.5 rounded-2xl bg-zinc-900/40 border border-white/5">
                                     <p className="text-[9px] font-black text-zinc-500 uppercase tracking-wider mb-0.5">Obtenu par</p>
                                     <p className="text-xl font-black text-white italic">
@@ -290,20 +504,22 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                                 </div>
                                 <div className="p-2.5 rounded-2xl bg-zinc-900/40 border border-white/5">
                                     <p className="text-[9px] font-black text-zinc-500 uppercase tracking-wider mb-0.5">Taux d'obtention</p>
-                                    <p className="text-xl font-black italic" style={{ color: selectedDofus.color || "#6366f1" }}>
+                                    <p className="text-xl font-black italic" style={{ color: getDofusColor(selectedDofus.slug, selectedDofus.color) }}>
                                         {selectedDofus.obtainedPercent}%
                                     </p>
                                 </div>
-                                <div className="p-2.5 rounded-2xl bg-zinc-900/40 border border-white/5">
-                                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-wider mb-0.5">Moy. Progression</p>
+                                <div className="p-2.5 rounded-2xl bg-zinc-900/40 border border-white/5" title="Moyenne de progression des membres qui n'ont pas encore obtenu le Dofus">
+                                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-wider mb-0.5 flex items-center justify-center gap-1">
+                                        Moy. Progression <Info className="w-2.5 h-2.5 text-zinc-600" />
+                                    </p>
                                     <p className="text-xl font-black text-indigo-400 italic">
                                         {selectedDofus.avgPercent}%
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Search bar inside Modal */}
-                            <div className="p-4 border-b border-white/5 bg-zinc-950/20 shrink-0">
+                            {/* Search bar + filtres rapides */}
+                            <div className="p-4 border-b border-white/5 bg-zinc-950/20 shrink-0 space-y-3">
                                 <div className="relative group">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-hover:text-indigo-400 transition-colors" />
                                     <input
@@ -314,6 +530,21 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                                         className="bg-black/40 border border-white/5 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500/50 w-full transition-all"
                                     />
                                 </div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    {(["Tous", "Avec le Dofus", "Sans le Dofus", ">50%", "<50%"] as const).map((f) => (
+                                        <button
+                                            key={f}
+                                            onClick={() => setModalStatusFilter(f)}
+                                            className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                                modalStatusFilter === f
+                                                    ? "bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-400/40"
+                                                    : "bg-white/[0.03] border border-white/5 text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06]"
+                                            }`}
+                                        >
+                                            {f === ">50%" ? "En cours >50%" : f === "<50%" ? "En cours <50%" : f}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             {/* Member Progress List */}
@@ -323,14 +554,14 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                                         <p className="text-zinc-600 font-black uppercase text-[10px] tracking-widest">Aucun membre trouvé</p>
                                     </div>
                                 ) : (
-                                    modalFilteredProgress.map((member) => (
+                                    visibleProgress.map((member) => (
                                         <div 
                                             key={member.profileId}
                                             onClick={() => {
                                                 setSelectedDofus(null);
                                                 onMemberClick?.(member.profileId, member.pseudo, member.image || undefined);
                                             }}
-                                            className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-900/20 border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all cursor-pointer group/item"
+                                            className={`flex items-center gap-3 p-3 rounded-2xl bg-zinc-900/20 border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all cursor-pointer group/item ${member.isObtained ? "opacity-45 hover:opacity-75" : ""}`}
                                         >
                                             {/* Avatar */}
                                             <div className="w-8 h-8 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 border border-white/5">
@@ -345,22 +576,42 @@ export function GuildDofusOverview({ stats, topMembers, totalMembers, onMemberCl
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between mb-1.5">
                                                     <span className="text-[11px] font-black text-white/90 uppercase tracking-wide truncate group-hover/item:text-white transition-colors">{member.pseudo}</span>
-                                                    <span className={`text-[10px] font-black italic ${member.isObtained ? "text-emerald-400" : "text-white/40"}`}>
+                                                    <span className={`text-[10px] font-black italic ml-2 flex-shrink-0 ${member.isObtained ? "text-emerald-400" : "text-white/40"}`}>
                                                         {member.isObtained ? "Obtenu ✓" : `${member.percent}%`}
                                                     </span>
                                                 </div>
+                                                {!member.isObtained && member.currentQuestNames && member.currentQuestNames.length > 0 && (
+                                                    <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
+                                                        <span className="shrink-0 inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-zinc-400">
+                                                            <Flag className="w-2.5 h-2.5" /> Rendu ici
+                                                        </span>
+                                                        <span className="truncate text-[9px] text-zinc-500 font-medium" title={member.currentQuestNames.join(", ")}>
+                                                            {member.currentQuestNames.join(" · ")}
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                                                     <div 
                                                         className="h-full rounded-full transition-all duration-300"
                                                         style={{ 
                                                             width: `${member.percent}%`,
-                                                            background: member.isObtained ? "#10b981" : (selectedDofus.color || "#6366f1")
+                                                            background: member.isObtained ? "#10b981" : getDofusColor(selectedDofus.slug, selectedDofus.color)
                                                         }}
                                                     />
                                                 </div>
                                             </div>
                                         </div>
                                     ))
+                                )}
+
+                                {modalFilteredProgress.length > modalVisibleCount && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setModalVisibleCount(c => c + 15)}
+                                        className="w-full py-2.5 mt-1 text-[9px] font-black uppercase tracking-widest text-indigo-300/80 hover:text-indigo-200 hover:bg-white/[0.03] rounded-xl border border-white/5 transition-colors cursor-pointer"
+                                    >
+                                        Afficher plus ({modalFilteredProgress.length - modalVisibleCount} restants)
+                                    </button>
                                 )}
                             </div>
                         </motion.div>
